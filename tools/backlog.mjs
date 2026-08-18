@@ -29,6 +29,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from './yaml-min.mjs';
+import { computeDescriptorAgreement } from './variance.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const runDir = process.argv[2];
@@ -49,6 +50,7 @@ const CLASS = {
   'un-enumerated-population': { sev: 'medium', mech: (m) => `Add the ${m.population} population to the terrain's required enumerations (enumerate.mjs already detects it); assess this member or record why it is out of scope.` },
   'evidence-inaccuracy': { sev: 'high', mech: () => `The cited evidence path does not resolve in the target; fix it to the real path. validate.mjs --target fails closed on this class.` },
   'coverage-divergence': { sev: 'medium', mech: (m) => `A prior run cited ${m.file} that this run does not — verify the fact is still present and record it, or confirm it is genuinely gone. Best-effort (basename match); review before acting.` },
+  'descriptor-divergence': { sev: 'high', mech: (m) => `Both runs recorded this channel; they JUDGED it differently, and every shipped number (maturity coverage, the halt flags, the chain ranking, the gate) is computed from these fields. Decide per field whether the TARGET changed or the RUN judged differently${m.bothWays ? ' — the run-level divergences move in BOTH directions, which is the signature of judgment drift rather than target change, so treat a cross-run coverage delta as not-a-trend until this is resolved' : ''}. Where it is judgment, pin the rubric (the canon can carry the expected descriptors per channel the way it already carries the channel list).` },
 };
 
 const items = [];
@@ -110,6 +112,24 @@ if (prior) {
       `Prior run ${basename(prior)} cited ${b} (finding ${old.byBasename.get(b)}) but this run cites no finding touching it — a possible dropped fact.`,
       [`${basename(prior)}:${old.byBasename.get(b)}`], { file: b });
   }
+}
+
+// 4) descriptor divergence (the layer every shipped number is computed from). Measure 1
+// above answers "did both runs record this channel"; this answers "did they judge it the
+// same way", which is what the maturity numbers, the halt flags and the gate ride on.
+if (prior) {
+  try {
+    const d = computeDescriptorAgreement([prior, runDir]);
+    for (const v of d.divergences)
+      add('descriptor-divergence',
+        `Effect channel "${v.channel}" carries different descriptors in ${basename(prior)} and this run: ` +
+        v.fields.map((f) => `${f.field} ${f.values.map((x) => x.value || '(unset)').join(' vs ')}`).join('; ') + '.',
+        [`${basename(prior)}:${v.channel}`], { bothWays: d.bothWays });
+    if (d.divergences.length)
+      console.error(`  (backlog: descriptor agreement ${d.allFields.pct}% over ${d.channels.shared} shared channels; ` +
+        `${d.directions.safer} safer / ${d.directions.riskier} riskier` +
+        `${d.bothWays ? ' — BOTH directions: judgment drift, not target change' : ' — one direction, consistent with target change'})`);
+  } catch (e) { console.error(`  (backlog: descriptor agreement failed: ${e.message.split('\n')[0]})`); }
 }
 
 // ── emit ──
