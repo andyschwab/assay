@@ -14,6 +14,8 @@
 // Usage:
 //   node tools/enumerate.mjs <target-repo>              # print the enumerated populations
 //   node tools/enumerate.mjs <target-repo> --run <run>  # + coverage gate: which enumerated
+//                                                        #   [--exclude <glob>,<glob>] drops declared
+//                                                        #   harness dirs from the gate (e.g. eval/**)
 //                                                        #   items no finding's evidence cites
 //
 // The --run gate is the point: it turns "did you look at every X?" into a computed
@@ -30,6 +32,13 @@ if (!target || target.startsWith('--')) {
 }
 const runIdx = process.argv.indexOf('--run');
 const runDir = runIdx > -1 ? process.argv[runIdx + 1] : null;
+// --exclude <glob>[,<glob>]: dir prefixes to drop from the coverage GATE (not the
+// printed recall) — an evaluation/benchmark harness a target ships that is not
+// product surface (e.g. `eval/**` for a repo whose eval/ is a benchmark rig). The
+// dirname varies per target, so the analyst declares it rather than the tool guessing.
+const exIdx = process.argv.indexOf('--exclude');
+const EXCLUDES = (exIdx > -1 && process.argv[exIdx + 1] ? process.argv[exIdx + 1].split(',') : [])
+  .map((s) => s.trim().replace(/\/\*\*$/, '').replace(/\/+$/, '')).filter(Boolean);
 
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', 'vendor', '.next', '__pycache__', 'venv', '.venv', 'coverage']);
 const BINARY = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.pptx', '.woff', '.woff2', '.ttf', '.zip', '.gz', '.lock']);
@@ -69,9 +78,13 @@ const pops = {
 function gateable(path) {
   const b = basename(path);
   if (/(^|\/)tests?\//.test(path) || b.startsWith('test_') || /_test\.|\.test\./.test(b)) return false;
+  if (/(^|\/)runs\//.test(path)) return false;   // self-reference: an eval run lives with its target
+                                                 // (SCHEMA §5), so enumerating the target sweeps the run's
+                                                 // own artifacts — recall-only, never a gate member.
   if (/\.md$/.test(b)) return false;             // docs restate, they do not implement
   if (/\.example\.|example/.test(b)) return false;
   if (/^research\//.test(path)) return false;
+  if (EXCLUDES.some((pre) => path === pre || path.startsWith(pre + '/'))) return false;  // declared harness dirs
   return true;
 }
 // Structural populations key per-FILE so covering one instance never hides another

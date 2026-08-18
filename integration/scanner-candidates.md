@@ -44,6 +44,12 @@ the instrument role in §3a):
 | [Agentic Radar](https://github.com/splx-ai/agentic-radar) | Apache-2.0 | HTML + JSON | product-ai-safety | Static agent-workflow topology for LangGraph / CrewAI / OpenAI Agents SDK / AutoGen / n8n; OWASP LLM Top 10 mapping; component-level more than file:line. Young — expect adapter churn |
 | Ruff / ESLint (inverted mode) | MIT | SARIF (Ruff native; ESLint via formatter) | deterministic-gates, code-correctness | Full lint output is noise; the honest uses are (a) bug-prone rule families only, or (b) inverted into one gates-census read: "the repo's own lint gate exists and passes" |
 
+## License-gated candidate (capability-first, terms-gated)
+
+| Tool | License | Output | Feeds | Notes (verified 2026-08-18) |
+|---|---|---|---|---|
+| [GitNexus](https://github.com/abhigyanpatwari/GitNexus) | **PolyForm Noncommercial** (commercial via Akon Labs) | JSON (CLI + MCP) | delegation, context-economy, code-security | Deterministic code knowledge graph — symbols, call chains, clusters, execution flows — plus a PDG layer: source→sink taint (`explain`), reaching-definition/control-dependence queries (`pdg_query`), statement-level inter-procedural impact. No LLM in the analyzer. The only candidate that can mechanically propose `reaches`-edge candidates (the injection-chain gap below) and turn the module census into an enumerated population (clusters as denominators). Intake honesty is built in: `UNKNOWN` risk + `riskNote` for unresolvable callers, `partial`/`truncated` flags on change detection — the ingest profile must map all three to *not measured*, never to "no flows". **The license is the gate**: running it inside a paid evaluation of a client repo is plausibly commercial use — the same class of concern that excluded TruffleHog and CodeQL — so scope is self-eval + OSS targets pending commercial terms. Native deps (tree-sitter builds, npm 11 npx crash) keep it beside the engine like Chromium, never in the portable zero-dep core. Index freshness must be pinned to the exact tree under evaluation |
+
 ## Second-line candidates
 
 | Tool | License | Output | Feeds | Notes |
@@ -84,8 +90,13 @@ granularity, never file:line. They are the realistic path to real
   check written in-house.
 - **Injection-chain statics**: treating the LLM as an untrusted taint edge
   (source-tool → model → sink-tool reachability) exists only as prototypes;
-  Agentic Radar's topology map is the nearest building block. The `reaches`
-  graph + `tools/chains.mjs` already compute this from LLM-pass findings.
+  Agentic Radar's topology map is the nearest building block, and GitNexus's
+  PDG taint layer (source→sink over CDG + reaching definitions, deterministic,
+  license-gated — see roster) is the strongest candidate yet for mechanically
+  proposing the edges. The `reaches`
+  graph + `tools/chains.mjs` already compute this from LLM-pass findings; a
+  graph-derived edge would corroborate or contradict the LLM-proposed one —
+  either outcome is signal.
 - **License-clean deep semantic SAST**: CodeQL's capability under an Apache
   license does not exist; Opengrep's taint analysis is the practical ceiling.
 

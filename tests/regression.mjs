@@ -228,6 +228,26 @@ for (const [dir, what] of NEGATIVE) {
 }
 function adaptersOnce() { return loadAdapters(); }
 
+// ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
+// The gate must flag uncovered PRODUCT surface, and must NOT flag (a) the run's own
+// artifacts when the run lives with its target (runs/**, SCHEMA §5), nor (b) a dir the
+// analyst declares a harness via --exclude. Exclusion is opt-in, never a default.
+{
+  const fail = (m) => negFailures.push('enumerate-gate: ' + m);
+  const fx = join(HERE, 'enumerate-fixture', 'target');
+  const run = join(fx, 'runs', 'r-2026-01-01');
+  const gapsFor = (extra) => JSON.parse(execFileSync(process.execPath,
+    [join(ROOT, 'tools', 'enumerate.mjs'), fx, '--run', run, ...extra, '--json'],
+    { stdio: 'pipe' }).toString()).coverageGaps.map((g) => g.file);
+  const plain = gapsFor([]);
+  if (!plain.includes('deploy/prod.yaml')) fail('a gateable, uncovered product-surface member must be a coverage gap');
+  if (plain.some((f) => f && /(^|\/)runs\//.test(f))) fail('a member inside a run that lives with its target (runs/**) must be recall-only, never a gate gap (self-reference)');
+  if (!plain.includes('harness/bench.yaml')) fail('without --exclude, a member in a non-excluded dir must still be a gap (exclusion is opt-in, not default)');
+  const excluded = gapsFor(['--exclude', 'harness']);
+  if (!excluded.includes('deploy/prod.yaml')) fail('--exclude must not drop product surface outside the excluded dir');
+  if (excluded.includes('harness/bench.yaml')) fail('--exclude <dir> must drop a declared-harness member from the gate');
+}
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -261,7 +281,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, decision-overlay, instrument-port, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, decision-overlay, instrument-port, enumerate-gate, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {
