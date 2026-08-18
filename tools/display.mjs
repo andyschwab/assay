@@ -9,6 +9,7 @@ export const DIM_LABEL = {
   'verification': 'Verification affordances',
   'delegation': 'Delegation surface',
   'improvement-loop': 'Improvement loop',
+  'multiplayer': 'Multiplayer',
   'unprompted': 'Unprompted',
 };
 

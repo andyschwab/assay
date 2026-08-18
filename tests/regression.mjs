@@ -27,6 +27,8 @@ import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterF
 import { decideProjected } from '../tools/decisions.mjs';
 import { convert } from '../tools/ingest.mjs';
 import { score } from '../tools/score.mjs';
+import { buildGrades } from '../tools/maturity.mjs';
+import { descriptorAgreement, varianceFromSweeps, groupKey } from '../tools/variance.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -92,6 +94,107 @@ for (const [dir, what] of NEGATIVE) {
   const snz = [{ finding: 'F-A', action: 'snooze', snooze_until: '2099-01-01' }];
   if (decideProjected(base, snz, '2026-01-01')[0].state !== 'snoozed') fail('an active snooze must read snoozed');
   if (decideProjected(base, snz, '2099-06-01')[0].state !== 'open') fail('an expired snooze must revert to open');
+}
+
+// ── maturity-ladder invariants: every native dimension is scorable ────────────
+// A dimension the taxonomy carries but the ladder does not is worse than an
+// unmeasured one: an authored census for it is silently DROPPED and the report
+// renders fewer areas than the walk. Regression for the multiplayer gap found by
+// the henry-2026-08-18 run.
+{
+  const fail = (m) => negFailures.push('maturity-ladder: ' + m);
+  const NATIVE = ['artifact-legibility', 'context-economy', 'deterministic-gates',
+                  'verification', 'delegation', 'improvement-loop', 'multiplayer'];
+  const empty = buildGrades([], null);
+  const present = new Set(empty.dimensions.map((d) => d.dimension));
+  for (const d of NATIVE) if (!present.has(d)) fail(`the ladder carries no ${d} row — an authored census for it would be silently dropped`);
+  // an authored sampled census must supply the primary for a dimension with no counted measure
+  const withCensus = buildGrades([], { dimensions: [{ dimension: 'multiplayer', depth: 'x',
+    sampled: [{ name: 'agent-access-surface', what: 'w', met: 3, of: 4, method: 'm', primary: true }] }] });
+  const mp = withCensus.dimensions.find((d) => d.dimension === 'multiplayer');
+  if (!mp || !mp.coverage) fail('an authored multiplayer census must supply its coverage, not be dropped');
+  else if (mp.coverage.pct !== 75 || mp.coverage.kind !== 'sampled') fail(`multiplayer census must read 75% sampled (got ${mp.coverage.pct}% ${mp.coverage.kind})`);
+  // and an unmeasured dimension must read not_measured, never absent or zero
+  const bare = empty.dimensions.find((d) => d.dimension === 'multiplayer');
+  if (bare && (bare.coverage || !bare.not_measured)) fail('multiplayer with no census must read not_measured, never a number');
+}
+
+// ── descriptor-agreement invariants: repeatability at the layer that DRIVES output ─
+// variance.mjs's fact clustering answers "did both sweeps record a fact about X"
+// and deliberately drops descriptors from identity. But every shipped number —
+// maturity coverage, the halt flags, the chain ranking, the gate — is computed
+// from the effect descriptors. Two sweeps can agree on 100% of facts and assign
+// opposite descriptors to all of them. These pin the second measure.
+{
+  const fail = (m) => negFailures.push('descriptor-agreement: ' + m);
+  const eff = (channel, o) => ({ id: 'F-1', dimension: 'delegation', subject_type: 'effect',
+    polarity: 'fact', observation: 'x', evidence: ['a.py:1'], confidence: 'confirmed',
+    effect: { channel, reversibility: 'reversible', external: true, gate_type: 'scope-bound',
+              fail_mode: 'closed', telemetry: 'structured-event', blast_scope: 'user', ...o } });
+
+  // identical sweeps → total agreement
+  const same = descriptorAgreement([[eff('a')], [eff('a')]]);
+  if (same.channels.shared !== 1) fail(`a channel present in both sweeps must be shared (got ${same.channels.shared})`);
+  if (same.allFields.pct !== 100) fail(`identical descriptors must read 100% (got ${same.allFields.pct}%)`);
+  if (same.divergences.length) fail('identical descriptors must produce no divergence rows');
+
+  // a single field differing → that field alone drops, and the row is reported
+  const one = descriptorAgreement([[eff('a')], [eff('a', { telemetry: 'unstructured' })]]);
+  if (one.byField.telemetry.pct !== 0) fail('a differing telemetry must read 0% on that field');
+  if (one.byField.gate_type.pct !== 100) fail('an unchanged field must stay 100% when a sibling differs');
+  if (one.allFields.pct !== 0) fail('all-fields agreement must drop when any field differs');
+  if (one.divergences.length !== 1 || one.divergences[0].channel !== 'a') fail('the divergent channel must be named');
+
+  // fail_mode is not applicable where gate_type is none — a single gate disagreement
+  // must not be double-counted as a fail_mode disagreement too
+  const naFail = descriptorAgreement([
+    [eff('a', { gate_type: 'none', fail_mode: null })],
+    [eff('a', { gate_type: 'scope-bound', fail_mode: 'closed' })]]);
+  if (naFail.byField.fail_mode.of !== 0) fail('fail_mode must not be compared on a channel where a sweep recorded gate_type: none');
+  if (naFail.byField.gate_type.pct !== 0) fail('the gate_type disagreement itself must still register');
+  if (naFail.divergences.length !== 1) fail('the channel must still read divergent on the gate_type difference alone');
+
+  // a channel only one sweep saw is NOT shared — never counted as agreement or divergence
+  const partial = descriptorAgreement([[eff('a'), eff('b')], [eff('a')]]);
+  if (partial.channels.shared !== 1) fail(`only channels seen by 2+ sweeps are shared (got ${partial.channels.shared})`);
+  if (partial.channels.unshared !== 1) fail('a channel only one sweep saw must be reported as unshared, never silently dropped');
+
+  // direction: the variance-vs-movement signal. All-one-way is consistent with the
+  // target changing; both-ways is the signature of judgment drift.
+  const oneWay = descriptorAgreement([
+    [eff('a', { telemetry: 'unstructured' }), eff('b', { telemetry: 'unstructured' })],
+    [eff('a', { telemetry: 'structured-event' }), eff('b', { telemetry: 'structured-event' })]]);
+  if (oneWay.directions.safer === 0 || oneWay.directions.riskier !== 0) fail('two same-direction moves must read one-way, not both-ways');
+  if (oneWay.bothWays) fail('a one-way divergence set must not be flagged both-ways');
+  const bothWays = descriptorAgreement([
+    [eff('a', { telemetry: 'unstructured' }), eff('b', { telemetry: 'structured-event' })],
+    [eff('a', { telemetry: 'structured-event' }), eff('b', { telemetry: 'unstructured' })]]);
+  if (!bothWays.bothWays) fail('divergences moving in both directions must be flagged both-ways (the judgment-drift signature)');
+}
+
+// ── variance must survive a mixed base (scanner + instrument rows carry no dimension) ─
+// variance.mjs predates the instrument port. Scanner-sourced rows have `source` +
+// `native_category` and NO `dimension` (SCHEMA §2a), so every one landed in a single
+// undefined bucket and the sort crashed on localeCompare. Found by the first
+// all-integrations run (henry-2026-08-18: repo-eval + deep-code-review + gitleaks +
+// scorecard in one base).
+{
+  const fail = (m) => negFailures.push('variance-mixed-base: ' + m);
+  if (groupKey({ dimension: 'delegation', source: 'repo-eval' }) !== 'delegation') fail('a repo-eval finding must group by its dimension');
+  if (groupKey({ source: 'gitleaks', native_category: 'secret' }) !== 'source:gitleaks') fail('a dimension-less scanner row must group by its source, not collapse to undefined');
+  const mixed = [
+    [{ id: 'F-1', dimension: 'delegation', subject_type: 'control', observation: 'x', evidence: ['a.py:1'] },
+     { id: 'F-700', source: 'gitleaks', native_category: 'secret', polarity: 'gap', observation: 'y', evidence: ['b.py:2'] }],
+    [{ id: 'F-1', dimension: 'delegation', subject_type: 'control', observation: 'x', evidence: ['a.py:1'] }],
+  ];
+  let crashed = false, r = null;
+  try { r = varianceFromSweeps(mixed); } catch { crashed = true; }
+  if (crashed) fail('variance crashed on a base mixing dimensioned and dimension-less findings');
+  else {
+    if (!r.byDimension['source:gitleaks']) fail('a dimension-less scanner row must get its own bucket, never an undefined one');
+    if (r.byDimension['undefined']) fail('no finding may land in an undefined bucket');
+    if (r.byDimension['delegation']?.core !== 1) fail('the shared dimensioned fact must still read as repeatable core');
+  }
 }
 
 // ── instrument-port invariants (fail-loud intake; never copy a secret; bands) ───

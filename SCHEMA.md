@@ -165,6 +165,22 @@ re-chosen each sweep:
   runs (cal5 tagged its gates census `contract`, cal6 `control`) reads as 100% variance on that
   dimension despite identical facts. Pick the value from this list and hold it.
 
+**The effect descriptors are the layer the verdict rides on, and they drift too.** Channel
+slug and census `subject_type` fix what a finding *is about*; they say nothing about how a
+run *judged* it. Every shipped number is computed from the effect facet —
+maturity coverage from `gate_type`/`fail_mode`/`telemetry`, the halt flags from
+`reversibility`/`external`/`gate_type`, the chain ranking from `blast_scope` and
+`preconditions`, and the gate from all of them. So two runs can agree on every fact and
+still produce different verdicts. `variance.mjs` measures this as a second, separate
+number (`descriptorAgreement`): per-field and all-field agreement over the channels both
+runs recorded, plus the **direction** of each divergence. Divergences that all move one way
+are consistent with the target having changed; divergences moving **both ways at once** are
+the signature of judgment drift, and a cross-run coverage delta computed over them is not a
+trend. `backlog.mjs --prior` emits them as `descriptor-divergence` items. Measured: a
+canon-pinned cross-run pair agreed on 20% of channels across all six fields, with
+divergences in both directions — while fact-presence read 78% on a blind pair of the same
+target.
+
 ---
 
 ## 3. Id allocation (no dimension bands)

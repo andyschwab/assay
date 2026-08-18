@@ -59,11 +59,28 @@ node tools/ingest.mjs <run-dir> --tool gitleaks --raw gitleaks.json --exit 1
 
 # grade a run against a known-answer fixture sheet
 node tools/score.mjs <run-dir> --answers <target>/ANSWERS.yaml
+
+# measure repeatability across two or more runs of one target (two numbers:
+# fact presence, and agreement on the descriptors the verdict is computed from)
+node tools/variance.mjs <run-dir> <run-dir> [<run-dir> ...]
 ```
 
 Rendering the report to PDF (`tools/render-pdf.mjs`) additionally needs
 `markdown-it` and a headless Chromium; the base tools stay dependency-free so they
 copy cleanly into any target repo.
+
+## Repeatability is two numbers, not one
+
+Repeatability is measured at both layers, because they drift independently.
+**Fact presence** asks whether every run recorded a fact about the same thing.
+**Descriptor agreement** asks whether the runs then *judged* it the same way — and
+that is the layer the product's output rides on, since maturity coverage, the halt
+flags, the attack-chain ranking and the deployment gate are all computed from the
+effect facet. A pair of runs can agree on what exists and disagree on what it means,
+and only the second number sees it. `tools/variance.mjs` reports both, and gives each
+divergence a direction: all-one-way is consistent with the target having changed,
+**both-ways at once is judgment drift** — and a cross-run coverage delta computed over
+those descriptors is not a trend.
 
 ## Measured, not asserted
 
