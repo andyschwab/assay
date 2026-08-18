@@ -58,8 +58,11 @@ export function computeCoverage(findingsIn) {
   const m = (name, what, met, of, primary = false) => ({ name, what, met, of, pct: pct(met, of), kind: 'counted', primary });
 
   // dimension order follows the report's canonical DIM_ORDER (legibility → context →
-  // gates → verification → delegation → improvement), so the maturity table reads in the
-  // same order as the stat strip and the handoff. Every listing in the report is consistent.
+  // gates → verification → delegation → improvement → multiplayer), so the maturity table
+  // reads in the same order as the stat strip and the handoff. Every listing in the report
+  // is consistent. EVERY native dimension gets a row even where it has no counted measure:
+  // a dimension the taxonomy carries but the ladder omits silently DROPS an authored census
+  // for it (the multiplayer gap, henry-2026-08-18) — worse than reading not_measured.
   return {
     populations: { effects: effects.length, halts: halts.length, ai_surfaces: caps.length },
     dimensions: [
@@ -110,6 +113,12 @@ export function computeCoverage(findingsIn) {
         ],
         not_measured: null,
         note: 'The incident sample (secondary) measures whether recorded corrections stuck; the primary measures the substrate the loop can run on.',
+      },
+      {
+        dimension: 'multiplayer',
+        measures: [],
+        not_measured: 'needs a sampled census: the agent-access surface (interfaces reachable by an agent, not only a human UI) and the shared-substrate split (context stores shared vs private vs consent-governed)',
+        note: 'No counted measure yet: the effect facets carry no agent-consumable or shared-scope field, so this rides an authored census until one exists.',
       },
     ],
   };

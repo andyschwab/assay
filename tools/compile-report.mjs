@@ -55,7 +55,7 @@ const cell = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').replace(/\|/
 const NUMWORD = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const numWord = (n) => NUMWORD[n] || String(n);
 const capFirst = (s) => String(s).charAt(0).toUpperCase() + String(s).slice(1);
-const DIM_ORDER = ['artifact-legibility','context-economy','deterministic-gates','verification','delegation','improvement-loop','unprompted'];
+const DIM_ORDER = ['artifact-legibility','context-economy','deterministic-gates','verification','delegation','improvement-loop','multiplayer','unprompted'];
 
 // ── computed: snapshot stats (a stat strip + one small note) ────────────────
 function snapshotStats() {
