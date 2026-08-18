@@ -1,6 +1,6 @@
 ---
 type: doc
-title: "repo-eval report partial — How to read this report"
+title: "assay report partial — How to read this report"
 ---
 
 This report says how ready the code is for AI and automated agents to do real work: the

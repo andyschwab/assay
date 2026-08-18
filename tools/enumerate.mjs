@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// enumerate.mjs — deterministic population scanner for repo-eval.
+// enumerate.mjs — assay's deterministic population scanner.
 //
 // Why: an evaluation is only as repeatable as the populations it enumerates.
 // Wherever a base pass SAMPLES a sub-population (which secret? which container
@@ -223,7 +223,7 @@ const LABEL = {
 const order = ['channelCandidates', 'secrets', 'socketMounts', 'containerClasses', 'effectSites', 'egressControls', 'contracts', 'reportPaths'];
 
 const JSON_MODE = process.argv.includes('--json');   // suppress the pretty enumeration; emit only JSON
-if (!JSON_MODE) console.log(`\nrepo-eval enumerate — ${rel(target) || target}  (${files.length} files scanned)\n`);
+if (!JSON_MODE) console.log(`\nassay enumerate — ${rel(target) || target}  (${files.length} files scanned)\n`);
 for (const pop of JSON_MODE ? [] : order) {
   const m = pops[pop];
   // collapse per-file keys back to their member for the readable print
@@ -279,7 +279,9 @@ if (runDir) {
 
   if (process.argv.includes('--json')) {   // machine-readable for tools/backlog.mjs
     console.log(JSON.stringify({ target: rel(target) || target, coverageGaps }, null, 2));
-    process.exit(0);
+    // same verdict semantics as the text gate: uncovered members = non-zero exit
+    // (callers wanting the payload on failure read stdout, as backlog.mjs does).
+    process.exit(coverageGaps.length ? 1 : 0);
   }
 
   console.log('══ COVERAGE GATE — enumerated, live-surface population members no finding cites ══');

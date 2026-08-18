@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// repo-eval findings validator — the format contract, enforced.
+// assay findings validator — the format contract, enforced.
 // Usage:  node tools/validate.mjs <run-dir>
 //   <run-dir> is a run root (…/runs/<slug>-<date>/) or its eval/ subdir.
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
@@ -279,7 +279,7 @@ if (existsSync(prosePath)) {
   catch (e) { err('report-prose.yaml', `YAML parse failed (fail-closed): ${e.message}`); prose = null; }
   if (prose && Array.isArray(prose.roadmap)) {
     const { buildSupervision } = await import('./supervision.mjs');
-    const sup = buildSupervision([...allById.values()].map((v) => v.f), prose.roadmap);
+    const sup = buildSupervision([...allById.values()].map((v) => v.f), prose.roadmap, prose.channel_notes || {});
     const DISPO_REASON = new Set(['accepted', 'deferred', 'out-of-scope']);
     const dispo = new Map();
     for (const d of (Array.isArray(prose.dispositions) ? prose.dispositions : [])) {
@@ -393,15 +393,18 @@ if (existsSync(gradesPath)) {
 const total = allById.size;
 if (process.argv.includes('--json')) {   // machine-readable for tools/backlog.mjs
   console.log(JSON.stringify({ ok: errors.length === 0, total, errors, warnings, evidencePathErrors }, null, 2));
-  process.exit(0);
+  // exit reflects the verdict even in JSON mode — a CI wiring that checks only the
+  // exit code must never read green over a red base. Callers that want the payload
+  // on failure read stdout from the non-zero exit (tools/backlog.mjs does).
+  process.exit(errors.length ? 1 : 0);
 }
 if (errors.length) {
-  console.error(`✗ repo-eval validate: ${errors.length} violation(s) across ${total} findings in ${evalDir}\n`);
+  console.error(`✗ assay validate: ${errors.length} violation(s) across ${total} findings in ${evalDir}\n`);
   for (const e of errors) console.error('  • ' + e);
   process.exit(1);
 }
 if (warnings.length) {   // non-fatal — printed, exit stays 0 (green)
-  console.log(`⚠ repo-eval validate: ${warnings.length} warning(s) (non-fatal):`);
+  console.log(`⚠ assay validate: ${warnings.length} warning(s) (non-fatal):`);
   for (const w of warnings) console.log('  • ' + w);
 }
-console.log(`✓ repo-eval validate: ${total} findings, ${passFiles.length} pass files — schema, ids, filename↔dimension, links, and citations all clean.`);
+console.log(`✓ assay validate: ${total} findings, ${passFiles.length} pass files — schema, ids, filename↔dimension, links, and citations all clean.`);

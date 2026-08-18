@@ -2,7 +2,7 @@
 // backlog.mjs — the COMPUTED half of a run's optimization backlog.
 //
 // Every eval produces two things: a client result (the report + handoff) and an
-// optimization backlog for repo-eval itself — the determinism/coverage gaps the run
+// optimization backlog for the engine itself — the determinism/coverage gaps the run
 // exposed in the RUBRIC, not the target. This tool generates the computed portion of
 // that backlog by composing the two determinism tools + a prior-run diff:
 //
@@ -42,7 +42,15 @@ const write = process.argv.includes('--write');
 const node = process.execPath;
 function toolJson(tool, args) {
   try { return JSON.parse(execFileSync(node, [join(HERE, tool), ...args, '--json'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })); }
-  catch (e) { console.error(`  (backlog: ${tool} failed: ${e.message.split('\n')[0]})`); return null; }
+  catch (e) {
+    // a non-zero exit is the tool's VERDICT (violations / coverage gaps found),
+    // not a tool failure — the JSON payload is still on stdout. Only an
+    // unparseable stdout is a real failure.
+    const out = e && e.stdout ? String(e.stdout) : '';
+    if (out.trim().startsWith('{')) { try { return JSON.parse(out); } catch { /* fall through */ } }
+    console.error(`  (backlog: ${tool} failed: ${e.message.split('\n')[0]})`);
+    return null;
+  }
 }
 
 // mechanism templates + severity per determinism class (kept closed so the backlog is comparable)

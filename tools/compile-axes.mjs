@@ -11,11 +11,12 @@
 // (it comes from an untrusted target repo).
 //
 // Usage:  node tools/compile-axes.mjs <run-dir> [--base <dir>]... [--stdout]
-import { writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle } from './project.mjs';
 import { buildChains } from './chains.mjs';
 import { sevRank, buildFixSpine } from './doctrine.mjs';
+import { parseYaml } from './yaml-min.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node tools/compile-axes.mjs <run-dir> [--base <dir>]... [--stdout]'); process.exit(2); }
@@ -38,6 +39,16 @@ for (const f of raw) {
 }
 const findings = [...byId.values()];
 if (!findings.length) { console.error(`no findings under ${arg}`); process.exit(2); }
+
+// channel labels are authored per run (report-prose channel_notes); a raw base
+// without prose renders humanized slugs.
+let channelNotes = {}, proseConfidential = false;
+try {
+  const pp = join(evalDir, 'report-prose.yaml');
+  if (existsSync(pp)) { const pr = parseYaml(readFileSync(pp, 'utf8')); channelNotes = (pr && pr.channel_notes) || {}; proseConfidential = !!(pr && pr.confidential === true); }
+} catch { /* unparseable prose halts the report compiler, not the walk */ }
+// run-level confidentiality (prose key or flag) — marks the walk's frontmatter
+const CONFIDENTIAL = process.argv.includes('--confidential') || proseConfidential;
 
 const adapters = loadAdapters();
 const { projected, unmapped, needsAxis } = projectMulti(findings, adapters);
@@ -80,13 +91,13 @@ const fedBy = (a) => [...new Set(by[a].map((p) => p.source))].filter((s) => !mea
 const sevCount = {}; let unrated = 0;
 for (const p of projected) { if (p.f.severity) sevCount[p.f.severity] = (sevCount[p.f.severity] || 0) + 1; else unrated++; }
 const censusStr = ['Blocker', 'Critical', 'High', 'Medium', 'Low', 'Nit'].filter((s) => sevCount[s]).map((s) => `${sevCount[s]} ${s}`).join(' · ')
-  + (unrated ? ` · ${unrated} unrated (repo-eval carries no severity)` : '');
+  + (unrated ? ` · ${unrated} unrated (the built-in scanner carries no severity)` : '');
 const topRisks = projected.filter((p) => p.f.polarity === 'gap' && sevRank(p.f.severity) <= 2)
   .sort((a, b) => sevRank(a.f.severity) - sevRank(b.f.severity));
 
 // ── render ───────────────────────────────────────────────────────────────────
 const out = [];
-out.push('---', 'type: doc', 'confidential: true', `title: "Axis walk (${sources.join(' + ')})"`, '---');
+out.push('---', 'type: doc', ...(CONFIDENTIAL ? ['confidential: true'] : []), `title: "Axis walk (${sources.join(' + ')})"`, '---');
 out.push(`# Axis walk — ${arg}`, '');
 out.push('_No single safe-to-run verdict: one flat axis roster, each axis its own posture.');
 out.push('Severity is a property; the go/no-go is the reader\'s._', '');
@@ -133,7 +144,7 @@ for (const a of roster) {
   // unguarded-effect; computed and ranked, never authored)
   if (a === 'delegation') {
     try {
-      const ch = buildChains(findings);
+      const ch = buildChains(findings, channelNotes);
       const live = ch.live?.length || 0;
       out.push(`**Attack chains (computed):** ${live} live` + (live ? ` — lead: ${esc(ch.live[0].entry?.label)} → ${esc(ch.live[0].headline?.label)}` : '') +
         `, ${ch.held?.length || 0} held, ${ch.contained?.length || 0} contained. _(untrusted-input → unguarded-effect; the safety floor)_`, '');

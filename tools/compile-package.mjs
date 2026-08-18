@@ -23,6 +23,8 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes } from './project.mjs';
 import { loadDecisions, decideProjected } from './decisions.mjs';
+import { parseYaml } from './yaml-min.mjs';
+import { readFileSync } from 'node:fs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const arg = process.argv[2];
@@ -38,17 +40,23 @@ function run(tool, args, optional = false) {
   return r.status === 0;
 }
 
-// ── the compiled artifacts ───────────────────────────────────────────────────
-console.log('· walk    (compile-axes) …');    run('compile-axes.mjs', []);
-console.log('· handoff (compile-handoff) …'); run('compile-handoff.mjs', []);
+// run-level confidentiality (prose key or flag); forwarded to every child compiler
 const hasProse = existsSync(join(evalDir, 'report-prose.yaml'));
+let proseConfidential = false;
+try { if (hasProse) { const pr = parseYaml(readFileSync(join(evalDir, 'report-prose.yaml'), 'utf8')); proseConfidential = !!(pr && pr.confidential === true); } } catch { /* the report compiler reports it */ }
+const CONFIDENTIAL = process.argv.includes('--confidential') || proseConfidential;
+const confArgs = CONFIDENTIAL ? ['--confidential'] : [];
+
+// ── the compiled artifacts ───────────────────────────────────────────────────
+console.log('· walk    (compile-axes) …');    run('compile-axes.mjs', confArgs);
+console.log('· handoff (compile-handoff) …'); run('compile-handoff.mjs', confArgs);
 let reportOk = false, pdfOk = false;
 if (hasProse) {
   console.log('· report  (compile-report) …');
-  reportOk = run('compile-report.mjs', []);
+  reportOk = run('compile-report.mjs', confArgs);
   if (reportOk && !noPdf) {
     console.log('· report PDF (render-pdf) …');
-    pdfOk = run('render-pdf.mjs', [], true);
+    pdfOk = run('render-pdf.mjs', confArgs, true);
     if (!pdfOk) console.error('  (PDF skipped — markdown-it/Chromium unavailable; INDEX links the Markdown report)');
   }
 } else {
@@ -104,8 +112,7 @@ const reportRow = reportOk
 
 const index = `---
 type: doc
-confidential: true
-title: "${runId} — evaluation package"
+${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "${runId} — evaluation package"
 ---
 
 # ${runId} — evaluation package
@@ -147,7 +154,7 @@ Deterministic and re-runnable. Drop \`eval/decisions.yaml\` to fold in owner tri
 (optional; never required — the raw base always compiles).
 
 ---
-_AI-Native Framework evaluation engine. Run \`${runId}\`. Confidential._
+_assay evaluation engine. Run \`${runId}\`.${CONFIDENTIAL ? ' Confidential.' : ''}_
 `;
 
 writeFileSync(join(runDir, 'INDEX.md'), index);

@@ -1,9 +1,9 @@
 ---
 type: doc
-title: "repo-eval maintainer report — structural template"
+title: "assay maintainer report — structural template"
 ---
 <!--
-  repo-eval maintainer report TEMPLATE. Do not edit per-run.
+  assay maintainer report TEMPLATE. Do not edit per-run.
   tools/compile-report.mjs assembles a run's MAINTAINER-REPORT.md from this template +
   eval/findings.yaml + eval/view-security-gate.yaml + eval/view-maturity-grades.yaml +
   eval/report-prose.yaml + the shipped partials (concepts.md, method.md, glossary.yaml).

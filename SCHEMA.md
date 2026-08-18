@@ -1,10 +1,10 @@
 ---
 type: doc
-title: "repo-eval — findings schema & run layout (authoritative)"
+title: "assay — findings schema & run layout (authoritative)"
 ---
-# repo-eval SCHEMA — the format contract
+# assay SCHEMA — the format contract
 
-This is the **authoritative** specification of the repo-eval evidence base: the
+This is the **authoritative** specification of the assay evidence base: the
 finding schema, the controlled vocabularies, the id allocation, the run
 directory layout, and the security view's machine-readable stage tail. `METHOD.md`
 references this file rather than embedding the schema, and `tools/validate.mjs`
@@ -422,6 +422,10 @@ spliced from the base, never retyped.
 target: "…"                 # full target name (masthead + doc titles)
 target_short: "Acme"        # short name for running footer + prose + "{{APP}}"
 maintainer: "…"
+confidential: false         # RUN-LEVEL: true marks every compiled artifact (frontmatter,
+                            #   footers, the PDF running header) confidential. Never an
+                            #   engine default — a deployment holding client runs turns it
+                            #   on here or via --confidential on any compiler.
 cover: false                # OPTIONAL, default false. false = the report opens on the
                             # dashboard front page (no "Executive summary" heading — the
                             # masthead names it: APP NAME big, "AI-Native Readiness Report"
@@ -446,6 +450,9 @@ operating: prod             # OPTIONAL, legacy: the level of use the app runs at
                             # older report-prose.yaml files still validate; new runs may omit it.
 channel_notes:              # one per effect channel: the mechanism the descriptors can't name
   email-send:
+    label: "Send email"     # short human name for every rendered surface (report rails,
+                            #   chains, supervision). Authored PER RUN because channels are
+                            #   free per-target slugs; omitted → the humanized slug renders.
     group: outward          # outward | data | read | ai  (sorts "What it can do" rails)
     what: "Sends real email … through Resend …"
 strengths:                  # [{title, body}]

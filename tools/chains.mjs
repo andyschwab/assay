@@ -15,7 +15,7 @@
 // finding on a path, an unsure sink, an effect leg with no traced reach). Confidence
 // propagates: a chain riding a plausible/unverified finding is rendered "possible", not asserted.
 import { isHalt } from './doctrine.mjs';
-import { CHANNEL_LABEL, humanizeToken } from './display.mjs';
+import { channelLabel } from './display.mjs';
 
 const PRECOND_RANK = {
   'prompt-injection': 1, 'malicious-dependency': 2, 'stolen-credential': 2,
@@ -43,7 +43,7 @@ const hardestPrecond = (f) => {
   return best;
 };
 const label = (f, fallback) => (f && f.label) || fallback || (f && f.id) || '';
-const sinkFallback = (f) => (f.effect && (CHANNEL_LABEL[f.effect.channel] || humanizeToken(f.effect.channel))) || f.id;
+const sinkFallbackWith = (notes) => (f) => (f.effect && channelLabel(f.effect.channel, notes)) || f.id;
 const confWord = (c) => CONF_WORD[c] || null;
 
 // what the review found limiting a reached-but-not-open effect (stated as an observation,
@@ -90,7 +90,8 @@ function pathConfidence(pathIds, byId) {
 }
 
 // returns { live:[...], held:[...], contained:[...], unresolved:[...] }
-export function buildChains(findings) {
+export function buildChains(findings, channelNotes = {}) {
+  const sinkFallback = sinkFallbackWith(channelNotes);
   const byId = new Map(findings.map((f) => [f.id, f]));
   const entries = findings.filter((f) => f.subject_type === 'capability' && f.capabilities && f.capabilities.untrusted_input);
   const live = [], held = [], contained = [], unresolved = [];

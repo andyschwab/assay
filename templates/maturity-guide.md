@@ -1,6 +1,6 @@
 ---
 type: doc
-title: "repo-eval — the maturity areas, explained (report partial)"
+title: "assay — the maturity areas, explained (report partial)"
 ---
 The maturity section scores six areas. This appendix says what each one means, why it matters for running software with AI in the loop, and how the number is worked out.
 

@@ -2,7 +2,7 @@
 // One row per distinct effect channel, aggregated across its findings, joined to the
 // authored channel_notes (mechanism sentence + group). Used by compile-report.mjs
 // (the appendix's human "What the app can do" section).
-import { CHANNEL_LABEL, GROUP_ORDER, GROUP_LABEL, humanizeToken } from './display.mjs';
+import { GROUP_ORDER, GROUP_LABEL, channelLabel } from './display.mjs';
 import { isHalt } from './doctrine.mjs';
 
 // re-exported for existing importers; the definition lives in doctrine.mjs
@@ -24,7 +24,7 @@ export function buildCapabilities(findings, channelNotes = {}) {
     if (!byChannel.has(key)) {
       byChannel.set(key, {
         channel: key,
-        label: CHANNEL_LABEL[key] || humanizeToken(key),
+        label: channelLabel(key, channelNotes),
         what: (channelNotes[key] && channelNotes[key].what) || '',
         group: (channelNotes[key] && channelNotes[key].group) || 'data',
         findings: [], external: false,

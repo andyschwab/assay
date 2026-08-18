@@ -35,24 +35,13 @@ export const WHO_LABEL = {
   'only-at-scale-or-adversarial': 'only at scale, or an adversary',
 };
 
-// effect channel → short human name (the "What the app can do" rows)
-export const CHANNEL_LABEL = {
-  'email-send': 'Send email',
-  'slack-notify': 'Post to Slack',
-  'stripe-mutation': 'Change billing',
-  'admin-mutation': 'Super-admin actions',
-  'provider-api-read': 'Read connected systems',
-  'cron-sync': 'Scheduled sync',
-  'db-write': 'Write records',
-  'db-wipe': 'Delete records',
-  'db-migration': 'Change the schema',
-  'data-export': 'Export to CSV',
-  'credential-store': 'Store credentials',
-  'digest-report': 'Weekly digest',
-  'auth-bypass': 'Dev sign-in',
-  'llm-tool-call': 'AI tools',
-  'llm-context-read': 'AI context',
-};
+// effect channel → short human name. The label is AUTHORED PER RUN in
+// report-prose.yaml's channel_notes (`label:`), because channels are free
+// per-target slugs (SCHEMA §1) — a label dictionary baked into engine source
+// either grows per engagement forever or silently mislabels the next target
+// (this file used to carry one target's channels). Fallback: the humanized slug.
+export const channelLabel = (channel, notes = {}) =>
+  (notes[channel] && notes[channel].label) || humanizeToken(channel);
 
 // capability groups — the human cut of the effect inventory, in reading order
 export const GROUP_ORDER = ['outward', 'data', 'read', 'ai'];

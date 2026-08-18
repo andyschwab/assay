@@ -30,9 +30,15 @@ import { loadFindings, loadAdapters, projectMulti } from './project.mjs';
 
 const SOURCE_METHOD = { 'repo-eval': 'eval-pass', 'gitleaks': 'gitleaks', 'scorecard': 'scorecard', 'deep-code-review': 'dcr' };
 
-// path key: the file portion (before any :line), basename-compared so a run done
-// relative to the target root and a sheet written relative to the target agree.
-const fileKey = (p) => basename(String(p).trim().replace(/:\d+(?:-\d+)?$/, ''));
+// path matching: the file portion (before any :line), compared by FULL PATH with
+// a suffix rule so a run recorded relative to the target root and a sheet written
+// relative to the target still agree. Basename-only matching was the first cut,
+// and it repeats a mistake variance.mjs already paid for: two planted items in
+// same-named files (every skill ships a SKILL.md) collide into one key. The
+// basename is kept only as a cheap index bucket; the suffix match decides.
+const stripLine = (p) => String(p).trim().replace(/:\d+(?:-\d+)?$/, '');
+const fileKey = (p) => basename(stripLine(p));
+const samePath = (a, b) => !!a && !!b && (a === b || a.endsWith('/' + b) || b.endsWith('/' + a));
 const lineOf = (p) => { const m = String(p).match(/:(\d+)/); return m ? Number(m[1]) : null; };
 
 export function score(findings, adapters, answers) {
@@ -45,7 +51,7 @@ export function score(findings, adapters, answers) {
     for (const ev of (p.f.evidence || [])) {
       const k = fileKey(ev);
       if (!byFile.has(k)) byFile.set(k, []);
-      byFile.get(k).push({ p, line: lineOf(ev) });
+      byFile.get(k).push({ p, line: lineOf(ev), path: stripLine(ev) });
     }
   }
 
@@ -55,8 +61,8 @@ export function score(findings, adapters, answers) {
     const expectMethods = Array.isArray(it.detectable_by) ? it.detectable_by : [];
     const inScope = !expectMethods.length || expectMethods.some((m) => runMethods.has(m));
     const wantAxes = new Set([it.axis, ...(Array.isArray(it.also_axes) ? it.also_axes : [])].filter(Boolean));
-    const fk = fileKey(it.evidence || '');
-    const hits = byFile.get(fk) || [];
+    const wantPath = stripLine(it.evidence || '');
+    const hits = (byFile.get(fileKey(it.evidence || '')) || []).filter((h) => samePath(h.path, wantPath));
     const axisHit = hits.find((h) => wantAxes.has(h.p.axis));
     const anyHit = hits[0];
     let status;
@@ -71,14 +77,14 @@ export function score(findings, adapters, answers) {
 
   // false positives (control targets): run gaps matching no planted evidence, at or
   // above the tolerance severity. Uses the planted evidence file set as "expected".
-  const plantedFiles = new Set(items.map((it) => fileKey(it.evidence || '')));
+  const plantedPaths = items.map((it) => stripLine(it.evidence || '')).filter(Boolean);
   const floor = answers.max_gaps_above ? sevRank(answers.max_gaps_above.severity) : null;
   const falsePositives = [];
   if (floor !== null) {
     for (const p of projected) {
       if (p.f.polarity !== 'gap') continue;
       if (sevRank(p.f.severity) > floor) continue;               // below the tolerance line
-      const onPlanted = (p.f.evidence || []).some((ev) => plantedFiles.has(fileKey(ev)));
+      const onPlanted = (p.f.evidence || []).some((ev) => plantedPaths.some((a) => samePath(stripLine(ev), a)));
       if (!onPlanted) falsePositives.push({ id: p.f.id, axis: p.axis, severity: p.f.severity || 'unrated', source: p.source, evidence: (p.f.evidence || [])[0] });
     }
   }

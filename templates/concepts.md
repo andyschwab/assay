@@ -1,6 +1,6 @@
 ---
 type: doc
-title: "repo-eval report partial — Key concepts (In plain terms)"
+title: "assay report partial — Key concepts (In plain terms)"
 ---
 
 A few ideas run through the whole report.

@@ -1,6 +1,6 @@
 ---
 type: doc
-title: "repo-eval report partial — Method & scope"
+title: "assay report partial — Method & scope"
 ---
 
 **How this was produced.** The review runs in stages. A terrain pass maps the code and

@@ -263,6 +263,22 @@ for (const [dir, what] of NEGATIVE) {
 }
 function adaptersOnce() { return loadAdapters(); }
 
+// ── score path identity: same-basename planted items must not collide ─────────
+// Matching is by full path (suffix rule), never basename alone — the same lesson
+// variance.mjs's identity tokens already encode (every skill ships a SKILL.md).
+{
+  const fail = (m) => negFailures.push('score-path: ' + m);
+  const answers = { target: 't', planted: [
+    { id: 'P-1', polarity: 'gap', axis: 'delegation', evidence: 'a/SKILL.md:1' },
+    { id: 'P-2', polarity: 'gap', axis: 'verification', evidence: 'b/SKILL.md:1' },
+  ] };
+  const findings = [{ id: 'F-1', dimension: 'delegation', axis: 'delegation', polarity: 'gap', observation: 'x', evidence: ['a/SKILL.md:1'], confidence: 'confirmed', subject_type: 'artifact' }];
+  const r = score(findings, adaptersOnce(), answers);
+  const by = Object.fromEntries(r.results.map((x) => [x.id, x.status]));
+  if (by['P-1'] !== 'recovered') fail(`a full-path match must recover (P-1 got ${by['P-1']})`);
+  if (by['P-2'] !== 'missed') fail(`a different file sharing only the basename must read missed, never matched (P-2 got ${by['P-2']})`);
+}
+
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
 // The gate must flag uncovered PRODUCT surface, and must NOT flag (a) the run's own
 // artifacts when the run lives with its target (runs/**, SCHEMA §5), nor (b) a dir the
@@ -271,9 +287,14 @@ function adaptersOnce() { return loadAdapters(); }
   const fail = (m) => negFailures.push('enumerate-gate: ' + m);
   const fx = join(HERE, 'enumerate-fixture', 'target');
   const run = join(fx, 'runs', 'r-2026-01-01');
-  const gapsFor = (extra) => JSON.parse(execFileSync(process.execPath,
-    [join(ROOT, 'tools', 'enumerate.mjs'), fx, '--run', run, ...extra, '--json'],
-    { stdio: 'pipe' }).toString()).coverageGaps.map((g) => g.file);
+  const gapsFor = (extra) => {
+    // gaps present ⇒ non-zero exit even in --json mode (the exit IS the verdict);
+    // the payload is still on stdout either way.
+    let out;
+    try { out = execFileSync(process.execPath, [join(ROOT, 'tools', 'enumerate.mjs'), fx, '--run', run, ...extra, '--json'], { stdio: 'pipe' }).toString(); }
+    catch (e) { out = String(e.stdout || ''); }
+    return JSON.parse(out).coverageGaps.map((g) => g.file);
+  };
   const plain = gapsFor([]);
   if (!plain.includes('deploy/prod.yaml')) fail('a gateable, uncovered product-surface member must be a coverage gap');
   if (plain.some((f) => f && /(^|\/)runs\//.test(f))) fail('a member inside a run that lives with its target (runs/**) must be recall-only, never a gate gap (self-reference)');
@@ -281,6 +302,16 @@ function adaptersOnce() { return loadAdapters(); }
   const excluded = gapsFor(['--exclude', 'harness']);
   if (!excluded.includes('deploy/prod.yaml')) fail('--exclude must not drop product surface outside the excluded dir');
   if (excluded.includes('harness/bench.yaml')) fail('--exclude <dir> must drop a declared-harness member from the gate');
+  // exit-code honesty: --json must exit non-zero when gaps exist (a CI wiring
+  // that checks only the exit code must never read green over uncovered surface)
+  let gateExit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'enumerate.mjs'), fx, '--run', run, '--json'], { stdio: 'pipe' }); }
+  catch (e) { gateExit = e.status; }
+  if (gateExit !== 1) fail(`--json with coverage gaps must exit 1 (got ${gateExit})`);
+  let vExit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), join(HERE, 'negative', 'bad-dimension'), '--json'], { stdio: 'pipe' }); }
+  catch (e) { vExit = e.status; }
+  if (vExit !== 1) fail(`validate --json over a red base must exit 1 (got ${vExit})`);
 }
 
 // ── enumerate agent tool-def detector: it must surface an in-code tool table

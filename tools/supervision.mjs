@@ -16,7 +16,7 @@
 // halts-gated numerator by construction (same rule), so the score and the worklist
 // are one truth.
 
-import { CHANNEL_LABEL, humanizeToken } from './display.mjs';
+import { channelLabel } from './display.mjs';
 import { gateHolds, isHaltClass } from './doctrine.mjs';
 
 const isHalt = (f) => f.effect && isHaltClass(f.effect);
@@ -41,7 +41,7 @@ function coversChannel(channel, roadmap) {
   return null;
 }
 
-export function buildSupervision(findings, roadmap) {
+export function buildSupervision(findings, roadmap, channelNotes = {}) {
   const halts = findings.filter((f) => f.subject_type === 'effect' && isHalt(f));
   const sup = halts.filter(supervised);
   const unsup = halts.filter((e) => !supervised(e));
@@ -50,7 +50,7 @@ export function buildSupervision(findings, roadmap) {
   const byKind = new Map();
   for (const e of unsup) {
     const key = e.effect.channel;
-    if (!byKind.has(key)) byKind.set(key, { channel: key, label: CHANNEL_LABEL[key] || humanizeToken(key), sites: 0, ids: [], fixes: new Map() });
+    if (!byKind.has(key)) byKind.set(key, { channel: key, label: channelLabel(key, channelNotes), sites: 0, ids: [], fixes: new Map() });
     const k = byKind.get(key);
     k.sites += 1;
     k.ids.push(e.id);

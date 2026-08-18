@@ -227,7 +227,7 @@ function reportDescriptors(d) {
 }
 
 function report(r) {
-  console.log(`\nrepo-eval variance — ${r.N} sweeps:`);
+  console.log(`\nassay variance — ${r.N} sweeps:`);
   r.sweeps.forEach((s, i) => console.log(`  sweep ${i}: ${s.name} (${s.findings} findings)`));
   console.log(`\n  facts (union):        ${r.union}`);
   console.log(`  caught by all ${r.N}:      ${r.core}  (${r.pct}% — the repeatable core)`);
