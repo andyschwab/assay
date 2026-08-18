@@ -106,6 +106,7 @@ tools/                     zero-dep engine tools + the PDF renderer
 templates/                 report partials, styles, vendored fonts
 canon/                     per-target enumeration contracts (ships empty)
 tests/                     the regression harness + public scored fixtures
+HISTORY.md                 append-only dated log of how the engine got here
 ```
 
 ## Provenance

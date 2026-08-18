@@ -5,3 +5,6 @@ node_modules/
 *.preview.png
 # a run compiled inside a checkout
 eval/raw/
+# local environment files — never committed (credentials live outside the repo)
+.env
+.env.*
