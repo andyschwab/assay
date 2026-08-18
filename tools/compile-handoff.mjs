@@ -37,6 +37,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node
 import { join, basename } from 'node:path';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle } from './project.mjs';
 import { loadDecisions, decideProjected } from './decisions.mjs';
+import { sevRank, buildFixSpine } from './doctrine.mjs';
+import { axisShort } from './display.mjs';
 import { parseYaml } from './yaml-min.mjs';
 
 const arg = process.argv[2];
@@ -87,12 +89,8 @@ const coveredIds = new Set(roadmap.flatMap((r) => r.ps.map((p) => p.f.id)));
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 const clean = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
-const SEV = { Blocker: 0, Critical: 1, High: 2, Medium: 3, Low: 4, Nit: 5 };
-const sevRank = (s) => (SEV[s] ?? 6);
 const evPaths = (f) => (f.evidence || []).map((e) => `\`${e}\``).join(', ') || '(no path)';
 const nn = (i) => String(i + 1).padStart(2, '0');
-const AXIS_SHORT = { 'artifact-legibility': 'legibility', 'context-economy': 'context', 'deterministic-gates': 'gates', 'verification': 'verification', 'delegation': 'delegation', 'improvement-loop': 'improvement', 'multiplayer': 'multiplayer', 'code-correctness': 'correctness', 'code-security': 'security' };
-const axisShort = (a) => AXIS_SHORT[a] || a;
 // proof-of-fix: the scanner's own verify-fix capability, else a generic re-scan.
 // Takes the gap findings sharing a remedy; one sentence per scanner, paths deduped.
 function proofFor(ps) {
@@ -123,16 +121,8 @@ function claimBlock(p) {
 }
 
 // ── scanner-verbatim spine: open gaps that carry a scanner-supplied fix ──────────
-const withFix = decided.filter((p) => p.f.polarity === 'gap' && p.state === 'open' && p.f.fix);
 // dedup by (axis, fix): several findings sharing one remedy collapse to one item.
-const spine = new Map(); // axis -> Map(fix -> {ids, sev, fix, obs, evidence, source, also, ps})
-for (const p of withFix) {
-  if (!spine.has(p.axis)) spine.set(p.axis, new Map());
-  const m = spine.get(p.axis);
-  const fx = clean(p.f.fix);
-  if (m.has(fx)) { const r = m.get(fx); if (!r.ids.includes(p.f.id)) { r.ids.push(p.f.id); r.ps.push(p); } if (sevRank(p.f.severity) < sevRank(r.sev)) r.sev = p.f.severity; }
-  else m.set(fx, { ids: [p.f.id], sev: p.f.severity || 'unrated', fix: fx, obs: clean(p.f.observation), evidence: p.f.evidence || [], source: p.source, also: p.also || [], ps: [p] });
-}
+const spine = buildFixSpine(decided.filter((p) => p.f.polarity === 'gap' && p.state === 'open'));
 const scannerItems = [];
 for (const a of roster) { const m = spine.get(a); if (!m) continue; for (const it of m.values()) scannerItems.push({ axis: a, ...it }); }
 scannerItems.sort((a, b) => sevRank(a.sev) - sevRank(b.sev) || roster.indexOf(a.axis) - roster.indexOf(b.axis));

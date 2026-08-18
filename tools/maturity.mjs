@@ -30,19 +30,14 @@
 //   node tools/maturity.mjs <eval-dir> --write  # regenerate view-maturity-grades.yaml
 //                                               #   (merges authored maturity-inputs.yaml)
 
-import { readFileSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYaml } from './yaml-min.mjs';
+import { gateHolds, isHaltClass, isMain } from './doctrine.mjs';
+import { loadFindings } from './project.mjs';
 
-const REAL_GATES = new Set(['deterministic-halt', 'staged-reversible', 'scope-bound', 'rate-throttle', 'external-halt']);
 const STRUCTURED = new Set(['structured-event', 'audited']);
 const pct = (met, of) => (of ? Math.round((met / of) * 100) : null);
-
-export function loadFindings(dir) {
-  const pass = readdirSync(dir).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
-  if (pass.length) return pass.flatMap((f) => parseYaml(readFileSync(join(dir, f), 'utf8')));
-  return parseYaml(readFileSync(join(dir, 'findings.yaml'), 'utf8'));
-}
 
 // The counted measures, computed from base fields alone. One primary per
 // dimension (the coverage headline); the rest are context. Dimensions with no
@@ -52,8 +47,8 @@ export function computeCoverage(findingsIn) {
   const findings = findingsIn.filter(Boolean);
   const effects = findings.filter((f) => f.subject_type === 'effect' && f.effect);
   const caps = findings.filter((f) => f.subject_type === 'capability' && f.capabilities);
-  const halts = effects.filter((e) => e.effect.reversibility === 'irreversible' || e.effect.external === true);
-  const gateHolds = (e) => REAL_GATES.has(e.effect.gate_type) && e.effect.fail_mode !== 'open';
+  const halts = effects.filter((e) => isHaltClass(e.effect));
+  const holds = (e) => gateHolds(e.effect);
   const legs = (c) => ['untrusted_input', 'private_data', 'external_effect'].filter((k) => c.capabilities[k] === true).length;
   const m = (name, what, met, of, primary = false) => ({ name, what, met, of, pct: pct(met, of), kind: 'counted', primary });
 
@@ -81,8 +76,8 @@ export function computeCoverage(findingsIn) {
       {
         dimension: 'deterministic-gates',
         measures: [
-          m('halts-gated', 'irreversible or outside-reaching actions behind a hard stop that does not fail open', halts.filter(gateHolds).length, halts.length, true),
-          m('effects-gated', 'all actions behind such a stop', effects.filter(gateHolds).length, effects.length),
+          m('halts-gated', 'irreversible or outside-reaching actions behind a hard stop that does not fail open', halts.filter(holds).length, halts.length, true),
+          m('effects-gated', 'all actions behind such a stop', effects.filter(holds).length, effects.length),
         ],
         not_measured: null,
         note: 'Whether anything RUNS the checks before a merge is the enforced flag, not a second coverage number.',
@@ -219,8 +214,7 @@ export function gradesToYaml(g, generatedNote) {
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
-const isMain = process.argv[1] && process.argv[1].endsWith('maturity.mjs');
-if (isMain) {
+if (isMain(import.meta.url)) {
   const evalDir = process.argv[2];
   if (!evalDir) { console.error('usage: node tools/maturity.mjs <eval-dir> [--write]'); process.exit(2); }
   const write = process.argv.includes('--write');

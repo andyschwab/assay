@@ -14,28 +14,19 @@
 // the base.
 //
 // Usage:  node tools/project.mjs <run-dir> [--base <dir>]... [--adapter <id>]
-import { readFileSync, readdirSync, existsSync, realpathSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from './yaml-min.mjs';
+import { isMain } from './doctrine.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..'); // repo root
 
-// ── the known axes (titles for rendering; the roster itself is derived from
-//    the present adapters, never hardcoded — a new scanner's contributed axis
-//    renders with its id until a title is added here) ─────────────────────────
-export const AXIS_TITLE = {
-  'artifact-legibility': 'Artifact legibility — is the knowledge in reviewable artifacts?',
-  'context-economy': 'Context economy — can a bounded context reach competence fast?',
-  'deterministic-gates': 'Deterministic gates — what verifies a change cheaply and loudly?',
-  'verification': 'Verification affordances — can a change demonstrate itself beyond pass/fail?',
-  'delegation': 'Delegation surface — what can act, on what authority, behind what halt?',
-  'improvement-loop': 'Improvement loop — do corrections compound?',
-  'multiplayer': 'Multiplayer — can people and agents share context and access here?',
-  'code-correctness': 'Code correctness — does it compute the right thing, reliably?',
-  'code-security': 'Code security — safe against a human adversary?',
-};
+// ── axis titles live in display.mjs (AXIS_META, the one label home);
+//    re-exported here so projection consumers keep a single import site ───────
+import { axisTitle } from './display.mjs';
+export { axisTitle };
 // canonical ordering: the seven native dimension axes in pass order, then the
 // known contributed axes; axes outside this list append sorted (deterministic).
 export const AXIS_ORDER = [
@@ -43,7 +34,6 @@ export const AXIS_ORDER = [
   'delegation', 'improvement-loop', 'multiplayer',
   'code-correctness', 'code-security',
 ];
-export const axisTitle = (a) => AXIS_TITLE[a] || a;
 export function orderAxes(axes) {
   const set = new Set(axes);
   return [...AXIS_ORDER.filter((a) => set.has(a)), ...[...set].filter((a) => !AXIS_ORDER.includes(a)).sort()];
@@ -69,20 +59,33 @@ const explicitAlso = (f) => {
 };
 
 // ── loaders ─────────────────────────────────────────────────────────────────
+// THE findings loader — every tool loads through this one function so the
+// semantics cannot drift (before consolidation there were five copies, one of
+// which skipped unparseable files and mis-read the loss as variance). Rules:
+//   • per-pass files first (what validate reads), else the merged findings.yaml
+//     — reading per-pass avoids a stale merged file silently winning;
+//   • FAIL CLOSED on an unparseable file (parseYaml throws; never caught here);
+//   • a missing directory reads as an empty base (callers decide whether empty
+//     is an error — most exit loudly on zero findings).
+// The one deliberate non-consumer is validate.mjs, which re-implements the walk
+// because it needs per-file error attribution (which file broke, at which key).
 export function loadFindings(dir) {
   const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
   if (!existsSync(ev)) return []; // clean empty rather than an ENOENT stack
+  const files = readdirSync(ev).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
+  if (files.length) {
+    let all = [];
+    for (const f of files) {
+      const p = parseYaml(readFileSync(join(ev, f), 'utf8'));
+      if (Array.isArray(p)) all = all.concat(p);
+    }
+    return all;
+  }
   if (existsSync(join(ev, 'findings.yaml'))) {
     const p = parseYaml(readFileSync(join(ev, 'findings.yaml'), 'utf8'));
     return Array.isArray(p) ? p : [];
   }
-  const files = readdirSync(ev).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
-  let all = [];
-  for (const f of files) {
-    const p = parseYaml(readFileSync(join(ev, f), 'utf8'));
-    if (Array.isArray(p)) all = all.concat(p);
-  }
-  return all;
+  return [];
 }
 
 export function loadAdapter(id) {
@@ -153,8 +156,7 @@ export function projectFindings(findings, adapter) {
 }
 
 // ── CLI (runs only when invoked directly) ────────────────────────────────────
-const argvPath = process.argv[1] ? realpathSync(process.argv[1]) : '';
-if (argvPath && realpathSync(fileURLToPath(import.meta.url)) === argvPath) runCli();
+if (isMain(import.meta.url)) runCli();
 
 function runCli() {
   const arg = process.argv[2];

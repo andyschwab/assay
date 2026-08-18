@@ -141,7 +141,7 @@ never merged (independent convergence is recorded, not collapsed)._
 ## Regenerate
 
 \`\`\`
-node tools/compile-package.mjs ${rel(runDir) === '' ? runDir : join('instances', relative(join(HERE, '..', '..', '..', 'instances'), runDir))}
+node tools/compile-package.mjs ${runDir}
 \`\`\`
 Deterministic and re-runnable. Drop \`eval/decisions.yaml\` to fold in owner triage
 (optional; never required — the raw base always compiles).

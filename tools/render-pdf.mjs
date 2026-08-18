@@ -13,13 +13,14 @@
 // header/footer: it is printed on its own (page 1) and joined to the numbered body
 // (pages 2+) by poppler's pdfunite; without pdfunite the whole doc prints in one pass.
 // --png = verification screenshot; --html = dump the intermediate HTML.
-import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { parseYaml } from './yaml-min.mjs';
+import { loadFindings } from './project.mjs';
 import { WHO_LABEL, DIM_LABEL, GROUP_LABEL, CHANNEL_LABEL, humanizeToken } from './display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase, numWord } from './capabilities.mjs';
 import { buildChains } from './chains.mjs';
@@ -31,7 +32,7 @@ const FONTS = join(HERE, '..', 'templates', 'fonts');
 const HOWTO = join(HERE, '..', 'templates', 'howto.md');
 function loadDep(name) {
   try { return createRequire(import.meta.url)(name); } catch {}
-  for (const base of ['/opt/node22/lib/node_modules/', '/usr/lib/node_modules/', '/usr/local/lib/node_modules/'])
+  for (const base of ['/usr/lib/node_modules/', '/usr/local/lib/node_modules/'])
     try { return createRequire(base)(name); } catch {}
   throw new Error(`cannot resolve "${name}" — install it (npm i -g ${name}) to render the PDF`);
 }
@@ -47,9 +48,7 @@ const md = read(need(join(runDir, 'MAINTAINER-REPORT.md')));
 const baseCss = read(need(CSS));
 const prose = parseYaml(read(need(join(evalDir, 'report-prose.yaml'))));
 const gate = parseYaml(read(need(join(evalDir, 'view-security-gate.yaml'))));
-// findings source of truth: per-pass files if present (what validate reads), else merged.
-const passFiles = readdirSync(evalDir).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
-const findings = passFiles.length ? passFiles.flatMap((f) => parseYaml(read(join(evalDir, f)))) : parseYaml(read(need(join(evalDir, 'findings.yaml'))));
+const findings = loadFindings(evalDir);   // the shared per-pass-first, fail-closed loader
 const gradesPath = join(evalDir, 'view-maturity-grades.yaml');
 const grades = existsSync(gradesPath) ? parseYaml(read(gradesPath)) : null;
 

@@ -2,14 +2,25 @@
 // The YAML keeps the closed machine vocab (SCHEMA.md); these maps translate it
 // for the reader. Used by compile-report.mjs (Markdown) and render-pdf.mjs (PDF).
 
+// AXIS_META — the ONE home for per-axis display vocabulary. Every axis label,
+// full title (label — question), and short slug derives from this map; before
+// consolidation the three lived in three files and could drift independently.
+export const AXIS_META = {
+  'artifact-legibility': { label: 'Artifact legibility', q: 'is the knowledge in reviewable artifacts?', short: 'legibility' },
+  'context-economy': { label: 'Context economy', q: 'can a bounded context reach competence fast?', short: 'context' },
+  'deterministic-gates': { label: 'Deterministic gates', q: 'what verifies a change cheaply and loudly?', short: 'gates' },
+  'verification': { label: 'Verification affordances', q: 'can a change demonstrate itself beyond pass/fail?', short: 'verification' },
+  'delegation': { label: 'Delegation surface', q: 'what can act, on what authority, behind what halt?', short: 'delegation' },
+  'improvement-loop': { label: 'Improvement loop', q: 'do corrections compound?', short: 'improvement' },
+  'multiplayer': { label: 'Multiplayer', q: 'can people and agents share context and access here?', short: 'multiplayer' },
+  'code-correctness': { label: 'Code correctness', q: 'does it compute the right thing, reliably?', short: 'correctness' },
+  'code-security': { label: 'Code security', q: 'safe against a human adversary?', short: 'security' },
+};
+export const axisTitle = (a) => (AXIS_META[a] ? `${AXIS_META[a].label} — ${AXIS_META[a].q}` : a);
+export const axisShort = (a) => AXIS_META[a]?.short || a;
+// dimension → label (the maturity/stat-strip cut; `unprompted` is a dimension, not an axis)
 export const DIM_LABEL = {
-  'artifact-legibility': 'Artifact legibility',
-  'context-economy': 'Context economy',
-  'deterministic-gates': 'Deterministic gates',
-  'verification': 'Verification affordances',
-  'delegation': 'Delegation surface',
-  'improvement-loop': 'Improvement loop',
-  'multiplayer': 'Multiplayer',
+  ...Object.fromEntries(Object.entries(AXIS_META).map(([k, v]) => [k, v.label])),
   'unprompted': 'Unprompted',
 };
 

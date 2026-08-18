@@ -15,9 +15,7 @@ import { writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle } from './project.mjs';
 import { buildChains } from './chains.mjs';
-
-const SEV = { Blocker: 0, Critical: 1, High: 2, Medium: 3, Low: 4, Nit: 5 };
-const sevRank = (s) => (SEV[s] ?? 9);
+import { sevRank, buildFixSpine } from './doctrine.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node tools/compile-axes.mjs <run-dir> [--base <dir>]... [--stdout]'); process.exit(2); }
@@ -198,15 +196,7 @@ if (needsAxis.length) {
 
 // ── remediation spine: severity-banded, DEDUPED (a human summary; the machine-actionable
 // version with evidence + proof is handoff/REMEDIATION.md) ──
-const spineMap = new Map(); // axis -> Map(fix -> {ids, sev, fix, src})
-for (const p of projected) {
-  if (p.f.polarity !== 'gap') continue;
-  const fix = p.f.fix; if (!fix) continue;
-  if (!spineMap.has(p.axis)) spineMap.set(p.axis, new Map());
-  const m = spineMap.get(p.axis);
-  if (m.has(fix)) { const r = m.get(fix); if (!r.ids.includes(p.f.id)) r.ids.push(p.f.id); }
-  else m.set(fix, { ids: [p.f.id], sev: p.f.severity || '', fix, src: p.source });
-}
+const spineMap = buildFixSpine(projected.filter((p) => p.f.polarity === 'gap'));
 if (spineMap.size) {
   out.push('# Remediation spine (summary)', '');
   out.push('_Every actionable gap with a fix, grouped by axis then severity, quoting each scanner\'s');
@@ -221,7 +211,7 @@ if (spineMap.size) {
     for (const it of items) {
       const b = it.sev || 'unrated';
       if (b !== band) { band = b; out.push(`**${band}:**`); }
-      out.push(`- ${it.ids.join(', ')} [${it.src}] — ${say(it.fix, 180)}`);
+      out.push(`- ${it.ids.join(', ')} [${it.source}] — ${say(it.fix, 180)}`);
     }
     out.push('');
   }

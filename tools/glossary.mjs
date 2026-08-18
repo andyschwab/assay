@@ -1,5 +1,5 @@
-// glossary.mjs — build the run-filtered glossary as Markdown. Shared by
-// compile-report.mjs (PDF: core + concepts only) and compile-handoff.mjs (full).
+// glossary.mjs — build the run-filtered glossary as Markdown, for
+// compile-report.mjs (core + concepts in the report/PDF appendix).
 // Enum groups are filtered to the values this run actually uses; core/concepts always show.
 
 export function buildGlossary(findings, glossaryDefs, { only } = {}) {
@@ -11,7 +11,7 @@ export function buildGlossary(findings, glossaryDefs, { only } = {}) {
   const pcUsed = new Set(findings.flatMap((f) => f.preconditions || []));
   const GROUPS = [
     ['core', 'Core', null, true],
-    ['dimensions', 'The six dimensions', dimsUsed, false],
+    ['dimensions', 'The seven dimensions', dimsUsed, false],
     ['subject_type', 'What a finding is about', subjUsed, false],
     ['confidence', 'Confidence', confUsed, false],
     ['reversibility', 'Reversibility', set('reversibility'), false],

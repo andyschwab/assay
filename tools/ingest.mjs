@@ -24,8 +24,8 @@
 // Writes <run-dir>/eval/findings-9N-<tool>.yaml and archives the raw report to
 // <run-dir>/eval/raw/<tool>.json. Library: convert(tool, rawText, exitCode, startId).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { isMain } from './doctrine.mjs';
 
 // ── tool profiles ────────────────────────────────────────────────────────────
 // okExits: the tool's documented success exits (anything else = tool error, halt).
@@ -151,8 +151,7 @@ function toYaml(rows, tool, exitCode, skipped) {
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
-const argvPath = process.argv[1] ? basename(process.argv[1]) : '';
-if (argvPath === basename(fileURLToPath(import.meta.url))) {
+if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const runDir = args[0];
   const opt = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };

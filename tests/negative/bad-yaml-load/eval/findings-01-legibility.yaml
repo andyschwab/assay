@@ -1,0 +1,10 @@
+# A findings file the constrained reader cannot parse (an inline flow map).
+# The shared loader must THROW on this — a skipped file would silently shrink
+# the base (and, in variance, be mis-read as variance).
+- id: F-001
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: {inline: flow-map}
+  evidence: [a.py:1]
+  confidence: confirmed

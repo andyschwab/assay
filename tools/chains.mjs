@@ -14,7 +14,7 @@
 // Plus `unresolved`: chain-critical values that could not be determined (a low-confidence
 // finding on a path, an unsure sink, an effect leg with no traced reach). Confidence
 // propagates: a chain riding a plausible/unverified finding is rendered "possible", not asserted.
-import { isHalt } from './capabilities.mjs';
+import { isHalt } from './doctrine.mjs';
 import { CHANNEL_LABEL, humanizeToken } from './display.mjs';
 
 const PRECOND_RANK = {

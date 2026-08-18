@@ -3,12 +3,10 @@
 // authored channel_notes (mechanism sentence + group). Used by compile-report.mjs
 // (the appendix's human "What the app can do" section).
 import { CHANNEL_LABEL, GROUP_ORDER, GROUP_LABEL, humanizeToken } from './display.mjs';
+import { isHalt } from './doctrine.mjs';
 
-// an effect is an unheld halt when it is (irreversible or external) with no working gate
-export function isHalt(e) {
-  const gateNone = e.gate_type === 'none' || e.gate_type === 'disclosure-only' || e.fail_mode === 'open';
-  return (e.reversibility === 'irreversible' || e.external === true) && gateNone;
-}
+// re-exported for existing importers; the definition lives in doctrine.mjs
+export { isHalt };
 
 const REV_RANK = { reversible: 0, 'reversible-with-window': 1, irreversible: 2 };
 const TEL_RANK = { none: 0, unstructured: 1, 'structured-event': 2 };

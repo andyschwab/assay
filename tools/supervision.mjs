@@ -17,11 +17,10 @@
 // are one truth.
 
 import { CHANNEL_LABEL, humanizeToken } from './display.mjs';
+import { gateHolds, isHaltClass } from './doctrine.mjs';
 
-const REAL_GATES = new Set(['deterministic-halt', 'staged-reversible', 'scope-bound', 'rate-throttle', 'external-halt']);
-
-const isHalt = (e) => e.effect && (e.effect.reversibility === 'irreversible' || e.effect.external === true);
-const supervised = (e) => REAL_GATES.has(e.effect.gate_type) && e.effect.fail_mode !== 'open';
+const isHalt = (f) => f.effect && isHaltClass(f.effect);
+const supervised = (f) => gateHolds(f.effect);
 
 // roadmap: the authored list (prose.roadmap); item i closes the findings it lists AND any
 // channel it names in `covers_channels` (the pattern-based coverage: a composite fix, e.g.

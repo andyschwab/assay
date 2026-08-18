@@ -123,7 +123,6 @@ for (const f of files) {
     let m;
     SECRET_NAME.lastIndex = 0;
     while ((m = SECRET_NAME.exec(line))) {
-      const name = m[1].replace(/S$/, (s) => (m[1].endsWith('SS') ? s : '')); // keep PASS... intact
       hit('secrets', m[1], r, i, isEnvOrCfg ? 'declared in env/config' : 'referenced in code');
     }
 

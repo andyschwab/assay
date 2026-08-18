@@ -46,18 +46,12 @@
 //
 // Zero-dep. Usage: node tools/variance.mjs <run-dir> <run-dir> [<run-dir> ...]
 
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, basename } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { parseYaml } from './yaml-min.mjs';
-
-export function loadFindings(dir) {
-  const evalDir = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-  const files = readdirSync(evalDir).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
-  let all = [];
-  for (const f of files) { try { all = all.concat(parseYaml(readFileSync(join(evalDir, f), 'utf8')) || []); } catch (e) { console.error(`  (skip ${f}: ${e.message.split('\n')[0]})`); } }
-  return all;
-}
+import { basename } from 'node:path';
+// The shared fail-closed loader: a sweep file this reader cannot parse HALTS the
+// measurement instead of being skipped — a silently dropped file would be
+// mis-read as variance, corrupting the very number this tool exists to produce.
+import { loadFindings } from './project.mjs';
+import { isMain } from './doctrine.mjs';
 
 // identity tokens: the specific thing a finding is about — full evidence PATH (not basename)
 // plus any explicit item key (effect channel, label, slug). subject_type is NOT included.
@@ -247,7 +241,7 @@ function report(r) {
 }
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   const runs = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...]'); process.exit(2); }
   const r = computeVariance(runs);

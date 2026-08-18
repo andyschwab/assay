@@ -8,7 +8,7 @@
 //   <run-dir>/eval/report-prose.yaml           (authored narrative)
 // Tables are computed; prose is authored. Deterministic + re-runnable (a findings
 // fix + recompile never clobbers prose). Run validate.mjs first.
-import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from './yaml-min.mjs';
@@ -16,7 +16,7 @@ import { DIM_LABEL, WHO_LABEL, humanizeToken, CHANNEL_LABEL } from './display.mj
 import { buildCapabilities, capabilityCounts, tracePhrase } from './capabilities.mjs';
 import { buildChains } from './chains.mjs';
 import { buildGlossary } from './glossary.mjs';
-import { loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle } from './project.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = join(HERE, '..', 'templates', 'maintainer-report.md');
@@ -27,14 +27,8 @@ const runDir = arg.replace(/\/eval\/?$/, '');
 const evalDir = existsSync(join(runDir, 'eval')) ? join(runDir, 'eval') : runDir;
 const need = (p) => { if (!existsSync(p)) { console.error(`missing required input: ${p}`); process.exit(2); } return p; };
 
-// findings source of truth: the per-pass files if present (what validate reads), else the
-// merged findings.yaml. Reading per-pass avoids the merged file drifting out of sync.
-function loadFindings(dir) {
-  const pass = readdirSync(dir).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
-  if (pass.length) return pass.flatMap((f) => parseYaml(readFileSync(join(dir, f), 'utf8')));
-  return parseYaml(readFileSync(need(join(dir, 'findings.yaml')), 'utf8'));
-}
-const findings = loadFindings(evalDir);
+const findings = loadFindings(evalDir);   // the shared per-pass-first, fail-closed loader
+if (!findings.length) { console.error(`no findings under ${evalDir}`); process.exit(2); }
 const gate = parseYaml(readFileSync(need(join(evalDir, 'view-security-gate.yaml')), 'utf8'));
 const prose = parseYaml(readFileSync(need(join(evalDir, 'report-prose.yaml')), 'utf8'));
 // Templates carry OKF frontmatter so they pass `npm run check` as bundle files;

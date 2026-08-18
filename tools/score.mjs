@@ -24,12 +24,11 @@
 //   node tools/score.mjs <run-dir> --answers <ANSWERS.yaml> [--json]
 import { readFileSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
+import { isMain, sevRank } from './doctrine.mjs';
 import { parseYaml } from './yaml-min.mjs';
 import { loadFindings, loadAdapters, projectMulti } from './project.mjs';
 
 const SOURCE_METHOD = { 'repo-eval': 'eval-pass', 'gitleaks': 'gitleaks', 'scorecard': 'scorecard', 'deep-code-review': 'dcr' };
-const SEV = { Blocker: 0, Critical: 1, High: 2, Medium: 3, Low: 4, Nit: 5 };
-const sevRank = (s) => (SEV[s] ?? 9);
 
 // path key: the file portion (before any :line), basename-compared so a run done
 // relative to the target root and a sheet written relative to the target agree.
@@ -98,7 +97,7 @@ export function score(findings, adapters, answers) {
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
-if (basename(process.argv[1] || '') === 'score.mjs') {
+if (isMain(import.meta.url)) {
   const runDir = process.argv[2];
   const aIdx = process.argv.indexOf('--answers');
   const answersPath = aIdx > -1 ? process.argv[aIdx + 1] : null;
