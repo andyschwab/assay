@@ -170,7 +170,10 @@ if (notMeasured.length) {
   out.push('# Not measured this run', '');
   out.push('_Known axes whose measuring scanner did not run. Absence of findings there is');
   out.push('absence of looking, not health. The candidate roster for filling an axis is');
-  out.push('[`scanner-candidates.md`](/integration/scanner-candidates.md)._', '');
+  // Name the roster, do not link it: view-axes.md ships in the run bundle and the
+  // run travels with its subject (SCHEMA §5), so a bundle-root-absolute link into
+  // the assay engine resolves nowhere but the engine repo.
+  out.push('`integration/scanner-candidates.md` in the assay engine._', '');
   for (const a of notMeasured) {
     const owners = Object.values(adapters).filter((ad) => (ad.contributes || []).includes(a)).map((ad) => ad.scanner);
     out.push(`- **\`${a}\`** — measured by ${owners.join(', ')} (not run).`);
