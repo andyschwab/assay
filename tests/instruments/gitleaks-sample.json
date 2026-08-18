@@ -1,0 +1,18 @@
+[
+  {
+    "RuleID": "aws-access-key-id",
+    "Description": "AWS Access Key",
+    "File": "config/settings.py",
+    "StartLine": 14,
+    "Secret": "AKIAFAKEFAKEFAKEFAKE",
+    "Match": "aws_key = AKIAFAKEFAKEFAKEFAKE"
+  },
+  {
+    "RuleID": "generic-api-key",
+    "Description": "Generic API Key",
+    "File": "scripts/deploy.sh",
+    "StartLine": 3,
+    "Secret": "sk-FAKE-not-a-real-key-0000",
+    "Match": "API_KEY=sk-FAKE-not-a-real-key-0000"
+  }
+]

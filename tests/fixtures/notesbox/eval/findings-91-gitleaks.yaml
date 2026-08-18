@@ -1,0 +1,14 @@
+# findings-91-gitleaks.yaml — instrument rows ingested by tools/ingest.mjs.
+# Instrument: gitleaks · exit code 1 (verified in its success set) · 1 row(s).
+# Raw report archived at eval/raw/gitleaks.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-700
+  source: gitleaks
+  native_id: "generic-api-key@config/settings.mjs:6"
+  native_category: "secret"
+  polarity: gap
+  observation: >
+    Committed secret detected by rule generic-api-key (Detected a Generic API Key, potentially exposing access to various services and sensitive operations.); the value is in the repository history at the cited location.
+  evidence: [config/settings.mjs:6]
+  fix: >
+    Rotate the credential now (assume it is burned), then purge it from history; suppress via .gitleaksignore only after verifying it is a false positive, with the reason recorded.

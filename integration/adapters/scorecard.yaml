@@ -1,0 +1,59 @@
+# Adapter: OpenSSF Scorecard (INSTRUMENT — a deterministic repo-hygiene checker)
+# -> the axis roster (integration/scanner-contract.md, instrument role).
+# Instruments never contribute an axis; Scorecard's checks feed the native
+# workspace axes — the only mature external tool whose findings are about the
+# workspace rather than the code. Rows produced by tools/ingest.mjs (exit code
+# verified; score bands documented there: >=8 strength · 4-7 gap Medium · 0-3
+# gap High · -1 N/A skipped-and-logged). Keyed by the check's stable name; a
+# check this map does not know halts loud (a new Scorecard check = add one row).
+scanner: scorecard
+targets_taxonomy: 3
+role: instrument
+
+contributes: []
+
+map:
+  Branch-Protection:            # is merging gated?
+    axis: deterministic-gates
+  CI-Tests:
+    axis: deterministic-gates
+  Code-Review:                  # a review requirement is a merge gate
+    axis: deterministic-gates
+  SAST:
+    axis: deterministic-gates
+  Fuzzing:                      # beyond pass/fail: does anything probe behavior?
+    axis: verification
+  Signed-Releases:              # provable provenance of what shipped
+    axis: verification
+  Packaging:                    # a released artifact others can verify/consume
+    axis: verification
+  Dangerous-Workflow:
+    axis: code-security
+  Token-Permissions:
+    axis: code-security
+  Pinned-Dependencies:
+    axis: code-security
+  Vulnerabilities:
+    axis: code-security
+  Binary-Artifacts:
+    axis: code-security
+  Webhooks:
+    axis: code-security
+  Dependency-Update-Tool:       # does upkeep compound without a human remembering?
+    axis: improvement-loop
+  Maintained:
+    axis: improvement-loop
+  CII-Best-Practices:
+    axis: improvement-loop
+  Security-Policy:              # a doc a stranger (or agent) can act on
+    axis: artifact-legibility
+  License:
+    axis: artifact-legibility
+  Contributors:                 # org diversity — a multiplayer signal, weakly
+    axis: multiplayer
+
+default: FAIL
+
+capabilities:
+  - id: verify-fix
+    invoke: "re-run scorecard --checks <check-name> against the repo and confirm the score moved"

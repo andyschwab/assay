@@ -1,0 +1,41 @@
+# Adapter: repo-eval (this engine's OWN passes, dogfooded as a scanner) -> the
+# axis roster (integration/scanner-contract.md). Block style so tools/yaml-min.mjs
+# parses it. The seven dimension passes ARE the seven native axes — the map is the
+# identity; an axis is the property the pass measures, so no routing is needed.
+scanner: repo-eval
+targets_taxonomy: 3
+
+# The axes this scanner contributes: its own measure exists there (the seven
+# dimension passes, each with its census/coverage machinery). It contributes no
+# code-correctness/code-security axis — those arrive with a code scanner
+# (deep-code-review), and absent one they read "not measured", never "clean".
+contributes:
+  - artifact-legibility
+  - context-economy
+  - deterministic-gates
+  - verification
+  - delegation
+  - improvement-loop
+  - multiplayer
+
+map:
+  artifact-legibility:
+    axis: artifact-legibility
+  context-economy:
+    axis: context-economy
+  deterministic-gates:
+    axis: deterministic-gates
+  verification:
+    axis: verification
+  delegation:
+    axis: delegation
+  improvement-loop:
+    axis: improvement-loop
+  multiplayer:
+    axis: multiplayer
+
+  # — escape hatch: no default; the finding must carry its own axis —
+  unprompted:
+    needs_finding_axis: true
+
+default: FAIL

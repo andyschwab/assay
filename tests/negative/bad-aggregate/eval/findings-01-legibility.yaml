@@ -1,0 +1,9 @@
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "A valid finding; the malformation is in the grades tail, not here."
+  evidence:
+    - path: tests/negative/bad-aggregate/eval/findings-01-legibility.yaml
+      lines: "1"
+  confidence: confirmed

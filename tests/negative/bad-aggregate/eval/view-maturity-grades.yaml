@@ -1,0 +1,17 @@
+schema: coverage
+aggregate:
+  met: 91
+  of: 100
+  pct: 91
+  over: 1
+dimensions:
+  - dimension: artifact-legibility
+    coverage:
+      kind: sampled
+      met: 62
+      of: 100
+      pct: 62
+      method: "one sampled row; the aggregate above is inflated relative to it"
+    depth: "A sampled row whose 62/100 the hand-edited 91/100 aggregate contradicts."
+    enforced: false
+    generative: false

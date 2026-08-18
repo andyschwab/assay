@@ -1,0 +1,16 @@
+{
+  "name": "assay",
+  "version": "0.1.0",
+  "description": "Evidence-based repository evaluation: a neutral findings base projected through per-scanner adapters onto a flat, property-named axis roster, compiled into a maintainer report, a per-axis walk, and an agent-ready remediation handoff.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node tests/regression.mjs",
+    "validate": "node tools/validate.mjs",
+    "score": "node tools/score.mjs"
+  },
+  "optionalDependencies": {
+    "markdown-it": "^14.0.0"
+  },
+  "engines": { "node": ">=20" }
+}

@@ -1,0 +1,72 @@
+# glossary.yaml — the definitions behind every controlled term the report uses.
+# tools/compile-report.mjs filters the enum groups to the values that actually appear
+# in a run's findings.yaml (so the glossary shows only what the reader will meet);
+# the `core` and `concepts` groups are always included. Keep definitions short and plain.
+
+core:
+  finding: One plain fact about the code, backed by a file and line and a confidence level, with a stable id (F-###) so a later review can ask whether it is still open. The base records what is; it never asserts good or bad.
+  polarity: Whether a finding is a strength (keep it), a gap (an opportunity or a risk), or a neutral fact.
+  confidence: How sure the review is. Confirmed means verified in the code. Plausible means strongly inferred. Unverified means not proven from the repository alone.
+  finding-id: The F-### label. It is stable across reviews, so a specific issue can be tracked as it gets fixed.
+
+dimensions:
+  artifact-legibility: Is knowledge written down in reviewable files, or does it live only in people's heads and chat?
+  context-economy: Can a person or an agent get up to speed on one part of the system fast, without loading the whole thing?
+  deterministic-gates: The machinery that catches mistakes cheaply and loudly. Tests, type checks, lint, CI, and schemas at the seams.
+  verification: Can a change prove itself? Do jobs check that the effect really happened, or just trust a success report? Is fluent but wrong output caught?
+  delegation: The security dimension. For every action the system can take, what it does, what stops it, whether it leaves a trace, and how far its damage spreads.
+  improvement-loop: Do corrections stick? Is there a durable place where "we never do this here" gets written down and actually used?
+  unprompted: A finding no single check asked for. A cross-cutting problem or a strength that turned up during the review.
+
+subject_type:
+  effect: An action that changes the world outside the model. Sends, writes, deletes, deploys, charges, or calls an outside service.
+  control: Something that gates, checks, or limits an action. A role check, a test suite, an approval step.
+  capability: A context that holds some mix of untrusted input, private data, and the power to act. See the trifecta.
+  artifact: A file that carries knowledge. A README, a migration header, a decision record.
+  contract: An agreement at a seam, like a schema or a type, that makes mismatches fail loudly.
+  process: A repeatable procedure. A sync job, a release routine, a bookkeeping step.
+
+reversibility:
+  reversible: Can be undone with no lasting harm.
+  reversible-with-window: Can be undone only for a while, like a proration window or a soft delete.
+  irreversible: Cannot be taken back. A sent email, a hard delete, a schema change.
+
+gate_type:
+  deterministic-halt: A hard stop a person or a fixed rule holds before the action runs.
+  staged-reversible: The action exists first in a reversible or draft form, so a mistake is recoverable.
+  scope-bound: The action is boxed to a narrow, authorized surface, like one tenant or one function set.
+  rate-throttle: A limit on volume or speed, not a stop.
+  disclosure-only: The action is announced, not actually stopped.
+  external-halt: The stop lives in a system outside this codebase.
+  none: Nothing stops the action.
+
+fail_mode:
+  open: If the gate's dependency is missing, the action still runs. The gate fails open and is no gate under that condition.
+  closed: If the gate's dependency is missing, the action is refused. The gate fails safe.
+
+telemetry:
+  none: The action leaves no record. You cannot tell it happened.
+  unstructured: Only throwaway or free-text logs. Not something you can alert on.
+  structured-event: A durable, machine-readable record you could alert on.
+  audited: A first-class audit trail.
+
+blast_scope:
+  user: Damage stays within one user's own data.
+  tenant: Damage stays within one customer.
+  fleet: Damage can reach every customer at once, through a shared secret or a shared sender.
+  cross-tenant: Damage can cross from one customer into another's data.
+
+preconditions:
+  prompt-injection: An attacker only needs to plant text the AI later reads, like a hostile display name. Easy.
+  stolen-credential: An attacker needs a leaked key or secret. Moderate.
+  malicious-dependency: An attacker needs to compromise a third-party package. Moderate.
+  network-position: An attacker needs to sit on the network path. Hard.
+  insider: The actor is an authorized user or operator. Hard, and often a slip rather than an attack.
+  zero-day: An attacker needs an unknown flaw. Rare.
+  physical: An attacker needs physical access. Rare.
+
+concepts:
+  the-halt: The point where an action becomes irreversible or leaves the system, and a person should stop and confirm. Accountability sits here, not at every step along the way.
+  trifecta: A context is dangerous when it holds all three of untrusted input, private data, and the power to act. Any two is safe. Keeping a powerful agent to two of the three on purpose is a safety margin.
+  escapes: A note on an action whose damage breaks out of an otherwise strong containment, such as reaching other tenants despite per-tenant isolation.
+  supervision: Something overseeing an action before it fires, so a mistake is caught. It takes many forms: a person confirming, a deterministic rule, or a design that stages the change so it can be reversed. An action that can't be undone or reaches outside the company, with none of these, runs unsupervised.

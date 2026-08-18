@@ -1,0 +1,11 @@
+# Verification pass over the clean-lib control target.
+- id: F-030
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    The test suite asserts actual output across the edge cases the code exists to handle
+    (accents, punctuation, collapsing, trimming, and the type guard), so a change that regresses
+    behavior is caught — a real behavioral check, not a shape assertion.
+  evidence: [test/slugify.test.mjs:9]
+  confidence: confirmed

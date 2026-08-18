@@ -1,0 +1,56 @@
+# findings.yaml — neutral evidence base for <TARGET> (run <slug>-<YYYY-MM-DD>).
+# Facts + structured descriptors + file:line evidence. NO severity, NO priority —
+# those are view outputs. Evidence paths are repo-relative to the TARGET repo.
+# Merge the six per-dimension pass files (dimension order) under this header;
+# ids are unique per run, no dimension meaning (SCHEMA.md §3). Validate with
+# tools/validate.mjs before compiling any view.
+
+# ═══════════════════════════ 01-legibility ═══════════════════════════
+
+- id: F-001                    # unique F-### (no dimension band)
+  dimension: artifact-legibility
+  polarity: strength           # strength | gap | fact
+  subject_type: artifact       # effect | control | artifact | contract | process | capability
+  observation: >
+    ONE grounded sentence — the fact, not the interpretation.
+  evidence: [path/to/file.ts:12, path/to/other.md:3]   # mandatory, non-empty
+  confidence: confirmed        # confirmed | plausible | unverified
+
+# ═══════════════════════════ 02-context ═══════════════════════════
+#   … (context-economy) …
+
+# ═══════════════════════════ 03-gates ═══════════════════════════
+#   … (deterministic-gates) …
+
+# ═══════════════════════════ 04-verification ═══════════════════════════
+#   … (verification) …
+
+# ═══════════════════════════ 05-delegation ═══════════════════════════
+# Every effect channel is an `effect` finding with the full facet; Root AI etc.
+# are `capability` findings. Isolation-strength baseline findings are `control`
+# findings in this pass; effects that pierce one carry escapes: [that id].
+#
+# - id: F-120                  # unique F-### (no dimension band)
+#   dimension: delegation
+#   polarity: gap
+#   subject_type: effect
+#   observation: >
+#     The <channel> effect fires with no draft/confirm halt.
+#   evidence: [path:line]
+#   confidence: confirmed
+#   effect:
+#     channel: <slug>
+#     reversibility: irreversible   # reversible | reversible-with-window | irreversible
+#     external: true
+#     gate_type: none               # …see SCHEMA.md §2
+#     # fail_mode: closed           # REQUIRED when gate_type != none
+#     telemetry: none
+#     blast_scope: tenant
+#   preconditions: [prompt-injection]
+#   escapes: [F-170]
+
+# ═══════════════════════════ 06-improvement ═══════════════════════════
+#   … (improvement-loop) …
+
+# Seam-findings no criterion asked for → dimension: unprompted, unique F-### id,
+# filed in whichever pass surfaced them.

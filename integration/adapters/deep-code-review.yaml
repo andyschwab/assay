@@ -1,0 +1,62 @@
+# Adapter: deep-code-review (external scanner) -> the axis roster
+# (integration/scanner-contract.md). Keyed by the stable Area CODE (A-R). We
+# consume its findings as data; we never reimplement its checks. It CONTRIBUTES
+# the two code axes (its own methodology lives there) and FEEDS four native axes
+# where its areas measure the same property the native passes do — testing gates,
+# proof-of-effect, AI/agent security, docs — so independent convergence lands on
+# one shared axis instead of two chapters. A finding needing finer routing than
+# the letter allows carries an explicit `axis`/`also_axes` from the scanner,
+# which projection honors over this map.
+scanner: deep-code-review
+targets_taxonomy: 3
+severity_scale: [Blocker, Critical, High, Medium, Low, Nit]
+
+contributes:
+  - code-correctness
+  - code-security
+
+map:
+  A:                          # Correctness & logic
+    axis: code-correctness
+  D:                          # Data integrity & quality
+    axis: code-correctness
+  E:                          # Performance, efficiency & cost
+    axis: code-correctness
+  F:                          # Reliability & error handling
+    axis: code-correctness
+  G:                          # Concurrency & shared state
+    axis: code-correctness
+  H:                          # Tech debt, dead code, maintainability
+    axis: code-correctness
+  R:                          # i18n / encoding / localization
+    axis: code-correctness
+  P:                          # Frontend / UI / a11y
+    axis: code-correctness
+  B:                          # Application security (OWASP)
+    axis: code-security
+  I:                          # API, contracts & integration
+    axis: code-security
+  K:                          # Build, CI/CD, supply chain
+    axis: code-security
+  L:                          # IaC, containers, cloud
+    axis: code-security
+  N:                          # Config, secrets, environments
+    axis: code-security
+  Q:                          # Privacy, compliance, licensing
+    axis: code-security
+  J:                          # Testing & evaluation -> the shared gates axis
+    axis: deterministic-gates
+  M:                          # Observability (proof-of-effect) -> the shared verification axis
+    axis: verification
+  C:                          # AI / LLM / agent security -> the shared delegation axis
+    axis: delegation
+  O:                          # Documentation & developer experience -> the shared legibility axis
+    axis: artifact-legibility
+
+default: FAIL
+
+capabilities:
+  - id: standards-imprint
+    invoke: "re-run deep-code-review Phase 6 (opt-in, confirmed)"
+  - id: verify-fix
+    invoke: "re-run deep-code-review scoped to the finding's evidence path"

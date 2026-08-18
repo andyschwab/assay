@@ -1,0 +1,26 @@
+# Adapter: gitleaks (INSTRUMENT — a deterministic secrets enumerator) -> the axis
+# roster (integration/scanner-contract.md, instrument role). Instruments never
+# contribute an axis (contributes is empty by design — ten instruments add zero
+# chapters); their rows feed existing axes. Rows are produced by tools/ingest.mjs,
+# which verifies the tool's exit code before any row exists (a tool that errored
+# must never read as zero findings) and never copies a matched secret value. Every
+# leak collapses to one native category ("secret" — the tool's whole taxonomy),
+# keeping the rule id in native_id, so this map stays one row while gitleaks' rule
+# set grows. Committed-secret rows corroborate the delegation credential census
+# (METHOD.md, Pass 0): the census traces where secrets sit relative to the prompt
+# boundary; gitleaks enumerates which are committed at all.
+scanner: gitleaks
+targets_taxonomy: 3
+role: instrument
+
+contributes: []
+
+map:
+  secret:
+    axis: code-security
+
+default: FAIL
+
+capabilities:
+  - id: verify-fix
+    invoke: "re-run gitleaks scoped to the finding's evidence path (and its history) and confirm the rule no longer fires"

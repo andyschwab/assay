@@ -1,0 +1,4 @@
+# findings-91-gitleaks.yaml — instrument rows ingested by tools/ingest.mjs.
+# Instrument: gitleaks · exit code 0 (verified in its success set) · 0 row(s).
+# Raw report archived at eval/raw/gitleaks.json. Regenerate with ingest.mjs; never hand-edit.
+

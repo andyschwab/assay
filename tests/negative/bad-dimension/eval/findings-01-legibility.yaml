@@ -1,0 +1,9 @@
+- id: F-101
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: "Negative fixture: this finding's dimension (verification) contradicts its filename (legibility). Portable validate must reject on filename-dimension disagreement."
+  evidence:
+    - path: tests/negative/bad-citation/eval/findings-01-legibility.yaml
+      lines: "1"
+  confidence: confirmed

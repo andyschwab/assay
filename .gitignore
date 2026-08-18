@@ -1,0 +1,7 @@
+node_modules/
+*.log
+# rendered outputs (regenerated from the Markdown source of truth)
+*.pdf
+*.preview.png
+# a run compiled inside a checkout
+eval/raw/

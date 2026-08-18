@@ -1,0 +1,11 @@
+# Artifact-legibility pass over the clean-lib control target (slugify).
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The design choice (an explicit fold table over NFKD normalization, for cross-version output
+    stability) is recorded as a full ADR whose "why not the alternative" reconstructs the
+    reasoning from the file alone.
+  evidence: [docs/adr/0001-fold-table-over-normalize.md:1]
+  confidence: confirmed

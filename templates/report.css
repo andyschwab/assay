@@ -1,0 +1,369 @@
+/* repo-eval maintainer report — print design system (brand-neutral).
+   Consumed by tools/render-pdf.mjs (inlined into HTML, printed by Chromium).
+   Typography: Source Serif 4 (headings) + Source Sans 3 (body), vendored in
+   templates/fonts/ (OFL); render-pdf.mjs prepends the @font-face rules.
+   All spacing derives from one scale (--s1..--s7); no ad-hoc values. */
+
+:root {
+  /* palette — the framework's quiet identity, distinct from any target brand */
+  --ink:      #17242b;
+  --ink-soft: #45555d;
+  --muted:    #6b7880;
+  --muted-2:  #93a0a6;
+  --hair:     #dde3e2;
+  --hair-2:   #eef1f0;
+  --accent:   #235863;
+  --accent-2: #2f7480;
+  --accent-soft: #eef4f4;
+  --cleared:  #2f7d5a;
+  --gated:    #b26a12;
+  --pending:  #7c8a91;
+  --danger:   #b23b2e;
+  --bg-soft:  #f5f8f8;
+  /* spacing scale (points) */
+  --s1: 3pt; --s2: 6pt; --s3: 9pt; --s4: 12pt; --s5: 18pt; --s6: 24pt; --s7: 34pt;
+  /* comfortable reading measure for prose */
+  --measure: 6.15in;
+}
+
+/* page geometry — the cover (first page) drops its margins so Chromium's running
+   header/footer (drawn in the margin boxes) never appear on it */
+@page { size: Letter; margin: 0.7in 0.8in; }
+@page :first { margin: 0; }
+
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  font-family: "Source Sans 3", "Liberation Sans", "DejaVu Sans", Arial, sans-serif;
+  font-size: 9.8pt;
+  line-height: 1.52;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ─── headings (## → h2 section, ### → h3 sub, #### → h4 group) ─────── */
+h2, h3, h4, .cover-title, .cover-sub {
+  font-family: "Source Serif 4", "Charter", "Bitstream Charter", "DejaVu Serif", Georgia, serif;
+  color: var(--accent);
+  font-weight: 600;
+  line-height: 1.2;
+}
+h2 {
+  font-size: 15pt;
+  margin: var(--s6) 0 var(--s3);
+  padding-bottom: var(--s2);
+  border-bottom: 1.2pt solid var(--accent);
+  break-after: avoid;
+}
+h3 { font-size: 11.4pt; color: var(--ink); margin: var(--s4) 0 var(--s2); break-after: avoid; }
+h4 { font-size: 9.6pt; color: var(--ink-soft); margin: var(--s3) 0 var(--s1); text-transform: uppercase; letter-spacing: 0.05em; break-after: avoid; font-family: "Source Sans 3", "Liberation Sans", sans-serif; }
+h2 + *, h3 + *, h4 + * { break-before: avoid; }
+
+p { margin: 0 0 var(--s3); max-width: var(--measure); }
+p, li { orphans: 3; widows: 3; }
+ul, ol { margin: 0 0 var(--s3); padding-left: var(--s5); max-width: var(--measure); }
+li { margin: 0 0 var(--s2); }
+li > ul, li > ol { margin-top: var(--s2); }
+strong { color: var(--ink); }
+em { color: var(--ink-soft); }
+a { color: var(--accent-2); text-decoration: none; }
+code, .mono {
+  font-family: "DejaVu Sans Mono", "Liberation Mono", monospace;
+  font-size: 0.85em; background: var(--hair-2);
+  padding: 0.4pt 3pt; border-radius: 2pt; color: #2a3a41;
+}
+hr { display: none; }               /* dividers come from heading rules, not <hr> */
+
+/* finding ids (F-###) never break across lines; quiet mono in prose */
+.fid { font-family: "DejaVu Sans Mono", "Liberation Mono", monospace; font-size: 0.88em; white-space: nowrap; }
+code .fid { font: inherit; }
+
+/* ─── tables ────────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; margin: var(--s2) 0 var(--s4); font-size: 8.4pt; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th {
+  background: var(--accent); color: #fff; text-align: left; font-weight: 700;
+  padding: var(--s1) var(--s2); border: 0.5pt solid var(--accent);
+  font-family: "Source Sans 3", "Liberation Sans", sans-serif;
+}
+td { padding: 2pt var(--s2); border: 0.5pt solid var(--hair); vertical-align: top; max-width: none; }
+tbody tr:nth-child(even) td { background: var(--bg-soft); }
+th:first-child { white-space: nowrap; }
+.flag { color: var(--danger); font-weight: 700; }
+.table-note { font-size: 8.6pt; color: var(--muted); margin: 0 0 var(--s4); max-width: none; }
+
+/* the executive summary's at-a-glance strip */
+.stat-strip { width: auto; min-width: 5.4in; margin: var(--s3) 0 var(--s2); }
+.stat-strip th {
+  background: none; color: var(--muted); border: none; border-bottom: 0.5pt solid var(--hair);
+  font-size: 7.4pt; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+  padding: 0 var(--s4) var(--s1) 0; text-align: left; white-space: nowrap;
+}
+.stat-strip td {
+  border: none; background: none !important;
+  font-family: "Source Serif 4", "Charter", serif; font-size: 16pt; font-weight: 600; color: var(--accent);
+  padding: var(--s1) var(--s4) 0 0;
+}
+
+/* ─── cover ─────────────────────────────────────────────────────────── */
+.cover {
+  break-after: page;
+  height: 10.9in;                       /* full first page (its @page margin is 0) */
+  padding: 0.9in 0.8in 0.75in;
+  display: flex; flex-direction: column;
+}
+.cover-kicker {
+  font-size: 8.6pt; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 700; margin-bottom: var(--s5);
+  padding-bottom: var(--s3); border-bottom: 0.5pt solid var(--hair);
+}
+.cover-title { font-size: 28pt; line-height: 1.1; margin: 0 0 var(--s2); color: var(--ink); }
+.cover-sub {
+  font-size: 13pt; font-weight: 400; color: var(--ink-soft);
+  font-family: "Source Sans 3", "Liberation Sans", sans-serif; margin: 0 0 var(--s6);
+}
+.cover-meta {
+  font-size: 9.2pt; color: var(--ink-soft); border-top: 0.5pt solid var(--hair);
+  padding-top: var(--s4); margin-top: auto;   /* pinned to the foot of the cover */
+  display: flex; gap: var(--s6); flex-wrap: wrap;
+}
+.cover-meta b { color: var(--ink); font-weight: 700; }
+.cover-meta span { max-width: none; }
+/* ─── "how to read" panel on the cover ──────────────────────────────── */
+.cover-howto {
+  margin: var(--s6) 0 0; padding: var(--s4) var(--s5);
+  background: var(--bg-soft); border: 0.5pt solid var(--hair); border-left: 3pt solid var(--accent-2);
+  border-radius: 3pt;
+}
+.cover-howto-title {
+  font-family: "Source Serif 4", "Charter", serif; color: var(--accent);
+  font-weight: 600; font-size: 12pt; margin-bottom: var(--s2);
+}
+.cover-howto p { font-size: 9.3pt; color: var(--ink-soft); max-width: none; margin: 0 0 var(--s2); }
+.cover-howto p:last-child { margin-bottom: 0; }
+
+/* ─── "in plain terms" appendix (concepts primer + glossary defs) ────── */
+.plainterms h4 { margin-top: var(--s2); }
+.plainterms p {
+  margin: 0 0 var(--s1);
+  font-size: 8.8pt; line-height: 1.4; max-width: var(--measure); break-inside: avoid;
+}
+.plainterms ul { margin: var(--s1) 0 var(--s2); }
+.plainterms li { font-size: 8.8pt; line-height: 1.4; }
+
+/* ─── executive dashboard: strength / watch callout tiles ────────────── */
+.es-tile {
+  display: grid; grid-template-columns: 18pt 1fr; gap: var(--s3); align-items: start;
+  border: 0.5pt solid var(--hair); border-radius: 3pt; padding: var(--s3) var(--s4);
+  margin: 0 0 var(--s3); max-width: var(--measure); break-inside: avoid;
+}
+.es-tile.good  { border-left: 3pt solid var(--cleared); background: #f2f8f4; }
+.es-tile.watch { border-left: 3pt solid var(--gated);   background: #fbf5ec; }
+.es-ic { font-weight: 700; font-size: 12pt; line-height: 1.2; }
+.es-tile.good .es-ic  { color: var(--cleared); }
+.es-tile.watch .es-ic { color: var(--gated); }
+.es-body { font-size: 9.2pt; color: var(--ink); line-height: 1.45; }
+.es-body code { background: rgba(0,0,0,0.05); }
+.chip-label { font-weight: 700; }
+
+/* ─── the ES instrument panel: narrative flows above, every visual lives here ─ */
+/* dashboard-first page 1: masthead + verdict, then the panel, then narrative */
+.masthead { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.5pt solid var(--accent); padding-bottom: var(--s2); margin-bottom: var(--s2); }
+.mh-kicker { font-size: 7.4pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent-2); font-weight: 700; }
+.mh-title { font-family: "Source Serif 4", "Charter", serif; font-size: 21pt; font-weight: 600; color: var(--accent); line-height: 1.05; }
+.mh-sub { font-size: 10.5pt; font-weight: 600; color: var(--accent-2); margin-top: 1.5pt; }
+.mh-desc { font-size: 8.3pt; color: var(--muted); margin-top: 1pt; }
+.mh-meta { font-size: 8pt; color: var(--muted-2); white-space: nowrap; padding-bottom: 1.5pt; }
+.exec .es-verdict {
+  font-family: "Source Serif 4", "Charter", serif; font-size: 12pt; line-height: 1.28;
+  font-weight: 600; color: var(--ink); margin: var(--s2) 0 var(--s2); max-width: none;
+}
+/* the ES must fit one page for any target — the narrative is the compressible tail, so
+   it runs a notch smaller and tighter than body prose. Drop it further before spilling. */
+.es-narr { margin-top: var(--s2); border-top: 0.5pt solid var(--hair); padding-top: var(--s2); }
+.es-narr p { margin: 0 0 var(--s1); font-size: 9pt; line-height: 1.4; max-width: none; }
+.exec .es-panel { margin-top: var(--s1); }
+.exec .masthead { margin-bottom: var(--s1); }
+.howto-appendix { margin-bottom: var(--s4); }
+.howto-appendix h3 { margin: 0 0 var(--s1); }
+
+.es-panel { margin-top: var(--s2); padding-top: 0; break-inside: avoid; }
+.panel-box { border: 0.5pt solid var(--hair); border-radius: 3pt; padding: var(--s2) var(--s3); }
+.panel-label {
+  font-size: 7.6pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); margin-bottom: var(--s1);
+}
+.es-chips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin: var(--s3) 0 0; }
+.es-chips .es-tile { margin: 0; padding: var(--s2) var(--s3); }
+.es-duo { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); align-items: stretch; margin-top: var(--s2); }
+.exec .stat-strip { width: 100%; min-width: 0; margin: 0 0 var(--s3); }
+.exec .stat-strip td { font-size: 14pt; }
+
+/* defined-stat row: fewer stats, each with its meaning spelled out */
+.stat-defs { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s4); margin: var(--s2) 0 var(--s3); }
+.statd { padding-top: 1pt; }
+.statd-num { font-family: "Source Serif 4", "Charter", serif; font-size: 18pt; font-weight: 600; color: var(--accent); line-height: 1; }
+.statd-lab { font-size: 7.6pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink); margin: 2.5pt 0 1.5pt; }
+.statd-def { font-size: 7.6pt; color: var(--muted); line-height: 1.32; }
+/* the executive summary owns its page; the risks + questions open on a fresh one */
+section.exec { break-after: page; }
+
+/* ─── executive dashboard: guard-coverage table (the gate visual) ──────
+   status dot + level name + right-aligned state. No heavy color fills. */
+/* all data dots are inline SVG circles (see dot() in render-pdf.mjs) */
+svg.dot { width: 7pt; height: 7pt; flex: 0 0 auto; display: block; }
+
+/* ─── supervision instrument (ES right cell) ─────────────────────────── */
+/* one bar, two states: supervised (something oversees the action before it
+   fires) vs unsupervised (nothing does). No tiers. Below it, the unsupervised
+   kinds as a worklist, each pointing at its queued fix. */
+.supbar { display: flex; height: 9pt; border-radius: 2pt; overflow: hidden; margin: 4pt 0 3pt; }
+.sup-seg { height: 100%; }
+.sup-ok { background: var(--cleared); }
+.sup-open { background: var(--danger); }
+.sup-legend { display: flex; justify-content: space-between; font-size: 8pt; font-weight: 700; margin-bottom: var(--s2); }
+.sup-legend .ok { color: var(--cleared); }
+.sup-legend .open { color: var(--danger); }
+.sup-lead { font-size: 7.8pt; color: var(--muted); margin-top: 2pt; line-height: 1.35; }
+/* posture at a glance — aggregate verdicts filling the right ES panel */
+.panel-sublabel {
+  font-size: 7.2pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); margin-bottom: var(--s1);
+}
+.posture { margin-top: var(--s3); padding-top: var(--s2); border-top: 0.5pt solid var(--hair-2); }
+.posture-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3);
+  font-size: 8.4pt; padding: 1.5pt 0; border-bottom: 0.5pt solid var(--hair-2);
+}
+.posture-row:last-child { border-bottom: 0; }
+.posture-k { color: var(--ink-soft); }
+.posture-v { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+
+
+/* ─── the main risks: computed attack chains (the lead) ──────────────── */
+.chain {
+  border: 0.5pt solid var(--hair); border-left: 3pt solid var(--pending); border-radius: 3pt;
+  padding: var(--s3) var(--s4); margin: 0 0 var(--s3); max-width: var(--measure); break-inside: avoid;
+}
+.chain.sev-high { border-left-color: var(--danger); background: #fbf1ef; }
+.chain.sev-mid  { border-left-color: var(--gated); background: var(--bg-soft); }
+.chain-flow { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2); }
+.chain-node { font-weight: 700; font-size: 10pt; color: var(--ink); }
+.chain-node.sink { color: var(--danger); }
+.chain.sev-mid .chain-node.sink { color: var(--gated); }
+.chain-arrow { color: var(--muted-2); font-size: 11pt; font-weight: 700; }
+.chain-badges { margin-left: auto; display: flex; gap: 4pt; }
+.chain-badge {
+  font-size: 7.4pt; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  padding: 1.5pt 5pt; border-radius: 2pt; white-space: nowrap;
+}
+.chain-badge.reach { background: var(--danger); color: #fff; }
+.chain.sev-mid .chain-badge.reach { background: var(--gated); }
+.chain-badge.diff { background: #fff; border: 0.5pt solid var(--hair); }
+.chain-badge.diff.e-easy { color: var(--danger); border-color: var(--danger); }
+.chain-badge.diff.e-mod  { color: var(--gated); border-color: var(--gated); }
+.chain-badge.diff.e-hard { color: var(--muted); }
+.chain-also { font-size: 8.4pt; color: var(--muted); margin-top: 3pt; }
+.chain-line { font-size: 9pt; color: var(--ink-soft); margin-top: 3pt; }
+.chain-k { font-weight: 700; color: var(--accent); text-transform: uppercase; font-size: 7.6pt; letter-spacing: 0.04em; margin-right: 3pt; }
+.chain-hedge { color: var(--muted-2); font-style: italic; }
+.chain-badge.poss { background: #fff; border: 0.5pt solid var(--pending); color: var(--pending); }
+/* held path: contained today but load-bearing — calm, not alarmed */
+.chain.held { border-left-color: var(--accent-2); background: var(--bg-soft); padding: var(--s2) var(--s4); }
+.chain-held-what { font-size: 9pt; color: var(--ink-soft); }
+.chain-note { font-size: 9pt; color: var(--ink-soft); margin: var(--s2) 0; max-width: var(--measure); }
+.chain-unknown { font-size: 8.6pt; color: var(--gated); margin-top: var(--s3); max-width: var(--measure); font-weight: 600; }
+
+/* ─── what it can do: status-rail list ───────────────────────────────── */
+/* container must NOT keep-inside-avoid: a page-tall list would jump whole to the
+   next page and orphan its heading. Rows keep themselves together (.cap-row); the
+   block flows, filling the heading's page. */
+.cap-group { margin: 0 0 var(--s4); }
+.cap-ghead {
+  font-size: 9.6pt; color: var(--ink); font-weight: 700; margin: var(--s3) 0 var(--s2);
+  padding-bottom: var(--s1); border-bottom: 0.5pt solid var(--hair);
+}
+.cap-gmeta { font-weight: 400; color: var(--muted); }
+.cap-gcount { font-weight: 700; color: var(--cleared); font-size: 8.4pt; }
+.cap-gcount.warn { color: var(--gated); }
+.cap-row {
+  display: grid; grid-template-columns: 1.55in 1fr; gap: var(--s3);
+  padding: var(--s2) var(--s3); border-left: 2.5pt solid var(--accent-soft);
+  margin-bottom: 2pt; break-inside: avoid; background: var(--bg-soft);
+}
+.cap-row.halt { border-left-color: var(--danger); background: #fbf1ef; }
+.cap-name { font-weight: 700; font-size: 8.9pt; color: var(--ink); }
+.cap-name .flag { margin-right: 1pt; }
+.cap-what { font-size: 8.6pt; color: var(--ink-soft); }
+.cap-trace { color: var(--muted-2); font-size: 7.8pt; white-space: nowrap; }
+
+/* ─── executive dashboard: compact maturity ladder (name + dots; full in §2) ─ */
+.mini-ladder { margin: 0; break-inside: avoid; }
+.mini-row {
+  display: grid; grid-template-columns: 1.35in auto 0.35in; gap: var(--s3);
+  align-items: center; padding: 2.5pt 0; border-bottom: 0.5pt solid var(--hair-2);
+}
+.mini-name { font-weight: 600; font-size: 8.6pt; color: var(--ink); }
+.mini-row svg.cov { display: block; }
+.mini-pct { font-size: 8.2pt; font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.mini-foot { font-size: 7.4pt; color: var(--muted-2); padding-top: 2.5pt; }
+
+/* ─── maturity, area by area (full ladder with notes) ───────────────── */
+/* no container keep-inside: the full ladder is page-tall and would orphan its
+   heading by jumping whole; rows (.mat-row) keep themselves together, block flows. */
+.maturity { margin: var(--s3) 0 var(--s4); border-top: 0.5pt solid var(--hair); }
+.mat-row {
+  display: grid; grid-template-columns: 1.35in 1.55in 1fr; gap: var(--s4);
+  padding: var(--s2) 0; border-bottom: 0.5pt solid var(--hair-2);
+  align-items: start; break-inside: avoid;
+}
+.mat-name { font-weight: 700; font-size: 9.2pt; color: var(--ink); padding-top: 1pt; }
+.mat-track { padding-top: 2pt; }
+.mat-track svg.cov { display: block; margin-bottom: 2.5pt; }
+.mat-grade { font-size: 8.2pt; color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.mat-grade.mat-nm { color: var(--muted-2); font-weight: 600; }
+.mat-what { font-size: 7.4pt; color: var(--muted-2); line-height: 1.35; margin-top: 1.5pt; }
+.mat-note { font-size: 8.2pt; color: var(--muted); max-width: none; line-height: 1.45; }
+.mat-agg { font-size: 8.6pt; color: var(--muted); margin-top: var(--s2); }
+
+/* ─── security-risk / watch cards ───────────────────────────────────── */
+.stage-group { margin: var(--s4) 0 var(--s2); }
+.stage-group-head { font-weight: 700; font-size: 9.6pt; color: var(--ink); margin: 0 0 var(--s2); break-after: avoid; }
+.stage-group-head .st-def { font-weight: 400; color: var(--muted); font-size: 8.6pt; }
+.stage-cleared-note { color: var(--cleared); font-weight: 700; font-size: 8.8pt; margin: 0 0 var(--s3); }
+.blocker {
+  border-top: 0.5pt solid var(--hair); border-left: 3pt solid var(--gated);
+  padding: var(--s2) 0 var(--s2) var(--s3); margin: 0; break-inside: avoid;
+}
+.blocker:last-child { border-bottom: 0.5pt solid var(--hair); }
+.blocker-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); margin-bottom: var(--s1); }
+.blocker-name { font-weight: 700; font-size: 8.9pt; color: var(--ink); }
+.blocker-ids { font-family: "DejaVu Sans Mono", monospace; font-size: 7.2pt; color: var(--muted-2); white-space: nowrap; }
+.chip { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1pt 6pt; border-radius: 8pt; color: #fff; white-space: nowrap; }
+.chip.high { background: var(--danger); }
+.chip.moderate { background: var(--gated); }
+.chip.low { background: var(--pending); }
+.blocker .what { color: var(--ink-soft); font-size: 8.8pt; margin: 0 0 var(--s1); max-width: none; }
+.blocker .field { font-size: 8.6pt; margin: 0 0 1pt; max-width: none; }
+.blocker .field:last-child { margin-bottom: 0; }
+.blocker .label { font-weight: 700; color: var(--accent); font-size: 7.4pt; text-transform: uppercase; letter-spacing: 0.04em; margin-right: var(--s1); }
+
+/* ─── closing plate (rides the foot of the last page, never splits) ──── */
+.endplate {
+  break-inside: avoid; margin-top: 1.1in;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  text-align: center;
+}
+.end-kicker {
+  font-size: 8pt; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 700; margin-bottom: var(--s3);
+}
+.colophon {
+  padding-left: 0 !important; text-indent: 0 !important;
+  font-size: 8.5pt; color: var(--muted); max-width: 4.6in; line-height: 1.6;
+}
+
+/* ─── page-break discipline ─────────────────────────────────────────── */
+.appendix { break-before: page; }
+.keep { break-inside: avoid; }
