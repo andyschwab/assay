@@ -248,6 +248,21 @@ function adaptersOnce() { return loadAdapters(); }
   if (excluded.includes('harness/bench.yaml')) fail('--exclude <dir> must drop a declared-harness member from the gate');
 }
 
+// ── enumerate agent tool-def detector: it must surface an in-code tool table
+// (name + input_schema) and a remote MCP toolset as channel candidates, and must
+// NOT surface a tool defined only in a test file. Shells out to the real CLI
+// against the same self-contained fixture target.
+{
+  const fail = (m) => negFailures.push('enumerate-tooldef: ' + m);
+  let out = '';
+  try { out = execFileSync(process.execPath, [join(ROOT, 'tools', 'enumerate.mjs'), join(HERE, 'enumerate-fixture', 'target')], { encoding: 'utf8' }); }
+  catch (e) { out = String(e.stdout || '') + String(e.message || ''); }
+  for (const need of ['tool: send_thing', 'tool: read_thing', 'mcp-toolset: analytics']) {
+    if (!out.includes(need)) fail(`enumerate did not surface "${need}" — the agent tool-def detector regressed`);
+  }
+  if (out.includes('fixture_only_tool')) fail('enumerate surfaced a tool defined only in a test file — the test-file skip regressed');
+}
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -281,7 +296,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, decision-overlay, instrument-port, enumerate-gate, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, decision-overlay, instrument-port, enumerate-gate, enumerate-tooldef, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

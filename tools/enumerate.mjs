@@ -169,9 +169,14 @@ for (const f of files) {
 // hand-drafted inventory forgot. Each is a candidate the delegation pass triages to an effect
 // finding or an out-of-scope note.
 const EFFECT_VERB = /\b(send|deliver|publish|deploy|provision|rebuild|promote|revoke|upload|share|install|migrate|exec|browse|meeting|webhook|payment|mint|wipe|delete)\b/i;
+// A test file (a tests/ dir, or a test-/test_/*.test./*.spec. filename) commonly
+// builds fixture tool defs and effect-verb-named helpers; scanning it manufactures
+// channel candidates that are not part of the shipped surface. Skip the whole
+// channel-candidate scan for them.
+const isTestFile = (r, b) => /(^|\/)tests?\//.test(r) || /^test[-_]/.test(b) || /\.(test|spec)\.[^.]+$/.test(b);
 for (const f of files) {
   const r = rel(f), b = basename(f);
-  if (/(^|\/)tests?\//.test(r) || b.startsWith('test_')) continue;
+  if (isTestFile(r, b)) continue;
   // agent-facing CLI: an executable-looking file under a bin/ directory
   if (/(^|\/)bin\/[^/]+$/.test(r) && !/\.(md|txt|json)$/.test(b)) hit('channelCandidates', `cli: ${b}`, r, 0, 'an agent-invocable command — an effect channel unless proven inert');
   // effect-bearing skill: a SKILL.md whose dir or first lines name an acting verb
@@ -181,6 +186,28 @@ for (const f of files) {
   }
   // delivery / integration surface: a patch/script whose name is an effect verb
   if (/\.(py|sh|mjs|js)$/.test(b) && EFFECT_VERB.test(b)) hit('channelCandidates', `surface: ${b}`, r, 0, 'a delivery/integration surface named for an effect verb');
+
+  // agent tool-DEFINITION table — the most common agentic shape and the one the
+  // CLI/skill detectors miss: an in-code array/object of tool defs the model's
+  // dispatch loop reads (a calibration run had to hand-derive 24 channels declared
+  // this way). Anchor on the SDK-specific `input_schema` (Anthropic) / `inputSchema`
+  // (some SDKs) / `parameters` (OpenAI/tool-runner) key, then take the nearest
+  // preceding `name: "..."` as the channel slug — the invocation boundary, one
+  // candidate per tool. A remote MCP toolset (`mcp_server_name`) is the same
+  // surface reached provider-side; list it too.
+  if (/\.(mjs|js|ts|jsx|tsx|py)$/.test(b)) {
+    const fl = lines(f);
+    for (let i = 0; i < fl.length; i++) {
+      if (/\b(?:input_schema|inputSchema|parameters)\s*:/.test(fl[i])) {
+        for (let j = i; j >= Math.max(0, i - 10); j--) {
+          const nm = fl[j].match(/\bname\s*:\s*["'`]([A-Za-z][\w-]{1,60})["'`]/);
+          if (nm) { hit('channelCandidates', `tool: ${nm[1]}`, r, j, 'an agent tool definition (name + input_schema) — the model-invocable surface; triage as an effect channel or an inert read'); break; }
+        }
+      }
+      const mcp = fl[i].match(/\bmcp_server_name\s*:\s*["'`]([\w.-]+)["'`]/);
+      if (mcp) hit('channelCandidates', `mcp-toolset: ${mcp[1]}`, r, i, 'a remote MCP toolset the model can call provider-side — triage as an effect channel');
+    }
+  }
 }
 
 // ── output ──

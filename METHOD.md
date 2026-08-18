@@ -82,12 +82,15 @@ pinned prior run had missed). Canon *maintenance* is a distinct reviewed functio
 Additionally, **derive the effect inventory from a listing, not from memory**: run
 `node tools/enumerate.mjs <target>` and take its **CHANNEL
 CANDIDATES** section — the agent's invocable surface (the `bin/` CLIs, the
-effect-bearing skills, the delivery/integration surfaces) — as the candidate channel
+effect-bearing skills, the delivery/integration surfaces, the **in-code agent
+tool-definition table** — `tool:` entries, one per `name`+`input_schema` def, the
+most common agentic shape — and remote **MCP toolsets**) — as the candidate channel
 list, plus the `effectSites` call sites. Triage every candidate to either an `effect`
-finding (in the delegation pass) or an explicit out-of-scope note; do not hand-draft a
-short list from memory. (When the scan returns no CHANNEL CANDIDATES — a web app with no
-CLI/skill surface — the invocable surface is the route + effect-lib topology; the canon
-records the resulting channel list so the next run does not re-derive it.) This is why: a calibration measured that every effect
+finding (in the delegation pass) or an explicit out-of-scope note (read-only tools land
+here) — do not hand-draft a short list from memory. (When the scan returns no CHANNEL
+CANDIDATES — a web app with no CLI/skill/tool-def surface — the invocable surface is the
+route + effect-lib topology; the canon records the resulting channel list so the next run
+does not re-derive it.) This is why: a calibration measured that every effect
 channel a single run missed (`master-image-rebuild`, `webhook-inbound`, `meeting-audio`)
 was one the hand-drafted inventory forgot, and each is in the enumerated candidate list.
 The channels through which a system produces effects — sends, writes, deletes, deploys,
