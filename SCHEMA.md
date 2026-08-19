@@ -6,7 +6,7 @@ title: "assay — findings schema & run layout (authoritative)"
 
 This is the **authoritative** specification of the assay evidence base: the
 finding schema, the controlled vocabularies, the id allocation, the run
-directory layout, and the security view's machine-readable stage tail. `METHOD.md`
+directory layout, and the security view's machine-readable exposures tail. `METHOD.md`
 references this file rather than embedding the schema, and `tools/validate.mjs`
 enforces it mechanically — so a run is *generate → validate (red/green) → compile*,
 never "open the last run and match conventions by eye."
@@ -263,7 +263,7 @@ runs/<slug>-<date>/
 │   ├── view-leverage.md            # view — faster/better opportunities
 │   ├── view-maturity.md            # view — capability ladder
 │   ├── view-security.md            # view — ALWAYS-ON; posture + gate
-│   ├── view-security-gate.yaml     # §6 — the security view's machine-readable stage tail
+│   ├── view-security-gate.yaml     # §6 — the security view's machine-readable exposures tail
 │   ├── maturity-inputs.yaml        # §6b — authored depth / censuses / earned flags
 │   ├── censuses.md                 # §6b — census appendix: per-census method + item list
 │   ├── view-maturity-grades.yaml   # §6b — GENERATED coverage (maturity.mjs --write)
@@ -309,38 +309,46 @@ the views compute *how urgent* / *how mature*. So each view that feeds a compute
 element emits a small machine-readable sidecar alongside its prose (the only structured
 artifacts a view produces). Two exist:
 
-### 6a. `view-security-gate.yaml` — the security view's stage tail
+### 6a. `view-security-gate.yaml` — the security view's exposures tail
+
+(The filename is historic — kept stable for tooling and frozen runs.)
 
 ```yaml
 # view-security-gate.yaml — computed by the security view, read by tools/compile-report.mjs
-gate: beta                      # the earliest stage anything blocks: alpha | beta | prod | clear
 exposures:
   - name: fleet-email-abuse     # short slug for the exposure/chain (stable id)
     title: Fleet-wide email abuse   # human display name — what the report renders as the heading
     findings: [F-120, F-121]    # base findings this exposure is composed from
-    blocks_stage: beta          # alpha | beta | prod | none
     who: authorized-real-user   # stranger-pre-auth | authorized-real-user | only-at-scale-or-adversarial
     what: irreversible external email, fleet brand/deliverability   # what's at stake (one clause)
     likelihood: high            # from precondition difficulty: trivial→high … exotic→low
+    standing_watch: false       # optional; true = the analyst's labeled judgment that this is
+                                #   lower-priority watch material (reason stated in `what`/`fix`)
     fix: >                      # the single next action (breaks_the_chain / leverage action)
       Add the owner|admin role gate the route already queries for; require recipients to
       belong to the org; add a per-user/day cap.
     unlocks: >                  # forward-leaning: what closing it advances
-      Removes the last stranger-triggerable effect abuse; clears email off the beta gate.
+      Removes the last stranger-triggerable effect abuse.
 ```
 
-Vocab for this file (closed, validator-checked): `gate` and `blocks_stage` ∈
-{alpha, beta, prod, none/clear}; `who` ∈ {stranger-pre-auth, authorized-real-user,
-only-at-scale-or-adversarial}; `likelihood` ∈ {high, moderate, low}. `findings` are
-`F-###` ids that must resolve in `findings.yaml`. `title` is required: the report
-renders it as the card heading, so it must be a human phrase, not a slug (the slug
-stays in `name` as the stable id). Machine tokens (`who`, effect vocab) are translated
-for the reader by `tools/display.mjs`; the YAML always keeps the closed vocab.
+Vocab for this file (closed, validator-checked): `who` ∈ {stranger-pre-auth,
+authorized-real-user, only-at-scale-or-adversarial}; `likelihood` ∈ {high, moderate,
+low}; `standing_watch` boolean when present. `findings` are `F-###` ids that must
+resolve in `findings.yaml`. `title` is required: the report renders it as the card
+heading, so it must be a human phrase, not a slug (the slug stays in `name` as the
+stable id). Machine tokens are translated for the reader by `tools/display.mjs`; the
+YAML always keeps the closed vocab. Exposures render most-likely-first; the split
+between active exposures and standing watch is `standing_watch` (or the reader's own
+read — the engine issues no verdict).
 
-The four deployment stages (unchanged from METHOD.md §Security view): **alpha** =
-reachable by anyone on the internet, demo data ok; **beta** = trusted testers on
-live/real data; **prod** = open to strangers / at scale / adversarial. `blocks_stage`
-= the *earliest* stage a chain makes unsafe (blocking one implies blocking all above).
+**Retired: the deployment-stage scale.** Earlier versions carried a headline
+`gate:` and a per-exposure `blocks_stage:` on an alpha/beta/prod scale. Assigning a
+stage per exposure is a small risk-tolerance verdict — a decision that belongs to
+the reader, not the engine — and the scale was a redundant composite of properties
+this file already carries separately (`who`, `likelihood`, and the finding-level
+reversibility/blast facets). Grandfathered exactly like the legacy domains (§2a):
+frozen runs carrying `gate`/`blocks_stage` still validate against the old closed
+vocab and render with the legacy watch split; **new runs never emit them**.
 
 ### 6b. Maturity coverage — `maturity-inputs.yaml` (authored) → `view-maturity-grades.yaml` (generated)
 

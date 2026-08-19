@@ -77,9 +77,12 @@ function snapshotStats() {
 function securityRisks() {
   const ex = gate.exposures || [];
   const rank = { high: 0, moderate: 1, low: 2 };
-  const active = ex.filter((e) => e.blocks_stage !== 'none' && e.blocks_stage !== 'clear')
+  // watch = the analyst's labeled standing_watch, or the grandfathered legacy form
+  // (blocks_stage none/clear); everything else is an active exposure.
+  const isWatch = (e) => e.standing_watch === true || e.blocks_stage === 'none' || e.blocks_stage === 'clear';
+  const active = ex.filter((e) => !isWatch(e))
     .sort((a, b) => (rank[a.likelihood] ?? 3) - (rank[b.likelihood] ?? 3));
-  const watch = ex.filter((e) => e.blocks_stage === 'none' || e.blocks_stage === 'clear');
+  const watch = ex.filter(isWatch);
   const out = [];
   if (!active.length && !watch.length) return '_No security exposures identified in this review._';
   if (active.length) {
@@ -337,4 +340,4 @@ const fmTitle = String(prose.target || app).replace(/"/g, "'");
 const frontmatter = `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "AI-Native Readiness Report — ${fmTitle}"\n---\n\n`;
 const outPath = join(runDir, 'MAINTAINER-REPORT.md');
 writeFileSync(outPath, frontmatter + body);
-console.log(`✓ compiled ${outPath} (${findings.length} findings, gate=${gate.gate})`);
+console.log(`✓ compiled ${outPath} (${findings.length} findings, ${(gate.exposures || []).length} security exposures)`);

@@ -40,7 +40,10 @@ try {
 } catch { /* adapters unreadable — the projection gate below reports it */ }
 const LEGACY_DOMAINS = new Set(Object.keys(LEGACY_DOMAIN_AXIS));
 const isInstrument = (src) => ADAPTERS[src]?.role === 'instrument';
-// gate sidecar vocab (SCHEMA.md §6)
+// exposures sidecar vocab (SCHEMA.md §6a). GATE_STAGE is the RETIRED stage
+// scale, kept only to validate grandfathered runs (frozen files carrying
+// gate:/blocks_stage: still validate; new runs never emit them — the same
+// grandfather rail as the legacy domains).
 const GATE_STAGE = new Set(['alpha','beta','prod','none','clear']);
 const WHO = new Set(['stranger-pre-auth','authorized-real-user','only-at-scale-or-adversarial']);
 const LIKELIHOOD = new Set(['high','moderate','low']);
@@ -249,7 +252,8 @@ if (existsSync(gatePath)) {
   try { gate = parseYaml(readFileSync(gatePath, 'utf8')); }
   catch (e) { err('view-security-gate.yaml', `YAML parse failed (fail-closed): ${e.message}`); gate = null; }
   if (gate) {
-    if (!GATE_STAGE.has(gate.gate)) err('view-security-gate.yaml', `bad gate "${gate.gate}"`);
+    // gate: is retired (grandfathered) — optional; when present it must be legacy vocab
+    if (gate.gate !== undefined && !GATE_STAGE.has(gate.gate)) err('view-security-gate.yaml', `bad legacy gate "${gate.gate}" (the stage scale is retired; new runs omit gate:)`);
     const ex = gate.exposures;
     if (!Array.isArray(ex)) err('view-security-gate.yaml', `exposures must be a list`);
     else for (const e of ex) {
@@ -257,7 +261,9 @@ if (existsSync(gatePath)) {
       if (!e || typeof e !== 'object') { err('view-security-gate.yaml', `exposure is not a mapping`); continue; }
       if (!e.name) err(at, `exposure missing name`);
       if (!e.title) err(at, `exposure missing title (the human display name the report renders)`);
-      if (!GATE_STAGE.has(e.blocks_stage)) err(at, `bad blocks_stage "${e.blocks_stage}"`);
+      // blocks_stage: is retired (grandfathered) — optional; legacy vocab when present
+      if (e.blocks_stage !== undefined && !GATE_STAGE.has(e.blocks_stage)) err(at, `bad legacy blocks_stage "${e.blocks_stage}" (the stage scale is retired; new runs omit it)`);
+      if (e.standing_watch !== undefined && typeof e.standing_watch !== 'boolean') err(at, `standing_watch must be boolean`);
       if (e.who !== undefined && !WHO.has(e.who)) err(at, `bad who "${e.who}"`);
       if (e.likelihood !== undefined && !LIKELIHOOD.has(e.likelihood)) err(at, `bad likelihood "${e.likelihood}"`);
       if (!Array.isArray(e.findings) || e.findings.length === 0) err(at, `findings must be a non-empty list`);

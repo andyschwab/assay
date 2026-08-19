@@ -19,7 +19,7 @@
 //   node tests/regression.mjs --bless    # rewrite golden.json from current state (reviewed!)
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../tools/yaml-min.mjs';
@@ -45,6 +45,7 @@ const bless = process.argv.includes('--bless');
 const NEGATIVE = [
   ['bad-dimension', 'filename-dimension disagreement'],
   ['bad-aggregate', 'hand-inflated maturity aggregate'],
+  ['bad-standing-watch', 'non-boolean standing_watch on an exposure'],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -277,6 +278,26 @@ function adaptersOnce() { return loadAdapters(); }
   const by = Object.fromEntries(r.results.map((x) => [x.id, x.status]));
   if (by['P-1'] !== 'recovered') fail(`a full-path match must recover (P-1 got ${by['P-1']})`);
   if (by['P-2'] !== 'missed') fail(`a different file sharing only the basename must read missed, never matched (P-2 got ${by['P-2']})`);
+}
+
+// ── exposures sidecar: new form green; legacy stage form grandfathered ────────
+// The stage scale (gate:/blocks_stage:) is RETIRED: a new-form sidecar (properties
+// + standing_watch only) must validate green, and a frozen-style legacy file must
+// STILL validate (the grandfather rail, like the legacy domains). If the validator
+// starts requiring the retired fields again — or stops accepting them on frozen
+// runs — this goes red.
+{
+  const fail = (m) => negFailures.push('exposures-sidecar: ' + m);
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), join(HERE, 'sidecar-fixture')], { stdio: 'pipe' }); }
+  catch { fail('a NEW-FORM sidecar (no gate:, no blocks_stage:, standing_watch labeled) must validate green'); }
+  const legacyDir = join(HERE, 'sidecar-fixture-legacy');
+  mkdirSync(join(legacyDir, 'eval'), { recursive: true });
+  copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'findings-05-delegation.yaml'), join(legacyDir, 'eval', 'findings-05-delegation.yaml'));
+  writeFileSync(join(legacyDir, 'eval', 'view-security-gate.yaml'),
+    'gate: beta\nexposures:\n  - name: legacy-exposure\n    title: Legacy exposure\n    findings: [F-001]\n    blocks_stage: beta\n    who: authorized-real-user\n    what: legacy stake\n    likelihood: high\n    fix: >\n      Close it.\n');
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), legacyDir], { stdio: 'pipe' }); }
+  catch { fail('a LEGACY sidecar (gate: + blocks_stage:) must still validate — frozen runs are grandfathered'); }
+  rmSync(legacyDir, { recursive: true, force: true });
 }
 
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─

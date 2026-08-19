@@ -114,7 +114,8 @@ function securityRiskCards() {
   const out = [];
   const ex = gate.exposures || [];
   const lrank = { high: 0, moderate: 1, low: 2 };
-  const active = ex.filter((e) => e.blocks_stage !== 'none' && e.blocks_stage !== 'clear')
+  const isWatch = (e) => e.standing_watch === true || e.blocks_stage === 'none' || e.blocks_stage === 'clear';
+  const active = ex.filter((e) => !isWatch(e))
     .sort((a, b) => (lrank[a.likelihood] ?? 3) - (lrank[b.likelihood] ?? 3));
   if (active.length) {
     out.push('<p>The security review\'s exposures, most likely first. Each is a decision, not a verdict — fix it, accept the risk, or investigate.</p>');
@@ -129,7 +130,7 @@ function securityRiskCards() {
       </div>`);
     }
   }
-  const watch = (gate.exposures || []).filter((e) => e.blocks_stage === 'none' || e.blocks_stage === 'clear');
+  const watch = (gate.exposures || []).filter((e) => e.standing_watch === true || e.blocks_stage === 'none' || e.blocks_stage === 'clear');
   if (watch.length) {
     out.push('<div class="stage-group"><div class="stage-group-head">Standing watch<span class="st-def">: lower priority</span></div>');
     for (const e of watch) out.push(`<div class="blocker" style="border-left-color:var(--pending)">

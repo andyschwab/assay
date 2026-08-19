@@ -16,7 +16,7 @@ Pass 9 — the lead deliverable). The scanner method runs in two layers:
  *facts with structured descriptors and evidence*. The base **never asserts a
  severity or a priority**; it records what is.
 2. Three **views** that compile the same base into different judgments —
- **leverage** (faster/better), **maturity** (measured coverage per dimension +
+ **leverage** (faster/better/reordered), **maturity** (measured coverage per dimension +
  judged depth), and
  **security** (always-on; exposures ranked by likelihood, no deploy verdict) —
  reconciled by a **meta-synthesis** into one roadmap.
@@ -351,10 +351,15 @@ hard; zero-day / physical = exotic.
 ## The views (each reads `findings.yaml`, writes its own artifact; never edits the base)
 
 ### Leverage view → `eval/view-leverage.md`
-Read gaps as opportunities. For each, estimate leverage on **both** axes —
-*faster* (whose hours does closing it save?) and *better* (what becomes possible
-that isn't today?). Either may be "none"; never merge them. Order by leverage per
-unit of verification cost, strengths noted first.
+Read gaps as opportunities. For each, estimate leverage on **all three** axes —
+*faster* (whose hours does closing it save?), *better* (what becomes possible
+that isn't today? — including work that ships at all where the fixed overhead
+currently prevents it), and *reordered* (does closing it change the shape or
+order of the process itself — a check cheap enough to move earlier, a handoff
+that disappears — rather than speeding any step?). Any axis may be "none";
+never merge them — a cost-only estimate is blind to the other two, and a
+duration-inside-the-existing-shape estimate is blind to the third. Order by
+leverage per unit of verification cost, strengths noted first.
 
 ### Maturity view → `eval/view-maturity.md` + `eval/maturity-inputs.yaml`
 Maturity is **measured coverage, not rung words** (SCHEMA §6b): for each dimension,
@@ -437,30 +442,29 @@ Run the frame stack in order; lead the artifact with the posture headline.
  effects that escape that isolation — surface them first.
 
 **Severity is computed from the evidence, never asserted — and it drives no deploy
-verdict** (safe-to-run is retired; the report presents risks, not a go/no-go). For
-each chain/exposure set `blocks_stage` — an internal **reach tier** (who can trigger it,
-what is at stake) that orders the risks and separates active exposures from standing
-watch. Assign it as the *earliest* tier the exposure reaches (a higher tier implies all
-below):
+verdict** (safe-to-run is retired; the report presents risks, not a go/no-go — and
+that retirement covers the old alpha/beta/prod stage scale too, not only the rendered
+verdict: assigning a deployment stage per exposure is a small risk-tolerance decision
+that belongs to the reader). Each exposure carries the PROPERTIES the reader decides
+from, stated separately and never composited into a tier:
 
-| Stage | Blocks it when… |
-|---|---|
-| **none** | not a blocker for any stage |
-| **alpha** (reachable on the internet by anyone; demo data ok) | merely exposing the surface to anonymous strangers is unsafe — pre-auth reach to data/effects, outsider-reachable cross-tenant, an unauthenticated control surface |
-| **beta** (known trusted testers, live/real data) | a trusted real user + real data can suffer irreversible harm or leak even with no malicious outsider — an authorized agent going rogue on the user's own accounts, an injected email acting, a missing effect halt |
-| **prod** (open to strangers / at scale / adversarial) | only unsafe once untrusted strangers operate it directly or at scale — abuse, DoS, weaker cross-tenant under contention, exotic multi-precondition chains |
+- **WHO can trigger it** — `who`: an unauthenticated stranger · an authorized real
+  user · only at scale or adversarial. Reach is the sharpest single property.
+- **WHAT is at stake** — the composed findings' facets (reversibility · external ·
+  blast_scope); say it in one clause (`what`).
+- **HOW LIKELY** — `likelihood`, from precondition difficulty (trivial→high …
+  exotic→low), discounted by confidence (a `plausible` exposure states so).
 
-Compute from: WHO can trigger it (stranger-pre-auth→alpha · authorized-real-user→
-beta · only-at-scale/adversarial→prod) × WHAT's at stake (reversibility · external
-· blast_scope) × confidence (a `plausible` exposure may drop a stage). Show the
-WHO×WHAT derivation for each.
+Show the who × stakes × likelihood read for each exposure; order most-likely first.
+An exposure the analyst judges lower-priority watch material is labeled
+`standing_watch: true`, with the reason stated — a labeled judgment, never a tier.
 
-**Emit the machine-readable stage tail.** Alongside the prose, the security view
-writes `eval/view-security-gate.yaml` (`SCHEMA.md` §6): the headline `gate`, and one
-`exposure` per chain/exposure with its `findings`, `blocks_stage`, `who`,
-`likelihood`, the one-line `fix` (breaks_the_chain / leverage action), and what it
-`unlocks`. This is the only structured artifact a view produces; the maintainer
-report's coverage-gap section (Pass 9) compiles from it, so severity stays computed in
+**Emit the machine-readable exposures tail.** Alongside the prose, the security view
+writes `eval/view-security-gate.yaml` (`SCHEMA.md` §6a — filename historic): one
+`exposure` per chain/exposure with its `findings`, `who`, `likelihood`, optional
+`standing_watch`, the one-line `fix` (breaks_the_chain / leverage action), and what
+it `unlocks`. This is the only structured artifact a view produces; the maintainer
+report's exposures section (Pass 9) compiles from it, so severity stays computed in
 the view layer, never asserted in the base.
 
 ## Validate before compiling anything downstream
@@ -486,13 +490,14 @@ not the missing path, and state the absence in the observation.
 Reconcile the three views into one document (reads only the view artifacts):
 
 1. **Snapshot** — five sentences: what the repo is, standout strength, binding
- constraint, the maturity coverage numbers in one line, and the security deployment-gate
- verdict (the earliest stage anything blocks). If a dimension measures high
+ constraint, the maturity coverage numbers in one line, and the lead security
+ exposure (the most likely, widest-reach open risk — a property, not a verdict). If a dimension measures high
  *and* carries a critical exposure, say both — do not let one average the other.
 2. **Strengths worth stealing** — 3–7, each written so another team could copy it.
 3. **One roadmap** — interleave all three views' items in a shared currency:
- sort by security `blocks_stage` (the deadline) first, then leverage
- (faster/better) × likelihood × damage, then addressability (cheapest-to-verify
+ sort by security urgency first (likelihood, then who can trigger it — the
+ chain ranking already orders reach × difficulty), then leverage
+ (faster/better/reordered) × likelihood × damage, then addressability (cheapest-to-verify
  first — telemetry-blind effects sort behind the telemetry fix). The first item
  should be doable in under a day and visibly pay off. Flag any item whose payoff
  depends on another landing first.
