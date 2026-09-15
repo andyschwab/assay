@@ -260,6 +260,7 @@ runs/<slug>-<date>/
 │   ├── findings-06-improvement.yaml# Pass 6  │
 │   ├── findings-07-multiplayer.yaml# Pass 7  ┘ (absent in pre-taxonomy runs)
 │   ├── findings.yaml               # merged base (all passes; validator's primary input)
+│   ├── scanners.yaml               # §5a — the RUN MANIFEST: every adopted scanner's disposition (REQUIRED)
 │   ├── view-leverage.md            # view — faster/better opportunities
 │   ├── view-maturity.md            # view — capability ladder
 │   ├── view-security.md            # view — ALWAYS-ON; posture + gate
@@ -299,6 +300,52 @@ order under a run header (see `templates/findings.yaml`). Views and both synthes
 
 **Filename ↔ dimension agreement:** every finding in `findings-NN-<dim>.yaml` must carry
 the matching `dimension`, except `dimension: unprompted`, which is permitted in any file.
+
+### 5a. `scanners.yaml` — the run manifest (required, validator-enforced)
+
+Every run records, for **every adopted scanner** (each adapter under
+`integration/adapters/` that does not carry `adopted: false`), what happened to it
+in this run. Without the record, a scanner that simply was not invoked is
+indistinguishable from one that ran clean, and the package reads as coverage that
+never happened — which is exactly how a full package once shipped with its queued
+code scanner never run and nothing saying so.
+
+```yaml
+# eval/scanners.yaml — template: templates/scanners.yaml
+engine: 759240a               # the engine commit the run executed under (warned if absent)
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped           # ran | skipped | failed
+    reason: "out of this engagement's scope; decided by the lead"   # required unless ran
+  gitleaks:
+    status: failed
+    reason: "gitleaks binary not on PATH in the run container"
+```
+
+Rules (`validate.mjs`, fail-closed; `compile-package.mjs` validates before it
+compiles anything):
+
+- The file is **required**; every adopted scanner has a row; an unknown scanner id
+  (no adapter) is an error.
+- `skipped` and `failed` **require a reason** — a skip without one is
+  indistinguishable from an omission.
+- `ran` requires evidence that it ran: rows carrying `source: <scanner>` in the base,
+  or an explicit (possibly empty) `findings-9N-<scanner>.yaml` for a verified-clean
+  instrument run (fail loud, never empty). A peer scanner that ran without its native
+  report (`<scanner>.md` in the run) validates with a warning — its port rows are the
+  only record, and the package lists no appendix for it.
+- The inverse is enforced too: **rows from a scanner recorded as `skipped` or
+  `failed` are rejected** — rows from a scanner that did not run are not evidence —
+  and a source present in the base with no manifest row is an error.
+- A scanner retired from the adopted roster (`adopted: false` on its adapter, with a
+  `retired:` note) needs no row; its adapter stays so frozen runs that carry its rows
+  still project.
+
+Every renderer reads the manifest and **names** a scanner that did not run with its
+recorded reason — on the scanners line, on the not-measured register, and in the
+appendix list — never "did not run" alone, never silence.
 
 ---
 

@@ -21,7 +21,7 @@ import { writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, notRunPhrase } from './project.mjs';
 import { loadDecisions, decideProjected } from './decisions.mjs';
 import { parseYaml } from './yaml-min.mjs';
 import { readFileSync } from 'node:fs';
@@ -47,6 +47,12 @@ try { if (hasProse) { const pr = parseYaml(readFileSync(join(evalDir, 'report-pr
 const CONFIDENTIAL = process.argv.includes('--confidential') || proseConfidential;
 const confArgs = CONFIDENTIAL ? ['--confidential'] : [];
 
+// ── the gate first: no package over an unvalidated base ──────────────────────
+// validate.mjs is the format contract AND the run manifest (every adopted scanner's
+// disposition). A package that compiles over a base with an unrecorded scanner
+// reads as coverage that never happened; so the package never compiles without it.
+console.log('· validate …');                  run('validate.mjs', []);
+
 // ── the compiled artifacts ───────────────────────────────────────────────────
 console.log('· walk    (compile-axes) …');    run('compile-axes.mjs', confArgs);
 console.log('· handoff (compile-handoff) …'); run('compile-handoff.mjs', confArgs);
@@ -70,8 +76,12 @@ const { projected } = projectMulti(findings, adapters);
 const sources = [...new Set(projected.map((p) => p.source))].sort();
 const contributed = contributedBySources(adapters, sources);
 const roster = rosterFor(adapters, sources, projected);
-const registryAxes = orderAxes([...contributedBySources(adapters, Object.keys(adapters))]);
+const registryAxes = registryAxesOf(adapters);
 const notMeasured = registryAxes.filter((a) => !contributed.has(a));
+const manifest = loadManifest(runDir);
+const dispo = dispositions(manifest, adapters);
+const ownersOf = (axes) => [...new Set(Object.values(adapters)
+  .filter((ad) => ad.adopted !== false && (ad.contributes || []).some((x) => axes.includes(x))).map((ad) => ad.scanner))].sort();
 const runDate = (runId.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
 const decided = decideProjected(projected, loadDecisions(runDir), runDate);
 const hasDecisions = loadDecisions(runDir).length > 0;
@@ -85,22 +95,21 @@ const axisLines = roster.map((a) => {
   return `- \`${a}\` — ${open} open · ${held} held${waived ? ` · ${waived} triaged out` : ''} _(${mb.length ? mb.join(', ') : 'fed only'})_`;
 });
 
-// ── appendices: scanner-native reports (this run + sibling runs) ─────────────
-// A scanner's own report in its own voice — provenance, listed but not merged.
+// ── appendices: scanner-native reports (THIS run only) ───────────────────────
+// A peer scanner's own report in its own voice — provenance, listed but not merged.
+// Only this run's directories are scanned: an earlier version also picked up
+// sibling runs, and a repo-eval-only package once listed a five-day-old sibling
+// report right beside its "code axes not measured" line. A run with no native
+// report lists none; a peer scanner that ran without one is named as such.
 function findAppendices() {
-  const out = [];
-  const runsDir = dirname(runDir);
-  const scan = (dir) => {
-    if (!existsSync(dir) || !statSync(dir).isDirectory()) return; // a stray file beside a run must not abort
-    for (const f of readdirSync(dir)) {
-      if (/^deep-code-review\.md$/i.test(f)) out.push(['deep-code-review', join(dir, f)]);
-    }
-  };
-  scan(runDir); scan(evalDir);
-  if (existsSync(runsDir)) for (const d of readdirSync(runsDir)) scan(join(runsDir, d)); // sibling runs (dir-guarded)
-  const seen = new Map();
-  for (const [label, p] of out) if (!seen.has(label)) seen.set(label, p);
-  return [...seen.entries()];
+  const out = new Map();
+  const peers = Object.values(adapters).filter((ad) => ad.role !== 'instrument' && ad.scanner !== 'repo-eval').map((ad) => ad.scanner);
+  for (const dir of [runDir, evalDir]) {
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
+    for (const f of readdirSync(dir)) for (const id of peers)
+      if (f.toLowerCase() === `${id}.md` && !out.has(id)) out.set(id, join(dir, f));
+  }
+  return [...out.entries()];
 }
 
 // ── INDEX.md — the front door ────────────────────────────────────────────────
@@ -121,12 +130,12 @@ The full deliverable, three readers, one bundle. No single verdict: one flat axi
 roster, each axis its own posture. Severity is a property; the go/no-go is the
 reader's.
 
-**Scanners:** ${sources.join(', ')} · **${projected.length} findings** · run ${runDate}${hasDecisions ? ' · owner triage applied (`eval/decisions.yaml`)' : ' · raw base (no triage)'}.
+**Scanners:** ${scannerLine(manifest, sources, adapters)} · **${projected.length} findings** · run ${runDate}${hasDecisions ? ' · owner triage applied (`eval/decisions.yaml`)' : ' · raw base (no triage)'}.
 
 ## The roster (glance)
 
 ${axisLines.join('\n')}
-${notMeasured.length ? `\n_Not measured this run: ${notMeasured.map((a) => `\`${a}\``).join(', ')} — the measuring scanner did not run. Absence of findings is absence of looking, not health._` : ''}
+${notMeasured.length ? `\n_Not measured this run: ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${ownersOf(notMeasured).map((o) => `${o} ${notRunPhrase(manifest, o)}`).join('; ')}. Absence of findings is absence of looking, not health._` : ''}
 
 ## What's in the package
 
@@ -140,7 +149,11 @@ ${reportRow}
 
 ## Appendices — scanner-native reports (provenance, in each scanner's own voice)
 
-${apps.length ? apps.map(([label, p]) => `- **${label}** — [\`${rel(p)}\`](${rel(p)})`).join('\n') : '_None generated for this run. Run a scanner\'s native reporter to add one._'}
+${[...apps.map(([label, p]) => `- **${label}** — [\`${rel(p)}\`](${rel(p)})`),
+   ...dispo.ran.filter((id) => adapters[id].role !== 'instrument' && id !== 'repo-eval' && !apps.some(([l]) => l === id)).map((id) => `- **${id}** — ran; no native report in this run (its port rows in \`eval/\` are the record).`),
+   ...dispo.skipped.map((s) => `- **${s.id}** — skipped this run: ${s.reason}.`),
+   ...dispo.failed.map((s) => `- **${s.id}** — failed this run: ${s.reason}.`),
+  ].join('\n') || '_None generated for this run. Run a scanner\'s native reporter to add one._'}
 
 _The report leads; these are the raw scanner voices behind the projection — listed,
 never merged (independent convergence is recorded, not collapsed)._

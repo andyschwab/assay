@@ -106,6 +106,76 @@ export function loadAdapters() {
   return out;
 }
 
+// ── the adopted roster + the run manifest ────────────────────────────────────
+// An adapter may carry `adopted: false` (with a `retired:` note): the scanner
+// stays projectable — frozen runs that carry its rows still compile — but it
+// leaves the roster every run must dispose of, and it no longer widens the
+// "not measured" registry. Retirement is a recorded decision, never a deletion.
+export function adoptedAdapters(adapters) {
+  const out = {};
+  for (const [id, a] of Object.entries(adapters)) if (a.adopted !== false) out[id] = a;
+  return out;
+}
+
+// The honesty baseline for "not measured this run": every axis an ADOPTED
+// scanner contributes. A run that lacks one of them is not measured there.
+export function registryAxes(adapters) {
+  return orderAxes([...contributedBySources(adapters, Object.keys(adoptedAdapters(adapters)))]);
+}
+
+// The run manifest — eval/scanners.yaml — records each adopted scanner's
+// disposition for THIS run: ran | skipped (reason) | failed (reason). Validated
+// fail-closed by validate.mjs (SCHEMA.md §5a); read here by every renderer so an
+// integration that did not run is NAMED with its reason, never implied absent.
+// A scanner that can be omitted without a recorded decision reads as coverage.
+export const MANIFEST_FILE = 'scanners.yaml';
+export const MANIFEST_STATUS = ['ran', 'skipped', 'failed'];
+
+export function loadManifest(dir) {
+  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
+  const p = join(ev, MANIFEST_FILE);
+  if (!existsSync(p)) return null;
+  return parseYaml(readFileSync(p, 'utf8'));   // fail closed: an unparseable manifest throws
+}
+
+// Group the manifest's rows: { ran: [id], skipped: [{id, reason}], failed: [{id, reason}],
+// missing: [id] } — `missing` is every adopted scanner without a row (validate
+// rejects it; renderers name it rather than trust it).
+export function dispositions(manifest, adapters) {
+  const rows = (manifest && manifest.scanners && typeof manifest.scanners === 'object') ? manifest.scanners : {};
+  const out = { ran: [], skipped: [], failed: [], missing: [] };
+  for (const id of Object.keys(adoptedAdapters(adapters)).sort()) {
+    const r = rows[id];
+    if (!r || typeof r !== 'object') { out.missing.push(id); continue; }
+    if (r.status === 'ran') out.ran.push(id);
+    else if (r.status === 'skipped') out.skipped.push({ id, reason: String(r.reason || '').trim() || 'no reason recorded' });
+    else if (r.status === 'failed') out.failed.push({ id, reason: String(r.reason || '').trim() || 'no reason recorded' });
+    else out.missing.push(id);
+  }
+  return out;
+}
+
+// One line for every renderer's "Scanners:" slot: the present sources, then the
+// skipped and failed adopted scanners with their reasons. Absence is spelled out.
+export function scannerLine(manifest, sources, adapters) {
+  const d = dispositions(manifest, adapters);
+  const parts = [sources.join(', ') || '(none)'];
+  if (d.skipped.length) parts.push(`skipped: ${d.skipped.map((s) => `${s.id} (${s.reason})`).join('; ')}`);
+  if (d.failed.length) parts.push(`failed: ${d.failed.map((s) => `${s.id} (${s.reason})`).join('; ')}`);
+  if (!manifest) parts.push('no run manifest (eval/scanners.yaml missing — dispositions unknown)');
+  else if (d.missing.length) parts.push(`no disposition recorded: ${d.missing.join(', ')}`);
+  return parts.join(' · ');
+}
+
+// Why a given scanner has no rows this run, in words: "skipped this run: <reason>".
+export function notRunPhrase(manifest, id) {
+  const r = manifest && manifest.scanners && manifest.scanners[id];
+  if (r && r.status === 'skipped') return `skipped this run: ${String(r.reason || '').trim() || 'no reason recorded'}`;
+  if (r && r.status === 'failed') return `failed this run: ${String(r.reason || '').trim() || 'no reason recorded'}`;
+  if (r && r.status === 'ran') return 'recorded as ran, but the base carries none of its rows';
+  return manifest ? 'no disposition recorded in the run manifest' : 'no run manifest (eval/scanners.yaml)';
+}
+
 // Which axes each present scanner CONTRIBUTES (its own measure exists there).
 // An axis in no present scanner's `contributes:` is "not measured" — a finding
 // fed into it still renders (never a silent drop), flagged method-not-run.

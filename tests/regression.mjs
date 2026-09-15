@@ -23,7 +23,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSyn
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../tools/yaml-min.mjs';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes } from '../tools/project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase } from '../tools/project.mjs';
 import { isHalt } from '../tools/doctrine.mjs';
 import { buildSupervision } from '../tools/supervision.mjs';
 import { computeVariance } from '../tools/variance.mjs';
@@ -46,6 +46,13 @@ const NEGATIVE = [
   ['bad-dimension', 'filename-dimension disagreement'],
   ['bad-aggregate', 'hand-inflated maturity aggregate'],
   ['bad-standing-watch', 'non-boolean standing_watch on an exposure'],
+  // the run manifest (SCHEMA §5a): an integration that did not run must be RECORDED as
+  // such, with a reason — never inferred absent. Found by a run that shipped a full
+  // package with a queued code scanner never invoked and nothing recording the omission.
+  ['no-manifest', 'no eval/scanners.yaml — an adopted scanner with no recorded disposition'],
+  ['manifest-skip-no-reason', 'a scanner skipped with no reason (indistinguishable from an omission)'],
+  ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file'],
+  ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped'],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -293,11 +300,62 @@ function adaptersOnce() { return loadAdapters(); }
   const legacyDir = join(HERE, 'sidecar-fixture-legacy');
   mkdirSync(join(legacyDir, 'eval'), { recursive: true });
   copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'findings-05-delegation.yaml'), join(legacyDir, 'eval', 'findings-05-delegation.yaml'));
+  copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'scanners.yaml'), join(legacyDir, 'eval', 'scanners.yaml'));
   writeFileSync(join(legacyDir, 'eval', 'view-security-gate.yaml'),
     'gate: beta\nexposures:\n  - name: legacy-exposure\n    title: Legacy exposure\n    findings: [F-001]\n    blocks_stage: beta\n    who: authorized-real-user\n    what: legacy stake\n    likelihood: high\n    fix: >\n      Close it.\n');
   try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), legacyDir], { stdio: 'pipe' }); }
   catch { fail('a LEGACY sidecar (gate: + blocks_stage:) must still validate — frozen runs are grandfathered'); }
   rmSync(legacyDir, { recursive: true, force: true });
+}
+
+// ── run-manifest invariants: absence is named, never implied ──────────────────
+// The registry of "not measured" axes comes from ADOPTED adapters only; a retired
+// adapter (adopted: false) stays projectable for frozen rows but never widens the
+// roster a run must dispose of. Every renderer names a scanner that did not run
+// with its recorded reason; the package refuses to compile without the manifest;
+// appendices come from THIS run only (a sibling run's report is never listed).
+{
+  const fail = (m) => negFailures.push('run-manifest: ' + m);
+  const adapters = loadAdapters();
+  const adopted = Object.keys(adoptedAdapters(adapters)).sort();
+  if (adopted.includes('scorecard')) fail('scorecard is retired (adopted: false) and must not be in the adopted roster');
+  if (!adapters.scorecard) fail('the retired scorecard adapter must still LOAD (frozen runs carrying its rows must project)');
+  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'gitleaks', 'repo-eval'])) fail(`adopted roster must be deep-code-review, gitleaks, repo-eval (got ${adopted.join(', ')})`);
+  const reg = registryAxes(adapters);
+  if (!reg.includes('code-security') || !reg.includes('multiplayer') || reg.length !== 9) fail(`registry must be the 9 axes the adopted scanners contribute (got ${reg.length}: ${reg.join(', ')})`);
+  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' } } };
+  const d = dispositions(m, adapters);
+  if (d.ran.join() !== 'repo-eval' || d.skipped[0]?.reason !== 'out of scope' || d.failed[0]?.id !== 'gitleaks' || d.missing.length) fail('dispositions must group ran / skipped / failed with reasons and report nothing missing');
+  const line = scannerLine(m, ['repo-eval'], adapters);
+  if (!line.includes('skipped: deep-code-review (out of scope)') || !line.includes('failed: gitleaks (binary missing)')) fail(`the scanners line must name skipped and failed scanners with their reasons (got "${line}")`);
+  if (!scannerLine(null, ['repo-eval'], adapters).includes('no run manifest')) fail('a missing manifest must be named on the scanners line, never silently omitted');
+  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,gitleaks') fail('adopted scanners without a row must be reported missing');
+  if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
+  // the walk prints the reason on the not-measured register
+  const walk = execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
+  if (!walk.includes('deep-code-review (skipped this run: fixture run')) fail('the walk must print the skipped scanner and its reason on the not-measured register');
+  // the package: refuses without a manifest; lists this run's appendices only, and names the skip
+  const tmp = join(HERE, 'tmp-manifest');
+  rmSync(tmp, { recursive: true, force: true });
+  const runA = join(tmp, 'runs', 'a-2026-01-01'), runB = join(tmp, 'runs', 'b-2026-01-02');
+  mkdirSync(join(runA, 'eval'), { recursive: true }); mkdirSync(join(runB, 'eval'), { recursive: true });
+  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
+    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(runA, 'eval', f));
+  writeFileSync(join(runB, 'deep-code-review.md'), '# a sibling run\'s native report — must never be listed by run A\n');
+  let refused = false;
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-package.mjs'), runA, '--no-pdf'], { stdio: 'pipe' }); } catch { refused = true; }
+  if (!refused) fail('compile-package must refuse to compile a run with no manifest (the package is what gets read)');
+  if (existsSync(join(runA, 'INDEX.md'))) fail('a refused package must not have written INDEX.md');
+  copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), join(runA, 'eval', 'scanners.yaml'));
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-package.mjs'), runA, '--no-pdf'], { stdio: 'pipe' }); }
+  catch (e) { fail(`compile-package must compile a run with a valid manifest (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
+  const index = existsSync(join(runA, 'INDEX.md')) ? readFileSync(join(runA, 'INDEX.md'), 'utf8') : '';
+  if (index.includes('b-2026-01-02')) fail('INDEX must not list a sibling run\'s native report as this run\'s appendix');
+  if (!index.includes('skipped: deep-code-review (fixture run')) fail('INDEX must name the skipped scanner and its reason on the scanners line');
+  if (!index.includes('deep-code-review skipped this run: fixture run')) fail('INDEX not-measured line must say WHY the measuring scanner did not run');
+  const start = existsSync(join(runA, 'handoff', 'START-HERE.md')) ? readFileSync(join(runA, 'handoff', 'START-HERE.md'), 'utf8') : '';
+  if (!start.includes('skipped: deep-code-review (fixture run')) fail('the handoff must carry the same scanners line with the skip reason');
+  rmSync(tmp, { recursive: true, force: true });
 }
 
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
@@ -383,7 +441,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, decision-overlay, instrument-port, enumerate-gate, enumerate-tooldef, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, decision-overlay, instrument-port, enumerate-gate, enumerate-tooldef, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

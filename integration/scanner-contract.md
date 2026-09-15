@@ -112,17 +112,23 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   mechanical and rule-determined, the instrument profile supplies it (rotate the
   credential; follow the check's remediation) and it sequences normally; a gap
   without one lands **owner-defined pending** — listed loudly, never dropped.
-- **Evidence**: `file:line` where the tool reports one; a repo-level claim (most
-  Scorecard checks) cites the archived raw report (run-relative `eval/raw/…`),
-  which `validate.mjs --target` knows to skip — instrument evidence lives in the
-  run, not the target. A secrets tool's matched value is **never copied** out of
-  the raw report; rows carry rule id + location only.
+- **Evidence**: `file:line` where the tool reports one; a repo-level claim cites
+  the archived raw report (run-relative `eval/raw/…`), which `validate.mjs
+  --target` knows to skip — instrument evidence lives in the run, not the target.
+  A secrets tool's matched value is **never copied** out of the raw report; rows
+  carry rule id + location only.
+- **An adopted instrument runs offline, against the checkout under review.** A
+  tool that needs a remote API at run time is a forever-fail in any environment
+  without that reach, and a scanner that cannot run is worse than none: every run
+  would have to dispose of it, and its absence reads as coverage. Such a tool may
+  be integrated, but not adopted.
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census) and **OpenSSF Scorecard** (`adapters/scorecard.yaml` — checks
-feed the native workspace axes; score bands documented in the ingest profile).
-The wider candidate roster: `scanner-candidates.md`.
+credential census). **OpenSSF Scorecard** (`adapters/scorecard.yaml`) is
+integrated but **retired from the adopted roster** (2026-09-15): its checks are
+remote repository-configuration reads that need direct GitHub API access at run
+time. The wider candidate roster: `scanner-candidates.md`.
 
 ## 4. The fail-closed rule (the coherence guarantee)
 
@@ -132,6 +138,24 @@ sanctioned default; a `default:` of any axis is prohibited. Determinism applied
 to integration: a scanner adding a category surfaces as "add one mapping
 row," never as findings silently missing from a profile (the asymmetric-failure
 logic of an allow-list — a forgotten allow blocks loudly).
+
+## 4a. The run manifest (absence is recorded, never inferred)
+
+The fail-closed rule above covers a finding the engine cannot place. Its
+complement covers a scanner the run never invoked: **every run carries
+`eval/scanners.yaml`**, one row per adopted scanner — `ran`, `skipped` with a
+reason, or `failed` with the error (`SCHEMA.md` §5a). `validate.mjs` rejects a
+run without it, a skip without a reason, a `ran` with no rows and no explicit
+empty file, and rows from a scanner recorded as not run; `compile-package.mjs`
+validates before it compiles anything. Every renderer then names a scanner that
+did not run with its recorded reason. An integration that can be omitted
+without a recorded decision reads as coverage; this is what makes "not
+measured" a statement rather than a default.
+
+**Retirement is a recorded decision, never a deletion.** An adapter that carries
+`adopted: false` (with a `retired:` note) leaves the roster a run must dispose
+of and no longer widens the not-measured registry, but stays loadable so frozen
+runs that carry its rows still project.
 
 ## 5. Evolution across the seam
 

@@ -469,12 +469,17 @@ the view layer, never asserted in the base.
 
 ## Validate before compiling anything downstream
 
-Once the per-dimension pass files exist and are merged into `eval/findings.yaml`, run the
-guardrail: `node tools/validate.mjs <run-dir>`. It is
+Once the per-dimension pass files exist and are merged into `eval/findings.yaml`, write
+the **run manifest** `eval/scanners.yaml` (SCHEMA §5a; template `templates/scanners.yaml`):
+one row per adopted scanner — `ran`, `skipped` with the reason, or `failed` with the
+error. Then run the guardrail: `node tools/validate.mjs <run-dir>`. It is
 zero-dependency and **fails closed** — schema, closed vocab, conditional facets, the
-`fail_mode` rule, filename↔dimension agreement, link resolution,
+`fail_mode` rule, filename↔dimension agreement, link resolution, **the run manifest**
+(no manifest, a skip without a reason, a `ran` with no rows, or rows from a scanner
+recorded as not run all halt),
 and **view/report citation-integrity** (every `F-###` a view or report cites must
-resolve). Green is the gate: don't compile views or the report on an unvalidated base.
+resolve). Green is the gate: don't compile views or the report on an unvalidated base
+(`compile-package.mjs` runs it first and refuses otherwise).
 Re-run it after the views and after Pass 9 (it then also checks the gate sidecar and
 the report's citations).
 
@@ -569,9 +574,12 @@ One command assembles the whole deliverable over the projected base:
  with an empty sequence halt (the machine-side false-green — a handoff must never read
  "nothing to do" over live gaps).
 - **`INDEX.md`** — the front door: the roster at a glance (per-axis open/held
- counts + the not-measured honesty line), the artifact table, and the
- **scanner-native appendices** (deep-code-review's own report) — listed as
- provenance, in each scanner's own voice, never merged.
+ counts + the not-measured honesty line, which names the scanner that did not run
+ and the reason the manifest recorded), the artifact table, and the
+ **scanner-native appendices** (deep-code-review's own report, from **this run
+ only** — a sibling run's report is never listed) — listed as provenance, in each
+ scanner's own voice, never merged; a scanner that was skipped or failed is listed
+ there with its reason.
 
 **Decisions are an optional overlay, never a gate** (`tools/decisions.mjs`). The raw
 base always compiles the full package. If — and only if — an owner triages, they drop

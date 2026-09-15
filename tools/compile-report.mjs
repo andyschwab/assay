@@ -16,7 +16,7 @@ import { DIM_LABEL, WHO_LABEL, channelLabel } from './display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from './capabilities.mjs';
 import { buildChains } from './chains.mjs';
 import { buildGlossary } from './glossary.mjs';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, notRunPhrase } from './project.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = join(HERE, '..', 'templates', 'maintainer-report.md');
@@ -186,8 +186,11 @@ function scannerAxes() {
   const external = projected.filter((p) => p.source !== 'repo-eval');
   const present = [...new Set(projected.map((p) => p.source))].sort();
   const contributed = contributedBySources(adapters, present);
-  const registry = orderAxes([...contributedBySources(adapters, Object.keys(adapters))]);
+  const registry = registryAxesOf(adapters);
   const notMeasured = registry.filter((a) => !contributed.has(a));
+  const manifest = loadManifest(evalDir);
+  const owners = [...new Set(Object.values(adapters)
+    .filter((ad) => ad.adopted !== false && (ad.contributes || []).some((x) => notMeasured.includes(x))).map((ad) => ad.scanner))].sort();
   const plain = (a) => capFirst((axisTitle(a).split(' — ')[0] || a).toLowerCase());
   const out = [];
   if (external.length) {
@@ -209,7 +212,7 @@ function scannerAxes() {
   }
   if (notMeasured.length) {
     out.push(`${external.length ? '\n' : ''}Not measured in this review: ${notMeasured.map((a) => `**${plain(a).toLowerCase()}**`).join(', ')}. ` +
-      `The scanner${notMeasured.length > 1 ? 's' : ''} that measure${notMeasured.length > 1 ? '' : 's'} ${notMeasured.length > 1 ? 'them' : 'it'} did not run. ` +
+      owners.map((o) => `${capFirst(o)} ${notRunPhrase(manifest, o)}.`).join(' ') + ' ' +
       `No findings there means no one looked, not that it is healthy.`);
   }
   return out.join('\n');
