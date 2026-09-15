@@ -30,7 +30,7 @@ the instrument role in §3a):
 | Scanner | Role | Adapter | Notes |
 |---|---|---|---|
 | repo-eval (native) | peer scanner | `adapters/repo-eval.yaml` | The seven dimension passes; dogfooded as one scanner |
-| deep-code-review | peer scanner | `adapters/deep-code-review.yaml` | LLM skill, own A–R taxonomy, per-finding severity + verbatim fixes; contributes the two code axes |
+| deep-code-review | peer scanner | `adapters/deep-code-review.yaml` | LLM skill, own A–W taxonomy (1.71+), per-finding severity + verbatim fixes; contributes the two code axes. Its 1.72+ machine report (`findings-YYYY-MM-DD.yaml`, a coverage row per domain) is ingested by `tools/ingest.mjs --tool deep-code-review`, which also archives the coverage sidecar |
 | Gitleaks | instrument | `adapters/gitleaks.yaml` | Integrated via `tools/ingest.mjs` (w-assay-02): every leak → one `secret` row onto code-security; converter validated against a live v8.24.3 run; secrets never copied out of the raw report |
 
 Every adopted scanner gets a disposition in every run's manifest

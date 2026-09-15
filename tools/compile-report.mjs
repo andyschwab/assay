@@ -16,7 +16,7 @@ import { DIM_LABEL, WHO_LABEL, channelLabel } from './display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from './capabilities.mjs';
 import { buildChains } from './chains.mjs';
 import { buildGlossary } from './glossary.mjs';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, notRunPhrase } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from './project.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = join(HERE, '..', 'templates', 'maintainer-report.md');
@@ -189,6 +189,7 @@ function scannerAxes() {
   const registry = registryAxesOf(adapters);
   const notMeasured = registry.filter((a) => !contributed.has(a));
   const manifest = loadManifest(evalDir);
+  const scannerCov = loadScannerCoverage(evalDir);
   const owners = [...new Set(Object.values(adapters)
     .filter((ad) => ad.adopted !== false && (ad.contributes || []).some((x) => notMeasured.includes(x))).map((ad) => ad.scanner))].sort();
   const plain = (a) => capFirst((axisTitle(a).split(' — ')[0] || a).toLowerCase());
@@ -207,7 +208,8 @@ function scannerAxes() {
       const sevs = ['Blocker', 'Critical', 'High', 'Medium', 'Low', 'Nit']
         .map((s) => [s, open.filter((p) => p.f.severity === s).length]).filter(([, n]) => n);
       const srcs = [...new Set(arr.map((p) => p.source))].join(', ');
-      out.push(`- **${plain(a)}** (${srcs}) — ${open.length} open${sevs.length ? ` (${sevs.map(([s, n]) => `${n} ${s}`).join(', ')})` : ''} · ${held.length} held. Detail with file paths is in the handoff package.`);
+      const partial = coveragePhrase(axisCoverage(adapters, scannerCov, a));
+      out.push(`- **${plain(a)}** (${srcs}) — ${open.length} open${sevs.length ? ` (${sevs.map(([s, n]) => `${n} ${s}`).join(', ')})` : ''} · ${held.length} held.${partial ? ` Partially measured: ${partial}.` : ''} Detail with file paths is in the handoff package.`);
     }
   }
   if (notMeasured.length) {

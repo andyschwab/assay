@@ -261,6 +261,7 @@ runs/<slug>-<date>/
 │   ├── findings-07-multiplayer.yaml# Pass 7  ┘ (absent in pre-taxonomy runs)
 │   ├── findings.yaml               # merged base (all passes; validator's primary input)
 │   ├── scanners.yaml               # §5a — the RUN MANIFEST: every adopted scanner's disposition (REQUIRED)
+│   ├── coverage-<scanner>.yaml     # §5a — a peer scanner's own per-domain coverage (written by ingest.mjs)
 │   ├── view-leverage.md            # view — faster/better opportunities
 │   ├── view-maturity.md            # view — capability ladder
 │   ├── view-security.md            # view — ALWAYS-ON; posture + gate
@@ -346,6 +347,31 @@ compiles anything):
 Every renderer reads the manifest and **names** a scanner that did not run with its
 recorded reason — on the scanners line, on the not-measured register, and in the
 appendix list — never "did not run" alone, never silence.
+
+**Coverage sidecars — `coverage-<scanner>.yaml`.** A peer scanner that reports its
+own per-domain coverage (deep-code-review 1.72+'s machine report) has it archived by
+`tools/ingest.mjs` beside its rows, in the scanner's own domain letters:
+
+```yaml
+scanner: deep-code-review
+review: { … }                 # (block style in the file) the scanner's run header
+ground_truth: { … }           # what it ran and what it did not, with reasons
+coverage:
+  A:
+    status: scanned           # scanned | partial | not-scanned | not-applicable
+  B:
+    status: partial
+    note: "mutating routes and webhook handlers only"
+prior_not_rechecked: []
+```
+
+The validator requires a row for every domain the adapter's `coverage_domains`
+lists, a note on every non-scanned row, and a manifest row recording the scanner as
+`ran`. Renderers then read it: an axis the scanner contributes is **fully measured**
+only where every mapped domain was `scanned`; otherwise the axis reads **partially
+measured**, with the scanner's own note — the walk, the index roster, and the report
+all say so. Findings there are real; absence of findings in the unscanned part is
+absence of looking.
 
 ---
 

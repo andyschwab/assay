@@ -23,12 +23,12 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSyn
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../tools/yaml-min.mjs';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase } from '../tools/project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../tools/project.mjs';
 import { isHalt } from '../tools/doctrine.mjs';
 import { buildSupervision } from '../tools/supervision.mjs';
 import { computeVariance } from '../tools/variance.mjs';
 import { decideProjected } from '../tools/decisions.mjs';
-import { convert } from '../tools/ingest.mjs';
+import { convert, coverageYaml } from '../tools/ingest.mjs';
 import { score } from '../tools/score.mjs';
 import { buildGrades } from '../tools/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../tools/variance.mjs';
@@ -53,6 +53,7 @@ const NEGATIVE = [
   ['manifest-skip-no-reason', 'a scanner skipped with no reason (indistinguishable from an omission)'],
   ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file'],
   ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped'],
+  ['coverage-incomplete', 'a scanner coverage sidecar missing rows for domains the adapter lists'],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -358,6 +359,58 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── peer-scanner machine report (deep-code-review 1.72+) through ingest ──────────
+// Completeness is the fail-loud property: every domain the adapter lists has a
+// coverage row, every gap a fix, every non-scanned row a note. Rows carry the
+// scanner's own labels beside the mapped ones; the coverage sidecar makes an axis
+// read "partially measured" where the scanner itself said it looked partially.
+{
+  const fail = (m) => negFailures.push('dcr-machine-report: ' + m);
+  const sample = readFileSync(join(HERE, 'instruments', 'deep-code-review-sample.yaml'), 'utf8');
+  const mustThrow = (label, fn) => { let threw = false; try { fn(); } catch { threw = true; } if (!threw) fail(`${label} must halt`); };
+  const rows = convert('deep-code-review', sample, null);
+  if (rows.length !== 3) fail(`sample must yield 3 rows (got ${rows.length})`);
+  const by = Object.fromEntries(rows.map((r) => [r.native_id, r]));
+  if (by.F1?.native_category !== 'A' || by.F1?.severity !== 'Critical' || by.F1?.confidence !== 'confirmed' || by.F1?.native_confidence !== 'CONFIRMED') fail('F1 must map area A, keep Critical, confidence CONFIRMED→confirmed with the native label kept');
+  if (by.F1?.prior_native_id !== 'F1' || by.F1?.prior_status !== 'still-open') fail('prior_id/prior_status must ride into the port row');
+  if (by.F2?.polarity !== 'strength' || by.F2?.severity !== undefined) fail('a strength row carries no severity (never a Low)');
+  if (by.F3?.confidence !== 'plausible' || by.F3?.mechanism_unproven !== true) fail('PLAUSIBLE→plausible and mechanism_unproven must be carried');
+  if (!rows.coverage || rows.coverage.coverage.B?.status !== 'partial' || rows.coverage.prior_not_rechecked.join() !== 'F7') fail('the coverage block must carry the scanner\'s rows and the prior_not_rechecked list');
+  const proj = projectMulti(rows, adaptersOnce());
+  if (proj.unmapped.length) fail(`all sample rows must map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
+  if (proj.projected.find((p) => p.f.native_id === 'F2')?.axis !== 'code-security') fail('domain T (multi-tenancy) must land on code-security');
+  if (proj.projected.find((p) => p.f.native_id === 'F3')?.axis !== 'code-correctness') fail('domain W (workflows/jobs) must land on code-correctness');
+  const sRow = projectMulti([{ id: 'F-899', source: 'deep-code-review', native_id: 'S1', native_category: 'S', polarity: 'gap', severity: 'Low', observation: 'x', evidence: ['a:1'], fix: 'y' }], adaptersOnce());
+  if (sRow.projected[0]?.axis !== 'improvement-loop') fail('domain S (branches/open-work triage) must land on improvement-loop');
+  mustThrow('a flow-map report (not block YAML)', () => convert('deep-code-review', 'coverage: {A: {status: scanned}}\nfindings: []\n', null));
+  mustThrow('a report with no coverage map', () => convert('deep-code-review', 'findings: []\n', null));
+  mustThrow('coverage missing a domain', () => convert('deep-code-review', sample.replace(/  W:\n    status: scanned\n/, ''), null));
+  mustThrow('a partial row without a note', () => convert('deep-code-review', sample.replace('    note: "mutating routes and webhook handlers only; UI routes not read"\n', ''), null));
+  mustThrow('a gap row without a fix', () => convert('deep-code-review', sample.replace(/    fix: >\n      Key each batch[^\n]*\n/, ''), null));
+  mustThrow('findings not a list', () => convert('deep-code-review', sample.replace(/findings:[\s\S]*prior_not_rechecked/, 'findings: nope\nprior_not_rechecked'), null));
+  const clean = convert('deep-code-review', sample.replace(/findings:[\s\S]*prior_not_rechecked/, 'findings: []\nprior_not_rechecked'), null);
+  if (clean.length !== 0 || !clean.coverage) fail('full coverage + empty findings must convert to zero rows WITH the coverage block (a recorded clean run)');
+  // the sidecar: written block-style, loadable, and it turns a contributed axis "partially measured"
+  const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
+    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
+  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n');
+  const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
+  catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  if (!existsSync(join(tmp, 'eval', 'findings-93-deep-code-review.yaml')) || !existsSync(join(tmp, 'eval', 'coverage-deep-code-review.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'deep-code-review.yaml'))) fail('ingest must write the rows file, the coverage sidecar, and the raw archive');
+  const cov = loadScannerCoverage(tmp);
+  if (cov['deep-code-review']?.coverage?.P?.status !== 'not-scanned') fail('the coverage sidecar must round-trip through the shared loader');
+  const ac = axisCoverage(adaptersOnce(), cov, 'code-security');
+  if (!ac || ac[0].full || !ac[0].partial.find((x) => x.l === 'B')) fail('code-security must read partially measured when domain B was partial');
+  if (!coveragePhrase(ac).includes('B partial')) fail('the coverage phrase must name the partial domain');
+  if (axisCoverage(adaptersOnce(), cov, 'delegation') !== null) fail('an axis dcr does not contribute has no dcr coverage groups (fed axes are not measured by it)');
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested machine report must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
+  const walk = execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-axes.mjs'), tmp, '--stdout'], { stdio: 'pipe' }).toString();
+  if (!walk.includes('Partially measured') || !walk.includes('B partial (mutating routes')) fail('the walk must say an axis is partially measured, with the scanner\'s note');
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
 // The gate must flag uncovered PRODUCT surface, and must NOT flag (a) the run's own
 // artifacts when the run lives with its target (runs/**, SCHEMA §5), nor (b) a dir the
@@ -441,7 +494,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, decision-overlay, instrument-port, enumerate-gate, enumerate-tooldef, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, enumerate-gate, enumerate-tooldef, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

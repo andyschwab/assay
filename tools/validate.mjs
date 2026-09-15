@@ -232,6 +232,27 @@ for (const file of passFiles) {
           }
         }
         for (const src of sourcesSeen) if (!m.scanners[src]) err(`${MANIFEST_FILE}:${src}`, `the base carries rows from ${src} but the manifest records no disposition for it`);
+        // coverage sidecars (eval/coverage-<scanner>.yaml): a scanner's own per-domain
+        // account. Complete against the adapter's coverage_domains, and only for a
+        // scanner the manifest records as ran — a partial account of a run that did
+        // not happen is not evidence either.
+        for (const f of readdirSync(evalDir).filter((x) => /^coverage-.+\.yaml$/.test(x))) {
+          const id = f.replace(/^coverage-/, '').replace(/\.yaml$/, '');
+          const at = f;
+          if (!ADAPTERS[id]) { err(at, `coverage sidecar for unknown scanner ${id} (no adapter)`); continue; }
+          let doc = null;
+          try { doc = parseYaml(readFileSync(join(evalDir, f), 'utf8')); } catch (e) { err(at, `YAML parse failed (fail-closed): ${e.message}`); continue; }
+          if (!doc || doc.scanner !== id || !doc.coverage || typeof doc.coverage !== 'object') { err(at, `needs scanner: ${id} and a coverage: map`); continue; }
+          const row = m.scanners[id];
+          if (!row || row.status !== 'ran') err(at, `coverage recorded for ${id} but the manifest does not record it as ran`);
+          const want = ADAPTERS[id].coverage_domains || [];
+          const missing = want.filter((l) => !doc.coverage[l] || typeof doc.coverage[l] !== 'object');
+          if (missing.length) err(at, `coverage incomplete: no row for domain(s) ${missing.join(', ')} (absence of a row is not clean)`);
+          for (const [l, r] of Object.entries(doc.coverage)) {
+            if (!['scanned', 'partial', 'not-scanned', 'not-applicable'].includes(r && r.status)) err(`${at}:${l}`, `bad status "${r && r.status}"`);
+            else if (r.status !== 'scanned' && !(r.note && String(r.note).trim())) err(`${at}:${l}`, `${r.status} needs a note`);
+          }
+        }
       }
     }
   }

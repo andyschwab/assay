@@ -21,7 +21,7 @@ import { writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, notRunPhrase } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from './project.mjs';
 import { loadDecisions, decideProjected } from './decisions.mjs';
 import { parseYaml } from './yaml-min.mjs';
 import { readFileSync } from 'node:fs';
@@ -80,6 +80,7 @@ const registryAxes = registryAxesOf(adapters);
 const notMeasured = registryAxes.filter((a) => !contributed.has(a));
 const manifest = loadManifest(runDir);
 const dispo = dispositions(manifest, adapters);
+const scannerCov = loadScannerCoverage(runDir);
 const ownersOf = (axes) => [...new Set(Object.values(adapters)
   .filter((ad) => ad.adopted !== false && (ad.contributes || []).some((x) => axes.includes(x))).map((ad) => ad.scanner))].sort();
 const runDate = (runId.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
@@ -92,7 +93,8 @@ const axisLines = roster.map((a) => {
   const held = arr.filter((p) => p.state === 'strength').length;
   const waived = arr.filter((p) => p.state === 'accepted' || p.state === 'snoozed').length;
   const mb = sources.filter((s) => (adapters[s]?.contributes || []).includes(a));
-  return `- \`${a}\` — ${open} open · ${held} held${waived ? ` · ${waived} triaged out` : ''} _(${mb.length ? mb.join(', ') : 'fed only'})_`;
+  const partial = coveragePhrase(axisCoverage(adapters, scannerCov, a));
+  return `- \`${a}\` — ${open} open · ${held} held${waived ? ` · ${waived} triaged out` : ''} _(${mb.length ? mb.join(', ') : 'fed only'}${partial ? `; partially measured — ${partial}` : ''})_`;
 });
 
 // ── appendices: scanner-native reports (THIS run only) ───────────────────────
