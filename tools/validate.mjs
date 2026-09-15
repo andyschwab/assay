@@ -189,6 +189,54 @@ for (const file of passFiles) {
   }
 }
 
+// ── the run manifest (SCHEMA.md §5a) — fail-closed on absence ────────────────
+// Every ADOPTED scanner gets a disposition for this run: ran | skipped <reason>
+// | failed <reason>. Without it, an integration that simply was not invoked is
+// indistinguishable from one that ran clean, and the package reads as coverage
+// that never happened. The inverse holds too: rows from a scanner the manifest
+// says did not run are not evidence.
+{
+  const { loadManifest, adoptedAdapters, MANIFEST_FILE, MANIFEST_STATUS } = await import('./project.mjs');
+  const mPath = join(evalDir, MANIFEST_FILE);
+  const runRoot = basename(evalDir) === 'eval' ? dirname(evalDir) : evalDir;
+  const sourcesSeen = new Set([...allById.values()].map((v) => v.f.source || 'repo-eval'));
+  if (!existsSync(mPath)) {
+    err(MANIFEST_FILE, `missing — every run records each adopted scanner's disposition (ran | skipped + reason | failed + reason); a scanner that can be omitted without a recorded decision reads as coverage. Template: templates/scanners.yaml`);
+  } else {
+    let m = null, parsed = false;
+    try { m = loadManifest(evalDir); parsed = true; }
+    catch (e) { err(MANIFEST_FILE, `YAML parse failed (fail-closed): ${e.message}`); }
+    if (parsed) {
+      if (!m || typeof m !== 'object' || Array.isArray(m) || !m.scanners || typeof m.scanners !== 'object' || Array.isArray(m.scanners)) {
+        err(MANIFEST_FILE, `needs a top-level scanners: map (one row per adopted scanner)`);
+      } else {
+        if (!m.engine) warn(MANIFEST_FILE, `no engine: SHA recorded — a determinism claim cannot separate method drift from engine drift without it`);
+        const adopted = adoptedAdapters(ADAPTERS);
+        for (const id of Object.keys(adopted)) if (!m.scanners[id]) err(`${MANIFEST_FILE}:${id}`, `adopted scanner has no disposition — record ran, skipped (with the reason), or failed (with the error)`);
+        for (const [id, row] of Object.entries(m.scanners)) {
+          const at = `${MANIFEST_FILE}:${id}`;
+          if (!ADAPTERS[id]) { err(at, `unknown scanner — no adapter integration/adapters/${id}.yaml`); continue; }
+          if (!row || typeof row !== 'object' || Array.isArray(row)) { err(at, `disposition must be a map carrying status:`); continue; }
+          if (!MANIFEST_STATUS.includes(row.status)) { err(at, `bad status "${row.status}" (ran | skipped | failed)`); continue; }
+          if (row.status !== 'ran' && !(typeof row.reason === 'string' && row.reason.trim()))
+            err(at, `${row.status} needs a reason — a skip without one is indistinguishable from an omission`);
+          if (row.status === 'ran') {
+            const explicitFile = passFiles.some((f) => f.endsWith(`-${id}.yaml`));
+            if (!sourcesSeen.has(id) && !explicitFile)
+              err(at, `status ran, but the base carries no rows from ${id} and no findings-9N-${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty)`);
+            if (ADAPTERS[id].role !== 'instrument' && id !== 'repo-eval'
+                && !existsSync(join(runRoot, `${id}.md`)) && !existsSync(join(evalDir, `${id}.md`)))
+              warn(at, `peer scanner ran but the run carries no native report ${id}.md — its port rows are the only record; the package lists no appendix for it`);
+          } else if (sourcesSeen.has(id)) {
+            err(at, `status ${row.status}, but the base carries rows from ${id} — rows from a scanner recorded as not run are not evidence`);
+          }
+        }
+        for (const src of sourcesSeen) if (!m.scanners[src]) err(`${MANIFEST_FILE}:${src}`, `the base carries rows from ${src} but the manifest records no disposition for it`);
+      }
+    }
+  }
+}
+
 // optional: evidence-path existence against the target repo (fail-closed on a
 // cited path that does not exist — verifies the analyst actually opened the file)
 const evidencePathErrors = [];   // structured, for --json / tools/backlog.mjs
@@ -413,4 +461,4 @@ if (warnings.length) {   // non-fatal — printed, exit stays 0 (green)
   console.log(`⚠ assay validate: ${warnings.length} warning(s) (non-fatal):`);
   for (const w of warnings) console.log('  • ' + w);
 }
-console.log(`✓ assay validate: ${total} findings, ${passFiles.length} pass files — schema, ids, filename↔dimension, links, and citations all clean.`);
+console.log(`✓ assay validate: ${total} findings, ${passFiles.length} pass files — schema, ids, filename↔dimension, links, citations, and the run manifest all clean.`);

@@ -35,7 +35,7 @@
 // Usage: node tools/compile-handoff.mjs <run-dir> [--base <dir>]...
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase } from './project.mjs';
 import { loadDecisions, decideProjected } from './decisions.mjs';
 import { sevRank, buildFixSpine } from './doctrine.mjs';
 import { axisShort } from './display.mjs';
@@ -59,7 +59,12 @@ if (unmapped.length) { console.error(`PROJECTION HALTED — ${unmapped.length} u
 const sources = [...new Set(projected.map((p) => p.source))].sort();
 const contributed = contributedBySources(adapters, sources);
 const roster = rosterFor(adapters, sources, projected);
-const registryAxes = orderAxes([...contributedBySources(adapters, Object.keys(adapters))]);
+const registryAxes = registryAxesOf(adapters);
+const manifest = loadManifest(runDir);
+// why an axis is unmeasured: name the adopted scanner(s) that would measure it and their disposition
+const notMeasuredWhy = (axes) => [...new Set(Object.values(adapters)
+  .filter((ad) => ad.adopted !== false && (ad.contributes || []).some((x) => axes.includes(x))).map((ad) => ad.scanner))]
+  .sort().map((o) => `${o} ${notRunPhrase(manifest, o)}`).join('; ') || 'no adopted scanner measures it';
 const decided = decideProjected(projected, loadDecisions(runDir), runDate);
 const byId = new Map(decided.map((p) => [p.f.id, p]));
 
@@ -190,7 +195,7 @@ The **machine-actionable half** of the evaluation, built to stand alone: everyth
 agent needs to act — and to **audit every claim before acting** — is in this folder.
 (The run package's \`MAINTAINER-REPORT.pdf\` is the human read; nothing here depends on it.)
 
-- Scanners in this run: **${sources.join(', ')}**.
+- Scanners in this run: **${scannerLine(manifest, sources, adapters)}**.
 - **${seq.length} sequenced remed${seq.length === 1 ? 'y' : 'ies'}** cover ${[...new Set(seq.flatMap(seqIds))].length} finding(s): ${voices.join('; ') || '_none_'}.
 - Every remedy carries a **claim-audit block**: the verbatim observation, the evidence
   \`file:line\` paths, and a verification step — so you can check the claim, not trust it.
@@ -203,7 +208,7 @@ ${pending.length ? `- **${pending.length} open gap(s) with no remedy yet** — r
   before an agent can act (${pending.map((p) => `\`${p.f.id}\``).join(', ')}). Full claims in
   \`FINDINGS.md\`; decide the remedy, then either add a roadmap item to the run's
   \`report-prose.yaml\` or hand the claim block to a session directly.` : '- Every open gap in this run is covered by a sequenced remedy.'}
-${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) => `\`${a}\``).join(', ')} — no present scanner measures them; absence of findings there is absence of looking, not health.` : ''}
+${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${notMeasuredWhy(notMeasured)}; absence of findings there is absence of looking, not health.` : ''}
 
 ## How to use it
 
@@ -282,7 +287,7 @@ function findingsDoc() {
     if (gaps.length) { out.push(`### Open gaps (${gaps.length})`, ''); for (const p of gaps) out.push(line(p)); out.push(''); }
     if (facts.length) { out.push(`### Observed facts (${facts.length})`, ''); for (const p of facts) out.push(line(p)); out.push(''); }
   }
-  if (notMeasured.length) out.push(`## Not measured in this run`, '', notMeasured.map((a) => `- \`${a}\` — no present scanner measures it; absence of findings is absence of looking.`).join('\n'), '');
+  if (notMeasured.length) out.push(`## Not measured in this run`, '', notMeasured.map((a) => `- \`${a}\` — ${notMeasuredWhy([a])}; absence of findings is absence of looking.`).join('\n'), '');
   out.push('---', `_assay engine. Run \`${runId}\`.${confNote}_`);
   return out.join('\n');
 }

@@ -14,7 +14,9 @@ This repository is **assay**, an evidence-based repository-evaluation engine.
    numbers. `tools/validate.mjs` fails closed; run it before compiling anything.
 3. **Fail loud, never empty.** A tool that errored must never read as "0
    findings"; an unmapped scanner category halts the projection; a verified-clean
-   instrument run is recorded explicitly. Do not add a check that can fail silently
+   instrument run is recorded explicitly; a scanner that did not run is recorded
+   as skipped or failed, with a reason, in the run manifest (`eval/scanners.yaml`),
+   and no package compiles without one. Do not add a check that can fail silently
    into a positive signal.
 4. **Axes are property-named, never tool-named**, and shared — two scanners
    measuring one property corroborate on one axis. An axis no present scanner

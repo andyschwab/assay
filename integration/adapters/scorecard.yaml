@@ -9,6 +9,14 @@
 scanner: scorecard
 targets_taxonomy: 3
 role: instrument
+# RETIRED from the adopted roster (2026-09-15). Scorecard's checks are remote
+# repository-configuration reads: the CLI needs direct GitHub API access at run
+# time and cannot run against a local checkout. An adopted instrument must run
+# offline against the checkout under review (scanner-contract §3a), so a run in
+# an environment without API reach never has to dispose of it. The adapter stays
+# so frozen runs that carry its rows still project; no run must record it.
+adopted: false
+retired: "2026-09-15 — needs direct GitHub API access at run time; cannot run against a local checkout"
 
 contributes: []
 

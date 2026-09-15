@@ -1,0 +1,10 @@
+engine: fixture
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped
+    reason: "fixture: not executed"
+  gitleaks:
+    status: skipped
+    reason: "fixture: recorded as skipped although rows are present — must be rejected"

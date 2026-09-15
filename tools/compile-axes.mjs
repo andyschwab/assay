@@ -13,7 +13,7 @@
 // Usage:  node tools/compile-axes.mjs <run-dir> [--base <dir>]... [--stdout]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase } from './project.mjs';
 import { buildChains } from './chains.mjs';
 import { sevRank, buildFixSpine } from './doctrine.mjs';
 import { parseYaml } from './yaml-min.mjs';
@@ -60,10 +60,17 @@ if (unmapped.length) {
 const sources = [...new Set(projected.map((p) => p.source))].sort();
 const contributed = contributedBySources(adapters, sources);
 const roster = rosterFor(adapters, sources, projected);
-// the full registry: axes ANY installed adapter contributes — the honesty baseline
+// the full registry: axes any ADOPTED adapter contributes — the honesty baseline
 // for "not measured this run" (a known axis whose measuring scanner did not run).
-const registryAxes = orderAxes([...contributedBySources(adapters, Object.keys(adapters))]);
+// The run manifest (eval/scanners.yaml) says WHY it did not run; the walk prints it.
+const registryAxes = registryAxesOf(adapters);
 const notMeasured = registryAxes.filter((a) => !contributed.has(a));
+const manifest = loadManifest(arg);   // validate already required it; the walk reads it
+
+// the adopted scanners that contribute a given set of axes (for the not-measured lines)
+const ownersOf = (axes) => [...new Set(Object.values(adapters)
+  .filter((ad) => ad.adopted !== false && (ad.contributes || []).some((x) => axes.includes(x)))
+  .map((ad) => ad.scanner))].sort();
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 // Escape scanner-supplied text (from an untrusted target repo): neutralize HTML
@@ -101,7 +108,7 @@ out.push('---', 'type: doc', ...(CONFIDENTIAL ? ['confidential: true'] : []), `t
 out.push(`# Axis walk — ${arg}`, '');
 out.push('_No single safe-to-run verdict: one flat axis roster, each axis its own posture.');
 out.push('Severity is a property; the go/no-go is the reader\'s._', '');
-out.push(`**Scanners:** ${sources.join(', ')} · **${projected.length} findings** · **severity:** ${censusStr}.`, '');
+out.push(`**Scanners:** ${scannerLine(manifest, sources, adapters)} · **${projected.length} findings** · **severity:** ${censusStr}.`, '');
 if (topRisks.length) {
   out.push('**Start here** — the Critical & High across every axis:');
   for (const p of topRisks) out.push(`- ${p.f.id} _(${p.f.severity})_ [${p.axis}] — ${say(p.f.observation, 140)} \`${ev1(p.f)}\``);
@@ -115,7 +122,7 @@ for (const a of roster) {
   const mb = measuredBy(a), fb = fedBy(a);
   out.push(`- \`${a}\` ← ${mb.length ? mb.join(', ') : '**(no present scanner measures this axis)**'}${fb.length ? ` · fed by ${fb.join(', ')}` : ''}`);
 }
-if (notMeasured.length) out.push(`- _not measured this run:_ ${notMeasured.map((a) => `\`${a}\``).join(', ')} _(known axes whose measuring scanner did not run)_`);
+if (notMeasured.length) out.push(`- _not measured this run:_ ${notMeasured.map((a) => `\`${a}\``).join(', ')} _(${ownersOf(notMeasured).map((o) => `${o} ${notRunPhrase(manifest, o)}`).join('; ')})_`);
 out.push('');
 
 for (const a of roster) {
@@ -184,8 +191,8 @@ if (notMeasured.length) {
   // the assay engine resolves nowhere but the engine repo.
   out.push('`integration/scanner-candidates.md` in the assay engine._', '');
   for (const a of notMeasured) {
-    const owners = Object.values(adapters).filter((ad) => (ad.contributes || []).includes(a)).map((ad) => ad.scanner);
-    out.push(`- **\`${a}\`** — measured by ${owners.join(', ')} (not run).`);
+    const owners = ownersOf([a]);
+    out.push(`- **\`${a}\`** — measured by ${owners.map((o) => `${o} (${notRunPhrase(manifest, o)})`).join(', ')}.`);
   }
   out.push('');
 }

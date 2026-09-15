@@ -32,7 +32,15 @@ the instrument role in §3a):
 | repo-eval (native) | peer scanner | `adapters/repo-eval.yaml` | The seven dimension passes; dogfooded as one scanner |
 | deep-code-review | peer scanner | `adapters/deep-code-review.yaml` | LLM skill, own A–R taxonomy, per-finding severity + verbatim fixes; contributes the two code axes |
 | Gitleaks | instrument | `adapters/gitleaks.yaml` | Integrated via `tools/ingest.mjs` (w-assay-02): every leak → one `secret` row onto code-security; converter validated against a live v8.24.3 run; secrets never copied out of the raw report |
-| OpenSSF Scorecard | instrument | `adapters/scorecard.yaml` | Integrated via `tools/ingest.mjs` (w-assay-02): 19 checks mapped onto the native workspace axes, score-banded polarity/severity; first live run pending a target repo in-session (needs GitHub API reach) |
+
+Every adopted scanner gets a disposition in every run's manifest
+(`scanner-contract.md` §4a): ran, skipped with a reason, or failed with the error.
+
+## Retired from the adopted roster
+
+| Scanner | Role | Adapter | Why |
+|---|---|---|---|
+| OpenSSF Scorecard | instrument | `adapters/scorecard.yaml` (`adopted: false`) | Integrated via `tools/ingest.mjs` (19 checks onto the native workspace axes, score-banded); retired 2026-09-15 because its checks are remote repository-configuration reads that need direct GitHub API access at run time — it cannot run against a local checkout, so in an environment without API reach it is a forever-fail every run would have to dispose of. The adapter stays so frozen runs carrying its rows still project. Re-adoption needs an offline mode or a different environment |
 
 ## Core instrument candidates (license-clean, best coverage per integration cost)
 

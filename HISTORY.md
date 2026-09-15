@@ -46,3 +46,20 @@ what the public engine learned.
   push and PR; `.env` ignored; PR template with a mandatory verification
   section; this history file; release tagging adopted (a deliberate engine
   change is a tag consumers can pin).
+- **2026-09-15 — the run manifest; Scorecard retired from the adopted roster.**
+  A full package had shipped over a repo-eval-only base with the queued code
+  scanner never invoked and nothing recording the omission: the "not measured"
+  line was honest but nothing forced a decision, and the index had also listed a
+  five-day-old sibling run's native report beside it. Now every run carries
+  `eval/scanners.yaml` — one row per adopted scanner: ran, skipped with a reason,
+  or failed with the error (SCHEMA §5a, scanner-contract §4a). `validate.mjs`
+  fails closed on a missing manifest, a skip without a reason, a `ran` with no
+  rows and no explicit empty file, and rows from a scanner recorded as not run;
+  `compile-package.mjs` validates before compiling anything; the walk, index,
+  report, and handoff name a scanner that did not run with its recorded reason;
+  appendices come from this run only. Adapters gain `adopted: false` (retirement
+  as a recorded decision, still projectable for frozen rows); Scorecard is the
+  first retiree — its checks need direct GitHub API access at run time, and an
+  adopted instrument must run offline against the checkout. Four negative
+  fixtures and a run-manifest invariant block pin all of it (confirmed red with
+  the rule weakened); fixture runs carry manifests; goldens untouched.

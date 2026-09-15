@@ -1,0 +1,9 @@
+engine: fixture
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped
+  gitleaks:
+    status: skipped
+    reason: "fixture: no instrument run"

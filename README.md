@@ -26,17 +26,24 @@ Every scanner, the built-in method included, contributes the axes its own method
 measures, and any scanner may *feed* an axis it does not contribute, so two
 scanners measuring one property corroborate on one axis instead of in two
 chapters. An axis no present scanner measures reads **"not measured"**, never
-"clean". Two kinds of thing plug in:
+"clean" — and every run carries a **manifest** (`eval/scanners.yaml`) recording,
+for each adopted scanner, whether it ran, was skipped (with the reason), or failed
+(with the error). The validator refuses a run without it, and every rendered
+artifact names a scanner that did not run with its reason: an integration that
+can be omitted without a recorded decision would read as coverage. Two kinds of
+thing plug in:
 
 - **Peer scanners** — judgment-bearing evaluators with their own taxonomy
   (`repo-eval`, the built-in seven-dimension method; `deep-code-review`, an
   external code reviewer). Each carries an adapter and keeps its native report as
   an appendix.
-- **Instruments** — deterministic tools (`gitleaks`, OpenSSF `scorecard`) that
-  feed existing axes and never add one. Ten instruments add zero chapters. Their
-  intake **fails loud, never empty**: a tool that errored can never read as "0
-  findings", and a secrets scanner's matched values are never copied out of its
-  report.
+- **Instruments** — deterministic tools (`gitleaks`; OpenSSF `scorecard` is
+  integrated but retired from the adopted roster because it needs GitHub API
+  access at run time) that feed existing axes and never add one. Ten instruments
+  add zero chapters. An adopted instrument runs offline against the checkout.
+  Their intake **fails loud, never empty**: a tool that errored can never read as
+  "0 findings", and a secrets scanner's matched values are never copied out of
+  its report.
 
 The contract for both is `integration/scanner-contract.md`; the candidate roster
 of further scanners is `integration/scanner-candidates.md`.
@@ -48,10 +55,10 @@ opening context of a coding-agent session pointed at the target repository, and 
 drives the passes. The supporting tools are zero-dependency Node (≥ 20):
 
 ```sh
-# validate a findings base (schema, ids, links, citations — fails closed)
+# validate a findings base (schema, ids, links, citations, the run manifest — fails closed)
 node tools/validate.mjs <run-dir> [--target <target-repo>]
 
-# project + compile the package (report + walk + handoff + index)
+# project + compile the package (validates first; report + walk + handoff + index)
 node tools/compile-package.mjs <run-dir>
 
 # ingest a deterministic instrument (fails loud on a bad exit code)

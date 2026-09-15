@@ -1,0 +1,10 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
+engine: fixture
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped
+    reason: "fixture run: the code scanner was not executed over this public target"
+  gitleaks:
+    status: ran
