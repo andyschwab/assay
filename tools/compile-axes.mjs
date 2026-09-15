@@ -13,7 +13,7 @@
 // Usage:  node tools/compile-axes.mjs <run-dir> [--base <dir>]... [--stdout]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from './project.mjs';
 import { buildChains } from './chains.mjs';
 import { sevRank, buildFixSpine } from './doctrine.mjs';
 import { parseYaml } from './yaml-min.mjs';
@@ -66,6 +66,8 @@ const roster = rosterFor(adapters, sources, projected);
 const registryAxes = registryAxesOf(adapters);
 const notMeasured = registryAxes.filter((a) => !contributed.has(a));
 const manifest = loadManifest(arg);   // validate already required it; the walk reads it
+const scannerCov = loadScannerCoverage(arg);   // per-scanner coverage sidecars (eval/coverage-<scanner>.yaml)
+const partialOf = (a) => coveragePhrase(axisCoverage(adapters, scannerCov, a));
 
 // the adopted scanners that contribute a given set of axes (for the not-measured lines)
 const ownersOf = (axes) => [...new Set(Object.values(adapters)
@@ -120,7 +122,7 @@ if (topRisks.length) {
 out.push('**The roster** _(an axis no present scanner measures is "not measured", never "clean")_:');
 for (const a of roster) {
   const mb = measuredBy(a), fb = fedBy(a);
-  out.push(`- \`${a}\` ← ${mb.length ? mb.join(', ') : '**(no present scanner measures this axis)**'}${fb.length ? ` · fed by ${fb.join(', ')}` : ''}`);
+  out.push(`- \`${a}\` ← ${mb.length ? mb.join(', ') : '**(no present scanner measures this axis)**'}${fb.length ? ` · fed by ${fb.join(', ')}` : ''}${partialOf(a) ? ' · **partially measured**' : ''}`);
 }
 if (notMeasured.length) out.push(`- _not measured this run:_ ${notMeasured.map((a) => `\`${a}\``).join(', ')} _(${ownersOf(notMeasured).map((o) => `${o} ${notRunPhrase(manifest, o)}`).join('; ')})_`);
 out.push('');
@@ -132,6 +134,7 @@ for (const a of roster) {
   const mb = measuredBy(a), fb = fedBy(a);
   out.push(`## ${axisTitle(a)}`, '');
   out.push(`_Measured by ${mb.length ? mb.join(', ') : 'no present scanner'}${fb.length ? `; fed by ${fb.join(', ')}` : ''}._`, '');
+  if (partialOf(a)) out.push(`> **Partially measured** — ${partialOf(a)}. Findings below are real; absence of findings in the unscanned part is absence of looking.`, '');
   if (!mb.length && prim.length) {
     out.push(`> **Not measured** — no present scanner's own method covers this axis; the findings below were fed in by ${fb.join(', ')} and are real, but they are not a measure of the axis.`, '');
   }

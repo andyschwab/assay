@@ -176,6 +176,64 @@ export function notRunPhrase(manifest, id) {
   return manifest ? 'no disposition recorded in the run manifest' : 'no run manifest (eval/scanners.yaml)';
 }
 
+// ── scanner coverage sidecars — eval/coverage-<scanner>.yaml ─────────────────
+// A peer scanner that reports per-domain coverage (deep-code-review 1.72+'s
+// machine report) has it archived by ingest.mjs as a sidecar in the scanner's
+// own domain letters. Renderers read it so an axis the scanner contributes is
+// "measured" only where every mapped domain was scanned — a partial or skipped
+// domain makes the axis PARTIALLY measured, said in words, never a silent full.
+export function loadScannerCoverage(dir) {
+  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
+  const out = {};
+  if (!existsSync(ev)) return out;
+  for (const f of readdirSync(ev).filter((x) => /^coverage-.+\.yaml$/.test(x))) {
+    const doc = parseYaml(readFileSync(join(ev, f), 'utf8'));   // fail closed
+    if (doc && doc.scanner) out[doc.scanner] = doc;
+  }
+  return out;
+}
+
+// For one axis: per contributing scanner with a sidecar, the mapped domains
+// grouped by status. `null` when no contributing scanner reported coverage.
+export function axisCoverage(adapters, scannerCoverage, axis) {
+  const out = [];
+  for (const [id, ad] of Object.entries(adapters)) {
+    if (!(ad.contributes || []).includes(axis)) continue;
+    const sc = scannerCoverage[id];
+    if (!sc || !sc.coverage) continue;
+    const letters = Object.entries(ad.map || {}).filter(([, r]) => r && r.axis === axis).map(([l]) => l).sort();
+    const g = { scanner: id, scanned: [], partial: [], notScanned: [], notApplicable: [], unknown: [] };
+    for (const l of letters) {
+      const row = sc.coverage[l];
+      const st = row && row.status;
+      const note = row && row.note ? String(row.note).trim() : '';
+      if (st === 'scanned') g.scanned.push(l);
+      else if (st === 'partial') g.partial.push({ l, note });
+      else if (st === 'not-scanned') g.notScanned.push({ l, note });
+      else if (st === 'not-applicable') g.notApplicable.push({ l, note });
+      else g.unknown.push(l);
+    }
+    g.full = !g.partial.length && !g.notScanned.length && !g.unknown.length;
+    out.push(g);
+  }
+  return out.length ? out : null;
+}
+
+// One phrase for a renderer: "" when fully measured, else the honest qualifier.
+export function coveragePhrase(groups) {
+  if (!groups) return '';
+  const parts = [];
+  for (const g of groups) {
+    if (g.full) continue;
+    const bits = [];
+    for (const x of g.partial) bits.push(`${x.l} partial${x.note ? ` (${x.note})` : ''}`);
+    for (const x of g.notScanned) bits.push(`${x.l} not scanned${x.note ? ` (${x.note})` : ''}`);
+    for (const l of g.unknown) bits.push(`${l} no coverage row`);
+    parts.push(`${g.scanner} covered this axis partially: ${bits.join('; ')}`);
+  }
+  return parts.join(' · ');
+}
+
 // Which axes each present scanner CONTRIBUTES (its own measure exists there).
 // An axis in no present scanner's `contributes:` is "not measured" — a finding
 // fed into it still renders (never a silent drop), flagged method-not-run.

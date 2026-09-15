@@ -64,6 +64,9 @@ node tools/compile-package.mjs <run-dir>
 # ingest a deterministic instrument (fails loud on a bad exit code)
 node tools/ingest.mjs <run-dir> --tool gitleaks --raw gitleaks.json --exit 1
 
+# ingest a peer scanner's machine report (fails loud on incomplete coverage)
+node tools/ingest.mjs <run-dir> --tool deep-code-review --raw findings-2026-09-15.yaml
+
 # grade a run against a known-answer fixture sheet
 node tools/score.mjs <run-dir> --answers <target>/ANSWERS.yaml
 

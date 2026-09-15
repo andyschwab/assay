@@ -1,0 +1,114 @@
+# deep-code-review 1.72 machine report — a FICTIONAL sample for the regression harness.
+review:
+  tool: deep-code-review
+  skill_version: "1.72.0"
+  date: 2026-09-15
+  scope: FULL
+  base_ref: null
+  start_sha: a1b2c3d
+  target: "Acme notes service"
+  archetype: api
+  stage: growth
+  prior: "code-review/findings-2026-08-01.yaml"
+ground_truth:
+  build: ok
+  tests: ok
+  host_ci: unverified
+  gate_self_test: not-run
+  lint_type_scan: ok
+  authz_posture: "4 entry points · anon probed 4 · two-principal 2 · untested: none"
+  pipeline_run: not-run
+  notes:
+    - "gate_self_test: read-only engagement; no defect planted"
+    - "pipeline_run: no live pipeline in this target"
+coverage:
+  A:
+    status: scanned
+  B:
+    status: partial
+    note: "mutating routes and webhook handlers only; UI routes not read"
+  C:
+    status: not-applicable
+    note: "no model call in the tree"
+  D:
+    status: scanned
+  E:
+    status: scanned
+  F:
+    status: scanned
+  G:
+    status: scanned
+  H:
+    status: scanned
+  I:
+    status: scanned
+  J:
+    status: scanned
+  K:
+    status: scanned
+  L:
+    status: not-applicable
+    note: "no IaC, containers, or cloud config"
+  M:
+    status: scanned
+  N:
+    status: scanned
+  O:
+    status: scanned
+  P:
+    status: not-scanned
+    note: "outside the engagement's slices"
+  Q:
+    status: scanned
+  R:
+    status: not-applicable
+    note: "single-locale, ASCII-only data"
+  S:
+    status: scanned
+  T:
+    status: scanned
+  W:
+    status: scanned
+findings:
+  - id: F1
+    title: "Status aggregation ignores the source-of-truth hierarchy"
+    area: A
+    tag: "correctness"
+    severity: Critical
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      An active secondary account overrides a primary-source termination, so the alert that depends on it computes an empty set.
+    evidence:
+      - src/lib/aggregate.ts:486
+      - src/lib/alert.ts:35
+    fix: >
+      Make aggregation hierarchy-aware so a primary-source termination wins; add the mixed-status regression test.
+    compounds: [F3]
+    prior_id: F1
+    prior_status: still-open
+  - id: F2
+    title: "Tenant selection is JWT-sub-only"
+    area: T
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      No body, query, or header can select a tenant; anon GET returns 401 and a two-principal swap returns 403.
+    evidence:
+      - api/mw/tenant.ts:31
+  - id: F3
+    title: "Nightly job retries a partially-applied batch"
+    area: W
+    severity: High
+    polarity: gap
+    confidence: PLAUSIBLE
+    mechanism_unproven: true
+    observation: >
+      The scheduler re-enqueues a failed batch without an idempotency key, so a mid-batch crash applies the first half twice.
+    evidence:
+      - jobs/nightly.ts:72
+    fix: >
+      Key each batch application on a stable id and skip already-applied rows; prove it with a crash-at-row-N test.
+prior_not_rechecked: [F7]

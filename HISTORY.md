@@ -63,3 +63,19 @@ what the public engine learned.
   adopted instrument must run offline against the checkout. Four negative
   fixtures and a run-manifest invariant block pin all of it (confirmed red with
   the rule weakened); fixture runs carry manifests; goldens untouched.
+- **2026-09-15 — the deep-code-review machine report, consumed; adapter A–W.**
+  deep-code-review 1.72 emits a machine report (one YAML per run: findings with
+  stable ids, a coverage row per domain, ground truth, prior-run linkage).
+  `ingest.mjs` gains a peer-scanner profile for it: no exit code, so
+  completeness is the fail-loud property (a row for every domain in the
+  adapter's new `coverage_domains`, a note on every non-scanned row, a fix on
+  every gap); rows keep the scanner's own labels beside the mapped ones
+  (`title`, `native_confidence`, `latent`, `mechanism_unproven`,
+  `prior_native_id` / `prior_status`); the coverage is archived as
+  `eval/coverage-<scanner>.yaml` and the walk, index, and report read it so an
+  axis is **partially measured** where the scanner said it looked partially.
+  The validator checks the sidecar (complete, noted, scanner recorded as ran).
+  The adapter gains upstream 1.71's S (→ improvement-loop), T (→
+  code-security), and W (→ code-correctness); `default: FAIL` had made the
+  first S/T/W row a loud halt. A fictional sample report, a negative fixture,
+  and a `dcr-machine-report` invariant block pin it; goldens untouched.

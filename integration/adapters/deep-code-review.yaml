@@ -10,6 +10,10 @@
 scanner: deep-code-review
 targets_taxonomy: 3
 severity_scale: [Blocker, Critical, High, Medium, Low, Nit]
+# The scanner's full domain set (1.71+: A–T and W; U, V unassigned). Its machine
+# report (1.72+) carries one coverage row per domain; ingest and validate use this
+# list to require completeness — a report missing a row for any of these halts.
+coverage_domains: [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, W]
 
 contributes:
   - code-correctness
@@ -44,6 +48,12 @@ map:
     axis: code-security
   Q:                          # Privacy, compliance, licensing
     axis: code-security
+  T:                          # Multi-tenancy & isolation (1.71+) — the tenant wall is a code-security property
+    axis: code-security
+  W:                          # Workflows, jobs & scheduling (1.71+) — does the scheduled path do the right thing
+    axis: code-correctness
+  S:                          # Branches, merges, open-work triage (1.71+) -> does work land and get triaged
+    axis: improvement-loop
   J:                          # Testing & evaluation -> the shared gates axis
     axis: deterministic-gates
   M:                          # Observability (proof-of-effect) -> the shared verification axis
