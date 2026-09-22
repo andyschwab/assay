@@ -88,8 +88,10 @@ it (a schema facet, an authored census, a scanner's rows, or a sidecar claim).
 `tools/descriptors.mjs <run-dir>` reads a run and writes, per descriptor, met /
 unmet / mixed / not-measured with the finding ids; a claim-only row always reads
 not-measured from a run, because only a repository's own sidecar asserts it and
-the two are compared, never merged. `registry/README.md` is the contract. This is
-a second projection; the axis views are unchanged.
+the two are compared, never merged. `registry/README.md` is the contract. Every package
+carries the read: `compile-package.mjs` writes it after validating, the index and
+the report state it once, and `validate.mjs` recomputes every status and fails
+on drift, so a stale read cannot outlive its base. The axis views are unchanged.
 
 ## Repeatability is two numbers, not one
 

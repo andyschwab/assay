@@ -55,6 +55,9 @@ const NEGATIVE = [
   ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file'],
   ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped'],
   ['coverage-incomplete', 'a scanner coverage sidecar missing rows for domains the adapter lists'],
+  // the register read (registry/README.md): a status the base does not recompute is drift, and a
+  // claim-only row reading met is the exact laundering the two-file rule exists to prevent
+  ['descriptors-drift', 'a view-descriptors.yaml whose statuses the base does not recompute (a claim row reads met)'],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall

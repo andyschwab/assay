@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from './project.mjs';
 import { loadDecisions, decideProjected } from './decisions.mjs';
+import { projectRun as projectDescriptorsOf, summarize as summarizeDescriptors } from './descriptors.mjs';
 import { parseYaml } from './yaml-min.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -52,6 +53,9 @@ const confArgs = CONFIDENTIAL ? ['--confidential'] : [];
 // disposition). A package that compiles over a base with an unrecorded scanner
 // reads as coverage that never happened; so the package never compiles without it.
 console.log('· validate …');                  run('validate.mjs', []);
+// the register read: every package carries eval/view-descriptors.yaml (registry/README.md); the
+// validator drift-checks it on the next validate, so a stale read cannot outlive its base
+console.log('· register (descriptors) …');    run('descriptors.mjs', ['--write']);
 
 // ── the compiled artifacts ───────────────────────────────────────────────────
 console.log('· walk    (compile-axes) …');    run('compile-axes.mjs', confArgs);
@@ -114,6 +118,12 @@ function findAppendices() {
   return [...out.entries()];
 }
 
+// ── the register glance for the index ──────────────────────────────────────
+const descRows = projectDescriptorsOf(runDir);
+const descSum = summarizeDescriptors(descRows);
+const descUnmet = descRows.filter((r) => r.status === 'unmet').map((r) => `\`${r.id}\``);
+const descClaims = descRows.filter((r) => r.kind === 'claim').length;
+
 // ── INDEX.md — the front door ────────────────────────────────────────────────
 const rel = (p) => relative(runDir, p) || basename(p);
 const apps = findAppendices();
@@ -139,12 +149,17 @@ reader's.
 ${axisLines.join('\n')}
 ${notMeasured.length ? `\n_Not measured this run: ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${ownersOf(notMeasured).map((o) => `${o} ${notRunPhrase(manifest, o)}`).join('; ')}. Absence of findings is absence of looking, not health._` : ''}
 
+## The register (glance)
+
+${descSum.decided} of ${descSum.of} descriptors decided by this run (met ${descSum.met} · unmet ${descSum.unmet} · mixed ${descSum.mixed}); ${descSum['not-measured']} not measured, of which ${descClaims} are claim-only rows a sidecar decides, never a run.${descUnmet.length ? ` Unmet: ${descUnmet.join(', ')}.` : ''} The full read is \`eval/view-descriptors.yaml\`.
+
 ## What's in the package
 
 | Artifact | Reader | What it is |
 |---|---|---|
 ${reportRow}
 | [\`eval/view-axes.md\`](eval/view-axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register. |
+| [\`eval/view-descriptors.yaml\`](eval/view-descriptors.yaml) | machine / the sidecar's counterpart | The register read: per descriptor, what this run decides and how; claim rows read not measured by construction. |
 | [\`handoff/START-HERE.md\`](handoff/START-HERE.md) | machine / agent | How to act, sequenced worst-first. |
 | [\`handoff/REMEDIATION.md\`](handoff/REMEDIATION.md) | machine / agent | The full spine: every actionable gap, verbatim fix, proof step. |
 | [\`handoff/plan/\`](handoff/plan/) | machine / agent | One session prompt per Critical/High item (interview → fix → prove). |
