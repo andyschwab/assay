@@ -79,6 +79,18 @@ Rendering the report to PDF (`tools/render-pdf.mjs`) additionally needs
 `markdown-it` and a headless Chromium; the base tools stay dependency-free so they
 copy cleanly into any target repo.
 
+## The descriptor register (v0)
+
+Beside the axis roster, findings project onto a **descriptor register**
+(`registry/descriptors.yaml`): one row per requirement a repository must meet to
+be stood behind, stated stack-neutrally, each naming the mechanism that decides
+it (a schema facet, an authored census, a scanner's rows, or a sidecar claim).
+`tools/descriptors.mjs <run-dir>` reads a run and writes, per descriptor, met /
+unmet / mixed / not-measured with the finding ids; a claim-only row always reads
+not-measured from a run, because only a repository's own sidecar asserts it and
+the two are compared, never merged. `registry/README.md` is the contract. This is
+a second projection; the axis views are unchanged.
+
 ## Repeatability is two numbers, not one
 
 Repeatability is measured at both layers, because they drift independently.
@@ -112,6 +124,7 @@ npm test
 METHOD.md                  the built-in scanner method (the LLM passes)
 SCHEMA.md                  the finding format contract (validator-enforced)
 integration/               the scanner contract, adapters, and candidate roster
+registry/                  the descriptor register + the descriptor projection (v0)
 tools/                     zero-dep engine tools + the PDF renderer
 templates/                 report partials, styles, vendored fonts
 canon/                     per-target enumeration contracts (ships empty)

@@ -79,3 +79,17 @@ what the public engine learned.
   code-security), and W (→ code-correctness); `default: FAIL` had made the
   first S/T/W row a loud halt. A fictional sample report, a negative fixture,
   and a `dcr-machine-report` invariant block pin it; goldens untouched.
+- **2026-09-22 — the descriptor register (v0) and its projection.** A second
+  projection beside the axis roster: `registry/descriptors.yaml` holds 55
+  descriptors, stack-neutral requirements each naming the mechanism that decides
+  it (facet, census, instrument, claim), extracted from four lists that already
+  existed (a takeover floor, a fleet contract, a template's guarantee manifest, a
+  foundation template's universal rules) plus a takeover evaluation, every row
+  sourced. `tools/descriptors.mjs` projects a run onto it and writes
+  `eval/view-descriptors.yaml`: met / unmet / mixed / not-measured, prose never
+  read, instrument rows gated by the run manifest and the scanner's own coverage,
+  claim rows always not-measured from a run because only a sidecar asserts them.
+  The sidecar's format is defined, its checker is not yet. Harness gains a
+  descriptor block (register validity, each decider on a synthetic base, the
+  manifest and coverage gates); goldens untouched; the axis views unchanged.
+
