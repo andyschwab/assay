@@ -19,3 +19,9 @@ scanners:
     reason: "<why — e.g. out of the engagement's scope this run; decided by <role>>"
   gitleaks:
     status: ran
+  fresh-clone:
+    # the scripted fresh-clone run (tools/fresh-clone.mjs → ingest --tool fresh-clone).
+    # ran = the base carries its rows or the explicit empty findings-94-fresh-clone.yaml;
+    # skipped needs the reason (e.g. no scratch clone possible in this environment).
+    status: skipped
+    reason: "<why — e.g. the run environment cannot execute the target's install step; decided by <role>>"
