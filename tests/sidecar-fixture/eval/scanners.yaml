@@ -9,3 +9,6 @@ scanners:
   gitleaks:
     status: skipped
     reason: "fixture: no instrument run over this synthetic base"
+  fresh-clone:
+    status: skipped
+    reason: "fixture: the fresh-clone run was not executed over this base"

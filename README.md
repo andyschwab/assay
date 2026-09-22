@@ -37,7 +37,9 @@ thing plug in:
   (`repo-eval`, the built-in seven-dimension method; `deep-code-review`, an
   external code reviewer). Each carries an adapter and keeps its native report as
   an appendix.
-- **Instruments** — deterministic tools (`gitleaks`; OpenSSF `scorecard` is
+- **Instruments** — deterministic tools (`gitleaks`; `fresh-clone`, the scripted
+  clean-checkout run that installs, builds, lints, typechecks, tests, migrates
+  and replays the README's command claims; OpenSSF `scorecard` is
   integrated but retired from the adopted roster because it needs GitHub API
   access at run time) that feed existing axes and never add one. Ten instruments
   add zero chapters. An adopted instrument runs offline against the checkout.

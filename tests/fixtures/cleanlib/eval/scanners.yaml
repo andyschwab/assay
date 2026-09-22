@@ -8,3 +8,6 @@ scanners:
     reason: "fixture run: the code scanner was not executed over this public target"
   gitleaks:
     status: ran
+  fresh-clone:
+    status: skipped
+    reason: "fixture: the fresh-clone run was not executed over this base"

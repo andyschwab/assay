@@ -27,8 +27,13 @@
 // The coverage rows are archived as eval/coverage-<scanner>.yaml so the renderers
 // can say "partially measured" where the scanner itself said it looked partially.
 //
+// The FRESH-CLONE instrument (tools/fresh-clone.mjs) also comes in here: its JSON
+// document records each declared step's status and each README command claim's
+// presence; exits 0 and 1 are both successful runs (1 = a gap exists), a runner
+// crash exits 2 and halts. Rows never carry step output — only command + exit code.
+//
 // Usage:
-//   node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard> --raw <file> --exit <code> [--start F-7xx]
+//   node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone> --raw <file> --exit <code> [--start F-7xx]
 //   node tools/ingest.mjs <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/eval/findings-9N-<tool>.yaml and archives the raw report to
 // <run-dir>/eval/raw/<tool>.<json|yaml>. Library: convert(tool, rawText, exitCode, startId).
@@ -164,8 +169,89 @@ const PROFILES = {
       return rows;
     },
   },
+  'fresh-clone': {
+    file: 'findings-94-fresh-clone.yaml',
+    startId: 900,
+    // 0 = every declared step passed and every README claim present; 1 = at least one
+    // step failed / timed out or a claim is missing. Both are successful RUNS. A crash
+    // of the runner itself exits 2 and halts here.
+    okExits: [0, 1],
+    // Rows: one gap per step that failed / timed out; one gap per NOT-DECLARED lint,
+    // typecheck, test, migrate (the floor descriptors are worded so absence is a gap,
+    // never clean: no lint script is not a green lint); one gap per MISSING README
+    // claim. A passing step yields no row — a clean run is the explicit empty file.
+    // NEVER copy step output: the last-40-lines tail (which may echo environment
+    // values) stays in the raw archive; rows carry the command and exit code only.
+    convert(raw, startId, exitCode) {
+      const rep = parseJson(raw, 'fresh-clone');
+      if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('fresh-clone report must be a JSON object');
+      if (rep.tool !== 'fresh-clone') throw new Error(`fresh-clone report carries tool "${rep.tool}" (truncated or not a fresh-clone report?)`);
+      if (!Array.isArray(rep.steps) || !Array.isArray(rep.readme_claims)) throw new Error('fresh-clone report has no steps[] / readme_claims[] (truncated report?)');
+      if (![0, 1].includes(rep.exit)) throw new Error(`fresh-clone report exit "${rep.exit}" is not 0 | 1 (truncated report?)`);
+      if (exitCode !== undefined && exitCode !== null && Number(exitCode) !== rep.exit) throw new Error(`fresh-clone report says exit ${rep.exit} but the runner exited ${exitCode} — the document does not describe the run it is filed under`);
+      const manifest = (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'eval/raw/fresh-clone.json:1';
+      const readme = rep.readme || 'README.md';
+      const rows = []; let n = 0; const seen = new Set();
+      for (const s of rep.steps) {
+        if (!s || !FC_STEPS.includes(s.name)) throw new Error(`fresh-clone step "${s && s.name}" is not one of ${FC_STEPS.join(' | ')} (truncated report?)`);
+        if (!FC_STEP_STATUS.includes(s.status)) throw new Error(`fresh-clone step ${s.name}: status "${s.status}" is not one of ${FC_STEP_STATUS.join(' | ')}`);
+        if (seen.has(s.name)) throw new Error(`fresh-clone step ${s.name} appears twice`);
+        seen.add(s.name);
+        const cmd = s.command ? ` (\`${oneLine(s.command)}\`` + (Number.isInteger(s.exit_code) ? `, exit ${s.exit_code})` : ')') : '';
+        let observation = null;
+        if (s.status === 'failed') observation = `Fresh-clone step ${s.name} failed${cmd}${s.reason ? ': ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}.`;
+        else if (s.status === 'timed-out') observation = `Fresh-clone step ${s.name} timed out${cmd}${s.reason ? ' — ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]} within the run budget.`;
+        else if (s.status === 'not-declared' && s.name === 'migrate' && !(Array.isArray(rep.toolchain && rep.toolchain.database_signals) && rep.toolchain.database_signals.length)) observation = null;   // no database in the tree: nothing to migrate, no gap
+        else if (s.status === 'not-declared' && FC_FLOOR_STEPS.includes(s.name)) observation = `Fresh-clone step ${s.name} is not declared in a runnable form${s.reason ? ' (' + oneLine(s.reason) + ')' : ''}; nothing in the repository ${FC_DECLARES[s.name]}, so a clean checkout cannot ${FC_VERB[s.name]}.`;
+        if (!observation) continue;
+        rows.push({
+          id: fid(startId + n++),
+          source: 'fresh-clone',
+          native_id: `${s.name}:${s.status}`,
+          native_category: s.name,
+          polarity: 'gap',
+          severity: (s.status === 'failed' || s.status === 'timed-out') && ['install', 'build', 'test'].includes(s.name) ? 'High' : 'Medium',
+          observation,
+          evidence: [manifest],
+          fix: FC_FIX[s.name],
+        });
+      }
+      for (const s of FC_STEPS) if (!seen.has(s)) throw new Error(`fresh-clone report has no row for step ${s} — a step the runner did not record is not a pass (truncated report?)`);
+      for (const c of rep.readme_claims) {
+        if (!c || !Number.isInteger(c.line) || !c.command || !['present', 'missing'].includes(c.status)) throw new Error('fresh-clone README claim missing line / command / status (truncated report?)');
+        if (c.status !== 'missing') continue;
+        rows.push({
+          id: fid(startId + n++),
+          source: 'fresh-clone',
+          native_id: `readme-claim@${readme}:${c.line}`,
+          native_category: 'readme-claim',
+          polarity: 'gap',
+          severity: 'Medium',
+          observation: `README claims \`${oneLine(c.command)}\` (${readme}:${c.line}) but the ${FC_CLAIM_NOUN[c.kind] || 'target'} it names does not exist in the tree; the README is not true of this checkout at that line.`,
+          evidence: [`${readme}:${c.line}`],
+          fix: `Make the README true: add the ${FC_CLAIM_NOUN[c.kind] || 'target'} the line claims, or correct the line to the command that exists; re-run fresh-clone and confirm the claim reads present.`,
+        });
+      }
+      return rows;
+    },
+  },
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
+// fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
+const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
+const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
+const FC_FLOOR_STEPS = ['lint', 'typecheck', 'test', 'migrate'];   // not declared ⇒ a gap (absence is not clean); migrate only where the tree carries database signals
+const FC_VERB = { install: 'install its dependencies', build: 'build', lint: 'lint clean', typecheck: 'typecheck clean', test: 'run its tests', migrate: 'replay its migrations from empty' };
+const FC_DECLARES = { lint: 'declares a lint gate', typecheck: 'declares a typecheck gate', test: 'declares a test command', migrate: 'declares a migration command that can run without a live database' };
+const FC_FIX = {
+  install: 'Make the install reproducible from a clean checkout: commit the lockfile, declare the toolchain (engines / .nvmrc / .tool-versions), and remove any dependency on machine-local state; re-run fresh-clone and confirm install passes.',
+  build: 'Make the build pass from a clean checkout with the declared toolchain (no uncommitted generated files, no machine-local paths); re-run fresh-clone and confirm build passes.',
+  lint: 'Declare a lint script in the package manifest that runs the linter and exits non-zero on a violation, and wire it into CI; re-run fresh-clone and confirm lint passes.',
+  typecheck: 'Declare a typecheck script in the package manifest (tsc --noEmit or the stack equivalent) that exits non-zero on a type error, and wire it into CI; re-run fresh-clone and confirm typecheck passes.',
+  test: 'Declare a test script that executes the suite\'s core on a clean machine without an unset variable silently skipping it, and make it pass; re-run fresh-clone and confirm test passes.',
+  migrate: 'Declare a migration command that replays from an empty database, with a DATABASE_URL-free dry form (migrate:dry / migrate:check / --dry-run) the fresh-clone run can exercise; re-run fresh-clone and confirm migrate passes.',
+};
+const FC_CLAIM_NOUN = { 'npm-script': 'package script', 'npx-bin': 'binary (a dependency or own bin)', 'node-file': 'file', 'make-target': 'make target' };
 // the scanner's confidence labels → the port's closed vocab (SCHEMA §2)
 const DCR_CONFIDENCE = { CONFIRMED: 'confirmed', CORROBORATED: 'confirmed', PLAUSIBLE: 'plausible', unverified: 'unverified' };
 
@@ -197,7 +283,7 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
     if (!p.okExits.includes(code)) throw new Error(`${tool} exited ${code}, outside its success set [${p.okExits.join(', ')}] — a tool error must never read as "0 findings"`);
   }
   const start = startId ? Number(String(startId).replace(/^F-/, '')) : p.startId;
-  const rows = p.convert(rawText, start);
+  const rows = p.convert(rawText, start, p.exitless ? null : Number(exitCode));
   if (opts.stripPrefix) {
     const pre = opts.stripPrefix.endsWith('/') ? opts.stripPrefix : opts.stripPrefix + '/';
     const strip = (s) => String(s).split(pre).join('');
@@ -276,7 +362,7 @@ if (isMain(import.meta.url)) {
   const tool = opt('--tool'), rawPath = opt('--raw'), exit = opt('--exit'), start = opt('--start'), stripPrefix = opt('--strip-prefix');
   const exitless = tool && PROFILES[tool] && PROFILES[tool].exitless;
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
-    console.error('usage: node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
+    console.error('usage: node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
     console.error('       node tools/ingest.mjs <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]');
     process.exit(2);
   }

@@ -140,10 +140,59 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census). **OpenSSF Scorecard** (`adapters/scorecard.yaml`) is
+credential census) and **fresh-clone** (`adapters/fresh-clone.yaml`, below).
+**OpenSSF Scorecard** (`adapters/scorecard.yaml`) is
 integrated but **retired from the adopted roster** (2026-09-15): its checks are
 remote repository-configuration reads that need direct GitHub API access at run
 time. The wider candidate roster: `scanner-candidates.md`.
+
+### 3b. The fresh-clone instrument (`tools/fresh-clone.mjs`)
+
+**What it measures.** Whether the repository is true from a clean checkout — the
+reproducibility and verification floor the descriptor register asks a scripted
+fresh-clone run to prove (`d-fresh-clone-runs`, `d-tests-execute-core`,
+`d-lint-typecheck-gate`, `d-schema-versioned`, `d-readme-true`). It clones the
+target into a scratch directory (`git clone --depth 1`; `--no-clone` runs in place
+for fixtures and CI checkouts), detects the toolchain from what is present
+(package.json + lockfile kind; engines / `.nvmrc` / `.tool-versions` recorded as
+the declared toolchain; a second family such as pyproject is recorded
+`not-supported`, never half-run), runs the declared steps **install, build, lint,
+typecheck, test, migrate** (the package scripts of those names; install when
+dependencies or a lockfile are declared; migrate only through a
+`DATABASE_URL`-free dry form — `migrate:dry` / `migrate:check` / `migrate:status`
+/ `--dry-run` — because the runner carries no database), and replays the README's
+command claims: every fenced-block line starting `npm run <script>`, `npm test`,
+`npx <bin>`, `node <file>` or `make <target>` is a claim, `present` when the
+script / binary / file / target exists in the tree, else `missing`. Each step
+records its command, exit code, duration, the last 40 lines of output and one of
+the closed statuses `passed | failed | not-declared | timed-out | skipped`. **A
+step that is not declared is `not-declared`, never `passed`.**
+
+**Success set.** The runner's exit is `0` when every declared step passed and
+every claim is present, `1` when at least one step failed or timed out or a claim
+is missing; both are successful runs and `ingest.mjs --tool fresh-clone` accepts
+both. A crash of the runner itself exits `2` and halts the intake. The converter
+writes one gap row per failed / timed-out step, one per **not-declared** lint,
+typecheck, test or migrate (the floor is worded so absence is a gap, not clean),
+and one per missing README claim (`readme-claim`, evidence `README.md:<line>`);
+`High` for a failed or timed-out install / build / test, `Medium` otherwise. A
+clean run is the explicit empty `findings-94-fresh-clone.yaml`. Rows carry the
+command and exit code only — the output tail stays in `eval/raw/fresh-clone.json`,
+so a value a build prints can never reach a findings base. Categories land on the
+axes the register already homes those floor rows on: install / build / migrate on
+`context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
+on `artifact-legibility`.
+
+**What it deliberately does not do.** It never executes a README command beyond
+the declared steps it already ran — presence in the tree is what the claim replay
+decides, and a `missing` claim is a gap; a `present` one is not proof the command
+works. It does not run a migration against a live database, does not attempt a
+toolchain family it cannot exercise, and does not read step output into rows.
+
+```sh
+node tools/fresh-clone.mjs <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone]
+node tools/ingest.mjs <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
+```
 
 ## 4. The fail-closed rule (the coherence guarantee)
 

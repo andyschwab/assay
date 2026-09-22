@@ -8,3 +8,6 @@ scanners:
   gitleaks:
     status: skipped
     reason: "fixture: recorded as skipped although rows are present — must be rejected"
+  fresh-clone:
+    status: skipped
+    reason: "fixture: the fresh-clone run was not executed over this base"

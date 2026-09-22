@@ -102,4 +102,19 @@ what the public engine learned.
   a claim-only row hand-edited to met) pins it. Goldens untouched; the axis
   projection still leads the package — the flip to descriptors leading is the
   next, reviewed, breaking release.
-
+- **2026-09-22 — the fresh-clone instrument (#120).** `tools/fresh-clone.mjs`
+  clones the target to scratch, detects the node toolchain, runs the declared
+  install / build / lint / typecheck / test / migrate steps (migrate only through
+  a `DATABASE_URL`-free dry form) and replays the README's command claims for
+  presence; exit 0 / 1 are runs, 2 is a crash. `ingest.mjs` gains the profile
+  (`findings-94-fresh-clone.yaml`, ids from F-900): a failed or timed-out step,
+  a not-declared lint / typecheck / test / migrate, or a missing README claim is
+  one gap row; rows carry command and exit code, never output.
+  `adapters/fresh-clone.yaml` is adopted (instrument, contributes nothing;
+  install / build / migrate → context-economy, lint / typecheck / test →
+  deterministic-gates, readme-claim → artifact-legibility), so every fixture
+  manifest and the template gain a disposition row. A public fixture
+  (`tests/instruments/fresh-clone-target`) and a `fresh-clone` harness block pin
+  the runner, the converter's halts, the clean-run empty file and the
+  projection. The register's floor rows keep their kinds; the re-kind to
+  `instrument: fresh-clone` is #123. Goldens untouched.

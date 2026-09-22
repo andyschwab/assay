@@ -39,6 +39,15 @@ The two are compared, never merged: a claim the run contradicts is the finding.
 | `instrument` | a scanner's rows, gated by the run manifest and, for a peer scanner, its coverage sidecar | unmet on gap rows; met when the scanner ran clean (an instrument) or scanned the domain with no gaps (a peer); not-measured when skipped, failed, or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | always not-measured from a run; only a sidecar asserts it. The list of `claim` rows is the register's instrument backlog |
 
+Adopted instruments the register can decide by: `gitleaks` (secrets) and
+`fresh-clone` (`tools/fresh-clone.mjs`, scanner-contract §3b — install / build /
+lint / typecheck / test / migrate from a clean checkout, plus README claim replay).
+The fresh-clone rows the floor asked for (`d-fresh-clone-runs`,
+`d-tests-execute-core`, `d-lint-typecheck-gate`, `d-schema-versioned`,
+`d-readme-true`) still read `claim` / `census` here; their re-kind to
+`instrument: fresh-clone` is one reviewed change of its own, so the register's
+statuses never move as a side effect of adopting a tool.
+
 Prose is never read. An observation that merely mentions a topic is not a
 measurement; the first prototype of this projection term-matched observation
 text and turned a "single authored bookkeeping contract" into a met bus-factor
