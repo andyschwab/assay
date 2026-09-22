@@ -92,4 +92,14 @@ what the public engine learned.
   The sidecar's format is defined, its checker is not yet. Harness gains a
   descriptor block (register validity, each decider on a synthetic base, the
   manifest and coverage gates); goldens untouched; the axis views unchanged.
+- **2026-09-22 — the register read is part of every package.** `compile-package.mjs`
+  runs `descriptors.mjs --write` after validating; `INDEX.md` carries a register
+  glance and links `eval/view-descriptors.yaml`; the report states the read once
+  in its coverage section (decided / met / unmet / mixed / not measured, the
+  claim-only rows named as the sidecar's to make); `validate.mjs` recomputes
+  every status and mechanism from the base, the manifest, the censuses and the
+  scanner coverage and fails on drift. A negative fixture (`descriptors-drift`:
+  a claim-only row hand-edited to met) pins it. Goldens untouched; the axis
+  projection still leads the package — the flip to descriptors leading is the
+  next, reviewed, breaking release.
 

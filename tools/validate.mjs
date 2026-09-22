@@ -466,6 +466,36 @@ if (existsSync(gradesPath)) {
 
 // ── report ──────────────────────────────────────────────────────────────────
 const total = allById.size;
+// descriptor projection tail (optional): the register read (registry/README.md) + drift check.
+// The file is GENERATED (tools/descriptors.mjs --write, run by compile-package); every status is
+// recomputed here from the base, the manifest, the censuses and the scanner coverage, and any
+// mismatch is an error — a stale register read would let a claim outlive the fact it rode on.
+const descPath = join(evalDir, 'view-descriptors.yaml');
+if (existsSync(descPath)) {
+  let view;
+  try { view = parseYaml(readFileSync(descPath, 'utf8')); }
+  catch (e) { err('view-descriptors.yaml', `YAML parse failed (fail-closed): ${e.message}`); view = null; }
+  if (view && view.schema !== 'descriptors') err('view-descriptors.yaml', `schema must be descriptors — regenerate: node tools/descriptors.mjs <run-dir> --write`);
+  else if (view) {
+    const { projectRun } = await import('./descriptors.mjs');
+    const runDirForDesc = basename(evalDir) === 'eval' ? dirname(evalDir) : evalDir;
+    let re = null;
+    try { re = projectRun(runDirForDesc); } catch (e) { err('view-descriptors.yaml', `could not recompute the projection: ${e.message}`); }
+    if (re) {
+      const reById = Object.fromEntries(re.map((r) => [r.id, r]));
+      const rows = Array.isArray(view.descriptors) ? view.descriptors : [];
+      if (rows.length !== re.length) err('view-descriptors.yaml', `carries ${rows.length} descriptors, the register has ${re.length} — regenerate`);
+      for (const r of rows) {
+        const at = `view-descriptors.yaml:${r && r.id || '??'}`;
+        const x = r && reById[r.id];
+        if (!x) { err(at, `not a descriptor in the register`); continue; }
+        if (r.status !== x.status) err(at, `descriptor drift: file says ${r.status}, base computes ${x.status} — regenerate with descriptors.mjs --write`);
+        if (r.how !== x.how) err(at, `mechanism drift: file says ${r.how}, register decides by ${x.how}`);
+      }
+    }
+  }
+}
+
 if (process.argv.includes('--json')) {   // machine-readable for tools/backlog.mjs
   console.log(JSON.stringify({ ok: errors.length === 0, total, errors, warnings, evidencePathErrors }, null, 2));
   // exit reflects the verdict even in JSON mode — a CI wiring that checks only the
