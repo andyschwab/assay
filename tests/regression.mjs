@@ -266,6 +266,25 @@ for (const [dir, what] of NEGATIVE) {
   if (by['CI-Tests']?.polarity !== 'strength') fail('a score-10 check must read strength');
   if (by['Dangerous-Workflow']?.evidence[0] !== '.github/workflows/deploy.yml:12') fail('a detail path must become the evidence');
   if (!sc.skipped || !sc.skipped.includes('Fuzzing')) fail('an N/A (-1) check must be skipped AND logged, never silent');
+  // id width: a real history scan returns more rows than three digits hold (807 on the first
+  // 200k-line target). Ids are F- plus three OR MORE digits; the validator must accept F-1000
+  // and still reject a two-digit id. The converter pads to three and grows past it.
+  const wide = convert('gitleaks', JSON.stringify(Array.from({ length: 5 }, (_, i) => ({ RuleID: 'r', File: 'a.ts', StartLine: i + 1 }))), 1, 'F-998');
+  if (wide.map((r) => r.id).join(',') !== 'F-998,F-999,F-1000,F-1001,F-1002') fail(`ids must grow past three digits (got ${wide.map((r) => r.id).join(',')})`);
+  {
+    const tmp = join(HERE, '.tmp-idwidth'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+    copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'scanners.yaml'), join(tmp, 'eval', 'scanners.yaml'));
+    copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'findings-05-delegation.yaml'), join(tmp, 'eval', 'findings-05-delegation.yaml'));
+    const row = (id) => `- id: ${id}\n  source: gitleaks\n  native_id: "r@a.ts:1"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
+    const manifest = readFileSync(join(tmp, 'eval', 'scanners.yaml'), 'utf8').replace(/gitleaks:[\s\S]*?(?=\n  \w|$)/, 'gitleaks:\n    status: ran');
+    writeFileSync(join(tmp, 'eval', 'scanners.yaml'), manifest);
+    const runValidate = () => { try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); return true; } catch { return false; } };
+    writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), row('F-1000'));
+    if (!runValidate()) fail('a four-digit finding id (F-1000) must validate green — the id space is not capped at 999');
+    writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), row('F-12'));
+    if (runValidate()) fail('a two-digit finding id (F-12) must still validate red');
+    rmSync(tmp, { recursive: true, force: true });
+  }
   const proj = projectMulti([...gl, ...sc], adaptersOnce());
   if (proj.unmapped.length) fail(`instrument rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   if (proj.projected.find((p) => p.f.id === gl[0].id)?.axis !== 'code-security') fail('a gitleaks secret must land on code-security');

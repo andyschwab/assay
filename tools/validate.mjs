@@ -96,7 +96,7 @@ const passFiles = readdirSync(evalDir).filter((f) => /^findings-\d\d-.*\.yaml$/.
 function checkFinding(f, fileLabel, expectDim) {
   const id = f.id;
   const at = `${fileLabel}:${id || '??'}`;
-  if (!id || !/^F-\d{3}$/.test(String(id))) { err(at, `bad or missing id (want F-###)`); return; }
+  if (!id || !/^F-\d{3,}$/.test(String(id))) { err(at, `bad or missing id (want F-###: three or more digits — an instrument can return more rows than three digits hold)`); return; }
   if (allById.has(id)) err(at, `duplicate id (also in ${allById.get(id).file})`);
   else allById.set(id, { f, file: fileLabel });
   // External-scanner findings (overlay, SCHEMA §2a): a finding from another
@@ -305,7 +305,7 @@ try {
 function citationsIn(path) {
   if (!existsSync(path)) return;
   const txt = readFileSync(path, 'utf8');
-  const refs = new Set(txt.match(/F-\d{3}/g) || []);
+  const refs = new Set(txt.match(/F-\d{3,}/g) || []);
   for (const r of refs) if (!allById.has(r)) err(basename(path), `cites unknown finding ${r}`);
 }
 for (const v of ['view-leverage.md','view-maturity.md','view-security.md','AI-NATIVE-EVAL.md'])

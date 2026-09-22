@@ -103,7 +103,7 @@ let bodyHtml = mdit.render(lines.slice(start).join('\n'));
 bodyHtml = bodyHtml
   .replace(/⚑/g, '<span class="flag">▲</span>')
   .replace(/[✅✓]/g, '<span style="color:#2f7d5a;font-weight:700">✓</span>')
-  .replace(/F-(\d{3})/g, '<span class="fid">F-$1</span>')        // finding ids never line-break
+  .replace(/F-(\d{3,})/g, '<span class="fid">F-$1</span>')        // finding ids never line-break
   .replace(/<p>By dimension:/g, '<p class="table-note">By dimension:');
 
 // ── security risks (illuminated; no go/no-go) ─────────────────────────────────

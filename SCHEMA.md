@@ -185,7 +185,9 @@ target.
 
 ## 3. Id allocation (no dimension bands)
 
-Ids are `F-###`, **unique within a run and carrying no dimension meaning.** A finding's
+Ids are `F-###` — `F-` plus **three or more digits**, zero-padded to three (`F-023`, `F-1006`;
+an instrument such as a history-mode secrets scan returns more rows than three digits hold) —
+**unique within a run and carrying no dimension meaning.** A finding's
 dimension lives in its `dimension:` field, backed by the **filename ↔ dimension** check
 (a `findings-03-gates.yaml` finding must be `deterministic-gates` or `unprompted`). The id
 number is just an address; it does not encode the dimension, and there is **no per-dimension
