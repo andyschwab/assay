@@ -36,8 +36,10 @@
 //   node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone> --raw <file> --exit <code> [--start F-7xx]
 //   node tools/ingest.mjs <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/eval/findings-9N-<tool>.yaml and archives the raw report to
-// <run-dir>/eval/raw/<tool>.<json|yaml>. Library: convert(tool, rawText, exitCode, startId).
-import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
+// <run-dir>/eval/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
+// the next hundred above the run's highest existing id, whichever is higher (nextStart).
+// Library: convert(tool, rawText, exitCode, startId), nextStart(runDir, tool).
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml } from './yaml-min.mjs';
@@ -292,8 +294,33 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
   return rows;
 }
 
+// ── id allocation: above the base's highest id, never inside another block ──
+// Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
+// 800, fresh-clone 900). A real history scan can run past the next floor (Scout's
+// gitleaks block was F-700..F-1866), so the default start is the profile floor OR the
+// next hundred above the highest id already in the run's OTHER findings files,
+// whichever is higher. The profile's own file is excluded so a re-ingest of the same
+// tool lands where it did before instead of drifting upward on every run.
+export function nextStart(runDir, tool) {
+  const p = PROFILES[tool];
+  if (!p) throw new Error(`unknown instrument "${tool}"`);
+  const evalDir = existsSync(join(runDir, 'eval')) ? join(runDir, 'eval') : runDir;
+  let max = 0; const seenIn = [];
+  if (existsSync(evalDir)) {
+    for (const f of readdirSync(evalDir)) {
+      if (!/^findings-\d\d-.*\.yaml$/.test(f) || f === p.file) continue;
+      const m = readFileSync(join(evalDir, f), 'utf8').match(/^-\s+id:\s*F-(\d+)/gm) || [];
+      for (const s of m) { const n = Number(s.replace(/^-\s+id:\s*F-/, '')); if (n > max) { max = n; } }
+      if (m.length) seenIn.push(f);
+    }
+  }
+  const above = max ? Math.ceil((max + 1) / 100) * 100 : 0;
+  const start = Math.max(p.startId, above);
+  return { start, floor: p.startId, highest: max, reason: start === p.startId ? `the profile floor (highest existing id F-${max} is below it)` : `the next hundred above the base's highest id F-${max} (in ${seenIn.join(', ')}); the profile floor is F-${p.startId}` };
+}
+
 // ── YAML emit (the schema's constrained subset: block style, folded scalars) ─
-function toYaml(rows, tool, exitCode, skipped) {
+function toYaml(rows, tool, exitCode, skipped, startNote) {
   const esc = (s) => oneLine(s);
   const q = (s) => `"${esc(s).replace(/"/g, "'")}"`;
   const p = PROFILES[tool];
@@ -303,6 +330,7 @@ function toYaml(rows, tool, exitCode, skipped) {
     : [`# ${p.file} — instrument rows ingested by tools/ingest.mjs.`,
        `# Instrument: ${tool} · exit code ${exitCode} (verified in its success set) · ${rows.length} row(s).`];
   if (skipped && skipped.length) out.push(`# Skipped as N/A by the tool (score -1), logged so the absence is visible: ${skipped.join(', ')}.`);
+  if (startNote) out.push(`# Ids start at ${startNote}.`);
   out.push(`# Raw report archived at eval/raw/${p.raw || tool + '.json'}. Regenerate with ingest.mjs; never hand-edit.`, '');
   for (const r of rows) {
     out.push(`- id: ${r.id}`);
@@ -368,13 +396,19 @@ if (isMain(import.meta.url)) {
   }
   const evalDir = existsSync(join(runDir, 'eval')) ? join(runDir, 'eval') : runDir;
   const rawText = readFileSync(rawPath, 'utf8');
-  let rows;
-  try { rows = convert(tool, rawText, exit, start, { stripPrefix }); }
+  let rows, startNote = null;
+  let startId = start;
+  if (!startId) {
+    const ns = nextStart(runDir, tool);
+    startId = `F-${ns.start}`;
+    startNote = `F-${ns.start}: ${ns.reason}`;
+  } else startNote = `${startId}: given on the command line (--start)`;
+  try { rows = convert(tool, rawText, exit, startId, { stripPrefix }); }
   catch (e) { console.error(`✗ ingest halted: ${e.message}`); process.exit(1); }
   mkdirSync(join(evalDir, 'raw'), { recursive: true });
   copyFileSync(rawPath, join(evalDir, 'raw', PROFILES[tool].raw || `${tool}.json`));
   const dst = join(evalDir, PROFILES[tool].file);
-  writeFileSync(dst, toYaml(rows, tool, exit, rows.skipped));
+  writeFileSync(dst, toYaml(rows, tool, exit, rows.skipped, startNote));
   if (rows.coverage) writeFileSync(join(evalDir, `coverage-${tool}.yaml`), coverageYaml(rows.coverage));
   console.log(`✓ ingested ${rows.length} ${tool} row(s) → ${dst}${rows.coverage ? ` + coverage-${tool}.yaml (${Object.keys(rows.coverage.coverage).length} domain rows)` : ''}${rows.skipped && rows.skipped.length ? ` (${rows.skipped.length} N/A check(s) logged in header)` : ''}${rows.length === 0 ? ` — verified-clean run (${exitless ? 'full coverage, empty findings' : 'success exit, empty report'}), recorded explicitly` : ''}`);
 }
