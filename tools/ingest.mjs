@@ -32,8 +32,14 @@
 // presence; exits 0 and 1 are both successful runs (1 = a gap exists), a runner
 // crash exits 2 and halts. Rows never carry step output — only command + exit code.
 //
+// The DEPENDENCY-SCAN instrument (tools/dependency-scan.mjs) also comes in here:
+// its JSON document records each lockfile's audit status and one advisory row
+// per (advisory id, package); exits 0 and 1 are both successful runs (1 = an
+// advisory or a failed/not-supported lockfile exists), a runner crash exits 2
+// and halts. A failed or not-supported lockfile is a gap row, never silence.
+//
 // Usage:
-//   node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone> --raw <file> --exit <code> [--start F-7xx]
+//   node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx]
 //   node tools/ingest.mjs <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/eval/findings-9N-<tool>.yaml and archives the raw report to
 // <run-dir>/eval/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
@@ -243,10 +249,77 @@ const PROFILES = {
       return rows;
     },
   },
+  'dependency-scan': {
+    file: 'findings-95-dependency-scan.yaml',
+    startId: 950,
+    // 0 = every lockfile in the tree audited with zero advisories; 1 = any advisory,
+    // any failed lockfile, or any not-supported (pnpm/yarn) lockfile. Both are
+    // successful RUNS. A crash of the runner itself exits 2 and halts.
+    okExits: [0, 1],
+    // Rows: one gap per advisory (category = its severity — critical | high |
+    // moderate | low | info); one gap (category lockfile-failed) per lockfile npm
+    // audit could not complete against (a tool error is never a clean lockfile);
+    // one gap (category lockfile-unsupported) per pnpm-lock.yaml / yarn.lock (an
+    // absent audit is a gap, never clean). A clean audited lockfile with no
+    // advisories yields no row — a clean run is the explicit empty file.
+    convert(raw, startId, exitCode) {
+      const rep = parseJson(raw, 'dependency-scan');
+      if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('dependency-scan report must be a JSON object');
+      if (rep.tool !== 'dependency-scan') throw new Error(`dependency-scan report carries tool "${rep.tool}" (truncated or not a dependency-scan report?)`);
+      if (!Array.isArray(rep.lockfiles)) throw new Error('dependency-scan report has no lockfiles[] (truncated report?)');
+      if (![0, 1].includes(rep.exit)) throw new Error(`dependency-scan report exit "${rep.exit}" is not 0 | 1 (truncated report?)`);
+      if (exitCode !== undefined && exitCode !== null && Number(exitCode) !== rep.exit) throw new Error(`dependency-scan report says exit ${rep.exit} but the runner exited ${exitCode} — the document does not describe the run it is filed under`);
+      const rows = []; let n = 0;
+      for (const lf of rep.lockfiles) {
+        if (!lf || typeof lf.path !== 'string' || !lf.path) throw new Error('dependency-scan lockfile row missing path (truncated report?)');
+        if (!DS_STATUS.includes(lf.status)) throw new Error(`dependency-scan lockfile ${lf.path}: status "${lf.status}" is not one of ${DS_STATUS.join(' | ')}`);
+        const evidence = [`${lf.path}:1`];
+        if (lf.status === 'failed') {
+          rows.push({
+            id: fid(startId + n++), source: 'dependency-scan',
+            native_id: `lockfile-failed@${lf.path}`, native_category: 'lockfile-failed', polarity: 'gap', severity: 'Medium',
+            observation: `dependency-scan could not audit ${lf.path}${Number.isInteger(lf.npm_exit_code) ? ` (npm audit exited ${lf.npm_exit_code})` : ''}${lf.reason ? ': ' + oneLine(lf.reason) : ''}; a tool error is never read as a clean lockfile.`,
+            evidence,
+            fix: `Fix what is blocking npm audit against ${lf.path} (registry reachability, a malformed lockfile, or an ENOLOCK workspace root npm cannot resolve) and re-run dependency-scan until it reads audited.`,
+          });
+          continue;
+        }
+        if (lf.status === 'not-supported') {
+          rows.push({
+            id: fid(startId + n++), source: 'dependency-scan',
+            native_id: `lockfile-unsupported@${lf.path}`, native_category: 'lockfile-unsupported', polarity: 'gap', severity: 'Medium',
+            observation: `${lf.path} is a ${lf.manager || 'non-npm'} lockfile; dependency-scan audits npm lockfiles only, so it was never checked${lf.reason ? ': ' + oneLine(lf.reason) : ''}.`,
+            evidence,
+            fix: `Audit ${lf.path} with its own package manager's vulnerability tool (${lf.manager === 'yarn' ? 'yarn npm audit' : 'pnpm audit'}), or restate it as an npm lockfile; the absence of an audit is a gap, not a clean lockfile.`,
+          });
+          continue;
+        }
+        // status === 'audited'
+        if (!Array.isArray(lf.advisories)) throw new Error(`dependency-scan lockfile ${lf.path}: audited status but no advisories[] (truncated report?)`);
+        for (const a of lf.advisories) {
+          for (const k of ['id', 'package', 'severity']) if (!a || !a[k]) throw new Error(`dependency-scan advisory in ${lf.path} missing ${k} (truncated report?)`);
+          if (!DS_SEVERITIES.includes(a.severity)) throw new Error(`dependency-scan advisory ${a.id}@${a.package}: severity "${a.severity}" is not one of ${DS_SEVERITIES.join(' | ')}`);
+          rows.push({
+            id: fid(startId + n++), source: 'dependency-scan',
+            native_id: `${a.id}@${a.package}@${lf.path}`, native_category: a.severity, polarity: 'gap',
+            severity: DS_SEVERITY_MAP[a.severity],
+            observation: `${a.package}${a.installed ? ` (installed ${oneLine(a.installed)})` : ''} in ${lf.path} is vulnerable to ${a.id} (${a.severity}${a.range ? `, range ${oneLine(a.range)}` : ''})${a.url ? ` — ${a.url}` : ''}.`,
+            evidence,
+            fix: `Upgrade ${a.package} to a version outside ${a.range ? oneLine(a.range) : 'the vulnerable range'} (npm reports a fix available: ${a.fix_available ? 'yes' : 'no'}) and regenerate ${lf.path}; re-run dependency-scan and confirm the advisory is gone.`,
+          });
+        }
+      }
+      return rows;
+    },
+  },
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
 // the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)
 const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'EndLine', 'StartColumn', 'EndColumn', 'Commit', 'Date', 'Fingerprint', 'Entropy', 'Tags'];
+// dependency-scan vocab (the runner's closed sets; a report outside them is truncated or foreign)
+const DS_STATUS = ['audited', 'failed', 'not-supported'];
+const DS_SEVERITIES = ['critical', 'high', 'moderate', 'low', 'info'];
+const DS_SEVERITY_MAP = { critical: 'Critical', high: 'High', moderate: 'Medium', low: 'Low', info: 'Low' };
 // fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
@@ -304,7 +377,7 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
 
 // ── id allocation: above the base's highest id, never inside another block ──
 // Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
-// 800, fresh-clone 900). A real history scan can run past the next floor (Scout's
+// 800, fresh-clone 900, dependency-scan 950). A real history scan can run past the next floor (Scout's
 // gitleaks block was F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same
@@ -398,7 +471,7 @@ if (isMain(import.meta.url)) {
   const tool = opt('--tool'), rawPath = opt('--raw'), exit = opt('--exit'), start = opt('--start'), stripPrefix = opt('--strip-prefix');
   const exitless = tool && PROFILES[tool] && PROFILES[tool].exitless;
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
-    console.error('usage: node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
+    console.error('usage: node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
     console.error('       node tools/ingest.mjs <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]');
     process.exit(2);
   }
