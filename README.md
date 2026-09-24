@@ -39,10 +39,10 @@ thing plug in:
   an appendix.
 - **Instruments** — deterministic tools (`gitleaks`; `fresh-clone`, the scripted
   clean-checkout run that installs, builds, lints, typechecks, tests, migrates
-  and replays the README's command claims; OpenSSF `scorecard` is
-  integrated but retired from the adopted roster because it needs GitHub API
-  access at run time) that feed existing axes and never add one. Ten instruments
-  add zero chapters. An adopted instrument runs offline against the checkout.
+  and replays the README's command claims; `dependency-scan`, `npm audit` over
+  every lockfile in the tree; OpenSSF `scorecard` is integrated but retired from
+  the adopted roster because it needs GitHub API access at run time) that feed
+  existing axes and never add one. Ten instruments add zero chapters.
   Their intake **fails loud, never empty**: a tool that errored can never read as
   "0 findings", and a secrets scanner's matched values are never copied out of
   its report.

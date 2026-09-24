@@ -132,19 +132,25 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   --target` knows to skip — instrument evidence lives in the run, not the target.
   A secrets tool's matched value is **never copied** out of the raw report; rows
   carry rule id + location only.
-- **An adopted instrument runs offline, against the checkout under review.** A
-  tool that needs a remote API at run time is a forever-fail in any environment
-  without that reach, and a scanner that cannot run is worse than none: every run
-  would have to dispose of it, and its absence reads as coverage. Such a tool may
-  be integrated, but not adopted.
+- **An adopted instrument runs against the checkout under review, without
+  needing a repo-hosting platform's own API.** A tool that needs a remote
+  *configuration* API (GitHub's, for Scorecard's checks) is a forever-fail in
+  any environment without that reach, and a scanner that cannot run is worse
+  than none: every run would have to dispose of it, and its absence reads as
+  coverage. Such a tool may be integrated, but not adopted. This is distinct
+  from a toolchain's own package registry, which install already needs
+  (fresh-clone's `install` step runs `npm ci` against it) — dependency-scan's
+  `npm audit` reaches the same registry, not a hosting platform's API, and a
+  lockfile it cannot reach is recorded `failed`, never silently skipped.
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census) and **fresh-clone** (`adapters/fresh-clone.yaml`, below).
-**OpenSSF Scorecard** (`adapters/scorecard.yaml`) is
-integrated but **retired from the adopted roster** (2026-09-15): its checks are
-remote repository-configuration reads that need direct GitHub API access at run
-time. The wider candidate roster: `scanner-candidates.md`.
+credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b), and
+**dependency-scan** (`adapters/dependency-scan.yaml`, §3c). **OpenSSF Scorecard**
+(`adapters/scorecard.yaml`) is integrated but **retired from the adopted
+roster** (2026-09-15): its checks are remote repository-configuration reads
+that need direct GitHub API access at run time. The wider candidate roster:
+`scanner-candidates.md`.
 
 ### 3b. The fresh-clone instrument (`tools/fresh-clone.mjs`)
 
@@ -192,6 +198,58 @@ toolchain family it cannot exercise, and does not read step output into rows.
 ```sh
 node tools/fresh-clone.mjs <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone]
 node tools/ingest.mjs <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
+```
+
+### 3c. The dependency-scan instrument (`tools/dependency-scan.mjs`)
+
+**What it measures.** Whether a known vulnerability is present anywhere in the
+target's npm dependency graph — the floor the descriptor register asks a
+dependency scanner to clear (`d-dependencies-known-clean`, decided on its
+`critical` category). It walks the tree (skipping `node_modules/` and `.git/`)
+for every `package-lock.json` / `npm-shrinkwrap.json` and runs `npm audit
+--json` against each, with no install. A directory that is a workspace member
+whose effective root carries no lockfile of its own makes npm fail `ENOLOCK`;
+that member's `package.json` and its own lockfile are copied into a scratch
+directory and audited there instead (`method: scratch-copy`, vs `in-place`).
+Every `pnpm-lock.yaml` / `yarn.lock` found is recorded `not-supported` — this
+instrument audits npm lockfiles only, and an absent audit is never read as a
+clean one. Each lockfile records its path, audit method, npm's own exit code,
+severity counts, dependencies audited, and one advisory row per (advisory id,
+package): the id (GHSA when the advisory's url names one, else the npm source
+id), the package, its installed version(s) read straight out of the lockfile,
+the vulnerable range, severity, whether npm reports a fix available, and the
+advisory url.
+
+**Success set.** npm audit's own exit is `0` when a lockfile carries zero
+advisories and `1` when it carries any — both are successful AUDITS. Any other
+exit code, a timeout, a spawn failure, or output that does not parse into npm's
+`vulnerabilities` + `metadata` report shape (an npm *error* document — no
+registry reachable is exactly this shape) makes that lockfile `status: failed`,
+never clean. The runner's own document `exit` is `0` only when every lockfile
+in the tree audited with zero advisories; `1` when any advisory exists, any
+lockfile failed, or any lockfile is not-supported; both are successful RUNS and
+`ingest.mjs --tool dependency-scan` accepts both. A crash of the runner itself
+exits `2` and halts the intake. The converter writes one gap row per advisory
+(`native_category` = its own severity — `critical | high | moderate | low |
+info` — mapped `Critical | High | Medium | Low | Low` respectively, evidence
+the lockfile at `:1`), one gap (`lockfile-failed`) per failed lockfile, and one gap
+(`lockfile-unsupported`) per not-supported lockfile. A run with none of the
+three is the explicit empty `findings-95-dependency-scan.yaml`. All seven
+categories land on `code-security` — the shared property gitleaks and
+deep-code-review also feed.
+
+**What it deliberately does not do.** It never runs `npm install` or otherwise
+mutates the tree — the existing lockfile is read as-is. It never audits
+pnpm/yarn lockfiles (recorded, never guessed at), and it never infers an
+installed version or a fix from anything but the lockfile and npm's own report.
+It needs the npm registry to resolve advisories — the same reach `npm ci`
+already needs in fresh-clone's `install` step — never a repo-hosting
+platform's own configuration API (§3a); a lockfile it cannot reach is `failed`,
+never clean.
+
+```sh
+node tools/dependency-scan.mjs <target-dir> --out dependency-scan.json [--timeout 300]
+node tools/ingest.mjs <run-dir> --tool dependency-scan --raw dependency-scan.json --exit <its exit code>
 ```
 
 ## 4. The fail-closed rule (the coherence guarantee)

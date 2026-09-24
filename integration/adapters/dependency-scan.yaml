@@ -1,0 +1,44 @@
+# Adapter: dependency-scan (INSTRUMENT — tools/dependency-scan.mjs) -> the axis
+# roster (integration/scanner-contract.md, instrument role). It finds every npm
+# lockfile in the tree (skipping node_modules and .git) and runs `npm audit
+# --json` against each, no install; a workspace member whose effective root
+# carries no lockfile of its own (npm's ENOLOCK) is retried from a scratch copy
+# of just that member's package.json + lockfile. pnpm-lock.yaml / yarn.lock are
+# recorded not-supported — dependency-scan audits npm lockfiles only, and an
+# absent audit is never read as clean. tools/ingest.mjs (profile
+# dependency-scan) turns each advisory into one gap row (category = its
+# severity), each failed lockfile into one lockfile-failed gap, and each
+# not-supported lockfile into one lockfile-unsupported gap. A lockfile that
+# audited clean yields no row — a run with none of the seven categories below
+# is the explicit empty findings-95-dependency-scan.yaml. All seven categories
+# land on the one shared property this instrument corroborates: whether a known
+# vulnerability is present in the dependency graph (code-security, the axis
+# deep-code-review and gitleaks also feed). A category this map does not know
+# halts loud.
+scanner: dependency-scan
+targets_taxonomy: 3
+role: instrument
+
+contributes: []
+
+map:
+  critical:
+    axis: code-security
+  high:
+    axis: code-security
+  moderate:
+    axis: code-security
+  low:
+    axis: code-security
+  info:
+    axis: code-security
+  lockfile-failed:              # npm audit could not complete — absence of an audit is a gap
+    axis: code-security
+  lockfile-unsupported:         # a pnpm/yarn lockfile this instrument does not audit
+    axis: code-security
+
+default: FAIL
+
+capabilities:
+  - id: verify-fix
+    invoke: "re-run tools/dependency-scan.mjs against the target and confirm the advisory is gone from the lockfile's audit"

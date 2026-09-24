@@ -39,9 +39,13 @@ The two are compared, never merged: a claim the run contradicts is the finding.
 | `instrument` | a scanner's rows, gated by the run manifest and, for a peer scanner, its coverage sidecar | unmet on gap rows; met when the scanner ran clean (an instrument) or scanned the domain with no gaps (a peer); not-measured when skipped, failed, or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | always not-measured from a run; only a sidecar asserts it. The list of `claim` rows is the register's instrument backlog |
 
-Adopted instruments the register can decide by: `gitleaks` (secrets) and
+Adopted instruments the register can decide by: `gitleaks` (secrets),
 `fresh-clone` (`tools/fresh-clone.mjs`, scanner-contract §3b — install / build /
-lint / typecheck / test / migrate from a clean checkout, plus README claim replay).
+lint / typecheck / test / migrate from a clean checkout, plus README claim replay),
+and `dependency-scan` (`tools/dependency-scan.mjs`, scanner-contract §3c — `npm
+audit` over every lockfile in the tree). `d-dependencies-known-clean` decides on
+its `critical` category alone, so a run with high/moderate/low/info advisories and
+zero critical rows still reads met — narrower than the row's title.
 The fresh-clone rows the floor asked for (`d-fresh-clone-runs`,
 `d-tests-execute-core`, `d-lint-typecheck-gate`, `d-schema-versioned`,
 `d-readme-true`) still read `claim` / `census` here; their re-kind to

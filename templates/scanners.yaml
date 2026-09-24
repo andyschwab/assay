@@ -25,3 +25,10 @@ scanners:
     # skipped needs the reason (e.g. no scratch clone possible in this environment).
     status: skipped
     reason: "<why — e.g. the run environment cannot execute the target's install step; decided by <role>>"
+  dependency-scan:
+    # npm audit over every lockfile in the tree (tools/dependency-scan.mjs → ingest
+    # --tool dependency-scan). ran = the base carries its rows or the explicit empty
+    # findings-95-dependency-scan.yaml; skipped needs the reason (e.g. no registry
+    # reach in this environment).
+    status: skipped
+    reason: "<why — e.g. the run environment has no registry reach for npm audit; decided by <role>>"

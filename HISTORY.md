@@ -118,3 +118,25 @@ what the public engine learned.
   the runner, the converter's halts, the clean-run empty file and the
   projection. The register's floor rows keep their kinds; the re-kind to
   `instrument: fresh-clone` is #123. Goldens untouched.
+- **2026-09-24 — the dependency-scan instrument (#121).** `tools/dependency-scan.mjs`
+  finds every `package-lock.json` / `npm-shrinkwrap.json` in the tree (skipping
+  `node_modules`/`.git`) and runs `npm audit --json` against each, no install; a
+  workspace member whose effective root carries no lockfile of its own (npm's
+  `ENOLOCK`) is retried from a scratch copy of just that member's package.json +
+  lockfile (`method: scratch-copy`, vs `in-place`). `pnpm-lock.yaml` / `yarn.lock`
+  are recorded `not-supported`, never clean. Exit 0 / 1 (zero vs. any advisory) are
+  runs, 2 is a crash; any other exit or a report that does not parse into npm's
+  `vulnerabilities` + `metadata` shape (a network-unreachable audit looks exactly
+  like this) makes that lockfile `failed`, never clean. `ingest.mjs` gains the
+  profile (`findings-95-dependency-scan.yaml`, ids from F-950): one gap per
+  advisory (category = its own severity), one `lockfile-failed` gap per failed
+  lockfile, one `lockfile-unsupported` gap per unsupported one.
+  `adapters/dependency-scan.yaml` is adopted (instrument, contributes nothing; all
+  seven categories → code-security), so every fixture manifest and the template
+  gain a disposition row. `d-dependencies-known-clean` re-kinds from `claim` to
+  `instrument: dependency-scan` on its `critical` category alone — a run with
+  high/moderate/low/info advisories and zero critical rows still reads met,
+  narrower than the row's title. A `dependency-scan` harness block (synthetic
+  documents; no real `npm audit` invoked) pins the converter's rows, its halts,
+  the clean-run empty file, the projection, and the three descriptor reads.
+  Goldens untouched.

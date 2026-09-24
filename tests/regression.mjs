@@ -359,17 +359,18 @@ function adaptersOnce() { return loadAdapters(); }
   if (adopted.includes('scorecard')) fail('scorecard is retired (adopted: false) and must not be in the adopted roster');
   if (!adapters.scorecard) fail('the retired scorecard adapter must still LOAD (frozen runs carrying its rows must project)');
   // the adopted roster is pinned by name: adopting or retiring a scanner is a reviewed
-  // change to this line in the same commit (fresh-clone adopted 2026-09-22, #120)
-  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'fresh-clone', 'gitleaks', 'repo-eval'])) fail(`adopted roster must be deep-code-review, fresh-clone, gitleaks, repo-eval (got ${adopted.join(', ')})`);
+  // change to this line in the same commit (fresh-clone adopted 2026-09-22, #120;
+  // dependency-scan adopted 2026-09-24, #121)
+  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'repo-eval'])) fail(`adopted roster must be deep-code-review, dependency-scan, fresh-clone, gitleaks, repo-eval (got ${adopted.join(', ')})`);
   const reg = registryAxes(adapters);
   if (!reg.includes('code-security') || !reg.includes('multiplayer') || reg.length !== 9) fail(`registry must be the 9 axes the adopted scanners contribute — an instrument adds none (got ${reg.length}: ${reg.join(', ')})`);
-  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' } } };
+  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'dependency-scan': { status: 'skipped', reason: 'no registry reach here' } } };
   const d = dispositions(m, adapters);
   if (d.ran.join() !== 'repo-eval' || d.skipped[0]?.reason !== 'out of scope' || d.failed[0]?.id !== 'gitleaks' || d.missing.length) fail('dispositions must group ran / skipped / failed with reasons and report nothing missing');
   const line = scannerLine(m, ['repo-eval'], adapters);
   if (!line.includes('skipped: deep-code-review (out of scope)') || !line.includes('failed: gitleaks (binary missing)') || !line.includes('fresh-clone (no scratch clone here)')) fail(`the scanners line must name skipped and failed scanners with their reasons (got "${line}")`);
   if (!scannerLine(null, ['repo-eval'], adapters).includes('no run manifest')) fail('a missing manifest must be named on the scanners line, never silently omitted');
-  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,fresh-clone,gitleaks') fail('adopted scanners without a row must be reported missing');
+  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,dependency-scan,fresh-clone,gitleaks') fail('adopted scanners without a row must be reported missing');
   if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
   // the walk prints the reason on the not-measured register
   const walk = execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
@@ -433,7 +434,7 @@ function adaptersOnce() { return loadAdapters(); }
   const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
   for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
     copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
-  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n');
+  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n  dependency-scan:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
   try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
@@ -540,6 +541,84 @@ function adaptersOnce() { return loadAdapters(); }
     try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch { fail('a verified-clean fresh-clone run (empty explicit file, manifest ran) must validate green'); }
   }
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── dependency-scan instrument (tools/dependency-scan.mjs → ingest profile dependency-scan) ─
+// The converter turns a synthetic dependency-scan document into exactly: one gap row
+// per advisory (category = its own severity), one lockfile-failed gap per failed
+// lockfile, one lockfile-unsupported gap per not-supported (pnpm/yarn) lockfile, and
+// nothing for a clean audited lockfile. A runner crash (exit 2) halts it; a document
+// whose exit disagrees with the runner exit halts; a truncated document halts. Every
+// category maps onto the shared code-security axis and the instrument contributes
+// none. The descriptor register decides d-dependencies-known-clean on the `critical`
+// category alone — a run with high rows and none critical still reads met.
+{
+  const fail = (m) => negFailures.push('dependency-scan: ' + m);
+  const mustThrow = (label, fn) => { let threw = false; try { fn(); } catch { threw = true; } if (!threw) fail(`${label} must halt (fail-loud intake)`); };
+  const doc = {
+    tool: 'dependency-scan', version: '0.1.0', started_at: 't1', finished_at: 't2',
+    target: { path: 'x' }, timeout_seconds: 300,
+    lockfiles: [
+      {
+        path: 'package-lock.json', status: 'audited', method: 'in-place', npm_exit_code: 1,
+        counts: { critical: 0, high: 1, moderate: 0, low: 0, info: 0 }, dependencies_audited: 42,
+        advisories: [{ id: 'GHSA-aaaa-bbbb-cccc', package: 'left-pad', installed: '1.0.0', range: '<1.0.1', severity: 'high', fix_available: true, url: 'https://github.com/advisories/GHSA-aaaa-bbbb-cccc' }],
+      },
+      { path: 'packages/foo/package-lock.json', status: 'failed', method: 'scratch-copy', npm_exit_code: null, reason: 'npm audit did not produce parseable JSON (registry unreachable, or npm printed a non-JSON error)' },
+      { path: 'packages/bar/pnpm-lock.yaml', status: 'not-supported', manager: 'pnpm', reason: 'dependency-scan audits npm lockfiles only; pnpm lockfiles are not covered' },
+    ],
+    exit: 1,
+  };
+  const raw = JSON.stringify(doc);
+  // (a) convert: one row per advisory, one per failed lockfile, one per unsupported lockfile
+  const rows = convert('dependency-scan', raw, 1);
+  const cats = rows.map((r) => r.native_category).sort().join(',');
+  if (cats !== 'high,lockfile-failed,lockfile-unsupported') fail(`convert must yield exactly high, lockfile-failed, lockfile-unsupported gap rows (got ${cats || '(none)'})`);
+  if (rows.some((r) => r.polarity !== 'gap' || !r.fix || !r.severity)) fail('every dependency-scan row is a gap with a severity and a fix');
+  const by = Object.fromEntries(rows.map((r) => [r.native_category, r]));
+  if (by.high?.severity !== 'High') fail(`a high advisory must map severity High (got ${by.high?.severity})`);
+  if (by['lockfile-failed']?.severity !== 'Medium' || by['lockfile-unsupported']?.severity !== 'Medium') fail('a failed or unsupported lockfile reads severity Medium');
+  if (by.high?.evidence[0] !== 'package-lock.json:1') fail(`an advisory row must cite its lockfile at :1 (got ${by.high?.evidence[0]})`);
+  if (by['lockfile-failed']?.evidence[0] !== 'packages/foo/package-lock.json:1') fail('a failed-lockfile row must cite its own lockfile path');
+  if (!/left-pad/.test(by.high?.fix || '') || !/GHSA-aaaa-bbbb-cccc/.test(by.high?.observation || '')) fail('an advisory row must name the package (fix) and the advisory id (observation)');
+  if (rows[0]?.id !== 'F-950') fail(`dependency-scan ids start at F-950 (got ${rows[0]?.id})`);
+  // (b) a runner crash halts; an exit/document mismatch halts; truncation halts
+  mustThrow('a runner crash (exit 2)', () => convert('dependency-scan', raw, 2));
+  mustThrow('a document whose exit disagrees with the runner exit', () => convert('dependency-scan', raw, 0));
+  mustThrow('a truncated document (no lockfiles)', () => convert('dependency-scan', JSON.stringify({ tool: 'dependency-scan', exit: 1 }), 1));
+  mustThrow('a foreign report', () => convert('dependency-scan', '[]', 0));
+  mustThrow('a lockfile row with no status', () => convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: doc.lockfiles.map((l) => l.path === 'package-lock.json' ? { ...l, status: undefined } : l) }), 1));
+  mustThrow('an advisory with no severity', () => convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: doc.lockfiles.map((l) => l.path === 'package-lock.json' ? { ...l, advisories: [{ ...l.advisories[0], severity: undefined }] } : l) }), 1));
+  // (c) a clean document (exit 0, no advisories, every lockfile audited) is a verified-clean run
+  const cleanDoc = { ...doc, exit: 0, lockfiles: [{ path: 'package-lock.json', status: 'audited', method: 'in-place', npm_exit_code: 0, counts: { critical: 0, high: 0, moderate: 0, low: 0, info: 0 }, dependencies_audited: 42, advisories: [] }] };
+  if (convert('dependency-scan', JSON.stringify(cleanDoc), 0).length !== 0) fail('an all-clean document (exit 0) must convert to zero rows (the explicit empty file records the run)');
+  // (d) projection: every category maps, onto the shared code-security axis, and the instrument contributes none
+  const proj = projectMulti(rows, adaptersOnce());
+  if (proj.unmapped.length) fail(`dependency-scan rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
+  const axisOf = (cat) => proj.projected.find((p) => p.f.native_category === cat)?.axis;
+  if (axisOf('high') !== 'code-security' || axisOf('lockfile-failed') !== 'code-security' || axisOf('lockfile-unsupported') !== 'code-security') fail('every dependency-scan category must land on code-security');
+  if (contributedBySources(adaptersOnce(), ['dependency-scan']).size !== 0) fail('dependency-scan is an instrument and must contribute no axis');
+  const rogue = projectMulti([{ ...rows[0], native_category: 'severe' }], adaptersOnce());
+  if (!rogue.unmapped.length) fail('an unknown dependency-scan category must halt at projection (default: FAIL)');
+  // (e) descriptor register: d-dependencies-known-clean decides on the `critical` category alone
+  let reg = null;
+  try { reg = loadRegistry(); } catch (e) { fail('registry failed to load: ' + e.message.split('\n')[0]); }
+  if (reg) {
+    const ranHigh = projectDescriptors({
+      findings: [{ id: 'F-1', source: 'dependency-scan', native_category: 'high', polarity: 'gap' }],
+      manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {},
+    }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (ranHigh?.status !== 'met') fail(`zero critical rows (even with a high row present) must read d-dependencies-known-clean met (got ${ranHigh?.status})`);
+    const ranCritical = projectDescriptors({
+      findings: [{ id: 'F-1', source: 'dependency-scan', native_category: 'critical', polarity: 'gap' }],
+      manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {},
+    }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (ranCritical?.status !== 'unmet') fail(`a critical row must read d-dependencies-known-clean unmet (got ${ranCritical?.status})`);
+    const skipped = projectDescriptors({
+      findings: [], manifest: [{ scanner: 'dependency-scan', status: 'skipped', reason: 'no registry reach' }], inputs: null, coverage: {},
+    }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (skipped?.status !== 'not-measured' || !/no registry reach/.test(skipped.note || '')) fail(`a skipped manifest must read not-measured with the recorded reason (got ${skipped?.status}/${skipped?.note})`);
+  }
 }
 
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
@@ -682,7 +761,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

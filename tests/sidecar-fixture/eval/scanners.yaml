@@ -12,3 +12,6 @@ scanners:
   fresh-clone:
     status: skipped
     reason: "fixture: the fresh-clone run was not executed over this base"
+  dependency-scan:
+    status: skipped
+    reason: "fixture: the dependency-scan run was not executed over this base"

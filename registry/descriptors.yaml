@@ -97,8 +97,13 @@ descriptors:
     axis: code-security
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: a dependency scanner (osv-scanner or Trivy) exits clean; candidate instrument, not yet adopted
+      kind: instrument
+      scanner: dependency-scan
+      category: critical
+    # the descriptor is worded on critical only (its category), so a run with high
+    # (or moderate/low/info) advisories and zero critical rows still reads met —
+    # narrower than the title; widen the category only with a reviewed change.
+    check: dependency-scan (npm audit over every lockfile in the tree) reports no critical advisory
     sources: [floor/s-deps, scanner-candidates/core]
     status: draft
   - id: d-effects-gated
