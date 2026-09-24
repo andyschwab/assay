@@ -65,7 +65,7 @@ descriptors:
       scanner: gitleaks
       category: secret
     check: gitleaks over the full history exits clean; each prior leak has a rotation recorded
-    sources: [floor/s-secrets, gcp/never-a-secret-in-a-file, manifest/invariants]
+    sources: [floor/s-secrets, foundation/never-a-secret-in-a-file, manifest/invariants]
     status: draft
   - id: d-routes-authorized
     title: Every route that touches data is behind server-side authorization
@@ -77,7 +77,7 @@ descriptors:
       scanner: deep-code-review
       category: B
     check: a route census where every data route names its check; the code scanner's application-security domain clean
-    sources: [floor/s-auth, scout/unauthenticated-paid-route]
+    sources: [floor/s-auth, takeover-eval/unauthenticated-paid-route]
     status: draft
   - id: d-tenant-isolation-in-data-layer
     title: Scoping is enforced in the data layer, not only in the UI
@@ -89,7 +89,7 @@ descriptors:
       scanner: deep-code-review
       category: T
     check: every scoped table carries its policy; the scanner's multi-tenancy domain clean
-    sources: [gcp/structural-rule-3, scout/identity-re-derived]
+    sources: [foundation/structural-rule-3, takeover-eval/identity-re-derived]
     status: draft
   - id: d-dependencies-known-clean
     title: No known-critical dependency vulnerability is present
@@ -115,7 +115,7 @@ descriptors:
       kind: facet
       rule: halts-gated
     check: the effect inventory shows zero halt-class effects without a gate that holds (doctrine.mjs)
-    sources: [floor/s-effects-gated, manifest/d5-halt-tripwire, gcp/halts, scout/weekly-publish-unrecallable]
+    sources: [floor/s-effects-gated, manifest/d5-halt-tripwire, foundation/halts, takeover-eval/weekly-publish-unrecallable]
     status: draft
   - id: d-effects-traced
     title: Every irreversible or outward effect leaves a durable record
@@ -126,7 +126,7 @@ descriptors:
       kind: facet
       rule: halts-traced
     check: the effect inventory shows zero halt-class effects with no telemetry
-    sources: [floor/s-effects-traced, gcp/structural-rule-2]
+    sources: [floor/s-effects-traced, foundation/structural-rule-2]
     status: draft
   - id: d-gates-fail-closed
     title: No gate is open when a dependency it needs is absent
@@ -137,7 +137,7 @@ descriptors:
       kind: facet
       rule: gates-fail-closed
     check: zero gated effects with fail_mode open; a gate whose secret or tool is missing goes red, never green
-    sources: [gcp/never-skip-a-test, scout/privacy-gate-passes-unset, manifest/d3-guards-bite]
+    sources: [foundation/never-skip-a-test, takeover-eval/privacy-gate-passes-unset, manifest/d3-guards-bite]
     status: draft
   - id: d-capability-budget
     title: No single AI context holds untrusted input, private data, and an outward effect at once
@@ -172,7 +172,7 @@ descriptors:
       scanner: repo-census
       category: evidence-d-backup-restore-exercised
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check
-    sources: [floor/s-backup, gcp/nightly-restore]
+    sources: [floor/s-backup, foundation/nightly-restore]
     status: draft
   - id: d-ingested-content-is-data
     title: Ingested content is stored verbatim, rendered escaped, and never acted on as instructions
@@ -182,7 +182,7 @@ descriptors:
     decide:
       kind: claim
     check: every table holding outside text carries its provenance trio; no code path executes a directive read from content
-    sources: [gcp/ingested-content-is-data, method/acting-from]
+    sources: [foundation/ingested-content-is-data, method/acting-from]
     status: draft
 
   # ── reproducibility: it runs on a machine that is not yours ──────────────
@@ -208,7 +208,7 @@ descriptors:
       scanner: deep-code-review
       category: N
     check: the env example is complete against the code's reads; the scanner's config domain clean
-    sources: [floor/r-config, gcp/config-stated-once]
+    sources: [floor/r-config, foundation/config-stated-once]
     status: draft
   - id: d-dependencies-pinned
     title: Dependencies and the toolchain are pinned, and CI actions by commit
@@ -220,7 +220,7 @@ descriptors:
       scanner: deep-code-review
       category: K
     check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA
-    sources: [floor/r-deps-pinned, gcp/lockfile-and-nvmrc]
+    sources: [floor/r-deps-pinned, foundation/lockfile-and-nvmrc]
     status: draft
   - id: d-deploy-one-command
     title: One documented command deploys, and what runs is what is committed
@@ -232,7 +232,7 @@ descriptors:
       scanner: repo-census
       category: evidence-d-deploy-one-command
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check
-    sources: [floor/r-deploy, gcp/deploy-and-promote]
+    sources: [floor/r-deploy, foundation/deploy-and-promote]
     status: draft
   - id: d-rollback-exercised
     title: A rollback path exists and has been exercised
@@ -244,7 +244,7 @@ descriptors:
       scanner: repo-census
       category: evidence-d-rollback-exercised
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check
-    sources: [floor/r-rollback, gcp/promote]
+    sources: [floor/r-rollback, foundation/promote]
     status: draft
   - id: d-schema-versioned
     title: The schema is versioned and migrations replay from empty
@@ -256,7 +256,7 @@ descriptors:
       scanner: fresh-clone
       category: migrate
     check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signals anywhere in the tree the runner emits no migrate row, so it reads met — nothing to migrate
-    sources: [floor/r-migrations, gcp/never-hand-apply-a-migration]
+    sources: [floor/r-migrations, foundation/never-hand-apply-a-migration]
     status: draft
 
   # ── verification: something other than a person catches a regression ────
@@ -270,7 +270,7 @@ descriptors:
       scanner: fresh-clone
       category: test
     check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout; a suite that skips its core when a variable is unset is unmet
-    sources: [floor/v-tests, manifest/d3-gates-live, gcp/pnpm-check]
+    sources: [floor/v-tests, manifest/d3-gates-live, foundation/pnpm-check]
     status: draft
   - id: d-ci-gate-on-default-branch
     title: A CI check on the default branch runs the gates and fails closed
@@ -282,7 +282,7 @@ descriptors:
       scanner: repo-census
       category: ci-gate
     check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
-    sources: [floor/v-ci, gcp/branch-protection]
+    sources: [floor/v-ci, foundation/branch-protection]
     status: draft
   - id: d-guards-bite
     title: Every shipped check carries a negative fixture that fails when the check is disabled
@@ -316,7 +316,7 @@ descriptors:
       scanner: repo-census
       category: evidence-d-smoke-on-deployed
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check
-    sources: [floor/v-smoke, gcp/doctor]
+    sources: [floor/v-smoke, foundation/doctor]
     status: draft
   - id: d-effects-provable
     title: Every effect can prove it happened, deterministically, from outside the AI
@@ -336,7 +336,7 @@ descriptors:
     decide:
       kind: claim
     check: one contract test per vendor; the null adapter every spec runs on
-    sources: [gcp/integrations-guide, scout/no-provider-contract]
+    sources: [foundation/integrations-guide, takeover-eval/no-provider-contract]
     status: draft
   - id: d-effect-sites-tested
     title: The code paths that produce effects are exercised by tests
@@ -346,7 +346,7 @@ descriptors:
     decide:
       kind: claim
     check: each effect channel's driver has a test that exercises the site where the effect is decided
-    sources: [scout/cascade-driver-untested]
+    sources: [takeover-eval/cascade-driver-untested]
     status: draft
   - id: d-change-carries-verification
     title: Every change lands with its own verification stated
@@ -355,7 +355,7 @@ descriptors:
     decide:
       kind: claim
     check: the PR template's verification section is mandatory and CI refuses an empty one
-    sources: [manifest/d4-verification-rhythm, gcp/pr-template]
+    sources: [manifest/d4-verification-rhythm, foundation/pr-template]
     status: draft
 
   # ── legibility: someone else can find their way in ───────────────────────
@@ -402,7 +402,7 @@ descriptors:
       scanner: repo-census
       category: architecture-page
     check: the repo census, an architecture page present (root and per app in a monorepo) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
-    sources: [floor/l-architecture, gcp/docs-architecture]
+    sources: [floor/l-architecture, foundation/docs-architecture]
     status: draft
   - id: d-agent-contract
     title: An agent contract exists, is present-tense, and is the home for house rules
@@ -414,7 +414,7 @@ descriptors:
       scanner: repo-census
       category: agent-contract
     check: the repo census, AGENTS.md or CLAUDE.md present (root and per app in a monorepo) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
-    sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, gcp/CLAUDE.md]
+    sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, foundation/CLAUDE.md]
     status: draft
   - id: d-one-home-per-fact
     title: Each fact the system relies on has one authoritative home, in docs and in code
@@ -424,7 +424,7 @@ descriptors:
     decide:
       kind: claim
     check: a docs guard refuses a second account of a list; in code, one store per remembered fact
-    sources: [gcp/where-things-are-written, scout/one-fact-many-memories]
+    sources: [foundation/where-things-are-written, takeover-eval/one-fact-many-memories]
     status: draft
 
   # ── operability: we can see it and afford it ─────────────────────────────
@@ -462,7 +462,7 @@ descriptors:
       scanner: repo-census
       category: evidence-d-cost-alerts
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check
-    sources: [floor/o-cost, gcp/budgets]
+    sources: [floor/o-cost, foundation/budgets]
     status: draft
   - id: d-runbook
     title: A one-page runbook covers restart, roll back, rotate a key, restore
@@ -474,7 +474,7 @@ descriptors:
       scanner: repo-census
       category: runbook
     check: the repo census, the runbook present with a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup; each procedure having been run once stays the owner's evidence
-    sources: [floor/o-runbook, gcp/RUNBOOKS.md]
+    sources: [floor/o-runbook, foundation/RUNBOOKS.md]
     status: draft
   - id: d-health-read
     title: One command reports the whole foundation green or red with a reason
@@ -483,7 +483,7 @@ descriptors:
     decide:
       kind: claim
     check: the doctor script, same output shape on every application
-    sources: [gcp/doctor]
+    sources: [foundation/doctor]
     status: draft
   - id: d-every-run-terminates
     title: Every automated run ends red or green with a reason, never hangs
@@ -492,7 +492,7 @@ descriptors:
     decide:
       kind: claim
     check: every job declares a timeout; a stall is a red check in minutes
-    sources: [gcp/red-means-stop, gcp/deploy-timeouts]
+    sources: [foundation/red-means-stop, foundation/deploy-timeouts]
     status: draft
   - id: d-backlog-is-issues
     title: The backlog is the repository's issues, labelled by need-by, kind, and size, and the merge empties it
@@ -501,7 +501,7 @@ descriptors:
     decide:
       kind: claim
     check: no list file carries rows; every PR closes the issues it finishes; the label set is the shared one
-    sources: [gcp/docs-backlog, manifest/d7-coordination-adapter]
+    sources: [foundation/docs-backlog, manifest/d7-coordination-adapter]
     status: draft
   - id: d-foundation-asks-swept
     title: Asks of the platform owner are marked at the code site and swept before they go stale
@@ -510,7 +510,7 @@ descriptors:
     decide:
       kind: claim
     check: the marker sweep runs with a staleness threshold and goes red past it
-    sources: [gcp/foundation-asks]
+    sources: [foundation/foundation-asks]
     status: draft
   - id: d-template-partition-synced
     title: The template-owned partition is declared, synced from the template, and guarded on both sides
@@ -519,7 +519,7 @@ descriptors:
     decide:
       kind: claim
     check: the sync manifest present; the guard test red on a template-owned file edited locally
-    sources: [gcp/template-sync]
+    sources: [foundation/template-sync]
     status: draft
   - id: d-template-currency
     title: The application knows which template version it carries and when it is behind
@@ -528,7 +528,7 @@ descriptors:
     decide:
       kind: claim
     check: a template commit stamp, a sync check that exits non-zero on drift, a currency line in the health read
-    sources: [gcp-eval/F-107]
+    sources: [template-eval/F-107]
     status: draft
   - id: d-red-main-stops-work
     title: A red run on the default branch is the work now, before anything else merges
@@ -537,7 +537,7 @@ descriptors:
     decide:
       kind: claim
     check: the contract states it; the default branch's latest runs are green at every merge
-    sources: [gcp/red-means-stop]
+    sources: [foundation/red-means-stop]
     status: draft
 
   # ── ai-operating: the model-call layer, on top of any foundation ─────────
@@ -607,7 +607,7 @@ descriptors:
       kind: census
       measures: [agent-access-surface, agent-consumable-surface]
     check: the interface census, interfaces consumable by an agent of all interfaces
-    sources: [manifest/d7-agent-surface, manifest/d7-format-contracts, gcp/structural-rule-4]
+    sources: [manifest/d7-agent-surface, manifest/d7-format-contracts, foundation/structural-rule-4]
     status: draft
   - id: d-corrections-become-mechanisms
     title: Recorded lessons become durable mechanisms rather than notes
@@ -618,7 +618,7 @@ descriptors:
       kind: census
       measures: [incidents-became-mechanisms, incident-lesson, lessons-mechanized]
     check: the incident census, lessons that became a mechanism of lessons recorded
-    sources: [manifest/d6-correction-capture, gcp/lesson-with-its-incident]
+    sources: [manifest/d6-correction-capture, foundation/lesson-with-its-incident]
     status: draft
   - id: d-independent-review
     title: Non-trivial work is reviewed by a context that did not produce it before it merges

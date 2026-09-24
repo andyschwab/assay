@@ -11,7 +11,7 @@ named per metered account. Nothing in a checkout can prove any of that — so th
 owner commits a dated transcript instead, and `tools/repo-census.mjs`
 (scanner-contract §3d) checks its **shape and freshness**, deterministically, the
 same way it checks an architecture page or a runbook. This file is the one home of
-the format (andyschwab/ai-native-framework#124, option B); nowhere else restates
+the format; nowhere else restates
 it — `SCHEMA.md`, `integration/scanner-contract.md` §3d, and
 `registry/descriptors.yaml` all link here instead.
 

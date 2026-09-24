@@ -6,8 +6,7 @@
 // owner-evidence checks over dated transcripts the owner commits for what a
 // repository cannot show by itself (d-backup-restore-exercised,
 // d-rollback-exercised, d-deploy-one-command, d-smoke-on-deployed,
-// d-monitoring-with-alert, d-cost-alerts — andyschwab/ai-native-framework#124,
-// format at templates/evidence/README.md). Its rows come in through
+// d-monitoring-with-alert, d-cost-alerts; format at templates/evidence/README.md). Its rows come in through
 // tools/ingest.mjs (profile `repo-census`) and land on existing axes via
 // integration/adapters/repo-census.yaml.
 //
@@ -490,7 +489,7 @@ function checkCiGate(dir, defaultBranchArg) {
   };
 }
 
-// ── evidence: owner-attested transcripts (andyschwab/ai-native-framework#124) ──
+// ── evidence: owner-attested transcripts ──
 // Six floor rows describe things a repository cannot show by itself — a backup
 // was restored, a rollback ran, a deploy came up as the committed sha, a smoke
 // check hit the deployed app, an alert fired and was received, cost alerts are

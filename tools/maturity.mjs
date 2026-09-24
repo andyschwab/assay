@@ -57,7 +57,7 @@ export function computeCoverage(findingsIn) {
   // reads in the same order as the stat strip and the handoff. Every listing in the report
   // is consistent. EVERY native dimension gets a row even where it has no counted measure:
   // a dimension the taxonomy carries but the ladder omits silently DROPS an authored census
-  // for it (the multiplayer gap, henry-2026-08-18) — worse than reading not_measured.
+  // for it (the multiplayer gap, found on a field run) — worse than reading not_measured.
   return {
     populations: { effects: effects.length, halts: halts.length, ai_surfaces: caps.length },
     dimensions: [

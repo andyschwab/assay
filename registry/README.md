@@ -27,7 +27,7 @@ The two are compared, never merged: a claim the run contradicts is the finding.
 | `axis` | the axis roster family the descriptor belongs to, when one exists; absent for custody and operability rows the roster never carried |
 | `decide` | the deciding mechanism, one of four kinds below |
 | `check` | the proving check an outcomes sheet would carry |
-| `sources` | where the row was extracted from (a takeover floor, a fleet contract, a template's guarantee manifest, a foundation template's rules, a takeover evaluation, this method). Every row has one: the register is extracted, not designed |
+| `sources` | where the row was extracted from, as `<kind>/<slug>`: `floor/` a takeover floor, `manifest/` a template's guarantee manifest, `foundation/` a foundation template's rules, `takeover-eval/` and `template-eval/` evaluations of real repositories (never named), `method/` this method, `scanner-candidates/` the scanner roster, `issue/` an assay issue. Every row has one: the register is extracted, not designed |
 | `status` | draft · stable · deprecated, the register's own lifecycle |
 
 ## The four deciding kinds
@@ -53,7 +53,7 @@ Adopted instruments the register can decide by: `gitleaks` (secrets);
 `fresh-clone` (`tools/fresh-clone.mjs`, scanner-contract §3b — install / build /
 lint / typecheck / test / migrate from a clean checkout plus README claim replay,
 workspace-aware: an npm-workspaces root runs the same step plan once per
-workspace, in addition to the root, #127); and `dependency-scan`
+workspace, in addition to the root); and `dependency-scan`
 (`tools/dependency-scan.mjs`, scanner-contract §3c — `npm audit` over every
 lockfile in the tree). Four fresh-clone rows decide on it: `d-fresh-clone-runs`
 (`[install, build]`), `d-tests-execute-core` (`test`), `d-lint-typecheck-gate`
@@ -76,11 +76,11 @@ re-kind to `instrument: fresh-clone` is one reviewed change of its own, so the
 register's statuses never move as a side effect of adopting a tool.
 `d-architecture-page`, `d-agent-contract`, `d-runbook`, and
 `d-ci-gate-on-default-branch` are re-kinded to `instrument: repo-census` already
-(#122) — the four floor rows a run could not decide before except by an
+— the four floor rows a run could not decide before except by an
 LLM-authored census. `d-backup-restore-exercised`, `d-rollback-exercised`,
 `d-deploy-one-command`, `d-smoke-on-deployed`, `d-monitoring-with-alert`, and
 `d-cost-alerts` are re-kinded to `instrument: repo-census` in the same way
-(andyschwab/ai-native-framework#124, option B) — six floor rows describing
+— six floor rows describing
 things a repository cannot show by itself, decided from a dated transcript the
 owner commits (`templates/evidence/README.md` is the one home of that format).
 None of the six carried an `axis:` of their own; each now carries its nearest

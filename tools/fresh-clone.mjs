@@ -22,7 +22,7 @@
 //      is a claim; it is `present` when the script / binary / file / target exists
 //      in the tree, else `missing`. Presence is what this pass decides — the runner
 //      never executes an arbitrary README command beyond the declared steps above.
-//   5. WORKSPACES (#127): an npm-workspaces root (`workspaces` in package.json, an
+//   5. WORKSPACES: an npm-workspaces root (`workspaces` in package.json, an
 //      array or `{packages: [...]}`, globs `dir/*` and `dir/**` resolved with zero
 //      deps) is not one repository, it is several — a root shell with no scripts, no
 //      dependencies and no lockfile of its own reads "six steps not declared, exit
@@ -58,7 +58,7 @@ import { join, resolve, isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 
-export const VERSION = '0.2.0';   // 0.2.0: workspaces[] (#127) — additive, older readers ignore it
+export const VERSION = '0.2.0';   // 0.2.0: workspaces[] — additive, older readers ignore it
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
 export const CLAIM_STATUS = ['present', 'missing'];
@@ -110,7 +110,7 @@ export function detectToolchain(dir) {
   return { toolchain: tc, pkg };
 }
 
-// ── workspaces (#127): resolve without a glob dependency ────────────────────
+// ── workspaces: resolve without a glob dependency ────────────────────
 // Supports the three shapes npm-workspaces manifests actually use: a plain path
 // ("tools/cli"), a single-star directory glob ("apps/*"), and a deep glob
 // ("packages/**" — any depth of subdirectory). A candidate is a workspace only
@@ -158,7 +158,7 @@ export function resolveWorkspaces(dir, pkg) {
   }
   if (!patterns.length) {
     // no workspaces declared: treat apps/* and packages/* as workspaces when they exist
-    // (the shape most repos use without ever writing the field — the Scout defect)
+    // (the shape most repos use without ever writing the field — the defect that motivated workspaces)
     for (const base of ['apps', 'packages']) {
       try { if (statSync(join(dir, base)).isDirectory()) patterns.push(`${base}/*`); } catch { /* not present */ }
     }

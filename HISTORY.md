@@ -102,7 +102,7 @@ what the public engine learned.
   a claim-only row hand-edited to met) pins it. Goldens untouched; the axis
   projection still leads the package — the flip to descriptors leading is the
   next, reviewed, breaking release.
-- **2026-09-22 — the fresh-clone instrument (#120).** `tools/fresh-clone.mjs`
+- **2026-09-22 — the fresh-clone instrument.** `tools/fresh-clone.mjs`
   clones the target to scratch, detects the node toolchain, runs the declared
   install / build / lint / typecheck / test / migrate steps (migrate only through
   a `DATABASE_URL`-free dry form) and replays the README's command claims for
@@ -117,8 +117,8 @@ what the public engine learned.
   (`tests/instruments/fresh-clone-target`) and a `fresh-clone` harness block pin
   the runner, the converter's halts, the clean-run empty file and the
   projection. The register's floor rows keep their kinds; the re-kind to
-  `instrument: fresh-clone` is #123. Goldens untouched.
-- **2026-09-24 — the dependency-scan instrument (#121).** `tools/dependency-scan.mjs`
+  `instrument: fresh-clone` is a later change. Goldens untouched.
+- **2026-09-24 — the dependency-scan instrument.** `tools/dependency-scan.mjs`
   finds every `package-lock.json` / `npm-shrinkwrap.json` in the tree (skipping
   `node_modules`/`.git`) and runs `npm audit --json` against each, no install; a
   workspace member whose effective root carries no lockfile of its own (npm's
@@ -140,9 +140,9 @@ what the public engine learned.
   documents; no real `npm audit` invoked) pins the converter's rows, its halts,
   the clean-run empty file, the projection, and the three descriptor reads.
   Goldens untouched.
-- **2026-09-24 — the fresh-clone runner goes workspace-aware (#127), and the
-  register learns list categories (#123, fresh-clone half).** The defect: on a
-  real monorepo (Scout) the root `package.json` is a bare npm-workspaces shell —
+- **2026-09-24 — the fresh-clone runner goes workspace-aware, and the
+  register learns list categories.** The defect: on a
+  real monorepo the root `package.json` is a bare npm-workspaces shell —
   no scripts, no dependencies, no lockfile — so the runner read it as "six steps
   not declared, exit 0" while the apps that actually mattered each failed `npm
   ci` from a clean clone (a workspace's own lockfile resolves against the
@@ -163,7 +163,7 @@ what the public engine learned.
   per workspace, `native_id` prefixed by the workspace path
   (`apps/x:install:failed`), evidence scoped to the workspace's own manifest or
   README, `native_category` left as the plain closed step name so the adapter
-  map is untouched; a pre-#127 document with no `workspaces` key still converts
+  map is untouched; a pre-workspaces document with no `workspaces` key still converts
   exactly as before. Separately, `decide.category` on a register `instrument`
   row may now be a list — two categories one decider holds jointly — reading
   met only when every listed category is independently met by the single-
@@ -181,7 +181,7 @@ what the public engine learned.
   the new behavior; the existing `fresh-clone` block and its fixture are
   unchanged. Goldens untouched.
 - **2026-09-24 — the repo-census instrument, and four floor rows a run can now
-  decide without an LLM (#122).** `tools/repo-census.mjs` reads a checkout,
+  decide without an LLM.** `tools/repo-census.mjs` reads a checkout,
   read-only, zero deps, no network: an architecture page present and naming an
   external service or data store (root and per app in a monorepo — package.json
   `workspaces`, or `apps/*` / `packages/*`); an agent contract (AGENTS.md or
@@ -211,7 +211,7 @@ what the public engine learned.
   the descriptor reads (met on an all-pass `ran` manifest, not-measured with the
   reason when skipped). Goldens untouched.
 - **2026-09-24 — the owner-evidence transcript check, six more floor rows a run
-  can now decide (andyschwab/ai-native-framework#124, option B).**
+  can now decide.**
   `tools/repo-census.mjs` gains six checks, named `evidence-<descriptor-id>`,
   root only: a dated YAML-frontmatter transcript at `ops/evidence/<id>.md` (or
   `docs/evidence/<id>.md`), for `d-backup-restore-exercised`,
@@ -239,3 +239,9 @@ what the public engine learned.
   four with one planted defect each, one absent) extends the `repo-census`
   harness block; the fixture's new checks widen its own counts (6 checks/6 rows
   → 12/12), asserted explicitly, nothing else moved. Goldens untouched.
+- **2026-09-24 — private material removed from the public tree.** Register
+  sources that named an evaluated repository now read `takeover-eval/`,
+  `template-eval/` and `foundation/`, and the prefixes are defined in
+  `registry/README.md`. Comments, tests, fixtures and this file no longer name
+  evaluated repositories, and pointers into the private deployment's issue
+  tracker are gone. No behaviour changed; goldens untouched.

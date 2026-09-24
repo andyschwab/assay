@@ -199,7 +199,7 @@ const PROFILES = {
     // NEVER copy step output: the last-40-lines tail (which may echo environment
     // values) stays in the raw archive; rows carry the command and exit code only.
     //
-    // WORKSPACES (#123, the fresh-clone half of #127): the same rows, once for the
+    // WORKSPACES: the same rows, once for the
     // root and once per entry in `rep.workspaces` — an npm-workspaces root is not one
     // repository, it is several, and each one's gap is its own row. A workspace row's
     // native_category stays the closed step name (install / build / … / readme-claim
@@ -207,7 +207,7 @@ const PROFILES = {
     // (`apps/x:install:failed`), so two workspaces failing the same step never collide.
     // Evidence is the workspace's own manifest or README (`apps/x/package.json:1`,
     // `apps/x/README.md:12`), never the root's. `rep.workspaces` is optional — a
-    // document from before #127 (no key at all) converts exactly as it always has.
+    // document from before workspace support (no key at all) converts exactly as it always has.
     convert(raw, startId, exitCode) {
       const rep = parseJson(raw, 'fresh-clone');
       if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('fresh-clone report must be a JSON object');
@@ -484,8 +484,8 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
 
 // ── id allocation: above the base's highest id, never inside another block ──
 // Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
-// 800, fresh-clone 900, dependency-scan 950). A real history scan can run past the next floor (Scout's
-// gitleaks block was F-700..F-1866), so the default start is the profile floor OR the
+// 800, fresh-clone 900, dependency-scan 950). A real history scan can run past the next floor (a real
+// history scan's gitleaks block ran F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same
 // tool lands where it did before instead of drifting upward on every run.

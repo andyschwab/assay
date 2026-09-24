@@ -148,7 +148,7 @@ for (const [dir, what] of NEGATIVE) {
 // A dimension the taxonomy carries but the ladder does not is worse than an
 // unmeasured one: an authored census for it is silently DROPPED and the report
 // renders fewer areas than the walk. Regression for the multiplayer gap found by
-// the henry-2026-08-18 run.
+// a field run (2026-08-18).
 {
   const fail = (m) => negFailures.push('maturity-ladder: ' + m);
   const NATIVE = ['artifact-legibility', 'context-economy', 'deterministic-gates',
@@ -224,7 +224,7 @@ for (const [dir, what] of NEGATIVE) {
 // variance.mjs predates the instrument port. Scanner-sourced rows have `source` +
 // `native_category` and NO `dimension` (SCHEMA §2a), so every one landed in a single
 // undefined bucket and the sort crashed on localeCompare. Found by the first
-// all-integrations run (henry-2026-08-18: repo-eval + deep-code-review + gitleaks +
+// all-integrations run (2026-08-18: repo-eval + deep-code-review + gitleaks +
 // scorecard in one base).
 {
   const fail = (m) => negFailures.push('variance-mixed-base: ' + m);
@@ -285,7 +285,7 @@ for (const [dir, what] of NEGATIVE) {
     if (runValidate()) fail('a two-digit finding id (F-12) must still validate red');
     rmSync(tmp, { recursive: true, force: true });
   }
-  // id allocation (found on Scout: an 807-row, then 1,167-row gitleaks block ran past the
+  // id allocation (found on a real history scan: a gitleaks block of over a thousand rows ran past the
   // deep-code-review and fresh-clone floors and the validator went red on duplicate ids)
   {
     const tmp = join(HERE, '.tmp-nextstart'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
@@ -369,8 +369,8 @@ function adaptersOnce() { return loadAdapters(); }
   if (adopted.includes('scorecard')) fail('scorecard is retired (adopted: false) and must not be in the adopted roster');
   if (!adapters.scorecard) fail('the retired scorecard adapter must still LOAD (frozen runs carrying its rows must project)');
   // the adopted roster is pinned by name: adopting or retiring a scanner is a reviewed
-  // change to this line in the same commit (fresh-clone adopted 2026-09-22, #120;
-  // dependency-scan and repo-census adopted 2026-09-24, #121, #122)
+  // change to this line in the same commit (fresh-clone adopted 2026-09-22;
+  // dependency-scan and repo-census adopted 2026-09-24)
   if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'repo-census', 'repo-eval'])) fail(`adopted roster must be deep-code-review, dependency-scan, fresh-clone, gitleaks, repo-census, repo-eval (got ${adopted.join(', ')})`);
   const reg = registryAxes(adapters);
   if (!reg.includes('code-security') || !reg.includes('multiplayer') || reg.length !== 9) fail(`registry must be the 9 axes the adopted scanners contribute — an instrument adds none (got ${reg.length}: ${reg.join(', ')})`);
@@ -631,8 +631,8 @@ function adaptersOnce() { return loadAdapters(); }
   }
 }
 
-// ── fresh-clone workspaces (#127, the fresh-clone half of #123) ──────────────
-// The public fixture is Scout's shape: a root that is a bare npm-workspaces shell
+// ── fresh-clone workspaces ──────────────
+// The public fixture is a real monorepo's shape: a root that is a bare npm-workspaces shell
 // (workspaces: ["apps/*"], no scripts, no dependencies, no lockfile of its own) with
 // apps/good (passes) and apps/bad (fails offline and deterministically — a failing
 // build script standing in for the real npm-ci EUSAGE a clean workspace clone hits
@@ -641,7 +641,7 @@ function adaptersOnce() { return loadAdapters(); }
 // across the board, run each workspace's own plan in its own directory, and read
 // exit 1 from apps/bad's failure alone. The converter must turn that into per-
 // workspace rows with prefixed native_ids and workspace-relative evidence, and an
-// older (pre-#127) document with no `workspaces` key must still convert exactly as
+// older (pre-workspaces) document with no `workspaces` key must still convert exactly as
 // it always has.
 {
   const fail = (m) => negFailures.push('fresh-clone-workspaces: ' + m);
@@ -702,7 +702,7 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
-// ── descriptor category as a list (#123): two rows one instrument decider holds jointly ─
+// ── descriptor category as a list: two rows one instrument decider holds jointly ─
 // A descriptor's `decide.category` may be a list of native_category values it must hold
 // jointly (e.g. fresh-clone [install, build]): a finding in EITHER listed category is part
 // of the population; the descriptor reads met only when EVERY listed category is met by
@@ -738,7 +738,7 @@ function adaptersOnce() { return loadAdapters(); }
 
 // ── repo-census instrument (tools/repo-census.mjs → ingest profile repo-census) ──
 // The runner over the public fixture (a tiny monorepo, root + apps/one, plus
-// ops/evidence/ — andyschwab/ai-native-framework#124) must record what IS:
+// ops/evidence/) must record what IS:
 // architecture-page passes at the root (an Architecture section naming a
 // database) and gaps for apps/one (no docs there at all); agent-contract gaps at the
 // root citing the planted `## Status` heading, and gaps for apps/one (absent); runbook

@@ -194,7 +194,7 @@ axes the register already homes those floor rows on: install / build / migrate o
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
 on `artifact-legibility`.
 
-**Workspaces (#127).** An npm-workspaces root is not one repository, it is
+**Workspaces.** An npm-workspaces root is not one repository, it is
 several: a root that is only a workspaces shell (no scripts, no dependencies, no
 lockfile of its own) reads honestly as "six steps not declared" — that used to be
 mistaken for the whole picture while the apps underneath it failed `npm ci` from a
@@ -220,7 +220,7 @@ workspace's own manifest or README (`apps/x/package.json:1`, `apps/x/README.md:1
 — `native_category` stays the plain, closed step name (`install`, `build`, …,
 `readme-claim`) the adapter map below already knows, so a workspace row projects
 exactly like a root row. A document with no `workspaces` key at all (a runner from
-before #127) still converts exactly as it always did.
+before workspaces) still converts exactly as it always did.
 
 **What it deliberately does not do.** It never executes a README command beyond
 the declared steps it already ran — presence in the tree is what the claim replay
@@ -233,7 +233,7 @@ node tools/fresh-clone.mjs <target-dir | git URL> --out fresh-clone.json [--time
 node tools/ingest.mjs <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
 ```
 
-**Descriptor category as a list (`registry/descriptors.yaml`, #123).** A
+**Descriptor category as a list (`registry/descriptors.yaml`.** A
 `decide.category` in the register may name one native category or a list of them
 — two rows one instrument decider must hold jointly, such as fresh-clone's
 `[install, build]` for `d-fresh-clone-runs` or `[lint, typecheck]` for
@@ -349,7 +349,7 @@ owner's evidence. Whether a CI check is **required** by branch protection is not
 visible from a checked-out tree at all; every ci-gate observation says so. Neither
 is inferred, guessed, or defaulted to met.
 
-**The six owner-evidence checks** (andyschwab/ai-native-framework#124, option B).
+**The six owner-evidence checks**.
 Six more floor rows describe things a repository cannot show by itself — a
 backup was restored, a rollback ran, a deploy came up as the committed sha, a
 smoke check hit the deployed app, a monitoring alert fired and was received,
