@@ -13,12 +13,13 @@
 // Usage:  node views/improve/axes.mjs <run-dir> [--base <dir>]... [--stdout]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
+import { AXIS_ORDER, loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
 import { buildChains } from '../../map/chains.mjs';
 import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { RENAMES } from '../../lib/legacy-name.mjs';
 import { buildTopicsForRun } from './topics.mjs';
+import { TOPICS } from '../../yardstick/measure.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/axes.mjs <run-dir> [--base <dir>]... [--stdout]'); process.exit(2); }
@@ -207,11 +208,11 @@ for (const a of roster) {
     (top ? ` · worst: ${top.f.id}${top.f.severity ? ' ' + top.f.severity : ''}` : '') + '._', '');
 }
 
-// ── custody, operability — the two topics with no axis of their own ──────────
-// No scanner measures a tier by that name; these render as their own sections,
+// ── topics with no axis of their own (custody, reproducibility, operability) ──
+// No scanner measures them as an axis; they render as their own sections,
 // reading from the yardstick, never "clean" (SCHEMA has no finding axis for
-// either, so this is the only place either topic's requirements are shown).
-for (const topic of ['custody', 'operability']) {
+// them, so this is the only place their requirements are shown).
+for (const topic of TOPICS.filter((t) => !AXIS_ORDER.includes(t))) {
   out.push(`## ${topic[0].toUpperCase()}${topic.slice(1)}`, '');
   out.push(`_No scanner measures \`${topic}\` as an axis; its requirements ride on the yardstick alone._`, '');
   out.push(...requirementsBlock(topic));

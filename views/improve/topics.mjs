@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // topics.mjs — the yardstick's measurement, grouped by TOPIC (the axis roster
-// plus custody, operability, for the two tiers with no axis of their own).
+// plus custody, reproducibility and operability, the tiers with no axis of their own).
 // Feeds IMPROVE.md's "Requirements by topic" section (eval/improve.yaml) and
 // the axis walk's per-axis requirement lists + the custody/operability
 // sections. Reads ONLY the yardstick's measurement (eval/yardstick.yaml,
@@ -23,7 +23,7 @@ export function buildTopics(measurementRows, reg) {
   const byId = new Map(measurementRows.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));
   const byTopic = new Map(TOPICS.map((t) => [t, { topic: t, met: 0, unmet: 0, mixed: 0, not_measured: 0, rows: [] }]));
-  reg.descriptors.forEach((d, i) => {
+  reg.requirements.forEach((d, i) => {
     const m = byId.get(d.id);
     const status = m ? m.status : 'not-measured';
     if (!byTopic.has(d.topic)) byTopic.set(d.topic, { topic: d.topic, met: 0, unmet: 0, mixed: 0, not_measured: 0, rows: [] });

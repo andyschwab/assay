@@ -25,7 +25,7 @@ export function buildRows(runDir, tag, { withFloor = false } = {}) {
   const byId = new Map(measurement.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));
 
-  const population = reg.descriptors
+  const population = reg.requirements
     .map((d, i) => ({ d, i }))
     .filter(({ d }) => (d.tags || []).includes(tag))
     .sort((a, b) => (tierRank[a.d.tier] ?? 999) - (tierRank[b.d.tier] ?? 999) || a.i - b.i)

@@ -23,13 +23,13 @@ namespace: assay
 tiers: [custody, safety, reproducibility, verification, legibility, operability]
 tags: [floor, fleet, ai-operating]
 
-descriptors:
+requirements:
 
   # ── custody: we cannot carry what we do not control ──────────────────────
   - id: d-accounts-enumerated
     title: Every account the application depends on is enumerated with an owner and a transfer path
     tier: custody
-    topic: custody   # register row carried no axis; its own tier (custody) is the nearest topic
+    topic: custody
     tags: [floor]
     decide:
       kind: claim
@@ -50,7 +50,7 @@ descriptors:
   - id: d-bus-factor
     title: More than one person can build, deploy, and recover the application
     tier: custody
-    topic: custody   # register row carried no axis; its own tier (custody) is the nearest topic
+    topic: custody
     tags: [floor]
     decide:
       kind: claim
@@ -169,7 +169,7 @@ descriptors:
   - id: d-backup-restore-exercised
     title: Backups exist and a restore has been performed
     tier: safety
-    topic: code-security   # register row carried no topic; nearest tier-mate (safety) is d-personal-data-enumerated
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -193,7 +193,7 @@ descriptors:
   - id: d-fresh-clone-runs
     title: It installs, builds, and runs from the README on a clean machine
     tier: reproducibility
-    topic: context-economy
+    topic: reproducibility
     tags: [floor]
     decide:
       kind: instrument
@@ -205,7 +205,7 @@ descriptors:
   - id: d-config-declared
     title: Configuration is declared once and nothing environment-specific is hardcoded
     tier: reproducibility
-    topic: code-security
+    topic: reproducibility
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -217,7 +217,7 @@ descriptors:
   - id: d-dependencies-pinned
     title: Dependencies and the toolchain are pinned, and CI actions by commit
     tier: reproducibility
-    topic: code-security
+    topic: reproducibility
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -229,7 +229,7 @@ descriptors:
   - id: d-deploy-one-command
     title: One documented command deploys, and what runs is what is committed
     tier: reproducibility
-    topic: code-security   # register row carried no topic; nearest tier-mate (reproducibility) is d-dependencies-pinned
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -241,7 +241,7 @@ descriptors:
   - id: d-rollback-exercised
     title: A rollback path exists and has been exercised
     tier: reproducibility
-    topic: context-economy   # register row carried no topic; nearest tier-mate (reproducibility) is d-schema-versioned
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -253,7 +253,7 @@ descriptors:
   - id: d-schema-versioned
     title: The schema is versioned and migrations replay from empty
     tier: reproducibility
-    topic: context-economy
+    topic: reproducibility
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -313,7 +313,7 @@ descriptors:
   - id: d-smoke-on-deployed
     title: A smoke check proves the deployed application comes up and the main path works
     tier: verification
-    topic: deterministic-gates   # register row carried no topic; nearest tier-mate (verification) is d-lint-typecheck-gate
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -336,7 +336,7 @@ descriptors:
   - id: d-contract-test-per-vendor
     title: Every external system reached has a recorded contract test against its sandbox
     tier: verification
-    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
+    topic: verification
     tags: [fleet]
     decide:
       kind: claim
@@ -356,7 +356,7 @@ descriptors:
   - id: d-change-carries-verification
     title: Every change lands with its own verification stated
     tier: verification
-    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
+    topic: verification
     tags: [fleet]
     decide:
       kind: claim
@@ -437,7 +437,7 @@ descriptors:
   - id: d-errors-reach-a-person
     title: Errors and logs reach somewhere a person looks
     tier: operability
-    topic: verification
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -449,7 +449,7 @@ descriptors:
   - id: d-monitoring-with-alert
     title: Uptime or smoke monitoring exists with an alert route that has been tested
     tier: operability
-    topic: verification   # register row carried no topic; nearest tier-mate (operability) is d-errors-reach-a-person
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -461,7 +461,7 @@ descriptors:
   - id: d-cost-alerts
     title: Cost alerts exist on every metered account from day one
     tier: operability
-    topic: artifact-legibility   # register row carried no topic; nearest tier-mate (operability) is d-runbook
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -473,7 +473,7 @@ descriptors:
   - id: d-runbook
     title: A one-page runbook covers restart, roll back, rotate a key, restore
     tier: operability
-    topic: artifact-legibility
+    topic: operability
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -485,7 +485,7 @@ descriptors:
   - id: d-health-read
     title: One command reports the whole foundation green or red with a reason
     tier: operability
-    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
+    topic: operability
     tags: [fleet]
     decide:
       kind: claim
@@ -495,7 +495,7 @@ descriptors:
   - id: d-every-run-terminates
     title: Every automated run ends red or green with a reason, never hangs
     tier: operability
-    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
+    topic: operability
     tags: [fleet]
     decide:
       kind: claim
@@ -505,7 +505,7 @@ descriptors:
   - id: d-backlog-is-issues
     title: The backlog is the repository's issues, labelled by need-by, kind, and size, and the merge empties it
     tier: operability
-    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
+    topic: operability
     tags: [fleet]
     decide:
       kind: claim
@@ -515,7 +515,7 @@ descriptors:
   - id: d-foundation-asks-swept
     title: Asks of the platform owner are marked at the code site and swept before they go stale
     tier: operability
-    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
+    topic: operability
     tags: [fleet]
     decide:
       kind: claim
@@ -525,7 +525,7 @@ descriptors:
   - id: d-template-partition-synced
     title: The template-owned partition is declared, synced from the template, and guarded on both sides
     tier: operability
-    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
+    topic: operability
     tags: [fleet]
     decide:
       kind: claim
@@ -535,7 +535,7 @@ descriptors:
   - id: d-template-currency
     title: The application knows which template version it carries and when it is behind
     tier: operability
-    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
+    topic: operability
     tags: [fleet]
     decide:
       kind: claim
@@ -545,7 +545,7 @@ descriptors:
   - id: d-red-main-stops-work
     title: A red run on the default branch is the work now, before anything else merges
     tier: operability
-    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
+    topic: operability
     tags: [fleet]
     decide:
       kind: claim
@@ -577,7 +577,7 @@ descriptors:
   - id: d-model-qualification
     title: Model and tier choices are recorded with rationale and re-qualified when models ship
     tier: verification
-    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
+    topic: verification
     tags: [ai-operating]
     decide:
       kind: claim
@@ -587,7 +587,7 @@ descriptors:
   - id: d-calibration-harness
     title: Any skill or rubric the application relies on is hardened by measurement, not assumed repeatable
     tier: verification
-    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
+    topic: verification
     tags: [ai-operating]
     decide:
       kind: claim
@@ -597,7 +597,7 @@ descriptors:
   - id: d-ai-feature-evals
     title: Shipped AI features carry evals for answer quality
     tier: verification
-    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
+    topic: verification
     tags: [ai-operating]
     decide:
       kind: claim
@@ -639,7 +639,7 @@ descriptors:
   - id: d-independent-review
     title: Non-trivial work is reviewed by a context that did not produce it before it merges
     tier: verification
-    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
+    topic: verification
     tags: [ai-operating]
     decide:
       kind: claim

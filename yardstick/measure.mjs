@@ -35,16 +35,16 @@ export const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 
 export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured'];
 const STRUCTURED = new Set(['structured-event', 'audited']);
 // TOPICS — the roster a requirement's `topic:` must land on: the axis roster
-// (map/project.mjs AXIS_ORDER) plus the two tiers with no axis of their own.
-export const TOPICS = [...AXIS_ORDER, 'custody', 'operability'];
+// (map/project.mjs AXIS_ORDER) plus the three tiers with no axis of their own.
+export const TOPICS = [...AXIS_ORDER, 'custody', 'reproducibility', 'operability'];
 
 // ── the register: load + validate (fail closed) ───────────────────────────────
 export function validateRegistry(reg) {
   const errors = [];
-  if (!reg || !Array.isArray(reg.descriptors)) return ['registry: no descriptors list'];
+  if (!reg || !Array.isArray(reg.requirements)) return ['yardstick: no requirements list'];
   if (!Array.isArray(reg.tiers) || !reg.tiers.length) errors.push('registry: tiers must be a non-empty list');
   const tiers = new Set(reg.tiers || []), tags = new Set(reg.tags || []), topics = new Set(TOPICS), seen = new Set();
-  for (const d of reg.descriptors) {
+  for (const d of reg.requirements) {
     const at = `registry: ${d.id ?? '(no id)'}`;
     if (!d.id || !/^d-[a-z0-9-]+$/.test(d.id)) errors.push(`${at}: id must match d-<slug>`);
     if (seen.has(d.id)) errors.push(`${at}: duplicate id`); seen.add(d.id);
@@ -174,7 +174,7 @@ function byInstrument(d, fs, disp, coverage) {
 // ── the projection ────────────────────────────────────────────────────────────
 export function projectDescriptors({ findings, manifest, inputs, coverage }, reg = loadRegistry()) {
   const disp = dispositionsOf(manifest);
-  return reg.descriptors.map((d) => {
+  return reg.requirements.map((d) => {
     let r;
     if (d.decide.kind === 'facet') r = byFacet(d, findings);
     else if (d.decide.kind === 'census') r = byCensus(d, inputs);

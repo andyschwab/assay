@@ -711,7 +711,7 @@ function adaptersOnce() { return loadAdapters(); }
   const fail = (m) => negFailures.push('descriptor-list-category: ' + m);
   const reg = loadRegistry();
   const listDescriptor = { id: 'd-test-list', title: 'test', tier: 'reproducibility', topic: 'context-economy', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
-  const testReg = { ...reg, descriptors: [listDescriptor] };
+  const testReg = { ...reg, requirements: [listDescriptor] };
   const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
   // a gap in EITHER listed category decides the row (here: only "build" has a gap)
   const withGap = [{ id: 'F-1', source: 'fresh-clone', native_category: 'build', polarity: 'gap', observation: 'x', evidence: ['a:1'] }];
@@ -726,14 +726,14 @@ function adaptersOnce() { return loadAdapters(); }
   // a peer scanner with a list category: met only when EVERY listed category is scanned clean
   const peerDescriptor = { ...listDescriptor, id: 'd-test-list-peer', decide: { kind: 'instrument', scanner: 'deep-code-review', category: ['B', 'N'] } };
   const peerRan = [{ scanner: 'deep-code-review', status: 'ran' }];
-  const oneScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'not-scanned', note: 'no config surface' } } } } }, { ...testReg, descriptors: [peerDescriptor] });
+  const oneScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'not-scanned', note: 'no config surface' } } } } }, { ...testReg, requirements: [peerDescriptor] });
   if (oneScanned[0]?.status !== 'not-measured') fail(`a list category met in one member and not-scanned in the other must NOT read met (got ${oneScanned[0]?.status})`);
-  const bothScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'scanned' } } } } }, { ...testReg, descriptors: [peerDescriptor] });
+  const bothScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'scanned' } } } } }, { ...testReg, requirements: [peerDescriptor] });
   if (bothScanned[0]?.status !== 'met') fail(`a list category must read met once every listed category is independently scanned clean (got ${bothScanned[0]?.status})`);
   // validateRegistry: accepts a list category, rejects an empty one
-  if (validateRegistry({ ...reg, descriptors: [listDescriptor] }).length) fail('validateRegistry must accept a non-empty list category');
+  if (validateRegistry({ ...reg, requirements: [listDescriptor] }).length) fail('validateRegistry must accept a non-empty list category');
   const emptyList = { ...listDescriptor, decide: { kind: 'instrument', scanner: 'fresh-clone', category: [] } };
-  if (!validateRegistry({ ...reg, descriptors: [emptyList] }).some((e) => /category/.test(e))) fail('validateRegistry must reject an empty category list');
+  if (!validateRegistry({ ...reg, requirements: [emptyList] }).some((e) => /category/.test(e))) fail('validateRegistry must reject an empty category list');
 }
 
 // ── repo-census instrument (map/repo-census.mjs → ingest profile repo-census) ──
@@ -965,10 +965,10 @@ function adaptersOnce() { return loadAdapters(); }
   try { reg = loadRegistry(); } catch (e) { fail('registry failed to load: ' + e.message.split('\n')[0]); }
   if (reg) {
     if (validateRegistry(reg).length) fail('validateRegistry must be clean on the shipped register');
-    if (!reg.descriptors.some((d) => d.decide.kind === 'claim')) fail('the register must carry claim rows (its instrument backlog) — a register that claims to measure everything is the presence-checklist failure');
-    const bad = { ...reg, descriptors: [{ ...reg.descriptors[0], decide: { kind: 'prose', terms: 'x' } }] };
+    if (!reg.requirements.some((d) => d.decide.kind === 'claim')) fail('the register must carry claim rows (its instrument backlog) — a register that claims to measure everything is the presence-checklist failure');
+    const bad = { ...reg, requirements: [{ ...reg.requirements[0], decide: { kind: 'prose', terms: 'x' } }] };
     if (!validateRegistry(bad).some((e) => /decide\.kind/.test(e))) fail('an unknown decide.kind (prose) must be rejected');
-    const unsourced = { ...reg, descriptors: [{ ...reg.descriptors[0], sources: [] }] };
+    const unsourced = { ...reg, requirements: [{ ...reg.requirements[0], sources: [] }] };
     if (!validateRegistry(unsourced).some((e) => /sources/.test(e))) fail('a row with no sources must be rejected (extracted, not designed)');
     const base = [
       { id: 'F-1', dimension: 'delegation', polarity: 'gap', subject_type: 'effect', observation: 'x', evidence: ['a:1'], confidence: 'confirmed',
@@ -1006,7 +1006,7 @@ function adaptersOnce() { return loadAdapters(); }
     const gl = Object.fromEntries(projectDescriptors({ findings: [], manifest: [{ scanner: 'gitleaks', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     if (gl['d-secrets-out-of-history']?.status !== 'met') fail('an instrument that ran clean (exit 0, no rows) must read met');
     const s = summarize(rows);
-    if (s.of !== reg.descriptors.length || s.decided + s['not-measured'] !== s.of) fail('summary counts must partition the register');
+    if (s.of !== reg.requirements.length || s.decided + s['not-measured'] !== s.of) fail('summary counts must partition the register');
     if (!KINDS.includes('claim')) fail('KINDS must include claim');
   }
 }
@@ -1018,9 +1018,9 @@ function adaptersOnce() { return loadAdapters(); }
 {
   const fail = (m) => negFailures.push('yardstick-topic: ' + m);
   const reg = loadRegistry();
-  const noTopic = { ...reg, descriptors: reg.descriptors.map((d, i) => i === 0 ? { ...d, topic: undefined } : d) };
+  const noTopic = { ...reg, requirements: reg.requirements.map((d, i) => i === 0 ? { ...d, topic: undefined } : d) };
   if (!validateRegistry(noTopic).some((e) => /topic/.test(e))) fail('a requirement with no topic must be rejected');
-  const badTopic = { ...reg, descriptors: reg.descriptors.map((d, i) => i === 0 ? { ...d, topic: 'not-a-real-topic' } : d) };
+  const badTopic = { ...reg, requirements: reg.requirements.map((d, i) => i === 0 ? { ...d, topic: 'not-a-real-topic' } : d) };
   if (!validateRegistry(badTopic).some((e) => /topic "not-a-real-topic"/.test(e))) fail('a topic outside the allowed list must be rejected');
   if (validateRegistry(reg).length) fail('the shipped register must validate clean with every row carrying a topic');
 }
@@ -1053,7 +1053,7 @@ function adaptersOnce() { return loadAdapters(); }
 
   if (existsSync(join(tmp, 'eval', 'intake.yaml'))) {
     const doc = parseYaml(readFileSync(join(tmp, 'eval', 'intake.yaml'), 'utf8'));
-    const floorIds = reg.descriptors.filter((d) => (d.tags || []).includes('floor')).map((d) => d.id);
+    const floorIds = reg.requirements.filter((d) => (d.tags || []).includes('floor')).map((d) => d.id);
     const all = [...(doc.open || []), ...(doc.met || []), ...(doc.to_run || [])];
     const ids = all.map((r) => r.id);
     const missing = floorIds.filter((id) => !ids.includes(id));
@@ -1064,7 +1064,7 @@ function adaptersOnce() { return loadAdapters(); }
   let maintainDoc = null;
   if (existsSync(join(tmp, 'eval', 'maintain.yaml'))) {
     maintainDoc = parseYaml(readFileSync(join(tmp, 'eval', 'maintain.yaml'), 'utf8'));
-    const fleetIds = reg.descriptors.filter((d) => (d.tags || []).includes('fleet')).map((d) => d.id);
+    const fleetIds = reg.requirements.filter((d) => (d.tags || []).includes('fleet')).map((d) => d.id);
     const all = [...(maintainDoc.open || []), ...(maintainDoc.met || []), ...(maintainDoc.to_run || [])];
     const ids = all.map((r) => r.id);
     const missing = fleetIds.filter((id) => !ids.includes(id));
@@ -1076,13 +1076,13 @@ function adaptersOnce() { return loadAdapters(); }
   if (existsSync(join(tmp, 'eval', 'improve.yaml'))) {
     const doc = parseYaml(readFileSync(join(tmp, 'eval', 'improve.yaml'), 'utf8'));
     const ids = (doc.topics || []).flatMap((t) => (t.rows || []).map((r) => r.id));
-    if (ids.length !== reg.descriptors.length || dupes(ids).length)
-      fail(`every requirement must appear exactly once in improve.yaml (got ${ids.length} of ${reg.descriptors.length}; duplicated ${dupes(ids).join(', ') || 'none'})`);
+    if (ids.length !== reg.requirements.length || dupes(ids).length)
+      fail(`every requirement must appear exactly once in improve.yaml (got ${ids.length} of ${reg.requirements.length}; duplicated ${dupes(ids).join(', ') || 'none'})`);
   }
 
   // decided_by: "owner" for every claim row (claim always reads not-measured, so
   // it always lands in to_run) — check both Intake and Maintain's to_run lists.
-  const claimIds = new Set(reg.descriptors.filter((d) => d.decide.kind === 'claim').map((d) => d.id));
+  const claimIds = new Set(reg.requirements.filter((d) => d.decide.kind === 'claim').map((d) => d.id));
   const intakeDoc = existsSync(join(tmp, 'eval', 'intake.yaml')) ? parseYaml(readFileSync(join(tmp, 'eval', 'intake.yaml'), 'utf8')) : null;
   const toRunClaims = [...((intakeDoc && intakeDoc.to_run) || []), ...((maintainDoc && maintainDoc.to_run) || [])].filter((r) => claimIds.has(r.id));
   if (!toRunClaims.length) fail('expected at least one claim row in to_run to check decided_by against');
