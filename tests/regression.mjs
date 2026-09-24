@@ -1012,9 +1012,8 @@ function adaptersOnce() { return loadAdapters(); }
 }
 
 // ── yardstick topic invariants: every row needs one, from the allowed roster ──
-// Phase 2 (2026-09-24): a register row's `axis:` became `topic:`, required and
-// closed to the axis roster plus custody, operability (the two tiers with no
-// axis of their own). Missing or unknown must both fail closed.
+// A requirement's `topic:` is required and closed to the axis roster plus custody,
+// reproducibility and operability (the tiers with no axis of their own). Missing or unknown must both fail closed.
 {
   const fail = (m) => negFailures.push('yardstick-topic: ' + m);
   const reg = loadRegistry();

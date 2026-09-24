@@ -1,151 +1,122 @@
 # assay
 
-**Evidence-based repository evaluation.** assay draws a **map** of a repository
-(a neutral base of findings — facts with structured descriptors and `file:line`
-evidence, projected through per-scanner adapters onto a flat, property-named
-**axis roster**), measures that map against a **yardstick** of requirements, and
-writes three **views** of the result:
+**Evidence-based repository evaluation.** assay reads a codebase into a **map**
+of what exists and what is true of it, measures the map against a **yardstick**
+of requirements, and writes three **views** of the result:
 
-- **Intake** (can it be carried? — the floor-tagged requirements),
-- **Maintain** (is it still healthy? — the fleet-tagged requirements),
-- **Improve** (what makes it better? — the maintainer report: authored narrative
-  over computed structure, the per-axis walk, and an agent-ready remediation
-  handoff you can paste into a coding session, every claim auditable before you
-  act).
+| View | The question | Page | Data |
+|---|---|---|---|
+| **Intake** | Can this repository be taken on, and what must be true first? | `INTAKE.md` | `eval/intake.yaml` |
+| **Maintain** | Is it still healthy, and what do routines watch? | `MAINTAIN.md` | `eval/maintain.yaml` |
+| **Improve** | What makes it better next? | `IMPROVE.md`, the axis walk, `handoff/` | `eval/improve.yaml` |
 
-The one rule that makes it honest: **the base states _what is_; the views compute
-_how good / how bad / how urgent_.** A finding may record "this effect is
-irreversible and has no gate"; it may not record "critical." Severity and
-priority are computed from the base, and the engine issues **no deploy/no-deploy
-verdict** — it presents properties and risks and leaves the go/no-go to the
-reader. assay never prices anything.
+Every view is computed from the same map in one pass, so the three never
+disagree about the repository. Each writes a data file with a schema and a plain
+page; anything fancier (a branded report, a deck) is a template over the data
+file and lives with whoever publishes it.
 
-## The axis model
+**The one rule that makes it honest: the map states what is; the views compute
+how good, how bad, how urgent.** A finding may record "this effect is
+irreversible and has no gate"; it may not record "critical". assay issues no
+verdict and prices nothing. It shows what is met, what is open with the check
+that would prove it closed, and what nobody measured.
 
-Findings land on a flat roster of **property-named axes** — never tool-named.
-Every scanner, the built-in method included, contributes the axes its own method
-measures, and any scanner may *feed* an axis it does not contribute, so two
-scanners measuring one property corroborate on one axis instead of in two
-chapters. An axis no present scanner measures reads **"not measured"**, never
-"clean" — and every run carries a **manifest** (`eval/scanners.yaml`) recording,
-for each adopted scanner, whether it ran, was skipped (with the reason), or failed
-(with the error). The validator refuses a run without it, and every rendered
-artifact names a scanner that did not run with its reason: an integration that
-can be omitted without a recorded decision would read as coverage. Two kinds of
-thing plug in:
+## The three layers
 
-- **Peer scanners** — judgment-bearing evaluators with their own taxonomy
-  (`repo-eval`, the built-in seven-dimension method; `deep-code-review`, an
-  external code reviewer). Each carries an adapter and keeps its native report as
-  an appendix.
-- **Instruments** — deterministic tools (`gitleaks`; `fresh-clone`, the scripted
-  clean-checkout run that installs, builds, lints, typechecks, tests, migrates
-  and replays the README's command claims; `dependency-scan`, `npm audit` over
-  every lockfile in the tree; OpenSSF `scorecard` is integrated but retired from
-  the adopted roster because it needs GitHub API access at run time) that feed
-  existing axes and never add one. Ten instruments add zero chapters.
-  and replays the README's command claims; `repo-census`, which decides an
-  architecture page, a present-tense agent contract, a runbook, and a CI gate on
-  the default branch from the tree alone; OpenSSF `scorecard` is
-  integrated but retired from the adopted roster because it needs GitHub API
-  access at run time) that feed existing axes and never add one. Ten instruments
-  add zero chapters. An adopted instrument runs offline against the checkout.
-  Their intake **fails loud, never empty**: a tool that errored can never read as
-  "0 findings", and a secrets scanner's matched values are never copied out of
-  its report.
+```
+repository ─ scanners and instruments ─▶ map/ ─▶ yardstick/ ─▶ views/
+                                          │          │            ├ Intake
+   facts with file:line, counted          │          │            ├ Maintain
+   populations, attack paths, and a  ─────┘          │            └ Improve
+   record of what was not looked at                  │
+                  requirements, each decided from the map:
+                  met · unmet · mixed · not measured
+```
 
-The contract for both is `map/scanners/CONTRACT.md`; the candidate roster
-of further scanners is `map/scanners/CANDIDATES.md`.
+**The map** (`map/`). Scanners of two kinds draw it. **Peer scanners** bring
+judgment and their own taxonomy: `repo-eval`, the built-in method
+(`map/METHOD.md`), and `deep-code-review`, an external code reviewer. Each has an
+adapter and keeps its native report as an appendix. **Instruments** are
+deterministic and run offline against the checkout: `gitleaks`; `fresh-clone`,
+which installs, builds, lints, typechecks, tests and migrates from a clean
+checkout and replays the README's commands, once per workspace in a monorepo;
+`dependency-scan`, `npm audit` over every lockfile; and `repo-census`, which
+checks for an architecture page, a present-tense agent contract, a runbook, a
+CI gate on the default branch, and the owner's evidence transcripts. Every run
+carries a **run record** (`eval/scanners.yaml`) saying, for each adopted
+scanner, that it ran, or was skipped or failed and why. The validator refuses a
+run without one, and a scanner that did not run reads **not measured**, never
+clean. The finding format is `map/SCHEMA.md`; the scanner contract is
+`map/scanners/CONTRACT.md`.
+
+**The yardstick** (`yardstick/`). `requirements.yaml` holds the requirements a
+repository must meet to be stood behind, stated without naming a stack. Each has
+a **tier** (the order to fix things when taking a repository on: custody,
+safety, reproducibility, verification, legibility, operability), a **topic**
+(what part of the code it is about), tags saying which view reads it (`floor`
+for Intake, `fleet` for Maintain), and the mechanism that **decides** it from
+the map. A requirement no run can decide is a **claim** only the owner can make,
+and reads not measured until the owner does. `yardstick/README.md` is the
+contract.
+
+**The views** (`views/`). Intake reads the floor requirements in tier order;
+Maintain reads the fleet requirements; Improve reads every requirement by topic
+and adds the maturity of each dimension, the attack paths through the code, and
+a fix prompt per gap. `views/README.md` gives each data file's schema.
+
+**What the owner supplies** (`owner/`). Some requirements are about things a
+repository cannot show by itself: a restore was run, a rollback was exercised,
+an account can be transferred. `owner/evidence/` is the format for committed
+transcripts that decide six of them; `owner/custody.md` is the questions that
+decide custody.
 
 ## Quickstart
 
-The built-in scanner (`repo-eval`) is an LLM method: open `METHOD.md` as the
-opening context of a coding-agent session pointed at the target repository, and it
-drives the passes. The supporting tools are zero-dependency Node (≥ 20):
+The tools are zero-dependency Node (20 or later), behind one command:
 
 ```sh
-# validate a findings base (schema, ids, links, citations, the run manifest — fails closed)
-node assay.mjs validate <run-dir> [--target <target-repo>]
+node assay.mjs help                                   # every command, grouped map / yardstick / views
 
-# draw the map, measure it against the yardstick, write Intake + Maintain + Improve
-node assay.mjs compile <run-dir>
+# draw the map
+#   repo-eval: open map/METHOD.md as the opening context of a coding-agent session
+#   pointed at the target repository; it drives the passes
+node assay.mjs fresh-clone <target> --out <raw.json>  # an instrument, offline
+node assay.mjs ingest <run> --tool gitleaks --raw gitleaks.json --exit 1
+node assay.mjs ingest <run> --tool deep-code-review --raw findings.yaml
+node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed
 
-# ingest a deterministic instrument (fails loud on a bad exit code)
-node assay.mjs ingest <run-dir> --tool gitleaks --raw gitleaks.json --exit 1
-
-# ingest a peer scanner's machine report (fails loud on incomplete coverage)
-node assay.mjs ingest <run-dir> --tool deep-code-review --raw findings-2026-09-15.yaml
-
-# grade a run against a known-answer fixture sheet
-node assay.mjs score <run-dir> --answers <target>/ANSWERS.yaml
-
-# measure repeatability across two or more runs of one target (two numbers:
-# fact presence, and agreement on the descriptors the verdict is computed from)
-node assay.mjs variance <run-dir> <run-dir> [<run-dir> ...]
+# measure and write every view from the same map
+node assay.mjs compile <run>
 ```
-
-## The yardstick (v0)
-
-Beside the axis roster, findings project onto **the yardstick**
-(`yardstick/requirements.yaml`): one row per requirement a repository must meet to
-be stood behind, stated stack-neutrally, each tagged with a tier (fix order),
-a topic (the axis roster, plus `custody` and `operability` for the two tiers with
-none of their own), and naming the mechanism that decides it (a schema facet, an
-authored census, a scanner's rows, or a sidecar claim). `yardstick/measure.mjs
-<run-dir>` reads a run and writes `eval/yardstick.yaml`: per requirement, met /
-unmet / mixed / not-measured with the finding ids; a claim-only row always reads
-not-measured from a run, because only a repository's own sidecar asserts it and
-the two are compared, never merged. `yardstick/README.md` is the contract. Every
-run carries the measurement: `views/compile.mjs` writes it after validating, then
-writes the three views from it, and `map/validate.mjs` recomputes every status and
-fails on drift, so a stale read cannot outlive its base. The axis views are
-unchanged.
-
-## Repeatability is two numbers, not one
-
-Repeatability is measured at both layers, because they drift independently.
-**Fact presence** asks whether every run recorded a fact about the same thing.
-**Descriptor agreement** asks whether the runs then *judged* it the same way — and
-that is the layer the product's output rides on, since maturity coverage, the halt
-flags, the attack-chain ranking and the deployment gate are all computed from the
-effect facet. A pair of runs can agree on what exists and disagree on what it means,
-and only the second number sees it. `map/variance.mjs` reports both, and gives each
-divergence a direction: all-one-way is consistent with the target having changed,
-**both-ways at once is judgment drift** — and a cross-run coverage delta computed over
-those descriptors is not a trend.
 
 ## Measured, not asserted
 
-The engine's coverage is measured against **known-answer fixtures** — small
-targets whose every planted defect and strength is documented — in a companion
-repo, [assay-fixtures](https://github.com/andyschwab/assay-fixtures). `map/score.mjs`
-grades a run against a target's `ANSWERS.yaml` (recall of planted items, and a
-control target's false-positive count), and `tests/regression.mjs` pins those
-scores so a projection change that misfiles a finding drops recall and turns the
-suite red. Run it:
+The engine is graded against **known-answer fixtures**: small targets whose every
+planted defect and strength is documented, in
+[assay-fixtures](https://github.com/andyschwab/assay-fixtures).
+`node assay.mjs score` grades a run against a target's `ANSWERS.yaml`, and
+`npm test` pins those scores with the rest of the regression harness, so a change
+that misfiles a finding turns the suite red.
 
-```sh
-npm test
-```
+Repeatability is two numbers. **Fact presence** asks whether every run recorded a
+fact about the same thing; **descriptor agreement** asks whether the runs judged
+it the same way (reversibility, gate type and the other finding descriptors the
+views compute from). `node assay.mjs variance <run> <run> …` reports both, with a
+direction for each divergence: all one way is consistent with the target having
+changed; both ways at once is judgment drift.
 
 ## Layout
 
 ```
-assay.mjs                  the one CLI: node assay.mjs <command> [args]
-lib/                        yaml-min.mjs, display.mjs — shared, zero-dep
-map/                        drawing the map: SCHEMA.md, METHOD.md, the scanner
-                             contract + adapters (map/scanners/), the canon
-                             (map/canon/), and the zero-dep engine tools
-yardstick/                  the requirements + the measurement of one map against them (v0)
-views/                      the three views: intake.mjs, maintain.mjs, compile.mjs, improve/
-owner/                      evidence/ — what a repository's owner supplies
-tests/                      the regression harness + public scored fixtures
-HISTORY.md                  append-only dated log of how the engine got here
+assay.mjs        the command line
+map/             drawing the map: the finding format, the built-in method, scanners, instruments, validation
+yardstick/       the requirements and the measurement of one map against them
+views/           Intake, Maintain and Improve, and the one compile that writes them
+owner/           what a repository's owner supplies that no scan can
+lib/             shared helpers
+tests/           the regression harness and the public scored fixtures
+HISTORY.md       how the engine got here
 ```
 
-## Provenance
-
-assay is the extracted, self-contained engine of a broader knowledge framework;
-this repository is the public evaluation engine on its own. It carries no
-client data, no run history, and no confidential fixtures — only the method, the
-tools, and the public known-answer targets used to measure it.
+assay carries no client data, no run history and no confidential fixtures: only
+the method, the tools, and the public known-answer targets that measure it.

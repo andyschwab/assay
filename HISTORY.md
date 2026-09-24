@@ -245,3 +245,18 @@ what the public engine learned.
   `yardstick/README.md`. Comments, tests, fixtures and this file no longer name
   evaluated repositories, and pointers into the private deployment's issue
   tracker are gone. No behaviour changed; goldens untouched.
+- **2026-09-24 — one map, one yardstick, three views.** The engine is laid out
+  as what it does: `map/` draws the map (the finding format, the built-in
+  method, the scanners and instruments, validation), `yardstick/` holds the
+  requirements and measures a map against them (`eval/yardstick.yaml`), and
+  `views/` writes Intake (`INTAKE.md`, `eval/intake.yaml`), Maintain
+  (`MAINTAIN.md`, `eval/maintain.yaml`) and Improve (`IMPROVE.md`,
+  `eval/improve.yaml`, the axis walk, the handoff) from that one measurement in
+  one `compile`. `owner/` carries what only an owner can supply: the evidence
+  transcript format and the custody questions. `node assay.mjs <command>` is the
+  one command line. Register rows are requirements; each carries a topic (an
+  axis, or custody, reproducibility or operability). PDF rendering, its
+  stylesheet and fonts left the engine: branded output belongs to whoever
+  publishes. Readers accept the earlier file names (`view-descriptors.yaml`,
+  `MAINTAINER-REPORT.md`, `view-*`); writers use only the new ones. Goldens
+  untouched.

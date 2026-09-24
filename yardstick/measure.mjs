@@ -50,7 +50,7 @@ export function validateRegistry(reg) {
     if (seen.has(d.id)) errors.push(`${at}: duplicate id`); seen.add(d.id);
     if (!d.title) errors.push(`${at}: title required`);
     if (!tiers.has(d.tier)) errors.push(`${at}: tier "${d.tier}" not in registry tiers`);
-    if (!topics.has(d.topic)) errors.push(`${at}: topic "${d.topic}" not in the allowed list (the axis roster plus custody, operability)`);
+    if (!topics.has(d.topic)) errors.push(`${at}: topic "${d.topic}" not in the allowed list (the axis roster plus custody, reproducibility and operability)`);
     for (const t of d.tags || []) if (!tags.has(t)) errors.push(`${at}: tag "${t}" not in registry tags`);
     if (!d.decide || !KINDS.includes(d.decide.kind)) errors.push(`${at}: decide.kind must be one of ${KINDS.join('|')}`);
     else if (d.decide.kind === 'facet' && !FACET_RULES.includes(d.decide.rule)) errors.push(`${at}: facet rule "${d.decide.rule}" unknown`);
