@@ -1,7 +1,7 @@
 // floor-fleet.mjs — shared row-building for Intake (floor-tagged) and Maintain
 // (fleet-tagged): both are views of the SAME measurement (eval/yardstick.yaml),
 // filtered to a tag population. Neither reads findings directly — only the
-// yardstick's measurement plus the register (title/check/tier/topic) and the
+// yardstick's measurement plus the yardstick (title/check/tier/topic) and the
 // run manifest (what was not seen). Ordering: tier order, then register order.
 import { loadRegistry, loadMeasurement } from '../yardstick/measure.mjs';
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';

@@ -1,23 +1,17 @@
-# yardstick/requirements.yaml — the descriptor register (v0, extracted 2026-09-22).
+# yardstick/requirements.yaml — the requirements. yardstick/README.md is the contract.
 #
-# One row per DESCRIPTOR: a requirement that must be true of a repository somebody
-# stands behind, stated stack-neutrally, with the mechanism that DECIDES it. The
-# register is the vocabulary a sidecar (a repo's own claims) and a run (assay's
-# verification) share; yardstick/README.md is the contract. Block YAML so
+# One row per requirement: what must be true of a repository somebody stands behind,
+# stated without naming a stack, with the mechanism that DECIDES it from a map.
+# Extracted from practice, never designed: every row names its sources. Block YAML so
 # lib/yaml-min.mjs parses it.
 #
-# Extracted, not designed: every row names its sources in the four lists that
-# existed before it (a takeover floor, a fleet contract, a template's guarantee
-# manifest, a foundation template's universal rules) plus a takeover evaluation.
-#
 # decide.kind (closed):
-#   facet       computed from the schema's forced fields (effect / capability facets)
+#   facet       computed from the finding schema's forced fields (effect and capability facets)
 #   census      an authored, enumerated population against a stated bar (maturity-inputs.yaml)
-#   instrument  a scanner's rows, read through the run manifest and the scanner's coverage
-#   claim       only a sidecar can assert it today; a run reads it NOT MEASURED until an
-#               instrument or census exists (never inferred from prose)
-# topic (required, every row): the axis roster (map/project.mjs AXIS_ORDER) plus
-# custody and operability, for the tiers with no axis of their own.
+#   instrument  a scanner's rows, read through the run record and the scanner's coverage
+#   claim       only the owner can decide it; a run reads it NOT MEASURED, never inferred from prose
+# topic (every row): an axis of the roster (map/project.mjs AXIS_ORDER), or custody,
+# reproducibility or operability, which no scanner measures as an axis.
 version: 0
 namespace: assay
 tiers: [custody, safety, reproducibility, verification, legibility, operability]

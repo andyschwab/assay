@@ -4,7 +4,7 @@
 // Feeds IMPROVE.md's "Requirements by topic" section (eval/improve.yaml) and
 // the axis walk's per-axis requirement lists + the custody/operability
 // sections. Reads ONLY the yardstick's measurement (eval/yardstick.yaml,
-// falling back to the legacy eval/view-descriptors.yaml) plus the register,
+// falling back to the legacy eval/view-descriptors.yaml) plus the yardstick,
 // for title/tier/topic — never findings directly.
 //
 // Usage: node views/improve/topics.mjs <run-dir> [--write]

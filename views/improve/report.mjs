@@ -220,15 +220,15 @@ function scannerAxes() {
       owners.map((o) => `${capFirst(o)} ${notRunPhrase(manifest, o)}.`).join(' ') + ' ' +
       `No findings there means no one looked, not that it is healthy.`);
   }
-  // the register read: what this run decides against the descriptor register, stated once,
+  // the yardstick measurement: what this run decides against the yardstick, stated once,
   // with the claim-only rows named as the sidecar's to assert — never inferred here
   try {
     const rows = projectDescriptorsOf(runDir);
     const sm = summarizeDescriptors(rows);
     const claims = rows.filter((r) => r.kind === 'claim').length;
     const unmet = rows.filter((r) => r.status === 'unmet');
-    out.push(`\nAgainst the descriptor register (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed; ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
-  } catch { /* the register read is optional to the report; validate.mjs is where it fails loud */ }
+    out.push(`\nAgainst the yardstick (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed; ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
+  } catch { /* the yardstick measurement is optional to the report; validate.mjs is where it fails loud */ }
   return out.join('\n');
 }
 

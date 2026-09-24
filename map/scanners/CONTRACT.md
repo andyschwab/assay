@@ -160,7 +160,7 @@ time. The wider candidate roster: `scanner-candidates.md`.
 ### 3b. The fresh-clone instrument (`map/fresh-clone.mjs`)
 
 **What it measures.** Whether the repository is true from a clean checkout — the
-reproducibility and verification floor the descriptor register asks a scripted
+reproducibility and verification floor the yardstick asks a scripted
 fresh-clone run to prove (`d-fresh-clone-runs`, `d-tests-execute-core`,
 `d-lint-typecheck-gate`, `d-schema-versioned`, `d-readme-true`). It clones the
 target into a scratch directory (`git clone --depth 1`; `--no-clone` runs in place
@@ -190,7 +190,7 @@ and one per missing README claim (`readme-claim`, evidence `README.md:<line>`);
 clean run is the explicit empty `findings-94-fresh-clone.yaml`. Rows carry the
 command and exit code only — the output tail stays in `eval/raw/fresh-clone.json`,
 so a value a build prints can never reach a findings base. Categories land on the
-axes the register already homes those floor rows on: install / build / migrate on
+axes the yardstick already homes those floor rows on: install / build / migrate on
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
 on `artifact-legibility`.
 
@@ -234,7 +234,7 @@ node assay.mjs ingest <run-dir> --tool fresh-clone --raw fresh-clone.json --exit
 ```
 
 **Descriptor category as a list (`yardstick/requirements.yaml`.** A
-`decide.category` in the register may name one native category or a list of them
+`decide.category` in the yardstick may name one native category or a list of them
 — two rows one instrument decider must hold jointly, such as fresh-clone's
 `[install, build]` for `d-fresh-clone-runs` or `[lint, typecheck]` for
 `d-lint-typecheck-gate`. A finding matches the descriptor when its
@@ -246,7 +246,7 @@ native category each; nothing here widens what a category means to it.
 ### 3c. The dependency-scan instrument (`map/dependency-scan.mjs`)
 
 **What it measures.** Whether a known vulnerability is present anywhere in the
-target's npm dependency graph — the floor the descriptor register asks a
+target's npm dependency graph — the floor the yardstick asks a
 dependency scanner to clear (`d-dependencies-known-clean`, decided on its
 `critical` category). It walks the tree (skipping `node_modules/` and `.git/`)
 for every `package-lock.json` / `npm-shrinkwrap.json` and runs `npm audit

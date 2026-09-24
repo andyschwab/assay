@@ -10,16 +10,16 @@
 # map/ingest.mjs (profile repo-census) turns each `gap` check into one gap row
 # and each `pass` check into one strength row (so the axis sees the evidence, not
 # just the absence of a gap); a `not-applicable` check yields nothing. Instruments
-# never contribute an axis; these rows feed the axes the descriptor register
+# never contribute an axis; these rows feed the axes the yardstick
 # already homes the floor rows on (yardstick/requirements.yaml): architecture-page /
 # agent-contract / runbook feed the docs-legibility axis these floor rows already
 # live on (d-architecture-page, d-agent-contract, d-runbook -> artifact-legibility);
 # ci-gate feeds the shared verification-gate axis (d-ci-gate-on-default-branch ->
 # deterministic-gates, the same axis fresh-clone's lint/typecheck/test rows land
-# on). The six evidence categories follow the axis the register now homes each
-# re-kinded row on (yardstick/requirements.yaml); the adapter follows the register,
+# on). The six evidence categories follow the axis the yardstick now homes each
+# re-kinded row on (yardstick/requirements.yaml); the adapter follows the yardstick,
 # never the reverse — see the per-row comments below for which register row's axis
-# each one carries and, where the register row itself carries no axis, which
+# each one carries and, where the yardstick row itself carries no axis, which
 # nearest tier-mate's axis it was assigned (yardstick/requirements.yaml never edited
 # to match). Keyed by the check name (the runner's closed set); a category this map
 # does not know halts loud. The six evidence categories are `evidence-<descriptor-id>`.
@@ -32,23 +32,26 @@ contributes: []
 map:
   architecture-page:            # legibility: one page shows the parts and services
     axis: artifact-legibility
-  agent-contract:                # the agent contract exists and is present-tense; homed where the register homes d-agent-contract
+  agent-contract:                # the agent contract exists and is present-tense; homed where the yardstick homes d-agent-contract
     axis: improvement-loop
   runbook:                       # legibility: the one-page runbook covers the four procedures
     axis: artifact-legibility
   ci-gate:                       # a verification gate exists on the default branch and holds
     axis: deterministic-gates
-  evidence-d-backup-restore-exercised:   # evidence-d-backup-restore-exercised — register row carries no axis; nearest tier-mate (safety) is d-personal-data-enumerated, code-security
+  # The six owner-evidence checks decide requirements whose topic is operability or
+  # reproducibility, which no axis measures; their rows land on the nearest axis so the
+  # axis walk shows them, and the yardstick reports them under their own topic.
+  evidence-d-backup-restore-exercised:
     axis: code-security
-  evidence-d-rollback-exercised:         # evidence-d-rollback-exercised — register row carries no axis; nearest tier-mate (reproducibility) is d-schema-versioned, context-economy
+  evidence-d-rollback-exercised:
     axis: context-economy
-  evidence-d-deploy-one-command:         # evidence-d-deploy-one-command — register row carries no axis; nearest tier-mate (reproducibility) is d-dependencies-pinned, code-security
+  evidence-d-deploy-one-command:
     axis: code-security
-  evidence-d-smoke-on-deployed:          # evidence-d-smoke-on-deployed — register row carries no axis; nearest tier-mate (verification) is d-lint-typecheck-gate, deterministic-gates
+  evidence-d-smoke-on-deployed:
     axis: deterministic-gates
-  evidence-d-monitoring-with-alert:      # evidence-d-monitoring-with-alert — register row carries no axis; nearest tier-mate (operability) is d-errors-reach-a-person, verification
+  evidence-d-monitoring-with-alert:
     axis: verification
-  evidence-d-cost-alerts:                # evidence-d-cost-alerts — register row carries no axis; nearest tier-mate (operability) is d-runbook, artifact-legibility
+  evidence-d-cost-alerts:
     axis: artifact-legibility
 
 default: FAIL

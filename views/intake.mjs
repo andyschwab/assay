@@ -3,7 +3,7 @@
 // (yardstick/requirements.yaml tags: [floor]) — the bar a repository must clear
 // to be taken on at all. Reads ONLY the yardstick's measurement
 // (eval/yardstick.yaml, falling back to the legacy eval/view-descriptors.yaml)
-// plus the register (title/check/tier/topic) and the run manifest (what was
+// plus the yardstick (title/check/tier/topic) and the run manifest (what was
 // not seen this run) — never findings directly.
 //
 // Writes eval/intake.yaml (data) + INTAKE.md (plain, neutral: no prices, no

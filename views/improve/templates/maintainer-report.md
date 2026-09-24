@@ -69,7 +69,7 @@ title: "assay maintainer report — structural template"
 ## 7. Requirements by topic
 <!-- SOURCE: the yardstick's measurement (eval/yardstick.yaml), grouped by topic
      (eval/improve.yaml, computed by views/improve/topics.mjs) — every requirement on
-     the yardstick exactly once, joined to the register for title/tier/check. A topic
+     the yardstick exactly once, joined to the yardstick for title/tier/check. A topic
      with no requirements today still reads as measured, never silently clean. -->
 {{COMPILE:requirements_by_topic}}
 

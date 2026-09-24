@@ -55,7 +55,7 @@ const NEGATIVE = [
   ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file'],
   ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped'],
   ['coverage-incomplete', 'a scanner coverage sidecar missing rows for domains the adapter lists'],
-  // the register read (yardstick/README.md): a status the base does not recompute is drift, and a
+  // the yardstick measurement (yardstick/README.md): a status the base does not recompute is drift, and a
   // claim-only row reading met is the exact laundering the two-file rule exists to prevent
   ['descriptors-drift', 'a view-descriptors.yaml whose statuses the base does not recompute (a claim row reads met)'],
 ];
@@ -560,7 +560,7 @@ function adaptersOnce() { return loadAdapters(); }
 // nothing for a clean audited lockfile. A runner crash (exit 2) halts it; a document
 // whose exit disagrees with the runner exit halts; a truncated document halts. Every
 // category maps onto the shared code-security axis and the instrument contributes
-// none. The descriptor register decides d-dependencies-known-clean on the `critical`
+// none. The yardstick decides d-dependencies-known-clean on the `critical`
 // category alone — a run with high rows and none critical still reads met.
 {
   const fail = (m) => negFailures.push('dependency-scan: ' + m);
@@ -610,7 +610,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (contributedBySources(adaptersOnce(), ['dependency-scan']).size !== 0) fail('dependency-scan is an instrument and must contribute no axis');
   const rogue = projectMulti([{ ...rows[0], native_category: 'severe' }], adaptersOnce());
   if (!rogue.unmapped.length) fail('an unknown dependency-scan category must halt at projection (default: FAIL)');
-  // (e) descriptor register: d-dependencies-known-clean decides on the `critical` category alone
+  // (e) yardstick: d-dependencies-known-clean decides on the `critical` category alone
   let reg = null;
   try { reg = loadRegistry(); } catch (e) { fail('registry failed to load: ' + e.message.split('\n')[0]); }
   if (reg) {
@@ -852,10 +852,10 @@ function adaptersOnce() { return loadAdapters(); }
     if (proj.unmapped.length) fail(`repo-census rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
     const axisOf = (cat) => proj.projected.find((p) => p.f.native_category === cat)?.axis;
     if (axisOf('architecture-page') !== 'artifact-legibility' || axisOf('runbook') !== 'artifact-legibility') fail('architecture-page / runbook must land on the docs-legibility axis (artifact-legibility)');
-    // the agent contract stays on the axis the register homes d-agent-contract on (improvement-loop): the adapter follows the register, never the reverse
-    if (axisOf('agent-contract') !== 'improvement-loop') fail('agent-contract must land on improvement-loop, the axis the register homes d-agent-contract on');
+    // the agent contract stays on the axis the yardstick homes d-agent-contract on (improvement-loop): the adapter follows the yardstick, never the reverse
+    if (axisOf('agent-contract') !== 'improvement-loop') fail('agent-contract must land on improvement-loop, the axis the yardstick homes d-agent-contract on');
     if (axisOf('ci-gate') !== 'deterministic-gates') fail('ci-gate must land on the shared deterministic-gates axis');
-    // the six evidence categories, mapped onto the axis the register homes each re-kinded row on
+    // the six evidence categories land on a fixed axis each (their requirements' topics have no axis)
     const EVIDENCE_AXES = {
       'd-backup-restore-exercised': 'code-security',
       'd-rollback-exercised': 'context-economy',
@@ -871,7 +871,7 @@ function adaptersOnce() { return loadAdapters(); }
     if (contributedBySources(adaptersOnce(), ['repo-census']).size !== 0) fail('repo-census is an instrument and must contribute no axis');
     const rogue = projectMulti([{ ...rows[0], native_category: 'unknown-check' }], adaptersOnce());
     if (!rogue.unmapped.length) fail('an unknown repo-census category must halt at projection (default: FAIL)');
-    // (f) the descriptor register: the four pre-existing re-kinded floor rows, plus the
+    // (f) the yardstick: the four pre-existing re-kinded floor rows, plus the
     // six evidence rows, read met from an all-pass run with a `ran` manifest, and
     // not-measured (with the reason) when repo-census is recorded skipped instead
     const reg = loadRegistry();
@@ -965,7 +965,7 @@ function adaptersOnce() { return loadAdapters(); }
   try { reg = loadRegistry(); } catch (e) { fail('registry failed to load: ' + e.message.split('\n')[0]); }
   if (reg) {
     if (validateRegistry(reg).length) fail('validateRegistry must be clean on the shipped register');
-    if (!reg.requirements.some((d) => d.decide.kind === 'claim')) fail('the register must carry claim rows (its instrument backlog) — a register that claims to measure everything is the presence-checklist failure');
+    if (!reg.requirements.some((d) => d.decide.kind === 'claim')) fail('the yardstick must carry claim rows (its instrument backlog) — a register that claims to measure everything is the presence-checklist failure');
     const bad = { ...reg, requirements: [{ ...reg.requirements[0], decide: { kind: 'prose', terms: 'x' } }] };
     if (!validateRegistry(bad).some((e) => /decide\.kind/.test(e))) fail('an unknown decide.kind (prose) must be rejected');
     const unsourced = { ...reg, requirements: [{ ...reg.requirements[0], sources: [] }] };
@@ -1006,7 +1006,7 @@ function adaptersOnce() { return loadAdapters(); }
     const gl = Object.fromEntries(projectDescriptors({ findings: [], manifest: [{ scanner: 'gitleaks', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     if (gl['d-secrets-out-of-history']?.status !== 'met') fail('an instrument that ran clean (exit 0, no rows) must read met');
     const s = summarize(rows);
-    if (s.of !== reg.requirements.length || s.decided + s['not-measured'] !== s.of) fail('summary counts must partition the register');
+    if (s.of !== reg.requirements.length || s.decided + s['not-measured'] !== s.of) fail('summary counts must partition the yardstick');
     if (!KINDS.includes('claim')) fail('KINDS must include claim');
   }
 }
@@ -1026,7 +1026,7 @@ function adaptersOnce() { return loadAdapters(); }
 }
 
 // ── Intake, Maintain, Improve: three views of one yardstick measurement ───────
-// All three read ONLY eval/yardstick.yaml (+ the register for title/check/tier,
+// All three read ONLY eval/yardstick.yaml (+ the yardstick for title/check/tier,
 // + the manifest for what was not seen) — never findings directly. Intake is the
 // floor population, Maintain the fleet population (every row also stamped
 // floor: true|false), Improve groups every requirement by topic exactly once.

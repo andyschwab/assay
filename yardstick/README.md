@@ -1,106 +1,80 @@
 ---
 type: doc
-title: "yardstick/ — the descriptor register and the descriptor projection"
+title: "yardstick/ — the requirements, and the measurement of one map against them"
 ---
-# yardstick/ — the descriptor register
+# yardstick/
 
-`requirements.yaml` is the **register**: one row per *descriptor*, a requirement
-that must be true of a repository somebody stands behind, stated stack-neutrally,
-with the mechanism that **decides** it. It is the vocabulary two things share:
+`requirements.yaml` holds the **requirements**: what must be true of a repository
+somebody stands behind, stated without naming a stack, each with the mechanism
+that **decides** it from a map. `measure.mjs` measures one run's map against them
+and writes `eval/yardstick.yaml`: per requirement, `met`, `unmet`, `mixed` or
+`not-measured`, with the finding ids and a note saying how it was decided. Every
+view reads that file and nothing else to decide a requirement.
 
-- a **sidecar** — a repository's own claims, per descriptor: satisfied by which
-  mechanism here, not applicable with a reason, or open (format: the next section);
-- a **run** — assay's verification: `yardstick/measure.mjs` projects a findings
-  base onto the register and writes `eval/view-descriptors.yaml`, per descriptor
-  `met | unmet | mixed | not-measured` with the finding ids and the mechanism.
-
-The two are compared, never merged: a claim the run contradicts is the finding.
+A repository may also state its own **claims** per requirement (the format is
+below). Claims and a run's measurement are compared, never merged: a claim the
+run contradicts is a finding.
 
 ## The rows
 
 | Field | Meaning |
 |---|---|
-| `id` | `d-<slug>`, the public namespace. A team's private descriptors carry their own prefix in their sidecar and never enter this file until a second team needs them |
+| `id` | `d-<slug>`, the public namespace. A team's private requirements carry their own prefix in their claims file and join this one when a second team needs them |
 | `title` | the requirement, one sentence, no stack in it |
-| `tier` | custody · safety · reproducibility · verification · legibility · operability, the order the work is done, which is also the order of irreversibility |
-| `tags` | `floor` (the takeover bar: risk), `fleet` (operability at scale: what a steward's routines read), `ai-operating` (the model-call layer) |
-| `axis` | the axis roster family the descriptor belongs to, when one exists; absent for custody and operability rows the roster never carried |
+| `tier` | the order to fix things when taking a repository on, which is also the order of irreversibility: custody, safety, reproducibility, verification, legibility, operability (the file's `tiers:` list) |
+| `topic` | what part of the code it is about: an axis of the roster (`map/project.mjs`), or custody, reproducibility or operability, which no scanner measures as an axis. Improve groups by topic |
+| `tags` | which view reads it: `floor` (Intake: the bar for taking a repository on), `fleet` (Maintain: what a steward's routines read), `ai-operating` (the model-call layer) |
 | `decide` | the deciding mechanism, one of four kinds below |
-| `check` | the proving check an outcomes sheet would carry |
-| `sources` | where the row was extracted from, as `<kind>/<slug>`: `floor/` a takeover floor, `manifest/` a template's guarantee manifest, `foundation/` a foundation template's rules, `takeover-eval/` and `template-eval/` evaluations of real repositories (never named), `method/` this method, `scanner-candidates/` the scanner roster, `issue/` an assay issue. Every row has one: the register is extracted, not designed |
-| `status` | draft · stable · deprecated, the register's own lifecycle |
+| `check` | the proving check: what shows the requirement met |
+| `sources` | where the row was extracted from, as `<kind>/<slug>`: `floor/` a takeover floor, `manifest/` a template's guarantee manifest, `foundation/` a foundation template's rules, `takeover-eval/` and `template-eval/` evaluations of real repositories (never named), `method/` this method, `scanner-candidates/` the scanner roster, `issue/` an assay issue. Every row has one: requirements are extracted from practice, not designed |
+| `status` | draft, stable or deprecated: the row's own lifecycle |
 
 ## The four deciding kinds
 
 | Kind | Decided from | Reads |
 |---|---|---|
-| `facet` | the effect and capability facets the schema forces (`doctrine.mjs`) | met / unmet with the population; not-measured when the base has no effects |
-| `census` | an authored enumerated population in `maturity-inputs.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
-| `instrument` | a scanner's rows, gated by the run manifest and, for a peer scanner, its coverage sidecar | unmet on gap rows; met when the scanner ran clean (an instrument) or scanned the domain with no gaps (a peer); not-measured when skipped, failed, or not scanned, **with the recorded reason** |
-| `claim` | nothing in a run | always not-measured from a run; only a sidecar asserts it. The list of `claim` rows is the register's instrument backlog |
+| `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`) | met or unmet with the population; not-measured when the map has no effects |
+| `census` | an authored, enumerated population in the run's `maturity-inputs.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
+| `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows; met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
+| `claim` | nothing in a run | always not-measured from a run: only the owner can decide it (the Intake view says `decided_by: owner`). The claim rows are the list of instruments still to build |
 
-`decide.category` on an `instrument` row is usually one native category, but may
-be a **list** — two rows one instrument decider must hold jointly (fresh-clone's
-`d-fresh-clone-runs` needs both `install` and `build`; `d-lint-typecheck-gate`
-needs both `lint` and `typecheck`). A finding in **any** listed category joins the
-population the row decides from; the row reads **met** only when **every** listed
-category is independently met by the same rules a single category uses — one
-member scanned clean and the other not-scanned is `not-measured`, never met.
-`validateRegistry` requires the list to be non-empty; an empty list names nothing
-and is rejected the same as a missing category.
+`decide.category` on an `instrument` row may be a **list**: categories one scanner
+must hold jointly (`d-fresh-clone-runs` needs both `install` and `build`). A
+finding in any listed category joins the population; the row reads met only when
+every listed category is met by the single-category rules, so one member scanned
+clean and the other not scanned reads not-measured. An empty list is rejected.
 
-Adopted instruments the register can decide by: `gitleaks` (secrets);
-`fresh-clone` (`map/fresh-clone.mjs`, scanner-contract §3b — install / build /
-lint / typecheck / test / migrate from a clean checkout plus README claim replay,
-workspace-aware: an npm-workspaces root runs the same step plan once per
-workspace, in addition to the root); and `dependency-scan`
-(`map/dependency-scan.mjs`, scanner-contract §3c — `npm audit` over every
-lockfile in the tree). Four fresh-clone rows decide on it: `d-fresh-clone-runs`
-(`[install, build]`), `d-tests-execute-core` (`test`), `d-lint-typecheck-gate`
-(`[lint, typecheck]`), and `d-schema-versioned` (`migrate` — with no database
-signals in the tree the runner emits no migrate row, so the row reads met:
-nothing to migrate). `d-readme-true` stays `census`. `d-dependencies-known-clean`
-decides on dependency-scan's `critical` category alone, so a run with
-high/moderate/low/info advisories and zero critical rows still reads met —
-narrower than the row's title.
-Adopted instruments the register can decide by: `gitleaks` (secrets),
-`fresh-clone` (`map/fresh-clone.mjs`, scanner-contract §3b — install / build /
-lint / typecheck / test / migrate from a clean checkout, plus README claim replay),
-and `repo-census` (`map/repo-census.mjs`, scanner-contract §3d — an architecture
-page, a present-tense agent contract, a runbook, a CI gate on the default
-branch, and six owner-evidence transcript checks, decided from the tree alone).
-The fresh-clone rows the floor asked for
-(`d-fresh-clone-runs`, `d-tests-execute-core`, `d-lint-typecheck-gate`,
-`d-schema-versioned`, `d-readme-true`) still read `claim` / `census` here; their
-re-kind to `instrument: fresh-clone` is one reviewed change of its own, so the
-register's statuses never move as a side effect of adopting a tool.
-`d-architecture-page`, `d-agent-contract`, `d-runbook`, and
-`d-ci-gate-on-default-branch` are re-kinded to `instrument: repo-census` already
-— the four floor rows a run could not decide before except by an
-LLM-authored census. `d-backup-restore-exercised`, `d-rollback-exercised`,
-`d-deploy-one-command`, `d-smoke-on-deployed`, `d-monitoring-with-alert`, and
-`d-cost-alerts` are re-kinded to `instrument: repo-census` in the same way
-— six floor rows describing
-things a repository cannot show by itself, decided from a dated transcript the
-owner commits (`owner/evidence/README.md` is the one home of that format).
-None of the six carried an `axis:` of their own; each now carries its nearest
-tier-mate's, noted inline at the row (`yardstick/requirements.yaml`) and in the
-adapter (`map/scanners/adapters/repo-census.yaml`).
+The instruments that decide rows:
 
-Prose is never read. An observation that merely mentions a topic is not a
-measurement; the first prototype of this projection term-matched observation
-text and turned a "single authored bookkeeping contract" into a met bus-factor
-row. Census names are accepted as a list per descriptor because past runs never
-closed that vocabulary; new runs use the first name listed.
+- `gitleaks`: secrets in the tree and its history.
+- `fresh-clone` (`map/fresh-clone.mjs`, contract §3b): install, build, lint,
+  typecheck, test and migrate from a clean checkout, once per workspace in a
+  monorepo, and the README's commands replayed. It decides `d-fresh-clone-runs`
+  (`[install, build]`), `d-tests-execute-core` (`test`),
+  `d-lint-typecheck-gate` (`[lint, typecheck]`) and `d-schema-versioned`
+  (`migrate`; with no database in the tree there is no migrate row and the
+  requirement reads met).
+- `dependency-scan` (`map/dependency-scan.mjs`, contract §3c): `npm audit` over
+  every lockfile. `d-dependencies-known-clean` decides on the `critical` category
+  alone, so high and lower advisories do not unmeet it.
+- `repo-census` (`map/repo-census.mjs`, contract §3d), from the tree alone: an
+  architecture page, a present-tense agent contract, a runbook, a CI gate on the
+  default branch, and six **owner-evidence transcripts** for what a repository
+  cannot show by itself (a restore, a rollback, a one-command deploy, a smoke
+  check on the deployed app, a monitor that alerted a person, cost alerts). The
+  transcript format is `owner/evidence/README.md`.
 
-## The sidecar (v0, format only)
+Prose is never read. An observation that mentions a topic is not a measurement.
+Census names are accepted as a list per requirement; a new run uses the first.
 
-A repository that carries its claims keeps `packet/manifest.yaml`:
+## The claims file
+
+A repository that states its own claims keeps `packet/manifest.yaml`:
 
 ```yaml
-registry: 0                       # the register version claimed against
-namespaces: [assay]               # plus any team prefix the sidecar uses
-supplements: [<name>]             # the prescriptions this repo inherits
+yardstick: 0                      # the requirements.yaml version claimed against
+namespaces: [assay]               # plus any team prefix the file uses
+supplements: [<name>]             # the prescriptions this repository inherits
 claims:
   - id: d-effects-gated
     state: satisfied              # satisfied | not-applicable | open
@@ -109,20 +83,17 @@ claims:
     state: open
 ```
 
-The self-check a repository runs in its own CI against this file, and the
-verification file a run writes beside it, are the next step; this version
-defines the vocabulary they share. The shape descends from a template's
-guarantee manifest whose one rule carries over verbatim: never let presence
-impersonate enforcement.
+A claim never lets presence stand in for enforcement: `satisfied` names the
+mechanism that holds, and a run that finds the mechanism absent reports it.
 
 ## Running it
 
 ```sh
-node assay.mjs measure <run-dir>            # the table
-node assay.mjs measure <run-dir> --write    # eval/view-descriptors.yaml (generated)
+node assay.mjs measure <run>            # the table
+node assay.mjs measure <run> --write    # eval/yardstick.yaml
+node assay.mjs compile <run>            # measures, then writes every view
 ```
 
-The register is validated on load (closed kinds, tiers, tags, facet rules; every
-row sourced) and the harness pins the deciders' behavior with a synthetic base.
-The axis projection is untouched; this is a second projection beside it until a
-versioned release makes it the lead.
+`requirements.yaml` is validated on load (closed kinds, tiers, topics, tags,
+facet rules; every row sourced), and the harness pins each decider's behaviour on
+a synthetic map.

@@ -4,7 +4,7 @@
 // routines read, all of them, each also stamped `floor: true|false` (whether
 // it is also a floor requirement). Reads ONLY the yardstick's measurement
 // (eval/yardstick.yaml, falling back to the legacy eval/view-descriptors.yaml)
-// plus the register (title/check/tier/topic) and the run manifest (what was
+// plus the yardstick (title/check/tier/topic) and the run manifest (what was
 // not seen this run) — never findings directly.
 //
 // Writes eval/maintain.yaml (data) + MAINTAIN.md (plain, neutral: no prices,

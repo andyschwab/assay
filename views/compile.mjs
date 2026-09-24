@@ -171,7 +171,7 @@ ${descSum.decided} of ${descSum.of} requirements decided by this run (met ${desc
 | [\`eval/intake.yaml\`](eval/intake.yaml) | machine | Intake's floor rows: open, met, to run, not seen. |
 | [\`eval/maintain.yaml\`](eval/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |
 | [\`eval/improve.yaml\`](eval/improve.yaml) | machine | Every requirement on the yardstick, grouped by topic. |
-| [\`eval/yardstick.yaml\`](eval/yardstick.yaml) | machine / the sidecar's counterpart | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
+| [\`eval/yardstick.yaml\`](eval/yardstick.yaml) | machine, and what a repository's own claims are compared against | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
 | [\`eval/improve-axes.md\`](eval/improve-axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register, requirements by topic. |
 | [\`handoff/START-HERE.md\`](handoff/START-HERE.md) | machine / agent | How to act, sequenced worst-first. |
 | [\`handoff/REMEDIATION.md\`](handoff/REMEDIATION.md) | machine / agent | The full spine: every actionable gap, verbatim fix, proof step. |
