@@ -23,7 +23,7 @@ requirements:
     how: census
     tier: custody
     findings: []
-    note: "no census named credentials-below-boundary | credential-boundary | credential in maturity-inputs.yaml"
+    note: "no census named credentials-below-boundary | credential-boundary | credential in map/censuses.yaml"
   - id: d-bus-factor
     status: not-measured
     how: claim
@@ -143,7 +143,7 @@ requirements:
     how: census
     tier: verification
     findings: []
-    note: "no census named gates-coverage in maturity-inputs.yaml"
+    note: "no census named gates-coverage in map/censuses.yaml"
   - id: d-guards-bite
     status: not-measured
     how: claim
@@ -191,19 +191,19 @@ requirements:
     how: census
     tier: legibility
     findings: []
-    note: "no census named doc-freshness in maturity-inputs.yaml"
+    note: "no census named doc-freshness in map/censuses.yaml"
   - id: d-decisions-reconstruct
     status: not-measured
     how: census
     tier: legibility
     findings: []
-    note: "no census named decision-reconstruction | decision-rationale | patch-rationale in maturity-inputs.yaml"
+    note: "no census named decision-reconstruction | decision-rationale | patch-rationale in map/censuses.yaml"
   - id: d-modules-standalone
     status: not-measured
     how: census
     tier: legibility
     findings: []
-    note: "no census named modules-standalone | module-standalone | module-loadability | control-plane-modules-standalone in maturity-inputs.yaml"
+    note: "no census named modules-standalone | module-standalone | module-loadability | control-plane-modules-standalone in map/censuses.yaml"
   - id: d-architecture-page
     status: not-measured
     how: claim
@@ -329,13 +329,13 @@ requirements:
     how: census
     tier: legibility
     findings: []
-    note: "no census named agent-access-surface | agent-consumable-surface in maturity-inputs.yaml"
+    note: "no census named agent-access-surface | agent-consumable-surface in map/censuses.yaml"
   - id: d-corrections-become-mechanisms
     status: not-measured
     how: census
     tier: legibility
     findings: []
-    note: "no census named incidents-became-mechanisms | incident-lesson | lessons-mechanized in maturity-inputs.yaml"
+    note: "no census named incidents-became-mechanisms | incident-lesson | lessons-mechanized in map/censuses.yaml"
   - id: d-independent-review
     status: not-measured
     how: claim

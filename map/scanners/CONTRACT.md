@@ -67,7 +67,7 @@ deep-code-review --raw <file>` converts its rows into the port (native id and
 domain letter kept; `title`, `confidence` mapped onto the closed vocab with the
 native label beside it, `latent`, `mechanism_unproven`, `prior_native_id` /
 `prior_status` carried as extension fields) and archives its per-domain coverage
-as `eval/coverage-<scanner>.yaml` (SCHEMA §5a). It has no exit code; its fail-loud
+as `map/coverage/<scanner>.yaml` (SCHEMA §5a). It has no exit code; its fail-loud
 property is **completeness** — a coverage row for every domain in the adapter's
 `coverage_domains`, a note on every non-scanned row, a fix on every gap — and
 anything less halts. A full coverage map with an empty findings list is a
@@ -125,7 +125,7 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   credential; follow the check's remediation) and it sequences normally; a gap
   without one lands **owner-defined pending** — listed loudly, never dropped.
 - **Evidence**: `file:line` where the tool reports one; a repo-level claim cites
-  the archived raw report (run-relative `eval/raw/…`), which `validate.mjs
+  the archived raw report (run-relative `map/raw/…`), which `validate.mjs
   --target` knows to skip — instrument evidence lives in the run, not the target.
   A secrets tool's matched value is **never copied** out of the raw report; rows
   carry rule id + location only.
@@ -180,8 +180,8 @@ writes one gap row per failed / timed-out step, one per **not-declared** lint,
 typecheck, test or migrate (the floor is worded so absence is a gap, not clean),
 and one per missing README claim (`readme-claim`, evidence `README.md:<line>`);
 `High` for a failed or timed-out install / build / test, `Medium` otherwise. A
-clean run is the explicit empty `findings-94-fresh-clone.yaml`. Rows carry the
-command and exit code only — the output tail stays in `eval/raw/fresh-clone.json`,
+clean run is the explicit empty `map/findings/fresh-clone.yaml`. Rows carry the
+command and exit code only — the output tail stays in `map/raw/fresh-clone.json`,
 so a value a build prints can never reach a findings base. Categories land on the
 axes the yardstick already homes those floor rows on: install / build / migrate on
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
@@ -272,7 +272,7 @@ exits `2` and halts the intake. The converter writes one gap row per advisory
 info` — mapped `Critical | High | Medium | Low | Low` respectively, evidence
 the lockfile at `:1`), one gap (`lockfile-failed`) per failed lockfile, and one gap
 (`lockfile-unsupported`) per not-supported lockfile. A run with none of the
-three is the explicit empty `findings-95-dependency-scan.yaml`. All seven
+three is the explicit empty `map/findings/dependency-scan.yaml`. All seven
 categories land on `code-security` — the shared property gitleaks and
 deep-code-review also feed.
 
@@ -378,7 +378,7 @@ logic of an allow-list — a forgotten allow blocks loudly).
 
 The fail-closed rule above covers a finding the engine cannot place. Its
 complement covers a scanner the run never invoked: **every run carries
-`eval/scanners.yaml`**, one row per adopted scanner — `ran`, `skipped` with a
+`map/scanners.yaml`**, one row per adopted scanner — `ran`, `skipped` with a
 reason, or `failed` with the error (`SCHEMA.md` §5a). `validate.mjs` rejects a
 run without it, a skip without a reason, a `ran` with no rows and no explicit
 empty file, and rows from a scanner recorded as not run; `views/compile.mjs`
@@ -388,7 +388,7 @@ without a recorded decision reads as coverage; this is what makes "not
 measured" a statement rather than a default.
 
 **A scanner's own coverage qualifies the axis.** Where a scanner reports
-per-domain coverage (`coverage-<scanner>.yaml`), an axis it contributes is fully
+per-domain coverage (`map/coverage/<scanner>.yaml`), an axis it contributes is fully
 measured only where every mapped domain was scanned; a partial or skipped domain
 makes the axis **partially measured**, said in words with the scanner's note, in
 the walk, the index, and the report. The scanner's taxonomy can grow (deep-code-
@@ -409,10 +409,6 @@ so a run that carries its rows still projects.
   declares `targets_taxonomy`. Findings are stored raw (native category +
   evidence) alongside the projection, so re-projecting onto a new taxonomy version
   is cheap and lossless — no re-scan.
-- **An older finding may still carry `domain:` / `also_domains:`**, the fields of
-  a five-domain model, instead of `axis:`. They translate to an axis
-  mechanically (`project.mjs` `LEGACY_DOMAIN_AXIS`) and are never rewritten in
-  place.
 
 ## 6. What the engine guarantees back
 

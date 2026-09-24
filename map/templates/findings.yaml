@@ -1,11 +1,10 @@
-# findings.yaml — neutral evidence base for <TARGET> (run <slug>-<YYYY-MM-DD>).
-# Facts + structured descriptors + file:line evidence. NO severity, NO priority —
-# those are view outputs. Evidence paths are repo-relative to the TARGET repo.
-# Merge the six per-dimension pass files (dimension order) under this header;
-# ids are unique per run, no dimension meaning (SCHEMA.md §3). Validate with
+# map/findings/repo-eval-<pass>.yaml — neutral evidence base for <TARGET> (run
+# <slug>-<YYYY-MM-DD>). Facts + structured descriptors + file:line evidence. NO
+# severity, NO priority — those are view outputs. Evidence paths are
+# repo-relative to the TARGET repo. One file per pass (legibility, context,
+# gates, verification, delegation, improvement, multiplayer); ids are unique
+# per run, no dimension meaning (SCHEMA.md §3). Validate with
 # map/validate.mjs before compiling any view.
-
-# ═══════════════════════════ 01-legibility ═══════════════════════════
 
 - id: F-001                    # unique F-### (no dimension band)
   dimension: artifact-legibility
@@ -16,19 +15,11 @@
   evidence: [path/to/file.ts:12, path/to/other.md:3]   # mandatory, non-empty
   confidence: confirmed        # confirmed | plausible | unverified
 
-# ═══════════════════════════ 02-context ═══════════════════════════
-#   … (context-economy) …
-
-# ═══════════════════════════ 03-gates ═══════════════════════════
-#   … (deterministic-gates) …
-
-# ═══════════════════════════ 04-verification ═══════════════════════════
-#   … (verification) …
-
-# ═══════════════════════════ 05-delegation ═══════════════════════════
-# Every effect channel is an `effect` finding with the full facet; Root AI etc.
-# are `capability` findings. Isolation-strength baseline findings are `control`
-# findings in this pass; effects that pierce one carry escapes: [that id].
+# map/findings/repo-eval-delegation.yaml (a different pass file, shown here for
+# the effect facet's shape): every effect channel is an `effect` finding with
+# the full facet; Root AI etc. are `capability` findings. Isolation-strength
+# baseline findings are `control` findings in this pass; effects that pierce
+# one carry escapes: [that id].
 #
 # - id: F-120                  # unique F-### (no dimension band)
 #   dimension: delegation
@@ -49,8 +40,5 @@
 #   preconditions: [prompt-injection]
 #   escapes: [F-170]
 
-# ═══════════════════════════ 06-improvement ═══════════════════════════
-#   … (improvement-loop) …
-
 # Seam-findings no criterion asked for → dimension: unprompted, unique F-### id,
-# filed in whichever pass surfaced them.
+# filed in whichever pass file surfaced them.

@@ -260,3 +260,25 @@ what the public engine learned.
   publishes. Readers accept the earlier file names (`view-descriptors.yaml`,
   `MAINTAINER-REPORT.md`, `view-*`); writers use only the new ones. Goldens
   untouched.
+- **2026-09-24 — clean layers, no legacy.** A run is now laid out exactly as
+  the engine that produces it: `map/` (`scanners.yaml`, `findings/<scanner>.yaml`
+  and `findings/repo-eval-<pass>.yaml`, `coverage/<scanner>.yaml`, `censuses.yaml`,
+  `backlog.yaml`, `terrain.md`, `native/<scanner>.md`, `raw/`), `yardstick.yaml`
+  at the run root, `views/` (`intake.yaml`, `maintain.yaml`, `improve.yaml`,
+  `improve/{axes.md,leverage.md,maturity.md,maturity-grades.yaml,security.md,
+  security-gate.yaml,prose.yaml}`), and `owner/decisions.yaml`. One module,
+  `lib/run-layout.mjs`, now owns the path of every run artifact. The readers
+  that accepted an earlier file name (`lib/legacy-name.mjs`) are gone — a run
+  either matches this layout or it does not validate — and every retired
+  vocabulary the readers still tolerated goes with it: the five-domain
+  `domain:`/`also_domains:` translation, the `gate:`/`blocks_stage:` stage
+  scale on the exposures sidecar, and the `AI-NATIVE-EVAL.md` citation check.
+  The yardstick's own names now say what they are: `loadRegistry` →
+  `loadYardstick`, `validateRegistry` → `validateYardstick`,
+  `projectDescriptors` → `measureRun` — "descriptor" now names only a finding's
+  structured facets (reversibility, gate_type, blast_scope, …), never a
+  requirement row. Every test fixture moved with its history intact; the
+  regression tests that existed only to pin a retired fallback are removed
+  with the fallback they pinned. Public deployments migrate their live runs
+  file-by-file against the old → new path table in the migration commits.
+  Goldens untouched.

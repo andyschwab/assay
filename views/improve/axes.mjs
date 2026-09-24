@@ -222,7 +222,7 @@ if (notMeasured.length) {
   out.push('# Not measured this run', '');
   out.push('_Known axes whose measuring scanner did not run. Absence of findings there is');
   out.push('absence of looking, not health. The candidate roster for filling an axis is');
-  // Name the roster, do not link it: improve-axes.md ships in the run bundle and the
+  // Name the roster, do not link it: views/improve/axes.md ships in the run bundle and the
   // run travels with its subject (SCHEMA §5), so a bundle-root-absolute link into
   // the assay engine resolves nowhere but the engine repo.
   out.push('`map/scanners/CANDIDATES.md` in the assay engine._', '');

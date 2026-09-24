@@ -69,7 +69,7 @@ rough size. Use listings, manifests, configs — not file-by-file reading.
 slugs, AI surfaces, and census `subject_type`s from it verbatim** — the canon is the
 declared enumeration contract, decided once, so the terrain reads it rather than
 re-judging the populations or (never) copying a prior run's findings. Name it in
-`report-prose.yaml` (`canon: <name>`) to activate the validator's drift check (§7.11).
+`views/improve/prose.yaml` (`canon: <name>`) to activate the validator's drift check (§7.11).
 **If no canon exists yet**, derive the population **blind** — from the scan + the
 invocation-boundary rule (a capability is an LLM call site; a scheduled job's
 trifecta reach is an effect, not a capability), with **no prior run in context** — and
@@ -97,7 +97,7 @@ The channels through which a system produces effects — sends, writes, deletes,
 spends, drives a browser, runs a shell, calls external APIs — are then complete by
 construction.
 
-Write `eval/00-terrain.md`: the map, the effect-inventory draft, and your slice
+Write `map/terrain.md`: the map, the effect-inventory draft, and your slice
 plan — for each dimension, which 5–15 files/dirs you'll actually read. On a huge
 repo, sample deliberately (most-central module, newest module, one stale corner)
 and note what you're *not* reading.
@@ -124,24 +124,25 @@ populations that leak when left implicit — enumerate each as a closed list:
 
 Run **`node assay.mjs enumerate <target>`** at terrain time: it
 mechanically lists the grep-detectable members of these populations so the passes
-assess a closed list. After the base is merged, run it again with
+assess a closed list. Once the base is written, run it again with
 `--run <run-dir>` for the **coverage gate** — which enumerated live-surface members
 no finding cites; verdict each or record why it is out of scope. And when a **prior
 run of the same target exists**, diff the new base against it (matching on *fact*,
 not id) and re-verify any prior-only fact — a cheap, deterministic completeness
 check that recovers real misses.
 
-**Every `.md` file you author in a run** (`00-terrain.md`, `improve-*.md`,
-`AI-NATIVE-EVAL.md`, `censuses.md`, `candidate-insights.md`) opens with OKF
+**Every `.md` file you author in a run** (`map/terrain.md`, `views/improve/*.md`,
+`map/AI-NATIVE-EVAL.md`, `map/censuses.md`, `candidate-insights.md`) opens with OKF
 frontmatter — `type: doc` plus a `title:` — so the file is well-formed wherever an
 OKF bundle guardrail reads it. The generated docs (report + handoff) get theirs
 from the tools; see `SCHEMA.md` §5.
 
 ## Passes 1–7 — Base observation (each dimension emits FINDINGS, not verdicts)
 
-Each pass reads terrain + its slice and appends findings to `eval/findings.yaml`
-in the schema below. Note both strengths and gaps; "this dimension is healthy" is
-a valid result. Do **not** grade or rank here — that's the views' job.
+Each pass reads terrain + its slice and writes findings to its own
+`map/findings/repo-eval-<pass>.yaml` in the schema below. Note both strengths and
+gaps; "this dimension is healthy" is a valid result. Do **not** grade or rank
+here — that's the views' job.
 
 1. **Artifact legibility** — is knowledge in reviewable artifacts or in heads/
  chat? Decision records, design docs near the code they govern, READMEs that
@@ -270,9 +271,9 @@ a valid result. Do **not** grade or rank here — that's the views' job.
 > below). The block here is the working reference; if it and `SCHEMA.md` ever
 > disagree, `SCHEMA.md` wins.
 
-One finding per object in a per-dimension `eval/findings-NN-<dim>.yaml` file (merged
-into `eval/findings.yaml`; ids unique within the run, `SCHEMA.md` §3). Lean
-neutral core + facets attached only when relevant.
+One finding per object in a per-pass `map/findings/repo-eval-<dim>.yaml` file
+(ids unique within the run, `SCHEMA.md` §3). Lean neutral core + facets
+attached only when relevant.
 
 ```yaml
 - id: F-023 # stable across re-runs (lets a later run diff "still open?")
@@ -347,9 +348,9 @@ hard; zero-day / physical = exotic.
 (a cross-cutting systemic gap, a novel strength) land here and are `reaches`/
 `explained_by`-linkable, so seam-findings are not stranded.
 
-## The views (each reads `findings.yaml`, writes its own artifact; never edits the base)
+## The views (each reads the findings base under `map/findings/`, writes its own artifact; never edits the base)
 
-### Leverage view → `eval/improve-leverage.md`
+### Leverage view → `views/improve/leverage.md`
 Read gaps as opportunities. For each, estimate leverage on **all three** axes —
 *faster* (whose hours does closing it save?), *better* (what becomes possible
 that isn't today? — including work that ships at all where the fixed overhead
@@ -360,7 +361,7 @@ never merge them — a cost-only estimate is blind to the other two, and a
 duration-inside-the-existing-shape estimate is blind to the third. Order by
 leverage per unit of verification cost, strengths noted first.
 
-### Maturity view → `eval/improve-maturity.md` + `eval/maturity-inputs.yaml`
+### Maturity view → `views/improve/maturity.md` + `map/censuses.yaml`
 Maturity is **measured coverage, not rung words** (SCHEMA §6b): for each dimension,
 the share of a review-enumerated population meeting that dimension's bar. Existence
 somewhere is not existence everywhere — one excellent artifact never promotes a
@@ -376,7 +377,7 @@ is no binning.
  n non-obvious decisions, count how many reconstruct from files alone),
  context-economy (module census: loadable standalone; instruction files vs their
  stated budget), delegation's credential census. State n, method, and the item
- list; record results in `maturity-inputs.yaml`. Until a census runs, the
+ list; record results in `map/censuses.yaml`. Until a census runs, the
  dimension reads `not_measured` — an honest gap beats a judged grade.
 - **A census outranks a blind pass on its own axis.** Where a delegation pass's
  blind claim about a secret's boundary disagrees with the credential census, the
@@ -401,14 +402,14 @@ is no binning.
  enforced requires something *running* the checks automatically (CI pre-merge),
  not the checks existing.
 
-Write the prose reading in `improve-maturity.md`, then run
-`node assay.mjs maturity <eval-dir> --write` to generate
-`improve-maturity-grades.yaml`. Never hand-edit the generated file; the validator
+Write the prose reading in `views/improve/maturity.md`, then run
+`node assay.mjs maturity <run-dir> --write` to generate
+`views/improve/maturity-grades.yaml`. Never hand-edit the generated file; the validator
 recomputes the counted numbers and fails on drift. This is a *capability* measure —
 keep it distinct from the security view's *exposure* ladder; a dimension can measure
 high here and carry a critical exposure.
 
-### Security view (ALWAYS-ON) → `eval/improve-security.md`
+### Security view (ALWAYS-ON) → `views/improve/security.md`
 Run the frame stack in order; lead the artifact with the posture headline.
 
 1. **Trifecta screen** — find every `capability` finding holding ≥2 legs; note
@@ -460,7 +461,7 @@ An exposure the analyst judges lower-priority watch material is labeled
 `standing_watch: true`, with the reason stated — a labeled judgment, never a tier.
 
 **Emit the machine-readable exposures tail.** Alongside the prose, the security view
-writes `eval/improve-security-gate.yaml` (`SCHEMA.md` §6a): one
+writes `views/improve/security-gate.yaml` (`SCHEMA.md` §6a): one
 `exposure` per chain/exposure with its `findings`, `who`, `likelihood`, optional
 `standing_watch`, the one-line `fix` (breaks_the_chain / leverage action), and what
 it `unlocks`. This is the only structured artifact a view produces; the maintainer
@@ -469,8 +470,8 @@ the view layer, never asserted in the base.
 
 ## Validate before compiling anything downstream
 
-Once the per-dimension pass files exist and are merged into `eval/findings.yaml`, write
-the **run manifest** `eval/scanners.yaml` (SCHEMA §5a; template `map/templates/scanners.yaml`):
+Once the per-pass files under `map/findings/` exist, write
+the **run manifest** `map/scanners.yaml` (SCHEMA §5a; template `map/templates/scanners.yaml`):
 one row per adopted scanner — `ran`, `skipped` with the reason, or `failed` with the
 error. Then run the guardrail: `node assay.mjs validate <run-dir>`. It is
 zero-dependency and **fails closed** — schema, closed vocab, conditional facets, the
@@ -490,7 +491,7 @@ file** in the target, failing closed on a cited path that does not exist — the
 ("no CI") must cite what it *did* inspect (the human-run gate that exists instead),
 not the missing path, and state the absence in the observation.
 
-## Pass 8 — Meta-synthesis → `eval/AI-NATIVE-EVAL.md`
+## Pass 8 — Meta-synthesis → `map/AI-NATIVE-EVAL.md`
 
 Reconcile the three views into one document (reads only the view artifacts):
 
@@ -517,7 +518,7 @@ adoption** engagement, lead with strengths. Same evidence, owned ordering.
 `AI-NATIVE-EVAL.md` is the **internal** synthesis (dense, operator-facing, cites every
 finding). The **external, maintainer-facing** deliverable is Pass 9.
 
-## Pass 8.5 — The walk (per-axis profiles) → `eval/improve-axes.md`
+## Pass 8.5 — The walk (per-axis profiles) → `views/improve/axes.md`
 
 The detail layer under the axis model (`map/scanners/CONTRACT.md`):
 `node views/improve/axes.mjs <run-dir> [--base <dir>]...` projects the base
@@ -550,13 +551,13 @@ One command assembles the whole deliverable over the projected base:
 - **`IMPROVE.md`** — **the lead human deliverable**: the report
  chassis (below), authored narrative over computed structure, area by area over
  the whole axis roster. Compiled only when the run carries its authored inputs
- (`eval/report-prose.yaml`); a raw base still gets the walk + handoff, and the
+ (`views/improve/prose.yaml`); a raw base still gets the walk + handoff, and the
  INDEX says which lead is present.
 - **`handoff/`** — the machine/agent layer (`views/improve/handoff.mjs`), the report's
  computed-structure + authored-narrative split applied to the machine side. Two
  provenance-labeled voices populate the remediation spine: **scanner-verbatim** fixes
  (quoted exactly, never rewritten — scanner contract §7) and **eval-authored** remedies
- (the `report-prose.yaml` roadmap — title/body/questions/options/done_when — joined to
+ (the `views/improve/prose.yaml` roadmap — title/body/questions/options/done_when — joined to
  its findings and spliced with their verbatim observations + evidence; a scanner item
  whose findings a roadmap item fully covers is absorbed into that card, never sequenced
  twice). An open gap with
@@ -586,7 +587,7 @@ One command assembles the whole deliverable over the projected base:
 
 **Decisions are an optional overlay, never a gate** (`map/decisions.mjs`). The raw
 base always compiles the full package. If — and only if — an owner triages, they drop
-`eval/decisions.yaml` (accept/fix/investigate/snooze + reason + who/when, root's own
+`owner/decisions.yaml` (accept/fix/investigate/snooze + reason + who/when, root's own
 decision model) and every compiler folds it in: an accepted gap leaves the open count
 and reads **accepted** (waived), distinct from **held** (earned); a snooze reappears
 at expiry. The interview may never happen, and the package never waits for it.
@@ -598,7 +599,7 @@ findings render into, area by area over the whole axis roster — the native
 measured-coverage areas first, then each scanner-contributed area with its own
 severity read, then the not-measured honesty line (an axis whose measuring
 scanner did not run is stated, never silently absent). It is generated when the
-run carries its authored inputs (`report-prose.yaml`, `maturity-inputs.yaml`),
+run carries its authored inputs (`views/improve/prose.yaml`, `map/censuses.yaml`),
 via the tools below. The engine issues no go/no-go, and the report carries no
 safe-to-run verdict either:
 its security section presents exposures as **illuminated risks** (a decision to fix,
@@ -661,7 +662,7 @@ short sentences, no em-dashes in prose (they read as machine-written). Shipped p
 Templatized to keep quality high and variability low; the split is **tables computed, story
 authored**:
 
-1. **Author the prose** into `eval/report-prose.yaml`. Write it so a vibe-coder is never lost:
+1. **Author the prose** into `views/improve/prose.yaml`. Write it so a vibe-coder is never lost:
  gloss each technical term in-sentence the first time it appears (ELI5 in the voice, not in
  a sidebar). Keys:
  - Narrative keys: `target`, `target_short`, `maintainer`, `strengths[]`, `roadmap_intro`,
@@ -670,7 +671,6 @@ authored**:
  they render as the executive summary's unbroken narrative — and `strength`/`watch`
  **short** (one tight sentence or two), since nothing else renders beside them. Keep
  the five-part shape and keep it all tight.
- - `operating:` — optional; not read by the compiler. Safe to omit.
  - `channel_notes:` — one `{group, what}` per effect channel, naming the real mechanism
  (Resend, Nango, Stripe) the read-only descriptors can't. `group ∈ {outward, data, read,
  ai}` sorts the *What it can do* section.
@@ -688,9 +688,10 @@ authored**:
  a silent gap. §4 shows the count; this is what makes the report's "the rest is in
  Security risks" honest — nothing is silently unaddressed.
 2. **Compile the Markdown:** `node views/improve/report.mjs <run-dir>`.
- It merges `views/improve/templates/maintainer-report.md` + `findings.yaml` (the computed capability
- section) + `improve-security-gate.yaml` (the coverage gap) + `improve-maturity-grades.yaml`
- (generated from `maturity-inputs.yaml` by `views/improve/maturity.mjs --write`)
+ It merges `views/improve/templates/maintainer-report.md` + the findings base under
+ `map/findings/` (the computed capability section) + `views/improve/security-gate.yaml`
+ (the coverage gap) + `views/improve/maturity-grades.yaml`
+ (generated from `map/censuses.yaml` by `views/improve/maturity.mjs --write`)
  (the full ladder) + your prose → `IMPROVE.md`. Deterministic and
  re-runnable: fix a finding, re-validate, recompile — prose is never clobbered. Re-run
  `map/validate.mjs` first (it checks the report's citations).
@@ -733,7 +734,7 @@ starves is the failure mode this sort exists to catch.
 
 - **Generate the computed half:**
  `node assay.mjs backlog <run-dir> --target <repo> --prior <prior-run> --write` →
- `eval/backlog-computed.yaml` (un-enumerated-population + evidence-inaccuracy +
+ `map/backlog.yaml` (un-enumerated-population + evidence-inaccuracy +
  coverage-divergence items, composed from `enumerate.mjs --run` and
  `validate.mjs --target` and the prior diff). Curate it with the authored classes a
  tool cannot compute (a sampled false strength, a mis-sized severity band, a

@@ -1,6 +1,6 @@
 # glossary.yaml — the definitions behind every controlled term the report uses.
 # views/improve/report.mjs filters the enum groups to the values that actually appear
-# in a run's findings.yaml (so the glossary shows only what the reader will meet);
+# in a run's findings base (so the glossary shows only what the reader will meet);
 # the `core` and `concepts` groups are always included. Keep definitions short and plain.
 
 core:

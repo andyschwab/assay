@@ -167,7 +167,7 @@ if (openGaps.length && !seq.length) {
   console.error(`A handoff that reads "nothing to do" over live gaps is a false-green. Either:`);
   console.error(`  - author roadmap remedies in views/improve/prose.yaml (eval-authored voice), or`);
   console.error(`  - run a fix-supplying scanner over the same base (scanner-verbatim voice), or`);
-  console.error(`  - triage the gaps in decisions.yaml (an attributed owner waiver).`);
+  console.error(`  - triage the gaps in owner/decisions.yaml (an attributed owner waiver).`);
   process.exit(1);
 }
 if (pending.length) console.error(`note: ${pending.length} open gap(s) have no remedy yet (owner-defined pending): ${pending.map((p) => p.f.id).join(', ')}`);
@@ -264,7 +264,7 @@ function remediation() {
   }
   if (waived.length) {
     out.push('## Triaged out (excluded from the spine)', '',
-      '_Owner decisions from `decisions.yaml`. Accepted = waived; snoozed = reappears at expiry._', '');
+      '_Owner decisions from `owner/decisions.yaml`. Accepted = waived; snoozed = reappears at expiry._', '');
     for (const p of waived) out.push(`- \`${p.f.id}\` [${p.axis}] — **${p.state}**${p.decision?.reason ? `: ${clean(p.decision.reason)}` : ''}${p.decision?.by ? ` (${p.decision.by})` : ''}`);
     out.push('');
   }
