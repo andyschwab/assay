@@ -269,9 +269,10 @@ descriptors:
     axis: deterministic-gates
     tags: [floor, fleet]
     decide:
-      kind: census
-      measures: [gates-coverage]
-    check: the gate census, every enumerated gate meeting its bar and run pre-merge
+      kind: instrument
+      scanner: repo-census
+      category: ci-gate
+    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
     sources: [floor/v-ci, gcp/branch-protection]
     status: draft
   - id: d-guards-bite
@@ -385,8 +386,10 @@ descriptors:
     axis: artifact-legibility
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the page exists and names every effect channel the inventory found
+      kind: instrument
+      scanner: repo-census
+      category: architecture-page
+    check: the repo census, an architecture page present (root and per app in a monorepo) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
     sources: [floor/l-architecture, gcp/docs-architecture]
     status: draft
   - id: d-agent-contract
@@ -395,8 +398,10 @@ descriptors:
     axis: improvement-loop
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the contract file exists with dated evidence it is used; history and status live elsewhere
+      kind: instrument
+      scanner: repo-census
+      category: agent-contract
+    check: the repo census, AGENTS.md or CLAUDE.md present (root and per app in a monorepo) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
     sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, gcp/CLAUDE.md]
     status: draft
   - id: d-one-home-per-fact
@@ -444,10 +449,13 @@ descriptors:
   - id: d-runbook
     title: A one-page runbook covers restart, roll back, rotate a key, restore
     tier: operability
+    axis: artifact-legibility
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the runbook present under fixed headings and each procedure run once
+      kind: instrument
+      scanner: repo-census
+      category: runbook
+    check: the repo census, the runbook present with a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup; each procedure having been run once stays the owner's evidence
     sources: [floor/o-runbook, gcp/RUNBOOKS.md]
     status: draft
   - id: d-health-read

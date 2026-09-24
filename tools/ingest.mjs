@@ -40,6 +40,7 @@
 //
 // Usage:
 //   node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx]
+//   node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx]
 //   node tools/ingest.mjs <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/eval/findings-9N-<tool>.yaml and archives the raw report to
 // <run-dir>/eval/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
@@ -351,6 +352,70 @@ const PROFILES = {
       return rows;
     },
   },
+  'repo-census': {
+    file: 'findings-96-repo-census.yaml',
+    startId: 960,
+    // 0 = every check passed (or was not-applicable); 1 = at least one check is a gap.
+    // Both are successful RUNS. A crash of the runner itself exits 2 and halts here.
+    okExits: [0, 1],
+    // Rows: one gap row per `gap` check, one strength row per `pass` check (so the
+    // axis sees the evidence, not just the absence of a gap) — a `not-applicable`
+    // check yields nothing. native_id is `<check name>@<location>` (location is the
+    // check's detail.path, "." for the whole-repo checks); evidence is the check's
+    // own evidence, which always carries at least one path:line (the runner falls
+    // back to `<location>/:1` when a check has nothing more specific to cite).
+    convert(raw, startId, exitCode) {
+      const rep = parseJson(raw, 'repo-census');
+      if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('repo-census report must be a JSON object');
+      if (rep.tool !== 'repo-census') throw new Error(`repo-census report carries tool "${rep.tool}" (truncated or not a repo-census report?)`);
+      if (!Array.isArray(rep.checks) || !rep.checks.length) throw new Error('repo-census report has no checks[] (truncated report?)');
+      if (![0, 1].includes(rep.exit)) throw new Error(`repo-census report exit "${rep.exit}" is not 0 | 1 (truncated report?)`);
+      if (exitCode !== undefined && exitCode !== null && Number(exitCode) !== rep.exit) throw new Error(`repo-census report says exit ${rep.exit} but the runner exited ${exitCode} — the document does not describe the run it is filed under`);
+      const rows = []; let n = 0;
+      for (const c of rep.checks) {
+        if (!c || !RC_CHECKS.includes(c.name)) throw new Error(`repo-census check "${c && c.name}" is not one of ${RC_CHECKS.join(' | ')} (truncated report? unknown check?)`);
+        if (!RC_STATUS.includes(c.status)) throw new Error(`repo-census check ${c.name}: status "${c.status}" is not one of ${RC_STATUS.join(' | ')}`);
+        if (c.status === 'not-applicable') continue;
+        if (typeof c.observation !== 'string' || !c.observation.trim()) throw new Error(`repo-census check ${c.name}: missing observation (truncated report?)`);
+        const location = (c.detail && typeof c.detail.path === 'string' && c.detail.path) || '.';
+        const nativeLoc = location === '.' ? 'root' : location;
+        const evidence = Array.isArray(c.evidence) && c.evidence.length ? c.evidence.map(String) : [`${location}/:1`];
+        const failOpen = Array.isArray(c.detail && c.detail.failOpen) ? c.detail.failOpen : [];
+        if (c.status === 'gap') {
+          rows.push({
+            id: fid(startId + n++),
+            source: 'repo-census',
+            native_id: `${c.name}@${nativeLoc}`,
+            native_category: c.name,
+            polarity: 'gap',
+            severity: c.name === 'ci-gate' && failOpen.length ? 'High' : 'Medium',
+            observation: oneLine(c.observation),
+            evidence,
+            fix: RC_FIX[c.name],
+          });
+        } else if (c.status === 'pass') {
+          rows.push({
+            id: fid(startId + n++),
+            source: 'repo-census',
+            native_id: `${c.name}@${nativeLoc}`,
+            native_category: c.name,
+            polarity: 'strength',
+            observation: oneLine(c.observation),
+            evidence,
+          });
+        }
+      }
+      return rows;
+    },
+  },
+};
+const RC_CHECKS = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate'];
+const RC_STATUS = ['pass', 'gap', 'not-applicable'];
+const RC_FIX = {
+  'architecture-page': 'Add a page (ARCHITECTURE.md, docs/ARCHITECTURE.md, or a README "Architecture" section) that names every external service and data store the target depends on (database, queue, API, service, store, bucket, provider); a diagram is a bonus, not a substitute. Re-run repo-census and confirm it reads pass.',
+  'agent-contract': 'Make the agent contract (AGENTS.md or CLAUDE.md) present-tense: move any Status / History / Changelog / Todo / Backlog section and dated changelog lines to a separate, co-located history file. Re-run repo-census and confirm it reads pass.',
+  'runbook': 'Add the missing procedure(s) to the runbook (RUNBOOK.md, docs/RUNBOOK.md, or a README/doc "Runbook"/"Operations" section) — a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup. Re-run repo-census and confirm it reads pass. (This decides presence only; run each procedure once and record that separately.)',
+  'ci-gate': 'Add or fix a workflow that triggers on pull_request (or push to the default branch) and runs a test/lint/typecheck/build step with no `continue-on-error: true` on that step or its job. Re-run repo-census and confirm it reads pass.',
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
 // the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)
@@ -511,6 +576,7 @@ if (isMain(import.meta.url)) {
   const exitless = tool && PROFILES[tool] && PROFILES[tool].exitless;
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
     console.error('usage: node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
+    console.error('usage: node tools/ingest.mjs <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
     console.error('       node tools/ingest.mjs <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]');
     process.exit(2);
   }

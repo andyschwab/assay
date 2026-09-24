@@ -13,3 +13,6 @@ scanners:
   dependency-scan:
     status: skipped
     reason: "fixture: the dependency-scan run was not executed over this base"
+  repo-census:
+    status: skipped
+    reason: "fixture: the repo census was not executed over this base"
