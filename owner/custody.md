@@ -17,6 +17,11 @@ confirms and corrects instead of starting blank. Roles go in the answers, never
 people's names. A credential's value never appears here: where it lives is the
 answer.
 
+`node assay.mjs ask-owner --run <run>` prints the owner prompt with that
+pre-fill already done from the sources a run can read reliably (`owner/PACKET.md`
+Phase 3); the owner's answers land in a **packet** (`/owner/PACKET.md`), which
+`node assay.mjs measure <run> --packet <dir>` folds into the measurement.
+
 ## Accounts
 
 One row per account the application depends on. The obvious one is often the one

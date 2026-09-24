@@ -35,6 +35,7 @@ import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/varian
 import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
 import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim } from '../yardstick/packet.mjs';
 import { packetManifestPath } from '../lib/run-layout.mjs';
+import { buildWhatWeFound, render, MARKER, NOTHING_YET } from '../owner/ask-owner.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -1163,6 +1164,24 @@ function adaptersOnce() { return loadAdapters(); }
   // yardstick.yaml's own list, never recomputing it.
   if (loadContradictions(tmp).length) fail(`notesbox + packet-valid must record no contradictions (got ${JSON.stringify(loadContradictions(tmp))})`);
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── ask-owner: the {{WHAT_WE_FOUND}} marker, with and without a run ───────────
+{
+  const fail = (m) => negFailures.push('ask-owner: ' + m);
+  if (buildWhatWeFound(null) !== NOTHING_YET) fail('with no run, the block must read "Nothing yet: ask everything."');
+  if (buildWhatWeFound(join(HERE, 'fixtures', 'ask-owner-run')) === NOTHING_YET) fail('the public ask-owner-run fixture carries real signal — the block must not fall back to "ask everything"');
+  const found = buildWhatWeFound(join(HERE, 'fixtures', 'ask-owner-run'));
+  if (!/example\/notesbox/.test(found) || !/a1b2c3d4/.test(found)) fail('the block must name the repository and commit from the run\'s own packet');
+  if (!/3 of 4/.test(found)) fail('the block must name the credential census count (met of N)');
+  if (!/email-send/.test(found) || /internal-write/.test(found)) fail('the block must name only EXTERNAL effect channels (email-send), never an internal one (internal-write)');
+  if (!/personal data/i.test(found)) fail('the block must name a census-declared personal-data store');
+
+  const withRun = render(join(HERE, 'fixtures', 'ask-owner-run'));
+  if (withRun.includes(MARKER)) fail('render() must replace the marker, never leave it in place');
+  if (!/example\/notesbox/.test(withRun)) fail('render() with a run must fold buildWhatWeFound into the template');
+  const withoutRun = render(null);
+  if (withoutRun.includes(MARKER) || !withoutRun.includes(NOTHING_YET)) fail('render() with no run must replace the marker with "Nothing yet: ask everything."');
 }
 
 // ── Intake, Maintain, Improve: three views of one yardstick measurement ───────

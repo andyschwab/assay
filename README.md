@@ -68,7 +68,12 @@ a fix prompt per gap. `views/README.md` gives each data file's schema.
 repository cannot show by itself: a restore was run, a rollback was exercised,
 an account can be transferred. `owner/evidence/` is the format for committed
 transcripts that decide six of them; `owner/custody.md` is the questions that
-decide custody.
+decide custody; `owner/PACKET.md` is the format for a repository's own
+**packet** — its answers to those and to any claim-kind requirement, validated
+(`node assay.mjs validate-packet`) and folded into the measurement
+(`node assay.mjs measure <run> --packet <dir>`), never merged with what the run
+itself decided. `node assay.mjs ask-owner --run <run>` prints the owner prompt
+pre-filled with what that run already shows.
 
 ## Quickstart
 
