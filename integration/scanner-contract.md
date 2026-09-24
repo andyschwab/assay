@@ -298,7 +298,8 @@ node tools/ingest.mjs <run-dir> --tool dependency-scan --raw dependency-scan.jso
 **What it measures.** Four floor rows a run could not decide before except by an
 LLM-authored census (`d-architecture-page`, `d-agent-contract`, `d-runbook`,
 `d-ci-gate-on-default-branch`), decided deterministically from the tree, read-only,
-offline, zero deps. Four checks:
+offline, zero deps, plus six owner-evidence transcript checks (below). Four
+tree checks:
 
 - **architecture-page** — ARCHITECTURE.md / docs/ARCHITECTURE.md /
   docs/architecture.md / docs/architecture/*.md (case-insensitive), or a README
@@ -348,8 +349,22 @@ owner's evidence. Whether a CI check is **required** by branch protection is not
 visible from a checked-out tree at all; every ci-gate observation says so. Neither
 is inferred, guessed, or defaulted to met.
 
+**The six owner-evidence checks** (andyschwab/ai-native-framework#124, option B).
+Six more floor rows describe things a repository cannot show by itself — a
+backup was restored, a rollback ran, a deploy came up as the committed sha, a
+smoke check hit the deployed app, a monitoring alert fired and was received,
+cost alerts are named per metered account. `repo-census` checks a dated
+transcript the owner commits per row, named `evidence:<descriptor-id>`
+(`d-backup-restore-exercised`, `d-rollback-exercised`, `d-deploy-one-command`,
+`d-smoke-on-deployed`, `d-monitoring-with-alert`, `d-cost-alerts`), root only.
+It decides the transcript's shape and freshness only, never the truth of what
+it describes — that rests on the named person's attestation in version
+history. The format — path, header keys, per-row keys, body minimum, freshness
+window — is documented once, at `templates/evidence/README.md`; this is the
+one home of it.
+
 ```sh
-node tools/repo-census.mjs <target-dir> --out repo-census.json [--default-branch main]
+node tools/repo-census.mjs <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90]
 node tools/ingest.mjs <run-dir> --tool repo-census --raw repo-census.json --exit <its exit code>
 ```
 

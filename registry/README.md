@@ -67,8 +67,9 @@ Adopted instruments the register can decide by: `gitleaks` (secrets),
 `fresh-clone` (`tools/fresh-clone.mjs`, scanner-contract §3b — install / build /
 lint / typecheck / test / migrate from a clean checkout, plus README claim replay),
 and `repo-census` (`tools/repo-census.mjs`, scanner-contract §3d — an architecture
-page, a present-tense agent contract, a runbook, and a CI gate on the default
-branch, decided from the tree alone). The fresh-clone rows the floor asked for
+page, a present-tense agent contract, a runbook, a CI gate on the default
+branch, and six owner-evidence transcript checks, decided from the tree alone).
+The fresh-clone rows the floor asked for
 (`d-fresh-clone-runs`, `d-tests-execute-core`, `d-lint-typecheck-gate`,
 `d-schema-versioned`, `d-readme-true`) still read `claim` / `census` here; their
 re-kind to `instrument: fresh-clone` is one reviewed change of its own, so the
@@ -76,7 +77,15 @@ register's statuses never move as a side effect of adopting a tool.
 `d-architecture-page`, `d-agent-contract`, `d-runbook`, and
 `d-ci-gate-on-default-branch` are re-kinded to `instrument: repo-census` already
 (#122) — the four floor rows a run could not decide before except by an
-LLM-authored census.
+LLM-authored census. `d-backup-restore-exercised`, `d-rollback-exercised`,
+`d-deploy-one-command`, `d-smoke-on-deployed`, `d-monitoring-with-alert`, and
+`d-cost-alerts` are re-kinded to `instrument: repo-census` in the same way
+(andyschwab/ai-native-framework#124, option B) — six floor rows describing
+things a repository cannot show by itself, decided from a dated transcript the
+owner commits (`templates/evidence/README.md` is the one home of that format).
+None of the six carried an `axis:` of their own; each now carries its nearest
+tier-mate's, noted inline at the row (`registry/descriptors.yaml`) and in the
+adapter (`integration/adapters/repo-census.yaml`).
 
 Prose is never read. An observation that merely mentions a topic is not a
 measurement; the first prototype of this projection term-matched observation

@@ -409,13 +409,16 @@ const PROFILES = {
     },
   },
 };
-const RC_CHECKS = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate'];
+const RC_EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
+const RC_CHECKS = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...RC_EVIDENCE_IDS.map((id) => `evidence:${id}`)];
 const RC_STATUS = ['pass', 'gap', 'not-applicable'];
 const RC_FIX = {
   'architecture-page': 'Add a page (ARCHITECTURE.md, docs/ARCHITECTURE.md, or a README "Architecture" section) that names every external service and data store the target depends on (database, queue, API, service, store, bucket, provider); a diagram is a bonus, not a substitute. Re-run repo-census and confirm it reads pass.',
   'agent-contract': 'Make the agent contract (AGENTS.md or CLAUDE.md) present-tense: move any Status / History / Changelog / Todo / Backlog section and dated changelog lines to a separate, co-located history file. Re-run repo-census and confirm it reads pass.',
   'runbook': 'Add the missing procedure(s) to the runbook (RUNBOOK.md, docs/RUNBOOK.md, or a README/doc "Runbook"/"Operations" section) — a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup. Re-run repo-census and confirm it reads pass. (This decides presence only; run each procedure once and record that separately.)',
   'ci-gate': 'Add or fix a workflow that triggers on pull_request (or push to the default branch) and runs a test/lint/typecheck/build step with no `continue-on-error: true` on that step or its job. Re-run repo-census and confirm it reads pass.',
+  ...Object.fromEntries(RC_EVIDENCE_IDS.map((id) => [`evidence:${id}`,
+    `Commit a fresh, complete, passing transcript at ops/evidence/${id}.md (or docs/evidence/${id}.md) per templates/evidence/README.md — the required frontmatter keys, a body with a fenced code block and at least 5 non-empty lines, and a date inside the freshness window. Re-run repo-census and confirm it reads pass.`])),
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
 // the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)

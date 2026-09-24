@@ -165,10 +165,13 @@ descriptors:
   - id: d-backup-restore-exercised
     title: Backups exist and a restore has been performed
     tier: safety
+    axis: code-security   # register row carried no axis; nearest tier-mate (safety) is d-personal-data-enumerated
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: a restore transcript against a scratch instance, dated
+      kind: instrument
+      scanner: repo-census
+      category: evidence:d-backup-restore-exercised
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/s-backup, gcp/nightly-restore]
     status: draft
   - id: d-ingested-content-is-data
@@ -222,19 +225,25 @@ descriptors:
   - id: d-deploy-one-command
     title: One documented command deploys, and what runs is what is committed
     tier: reproducibility
+    axis: code-security   # register row carried no axis; nearest tier-mate (reproducibility) is d-dependencies-pinned
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the deploy script or workflow run once from a clean checkout; the running build's commit matches the branch
+      kind: instrument
+      scanner: repo-census
+      category: evidence:d-deploy-one-command
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/r-deploy, gcp/deploy-and-promote]
     status: draft
   - id: d-rollback-exercised
     title: A rollback path exists and has been exercised
     tier: reproducibility
+    axis: context-economy   # register row carried no axis; nearest tier-mate (reproducibility) is d-schema-versioned
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: rollback documented and run once against staging
+      kind: instrument
+      scanner: repo-census
+      category: evidence:d-rollback-exercised
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/r-rollback, gcp/promote]
     status: draft
   - id: d-schema-versioned
@@ -300,10 +309,13 @@ descriptors:
   - id: d-smoke-on-deployed
     title: A smoke check proves the deployed application comes up and the main path works
     tier: verification
+    axis: deterministic-gates   # register row carried no axis; nearest tier-mate (verification) is d-lint-typecheck-gate
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: smoke against the deployed URL in CI or on a schedule
+      kind: instrument
+      scanner: repo-census
+      category: evidence:d-smoke-on-deployed
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/v-smoke, gcp/doctor]
     status: draft
   - id: d-effects-provable
@@ -431,19 +443,25 @@ descriptors:
   - id: d-monitoring-with-alert
     title: Uptime or smoke monitoring exists with an alert route that has been tested
     tier: operability
+    axis: verification   # register row carried no axis; nearest tier-mate (operability) is d-errors-reach-a-person
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the monitor configured, the alert route named and exercised once
+      kind: instrument
+      scanner: repo-census
+      category: evidence:d-monitoring-with-alert
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check
     sources: [floor/o-monitoring]
     status: draft
   - id: d-cost-alerts
     title: Cost alerts exist on every metered account from day one
     tier: operability
+    axis: artifact-legibility   # register row carried no axis; nearest tier-mate (operability) is d-runbook
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: a budget alert per metered account, recipients named
+      kind: instrument
+      scanner: repo-census
+      category: evidence:d-cost-alerts
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check
     sources: [floor/o-cost, gcp/budgets]
     status: draft
   - id: d-runbook

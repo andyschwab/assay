@@ -2,8 +2,13 @@
 // repo-census.mjs — the REPO-CENSUS instrument: decides, from the tree alone, four
 // floor rows a run could not decide before except by an LLM-authored census
 // (registry/descriptors.yaml d-architecture-page, d-agent-contract, d-runbook,
-// d-ci-gate-on-default-branch — integration/scanner-contract.md §3d). Its rows come
-// in through tools/ingest.mjs (profile `repo-census`) and land on existing axes via
+// d-ci-gate-on-default-branch — integration/scanner-contract.md §3d), plus six
+// owner-evidence checks over dated transcripts the owner commits for what a
+// repository cannot show by itself (d-backup-restore-exercised,
+// d-rollback-exercised, d-deploy-one-command, d-smoke-on-deployed,
+// d-monitoring-with-alert, d-cost-alerts — andyschwab/ai-native-framework#124,
+// format at templates/evidence/README.md). Its rows come in through
+// tools/ingest.mjs (profile `repo-census`) and land on existing axes via
 // integration/adapters/repo-census.yaml.
 //
 // Four checks, each read-only against the checkout, zero network:
@@ -35,20 +40,39 @@
 //     tree; the observation says so every time — this check decides only what the
 //     tree shows.
 //
+// Plus six evidence checks (root only, one per descriptor id, named
+// `evidence:<descriptor-id>`): each reads ops/evidence/<id>.md (else
+// docs/evidence/<id>.md, first found wins) — YAML frontmatter (descriptor, date,
+// by, commit, result, plus keys named per row) over a body that must carry at
+// least one fenced code block and at least 5 non-empty lines. `pass` only when
+// the file is present, the frontmatter is complete and well-formed, `result:
+// pass`, and `date` is not in the future and no older than the freshness window
+// (`--evidence-max-age`, default 90 days, measured from `--as-of`, default
+// today UTC). The document never reads the body past line counts — a transcript
+// can hold operational detail. Every observation, pass or gap, says this check
+// verifies the transcript's shape and freshness, never the truth of what it
+// describes. Full format: templates/evidence/README.md.
+//
 // Fail loud, never empty: `exit` is 1 when any check is `gap`, 0 when every check is
 // `pass` or `not-applicable`. A crash of the runner itself exits 2, so ingest.mjs
 // (success set [0, 1]) halts on it.
 //
 // Usage:
 //   node tools/repo-census.mjs <target-dir> --out <file.json> [--default-branch <name>]
+//     [--as-of <YYYY-MM-DD>] [--evidence-max-age <days>]
 // Zero dependencies (node: modules only).
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute } from 'node:path';
 import { isMain } from './doctrine.mjs';
+import { parseYaml } from './yaml-min.mjs';
 
-export const VERSION = '0.1.0';
-export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate'];
+export const VERSION = '0.2.0';
+export const EVIDENCE_IDS = [
+  'd-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command',
+  'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts',
+];
+export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...EVIDENCE_IDS.map((id) => `evidence:${id}`)];
 export const CHECK_STATUS = ['pass', 'gap', 'not-applicable'];
 
 // ── small filesystem helpers (case-insensitive, read-only, never throw) ──────
@@ -466,13 +490,171 @@ function checkCiGate(dir, defaultBranchArg) {
   };
 }
 
+// ── evidence: owner-attested transcripts (andyschwab/ai-native-framework#124) ──
+// Six floor rows describe things a repository cannot show by itself — a backup
+// was restored, a rollback ran, a deploy came up as the committed sha, a smoke
+// check hit the deployed app, an alert fired and was received, cost alerts are
+// named per account. The owner commits a dated transcript per row
+// (templates/evidence/README.md is the one home of the format); this check
+// decides only the transcript's SHAPE and FRESHNESS — never whether the
+// procedure it describes actually happened, which rests on the named person's
+// attestation in version history. Root only, zero deps, zero network.
+const EVIDENCE_ROWS = {
+  'd-backup-restore-exercised': {
+    keys: ['backup', 'target', 'verified'],
+    label: 'a backup was restored into a scratch instance and the restored data was verified',
+  },
+  'd-rollback-exercised': {
+    keys: ['from', 'to', 'verified'],
+    label: 'a rollback was exercised and verified afterward',
+  },
+  'd-deploy-one-command': {
+    keys: ['command', 'deployed_sha'],
+    label: 'the one documented deploy command was run and the deployed build reports the committed sha',
+  },
+  'd-smoke-on-deployed': {
+    keys: ['environment', 'check'],
+    label: 'a smoke check ran against the deployed application',
+  },
+  'd-monitoring-with-alert': {
+    keys: ['monitor', 'alert_fired', 'alert_received'],
+    label: 'monitoring is configured and its alert route was exercised',
+  },
+  'd-cost-alerts': {
+    keys: ['accounts'],
+    label: 'a cost alert with a named recipient exists on every metered account',
+  },
+};
+const EVIDENCE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const EVIDENCE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EVIDENCE_COMMIT_RE = /^[0-9a-f]{7,40}$/i;
+const EVIDENCE_ACCOUNT_RE = /^[^:]+:.+->.+$/; // "<account>: <threshold> -> <recipient>"
+
+// find ops/evidence/<id>.md, else docs/evidence/<id>.md; first found wins
+function findEvidenceFile(dir, id) {
+  for (const base of ['ops', 'docs']) {
+    const rel = `${base}/evidence/${id}.md`;
+    if (statOk(join(dir, rel), (s) => s.isFile())) return { relPath: rel, source: base };
+  }
+  return null;
+}
+// splits a leading `---` … `---` YAML block from the rest; null when the file
+// carries no closed frontmatter block
+function splitFrontmatter(text) {
+  const lines = text.split('\n');
+  if ((lines[0] || '').trim() !== '---') return null;
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) if (lines[i].trim() === '---') { end = i; break; }
+  if (end === -1) return null;
+  return { fmText: lines.slice(1, end).join('\n'), bodyLines: lines.slice(end + 1) };
+}
+// body minimum: at least one fenced code block, at least 5 non-empty lines total.
+// Counts only — the body itself (which can hold operational detail) never enters
+// the document.
+function checkEvidenceBody(bodyLines) {
+  const nonEmptyCount = bodyLines.filter((l) => l.trim() !== '').length;
+  const fenceCount = bodyLines.filter((l) => /^```/.test(l.trim())).length;
+  return { nonEmptyCount, hasFencedBlock: fenceCount >= 2 };
+}
+function checkEvidenceRow(dir, id, asOfDate, maxAgeDays) {
+  const name = `evidence:${id}`;
+  const rowSpec = EVIDENCE_ROWS[id];
+  const detail = { path: '.', descriptor: id, file: null };
+  const found = findEvidenceFile(dir, id);
+  if (!found) {
+    return {
+      name, status: 'gap', detail,
+      evidence: ['.:1'],
+      observation: `No evidence transcript found for ${id} (checked ops/evidence/${id}.md, docs/evidence/${id}.md).`,
+    };
+  }
+  detail.file = found.relPath; detail.source = found.source;
+  const text = safeRead(join(dir, found.relPath)) || '';
+  const split = splitFrontmatter(text);
+  if (!split) {
+    return {
+      name, status: 'gap', detail,
+      evidence: [`${found.relPath}:1`],
+      observation: `${found.relPath} has no closed YAML frontmatter block (a leading \`---\` line, then keys, then a closing \`---\`).`,
+    };
+  }
+  let fm;
+  try { fm = parseYaml(split.fmText); }
+  catch (e) {
+    return {
+      name, status: 'gap', detail,
+      evidence: [`${found.relPath}:1`],
+      observation: `${found.relPath} frontmatter is not valid YAML: ${e.message}`,
+    };
+  }
+  if (!fm || typeof fm !== 'object' || Array.isArray(fm)) {
+    return {
+      name, status: 'gap', detail,
+      evidence: [`${found.relPath}:1`],
+      observation: `${found.relPath} frontmatter is not a mapping of keys.`,
+    };
+  }
+  detail.frontmatter = fm;
+  const problems = [];
+  if (fm.descriptor !== id) problems.push(`descriptor is "${fm.descriptor ?? ''}" (must equal ${id})`);
+  const dateStr = typeof fm.date === 'string' ? fm.date : String(fm.date ?? '');
+  if (!EVIDENCE_DATE_RE.test(dateStr)) problems.push(`date "${dateStr}" is not YYYY-MM-DD`);
+  if (typeof fm.by !== 'string' || !fm.by.trim()) problems.push('by is missing');
+  else if (EVIDENCE_EMAIL_RE.test(fm.by.trim())) problems.push(`by "${fm.by}" looks like an email address (a role or handle is required)`);
+  if (typeof fm.commit !== 'string' || !EVIDENCE_COMMIT_RE.test(fm.commit)) problems.push(`commit "${fm.commit ?? ''}" is not 7-40 hex characters`);
+  if (fm.result !== 'pass' && fm.result !== 'fail') problems.push(`result "${fm.result ?? ''}" is not pass|fail`);
+  else if (fm.result === 'fail') problems.push('result: fail');
+  const missingKeys = rowSpec.keys.filter((k) => fm[k] === undefined || fm[k] === null || fm[k] === '');
+  if (missingKeys.length) problems.push(`missing key(s): ${missingKeys.join(', ')}`);
+  if (id === 'd-deploy-one-command' && !missingKeys.includes('deployed_sha') && !missingKeys.includes('commit') && typeof fm.commit === 'string' && fm.deployed_sha !== fm.commit) {
+    problems.push(`deployed_sha "${fm.deployed_sha}" does not match commit "${fm.commit}"`);
+  }
+  if (id === 'd-monitoring-with-alert' && !missingKeys.includes('alert_fired') && !missingKeys.includes('alert_received')) {
+    const fired = Date.parse(fm.alert_fired), received = Date.parse(fm.alert_received);
+    if (Number.isNaN(fired) || Number.isNaN(received)) problems.push('alert_fired / alert_received must be ISO timestamps');
+    else if (received < fired) problems.push(`alert_received (${fm.alert_received}) precedes alert_fired (${fm.alert_fired})`);
+  }
+  if (id === 'd-cost-alerts' && !missingKeys.includes('accounts')) {
+    if (!Array.isArray(fm.accounts) || !fm.accounts.length) problems.push('accounts must be a non-empty list');
+    else {
+      const bad = fm.accounts.filter((a) => typeof a !== 'string' || !EVIDENCE_ACCOUNT_RE.test(a));
+      if (bad.length) problems.push(`accounts entries must name account, threshold, and recipient (e.g. "anthropic: $500/month -> platform on-call"): ${bad.map((b) => JSON.stringify(b)).join(', ')}`);
+    }
+  }
+  if (EVIDENCE_DATE_RE.test(dateStr)) {
+    if (dateStr > asOfDate) problems.push(`date ${dateStr} is in the future (as of ${asOfDate})`);
+    else {
+      const ageDays = Math.round((Date.parse(`${asOfDate}T00:00:00Z`) - Date.parse(`${dateStr}T00:00:00Z`)) / 86400000);
+      if (ageDays > maxAgeDays) problems.push(`stale: dated ${dateStr}, ${ageDays} days before ${asOfDate} (freshness window ${maxAgeDays} days)`);
+    }
+  }
+  const body = checkEvidenceBody(split.bodyLines);
+  detail.bodyNonEmptyLines = body.nonEmptyCount;
+  detail.bodyHasFencedBlock = body.hasFencedBlock;
+  if (body.nonEmptyCount < 5 || !body.hasFencedBlock) {
+    problems.push(`body is a stub (${body.nonEmptyCount} non-empty line(s), fenced code block ${body.hasFencedBlock ? 'present' : 'absent'} — needs at least 5 non-empty lines and at least one fenced code block)`);
+  }
+  if (problems.length) {
+    return {
+      name, status: 'gap', detail,
+      evidence: [`${found.relPath}:1`],
+      observation: `${found.relPath}: ${problems.join('; ')}.`,
+    };
+  }
+  return {
+    name, status: 'pass', detail,
+    evidence: [`${found.relPath}:1`],
+    observation: `${found.relPath} attests, by ${fm.by} at commit ${fm.commit} on ${fm.date} (as of ${asOfDate}), that ${rowSpec.label}. This check verifies the transcript's shape and freshness, not that the procedure actually happened.`,
+  };
+}
+
 // ── the run ──────────────────────────────────────────────────────────────────
 function gitHead(dir) {
   if (!existsSync(join(dir, '.git'))) return null;
   const r = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' });
   return r.status === 0 ? String(r.stdout || '').trim() || null : null;
 }
-export function run({ target, defaultBranch = null }) {
+export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeDays = 90 }) {
   const dir = resolve(target);
   if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new Error(`target is not a directory: ${target}`);
   const mono = detectMonorepo(dir);
@@ -482,8 +664,16 @@ export function run({ target, defaultBranch = null }) {
   for (const loc of locations) checks.push(checkAgentContract(dir, loc));
   checks.push(checkRunbook(dir));
   checks.push(checkCiGate(dir, defaultBranch));
+  const asOfDate = asOf || new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) throw new Error(`--as-of must be YYYY-MM-DD (got "${asOfDate}")`);
+  if (!(Number(evidenceMaxAgeDays) > 0)) throw new Error(`--evidence-max-age must be a positive number of days (got "${evidenceMaxAgeDays}")`);
+  for (const id of EVIDENCE_IDS) checks.push(checkEvidenceRow(dir, id, asOfDate, Number(evidenceMaxAgeDays)));
   const exit = checks.some((c) => c.status === 'gap') ? 1 : 0;
-  return { tool: 'repo-census', version: VERSION, target: { path: target, head: gitHead(dir) }, monorepo: mono, checks, exit };
+  return {
+    tool: 'repo-census', version: VERSION, target: { path: target, head: gitHead(dir) }, monorepo: mono,
+    evidence: { asOf: asOfDate, maxAgeDays: Number(evidenceMaxAgeDays) },
+    checks, exit,
+  };
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
@@ -493,12 +683,14 @@ if (isMain(import.meta.url)) {
   const target = args.find((a, i) => !a.startsWith('--') && (i === 0 || !args[i - 1].startsWith('--')));
   const out = opt('--out');
   const defaultBranch = opt('--default-branch');
+  const asOf = opt('--as-of');
+  const evidenceMaxAge = opt('--evidence-max-age');
   if (!target || !out) {
-    console.error('usage: node tools/repo-census.mjs <target-dir> --out <file.json> [--default-branch <name>]');
+    console.error('usage: node tools/repo-census.mjs <target-dir> --out <file.json> [--default-branch <name>] [--as-of <YYYY-MM-DD>] [--evidence-max-age <days>]');
     process.exit(2);
   }
   try {
-    const doc = run({ target, defaultBranch });
+    const doc = run({ target, defaultBranch, asOf, evidenceMaxAgeDays: evidenceMaxAge != null ? Number(evidenceMaxAge) : undefined });
     writeFileSync(isAbsolute(out) ? out : resolve(out), JSON.stringify(doc, null, 2) + '\n');
     const gaps = doc.checks.filter((c) => c.status === 'gap').map((c) => c.detail?.path && c.detail.path !== '.' ? `${c.name}@${c.detail.path}` : c.name);
     console.error(`${doc.exit === 0 ? '✓' : '✗'} repo-census: ${doc.checks.filter((c) => c.status === 'pass').length} passed · ${gaps.length} gap${gaps.length === 1 ? '' : 's'}${gaps.length ? ` (${gaps.join(', ')})` : ''} → ${out}`);

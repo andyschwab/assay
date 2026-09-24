@@ -210,3 +210,34 @@ what the public engine learned.
   converter's halts, the all-pass strength-only conversion, the projection, and
   the descriptor reads (met on an all-pass `ran` manifest, not-measured with the
   reason when skipped). Goldens untouched.
+- **2026-09-24 — the owner-evidence transcript check, six more floor rows a run
+  can now decide (andyschwab/ai-native-framework#124, option B).**
+  `tools/repo-census.mjs` gains six checks, named `evidence:<descriptor-id>`,
+  root only: a dated YAML-frontmatter transcript at `ops/evidence/<id>.md` (or
+  `docs/evidence/<id>.md`), for `d-backup-restore-exercised`,
+  `d-rollback-exercised`, `d-deploy-one-command`, `d-smoke-on-deployed`,
+  `d-monitoring-with-alert`, `d-cost-alerts` — six things a repository cannot
+  show by itself. `pass` only when the file is present, its frontmatter carries
+  `descriptor` (must equal the file's id), `date`, `by` (a role or handle — an
+  email-shaped value is a gap), `commit` (7–40 hex), `result: pass`, the keys
+  named per row (`templates/evidence/README.md`, the one home of the format),
+  the date is fresh (`--evidence-max-age`, default 90 days, from `--as-of`,
+  default today UTC — recorded in the document), and the body carries a fenced
+  code block and at least 5 non-empty lines; the body itself never enters the
+  document past those counts. Every observation, pass or gap, says the check
+  verifies the transcript's shape and freshness, never the truth of what it
+  describes — that rests on the named person's attestation in version history.
+  `ingest.mjs`'s `repo-census` profile accepts the six check names
+  (`native_category: evidence:<id>`, `Medium` severity, a strength row on pass,
+  a gap row otherwise); `adapters/repo-census.yaml` maps each to the axis the
+  register homes its re-kinded row on (none of the six carried an `axis:` of
+  their own, so each took its nearest tier-mate's, noted inline) — spelled
+  `evidence__<id>` in the adapter's `map:` keys because the minimal YAML
+  reader's key grammar cannot hold a colon; `project.mjs` resolves that one
+  alias at lookup time, so every other consumer (findings, the register, tests)
+  keeps the real, colon-bearing name. The six rows re-kind from `claim` to
+  `instrument: repo-census` in the same change. A fixture addition under
+  `tests/instruments/repo-census-target/ops/evidence/` (one passing transcript,
+  four with one planted defect each, one absent) extends the `repo-census`
+  harness block; the fixture's new checks widen its own counts (6 checks/6 rows
+  → 12/12), asserted explicitly, nothing else moved. Goldens untouched.
