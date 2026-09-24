@@ -189,6 +189,34 @@ axes the register already homes those floor rows on: install / build / migrate o
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
 on `artifact-legibility`.
 
+**Workspaces (#127).** An npm-workspaces root is not one repository, it is
+several: a root that is only a workspaces shell (no scripts, no dependencies, no
+lockfile of its own) reads honestly as "six steps not declared" — that used to be
+mistaken for the whole picture while the apps underneath it failed `npm ci` from a
+clean clone. The runner resolves `workspaces` (an array, or `{packages: [...]}`;
+globs `dir/*` and `dir/**`, and a plain path, resolved with zero dependencies) and,
+when the root declares none but `apps/*` or `packages/*` exist with their own
+`package.json`, treats those as workspaces too. The step plan then runs once per
+workspace, in its own directory, **in addition to** the root. Install is the one
+step handled specially: when the root carries a lockfile, a workspace installs via
+`npm ci --workspace <path>` run from the root (the lockfile covers the whole
+tree); when it does not, the workspace's own plan runs in its own directory — which
+reproduces the real `EUSAGE` failure npm gives a workspace whose own lockfile
+disagrees with a root that has none, and that failure is the honest result,
+recorded like any other step failure. The document carries this as `workspaces:
+[{ path, toolchain, steps, readme, readme_claims }]` beside the root's existing
+fields, unchanged; `exit` is `1` when the root **or any workspace** has a failed or
+timed-out step or a missing claim. A workspace-free repo emits `workspaces: []`
+and nothing else about the document changes. `ingest.mjs` emits the same per-step
+and per-claim gap rows for each workspace as it does for the root, with
+`native_id` prefixed by the workspace path (`apps/x:install:failed`) so two
+workspaces failing the same step never collide, and evidence scoped to the
+workspace's own manifest or README (`apps/x/package.json:1`, `apps/x/README.md:12`)
+— `native_category` stays the plain, closed step name (`install`, `build`, …,
+`readme-claim`) the adapter map below already knows, so a workspace row projects
+exactly like a root row. A document with no `workspaces` key at all (a runner from
+before #127) still converts exactly as it always did.
+
 **What it deliberately does not do.** It never executes a README command beyond
 the declared steps it already ran — presence in the tree is what the claim replay
 decides, and a `missing` claim is a gap; a `present` one is not proof the command
@@ -200,6 +228,16 @@ node tools/fresh-clone.mjs <target-dir | git URL> --out fresh-clone.json [--time
 node tools/ingest.mjs <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
 ```
 
+**Descriptor category as a list (`registry/descriptors.yaml`, #123).** A
+`decide.category` in the register may name one native category or a list of them
+— two rows one instrument decider must hold jointly, such as fresh-clone's
+`[install, build]` for `d-fresh-clone-runs` or `[lint, typecheck]` for
+`d-lint-typecheck-gate`. A finding matches the descriptor when its
+`native_category` is **any** listed value; the descriptor reads **met** only when
+**every** listed category is met by the single-category rules above (`registry/
+README.md` has the full decider table). This is a register-side reading of the
+same rows the adapter maps one at a time — the adapter's `map:` stays keyed by one
+native category each; nothing here widens what a category means to it.
 ### 3c. The dependency-scan instrument (`tools/dependency-scan.mjs`)
 
 **What it measures.** Whether a known vulnerability is present anywhere in the

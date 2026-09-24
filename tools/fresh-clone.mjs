@@ -22,14 +22,31 @@
 //      is a claim; it is `present` when the script / binary / file / target exists
 //      in the tree, else `missing`. Presence is what this pass decides — the runner
 //      never executes an arbitrary README command beyond the declared steps above.
+//   5. WORKSPACES (#127): an npm-workspaces root (`workspaces` in package.json, an
+//      array or `{packages: [...]}`, globs `dir/*` and `dir/**` resolved with zero
+//      deps) is not one repository, it is several — a root shell with no scripts, no
+//      dependencies and no lockfile of its own reads "six steps not declared, exit
+//      0" while the apps underneath it fail `npm ci` from a clean clone. When the
+//      root declares no workspaces but `apps/*` or `packages/*` exist with their own
+//      package.json, they are treated as workspaces too (the shape most repos use
+//      without ever writing the field). The step plan runs once per workspace, in
+//      its own directory, IN ADDITION to the root. Install is the one step that
+//      does not simply run in the workspace directory: when the ROOT carries a
+//      lockfile, the workspace installs via `npm ci --workspace <path>` run from the
+//      root (the lockfile covers the whole tree); when the root carries none, the
+//      workspace's own plan runs in its own directory — which reproduces the real
+//      `EUSAGE` failure npm gives when a workspace's own lockfile disagrees with a
+//      root that has none, and that failure is the honest result, recorded like any
+//      other. A workspace-free repo emits `workspaces: []` and nothing else changes.
 //
 // Fail loud, never empty: the JSON's `exit` is 1 when any step failed or timed out
-// or any claim is missing, 0 only when every DECLARED step passed and every claim
-// is present; the process exit code equals it. A crash of the runner itself exits
-// 2, so ingest.mjs (success set [0, 1]) halts on it. The last 40 lines of each
-// step's combined output stay in this raw document only — ingest copies the
-// command and exit code into rows, never the output, so an environment value that
-// a build prints cannot leak into a findings base.
+// or any claim is missing — at the root OR in any workspace — 0 only when every
+// DECLARED step (root and every workspace) passed and every claim is present; the
+// process exit code equals it. A crash of the runner itself exits 2, so ingest.mjs
+// (success set [0, 1]) halts on it. The last 40 lines of each step's combined
+// output stay in this raw document only — ingest copies the command and exit code
+// into rows, never the output, so an environment value that a build prints cannot
+// leak into a findings base.
 //
 // Usage:
 //   node tools/fresh-clone.mjs <target-dir | git URL> --out <file.json>
@@ -41,7 +58,7 @@ import { join, resolve, isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';   // 0.2.0: workspaces[] (#127) — additive, older readers ignore it
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
 export const CLAIM_STATUS = ['present', 'missing'];
@@ -91,6 +108,64 @@ export function detectToolchain(dir) {
   }
   if (tc.family === 'none' && tc.other_families.length) tc.family = tc.other_families[0].family;
   return { toolchain: tc, pkg };
+}
+
+// ── workspaces (#127): resolve without a glob dependency ────────────────────
+// Supports the three shapes npm-workspaces manifests actually use: a plain path
+// ("tools/cli"), a single-star directory glob ("apps/*"), and a deep glob
+// ("packages/**" — any depth of subdirectory). A candidate is a workspace only
+// when it carries its own package.json; a pattern matching nothing is silently
+// empty, same as npm's own resolution.
+function expandWorkspaceGlob(rootDir, pattern) {
+  const segs = pattern.split('/').filter(Boolean);
+  const out = [];
+  const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return false; } };
+  const walk = (relParts, segIdx) => {
+    if (segIdx === segs.length) {
+      const rel = relParts.join('/');
+      if (rel && existsSync(join(rootDir, rel, 'package.json'))) out.push(rel);
+      return;
+    }
+    const seg = segs[segIdx];
+    const curAbs = join(rootDir, ...relParts);
+    if (seg === '**') {
+      walk(relParts, segIdx + 1);                 // ** may consume zero levels
+      if (!isDir(curAbs)) return;
+      for (const entry of readdirSync(curAbs)) {
+        if (isDir(join(curAbs, entry))) walk([...relParts, entry], segIdx); // stay on ** for deeper levels
+      }
+      return;
+    }
+    if (seg.includes('*')) {
+      if (!isDir(curAbs)) return;
+      const re = new RegExp('^' + seg.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
+      for (const entry of readdirSync(curAbs)) {
+        if (re.test(entry) && isDir(join(curAbs, entry))) walk([...relParts, entry], segIdx + 1);
+      }
+      return;
+    }
+    if (isDir(join(curAbs, seg))) walk([...relParts, seg], segIdx + 1);
+  };
+  walk([], 0);
+  return out;
+}
+
+export function resolveWorkspaces(dir, pkg) {
+  let patterns = [];
+  if (pkg && pkg.workspaces) {
+    if (Array.isArray(pkg.workspaces)) patterns = pkg.workspaces;
+    else if (pkg.workspaces && typeof pkg.workspaces === 'object' && Array.isArray(pkg.workspaces.packages)) patterns = pkg.workspaces.packages;
+  }
+  if (!patterns.length) {
+    // no workspaces declared: treat apps/* and packages/* as workspaces when they exist
+    // (the shape most repos use without ever writing the field — the Scout defect)
+    for (const base of ['apps', 'packages']) {
+      try { if (statSync(join(dir, base)).isDirectory()) patterns.push(`${base}/*`); } catch { /* not present */ }
+    }
+  }
+  const seen = new Set();
+  for (const pattern of patterns) for (const p of expandWorkspaceGlob(dir, String(pattern))) seen.add(p);
+  return [...seen].sort();
 }
 
 // ── step planning: what is declared, and the command that runs it ────────────
@@ -166,14 +241,37 @@ export function runSteps(plan, cwd, timeoutSec, log = () => {}) {
     const p = plan[name];
     if (p.status === 'not-declared') { out.push({ name, status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason }); continue; }
     if (p.needs_install && installBroken) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `install ${installBroken}; ${name} not attempted` }); continue; }
+    const stepCwd = p.cwd || cwd;   // a workspace's install may run from the root (npm ci --workspace)
     log(`  → ${name}: ${p.command}`);
-    const row = runStep(name, p.command, cwd, timeoutSec);
+    const row = runStep(name, p.command, stepCwd, timeoutSec);
     if (p.declared_as) { row.declared_as = p.declared_as; row.dry_form = p.dry_form; }
     out.push(row);
     log(`    ${row.status}${row.exit_code !== null ? ` (exit ${row.exit_code})` : ''} in ${row.duration_ms} ms`);
     if (name === 'install' && row.status !== 'passed') installBroken = row.status;
   }
   return out;
+}
+
+// ── one workspace's run: its own step plan, its own README, install possibly
+//    rebased onto the root (see the module doc's WORKSPACES section) ───────────
+export function planWorkspace(rootToolchain, wsToolchain, wsPkg, wsRelPath) {
+  const plan = planSteps(wsToolchain, wsPkg);
+  if (rootToolchain.lockfile && plan.install.status === 'declared') {
+    // the root's lockfile covers the whole tree: install this workspace from the root,
+    // scoped to it, rather than re-deriving a package-manager guess in its own directory
+    plan.install = { status: 'declared', command: `npm ci --workspace ${wsRelPath}`, needs_install: false, cwd: 'ROOT' };
+  }
+  return plan;
+}
+
+export function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = () => {}) {
+  const wsDir = join(workDir, wsRelPath);
+  const { toolchain, pkg } = detectToolchain(wsDir);
+  const plan = planWorkspace(rootToolchain, toolchain, pkg, wsRelPath);
+  if (plan.install.cwd === 'ROOT') plan.install.cwd = workDir;   // resolve the sentinel to the real clone root
+  const steps = runSteps(plan, wsDir, timeoutSec, (m) => log(`  [${wsRelPath}]${m}`));
+  const { readme, claims } = replayReadme(wsDir, pkg);
+  return { path: wsRelPath, toolchain, steps, readme, readme_claims: claims };
 }
 
 // ── README claim replay ──────────────────────────────────────────────────────
@@ -279,10 +377,14 @@ export function run({ target, timeout = 600, clone = true, log = () => {} }) {
     const { readme, claims } = replayReadme(workDir, pkg);
     const stepBad = steps.some((s) => s.status === 'failed' || s.status === 'timed-out');
     const claimBad = claims.some((c) => c.status === 'missing');
+    const wsPaths = pkg ? resolveWorkspaces(workDir, pkg) : [];
+    if (wsPaths.length) log(`→ workspaces: ${wsPaths.join(', ')}`);
+    const workspaces = wsPaths.map((p) => runWorkspace(p, workDir, toolchain, timeout, log));
+    const wsBad = workspaces.some((w) => w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing'));
     return {
       tool: 'fresh-clone', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
-      target: t, toolchain, timeout_seconds: timeout, steps, readme, readme_claims: claims,
-      exit: stepBad || claimBad ? 1 : 0,
+      target: t, toolchain, timeout_seconds: timeout, steps, readme, readme_claims: claims, workspaces,
+      exit: stepBad || claimBad || wsBad ? 1 : 0,
     };
   } finally {
     if (scratch) rmSync(scratch, { recursive: true, force: true });
@@ -306,7 +408,10 @@ if (isMain(import.meta.url)) {
     const failed = doc.steps.filter((s) => s.status === 'failed' || s.status === 'timed-out').map((s) => s.name);
     const undeclared = doc.steps.filter((s) => s.status === 'not-declared').map((s) => s.name);
     const missing = doc.readme_claims.filter((c) => c.status === 'missing').length;
-    console.error(`${doc.exit === 0 ? '✓' : '✗'} fresh-clone: ${doc.steps.filter((s) => s.status === 'passed').length} passed · ${failed.length} failed/timed-out${failed.length ? ` (${failed.join(', ')})` : ''} · ${undeclared.length} not declared${undeclared.length ? ` (${undeclared.join(', ')})` : ''} · README claims ${doc.readme_claims.length - missing}/${doc.readme_claims.length} present → ${out}`);
+    const wsSummary = doc.workspaces && doc.workspaces.length
+      ? ` · ${doc.workspaces.length} workspace(s): ${doc.workspaces.map((w) => `${w.path} ${w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing') ? 'FAIL' : 'ok'}`).join(', ')}`
+      : '';
+    console.error(`${doc.exit === 0 ? '✓' : '✗'} fresh-clone: ${doc.steps.filter((s) => s.status === 'passed').length} passed · ${failed.length} failed/timed-out${failed.length ? ` (${failed.join(', ')})` : ''} · ${undeclared.length} not declared${undeclared.length ? ` (${undeclared.join(', ')})` : ''} · README claims ${doc.readme_claims.length - missing}/${doc.readme_claims.length} present${wsSummary} → ${out}`);
     process.exit(doc.exit);
   } catch (e) {
     console.error(`✗ fresh-clone crashed: ${e.message}`);

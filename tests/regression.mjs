@@ -631,6 +631,111 @@ function adaptersOnce() { return loadAdapters(); }
   }
 }
 
+// ── fresh-clone workspaces (#127, the fresh-clone half of #123) ──────────────
+// The public fixture is Scout's shape: a root that is a bare npm-workspaces shell
+// (workspaces: ["apps/*"], no scripts, no dependencies, no lockfile of its own) with
+// apps/good (passes) and apps/bad (fails offline and deterministically — a failing
+// build script standing in for the real npm-ci EUSAGE a clean workspace clone hits
+// when the workspace carries its own lockfile but the root has none; see the
+// fixture's package.json for why). The runner must record the root as not-declared
+// across the board, run each workspace's own plan in its own directory, and read
+// exit 1 from apps/bad's failure alone. The converter must turn that into per-
+// workspace rows with prefixed native_ids and workspace-relative evidence, and an
+// older (pre-#127) document with no `workspaces` key must still convert exactly as
+// it always has.
+{
+  const fail = (m) => negFailures.push('fresh-clone-workspaces: ' + m);
+  const fx = join(HERE, 'instruments', 'fresh-clone-monorepo');
+  const tmp = join(HERE, 'tmp-fresh-clone-ws'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  const out = join(tmp, 'fresh-clone.json');
+  let exit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'fresh-clone.mjs'), fx, '--no-clone', '--out', out, '--timeout', '60'], { stdio: 'pipe' }); }
+  catch (e) { exit = e.status; }
+  if (exit !== 1) fail(`the runner over the monorepo fixture must exit 1 (apps/bad's build fails; got ${exit})`);
+  const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
+  let doc = null;
+  try { doc = JSON.parse(raw); } catch { fail('the runner must write a JSON document at --out'); }
+  if (doc) {
+    if (doc.exit !== 1) fail(`document exit must be 1 (got ${doc.exit})`);
+    if (!Array.isArray(doc.workspaces) || doc.workspaces.length !== 2) fail(`document must carry two workspaces (got ${doc.workspaces?.length})`);
+    if (doc.steps.some((s) => s.status !== 'not-declared')) fail(`the root (a bare workspaces shell) must read every step not-declared (got ${JSON.stringify(doc.steps.map((s) => s.status))})`);
+    const byPath = Object.fromEntries((doc.workspaces || []).map((w) => [w.path, w]));
+    const good = byPath['apps/good'], bad = byPath['apps/bad'];
+    if (!good || !bad) fail(`workspaces must be apps/good and apps/bad (got ${Object.keys(byPath).join(', ')})`);
+    if (good) {
+      const st = Object.fromEntries(good.steps.map((s) => [s.name, s.status]));
+      if (st.build !== 'passed' || st.test !== 'passed') fail(`apps/good must pass build and test (got build ${st.build}, test ${st.test})`);
+    }
+    if (bad) {
+      const st = Object.fromEntries(bad.steps.map((s) => [s.name, s.status]));
+      if (st.build !== 'failed') fail(`apps/bad must read its failure — build failed (got ${st.build})`);
+    }
+    // convert: rows for both workspaces, prefixed native_ids, workspace-relative evidence
+    const rows = convert('fresh-clone', raw, 1);
+    const wsRows = rows.filter((r) => r.native_id.startsWith('apps/'));
+    if (!wsRows.length) fail('convert must emit rows for the workspaces, not only the root');
+    const badBuild = rows.find((r) => r.native_id === 'apps/bad:build:failed');
+    if (!badBuild) fail(`convert must emit a row native_id apps/bad:build:failed (got ${rows.map((r) => r.native_id).join(', ')})`);
+    if (badBuild && (badBuild.native_category !== 'build' || badBuild.evidence[0] !== 'apps/bad/package.json:1')) fail(`the workspace build row must keep native_category build (for the adapter map) and cite apps/bad/package.json:1 (got ${badBuild.native_category} / ${badBuild.evidence[0]})`);
+    if (badBuild && !/workspace apps\/bad/.test(badBuild.observation)) fail('the workspace row observation must name the workspace');
+    if (rows.some((r) => r.native_id.startsWith('apps/good:') && r.native_category !== 'lint' && r.native_category !== 'typecheck')) fail('apps/good must yield gap rows only for its not-declared floor steps (lint, typecheck), never for its passing build/test');
+    // every category still maps (no rogue category is introduced by the workspace prefix)
+    const proj = projectMulti(rows, adaptersOnce());
+    if (proj.unmapped.length) fail(`workspace rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
+    // an older document with no `workspaces` key at all still converts exactly as before
+    const oldShape = { ...doc }; delete oldShape.workspaces;
+    const oldRows = convert('fresh-clone', JSON.stringify(oldShape), 1);
+    if (oldRows.some((r) => r.native_id.startsWith('apps/'))) fail('a document with no workspaces key must convert with no workspace rows');
+    const rootOnly = rows.filter((r) => !r.native_id.startsWith('apps/'));
+    if (JSON.stringify(oldRows) !== JSON.stringify(rootOnly)) fail('a document with no workspaces key must convert its root rows exactly as a document with an empty workspaces list does');
+    // a workspace entry missing its steps[] halts (fail loud, never empty)
+    let threw = false;
+    try { convert('fresh-clone', JSON.stringify({ ...doc, workspaces: [{ path: 'apps/bad', readme_claims: [] }] }), 1); } catch { threw = true; }
+    if (!threw) fail('a workspace entry with no steps[] must halt');
+    threw = false;
+    try { convert('fresh-clone', JSON.stringify({ ...doc, workspaces: [{ ...bad, steps: bad.steps.filter((s) => s.name !== 'test') }] }), 1); } catch { threw = true; }
+    if (!threw) fail('a workspace entry missing a step row must halt');
+    threw = false;
+    try { convert('fresh-clone', JSON.stringify({ ...doc, workspaces: 'apps/bad' }), 1); } catch { threw = true; }
+    if (!threw) fail('a workspaces value that is not a list must halt');
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── descriptor category as a list (#123): two rows one instrument decider holds jointly ─
+// A descriptor's `decide.category` may be a list of native_category values it must hold
+// jointly (e.g. fresh-clone [install, build]): a finding in EITHER listed category is part
+// of the population; the descriptor reads met only when EVERY listed category is met by
+// the same rules a single-category row already uses.
+{
+  const fail = (m) => negFailures.push('descriptor-list-category: ' + m);
+  const reg = loadRegistry();
+  const listDescriptor = { id: 'd-test-list', title: 'test', tier: 'reproducibility', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
+  const testReg = { ...reg, descriptors: [listDescriptor] };
+  const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
+  // a gap in EITHER listed category decides the row (here: only "build" has a gap)
+  const withGap = [{ id: 'F-1', source: 'fresh-clone', native_category: 'build', polarity: 'gap', observation: 'x', evidence: ['a:1'] }];
+  const gapRows = projectDescriptors({ findings: withGap, manifest: ran, inputs: null, coverage: {} }, testReg);
+  if (gapRows[0]?.status !== 'unmet' || !gapRows[0].findings.includes('F-1')) fail(`a gap in either listed category must decide the row unmet (got ${gapRows[0]?.status})`);
+  // no rows in either listed category, from an instrument that ran: met (nothing to report)
+  const noRows = projectDescriptors({ findings: [], manifest: ran, inputs: null, coverage: {} }, testReg);
+  if (noRows[0]?.status !== 'met') fail(`no rows in either listed category from a clean instrument run must read met (got ${noRows[0]?.status})`);
+  // a skipped manifest reads not-measured regardless of the category shape
+  const skipped = projectDescriptors({ findings: [], manifest: [{ scanner: 'fresh-clone', status: 'skipped', reason: 'no scratch clone here' }], inputs: null, coverage: {} }, testReg);
+  if (skipped[0]?.status !== 'not-measured' || !/no scratch clone here/.test(skipped[0].note)) fail(`a skipped manifest must read not-measured with its reason, list category or not (got ${skipped[0]?.status} / ${skipped[0]?.note})`);
+  // a peer scanner with a list category: met only when EVERY listed category is scanned clean
+  const peerDescriptor = { ...listDescriptor, id: 'd-test-list-peer', decide: { kind: 'instrument', scanner: 'deep-code-review', category: ['B', 'N'] } };
+  const peerRan = [{ scanner: 'deep-code-review', status: 'ran' }];
+  const oneScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'not-scanned', note: 'no config surface' } } } } }, { ...testReg, descriptors: [peerDescriptor] });
+  if (oneScanned[0]?.status !== 'not-measured') fail(`a list category met in one member and not-scanned in the other must NOT read met (got ${oneScanned[0]?.status})`);
+  const bothScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'scanned' } } } } }, { ...testReg, descriptors: [peerDescriptor] });
+  if (bothScanned[0]?.status !== 'met') fail(`a list category must read met once every listed category is independently scanned clean (got ${bothScanned[0]?.status})`);
+  // validateRegistry: accepts a list category, rejects an empty one
+  if (validateRegistry({ ...reg, descriptors: [listDescriptor] }).length) fail('validateRegistry must accept a non-empty list category');
+  const emptyList = { ...listDescriptor, decide: { kind: 'instrument', scanner: 'fresh-clone', category: [] } };
+  if (!validateRegistry({ ...reg, descriptors: [emptyList] }).some((e) => /category/.test(e))) fail('validateRegistry must reject an empty category list');
+}
+
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
 // The gate must flag uncovered PRODUCT surface, and must NOT flag (a) the run's own
 // artifacts when the run lives with its target (runs/**, SCHEMA §5), nor (b) a dir the
@@ -771,7 +876,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, descriptor-list-category, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

@@ -186,9 +186,10 @@ const PROFILES = {
   'fresh-clone': {
     file: 'findings-94-fresh-clone.yaml',
     startId: 900,
-    // 0 = every declared step passed and every README claim present; 1 = at least one
-    // step failed / timed out or a claim is missing. Both are successful RUNS. A crash
-    // of the runner itself exits 2 and halts here.
+    // 0 = every declared step passed and every README claim present, at the root AND
+    // in every workspace; 1 = at least one step failed / timed out or a claim is
+    // missing, anywhere. Both are successful RUNS. A crash of the runner itself exits
+    // 2 and halts here.
     okExits: [0, 1],
     // Rows: one gap per step that failed / timed out; one gap per NOT-DECLARED lint,
     // typecheck, test, migrate (the floor descriptors are worded so absence is a gap,
@@ -196,6 +197,16 @@ const PROFILES = {
     // claim. A passing step yields no row — a clean run is the explicit empty file.
     // NEVER copy step output: the last-40-lines tail (which may echo environment
     // values) stays in the raw archive; rows carry the command and exit code only.
+    //
+    // WORKSPACES (#123, the fresh-clone half of #127): the same rows, once for the
+    // root and once per entry in `rep.workspaces` — an npm-workspaces root is not one
+    // repository, it is several, and each one's gap is its own row. A workspace row's
+    // native_category stays the closed step name (install / build / … / readme-claim
+    // — what the adapter maps on); the workspace is carried in `native_id`, prefixed
+    // (`apps/x:install:failed`), so two workspaces failing the same step never collide.
+    // Evidence is the workspace's own manifest or README (`apps/x/package.json:1`,
+    // `apps/x/README.md:12`), never the root's. `rep.workspaces` is optional — a
+    // document from before #127 (no key at all) converts exactly as it always has.
     convert(raw, startId, exitCode) {
       const rep = parseJson(raw, 'fresh-clone');
       if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('fresh-clone report must be a JSON object');
@@ -203,49 +214,77 @@ const PROFILES = {
       if (!Array.isArray(rep.steps) || !Array.isArray(rep.readme_claims)) throw new Error('fresh-clone report has no steps[] / readme_claims[] (truncated report?)');
       if (![0, 1].includes(rep.exit)) throw new Error(`fresh-clone report exit "${rep.exit}" is not 0 | 1 (truncated report?)`);
       if (exitCode !== undefined && exitCode !== null && Number(exitCode) !== rep.exit) throw new Error(`fresh-clone report says exit ${rep.exit} but the runner exited ${exitCode} — the document does not describe the run it is filed under`);
-      const manifest = (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'eval/raw/fresh-clone.json:1';
-      const readme = rep.readme || 'README.md';
-      const rows = []; let n = 0; const seen = new Set();
-      for (const s of rep.steps) {
-        if (!s || !FC_STEPS.includes(s.name)) throw new Error(`fresh-clone step "${s && s.name}" is not one of ${FC_STEPS.join(' | ')} (truncated report?)`);
-        if (!FC_STEP_STATUS.includes(s.status)) throw new Error(`fresh-clone step ${s.name}: status "${s.status}" is not one of ${FC_STEP_STATUS.join(' | ')}`);
-        if (seen.has(s.name)) throw new Error(`fresh-clone step ${s.name} appears twice`);
-        seen.add(s.name);
-        const cmd = s.command ? ` (\`${oneLine(s.command)}\`` + (Number.isInteger(s.exit_code) ? `, exit ${s.exit_code})` : ')') : '';
-        let observation = null;
-        if (s.status === 'failed') observation = `Fresh-clone step ${s.name} failed${cmd}${s.reason ? ': ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}.`;
-        else if (s.status === 'timed-out') observation = `Fresh-clone step ${s.name} timed out${cmd}${s.reason ? ' — ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]} within the run budget.`;
-        else if (s.status === 'not-declared' && s.name === 'migrate' && !(Array.isArray(rep.toolchain && rep.toolchain.database_signals) && rep.toolchain.database_signals.length)) observation = null;   // no database in the tree: nothing to migrate, no gap
-        else if (s.status === 'not-declared' && FC_FLOOR_STEPS.includes(s.name)) observation = `Fresh-clone step ${s.name} is not declared in a runnable form${s.reason ? ' (' + oneLine(s.reason) + ')' : ''}; nothing in the repository ${FC_DECLARES[s.name]}, so a clean checkout cannot ${FC_VERB[s.name]}.`;
-        if (!observation) continue;
-        rows.push({
-          id: fid(startId + n++),
-          source: 'fresh-clone',
-          native_id: `${s.name}:${s.status}`,
-          native_category: s.name,
-          polarity: 'gap',
-          severity: (s.status === 'failed' || s.status === 'timed-out') && ['install', 'build', 'test'].includes(s.name) ? 'High' : 'Medium',
-          observation,
-          evidence: [manifest],
-          fix: FC_FIX[s.name],
+      if (rep.workspaces !== undefined && !Array.isArray(rep.workspaces)) throw new Error('fresh-clone report workspaces must be a list (truncated report?)');
+
+      const rows = []; let n = 0;
+
+      // one entry (root or workspace): validates its steps[] / readme_claims[] and
+      // appends their gap rows. ctx carries everything that differs by entry.
+      const emitEntry = (steps, readmeClaims, ctx) => {
+        const seen = new Set();
+        for (const s of steps) {
+          if (!s || !FC_STEPS.includes(s.name)) throw new Error(`fresh-clone${ctx.errLabel} step "${s && s.name}" is not one of ${FC_STEPS.join(' | ')} (truncated report?)`);
+          if (!FC_STEP_STATUS.includes(s.status)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: status "${s.status}" is not one of ${FC_STEP_STATUS.join(' | ')}`);
+          if (seen.has(s.name)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name} appears twice`);
+          seen.add(s.name);
+          const cmd = s.command ? ` (\`${oneLine(s.command)}\`` + (Number.isInteger(s.exit_code) ? `, exit ${s.exit_code})` : ')') : '';
+          let observation = null;
+          if (s.status === 'failed') observation = `Fresh-clone step ${s.name}${ctx.inLabel} failed${cmd}${s.reason ? ': ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel}.`;
+          else if (s.status === 'timed-out') observation = `Fresh-clone step ${s.name}${ctx.inLabel} timed out${cmd}${s.reason ? ' — ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel} within the run budget.`;
+          else if (s.status === 'not-declared' && s.name === 'migrate' && !ctx.hasDbSignals) observation = null;   // no database in the tree: nothing to migrate, no gap
+          else if (s.status === 'not-declared' && FC_FLOOR_STEPS.includes(s.name)) observation = `Fresh-clone step ${s.name} is not declared in a runnable form${ctx.inLabel}${s.reason ? ' (' + oneLine(s.reason) + ')' : ''}; nothing in the repository ${FC_DECLARES[s.name]}, so a clean checkout cannot ${FC_VERB[s.name]}${ctx.inLabel}.`;
+          if (!observation) continue;
+          rows.push({
+            id: fid(startId + n++),
+            source: 'fresh-clone',
+            native_id: `${ctx.idPrefix}${s.name}:${s.status}`,
+            native_category: s.name,
+            polarity: 'gap',
+            severity: (s.status === 'failed' || s.status === 'timed-out') && ['install', 'build', 'test'].includes(s.name) ? 'High' : 'Medium',
+            observation,
+            evidence: [ctx.manifest],
+            fix: FC_FIX[s.name],
+          });
+        }
+        for (const s of FC_STEPS) if (!seen.has(s)) throw new Error(`fresh-clone${ctx.errLabel} has no row for step ${s} — a step the runner did not record is not a pass (truncated report?)`);
+        for (const c of readmeClaims) {
+          if (!c || !Number.isInteger(c.line) || !c.command || !['present', 'missing'].includes(c.status)) throw new Error(`fresh-clone${ctx.errLabel} README claim missing line / command / status (truncated report?)`);
+          if (c.status !== 'missing') continue;
+          rows.push({
+            id: fid(startId + n++),
+            source: 'fresh-clone',
+            native_id: `${ctx.idPrefix}readme-claim@${ctx.readme}:${c.line}`,
+            native_category: 'readme-claim',
+            polarity: 'gap',
+            severity: 'Medium',
+            observation: `README claims \`${oneLine(c.command)}\` (${ctx.readme}:${c.line})${ctx.inLabel} but the ${FC_CLAIM_NOUN[c.kind] || 'target'} it names does not exist in the tree; the README is not true of this checkout at that line.`,
+            evidence: [`${ctx.readme}:${c.line}`],
+            fix: `Make the README true: add the ${FC_CLAIM_NOUN[c.kind] || 'target'} the line claims, or correct the line to the command that exists; re-run fresh-clone and confirm the claim reads present.`,
+          });
+        }
+      };
+
+      const rootDbSignals = Array.isArray(rep.toolchain && rep.toolchain.database_signals) && rep.toolchain.database_signals.length > 0;
+      emitEntry(rep.steps, rep.readme_claims, {
+        idPrefix: '', inLabel: '', errLabel: '',
+        manifest: (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'eval/raw/fresh-clone.json:1',
+        readme: rep.readme || 'README.md',
+        hasDbSignals: rootDbSignals,
+      });
+
+      for (const w of rep.workspaces || []) {
+        if (!w || typeof w.path !== 'string' || !w.path) throw new Error('fresh-clone workspace entry missing path (truncated report?)');
+        if (!Array.isArray(w.steps)) throw new Error(`fresh-clone workspace ${w.path} has no steps[] (truncated report?)`);
+        if (!Array.isArray(w.readme_claims)) throw new Error(`fresh-clone workspace ${w.path} has no readme_claims[] (truncated report?)`);
+        const wDbSignals = Array.isArray(w.toolchain && w.toolchain.database_signals) && w.toolchain.database_signals.length > 0;
+        emitEntry(w.steps, w.readme_claims, {
+          idPrefix: `${w.path}:`, inLabel: ` in workspace ${w.path}`, errLabel: ` workspace ${w.path}`,
+          manifest: (w.toolchain && w.toolchain.manifest) ? `${w.path}/${w.toolchain.manifest}:1` : `${w.path}/package.json:1`,
+          readme: `${w.path}/${w.readme || 'README.md'}`,
+          hasDbSignals: wDbSignals,
         });
       }
-      for (const s of FC_STEPS) if (!seen.has(s)) throw new Error(`fresh-clone report has no row for step ${s} — a step the runner did not record is not a pass (truncated report?)`);
-      for (const c of rep.readme_claims) {
-        if (!c || !Number.isInteger(c.line) || !c.command || !['present', 'missing'].includes(c.status)) throw new Error('fresh-clone README claim missing line / command / status (truncated report?)');
-        if (c.status !== 'missing') continue;
-        rows.push({
-          id: fid(startId + n++),
-          source: 'fresh-clone',
-          native_id: `readme-claim@${readme}:${c.line}`,
-          native_category: 'readme-claim',
-          polarity: 'gap',
-          severity: 'Medium',
-          observation: `README claims \`${oneLine(c.command)}\` (${readme}:${c.line}) but the ${FC_CLAIM_NOUN[c.kind] || 'target'} it names does not exist in the tree; the README is not true of this checkout at that line.`,
-          evidence: [`${readme}:${c.line}`],
-          fix: `Make the README true: add the ${FC_CLAIM_NOUN[c.kind] || 'target'} the line claims, or correct the line to the command that exists; re-run fresh-clone and confirm the claim reads present.`,
-        });
-      }
+
       return rows;
     },
   },

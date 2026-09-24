@@ -189,8 +189,10 @@ descriptors:
     axis: context-economy
     tags: [floor]
     decide:
-      kind: claim
-    check: a scripted fresh-clone run with the transcript attached; the instrument the floor most needs
+      kind: instrument
+      scanner: fresh-clone
+      category: [install, build]
+    check: the fresh-clone install and build steps both read passed from a clean checkout (tools/fresh-clone.mjs), root and every workspace
     sources: [floor/r-fresh-clone]
     status: draft
   - id: d-config-declared
@@ -238,10 +240,13 @@ descriptors:
   - id: d-schema-versioned
     title: The schema is versioned and migrations replay from empty
     tier: reproducibility
+    axis: context-economy
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: migrate from an empty database in the fresh-clone run
+      kind: instrument
+      scanner: fresh-clone
+      category: migrate
+    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signals anywhere in the tree the runner emits no migrate row, so it reads met — nothing to migrate
     sources: [floor/r-migrations, gcp/never-hand-apply-a-migration]
     status: draft
 
@@ -252,8 +257,10 @@ descriptors:
     axis: deterministic-gates
     tags: [floor]
     decide:
-      kind: claim
-    check: tests-run counted in the fresh-clone transcript, never tests-passed; a suite that skips its core when a variable is unset is unmet
+      kind: instrument
+      scanner: fresh-clone
+      category: test
+    check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout; a suite that skips its core when a variable is unset is unmet
     sources: [floor/v-tests, manifest/d3-gates-live, gcp/pnpm-check]
     status: draft
   - id: d-ci-gate-on-default-branch
@@ -283,8 +290,10 @@ descriptors:
     axis: deterministic-gates
     tags: [floor]
     decide:
-      kind: claim
-    check: the inverted lint read, the gate runs and is green; never the raw output
+      kind: instrument
+      scanner: fresh-clone
+      category: [lint, typecheck]
+    check: the fresh-clone lint and typecheck steps both read passed from a clean checkout; never the raw output
     sources: [floor/v-lint, scanner-candidates/inverted-mode]
     status: draft
   - id: d-smoke-on-deployed

@@ -140,3 +140,43 @@ what the public engine learned.
   documents; no real `npm audit` invoked) pins the converter's rows, its halts,
   the clean-run empty file, the projection, and the three descriptor reads.
   Goldens untouched.
+- **2026-09-24 — the fresh-clone runner goes workspace-aware (#127), and the
+  register learns list categories (#123, fresh-clone half).** The defect: on a
+  real monorepo (Scout) the root `package.json` is a bare npm-workspaces shell —
+  no scripts, no dependencies, no lockfile — so the runner read it as "six steps
+  not declared, exit 0" while the apps that actually mattered each failed `npm
+  ci` from a clean clone (a workspace's own lockfile resolves against the
+  workspaces root, which has none: `EUSAGE`); the per-app results people had
+  only existed because a human ran the runner once per app. `tools/fresh-
+  clone.mjs` now resolves `workspaces` (an array, `{packages: [...]}`, globs
+  `dir/*` / `dir/**`, plain paths — zero deps) and, when the root declares none
+  but `apps/*` / `packages/*` exist with their own manifest, treats those as
+  workspaces too; the step plan runs once per workspace in its own directory, in
+  addition to the root. Install is the one step rebased: when the root carries a
+  lockfile, a workspace installs via `npm ci --workspace <path>` run from the root;
+  otherwise its own plan runs in its own directory, which reproduces the real
+  `EUSAGE` honestly instead of masking it. The document gains `workspaces:
+  [{path, toolchain, steps, readme, readme_claims}]`; `exit` is 1 when the root
+  or any workspace has a failed/timed-out step or a missing claim; a workspace-
+  free repo still emits exactly today's document plus `workspaces: []`. The
+  `fresh-clone` ingest profile emits the same per-step and per-claim gap rows
+  per workspace, `native_id` prefixed by the workspace path
+  (`apps/x:install:failed`), evidence scoped to the workspace's own manifest or
+  README, `native_category` left as the plain closed step name so the adapter
+  map is untouched; a pre-#127 document with no `workspaces` key still converts
+  exactly as before. Separately, `decide.category` on a register `instrument`
+  row may now be a list — two categories one decider holds jointly — reading
+  met only when every listed category is independently met by the single-
+  category rules (`validateRegistry` rejects an empty list). Four of the
+  fresh-clone floor rows are re-kinded from `claim` onto it:
+  `d-fresh-clone-runs` (`[install, build]`), `d-tests-execute-core` (`test`),
+  `d-lint-typecheck-gate` (`[lint, typecheck]`), `d-schema-versioned`
+  (`migrate` — no database signals in the tree means no migrate row, which
+  reads met: nothing to migrate). `d-readme-true` stays a census; every other
+  register row is untouched. A public fixture
+  (`tests/instruments/fresh-clone-monorepo` — a `workspaces: ["apps/*"]` root
+  with no scripts/deps/lockfile, `apps/good` passing, `apps/bad` failing its
+  build offline and deterministically in place of a real `npm ci` EUSAGE) and
+  two harness blocks (`fresh-clone-workspaces`, `descriptor-list-category`) pin
+  the new behavior; the existing `fresh-clone` block and its fixture are
+  unchanged. Goldens untouched.

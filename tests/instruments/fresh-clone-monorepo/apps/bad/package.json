@@ -1,0 +1,9 @@
+{
+  "name": "fresh-clone-monorepo-bad",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The workspace app that stands in for the real defect: on Scout, an app with its own package-lock.json failed `npm ci` from a clean workspace clone because npm resolves the project root to the workspaces root, where no lockfile exists (EUSAGE). Reproducing that here would need a real dependency and a real network install, so this fixture simulates the failure offline and deterministically with a build script that exits 1 (tests/regression.mjs, fresh-clone workspace block) — no dependencies, no network, same observable fact: this workspace does not build from a clean checkout.",
+  "scripts": {
+    "build": "node -e \"process.exit(1)\""
+  }
+}
