@@ -28,7 +28,7 @@ import { isHalt } from '../tools/doctrine.mjs';
 import { buildSupervision } from '../tools/supervision.mjs';
 import { computeVariance } from '../tools/variance.mjs';
 import { decideProjected } from '../tools/decisions.mjs';
-import { convert, coverageYaml } from '../tools/ingest.mjs';
+import { convert, coverageYaml, nextStart } from '../tools/ingest.mjs';
 import { score } from '../tools/score.mjs';
 import { buildGrades } from '../tools/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../tools/variance.mjs';
@@ -283,6 +283,20 @@ for (const [dir, what] of NEGATIVE) {
     if (!runValidate()) fail('a four-digit finding id (F-1000) must validate green — the id space is not capped at 999');
     writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), row('F-12'));
     if (runValidate()) fail('a two-digit finding id (F-12) must still validate red');
+    rmSync(tmp, { recursive: true, force: true });
+  }
+  // id allocation (found on Scout: an 807-row, then 1,167-row gitleaks block ran past the
+  // deep-code-review and fresh-clone floors and the validator went red on duplicate ids)
+  {
+    const tmp = join(HERE, '.tmp-nextstart'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+    if (nextStart(tmp, 'deep-code-review').start !== 800) fail('an empty run starts deep-code-review at its floor F-800');
+    const row = (n) => `- id: F-${n}\n  source: gitleaks\n  native_id: "r@a.ts:${n}"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
+    writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), Array.from({ length: 807 }, (_, i) => row(700 + i)).join(''));
+    const ns = nextStart(tmp, 'deep-code-review');
+    if (ns.start !== 1600 || ns.highest !== 1506) fail(`with gitleaks rows to F-1506, deep-code-review must start at F-1600 (got F-${ns.start}, highest ${ns.highest})`);
+    if (nextStart(tmp, 'gitleaks').start !== 700) fail('a re-ingest of the same tool ignores its own file and lands at its floor again');
+    writeFileSync(join(tmp, 'eval', 'findings-93-deep-code-review.yaml'), row(1600));
+    if (nextStart(tmp, 'fresh-clone').start !== 1700) fail('fresh-clone must start above both existing blocks (F-1700)');
     rmSync(tmp, { recursive: true, force: true });
   }
   const proj = projectMulti([...gl, ...sc], adaptersOnce());
