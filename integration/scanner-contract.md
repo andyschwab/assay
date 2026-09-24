@@ -140,7 +140,8 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census) and **fresh-clone** (`adapters/fresh-clone.yaml`, below).
+credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b), and
+**repo-census** (`adapters/repo-census.yaml`, §3d).
 **OpenSSF Scorecard** (`adapters/scorecard.yaml`) is
 integrated but **retired from the adopted roster** (2026-09-15): its checks are
 remote repository-configuration reads that need direct GitHub API access at run
@@ -192,6 +193,66 @@ toolchain family it cannot exercise, and does not read step output into rows.
 ```sh
 node tools/fresh-clone.mjs <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone]
 node tools/ingest.mjs <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
+```
+
+### 3d. The repo-census instrument (`tools/repo-census.mjs`)
+
+**What it measures.** Four floor rows a run could not decide before except by an
+LLM-authored census (`d-architecture-page`, `d-agent-contract`, `d-runbook`,
+`d-ci-gate-on-default-branch`), decided deterministically from the tree, read-only,
+offline, zero deps. Four checks:
+
+- **architecture-page** — ARCHITECTURE.md / docs/ARCHITECTURE.md /
+  docs/architecture.md / docs/architecture/*.md (case-insensitive), or a README
+  "Architecture" section. `pass` only when it also **names** an external service or
+  data store (a heading or line mentioning database / queue / API / service / store
+  / bucket / provider, or a mermaid / diagram block) — presence alone is not
+  enough. In a **monorepo** (package.json `workspaces`, or `apps/*/package.json`,
+  or `packages/*/package.json`) it runs at the root **and** at every app, one check
+  per location.
+- **agent-contract** — AGENTS.md or CLAUDE.md (root and per app, same monorepo
+  rule). `pass` only when it is **present-tense**: no heading matching
+  `/^#+\s*(status|history|changelog|todo|backlog)\b/i` and no dated changelog line
+  (a line starting with a date like `2026-09-01`, or a `- 2026-…` bullet).
+- **runbook** — RUNBOOK.md / docs/RUNBOOK.md / docs/runbook*.md, or a README/doc
+  section headed "Runbook" or "Operations". `pass` only when it carries a heading
+  or paragraph for **each** of restart, roll back, rotate (a key/secret/credential),
+  and restore (a backup). Presence of the words is what this decides — whether a
+  procedure was ever actually **run** is a separate, sidecar claim, said in the
+  observation every time.
+- **ci-gate** — every `.github/workflows/*.yml|.yaml`, read with a minimal
+  line-based reader (zero deps, no YAML library; handles the common shapes: `on:
+  [push, pull_request]`, block-form `on: / push: / branches: [main]`,
+  `pull_request:` with no filters). A workflow **gates** when it triggers on
+  pull_request (or push to the default branch — `--default-branch`, else `git
+  symbolic-ref refs/remotes/origin/HEAD`, else `main`) and runs a step whose
+  `run:` invokes a test / lint / typecheck / build command (npm / pnpm / yarn
+  test|lint|typecheck|build, `tsc`, `jest`, `vitest`, `pytest`, `go test`, `cargo
+  test`, `make test`). It **fails open** — a gap, cited by file:line — when the
+  gating job or step carries `continue-on-error: true`; a gate that can fail open
+  is not a gate.
+
+**Success set.** `exit` is `0` when every check reads `pass` (or `not-applicable`),
+`1` when at least one check is a `gap`; both are successful runs and `ingest.mjs
+--tool repo-census` accepts both. A crash of the runner itself exits `2` and halts
+the intake. The converter writes one gap row per `gap` check and one strength row
+per `pass` check (so the axis sees the evidence, not just the absence of a gap); a
+`not-applicable` check yields nothing. `Medium` severity throughout, except a
+ci-gate gap from a fail-open step, which reads `High` — a gate that can be turned
+off from inside the workflow is worse than no gate recorded. Rows carry the
+check's own evidence (`file:line`) or, where a check has nothing more specific to
+cite (an absent file, an absent workflow directory), a `<location>/:1`-style path
+into the target; every row carries at least one.
+
+**What it deliberately does not decide.** Whether a runbook's procedures were ever
+actually **run** — only that the words for each are present — stays with the
+owner's evidence. Whether a CI check is **required** by branch protection is not
+visible from a checked-out tree at all; every ci-gate observation says so. Neither
+is inferred, guessed, or defaulted to met.
+
+```sh
+node tools/repo-census.mjs <target-dir> --out repo-census.json [--default-branch main]
+node tools/ingest.mjs <run-dir> --tool repo-census --raw repo-census.json --exit <its exit code>
 ```
 
 ## 4. The fail-closed rule (the coherence guarantee)

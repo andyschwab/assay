@@ -118,3 +118,32 @@ what the public engine learned.
   the runner, the converter's halts, the clean-run empty file and the
   projection. The register's floor rows keep their kinds; the re-kind to
   `instrument: fresh-clone` is #123. Goldens untouched.
+- **2026-09-24 — the repo-census instrument, and four floor rows a run can now
+  decide without an LLM (#122).** `tools/repo-census.mjs` reads a checkout,
+  read-only, zero deps, no network: an architecture page present and naming an
+  external service or data store (root and per app in a monorepo — package.json
+  `workspaces`, or `apps/*` / `packages/*`); an agent contract (AGENTS.md or
+  CLAUDE.md, same monorepo rule) present and present-tense (no status/history/
+  changelog/todo/backlog heading, no dated changelog line); a runbook carrying a
+  heading or paragraph for restart, roll back, rotate a key/secret/credential,
+  and restore from backup (presence of the words only — whether a procedure was
+  ever run stays a sidecar claim); and a CI gate — a `.github/workflows/*.yml`
+  that triggers on pull_request or push to the default branch and runs a
+  test/lint/typecheck/build step with no step failing open (`continue-on-error:
+  true` is a gap, High; whether the check is *required* by branch protection is
+  not visible from the tree, said in every observation). Exit 0 / 1 are runs, 2
+  is a crash. `ingest.mjs` gains the profile (`findings-96-repo-census.yaml`,
+  ids from F-960): one gap row per `gap` check, one strength row per `pass`
+  check (so the axis sees the evidence, not just the absence of a gap);
+  `not-applicable` yields nothing. `adapters/repo-census.yaml` is adopted
+  (instrument, contributes nothing; architecture-page / agent-contract / runbook
+  → artifact-legibility, ci-gate → deterministic-gates), so every fixture
+  manifest and the template gain a disposition row. `d-architecture-page`,
+  `d-agent-contract`, `d-runbook`, and `d-ci-gate-on-default-branch` (the last
+  previously `kind: census`) are re-kinded to `instrument: repo-census` in this
+  same change — the four floor rows the register could only read `claim` /
+  `census` for before. A public fixture (`tests/instruments/repo-census-target`,
+  a tiny monorepo) and a `repo-census` harness block pin the runner, the
+  converter's halts, the all-pass strength-only conversion, the projection, and
+  the descriptor reads (met on an all-pass `ran` manifest, not-measured with the
+  reason when skipped). Goldens untouched.

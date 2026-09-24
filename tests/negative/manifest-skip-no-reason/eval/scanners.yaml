@@ -10,3 +10,6 @@ scanners:
   fresh-clone:
     status: skipped
     reason: "fixture: the fresh-clone run was not executed over this base"
+  repo-census:
+    status: skipped
+    reason: "fixture: the repo census was not executed over this base"

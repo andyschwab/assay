@@ -359,17 +359,18 @@ function adaptersOnce() { return loadAdapters(); }
   if (adopted.includes('scorecard')) fail('scorecard is retired (adopted: false) and must not be in the adopted roster');
   if (!adapters.scorecard) fail('the retired scorecard adapter must still LOAD (frozen runs carrying its rows must project)');
   // the adopted roster is pinned by name: adopting or retiring a scanner is a reviewed
-  // change to this line in the same commit (fresh-clone adopted 2026-09-22, #120)
-  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'fresh-clone', 'gitleaks', 'repo-eval'])) fail(`adopted roster must be deep-code-review, fresh-clone, gitleaks, repo-eval (got ${adopted.join(', ')})`);
+  // change to this line in the same commit (fresh-clone adopted 2026-09-22, #120;
+  // repo-census adopted 2026-09-24, #122)
+  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'fresh-clone', 'gitleaks', 'repo-census', 'repo-eval'])) fail(`adopted roster must be deep-code-review, fresh-clone, gitleaks, repo-census, repo-eval (got ${adopted.join(', ')})`);
   const reg = registryAxes(adapters);
   if (!reg.includes('code-security') || !reg.includes('multiplayer') || reg.length !== 9) fail(`registry must be the 9 axes the adopted scanners contribute — an instrument adds none (got ${reg.length}: ${reg.join(', ')})`);
-  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' } } };
+  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'repo-census': { status: 'skipped', reason: 'no filesystem access here' } } };
   const d = dispositions(m, adapters);
   if (d.ran.join() !== 'repo-eval' || d.skipped[0]?.reason !== 'out of scope' || d.failed[0]?.id !== 'gitleaks' || d.missing.length) fail('dispositions must group ran / skipped / failed with reasons and report nothing missing');
   const line = scannerLine(m, ['repo-eval'], adapters);
   if (!line.includes('skipped: deep-code-review (out of scope)') || !line.includes('failed: gitleaks (binary missing)') || !line.includes('fresh-clone (no scratch clone here)')) fail(`the scanners line must name skipped and failed scanners with their reasons (got "${line}")`);
   if (!scannerLine(null, ['repo-eval'], adapters).includes('no run manifest')) fail('a missing manifest must be named on the scanners line, never silently omitted');
-  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,fresh-clone,gitleaks') fail('adopted scanners without a row must be reported missing');
+  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,fresh-clone,gitleaks,repo-census') fail('adopted scanners without a row must be reported missing');
   if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
   // the walk prints the reason on the not-measured register
   const walk = execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
@@ -433,7 +434,7 @@ function adaptersOnce() { return loadAdapters(); }
   const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
   for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
     copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
-  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n');
+  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
   try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
@@ -538,6 +539,106 @@ function adaptersOnce() { return loadAdapters(); }
     const cleanFile = readFileSync(join(tmp, 'eval', 'findings-94-fresh-clone.yaml'), 'utf8');
     if (!/0 row\(s\)/.test(cleanFile) || /^- id:/m.test(cleanFile)) fail('a clean run writes the explicit empty rows file');
     try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch { fail('a verified-clean fresh-clone run (empty explicit file, manifest ran) must validate green'); }
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── repo-census instrument (tools/repo-census.mjs → ingest profile repo-census) ──
+// The runner over the public fixture (a tiny monorepo, root + apps/one) must record
+// what IS: architecture-page passes at the root (an Architecture section naming a
+// database) and gaps for apps/one (no docs there at all); agent-contract gaps at the
+// root citing the planted `## Status` heading, and gaps for apps/one (absent); runbook
+// gaps naming the missing restore procedure; ci-gate gaps citing the planted
+// continue-on-error step. The converter turns every gap into a gap row (Medium, except
+// ci-gate fail-open which is High) and every pass into a strength row; a runner crash
+// (exit 2) halts it; every category maps; an all-pass run reads the four floor rows
+// met, with a skipped manifest reading not-measured instead.
+{
+  const fail = (m) => negFailures.push('repo-census: ' + m);
+  const mustThrow = (label, fn) => { let threw = false; try { fn(); } catch { threw = true; } if (!threw) fail(`${label} must halt (fail-loud intake)`); };
+  const fx = join(HERE, 'instruments', 'repo-census-target');
+  const tmp = join(HERE, 'tmp-repo-census'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  const out = join(tmp, 'repo-census.json');
+  let exit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'repo-census.mjs'), fx, '--out', out, '--default-branch', 'main'], { stdio: 'pipe' }); }
+  catch (e) { exit = e.status; }
+  if (exit !== 1) fail(`the runner over the fixture must exit 1 (planted gaps; got ${exit})`);
+  const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
+  let doc = null;
+  try { doc = JSON.parse(raw); } catch { fail('the runner must write a JSON document at --out'); }
+  if (doc) {
+    if (doc.exit !== 1 || doc.tool !== 'repo-census') fail(`document must carry tool repo-census, exit 1 (got ${doc.tool}/${doc.exit})`);
+    if (!doc.monorepo?.detected || doc.monorepo.locations.join() !== 'apps/one') fail(`the fixture must be detected as a monorepo with apps/one (got ${JSON.stringify(doc.monorepo)})`);
+    const at = (nm, loc) => doc.checks.find((c) => c.name === nm && c.detail?.path === loc);
+    const arch = at('architecture-page', '.');
+    if (arch?.status !== 'pass') fail(`architecture-page must pass at root (got ${arch?.status})`);
+    const archApp = at('architecture-page', 'apps/one');
+    if (archApp?.status !== 'gap') fail(`architecture-page must gap for apps/one (got ${archApp?.status})`);
+    const agent = at('agent-contract', '.');
+    if (agent?.status !== 'gap' || !agent.evidence[0]?.includes('AGENTS.md')) fail(`agent-contract must gap at root citing AGENTS.md (got ${agent?.status}/${agent?.evidence})`);
+    if (!/Status/.test(agent?.observation || '')) fail('agent-contract gap must cite the planted Status heading');
+    const agentApp = at('agent-contract', 'apps/one');
+    if (agentApp?.status !== 'gap') fail(`agent-contract must gap for apps/one (got ${agentApp?.status})`);
+    const rb = doc.checks.find((c) => c.name === 'runbook');
+    if (rb?.status !== 'gap' || !/restore/.test(rb.observation)) fail(`runbook must gap naming restore (got ${rb?.status}/${rb?.observation})`);
+    const ci = doc.checks.find((c) => c.name === 'ci-gate');
+    if (ci?.status !== 'gap' || !/continue-on-error/.test(ci.observation) || !ci.evidence[0]?.includes('ci.yml')) fail(`ci-gate must gap citing the continue-on-error line (got ${ci?.status}/${ci?.observation}/${ci?.evidence})`);
+    if (doc.checks.length !== 6) fail(`the fixture must yield 6 checks (2 architecture-page + 2 agent-contract + runbook + ci-gate; got ${doc.checks.length})`);
+    // (b) convert: a gap row per gap check, a strength row per pass check
+    const rows = convert('repo-census', raw, 1);
+    if (rows.length !== 6) fail(`convert must yield 6 rows (got ${rows.length})`);
+    const byNc = {}; for (const r of rows) (byNc[r.native_category] ??= []).push(r);
+    if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'strength').length !== 1) fail('exactly one architecture-page strength row (root)');
+    if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'gap').length !== 1) fail('exactly one architecture-page gap row (apps/one)');
+    if ((byNc['agent-contract'] || []).filter((r) => r.polarity === 'gap').length !== 2) fail('two agent-contract gap rows (root + apps/one)');
+    if ((byNc['runbook'] || []).length !== 1 || byNc['runbook'][0].polarity !== 'gap') fail('one runbook gap row');
+    if ((byNc['ci-gate'] || []).length !== 1 || byNc['ci-gate'][0].polarity !== 'gap' || byNc['ci-gate'][0].severity !== 'High') fail(`ci-gate fail-open must read gap/High (got ${byNc['ci-gate']?.[0]?.polarity}/${byNc['ci-gate']?.[0]?.severity})`);
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => r.native_category !== 'ci-gate' && r.severity !== 'Medium')) fail('every non-ci-gate gap must read Medium severity');
+    if (rows.some((r) => !Array.isArray(r.evidence) || !r.evidence.length)) fail('every row needs at least one path:line');
+    if (rows[0]?.id !== 'F-960') fail(`repo-census ids start at F-960 (got ${rows[0]?.id})`);
+    // (c) a runner crash halts; a document that disagrees with the exit code halts; truncation halts
+    mustThrow('a runner crash (exit 2)', () => convert('repo-census', raw, 2));
+    mustThrow('a document whose exit disagrees with the runner exit', () => convert('repo-census', raw, 0));
+    mustThrow('a truncated document (no checks)', () => convert('repo-census', JSON.stringify({ tool: 'repo-census', exit: 1, checks: [] }), 1));
+    mustThrow('an unknown check name', () => convert('repo-census', JSON.stringify({ ...doc, checks: doc.checks.map((c) => c.name === 'runbook' ? { ...c, name: 'unknown-check' } : c) }), 1));
+    mustThrow('an unknown status', () => convert('repo-census', JSON.stringify({ ...doc, checks: doc.checks.map((c) => c.name === 'runbook' ? { ...c, status: 'ok' } : c) }), 1));
+    mustThrow('malformed JSON', () => convert('repo-census', raw.slice(0, 50), 1));
+    mustThrow('a foreign report', () => convert('repo-census', '[]', 0));
+    // (d) an all-passing synthetic document with exit 0 is a verified-clean-in-the-strength-
+    // sense run: one strength row per check, no gap rows
+    const cleanDoc = { ...doc, exit: 0, checks: doc.checks.map((c) => ({ ...c, status: 'pass', observation: `${c.name} passes`, evidence: (c.evidence && c.evidence.length) ? c.evidence : ['README.md:1'] })) };
+    const cleanRows = convert('repo-census', JSON.stringify(cleanDoc), 0);
+    if (cleanRows.length !== 6 || cleanRows.some((r) => r.polarity !== 'strength')) fail('an all-passing document must convert to strength rows only, one per check');
+    // (e) projection: every category maps, onto existing axes, and the instrument contributes none
+    const proj = projectMulti(rows, adaptersOnce());
+    if (proj.unmapped.length) fail(`repo-census rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
+    const axisOf = (cat) => proj.projected.find((p) => p.f.native_category === cat)?.axis;
+    if (axisOf('architecture-page') !== 'artifact-legibility' || axisOf('agent-contract') !== 'artifact-legibility' || axisOf('runbook') !== 'artifact-legibility') fail('architecture-page / agent-contract / runbook must land on the docs-legibility axis (artifact-legibility)');
+    if (axisOf('ci-gate') !== 'deterministic-gates') fail('ci-gate must land on the shared deterministic-gates axis');
+    if (contributedBySources(adaptersOnce(), ['repo-census']).size !== 0) fail('repo-census is an instrument and must contribute no axis');
+    const rogue = projectMulti([{ ...rows[0], native_category: 'unknown-check' }], adaptersOnce());
+    if (!rogue.unmapped.length) fail('an unknown repo-census category must halt at projection (default: FAIL)');
+    // (f) the descriptor register: the four re-kinded floor rows read met from an
+    // all-pass run with a `ran` manifest, and not-measured (with the reason) when
+    // repo-census is recorded skipped instead
+    const reg = loadRegistry();
+    const metRows = Object.fromEntries(projectDescriptors({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    for (const id of ['d-architecture-page', 'd-agent-contract', 'd-runbook', 'd-ci-gate-on-default-branch']) {
+      if (metRows[id]?.status !== 'met') fail(`${id} must read met from an all-pass repo-census run (got ${metRows[id]?.status})`);
+    }
+    const skippedRows = Object.fromEntries(projectDescriptors({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'skipped', reason: 'no filesystem access' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    for (const id of ['d-architecture-page', 'd-agent-contract', 'd-runbook', 'd-ci-gate-on-default-branch']) {
+      if (skippedRows[id]?.status !== 'not-measured' || !/no filesystem access/.test(skippedRows[id].note)) fail(`${id} must read not-measured with the recorded reason when repo-census is skipped (got ${skippedRows[id]?.status}/${skippedRows[id]?.note})`);
+    }
+    // the CLI end to end: ingest writes the rows file and the raw archive, and the run validates green
+    mkdirSync(join(tmp, 'eval'), { recursive: true });
+    for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
+      copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
+    writeFileSync(join(tmp, 'eval', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), 'utf8').replace(/  repo-census:\n    status: skipped\n    reason: "[^"]*"\n/, '  repo-census:\n    status: ran\n'));
+    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'repo-census', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
+    catch (e) { fail(`ingest CLI must accept the fixture document (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+    if (!existsSync(join(tmp, 'eval', 'findings-96-repo-census.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'repo-census.json'))) fail('ingest must write findings-96-repo-census.yaml and archive the raw document');
+    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested repo-census run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
   }
   rmSync(tmp, { recursive: true, force: true });
 }
@@ -682,7 +783,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, repo-census, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

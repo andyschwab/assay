@@ -1,0 +1,6 @@
+{
+  "name": "one",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A workspace app with no docs of its own — the fixture's monorepo gap (no ARCHITECTURE.md/CLAUDE.md/AGENTS.md under apps/one)."
+}

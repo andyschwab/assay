@@ -39,7 +39,9 @@ thing plug in:
   an appendix.
 - **Instruments** — deterministic tools (`gitleaks`; `fresh-clone`, the scripted
   clean-checkout run that installs, builds, lints, typechecks, tests, migrates
-  and replays the README's command claims; OpenSSF `scorecard` is
+  and replays the README's command claims; `repo-census`, which decides an
+  architecture page, a present-tense agent contract, a runbook, and a CI gate on
+  the default branch from the tree alone; OpenSSF `scorecard` is
   integrated but retired from the adopted roster because it needs GitHub API
   access at run time) that feed existing axes and never add one. Ten instruments
   add zero chapters. An adopted instrument runs offline against the checkout.

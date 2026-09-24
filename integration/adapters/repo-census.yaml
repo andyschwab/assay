@@ -1,0 +1,38 @@
+# Adapter: repo-census (INSTRUMENT — the deterministic repo census) -> the axis
+# roster (integration/scanner-contract.md, instrument role, §3d). tools/repo-census.mjs
+# checks, read-only against the tree: an architecture page that names an external
+# service or data store (root and per app in a monorepo), a present-tense agent
+# contract (AGENTS.md/CLAUDE.md, same monorepo rule), a runbook covering restart /
+# roll back / rotate / restore, and a CI workflow that gates on pull_request or push
+# to the default branch without a step that fails open. tools/ingest.mjs (profile
+# repo-census) turns each `gap` check into one gap row and each `pass` check into
+# one strength row (so the axis sees the evidence, not just the absence of a gap);
+# a `not-applicable` check yields nothing. Instruments never contribute an axis;
+# these rows feed the axes the descriptor register already homes the floor rows on
+# (registry/descriptors.yaml): architecture-page / agent-contract / runbook feed the
+# docs-legibility axis these floor rows already live on (d-architecture-page,
+# d-agent-contract, d-runbook -> artifact-legibility); ci-gate feeds the shared
+# verification-gate axis (d-ci-gate-on-default-branch -> deterministic-gates, the
+# same axis fresh-clone's lint/typecheck/test rows land on). Keyed by the check name
+# (the runner's closed set); a category this map does not know halts loud.
+scanner: repo-census
+targets_taxonomy: 3
+role: instrument
+
+contributes: []
+
+map:
+  architecture-page:            # legibility: one page shows the parts and services
+    axis: artifact-legibility
+  agent-contract:                # legibility: the agent contract exists and is present-tense
+    axis: artifact-legibility
+  runbook:                       # legibility: the one-page runbook covers the four procedures
+    axis: artifact-legibility
+  ci-gate:                       # a verification gate exists on the default branch and holds
+    axis: deterministic-gates
+
+default: FAIL
+
+capabilities:
+  - id: verify-fix
+    invoke: "re-run tools/repo-census.mjs against the target and confirm the check reads pass"
