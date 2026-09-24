@@ -67,31 +67,23 @@ The instruments that decide rows:
 Prose is never read. An observation that mentions a topic is not a measurement.
 Census names are accepted as a list per requirement; a new run uses the first.
 
-## The claims file
+## The packet: a repository's own claims
 
-A repository that states its own claims keeps `packet/manifest.yaml`:
-
-```yaml
-yardstick: 0                      # the requirements.yaml version claimed against
-namespaces: [assay]               # plus any team prefix the file uses
-supplements: [<name>]             # the prescriptions this repository inherits
-claims:
-  - id: d-effects-gated
-    state: satisfied              # satisfied | not-applicable | open
-    by: core/workflow halts + audit in one transaction
-  - id: d-backup-restore-exercised
-    state: open
-```
-
-A claim never lets presence stand in for enforcement: `satisfied` names the
-mechanism that holds, and a run that finds the mechanism absent reports it.
+A repository that states its own claims keeps a **packet** — `/owner/PACKET.md`
+is the one home of its format (`packet/manifest.yaml`, validated by
+`node assay.mjs validate-packet`) and of how a packet's claims and a run's
+measurement are read together, compared, never merged. `basis: run | owner` on
+every row in `yardstick.yaml` says which decided it this run; a claim the run
+contradicts lands in `yardstick.yaml`'s `contradictions:` list, never silently
+overwritten.
 
 ## Running it
 
 ```sh
-node assay.mjs measure <run>            # the table
-node assay.mjs measure <run> --write    # yardstick.yaml
-node assay.mjs compile <run>            # measures, then writes every view
+node assay.mjs measure <run>                       # the table
+node assay.mjs measure <run> --write                # yardstick.yaml
+node assay.mjs measure <run> --packet <dir> --write  # + a repository's own packet
+node assay.mjs compile <run> [--packet <dir>]        # measures, then writes every view
 ```
 
 `requirements.yaml` is validated on load (closed kinds, tiers, topics, tags,

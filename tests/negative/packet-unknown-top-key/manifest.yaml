@@ -1,0 +1,9 @@
+# negative/packet-unknown-top-key — an unknown top-level key; validate-packet
+# must refuse it (a strict, closed format).
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+namespaces: [assay]

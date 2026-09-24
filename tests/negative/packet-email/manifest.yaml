@@ -1,0 +1,14 @@
+# negative/packet-email — a person's email address where a role was asked for;
+# validate-packet must refuse it (roles and handles only, never a name/address).
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+custody:
+  accounts:
+    - account: Source repository
+      provider: GitHub
+      owner_role: "alice@example.com"
+      transferable: yes

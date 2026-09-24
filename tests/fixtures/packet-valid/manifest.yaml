@@ -1,0 +1,74 @@
+# tests/fixtures/packet-valid/manifest.yaml — a public, invented packet fixture.
+# Every name, role, and value below is fictional; nothing here is a real account,
+# person, or credential (assay CLAUDE.md ground rule 6).
+packet: 1
+yardstick: 0
+repository: example/notesbox
+commit: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+claims:
+  - id: d-effect-sites-tested
+    state: satisfied
+    certainty: sure
+    by: "every effect call site has a unit test asserting the call, per handoff/plan/effect-tests"
+    where: tests/effects/
+  - id: d-guards-bite
+    state: open
+    certainty: sure
+  - id: d-contract-test-per-vendor
+    state: not-applicable
+    reason: "the only external vendor (email delivery) has no sandbox; a contract test is not possible yet"
+  - id: d-backlog-is-issues
+    state: unknown
+custody:
+  accounts:
+    - account: Source repository
+      provider: GitHub
+      holds: source and CI config
+      owner_role: founder
+      login_roles: [founder, contractor]
+      organisational: yes
+      billing: founder
+      transferable: yes
+      certainty: sure
+    - account: Hosting
+      provider: Fly.io
+      holds: the running application
+      owner_role: founder
+      login_roles: [founder]
+      organisational: no
+      billing: founder personal card
+      transferable: yes
+      certainty: sure
+  credentials:
+    - name: EMAIL_SEND_API_KEY
+      used_by: notification service
+      lives: hosting provider's secret store
+      readers: [founder]
+      rotated: never
+      leak_noticed: "gitleaks in CI"
+      certainty: sure
+  people:
+    build: [founder, contractor]
+    deploy: [founder, contractor]
+    restore: [founder]
+    restore_done: no
+    only_copies: []
+  data:
+    personal: "user email addresses, for account login"
+    unneeded: "none known"
+    leaves_via: [transactional email]
+  money:
+    monthly:
+      - provider: Fly.io
+        amount: "~$25/month"
+        seen_by: founder
+      - provider: GitHub
+        amount: "$0 (free tier)"
+        seen_by: founder
+    alerts: "none configured yet"
+  handover: "repo access, hosting account transfer, and the credential list above"
+notes: "First packet filled at intake; bus factor and the backlog-is-issues claim are open follow-ups."

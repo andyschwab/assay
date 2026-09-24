@@ -33,6 +33,7 @@ import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
 import { loadYardstick, validateYardstick, measureRun, summarize, KINDS } from '../yardstick/measure.mjs';
+import { validatePacket, loadPacket, secretShape, emailShape } from '../yardstick/packet.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -1015,6 +1016,65 @@ function adaptersOnce() { return loadAdapters(); }
   const badTopic = { ...reg, requirements: reg.requirements.map((d, i) => i === 0 ? { ...d, topic: 'not-a-real-topic' } : d) };
   if (!validateYardstick(badTopic).some((e) => /topic "not-a-real-topic"/.test(e))) fail('a topic outside the allowed list must be rejected');
   if (validateYardstick(reg).length) fail('the shipped register must validate clean with every row carrying a topic');
+}
+
+// ── packet: validate-packet (owner/PACKET.md) — strict, fail-closed ───────────
+// A public invented packet fixture must validate clean; each negative fixture
+// must be refused, FOR ITS OWN REASON (never merely "red") — the class of check
+// that class of fixture exists to pin. The CLI is exercised directly (exit code
+// + message), the way NEGATIVE above pins map/validate.mjs.
+{
+  const fail = (m) => negFailures.push('packet: ' + m);
+  const reg = loadYardstick();
+  const ids = reg.requirements.map((d) => d.id);
+
+  const { doc: validDoc } = loadPacket(join(HERE, 'fixtures', 'packet-valid'));
+  if (validatePacket(validDoc, { requirementIds: ids }).length) fail('the public packet-valid fixture must validate clean');
+
+  const PACKET_NEGATIVE = [
+    ['packet-secret-shaped', /looks like a secret value/],
+    ['packet-email', /looks like an email address/],
+    ['packet-unknown-claim', /is not a requirement in yardstick\/requirements\.yaml/],
+    ['packet-claim-no-by', /state satisfied requires by/],
+    ['packet-unknown-top-key', /unknown top-level key/],
+  ];
+  for (const [dir, msgRe] of PACKET_NEGATIVE) {
+    let stderr = '', code = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'packet.mjs'), join(HERE, 'negative', dir)], { stdio: 'pipe' }); }
+    catch (e) { code = e.status; stderr = String(e.stderr || ''); }
+    if (code !== 1) fail(`negative/${dir} must exit 1 (fail-closed) — got ${code}`);
+    else if (!msgRe.test(stderr)) fail(`negative/${dir} must be refused for its own reason (expected ${msgRe}, got: ${stderr.trim().split('\n').slice(-1)[0]})`);
+  }
+  // bad YAML: one error, never a stack trace (the packet is data, parsed defensively)
+  {
+    let stderr = '', code = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'packet.mjs'), join(HERE, 'negative', 'packet-bad-yaml')], { stdio: 'pipe' }); }
+    catch (e) { code = e.status; stderr = String(e.stderr || ''); }
+    if (code !== 1) fail(`negative/packet-bad-yaml must exit 1 (got ${code})`);
+    else if (!/not valid YAML/.test(stderr)) fail('negative/packet-bad-yaml must report one plain YAML error, never a raw stack trace');
+    else if (/\bat\s+\S+\.mjs:\d+/.test(stderr)) fail('negative/packet-bad-yaml leaked a stack trace — a YAML the parser cannot read must be one error, not a trace');
+  }
+
+  // secret/email shape unit checks — the false-positive guards this class of
+  // check depends on: a commit sha, a UUID, and a kebab-case id must all pass
+  // clean, or every packet with one in it would be unusable.
+  if (secretShape('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2')) fail('a 40-char commit sha must not read as a secret (hex-only exemption)');
+  if (secretShape('550e8400-e29b-41d4-a716-446655440000')) fail('a UUID must not read as a secret (hex-plus-dash exemption)');
+  if (secretShape('d-this-requirement-does-not-exist-and-is-long')) fail('a long kebab-case id must not read as a secret (class-diversity gate)');
+  if (!secretShape('sk-ThisLooksLikeARealSecretKeyValue123456')) fail('an sk-… value must read as a secret');
+  if (!secretShape('AKIAABCDEFGHIJKLMNOP')) fail('an AKIA… value must read as a secret');
+  if (!secretShape('https://user:hunter2@example.com/db')) fail('a URL with an embedded password must read as a secret');
+  if (!emailShape('alice@example.com')) fail('an email address must be flagged as one');
+  if (emailShape('platform-eng')) fail('a role/handle with no @ must not be flagged as an email address');
+
+  // structural unit checks not covered by a fixture: unknown decide.kind never
+  // reachable here, but claim-id cross-check, state enum and not-applicable/reason
+  // are exercised directly (fixtures cover the CLI path; these pin the library fn).
+  if (!validatePacket({ packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' }, claims: [{ id: ids[0], state: 'not-applicable' }] }, { requirementIds: ids }).some((e) => /not-applicable requires reason/.test(e)))
+    fail('a not-applicable claim with no reason must be refused');
+  if (validatePacket({ packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } }, { requirementIds: ids }).length)
+    fail('a minimal packet with no claims/custody must still validate clean (every field beyond answered/packet/yardstick is optional)');
+  if (!validatePacket({}, { requirementIds: ids }).some((e) => /answered: required/.test(e))) fail('a packet with no answered block must be refused');
 }
 
 // ── Intake, Maintain, Improve: three views of one yardstick measurement ───────
