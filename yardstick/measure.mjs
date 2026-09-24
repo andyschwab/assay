@@ -19,12 +19,12 @@
 //     (a repo's own claims) can assert it, and the two are compared, never merged.
 //
 // Usage:  node assay.mjs measure <run-dir> [--write] [--json]
-//   --write   regenerate eval/yardstick.yaml (generated; never hand-edit)
+//   --write   regenerate yardstick.yaml (generated; never hand-edit)
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
-import { RENAMES, resolveRenamed } from '../lib/legacy-name.mjs';
+import { censusesPath, yardstickPath } from '../lib/run-layout.mjs';
 import { isHalt, isHaltClass, gateHolds, isMain } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 
@@ -77,8 +77,7 @@ export function loadRegistry(file = REGISTRY_FILE) {
 
 // ── the run's inputs beyond the base ─────────────────────────────────────────
 export function loadMaturityInputs(dir) {
-  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-  const p = join(ev, 'maturity-inputs.yaml');
+  const p = censusesPath(dir);
   if (!existsSync(p)) return null;
   return parseYaml(readFileSync(p, 'utf8'));
 }
@@ -128,7 +127,7 @@ function byCensus(d, inputs) {
   const names = new Set(d.decide.measures);
   const hits = [];
   for (const dim of inputs?.dimensions || []) for (const s of dim.sampled || []) if (names.has(s.name)) hits.push({ ...s, dimension: dim.dimension });
-  if (!hits.length) return row('not-measured', 'census', [], `no census named ${d.decide.measures.join(' | ')} in maturity-inputs.yaml`);
+  if (!hits.length) return row('not-measured', 'census', [], `no census named ${d.decide.measures.join(' | ')} in map/censuses.yaml`);
   const s = hits[0];
   const met = Number(s.met), of = Number(s.of);
   if (!(of > 0)) return row('not-measured', 'census', [], `census ${s.name} has an empty population`);
@@ -188,18 +187,16 @@ export function projectRun(runDir, reg) {
   if (!findings.length) throw new Error(`no findings under ${runDir}`);
   return projectDescriptors({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir) }, reg);
 }
-// Read back a run's own measurement — eval/yardstick.yaml, falling back to the
-// legacy eval/view-descriptors.yaml — the FILE, never recomputed. This is what
-// the three views (Intake, Maintain, Improve's topic grouping) read: only this
-// measurement plus the yardstick (for title/tier/topic/check), never findings
-// directly. Returns null when the run has not been measured yet.
+// Read back a run's own measurement — yardstick.yaml — the FILE, never
+// recomputed. This is what the three views (Intake, Maintain, Improve's topic
+// grouping) read: only this measurement plus the yardstick (for
+// title/tier/topic/check), never findings directly. Returns null when the run
+// has not been measured yet.
 export function loadMeasurement(dir) {
-  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-  const p = resolveRenamed(ev, 'yardstick');
+  const p = yardstickPath(dir);
   if (!existsSync(p)) return null;
   const doc = parseYaml(readFileSync(p, 'utf8'));
-  return Array.isArray(doc.requirements) ? doc.requirements
-    : Array.isArray(doc.descriptors) ? doc.descriptors : [];
+  return Array.isArray(doc.requirements) ? doc.requirements : [];
 }
 export function summarize(rows) {
   const c = Object.fromEntries(STATUSES.map((s) => [s, 0]));
@@ -207,7 +204,7 @@ export function summarize(rows) {
   return { ...c, decided: rows.length - c['not-measured'], of: rows.length };
 }
 const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
-// eval/yardstick.yaml — the run's measurement of the map against the yardstick.
+// yardstick.yaml — the run's measurement of the map against the yardstick.
 // Per row: what THIS RUN decided and how; a title/tier/topic/check is the
 // register's, joined by id, never duplicated here (one home per fact).
 export function toYaml(rows, runName) {
@@ -239,8 +236,7 @@ if (isMain(import.meta.url)) {
     console.log(`\n${s.decided} of ${s.of} decided (met ${s.met} · unmet ${s.unmet} · mixed ${s.mixed}) · not measured ${s['not-measured']}`);
   }
   if (args.includes('--write')) {
-    const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-    const out = join(ev, RENAMES.yardstick.current);
+    const out = yardstickPath(dir);
     writeFileSync(out, toYaml(rows, dir.split('/').filter(Boolean).pop()));
     console.error(`wrote ${out}`);
   }

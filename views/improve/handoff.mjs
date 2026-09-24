@@ -7,7 +7,7 @@
 //     VERBATIM and never paraphrased (scanner contract §7). The engine orders and
 //     bundles; it never rewrites a fix.
 //   • eval-authored    — a remedy authored by the evaluating agent in the run's
-//     report-prose.yaml roadmap (title/body/questions/options/done_when), joined to
+//     views/improve/prose.yaml roadmap (title/body/questions/options/done_when), joined to
 //     its findings and spliced with their verbatim observations + evidence paths.
 //     A proposal grounded in the base and labeled as judgment — never presented as
 //     an instrument reading.
@@ -40,10 +40,11 @@ import { loadDecisions, decideProjected } from '../../map/decisions.mjs';
 import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
+import { prosePath as runProsePath, handoffDir } from '../../lib/run-layout.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]...'); process.exit(2); }
-const runDir = arg.replace(/\/eval\/?$/, '');
+const runDir = arg;
 const bases = [];
 for (let i = 3; i < process.argv.length; i++) if (process.argv[i] === '--base') bases.push(process.argv[++i]);
 const runId = basename(runDir);
@@ -68,8 +69,8 @@ const notMeasuredWhy = (axes) => [...new Set(Object.values(adapters)
 const decided = decideProjected(projected, loadDecisions(runDir), runDate);
 const byId = new Map(decided.map((p) => [p.f.id, p]));
 
-// ── the authored overlay (report-prose.yaml roadmap) ───────────────────────────
-const prosePath = join(runDir, 'eval', 'report-prose.yaml');
+// ── the authored overlay (views/improve/prose.yaml roadmap) ───────────────────────────
+const prosePath = runProsePath(runDir);
 let prose = {};
 try { if (existsSync(prosePath)) prose = parseYaml(readFileSync(prosePath, 'utf8')) || {}; } catch { prose = {}; }
 // run-level confidentiality (prose key or flag) — marks frontmatter + footers
@@ -164,7 +165,7 @@ const notMeasured = registryAxes.filter((a) => !contributed.has(a));
 if (openGaps.length && !seq.length) {
   console.error(`HANDOFF DEGENERATE — ${openGaps.length} open gap(s) but no remedy to sequence.`);
   console.error(`A handoff that reads "nothing to do" over live gaps is a false-green. Either:`);
-  console.error(`  - author roadmap remedies in eval/report-prose.yaml (eval-authored voice), or`);
+  console.error(`  - author roadmap remedies in views/improve/prose.yaml (eval-authored voice), or`);
   console.error(`  - run a fix-supplying scanner over the same base (scanner-verbatim voice), or`);
   console.error(`  - triage the gaps in decisions.yaml (an attributed owner waiver).`);
   process.exit(1);
@@ -207,7 +208,7 @@ ${waived.length ? `- **${waived.length} finding(s) were triaged out** (accepted/
 ${pending.length ? `- **${pending.length} open gap(s) with no remedy yet** — real gaps whose fix needs an owner decision
   before an agent can act (${pending.map((p) => `\`${p.f.id}\``).join(', ')}). Full claims in
   \`FINDINGS.md\`; decide the remedy, then either add a roadmap item to the run's
-  \`report-prose.yaml\` or hand the claim block to a session directly.` : '- Every open gap in this run is covered by a sequenced remedy.'}
+  \`views/improve/prose.yaml\` or hand the claim block to a session directly.` : '- Every open gap in this run is covered by a sequenced remedy.'}
 ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${notMeasuredWhy(notMeasured)}; absence of findings there is absence of looking, not health.` : ''}
 
 ## How to use it
@@ -388,7 +389,7 @@ ${proof ? `\n${proof}` : ''} Summarize what changed and confirm each finding fli
 
 // ── write ──────────────────────────────────────────────────────────────────────
 const fm = (title) => `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "${String(title).replace(/"/g, "'")}"\n---\n\n`;
-const outDir = join(runDir, 'handoff');
+const outDir = handoffDir(runDir);
 const planDir = join(outDir, 'plan');
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(planned.length ? planDir : outDir, { recursive: true });

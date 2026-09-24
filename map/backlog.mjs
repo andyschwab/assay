@@ -17,7 +17,7 @@
 // deliverable) and adds the AUTHORED items a tool cannot compute (a false strength over
 // an un-inspected class, a band-sizing limit, a granularity drift). That split mirrors
 // maturity: the tool computes what it can, the human authors the judgment. This file is
-// tool-owned and regenerable — like eval/improve-maturity-grades.yaml, never hand-edited.
+// tool-owned and regenerable — like views/improve/maturity-grades.yaml, never hand-edited.
 //
 // Zero runtime deps beyond node + the sibling tools (which are themselves zero-dep).
 //
@@ -25,11 +25,12 @@
 //   node assay.mjs backlog <run-dir> [--target <repo>] [--prior <prior-run-dir>] [--write]
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { computeDescriptorAgreement } from './variance.mjs';
+import { findingsDir, backlogPath } from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const runDir = process.argv[2];
@@ -86,33 +87,33 @@ if (target) {
 
 // 3) prior-run divergence (best-effort basename diff). Regex-scrape the raw findings
 // text rather than YAML-parse, so it is robust across old/new schemas and flow-map styles.
-function findingsPath(dir) {
-  for (const rel of ['eval/findings.yaml', 'backtest/findings.yaml', 'findings.yaml']) {
-    const p = join(dir, rel);
-    if (existsSync(p)) return p;
-  }
-  return null;
+function findingsFiles(dir) {
+  const fd = findingsDir(dir);
+  if (!existsSync(fd)) return [];
+  return readdirSync(fd).filter((f) => f.endsWith('.yaml')).map((f) => join(fd, f));
 }
 // returns { basenames:Set, byBasename:Map(basename → first finding id that cited it) }
-function scrapeEvidence(path) {
+function scrapeEvidence(paths) {
   const basenames = new Set(); const byBasename = new Map();
-  if (!path || !existsSync(path)) return { basenames, byBasename };
-  const txt = readFileSync(path, 'utf8');
-  let curId = '?';
-  for (const line of txt.split('\n')) {
-    const idm = line.match(/^\s*-?\s*id:\s*(F-\d+|\S+)/); if (idm) curId = idm[1];
-    // any repo-relative-looking path with an extension, inside evidence lists or facets
-    for (const m of line.matchAll(/([A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z0-9]+)(?::\d+(?:-\d+)?)?/g)) {
-      const b = basename(m[1]);
-      if (!/\.(py|sh|js|ts|mjs|json|ya?ml|txt|md|example|service|conf|ini|toml)$/.test(b)) continue;
-      basenames.add(b); if (!byBasename.has(b)) byBasename.set(b, curId);
+  for (const path of paths) {
+    if (!path || !existsSync(path)) continue;
+    const txt = readFileSync(path, 'utf8');
+    let curId = '?';
+    for (const line of txt.split('\n')) {
+      const idm = line.match(/^\s*-?\s*id:\s*(F-\d+|\S+)/); if (idm) curId = idm[1];
+      // any repo-relative-looking path with an extension, inside evidence lists or facets
+      for (const m of line.matchAll(/([A-Za-z0-9_][A-Za-z0-9_./-]*\.[A-Za-z0-9]+)(?::\d+(?:-\d+)?)?/g)) {
+        const b = basename(m[1]);
+        if (!/\.(py|sh|js|ts|mjs|json|ya?ml|txt|md|example|service|conf|ini|toml)$/.test(b)) continue;
+        basenames.add(b); if (!byBasename.has(b)) byBasename.set(b, curId);
+      }
     }
   }
   return { basenames, byBasename };
 }
 if (prior) {
-  const cur = scrapeEvidence(findingsPath(runDir)).basenames;
-  const old = scrapeEvidence(findingsPath(prior));
+  const cur = scrapeEvidence(findingsFiles(runDir)).basenames;
+  const old = scrapeEvidence(findingsFiles(prior));
   if (!old.basenames.size) console.error(`  (backlog: could not read prior findings in ${prior})`);
   for (const b of old.basenames) {
     if (cur.has(b)) continue;
@@ -153,10 +154,11 @@ const yaml = header + `generated_from:\n  target: ${target || 'null'}\n  prior: 
     `    mechanism: >\n      ${i.mechanism.replace(/\n/g, ' ')}\n`).join('');
 
 if (write) {
-  const out = join(runDir, 'eval', 'backlog-computed.yaml');
+  const out = backlogPath(runDir);
+  mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, yaml);
   console.log(`wrote ${out} — ${items.length} computed backlog items (${Object.entries(CLASS).map(([c]) => `${items.filter((i) => i.class === c).length} ${c}`).join(', ')})`);
 } else {
   console.log(yaml);
-  console.error(`\n${items.length} computed backlog items. Re-run with --write to save eval/backlog-computed.yaml.`);
+  console.error(`\n${items.length} computed backlog items. Re-run with --write to save map/backlog.yaml.`);
 }

@@ -4,6 +4,6 @@
   subject_type: artifact
   observation: "A valid finding; the malformation is in the grades tail, not here."
   evidence:
-    - path: tests/negative/bad-aggregate/eval/findings-01-legibility.yaml
+    - path: tests/negative/bad-aggregate/map/findings/repo-eval-legibility.yaml
       lines: "1"
   confidence: confirmed

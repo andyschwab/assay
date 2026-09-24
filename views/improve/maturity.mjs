@@ -26,14 +26,14 @@
 // enumerated", never "of the system"; small denominators are printed.
 //
 // Usage:
-//   node assay.mjs maturity <eval-dir>          # print the computed coverage
-//   node assay.mjs maturity <eval-dir> --write  # regenerate eval/improve-maturity-grades.yaml
-//                                               #   (merges authored maturity-inputs.yaml)
+//   node assay.mjs maturity <run-dir>          # print the computed coverage
+//   node assay.mjs maturity <run-dir> --write  # regenerate views/improve/maturity-grades.yaml
+//                                               #   (merges authored map/censuses.yaml)
 
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { RENAMES } from '../../lib/legacy-name.mjs';
+import { censusesPath, maturityGradesPath } from '../../lib/run-layout.mjs';
 import { gateHolds, isHaltClass, isMain } from '../../map/doctrine.mjs';
 import { loadFindings } from '../../map/project.mjs';
 
@@ -43,7 +43,7 @@ const pct = (met, of) => (of ? Math.round((met / of) * 100) : null);
 // The counted measures, computed from base fields alone. One primary per
 // dimension (the coverage headline); the rest are context. Dimensions with no
 // countable field return measures: [] and carry a not_measured reason until a
-// sampled census (maturity-inputs.yaml) supplies one.
+// sampled census (map/censuses.yaml) supplies one.
 export function computeCoverage(findingsIn) {
   const findings = findingsIn.filter(Boolean);
   const effects = findings.filter((f) => f.subject_type === 'effect' && f.effect);
@@ -216,17 +216,18 @@ export function gradesToYaml(g, generatedNote) {
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
-  const evalDir = process.argv[2];
-  if (!evalDir) { console.error('usage: node assay.mjs maturity <eval-dir> [--write]'); process.exit(2); }
+  const runDir = process.argv[2];
+  if (!runDir) { console.error('usage: node assay.mjs maturity <run-dir> [--write]'); process.exit(2); }
   const write = process.argv.includes('--write');
-  const findings = loadFindings(evalDir);
-  const inputsPath = join(evalDir, 'maturity-inputs.yaml');
+  const findings = loadFindings(runDir);
+  const inputsPath = censusesPath(runDir);
   const inputs = existsSync(inputsPath) ? parseYaml(readFileSync(inputsPath, 'utf8')) : null;
   const grades = buildGrades(findings, inputs);
 
   if (write) {
-    const yaml = gradesToYaml(grades, `Regenerate: node assay.mjs maturity ${evalDir} --write`);
-    const out = join(evalDir, RENAMES.improveMaturityGrades.current);
+    const yaml = gradesToYaml(grades, `Regenerate: node assay.mjs maturity ${runDir} --write`);
+    const out = maturityGradesPath(runDir);
+    mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, yaml);
     console.log(`wrote ${out} (aggregate ${grades.aggregate.pct}% over ${grades.aggregate.over} measured areas)`);
   } else {
@@ -243,6 +244,6 @@ if (isMain(import.meta.url)) {
       if (d.note) console.log(`  note: ${d.note}`);
       console.log('');
     }
-    if (!inputs) console.log('(no maturity-inputs.yaml found — depth sentences and sampled censuses absent)');
+    if (!inputs) console.log('(no map/censuses.yaml found — depth sentences and sampled censuses absent)');
   }
 }

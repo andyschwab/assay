@@ -11,20 +11,19 @@
 // (it comes from an untrusted target repo).
 //
 // Usage:  node views/improve/axes.mjs <run-dir> [--base <dir>]... [--stdout]
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { AXIS_ORDER, loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
 import { buildChains } from '../../map/chains.mjs';
 import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { RENAMES } from '../../lib/legacy-name.mjs';
+import { prosePath as runProsePath, axesPath } from '../../lib/run-layout.mjs';
 import { buildTopicsForRun } from './topics.mjs';
 import { TOPICS } from '../../yardstick/measure.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/axes.mjs <run-dir> [--base <dir>]... [--stdout]'); process.exit(2); }
 const toStdout = process.argv.includes('--stdout');
-const evalDir = existsSync(join(arg, 'eval')) ? join(arg, 'eval') : arg;
 const extraBases = [];
 for (let i = 2; i < process.argv.length; i++) if (process.argv[i] === '--base') extraBases.push(process.argv[++i]);
 
@@ -47,7 +46,7 @@ if (!findings.length) { console.error(`no findings under ${arg}`); process.exit(
 // without prose renders humanized slugs.
 let channelNotes = {}, proseConfidential = false;
 try {
-  const pp = join(evalDir, 'report-prose.yaml');
+  const pp = runProsePath(arg);
   if (existsSync(pp)) { const pr = parseYaml(readFileSync(pp, 'utf8')); channelNotes = (pr && pr.channel_notes) || {}; proseConfidential = !!(pr && pr.confidential === true); }
 } catch { /* unparseable prose halts the report compiler, not the walk */ }
 // run-level confidentiality (prose key or flag) — marks the walk's frontmatter
@@ -65,11 +64,11 @@ const contributed = contributedBySources(adapters, sources);
 const roster = rosterFor(adapters, sources, projected);
 // the full registry: axes any ADOPTED adapter contributes — the honesty baseline
 // for "not measured this run" (a known axis whose measuring scanner did not run).
-// The run manifest (eval/scanners.yaml) says WHY it did not run; the walk prints it.
+// The run manifest (map/scanners.yaml) says WHY it did not run; the walk prints it.
 const registryAxes = registryAxesOf(adapters);
 const notMeasured = registryAxes.filter((a) => !contributed.has(a));
 const manifest = loadManifest(arg);   // validate already required it; the walk reads it
-const scannerCov = loadScannerCoverage(arg);   // per-scanner coverage sidecars (eval/coverage-<scanner>.yaml)
+const scannerCov = loadScannerCoverage(arg);   // per-scanner coverage sidecars (map/coverage/<scanner>.yaml)
 const partialOf = (a) => coveragePhrase(axisCoverage(adapters, scannerCov, a));
 
 // the adopted scanners that contribute a given set of axes (for the not-measured lines)
@@ -274,4 +273,4 @@ if (spineMap.size) {
 
 const text = out.join('\n') + '\n';
 if (toStdout) process.stdout.write(text);
-else { const dst = join(evalDir, RENAMES.improveAxes.current); writeFileSync(dst, text); console.log(`wrote ${dst} (${projected.length} findings, ${roster.length} axes, scanners: ${sources.join(', ')})`); }
+else { const dst = axesPath(arg); mkdirSync(dirname(dst), { recursive: true }); writeFileSync(dst, text); console.log(`wrote ${dst} (${projected.length} findings, ${roster.length} axes, scanners: ${sources.join(', ')})`); }

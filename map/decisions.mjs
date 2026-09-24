@@ -3,7 +3,7 @@
 //
 // The interview may never happen, and it must never gate the package: the raw
 // projected base always compiles a complete board/walk/handoff. If — and only if
-// — an owner triages, they leave decisions in <run>/eval/decisions.yaml, and every
+// — an owner triages, they leave decisions in <run>/owner/decisions.yaml, and every
 // compiler folds them in. Absent file ⇒ empty overlay ⇒ raw base, unchanged.
 //
 // This is root's own decision model (accept/fix/investigate/snooze + reason +
@@ -19,15 +19,14 @@
 //     at: 2026-08-14            # when
 //     snooze_until: 2026-11-14  # snooze only — reappears after this date
 import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { parseYaml } from '../lib/yaml-min.mjs';
+import { decisionsPath } from '../lib/run-layout.mjs';
 
 export const DECISION_ACTIONS = ['accept', 'fix', 'investigate', 'snooze'];
 
 // Load the overlay for a run. Missing file is the norm, not an error.
 export function loadDecisions(dir) {
-  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-  const p = join(ev, 'decisions.yaml');
+  const p = decisionsPath(dir);
   if (!existsSync(p)) return [];
   const d = parseYaml(readFileSync(p, 'utf8'));
   return Array.isArray(d) ? d : [];

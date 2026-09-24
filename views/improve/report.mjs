@@ -3,16 +3,16 @@
 // Usage: node views/improve/report.mjs <run-dir>
 // Assembles <run-dir>/IMPROVE.md from:
 //   views/improve/templates/maintainer-report.md            (fixed structure + markers)
-//   <run-dir>/eval/findings.yaml                 (computed tables)
-//   <run-dir>/eval/improve-security-gate.yaml    (the security exposures; was view-security-gate.yaml)
-//   <run-dir>/eval/report-prose.yaml             (authored narrative)
+//   <run-dir>/map/findings/                      (computed tables)
+//   <run-dir>/views/improve/security-gate.yaml   (the security exposures)
+//   <run-dir>/views/improve/prose.yaml           (authored narrative)
 // Tables are computed; prose is authored. Deterministic + re-runnable (a findings
 // fix + recompile never clobbers prose). Run map/validate.mjs first.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { RENAMES, resolveRenamed } from '../../lib/legacy-name.mjs';
+import { prosePath as runProsePath, securityGatePath, maturityGradesPath, improvePagePath } from '../../lib/run-layout.mjs';
 import { DIM_LABEL, WHO_LABEL, channelLabel } from '../../lib/display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capabilities.mjs';
 import { buildChains } from '../../map/chains.mjs';
@@ -26,14 +26,13 @@ const TEMPLATE = join(HERE, 'templates', 'maintainer-report.md');
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/report.mjs <run-dir>'); process.exit(2); }
-const runDir = arg.replace(/\/eval\/?$/, '');
-const evalDir = existsSync(join(runDir, 'eval')) ? join(runDir, 'eval') : runDir;
+const runDir = arg;
 const need = (p) => { if (!existsSync(p)) { console.error(`missing required input: ${p}`); process.exit(2); } return p; };
 
-const findings = loadFindings(evalDir);   // the shared per-pass-first, fail-closed loader
-if (!findings.length) { console.error(`no findings under ${evalDir}`); process.exit(2); }
-const gate = parseYaml(readFileSync(need(resolveRenamed(evalDir, 'improveSecurityGate')), 'utf8'));
-const prose = parseYaml(readFileSync(need(join(evalDir, 'report-prose.yaml')), 'utf8'));
+const findings = loadFindings(runDir);   // the shared per-pass-first, fail-closed loader
+if (!findings.length) { console.error(`no findings under ${runDir}`); process.exit(2); }
+const gate = parseYaml(readFileSync(need(securityGatePath(runDir)), 'utf8'));
+const prose = parseYaml(readFileSync(need(runProsePath(runDir)), 'utf8'));
 // Templates carry OKF frontmatter so they pass `npm run check` as bundle files;
 // strip it before splicing so it never lands in the report body.
 const stripFm = (s) => s.replace(/^---\n[\s\S]*?\n---\n/, '');
@@ -46,7 +45,7 @@ const maturityGuideMd = stripFm(readFileSync(need(join(PART, 'maturity-guide.md'
 const app = String(prose.target_short || (prose.target || '').split(',')[0] || 'the app').trim();
 // run-level confidentiality (prose key or flag) — marks frontmatter + colophon
 const CONFIDENTIAL = process.argv.includes('--confidential') || prose.confidential === true;
-const gradesPath = resolveRenamed(evalDir, 'improveMaturityGrades');
+const gradesPath = maturityGradesPath(runDir);
 const grades = existsSync(gradesPath) ? parseYaml(readFileSync(gradesPath, 'utf8')) : null;
 
 const byId = new Map(findings.map((f) => [f.id, f]));
@@ -191,8 +190,8 @@ function scannerAxes() {
   const contributed = contributedBySources(adapters, present);
   const registry = registryAxesOf(adapters);
   const notMeasured = registry.filter((a) => !contributed.has(a));
-  const manifest = loadManifest(evalDir);
-  const scannerCov = loadScannerCoverage(evalDir);
+  const manifest = loadManifest(runDir);
+  const scannerCov = loadScannerCoverage(runDir);
   const owners = [...new Set(Object.values(adapters)
     .filter((ad) => ad.adopted !== false && (ad.contributes || []).some((x) => notMeasured.includes(x))).map((ad) => ad.scanner))].sort();
   const plain = (a) => capFirst((axisTitle(a).split(' — ')[0] || a).toLowerCase());
@@ -234,7 +233,7 @@ function scannerAxes() {
 
 // ── computed: "What the app can do" (human capability section) ──────────────────
 // The effect inventory grouped and rendered for a reader (mechanism from channel_notes).
-// The full machine detail (facets + evidence paths) lives in the walk (eval/improve-axes.md).
+// The full machine detail (facets + evidence paths) lives in the walk (views/improve/axes.md).
 function capabilities() {
   const groups = buildCapabilities(findings, prose.channel_notes || {});
   const c = capabilityCounts(groups);
@@ -277,7 +276,7 @@ function handoffGuide() {
   ].join('\n');
 }
 
-// ── computed: requirements by topic (eval/yardstick.yaml, grouped) ──────────
+// ── computed: requirements by topic (yardstick.yaml, grouped) ──────────
 function requirementsByTopic() {
   const topics = buildTopicsForRun(runDir);
   if (!topics) return '_No yardstick measurement for this run yet — run `node assay.mjs measure` first._';
@@ -372,6 +371,6 @@ if (unfilled) { console.error(`unfilled markers remain: ${[...new Set(unfilled)]
 // reads from the first `## ` heading, so this frontmatter never reaches it.
 const fmTitle = String(prose.target || app).replace(/"/g, "'");
 const frontmatter = `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "AI-Native Readiness Report — ${fmTitle}"\n---\n\n`;
-const outPath = join(runDir, RENAMES.improveLead.current);
+const outPath = improvePagePath(runDir);
 writeFileSync(outPath, frontmatter + body);
 console.log(`✓ compiled ${outPath} (${findings.length} findings, ${(gate.exposures || []).length} security exposures)`);
