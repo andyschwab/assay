@@ -1,0 +1,4 @@
+# map/findings/gitleaks.yaml — instrument rows ingested by map/ingest.mjs.
+# Instrument: gitleaks · exit code 0 (verified in its success set) · 0 row(s).
+# Raw report archived at map/raw/gitleaks.json. Regenerate with ingest.mjs; never hand-edit.
+

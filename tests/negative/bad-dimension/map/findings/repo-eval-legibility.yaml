@@ -4,6 +4,6 @@
   subject_type: artifact
   observation: "Negative fixture: this finding's dimension (verification) contradicts its filename (legibility). Portable validate must reject on filename-dimension disagreement."
   evidence:
-    - path: tests/negative/bad-citation/eval/findings-01-legibility.yaml
+    - path: tests/negative/bad-citation/map/findings/repo-eval-legibility.yaml
       lines: "1"
   confidence: confirmed

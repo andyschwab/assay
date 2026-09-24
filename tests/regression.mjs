@@ -5,7 +5,7 @@
 // silently move a result. It does NOT snapshot full output (that churns on wording); it
 // pins: the negative fixtures the validator MUST reject, the fail-closed unit invariants
 // (yaml-min throws on unparseable input; projection halts on an unmapped category), the
-// engine-pipeline invariants (roster honesty, the legacy-domain translation rail, the
+// engine-pipeline invariants (roster honesty, the explicit-axis rail, the
 // non-blocking decision overlay), the instrument-port invariants (fail-loud intake, a
 // secret is never copied, score bands, unknown-check halt), and — the headline — the
 // engine's RECALL against the public known-answer fixtures. A deliberate change is a
@@ -19,7 +19,7 @@
 //   node tests/regression.mjs --bless    # rewrite golden.json from current state (reviewed!)
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -32,12 +32,25 @@ import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
 import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
-import { loadRegistry, validateRegistry, projectDescriptors, summarize, KINDS } from '../yardstick/measure.mjs';
+import { loadYardstick, validateYardstick, measureRun, summarize, KINDS } from '../yardstick/measure.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
 const GOLDEN = join(HERE, 'golden.json');
 const bless = process.argv.includes('--bless');
+
+// Copy every findings file (map/findings/*.yaml) from a public fixture into a
+// scratch run dir — the shared setup every synthetic-run test below needs.
+function copyFixtureFindings(fixtureName, destRunDir) {
+  const src = join(HERE, 'fixtures', fixtureName, 'map', 'findings');
+  const dst = join(destRunDir, 'map', 'findings');
+  mkdirSync(dst, { recursive: true });
+  for (const f of readdirSync(src)) copyFileSync(join(src, f), join(dst, f));
+}
+function copyFixtureScanners(fixtureName, destRunDir) {
+  mkdirSync(join(destRunDir, 'map'), { recursive: true });
+  copyFileSync(join(HERE, 'fixtures', fixtureName, 'map', 'scanners.yaml'), join(destRunDir, 'map', 'scanners.yaml'));
+}
 
 // NEGATIVE fixtures: deliberately-malformed eval dirs that validate MUST reject. Pinning
 // only green-over-valid-bases is false-green — a validator weakened to accept everything
@@ -50,14 +63,14 @@ const NEGATIVE = [
   // the run manifest (SCHEMA §5a): an integration that did not run must be RECORDED as
   // such, with a reason — never inferred absent. Found by a run that shipped a full
   // package with a queued code scanner never invoked and nothing recording the omission.
-  ['no-manifest', 'no eval/scanners.yaml — an adopted scanner with no recorded disposition'],
+  ['no-manifest', 'no map/scanners.yaml — an adopted scanner with no recorded disposition'],
   ['manifest-skip-no-reason', 'a scanner skipped with no reason (indistinguishable from an omission)'],
   ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file'],
   ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped'],
   ['coverage-incomplete', 'a scanner coverage sidecar missing rows for domains the adapter lists'],
   // the yardstick measurement (yardstick/README.md): a status the base does not recompute is drift, and a
   // claim-only row reading met is the exact laundering the two-file rule exists to prevent
-  ['descriptors-drift', 'a view-descriptors.yaml whose statuses the base does not recompute (a claim row reads met)'],
+  ['descriptors-drift', 'a yardstick.yaml whose statuses the base does not recompute (a claim row reads met)'],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -121,20 +134,18 @@ for (const [dir, what] of NEGATIVE) {
   if (flagged.join(',') !== 'F-1,F-3,F-4') fail(`unheld-halt flags must be F-1,F-3,F-4 (got ${flagged.join(',')})`);
 }
 
-// ── engine-pipeline invariants: roster honesty + legacy rail + decision overlay ─
+// ── engine-pipeline invariants: roster honesty + explicit-axis rail + decision overlay ─
 {
   const fail = (m) => negFailures.push('engine-pipeline: ' + m);
   const adapters = loadAdapters();
-  const legacy = projectMulti([
-    { id: 'F-901', dimension: 'unprompted', domain: 'product-ai-safety', polarity: 'gap', observation: 'x', evidence: ['a:1'], confidence: 'confirmed', subject_type: 'process' },
+  const explicit = projectMulti([
     { id: 'F-902', dimension: 'unprompted', axis: 'code-security', polarity: 'gap', observation: 'x', evidence: ['a:1'], confidence: 'confirmed', subject_type: 'process' },
   ], adapters);
-  if (legacy.projected.find((p) => p.f.id === 'F-901')?.axis !== 'delegation') fail('legacy domain product-ai-safety must translate to the delegation axis (grandfather rail)');
-  if (legacy.projected.find((p) => p.f.id === 'F-902')?.axis !== 'code-security') fail('an explicit finding axis must be honored as-is');
+  if (explicit.projected.find((p) => p.f.id === 'F-902')?.axis !== 'code-security') fail('an explicit finding axis must be honored as-is');
   const contributed = contributedBySources(adapters, ['repo-eval']);
   if (contributed.has('code-correctness')) fail('repo-eval must not contribute the code axes (they arrive with a code scanner)');
   if (!contributed.has('delegation') || !contributed.has('multiplayer')) fail('repo-eval must contribute its seven dimension axes');
-  const roster = rosterFor(adapters, ['repo-eval'], legacy.projected);
+  const roster = rosterFor(adapters, ['repo-eval'], explicit.projected);
   if (!roster.includes('code-security')) fail('an axis a finding explicitly carries must still appear in the roster (never a silent drop)');
   const base = [{ f: { id: 'F-A', polarity: 'gap', severity: 'Critical' }, axis: 'code-correctness', also: [], source: 'x' }];
   const decided = decideProjected(base, [{ finding: 'F-A', action: 'accept', reason: 'known' }], null);
@@ -272,39 +283,39 @@ for (const [dir, what] of NEGATIVE) {
   const wide = convert('gitleaks', JSON.stringify(Array.from({ length: 5 }, (_, i) => ({ RuleID: 'r', File: 'a.ts', StartLine: i + 1 }))), 1, 'F-998');
   if (wide.map((r) => r.id).join(',') !== 'F-998,F-999,F-1000,F-1001,F-1002') fail(`ids must grow past three digits (got ${wide.map((r) => r.id).join(',')})`);
   {
-    const tmp = join(HERE, '.tmp-idwidth'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
-    copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'scanners.yaml'), join(tmp, 'eval', 'scanners.yaml'));
-    copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'findings-05-delegation.yaml'), join(tmp, 'eval', 'findings-05-delegation.yaml'));
+    const tmp = join(HERE, '.tmp-idwidth'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
+    copyFileSync(join(HERE, 'sidecar-fixture', 'map', 'scanners.yaml'), join(tmp, 'map', 'scanners.yaml'));
+    copyFileSync(join(HERE, 'sidecar-fixture', 'map', 'findings', 'repo-eval-delegation.yaml'), join(tmp, 'map', 'findings', 'repo-eval-delegation.yaml'));
     const row = (id) => `- id: ${id}\n  source: gitleaks\n  native_id: "r@a.ts:1"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
-    const manifest = readFileSync(join(tmp, 'eval', 'scanners.yaml'), 'utf8').replace(/gitleaks:[\s\S]*?(?=\n  \w|$)/, 'gitleaks:\n    status: ran');
-    writeFileSync(join(tmp, 'eval', 'scanners.yaml'), manifest);
+    const manifest = readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8').replace(/gitleaks:[\s\S]*?(?=\n  \w|$)/, 'gitleaks:\n    status: ran');
+    writeFileSync(join(tmp, 'map', 'scanners.yaml'), manifest);
     const runValidate = () => { try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); return true; } catch { return false; } };
-    writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), row('F-1000'));
+    writeFileSync(join(tmp, 'map', 'findings', 'gitleaks.yaml'), row('F-1000'));
     if (!runValidate()) fail('a four-digit finding id (F-1000) must validate green — the id space is not capped at 999');
-    writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), row('F-12'));
+    writeFileSync(join(tmp, 'map', 'findings', 'gitleaks.yaml'), row('F-12'));
     if (runValidate()) fail('a two-digit finding id (F-12) must still validate red');
     rmSync(tmp, { recursive: true, force: true });
   }
   // id allocation (found on a real history scan: a gitleaks block of over a thousand rows ran past the
   // deep-code-review and fresh-clone floors and the validator went red on duplicate ids)
   {
-    const tmp = join(HERE, '.tmp-nextstart'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+    const tmp = join(HERE, '.tmp-nextstart'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
     if (nextStart(tmp, 'deep-code-review').start !== 800) fail('an empty run starts deep-code-review at its floor F-800');
     const row = (n) => `- id: F-${n}\n  source: gitleaks\n  native_id: "r@a.ts:${n}"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
-    writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), Array.from({ length: 807 }, (_, i) => row(700 + i)).join(''));
+    writeFileSync(join(tmp, 'map', 'findings', 'gitleaks.yaml'), Array.from({ length: 807 }, (_, i) => row(700 + i)).join(''));
     const ns = nextStart(tmp, 'deep-code-review');
     if (ns.start !== 1600 || ns.highest !== 1506) fail(`with gitleaks rows to F-1506, deep-code-review must start at F-1600 (got F-${ns.start}, highest ${ns.highest})`);
     if (nextStart(tmp, 'gitleaks').start !== 700) fail('a re-ingest of the same tool ignores its own file and lands at its floor again');
-    writeFileSync(join(tmp, 'eval', 'findings-93-deep-code-review.yaml'), row(1600));
+    writeFileSync(join(tmp, 'map', 'findings', 'deep-code-review.yaml'), row(1600));
     if (nextStart(tmp, 'fresh-clone').start !== 1700) fail('fresh-clone must start above both existing blocks (F-1700)');
     rmSync(tmp, { recursive: true, force: true });
   }
   // the raw archive of a gitleaks report must be location-only: the CLI once copied the raw
-  // report into eval/raw/ verbatim, matched values and author identity included
+  // report into map/raw/ verbatim, matched values and author identity included
   {
-    const tmp = join(HERE, '.tmp-glarchive'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+    const tmp = join(HERE, '.tmp-glarchive'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
     execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], { stdio: 'pipe' });
-    const archived = readFileSync(join(tmp, 'eval', 'raw', 'gitleaks.json'), 'utf8');
+    const archived = readFileSync(join(tmp, 'map', 'raw', 'gitleaks.json'), 'utf8');
     if (archived.includes('AKIAFAKE') || archived.includes('sk-FAKE') || /"(Secret|Match|Line|Author|Email)"/.test(archived)) fail('the archived gitleaks report must carry locations only — never Secret, Match, Line, Author or Email');
     if (!/"RuleID"/.test(archived) || !/"File"/.test(archived) || !/"StartLine"/.test(archived)) fail('the archived gitleaks report must keep rule, file and line');
     rmSync(tmp, { recursive: true, force: true });
@@ -335,25 +346,13 @@ function adaptersOnce() { return loadAdapters(); }
   if (by['P-2'] !== 'missed') fail(`a different file sharing only the basename must read missed, never matched (P-2 got ${by['P-2']})`);
 }
 
-// ── exposures sidecar: new form green; legacy stage form grandfathered ────────
-// The stage scale (gate:/blocks_stage:) is RETIRED: a new-form sidecar (properties
-// + standing_watch only) must validate green, and a frozen-style legacy file must
-// STILL validate (the grandfather rail, like the legacy domains). If the validator
-// starts requiring the retired fields again — or stops accepting them on frozen
-// runs — this goes red.
+// ── exposures sidecar: standing_watch, not the retired stage scale ────────────
+// The stage scale (gate:/blocks_stage:) is retired: a sidecar (properties +
+// standing_watch only) must validate green.
 {
   const fail = (m) => negFailures.push('exposures-sidecar: ' + m);
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), join(HERE, 'sidecar-fixture')], { stdio: 'pipe' }); }
-  catch { fail('a NEW-FORM sidecar (no gate:, no blocks_stage:, standing_watch labeled) must validate green'); }
-  const legacyDir = join(HERE, 'sidecar-fixture-legacy');
-  mkdirSync(join(legacyDir, 'eval'), { recursive: true });
-  copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'findings-05-delegation.yaml'), join(legacyDir, 'eval', 'findings-05-delegation.yaml'));
-  copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'scanners.yaml'), join(legacyDir, 'eval', 'scanners.yaml'));
-  writeFileSync(join(legacyDir, 'eval', 'view-security-gate.yaml'),
-    'gate: beta\nexposures:\n  - name: legacy-exposure\n    title: Legacy exposure\n    findings: [F-001]\n    blocks_stage: beta\n    who: authorized-real-user\n    what: legacy stake\n    likelihood: high\n    fix: >\n      Close it.\n');
-  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), legacyDir], { stdio: 'pipe' }); }
-  catch { fail('a LEGACY sidecar (gate: + blocks_stage:) must still validate — frozen runs are grandfathered'); }
-  rmSync(legacyDir, { recursive: true, force: true });
+  catch { fail('a sidecar (no gate:, no blocks_stage:, standing_watch labeled) must validate green'); }
 }
 
 // ── run-manifest invariants: absence is named, never implied ──────────────────
@@ -389,15 +388,14 @@ function adaptersOnce() { return loadAdapters(); }
   const tmp = join(HERE, 'tmp-manifest');
   rmSync(tmp, { recursive: true, force: true });
   const runA = join(tmp, 'runs', 'a-2026-01-01'), runB = join(tmp, 'runs', 'b-2026-01-02');
-  mkdirSync(join(runA, 'eval'), { recursive: true }); mkdirSync(join(runB, 'eval'), { recursive: true });
-  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
-    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(runA, 'eval', f));
-  writeFileSync(join(runB, 'deep-code-review.md'), '# a sibling run\'s native report — must never be listed by run A\n');
+  copyFixtureFindings('notesbox', runA);
+  mkdirSync(join(runB, 'map', 'native'), { recursive: true });
+  writeFileSync(join(runB, 'map', 'native', 'deep-code-review.md'), '# a sibling run\'s native report — must never be listed by run A\n');
   let refused = false;
   try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), runA], { stdio: 'pipe' }); } catch { refused = true; }
   if (!refused) fail('compile-package must refuse to compile a run with no manifest (the package is what gets read)');
   if (existsSync(join(runA, 'INDEX.md'))) fail('a refused package must not have written INDEX.md');
-  copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), join(runA, 'eval', 'scanners.yaml'));
+  copyFixtureScanners('notesbox', runA);
   try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), runA], { stdio: 'pipe' }); }
   catch (e) { fail(`compile-package must compile a run with a valid manifest (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
   const index = existsSync(join(runA, 'INDEX.md')) ? readFileSync(join(runA, 'INDEX.md'), 'utf8') : '';
@@ -441,14 +439,13 @@ function adaptersOnce() { return loadAdapters(); }
   const clean = convert('deep-code-review', sample.replace(/findings:[\s\S]*prior_not_rechecked/, 'findings: []\nprior_not_rechecked'), null);
   if (clean.length !== 0 || !clean.coverage) fail('full coverage + empty findings must convert to zero rows WITH the coverage block (a recorded clean run)');
   // the sidecar: written block-style, loadable, and it turns a contributed axis "partially measured"
-  const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
-  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
-    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
-  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n  dependency-scan:\n    status: skipped\n    reason: "fixture: not executed"\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
+  const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n  dependency-scan:\n    status: skipped\n    reason: "fixture: not executed"\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
-  if (!existsSync(join(tmp, 'eval', 'findings-93-deep-code-review.yaml')) || !existsSync(join(tmp, 'eval', 'coverage-deep-code-review.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'deep-code-review.yaml'))) fail('ingest must write the rows file, the coverage sidecar, and the raw archive');
+  if (!existsSync(join(tmp, 'map', 'findings', 'deep-code-review.yaml')) || !existsSync(join(tmp, 'map', 'coverage', 'deep-code-review.yaml')) || !existsSync(join(tmp, 'map', 'raw', 'deep-code-review.yaml'))) fail('ingest must write the rows file, the coverage sidecar, and the raw archive');
   const cov = loadScannerCoverage(tmp);
   if (cov['deep-code-review']?.coverage?.P?.status !== 'not-scanned') fail('the coverage sidecar must round-trip through the shared loader');
   const ac = axisCoverage(adaptersOnce(), cov, 'code-security');
@@ -535,18 +532,16 @@ function adaptersOnce() { return loadAdapters(); }
     const rogue = projectMulti([{ ...rows[0], native_category: 'deploy' }], adaptersOnce());
     if (!rogue.unmapped.length) fail('an unknown fresh-clone category must halt at projection (default: FAIL)');
     // the CLI end to end: ingest writes the rows file and the raw archive, and the run validates green
-    mkdirSync(join(tmp, 'eval'), { recursive: true });
-    for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
-      copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
-    writeFileSync(join(tmp, 'eval', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), 'utf8').replace(/  fresh-clone:\n    status: skipped\n    reason: "[^"]*"\n/, '  fresh-clone:\n    status: ran\n'));
+    copyFixtureFindings('notesbox', tmp);
+    writeFileSync(join(tmp, 'map', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'map', 'scanners.yaml'), 'utf8').replace(/  fresh-clone:\n    status: skipped\n    reason: "[^"]*"\n/, '  fresh-clone:\n    status: ran\n'));
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'fresh-clone', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
     catch (e) { fail(`ingest CLI must accept the fixture document (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
-    if (!existsSync(join(tmp, 'eval', 'findings-94-fresh-clone.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'fresh-clone.json'))) fail('ingest must write findings-94-fresh-clone.yaml and archive the raw document');
+    if (!existsSync(join(tmp, 'map', 'findings', 'fresh-clone.yaml')) || !existsSync(join(tmp, 'map', 'raw', 'fresh-clone.json'))) fail('ingest must write map/findings/fresh-clone.yaml and archive the raw document');
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested fresh-clone run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
     // a verified-clean run: the explicit empty file validates green with fresh-clone recorded as ran
     writeFileSync(join(tmp, 'clean.json'), JSON.stringify(cleanDoc));
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'fresh-clone', '--raw', join(tmp, 'clean.json'), '--exit', '0'], { stdio: 'pipe' }); } catch { fail('ingest must accept a clean (exit 0) document'); }
-    const cleanFile = readFileSync(join(tmp, 'eval', 'findings-94-fresh-clone.yaml'), 'utf8');
+    const cleanFile = readFileSync(join(tmp, 'map', 'findings', 'fresh-clone.yaml'), 'utf8');
     if (!/0 row\(s\)/.test(cleanFile) || /^- id:/m.test(cleanFile)) fail('a clean run writes the explicit empty rows file');
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch { fail('a verified-clean fresh-clone run (empty explicit file, manifest ran) must validate green'); }
   }
@@ -612,19 +607,19 @@ function adaptersOnce() { return loadAdapters(); }
   if (!rogue.unmapped.length) fail('an unknown dependency-scan category must halt at projection (default: FAIL)');
   // (e) yardstick: d-dependencies-known-clean decides on the `critical` category alone
   let reg = null;
-  try { reg = loadRegistry(); } catch (e) { fail('registry failed to load: ' + e.message.split('\n')[0]); }
+  try { reg = loadYardstick(); } catch (e) { fail('yardstick failed to load: ' + e.message.split('\n')[0]); }
   if (reg) {
-    const ranHigh = projectDescriptors({
+    const ranHigh = measureRun({
       findings: [{ id: 'F-1', source: 'dependency-scan', native_category: 'high', polarity: 'gap' }],
       manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {},
     }, reg).find((r) => r.id === 'd-dependencies-known-clean');
     if (ranHigh?.status !== 'met') fail(`zero critical rows (even with a high row present) must read d-dependencies-known-clean met (got ${ranHigh?.status})`);
-    const ranCritical = projectDescriptors({
+    const ranCritical = measureRun({
       findings: [{ id: 'F-1', source: 'dependency-scan', native_category: 'critical', polarity: 'gap' }],
       manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {},
     }, reg).find((r) => r.id === 'd-dependencies-known-clean');
     if (ranCritical?.status !== 'unmet') fail(`a critical row must read d-dependencies-known-clean unmet (got ${ranCritical?.status})`);
-    const skipped = projectDescriptors({
+    const skipped = measureRun({
       findings: [], manifest: [{ scanner: 'dependency-scan', status: 'skipped', reason: 'no registry reach' }], inputs: null, coverage: {},
     }, reg).find((r) => r.id === 'd-dependencies-known-clean');
     if (skipped?.status !== 'not-measured' || !/no registry reach/.test(skipped.note || '')) fail(`a skipped manifest must read not-measured with the recorded reason (got ${skipped?.status}/${skipped?.note})`);
@@ -708,32 +703,32 @@ function adaptersOnce() { return loadAdapters(); }
 // of the population; the descriptor reads met only when EVERY listed category is met by
 // the same rules a single-category row already uses.
 {
-  const fail = (m) => negFailures.push('descriptor-list-category: ' + m);
-  const reg = loadRegistry();
-  const listDescriptor = { id: 'd-test-list', title: 'test', tier: 'reproducibility', topic: 'context-economy', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
-  const testReg = { ...reg, requirements: [listDescriptor] };
+  const fail = (m) => negFailures.push('yardstick-list-category: ' + m);
+  const reg = loadYardstick();
+  const listRequirement = { id: 'd-test-list', title: 'test', tier: 'reproducibility', topic: 'context-economy', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
+  const testReg = { ...reg, requirements: [listRequirement] };
   const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
   // a gap in EITHER listed category decides the row (here: only "build" has a gap)
   const withGap = [{ id: 'F-1', source: 'fresh-clone', native_category: 'build', polarity: 'gap', observation: 'x', evidence: ['a:1'] }];
-  const gapRows = projectDescriptors({ findings: withGap, manifest: ran, inputs: null, coverage: {} }, testReg);
+  const gapRows = measureRun({ findings: withGap, manifest: ran, inputs: null, coverage: {} }, testReg);
   if (gapRows[0]?.status !== 'unmet' || !gapRows[0].findings.includes('F-1')) fail(`a gap in either listed category must decide the row unmet (got ${gapRows[0]?.status})`);
   // no rows in either listed category, from an instrument that ran: met (nothing to report)
-  const noRows = projectDescriptors({ findings: [], manifest: ran, inputs: null, coverage: {} }, testReg);
+  const noRows = measureRun({ findings: [], manifest: ran, inputs: null, coverage: {} }, testReg);
   if (noRows[0]?.status !== 'met') fail(`no rows in either listed category from a clean instrument run must read met (got ${noRows[0]?.status})`);
   // a skipped manifest reads not-measured regardless of the category shape
-  const skipped = projectDescriptors({ findings: [], manifest: [{ scanner: 'fresh-clone', status: 'skipped', reason: 'no scratch clone here' }], inputs: null, coverage: {} }, testReg);
+  const skipped = measureRun({ findings: [], manifest: [{ scanner: 'fresh-clone', status: 'skipped', reason: 'no scratch clone here' }], inputs: null, coverage: {} }, testReg);
   if (skipped[0]?.status !== 'not-measured' || !/no scratch clone here/.test(skipped[0].note)) fail(`a skipped manifest must read not-measured with its reason, list category or not (got ${skipped[0]?.status} / ${skipped[0]?.note})`);
   // a peer scanner with a list category: met only when EVERY listed category is scanned clean
-  const peerDescriptor = { ...listDescriptor, id: 'd-test-list-peer', decide: { kind: 'instrument', scanner: 'deep-code-review', category: ['B', 'N'] } };
+  const peerRequirement = { ...listRequirement, id: 'd-test-list-peer', decide: { kind: 'instrument', scanner: 'deep-code-review', category: ['B', 'N'] } };
   const peerRan = [{ scanner: 'deep-code-review', status: 'ran' }];
-  const oneScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'not-scanned', note: 'no config surface' } } } } }, { ...testReg, requirements: [peerDescriptor] });
+  const oneScanned = measureRun({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'not-scanned', note: 'no config surface' } } } } }, { ...testReg, requirements: [peerRequirement] });
   if (oneScanned[0]?.status !== 'not-measured') fail(`a list category met in one member and not-scanned in the other must NOT read met (got ${oneScanned[0]?.status})`);
-  const bothScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'scanned' } } } } }, { ...testReg, requirements: [peerDescriptor] });
+  const bothScanned = measureRun({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'scanned' } } } } }, { ...testReg, requirements: [peerRequirement] });
   if (bothScanned[0]?.status !== 'met') fail(`a list category must read met once every listed category is independently scanned clean (got ${bothScanned[0]?.status})`);
-  // validateRegistry: accepts a list category, rejects an empty one
-  if (validateRegistry({ ...reg, requirements: [listDescriptor] }).length) fail('validateRegistry must accept a non-empty list category');
-  const emptyList = { ...listDescriptor, decide: { kind: 'instrument', scanner: 'fresh-clone', category: [] } };
-  if (!validateRegistry({ ...reg, requirements: [emptyList] }).some((e) => /category/.test(e))) fail('validateRegistry must reject an empty category list');
+  // validateYardstick: accepts a list category, rejects an empty one
+  if (validateYardstick({ ...reg, requirements: [listRequirement] }).length) fail('validateYardstick must accept a non-empty list category');
+  const emptyList = { ...listRequirement, decide: { kind: 'instrument', scanner: 'fresh-clone', category: [] } };
+  if (!validateYardstick({ ...reg, requirements: [emptyList] }).some((e) => /category/.test(e))) fail('validateYardstick must reject an empty category list');
 }
 
 // ── repo-census instrument (map/repo-census.mjs → ingest profile repo-census) ──
@@ -874,31 +869,29 @@ function adaptersOnce() { return loadAdapters(); }
     // (f) the yardstick: the four pre-existing re-kinded floor rows, plus the
     // six evidence rows, read met from an all-pass run with a `ran` manifest, and
     // not-measured (with the reason) when repo-census is recorded skipped instead
-    const reg = loadRegistry();
+    const reg = loadYardstick();
     const RC_DESCRIPTOR_IDS = ['d-architecture-page', 'd-agent-contract', 'd-runbook', 'd-ci-gate-on-default-branch', ...EVIDENCE_IDS];
-    const metRows = Object.fromEntries(projectDescriptors({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    const metRows = Object.fromEntries(measureRun({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     for (const id of RC_DESCRIPTOR_IDS) {
       if (metRows[id]?.status !== 'met') fail(`${id} must read met from an all-pass repo-census run (got ${metRows[id]?.status})`);
     }
-    const skippedRows = Object.fromEntries(projectDescriptors({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'skipped', reason: 'no filesystem access' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    const skippedRows = Object.fromEntries(measureRun({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'skipped', reason: 'no filesystem access' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     for (const id of RC_DESCRIPTOR_IDS) {
       if (skippedRows[id]?.status !== 'not-measured' || !/no filesystem access/.test(skippedRows[id].note)) fail(`${id} must read not-measured with the recorded reason when repo-census is skipped (got ${skippedRows[id]?.status}/${skippedRows[id]?.note})`);
     }
     // the REAL (non-synthetic) run: d-backup-restore-exercised is the one evidence row
     // actually met; the other five are actually unmet (planted gaps), same `ran` manifest
-    const realRows = Object.fromEntries(projectDescriptors({ findings: rows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    const realRows = Object.fromEntries(measureRun({ findings: rows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     if (realRows['d-backup-restore-exercised']?.status !== 'met') fail(`d-backup-restore-exercised must read met from the real fixture run (got ${realRows['d-backup-restore-exercised']?.status})`);
     for (const id of ['d-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts']) {
       if (realRows[id]?.status !== 'unmet') fail(`${id} must read unmet from the real fixture run (its planted gap; got ${realRows[id]?.status})`);
     }
     // the CLI end to end: ingest writes the rows file and the raw archive, and the run validates green
-    mkdirSync(join(tmp, 'eval'), { recursive: true });
-    for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
-      copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
-    writeFileSync(join(tmp, 'eval', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), 'utf8').replace(/  repo-census:\n    status: skipped\n    reason: "[^"]*"\n/, '  repo-census:\n    status: ran\n'));
+    copyFixtureFindings('notesbox', tmp);
+    writeFileSync(join(tmp, 'map', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'map', 'scanners.yaml'), 'utf8').replace(/  repo-census:\n    status: skipped\n    reason: "[^"]*"\n/, '  repo-census:\n    status: ran\n'));
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'repo-census', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
     catch (e) { fail(`ingest CLI must accept the fixture document (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
-    if (!existsSync(join(tmp, 'eval', 'findings-96-repo-census.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'repo-census.json'))) fail('ingest must write findings-96-repo-census.yaml and archive the raw document');
+    if (!existsSync(join(tmp, 'map', 'findings', 'repo-census.yaml')) || !existsSync(join(tmp, 'map', 'raw', 'repo-census.json'))) fail('ingest must write map/findings/repo-census.yaml and archive the raw document');
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested repo-census run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
   }
   rmSync(tmp, { recursive: true, force: true });
@@ -954,22 +947,22 @@ function adaptersOnce() { return loadAdapters(); }
   if (out.includes('fixture_only_tool')) fail('enumerate surfaced a tool defined only in a test file — the test-file skip regressed');
 }
 
-// ── descriptor-register invariants: extracted rows, honest deciders ───────────
+// ── yardstick-register invariants: extracted rows, honest deciders ───────────
 // The register must load and validate (closed vocab, every row sourced); each decider
 // must read a synthetic base the way yardstick/README.md says; and the two honesty
 // gates must hold: an instrument row decides only when the manifest says it ran, and a
 // claim row NEVER reads met from a run. Prose is never a decider.
 {
-  const fail = (m) => negFailures.push('descriptor-register: ' + m);
+  const fail = (m) => negFailures.push('yardstick-register: ' + m);
   let reg = null;
-  try { reg = loadRegistry(); } catch (e) { fail('registry failed to load: ' + e.message.split('\n')[0]); }
+  try { reg = loadYardstick(); } catch (e) { fail('yardstick failed to load: ' + e.message.split('\n')[0]); }
   if (reg) {
-    if (validateRegistry(reg).length) fail('validateRegistry must be clean on the shipped register');
+    if (validateYardstick(reg).length) fail('validateYardstick must be clean on the shipped register');
     if (!reg.requirements.some((d) => d.decide.kind === 'claim')) fail('the yardstick must carry claim rows (its instrument backlog) — a register that claims to measure everything is the presence-checklist failure');
     const bad = { ...reg, requirements: [{ ...reg.requirements[0], decide: { kind: 'prose', terms: 'x' } }] };
-    if (!validateRegistry(bad).some((e) => /decide\.kind/.test(e))) fail('an unknown decide.kind (prose) must be rejected');
+    if (!validateYardstick(bad).some((e) => /decide\.kind/.test(e))) fail('an unknown decide.kind (prose) must be rejected');
     const unsourced = { ...reg, requirements: [{ ...reg.requirements[0], sources: [] }] };
-    if (!validateRegistry(unsourced).some((e) => /sources/.test(e))) fail('a row with no sources must be rejected (extracted, not designed)');
+    if (!validateYardstick(unsourced).some((e) => /sources/.test(e))) fail('a row with no sources must be rejected (extracted, not designed)');
     const base = [
       { id: 'F-1', dimension: 'delegation', polarity: 'gap', subject_type: 'effect', observation: 'x', evidence: ['a:1'], confidence: 'confirmed',
         effect: { channel: 'mail-send', reversibility: 'irreversible', external: true, gate_type: 'none', telemetry: 'none', blast_scope: 'tenant' } },
@@ -981,7 +974,7 @@ function adaptersOnce() { return loadAdapters(); }
     ];
     const inputs = { dimensions: [{ dimension: 'artifact-legibility', sampled: [{ name: 'decision-reconstruction', what: 'w', met: 3, of: 4 }] }] };
     const ran = [{ scanner: 'gitleaks', status: 'ran' }, { scanner: 'repo-eval', status: 'ran' }];
-    const rows = projectDescriptors({ findings: base, manifest: ran, inputs, coverage: {} }, reg);
+    const rows = measureRun({ findings: base, manifest: ran, inputs, coverage: {} }, reg);
     const by = Object.fromEntries(rows.map((r) => [r.id, r]));
     if (by['d-effects-gated']?.status !== 'unmet' || !by['d-effects-gated'].findings.includes('F-1')) fail('an unheld halt must read d-effects-gated unmet, citing it');
     if (by['d-effects-gated']?.findings.includes('F-2') === false && by['d-gates-fail-closed']?.status !== 'unmet') fail('a gate with fail_mode open must read d-gates-fail-closed unmet');
@@ -989,21 +982,21 @@ function adaptersOnce() { return loadAdapters(); }
     if (by['d-capability-budget']?.status !== 'unmet') fail('a full trifecta reaching an unheld halt must read d-capability-budget unmet');
     if (by['d-decisions-reconstruct']?.status !== 'mixed' || by['d-decisions-reconstruct'].of !== 4) fail('a 3-of-4 census must read mixed with its denominator');
     if (by['d-secrets-out-of-history']?.status !== 'unmet') fail('a gitleaks secret row with the scanner ran must read d-secrets-out-of-history unmet');
-    if (rows.filter((r) => r.kind === 'claim').some((r) => r.status !== 'not-measured')) fail('a claim descriptor must never read anything but not-measured from a run');
-    if (!rows.every((r) => ['met', 'unmet', 'mixed', 'not-measured'].includes(r.status))) fail('every descriptor must carry exactly one closed status');
+    if (rows.filter((r) => r.kind === 'claim').some((r) => r.status !== 'not-measured')) fail('a claim requirement must never read anything but not-measured from a run');
+    if (!rows.every((r) => ['met', 'unmet', 'mixed', 'not-measured'].includes(r.status))) fail('every requirement must carry exactly one closed status');
     // manifest gate: the same rows with gitleaks SKIPPED must read not-measured with the reason
-    const skipped = projectDescriptors({ findings: base, manifest: [{ scanner: 'gitleaks', status: 'skipped', reason: 'no history mirror' }], inputs, coverage: {} }, reg);
+    const skipped = measureRun({ findings: base, manifest: [{ scanner: 'gitleaks', status: 'skipped', reason: 'no history mirror' }], inputs, coverage: {} }, reg);
     const sk = skipped.find((r) => r.id === 'd-secrets-out-of-history');
     if (sk?.status !== 'not-measured' || !/no history mirror/.test(sk.note)) fail('an instrument recorded as skipped must read not-measured WITH the recorded reason, even when rows are present');
     // coverage gate: a peer scanner with no rows reads met only where it says it scanned the domain
     const dcrRan = [{ scanner: 'deep-code-review', status: 'ran' }];
     const covScanned = { 'deep-code-review': { scanner: 'deep-code-review', coverage: { B: { status: 'scanned' }, N: { status: 'not-scanned', note: 'no config surface' } } } };
-    const pr = Object.fromEntries(projectDescriptors({ findings: [], manifest: dcrRan, inputs: null, coverage: covScanned }, reg).map((r) => [r.id, r]));
+    const pr = Object.fromEntries(measureRun({ findings: [], manifest: dcrRan, inputs: null, coverage: covScanned }, reg).map((r) => [r.id, r]));
     if (pr['d-routes-authorized']?.status !== 'met') fail('a peer scanner that scanned domain B with no gap rows must read d-routes-authorized met');
     if (pr['d-config-declared']?.status !== 'not-measured' || !/no config surface/.test(pr['d-config-declared'].note)) fail('a peer scanner domain recorded not-scanned must read not-measured with its note');
-    const silent = Object.fromEntries(projectDescriptors({ findings: [], manifest: dcrRan, inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    const silent = Object.fromEntries(measureRun({ findings: [], manifest: dcrRan, inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     if (silent['d-routes-authorized']?.status !== 'not-measured') fail('a peer scanner that ran with no rows and NO coverage sidecar must read not-measured (silence is not clean)');
-    const gl = Object.fromEntries(projectDescriptors({ findings: [], manifest: [{ scanner: 'gitleaks', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    const gl = Object.fromEntries(measureRun({ findings: [], manifest: [{ scanner: 'gitleaks', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     if (gl['d-secrets-out-of-history']?.status !== 'met') fail('an instrument that ran clean (exit 0, no rows) must read met');
     const s = summarize(rows);
     if (s.of !== reg.requirements.length || s.decided + s['not-measured'] !== s.of) fail('summary counts must partition the yardstick');
@@ -1016,24 +1009,24 @@ function adaptersOnce() { return loadAdapters(); }
 // reproducibility and operability (the tiers with no axis of their own). Missing or unknown must both fail closed.
 {
   const fail = (m) => negFailures.push('yardstick-topic: ' + m);
-  const reg = loadRegistry();
+  const reg = loadYardstick();
   const noTopic = { ...reg, requirements: reg.requirements.map((d, i) => i === 0 ? { ...d, topic: undefined } : d) };
-  if (!validateRegistry(noTopic).some((e) => /topic/.test(e))) fail('a requirement with no topic must be rejected');
+  if (!validateYardstick(noTopic).some((e) => /topic/.test(e))) fail('a requirement with no topic must be rejected');
   const badTopic = { ...reg, requirements: reg.requirements.map((d, i) => i === 0 ? { ...d, topic: 'not-a-real-topic' } : d) };
-  if (!validateRegistry(badTopic).some((e) => /topic "not-a-real-topic"/.test(e))) fail('a topic outside the allowed list must be rejected');
-  if (validateRegistry(reg).length) fail('the shipped register must validate clean with every row carrying a topic');
+  if (!validateYardstick(badTopic).some((e) => /topic "not-a-real-topic"/.test(e))) fail('a topic outside the allowed list must be rejected');
+  if (validateYardstick(reg).length) fail('the shipped register must validate clean with every row carrying a topic');
 }
 
 // ── Intake, Maintain, Improve: three views of one yardstick measurement ───────
-// All three read ONLY eval/yardstick.yaml (+ the yardstick for title/check/tier,
+// All three read ONLY yardstick.yaml (+ the yardstick for title/check/tier,
 // + the manifest for what was not seen) — never findings directly. Intake is the
 // floor population, Maintain the fleet population (every row also stamped
 // floor: true|false), Improve groups every requirement by topic exactly once.
 {
   const fail = (m) => negFailures.push('intake-maintain-improve: ' + m);
-  const tmp = join(HERE, 'tmp-views'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
-  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml', 'scanners.yaml'])
-    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
+  const tmp = join(HERE, 'tmp-views'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
   try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
   catch (e) { fail(`measure --write must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
   try { execFileSync(process.execPath, [join(ROOT, 'views', 'intake.mjs'), tmp], { stdio: 'pipe' }); }
@@ -1043,15 +1036,15 @@ function adaptersOnce() { return loadAdapters(); }
   try { execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'topics.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
   catch (e) { fail(`views/improve/topics.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
 
-  for (const f of ['intake.yaml', 'maintain.yaml', 'improve.yaml']) if (!existsSync(join(tmp, 'eval', f))) fail(`eval/${f} must be written`);
+  for (const f of ['intake.yaml', 'maintain.yaml', 'improve.yaml']) if (!existsSync(join(tmp, 'views', f))) fail(`views/${f} must be written`);
   if (!existsSync(join(tmp, 'INTAKE.md'))) fail('INTAKE.md must be written at the run root');
   if (!existsSync(join(tmp, 'MAINTAIN.md'))) fail('MAINTAIN.md must be written at the run root');
 
-  const reg = loadRegistry();
+  const reg = loadYardstick();
   const dupes = (ids) => ids.filter((id, i) => ids.indexOf(id) !== i);
 
-  if (existsSync(join(tmp, 'eval', 'intake.yaml'))) {
-    const doc = parseYaml(readFileSync(join(tmp, 'eval', 'intake.yaml'), 'utf8'));
+  if (existsSync(join(tmp, 'views', 'intake.yaml'))) {
+    const doc = parseYaml(readFileSync(join(tmp, 'views', 'intake.yaml'), 'utf8'));
     const floorIds = reg.requirements.filter((d) => (d.tags || []).includes('floor')).map((d) => d.id);
     const all = [...(doc.open || []), ...(doc.met || []), ...(doc.to_run || [])];
     const ids = all.map((r) => r.id);
@@ -1061,8 +1054,8 @@ function adaptersOnce() { return loadAdapters(); }
   }
 
   let maintainDoc = null;
-  if (existsSync(join(tmp, 'eval', 'maintain.yaml'))) {
-    maintainDoc = parseYaml(readFileSync(join(tmp, 'eval', 'maintain.yaml'), 'utf8'));
+  if (existsSync(join(tmp, 'views', 'maintain.yaml'))) {
+    maintainDoc = parseYaml(readFileSync(join(tmp, 'views', 'maintain.yaml'), 'utf8'));
     const fleetIds = reg.requirements.filter((d) => (d.tags || []).includes('fleet')).map((d) => d.id);
     const all = [...(maintainDoc.open || []), ...(maintainDoc.met || []), ...(maintainDoc.to_run || [])];
     const ids = all.map((r) => r.id);
@@ -1072,8 +1065,8 @@ function adaptersOnce() { return loadAdapters(); }
     if (all.some((r) => typeof r.floor !== 'boolean')) fail('every maintain.yaml row must carry floor: true|false');
   }
 
-  if (existsSync(join(tmp, 'eval', 'improve.yaml'))) {
-    const doc = parseYaml(readFileSync(join(tmp, 'eval', 'improve.yaml'), 'utf8'));
+  if (existsSync(join(tmp, 'views', 'improve.yaml'))) {
+    const doc = parseYaml(readFileSync(join(tmp, 'views', 'improve.yaml'), 'utf8'));
     const ids = (doc.topics || []).flatMap((t) => (t.rows || []).map((r) => r.id));
     if (ids.length !== reg.requirements.length || dupes(ids).length)
       fail(`every requirement must appear exactly once in improve.yaml (got ${ids.length} of ${reg.requirements.length}; duplicated ${dupes(ids).join(', ') || 'none'})`);
@@ -1082,7 +1075,7 @@ function adaptersOnce() { return loadAdapters(); }
   // decided_by: "owner" for every claim row (claim always reads not-measured, so
   // it always lands in to_run) — check both Intake and Maintain's to_run lists.
   const claimIds = new Set(reg.requirements.filter((d) => d.decide.kind === 'claim').map((d) => d.id));
-  const intakeDoc = existsSync(join(tmp, 'eval', 'intake.yaml')) ? parseYaml(readFileSync(join(tmp, 'eval', 'intake.yaml'), 'utf8')) : null;
+  const intakeDoc = existsSync(join(tmp, 'views', 'intake.yaml')) ? parseYaml(readFileSync(join(tmp, 'views', 'intake.yaml'), 'utf8')) : null;
   const toRunClaims = [...((intakeDoc && intakeDoc.to_run) || []), ...((maintainDoc && maintainDoc.to_run) || [])].filter((r) => claimIds.has(r.id));
   if (!toRunClaims.length) fail('expected at least one claim row in to_run to check decided_by against');
   else {
@@ -1092,33 +1085,12 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
-// ── the yardstick's legacy-name fallback: eval/view-descriptors.yaml alone ────
-// Phase 2 renamed the measurement to eval/yardstick.yaml; a frozen base that
-// carries only the legacy name (schema: descriptors, list key `descriptors:`)
-// must still validate — the fallback lives in lib/legacy-name.mjs, read by
-// map/validate.mjs.
-{
-  const fail = (m) => negFailures.push('yardstick-legacy-fallback: ' + m);
-  const tmp = join(HERE, 'tmp-yardstick-legacy'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
-  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml', 'scanners.yaml'])
-    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
-  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
-  catch (e) { fail(`measure --write must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
-  const current = existsSync(join(tmp, 'eval', 'yardstick.yaml')) ? readFileSync(join(tmp, 'eval', 'yardstick.yaml'), 'utf8') : '';
-  rmSync(join(tmp, 'eval', 'yardstick.yaml'), { force: true });
-  const legacy = current.replace(/^schema: yardstick$/m, 'schema: descriptors').replace(/^requirements:$/m, 'descriptors:');
-  writeFileSync(join(tmp, 'eval', 'view-descriptors.yaml'), legacy);
-  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); }
-  catch (e) { fail(`a base carrying only the legacy eval/view-descriptors.yaml (schema: descriptors) must still validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
-  rmSync(tmp, { recursive: true, force: true });
-}
-
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
   try {
     const answers = parseYaml(readFileSync(join(dir, 'ANSWERS.yaml'), 'utf8'));
-    const findings = loadFindings(join(dir, 'eval'));
+    const findings = loadFindings(dir);
     const r = score(findings, loadAdapters(), answers);
     const missed = r.results.filter((x) => x.status === 'missed').length;
     const misHomed = r.results.filter((x) => x.status === 'mis-homed').length;
@@ -1146,7 +1118,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, descriptor-list-category, repo-census, enumerate-gate, enumerate-tooldef, descriptor-register, yardstick-topic, intake-maintain-improve, yardstick-legacy-fallback, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

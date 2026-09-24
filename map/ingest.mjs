@@ -15,7 +15,7 @@
 //      id + location only; the matched secret value is never written anywhere.
 //
 // Evidence: file:line where the tool reports one; a repo-level claim (most
-// Scorecard checks) cites the archived raw report (run-relative `eval/raw/…`),
+// Scorecard checks) cites the archived raw report (run-relative `map/raw/…`),
 // which `validate.mjs --target` knows to skip (instrument evidence lives in the
 // run, not the target).
 //
@@ -24,7 +24,7 @@
 // findings). It has no exit code — its fail-loud property is COMPLETENESS: the
 // coverage map must carry a row for every domain the adapter's coverage_domains
 // lists, every gap row a fix, every non-scanned row a note; anything less halts.
-// The coverage rows are archived as eval/coverage-<scanner>.yaml so the renderers
+// The coverage rows are archived as map/coverage/<scanner>.yaml so the renderers
 // can say "partially measured" where the scanner itself said it looked partially.
 //
 // The FRESH-CLONE instrument (map/fresh-clone.mjs) also comes in here: its JSON
@@ -42,8 +42,8 @@
 //   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx]
 //   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx]
 //   node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
-// Writes <run-dir>/eval/findings-9N-<tool>.yaml and archives the raw report to
-// <run-dir>/eval/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
+// Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
+// <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
 // the next hundred above the run's highest existing id, whichever is higher (nextStart).
 // Library: convert(tool, rawText, exitCode, startId), nextStart(runDir, tool).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync } from 'node:fs';
@@ -51,13 +51,13 @@ import { join } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
+import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath } from '../lib/run-layout.mjs';
 
 // ── tool profiles ────────────────────────────────────────────────────────────
 // okExits: the tool's documented success exits (anything else = tool error, halt).
 // For gitleaks, 0 = clean and 1 = leaks found are both successful runs.
 const PROFILES = {
   gitleaks: {
-    file: 'findings-91-gitleaks.yaml',
     startId: 700,
     okExits: [0, 1],
     // the raw archive is LOCATION-ONLY: a gitleaks report carries the matched value in
@@ -88,7 +88,6 @@ const PROFILES = {
     },
   },
   scorecard: {
-    file: 'findings-92-scorecard.yaml',
     startId: 750,
     okExits: [0],
     // Score bands (the instrument profile's documented normalization):
@@ -109,7 +108,7 @@ const PROFILES = {
           native_category: c.name,
           polarity: c.score >= 8 ? 'strength' : 'gap',
           observation: `Scorecard ${c.name} scored ${c.score}/10: ${oneLine(c.reason || 'no reason given')}.`,
-          evidence: [detailPath || 'eval/raw/scorecard.json:1'],
+          evidence: [detailPath || 'map/raw/scorecard.json:1'],
         };
         if (row.polarity === 'gap') {
           row.severity = c.score <= 3 ? 'High' : 'Medium';
@@ -122,7 +121,6 @@ const PROFILES = {
     },
   },
   'deep-code-review': {
-    file: 'findings-93-deep-code-review.yaml',
     raw: 'deep-code-review.yaml',
     startId: 800,
     exitless: true,      // an LLM skill's machine report: completeness, not an exit code, is the fail-loud property
@@ -185,7 +183,6 @@ const PROFILES = {
     },
   },
   'fresh-clone': {
-    file: 'findings-94-fresh-clone.yaml',
     startId: 900,
     // 0 = every declared step passed and every README claim present, at the root AND
     // in every workspace; 1 = at least one step failed / timed out or a claim is
@@ -268,7 +265,7 @@ const PROFILES = {
       const rootDbSignals = Array.isArray(rep.toolchain && rep.toolchain.database_signals) && rep.toolchain.database_signals.length > 0;
       emitEntry(rep.steps, rep.readme_claims, {
         idPrefix: '', inLabel: '', errLabel: '',
-        manifest: (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'eval/raw/fresh-clone.json:1',
+        manifest: (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
         readme: rep.readme || 'README.md',
         hasDbSignals: rootDbSignals,
       });
@@ -290,7 +287,6 @@ const PROFILES = {
     },
   },
   'dependency-scan': {
-    file: 'findings-95-dependency-scan.yaml',
     startId: 950,
     // 0 = every lockfile in the tree audited with zero advisories; 1 = any advisory,
     // any failed lockfile, or any not-supported (pnpm/yarn) lockfile. Both are
@@ -353,7 +349,6 @@ const PROFILES = {
     },
   },
   'repo-census': {
-    file: 'findings-96-repo-census.yaml',
     startId: 960,
     // 0 = every check passed (or was not-applicable); 1 = at least one check is a gap.
     // Both are successful RUNS. A crash of the runner itself exits 2 and halts here.
@@ -492,12 +487,13 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
 export function nextStart(runDir, tool) {
   const p = PROFILES[tool];
   if (!p) throw new Error(`unknown instrument "${tool}"`);
-  const evalDir = existsSync(join(runDir, 'eval')) ? join(runDir, 'eval') : runDir;
+  const fd = findingsDir(runDir);
+  const ownFile = `${tool}.yaml`;
   let max = 0; const seenIn = [];
-  if (existsSync(evalDir)) {
-    for (const f of readdirSync(evalDir)) {
-      if (!/^findings-\d\d-.*\.yaml$/.test(f) || f === p.file) continue;
-      const m = readFileSync(join(evalDir, f), 'utf8').match(/^-\s+id:\s*F-(\d+)/gm) || [];
+  if (existsSync(fd)) {
+    for (const f of readdirSync(fd)) {
+      if (!f.endsWith('.yaml') || f === ownFile) continue;
+      const m = readFileSync(join(fd, f), 'utf8').match(/^-\s+id:\s*F-(\d+)/gm) || [];
       for (const s of m) { const n = Number(s.replace(/^-\s+id:\s*F-/, '')); if (n > max) { max = n; } }
       if (m.length) seenIn.push(f);
     }
@@ -512,14 +508,15 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
   const esc = (s) => oneLine(s);
   const q = (s) => `"${esc(s).replace(/"/g, "'")}"`;
   const p = PROFILES[tool];
+  const file = `map/findings/${tool}.yaml`;
   const out = p.exitless
-    ? [`# ${p.file} — peer-scanner rows ingested by assay.mjs ingest from the scanner's machine report.`,
-       `# Scanner: ${tool} · ${rows.length} row(s) · coverage archived at eval/coverage-${tool}.yaml (one row per domain).`]
-    : [`# ${p.file} — instrument rows ingested by assay.mjs ingest.`,
+    ? [`# ${file} — peer-scanner rows ingested by assay.mjs ingest from the scanner's machine report.`,
+       `# Scanner: ${tool} · ${rows.length} row(s) · coverage archived at map/coverage/${tool}.yaml (one row per domain).`]
+    : [`# ${file} — instrument rows ingested by assay.mjs ingest.`,
        `# Instrument: ${tool} · exit code ${exitCode} (verified in its success set) · ${rows.length} row(s).`];
   if (skipped && skipped.length) out.push(`# Skipped as N/A by the tool (score -1), logged so the absence is visible: ${skipped.join(', ')}.`);
   if (startNote) out.push(`# Ids start at ${startNote}.`);
-  out.push(`# Raw report archived at eval/raw/${p.raw || tool + '.json'}. Regenerate with ingest.mjs; never hand-edit.`, '');
+  out.push(`# Raw report archived at map/raw/${p.raw || tool + '.json'}. Regenerate with ingest.mjs; never hand-edit.`, '');
   for (const r of rows) {
     out.push(`- id: ${r.id}`);
     out.push(`  source: ${r.source}`);
@@ -548,7 +545,7 @@ export function coverageYaml(c) {
   const esc = (s) => oneLine(s).replace(/"/g, "'");
   const scalar = (v) => (typeof v === 'number' || typeof v === 'boolean') ? String(v) : (v === null || v === undefined) ? 'null' : `"${esc(v)}"`;
   const out = [
-    `# coverage-${c.scanner}.yaml — the scanner's OWN coverage account, archived by assay.mjs ingest.`,
+    `# map/coverage/${c.scanner}.yaml — the scanner's OWN coverage account, archived by assay.mjs ingest.`,
     `# One row per domain in the scanner's taxonomy: scanned | partial | not-scanned | not-applicable.`,
     `# Renderers read it: an axis this scanner contributes is fully measured only where every`,
     `# mapped domain was scanned; otherwise the axis reads "partially measured", with the note.`,
@@ -583,7 +580,6 @@ if (isMain(import.meta.url)) {
     console.error('       node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]');
     process.exit(2);
   }
-  const evalDir = existsSync(join(runDir, 'eval')) ? join(runDir, 'eval') : runDir;
   const rawText = readFileSync(rawPath, 'utf8');
   let rows, startNote = null;
   let startId = start;
@@ -594,12 +590,13 @@ if (isMain(import.meta.url)) {
   } else startNote = `${startId}: given on the command line (--start)`;
   try { rows = convert(tool, rawText, exit, startId, { stripPrefix }); }
   catch (e) { console.error(`✗ ingest halted: ${e.message}`); process.exit(1); }
-  mkdirSync(join(evalDir, 'raw'), { recursive: true });
-  const rawDst = join(evalDir, 'raw', PROFILES[tool].raw || `${tool}.json`);
+  mkdirSync(findingsDir(runDir), { recursive: true });
+  mkdirSync(rawDir(runDir), { recursive: true });
+  const rawDst = rawArtifactPath(runDir, PROFILES[tool].raw || `${tool}.json`);
   if (PROFILES[tool].archive) writeFileSync(rawDst, PROFILES[tool].archive(rawText));
   else copyFileSync(rawPath, rawDst);
-  const dst = join(evalDir, PROFILES[tool].file);
+  const dst = findingsPath(runDir, tool);
   writeFileSync(dst, toYaml(rows, tool, exit, rows.skipped, startNote));
-  if (rows.coverage) writeFileSync(join(evalDir, `coverage-${tool}.yaml`), coverageYaml(rows.coverage));
-  console.log(`✓ ingested ${rows.length} ${tool} row(s) → ${dst}${rows.coverage ? ` + coverage-${tool}.yaml (${Object.keys(rows.coverage.coverage).length} domain rows)` : ''}${rows.skipped && rows.skipped.length ? ` (${rows.skipped.length} N/A check(s) logged in header)` : ''}${rows.length === 0 ? ` — verified-clean run (${exitless ? 'full coverage, empty findings' : 'success exit, empty report'}), recorded explicitly` : ''}`);
+  if (rows.coverage) { mkdirSync(coverageDir(runDir), { recursive: true }); writeFileSync(coveragePath(runDir, tool), coverageYaml(rows.coverage)); }
+  console.log(`✓ ingested ${rows.length} ${tool} row(s) → ${dst}${rows.coverage ? ` + map/coverage/${tool}.yaml (${Object.keys(rows.coverage.coverage).length} domain rows)` : ''}${rows.skipped && rows.skipped.length ? ` (${rows.skipped.length} N/A check(s) logged in header)` : ''}${rows.length === 0 ? ` — verified-clean run (${exitless ? 'full coverage, empty findings' : 'success exit, empty report'}), recorded explicitly` : ''}`);
 }

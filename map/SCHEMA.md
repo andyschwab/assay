@@ -19,7 +19,7 @@ deterministic gates).
 
 ---
 
-## 1. The finding (one object per list item in `eval/findings-NN-*.yaml`)
+## 1. The finding (one object per list item in `map/findings/*.yaml`)
 
 Lean neutral core, with facets attached only when the `subject_type` requires them.
 
@@ -70,11 +70,11 @@ the finding's native category; the finding need not carry an axis itself). Axes
 are **property-named and shared**: every scanner — the native seven-dimension
 method included — contributes axes through its adapter's `contributes:` list, and
 any scanner may feed an axis it does not contribute, so two scanners measuring
-one property corroborate on one axis. **These fields are optional and
-backward-compatible**: a pre-overlay base carries none, and the validator only
-checks them when present. The projection gate (fail-closed) is what lets several
-scanners report into one coherent set of axis profiles; the full contract,
-adapter format, and fail-closed rule live in `map/scanners/CONTRACT.md`.
+one property corroborate on one axis. **These fields are optional**: the
+validator checks them only when present. The projection gate (fail-closed) is
+what lets several scanners report into one coherent set of axis profiles; the
+full contract, adapter format, and fail-closed rule live in
+`map/scanners/CONTRACT.md`.
 
 ```yaml
 axis: code-correctness               # a contributed axis (the roster is adapter-derived)
@@ -85,11 +85,7 @@ source: deep-code-review             # which scanner produced it (repo-eval for 
 A finding's `also_axes` place it in every section it truly touches (the seam is
 first-class, not collapsed). Adapters declare which axes they `contributes:`, so
 coverage is a capability, not a count — an axis no present scanner contributes
-reads "not measured", never "clean". A finding may instead carry `domain:` /
-`also_domains:` / `foundation:`, an older five-domain model's fields; the
-validator translates the first two to an axis automatically
-(`project.mjs` `LEGACY_DOMAIN_AXIS`), ignores the third, and a new finding
-carries none of the three.
+reads "not measured", never "clean".
 
 The `reaches` graph is not decoration: `map/chains.mjs` walks it from every
 capability that holds untrusted input to the unguarded effects it can drive, and the
@@ -190,9 +186,10 @@ Ids are `F-###` — `F-` plus **three or more digits**, zero-padded to three (`F
 an instrument such as a history-mode secrets scan returns more rows than three digits hold) —
 **unique within a run and carrying no dimension meaning.** A finding's
 dimension lives in its `dimension:` field, backed by the **filename ↔ dimension** check
-(a `findings-03-gates.yaml` finding must be `deterministic-gates` or `unprompted`). The id
-number is just an address; it does not encode the dimension, and there is **no per-dimension
-budget, no ceiling, and no re-homing to satisfy a band.**
+(a `map/findings/repo-eval-gates.yaml` finding must be `deterministic-gates` or
+`unprompted`). The id number is just an address; it does not encode the
+dimension, and there is **no per-dimension budget, no ceiling, and no
+re-homing to satisfy a band.**
 
 The id encodes no dimension because a fixed per-dimension range is an arbitrary budget a
 dense repo overflows, and encoding the dimension in the number would only duplicate the
@@ -211,7 +208,7 @@ enforces it via filename↔dimension.
   `reaches`/`explained_by`/`escapes` resolves, and filename↔dimension holds.
 
 **`unprompted`** is a first-class dimension for a seam-finding no criterion asked for; a
-finding with `dimension: unprompted` may live in any `findings-NN-*.yaml` file and takes an
+finding with `dimension: unprompted` may live in any `map/findings/repo-eval-*.yaml` file and takes an
 ordinary id (no special range). It is identified by its field, like everything else.
 
 **Ids are never renumbered.** An id keeps whatever value it was assigned; a retroactive
@@ -252,49 +249,58 @@ A run contains:
 
 ```
 runs/<slug>-<date>/
-├── eval/
-│   ├── 00-terrain.md               # Pass 0 — map + effect inventory + slice plan
-│   ├── findings-01-legibility.yaml # Pass 1  ┐
-│   ├── findings-02-context.yaml    # Pass 2  │ one file per dimension pass,
-│   ├── findings-03-gates.yaml      # Pass 3  │ each a YAML list of findings,
-│   ├── findings-04-verification.yaml # Pass 4│ ids unique per run (§3)
-│   ├── findings-05-delegation.yaml # Pass 5  │
-│   ├── findings-06-improvement.yaml# Pass 6  │
-│   ├── findings-07-multiplayer.yaml# Pass 7  ┘
-│   ├── findings.yaml               # merged base (all passes; validator's primary input)
-│   ├── scanners.yaml               # §5a — the RUN MANIFEST: every adopted scanner's disposition (REQUIRED)
-│   ├── coverage-<scanner>.yaml     # §5a — a peer scanner's own per-domain coverage (written by ingest.mjs)
-│   ├── improve-leverage.md         # Improve view — faster/better opportunities
-│   ├── improve-maturity.md         # Improve view — capability ladder
-│   ├── improve-security.md         # Improve view — ALWAYS-ON; posture + gate
-│   ├── improve-security-gate.yaml  # §6 — the security view's machine-readable exposures tail
-│   ├── maturity-inputs.yaml        # §6b — authored depth / censuses / earned flags
-│   ├── censuses.md                 # §6b — census appendix: per-census method + item list
-│   ├── improve-maturity-grades.yaml# §6b — GENERATED coverage (views/improve/maturity.mjs --write)
-│   ├── improve-axes.md             # Pass 8.5 — the per-axis WALK (views/improve/axes.mjs)
-│   ├── decisions.yaml              # OPTIONAL owner-triage overlay (map/decisions.mjs); absent = raw base
-│   ├── yardstick.yaml              # GENERATED by yardstick/measure.mjs --write (views/compile.mjs runs it): the yardstick's measurement (yardstick/README.md); validate.mjs recomputes every status and fails on drift
-│   ├── intake.yaml                 # GENERATED by views/intake.mjs: the floor requirements — open/met/to_run/not_seen
-│   ├── maintain.yaml               # GENERATED by views/maintain.mjs: the fleet requirements — open/met/to_run/not_seen, each floor: true|false
-│   ├── improve.yaml                # GENERATED by views/improve/topics.mjs: every requirement, grouped by topic
-│   ├── report-prose.yaml           # the report's authored narrative (§6c)
-│   └── AI-NATIVE-EVAL.md           # Pass 8 — internal meta-synthesis (operator-facing)
-├── INDEX.md                        # Pass 9 — the package front door (views/compile.mjs)
-├── INTAKE.md                       # the Intake view — can this map be carried? (views/intake.mjs)
-├── MAINTAIN.md                     # the Maintain view — is it still healthy? (views/maintain.mjs)
-├── handoff/                        # Pass 9 — machine/agent layer (views/improve/handoff.mjs), self-contained
-│   ├── START-HERE.md               #          how to act; the sequence; what is/is not covered
-│   ├── REMEDIATION.md              #          every remedy (scanner-verbatim | eval-authored, labeled) + claim-audit + proof
-│   ├── FINDINGS.md                 #          the complete projected base: held/open/facts, verbatim + evidence
-│   └── plan/NN-*.md                #          one session prompt per roadmap item + per uncovered High-and-above scanner item
-├── IMPROVE.md                      # Pass 9 — THE LEAD human deliverable (views/improve/report.mjs)
-└── candidate-insights.md           # feedback hook — field evidence for framework capture
+├── map/
+│   ├── terrain.md                        # Pass 0 — map + effect inventory + slice plan
+│   ├── findings/
+│   │   ├── repo-eval-legibility.yaml     # Pass 1  ┐
+│   │   ├── repo-eval-context.yaml        # Pass 2  │ one file per dimension pass,
+│   │   ├── repo-eval-gates.yaml          # Pass 3  │ each a YAML list of findings,
+│   │   ├── repo-eval-verification.yaml   # Pass 4  │ ids unique per run (§3)
+│   │   ├── repo-eval-delegation.yaml     # Pass 5  │
+│   │   ├── repo-eval-improvement.yaml    # Pass 6  │
+│   │   ├── repo-eval-multiplayer.yaml    # Pass 7  ┘
+│   │   └── <scanner>.yaml                # one per peer scanner / instrument
+│   │                                      #   (gitleaks.yaml, deep-code-review.yaml,
+│   │                                      #   fresh-clone.yaml, dependency-scan.yaml,
+│   │                                      #   repo-census.yaml, …)
+│   ├── scanners.yaml                # §5a — the RUN MANIFEST: every adopted scanner's disposition (REQUIRED)
+│   ├── coverage/<scanner>.yaml      # §5a — a peer scanner's own per-domain coverage (written by ingest.mjs)
+│   ├── censuses.yaml                # §6b — authored depth / censuses / earned flags
+│   ├── backlog.yaml                 # the engine's own optimization backlog (computed half; map/backlog.mjs)
+│   ├── native/<scanner>.md          # a peer scanner's own report, kept verbatim
+│   └── raw/                         # instrument outputs, as archived (SCHEMA §5a)
+├── yardstick.yaml                   # GENERATED by yardstick/measure.mjs --write (views/compile.mjs runs it): the yardstick's measurement (yardstick/README.md); validate.mjs recomputes every status and fails on drift
+├── views/
+│   ├── intake.yaml                  # GENERATED by views/intake.mjs: the floor requirements — open/met/to_run/not_seen
+│   ├── maintain.yaml                # GENERATED by views/maintain.mjs: the fleet requirements — open/met/to_run/not_seen, each floor: true|false
+│   ├── improve.yaml                 # GENERATED by views/improve/topics.mjs: every requirement, grouped by topic
+│   └── improve/
+│       ├── synthesis.md             # Pass 8 — internal meta-synthesis (operator-facing)
+│       ├── axes.md                  # Pass 8.5 — the per-axis WALK (views/improve/axes.mjs)
+│       ├── leverage.md              # Improve view — faster/better opportunities
+│       ├── maturity.md              # Improve view — capability ladder
+│       ├── maturity-grades.yaml     # §6b — GENERATED coverage (views/improve/maturity.mjs --write)
+│       ├── security.md              # Improve view — ALWAYS-ON; posture + gate
+│       ├── security-gate.yaml       # §6 — the security view's machine-readable exposures tail
+│       └── prose.yaml               # the report's authored narrative (§6c)
+├── owner/
+│   └── decisions.yaml               # OPTIONAL owner-triage overlay (map/decisions.mjs); absent = raw base
+├── INDEX.md                         # Pass 9 — the package front door (views/compile.mjs)
+├── INTAKE.md                        # the Intake view — can this map be carried? (views/intake.mjs)
+├── MAINTAIN.md                      # the Maintain view — is it still healthy? (views/maintain.mjs)
+├── IMPROVE.md                       # Pass 9 — THE LEAD human deliverable (views/improve/report.mjs)
+├── handoff/                         # Pass 9 — machine/agent layer (views/improve/handoff.mjs), self-contained
+│   ├── START-HERE.md                #          how to act; the sequence; what is/is not covered
+│   ├── REMEDIATION.md               #          every remedy (scanner-verbatim | eval-authored, labeled) + claim-audit + proof
+│   ├── FINDINGS.md                  #          the complete projected base: held/open/facts, verbatim + evidence
+│   └── plan/NN-*.md                 #          one session prompt per roadmap item + per uncovered High-and-above scanner item
+└── candidate-insights.md            # feedback hook — field evidence for framework capture
 ```
 
 **Every `.md` in a run carries OKF frontmatter** — `type: doc` plus a `title:` at
 minimum — so the file is well-formed wherever an OKF bundle guardrail reads it.
-Hand-authored eval docs (`00-terrain.md`, `AI-NATIVE-EVAL.md`, `improve-*.md`,
-`censuses.md`, `candidate-insights.md`) are authored with it. The generated docs
+Hand-authored docs (`map/terrain.md`, `map/native/*.md`, `views/improve/synthesis.md`,
+`candidate-insights.md`) are authored with it. The generated docs
 get it from their tools: `views/improve/report.mjs` prepends it to `IMPROVE.md`
 (a downstream renderer, where one exists, reads from the first `## `, so it
 never reaches this frontmatter), and `views/improve/handoff.mjs` writes every
@@ -304,22 +310,12 @@ the target's full findings and evidence paths), which is what lets
 when copied into the target repo. The shipped report partials
 (`views/improve/templates/*.md`) carry the same frontmatter and are frontmatter-stripped at splice time.
 
-**A reader accepts a run's filenames under either the current name or an
-earlier one** for every file the Improve view generates (`IMPROVE.md`,
-`improve-axes.md`, `improve-leverage.md`, `improve-maturity.md`,
-`improve-maturity-grades.yaml`, `improve-security.md`, `improve-security-gate.yaml`,
-`yardstick.yaml`) — `lib/legacy-name.mjs` resolves the current name first, falls
-back to the earlier one, so an older run directory stays readable. A writer
-always writes the current name.
+**Filename ↔ dimension agreement:** every finding in `map/findings/repo-eval-<dim>.yaml`
+must carry the matching `dimension`, except `dimension: unprompted`, which is
+permitted in any file.
 
-**`findings.yaml` is the merged base** — concatenate the per-dimension pass files in dimension
-order under a run header (see `map/templates/findings.yaml`). Views and both syntheses read
-`findings.yaml`; they never edit the base.
 
-**Filename ↔ dimension agreement:** every finding in `findings-NN-<dim>.yaml` must carry
-the matching `dimension`, except `dimension: unprompted`, which is permitted in any file.
-
-### 5a. `scanners.yaml` — the run manifest (required, validator-enforced)
+### 5a. `map/scanners.yaml` — the run manifest (required, validator-enforced)
 
 Every run records, for **every adopted scanner** (each adapter under
 `map/scanners/adapters/` that does not carry `adopted: false`), what happened to it
@@ -329,7 +325,7 @@ never happened — which is exactly how a full package once shipped with its que
 code scanner never run and nothing saying so.
 
 ```yaml
-# eval/scanners.yaml — template: map/templates/scanners.yaml
+# map/scanners.yaml — template: map/templates/scanners.yaml
 engine: 759240a               # the engine commit the run executed under (warned if absent)
 scanners:
   repo-eval:
@@ -355,10 +351,10 @@ compiles anything):
 - `skipped` and `failed` **require a reason** — a skip without one is
   indistinguishable from an omission.
 - `ran` requires evidence that it ran: rows carrying `source: <scanner>` in the base,
-  or an explicit (possibly empty) `findings-9N-<scanner>.yaml` for a verified-clean
+  or an explicit (possibly empty) `map/findings/<scanner>.yaml` for a verified-clean
   instrument run (fail loud, never empty). A peer scanner that ran without its native
-  report (`<scanner>.md` in the run) validates with a warning — its port rows are the
-  only record, and the package lists no appendix for it.
+  report (`map/native/<scanner>.md` in the run) validates with a warning — its port
+  rows are the only record, and the package lists no appendix for it.
 - The inverse is enforced too: **rows from a scanner recorded as `skipped` or
   `failed` are rejected** — rows from a scanner that did not run are not evidence —
   and a source present in the base with no manifest row is an error.
@@ -370,9 +366,9 @@ Every renderer reads the manifest and **names** a scanner that did not run with 
 recorded reason — on the scanners line, on the not-measured register, and in the
 appendix list — never "did not run" alone, never silence.
 
-**Coverage sidecars — `coverage-<scanner>.yaml`.** A peer scanner that reports its
+**Coverage sidecars — `map/coverage/<scanner>.yaml`.** A peer scanner that reports its
 own per-domain coverage (deep-code-review 1.72+'s machine report) has it archived by
-`map/ingest.mjs` beside its rows, in the scanner's own domain letters:
+`map/ingest.mjs` alongside its rows, in the scanner's own domain letters:
 
 ```yaml
 scanner: deep-code-review
@@ -404,10 +400,10 @@ the views compute *how urgent* / *how mature*. So each view that feeds a compute
 element emits a small machine-readable sidecar alongside its prose (the only structured
 artifacts a view produces). Two exist:
 
-### 6a. `improve-security-gate.yaml` — the security view's exposures tail
+### 6a. `views/improve/security-gate.yaml` — the security view's exposures tail
 
 ```yaml
-# improve-security-gate.yaml — computed by the security view, read by views/improve/report.mjs
+# views/improve/security-gate.yaml — computed by the security view, read by views/improve/report.mjs
 exposures:
   - name: fleet-email-abuse     # short slug for the exposure/chain (stable id)
     title: Fleet-wide email abuse   # human display name — what the report renders as the heading
@@ -427,7 +423,7 @@ exposures:
 Vocab for this file (closed, validator-checked): `who` ∈ {stranger-pre-auth,
 authorized-real-user, only-at-scale-or-adversarial}; `likelihood` ∈ {high, moderate,
 low}; `standing_watch` boolean when present. `findings` are `F-###` ids that must
-resolve in `findings.yaml`. `title` is required: the report renders it as the card
+resolve in the findings base (`map/findings/`). `title` is required: the report renders it as the card
 heading, so it must be a human phrase, not a slug (the slug stays in `name` as the
 stable id). Machine tokens are translated for the reader by `lib/display.mjs`; the
 YAML always keeps the closed vocab. Exposures render most-likely-first; the split
@@ -438,13 +434,10 @@ read — the engine issues no verdict).
 per-exposure `blocks_stage:` on an alpha/beta/prod scale — assigning a stage per
 exposure is a small risk-tolerance verdict that belongs to the reader, not the
 engine, and this file already carries the properties a stage would composite
-(`who`, `likelihood`, and the finding-level reversibility/blast facets) separately.
-An exposures file may still carry `gate:` / `blocks_stage:` from an earlier run;
-the validator accepts them against their old closed vocab and the report folds a
-`blocks_stage` of `none` or `clear` into the standing-watch split — but a new run
-never writes them.
+(`who`, `likelihood`, and the finding-level reversibility/blast facets)
+separately. `standing_watch` alone carries the active/watch split.
 
-### 6b. Maturity coverage — `maturity-inputs.yaml` (authored) → `improve-maturity-grades.yaml` (generated)
+### 6b. Maturity coverage — `map/censuses.yaml` (authored) → `views/improve/maturity-grades.yaml` (generated)
 
 Maturity is **measured coverage**, not rung words: every score is a fraction with a
 denominator, so existence-somewhere never promotes a whole dimension. The model per
@@ -454,7 +447,7 @@ dimension:
   bar. `kind: counted` (computed from base fields: `telemetry`, `gate_type`,
   `fail_mode`, the trifecta legs) or `kind: sampled` (from an authored census with
   `met`/`of`/`method` — n and method always stated, and the full item list with
-  per-item verdicts + evidence recorded in `eval/censuses.md`, enumerate-before-assess
+  per-item verdicts + evidence recorded in `map/censuses.md`, enumerate-before-assess
   so the sample cannot cherry-pick). A dimension with no measure yet
   carries `not_measured:` with the reason instead of a faked number. Every fraction is
   "M of the N the review enumerated", never "of the system".
@@ -468,9 +461,9 @@ dimension:
   expected rare.
 
 **The split of authorship (determinism):** the eval authors
-`maturity-inputs.yaml` (depth sentences, sampled censuses, flag claims);
+`map/censuses.yaml` (depth sentences, sampled censuses, flag claims);
 `views/improve/maturity.mjs --write` computes every number and generates
-`improve-maturity-grades.yaml`. Never hand-edit the generated file — the validator
+`views/improve/maturity-grades.yaml`. Never hand-edit the generated file — the validator
 recomputes the counted measures from the base and **fails on drift** (the enforced
 property, applied to this product itself). An `aggregate:` block pools the primary
 measures of the measured dimensions; it is a labeled roll-up that moves whenever a new
@@ -494,7 +487,7 @@ when repeatability of the *findings* (not just the verdict) matters; a base swee
 fine for a one-off client read.
 
 ```yaml
-# maturity-inputs.yaml (authored)
+# map/censuses.yaml (authored)
 dimensions:
   - dimension: improvement-loop
     depth: >                          # judged; cite finding ids
@@ -509,12 +502,12 @@ dimensions:
     # enforced: { claim: true, why: "...", evidence: [F-044] }   # optional earned flag
 ```
 
-Validator-checked: `schema: coverage` present (pre-coverage ladder files are rejected
-with a regenerate hint); dimensions valid (§2); `pct` equals `met/of`; sampled
+Validator-checked: `schema: coverage` present (any other file is rejected with a
+regenerate hint); dimensions valid (§2); `pct` equals `met/of`; sampled
 coverage states its `method`; counted numbers match recomputation from the base;
 every dimension carries a `depth`; flags are `false` or evidenced claims.
 
-### 6c. `report-prose.yaml` — the authored narrative + decision structure
+### 6c. `views/improve/prose.yaml` — the authored narrative + decision structure
 
 The only free-form surface. It feeds both the report (`views/improve/report.mjs`) and the handoff
 package (`views/improve/handoff.mjs`). Narrative is authored; findings and evidence paths are
@@ -673,13 +666,12 @@ a pass (the run's own CI-1 lesson, applied to the checker):
 5. Filename ↔ dimension agreement (§5), `unprompted` excepted — the actual source of truth
    for a finding's dimension.
 6. Every `F-###` in `reaches` / `explained_by` / `escapes` resolves to a finding.
-7. Every `F-###` cited in a view (`improve-*.md`), the gate sidecar, and
-   `AI-NATIVE-EVAL.md` / `IMPROVE.md` resolves to a base finding — the
-   citation-integrity check.
-8. If `improve-security-gate.yaml` exists: its vocab (§6a) is valid and its `findings`
-   resolve. If `improve-maturity-grades.yaml` exists: coverage schema valid (§6b) and the
+7. Every `F-###` cited in a view (`views/improve/*.md`), the gate sidecar, and
+   `IMPROVE.md` resolves to a base finding — the citation-integrity check.
+8. If `views/improve/security-gate.yaml` exists: its vocab (§6a) is valid and its `findings`
+   resolve. If `views/improve/maturity-grades.yaml` exists: coverage schema valid (§6b) and the
    counted numbers match recomputation from the base (drift fails closed).
-9. If `report-prose.yaml` exists: the **solution-coverage rule** (§6c) — every
+9. If `views/improve/prose.yaml` exists: the **solution-coverage rule** (§6c) — every
    unsupervised kind (an unguarded halt) traces to a roadmap fix (its `findings` or
    `covers_channels`) or a `dispositions` entry, and each disposition has a valid
    `reason` + a `note`. A silent uncovered gap fails closed; a stale disposition warns.
@@ -688,7 +680,7 @@ a pass (the run's own CI-1 lesson, applied to the checker):
    mount alias, a misremembered directory, an evidence-of-absence path). Off without
    the flag so the validator stays portable; run it in-session when the target is
    present. A confirmed-absence finding cites what it inspected, not the missing path.
-11. **If the run declares a canon (§8):** `report-prose.yaml`'s `canon:` names a
+11. **If the run declares a canon (§8):** `views/improve/prose.yaml`'s `canon:` names a
    `canon/<name>.yaml`. If the file is named but missing, that is an **error**
    (fail-closed — you referenced a contract that is not there). If present, the run's
    effect-channel population is checked against it and any drift is surfaced as
@@ -767,7 +759,7 @@ re-derive or pin from a prior run). **If no canon exists yet**, derive the popul
 — from `enumerate.mjs` + the enumeration rules, with no prior run in context — and propose a new
 canon as a reviewed diff; a run's determinism claim is only worth measuring by a pass that
 could not see the prior answer. A run activates the validator check (§7.11) by naming its canon
-in `report-prose.yaml`: `canon: <name>` (the `<name>.yaml` under `canon/`).
+in `views/improve/prose.yaml`: `canon: <name>` (the `<name>.yaml` under `canon/`).
 
 **Maintenance is a distinct function, not an in-run mechanism** (operator direction). The
 canon is revised deliberately — a reviewed diff, when the target's surface changes or the

@@ -1,9 +1,9 @@
 // floor-fleet.mjs — shared row-building for Intake (floor-tagged) and Maintain
-// (fleet-tagged): both are views of the SAME measurement (eval/yardstick.yaml),
+// (fleet-tagged): both are views of the SAME measurement (yardstick.yaml),
 // filtered to a tag population. Neither reads findings directly — only the
 // yardstick's measurement plus the yardstick (title/check/tier/topic) and the
 // run manifest (what was not seen). Ordering: tier order, then register order.
-import { loadRegistry, loadMeasurement } from '../yardstick/measure.mjs';
+import { loadYardstick, loadMeasurement } from '../yardstick/measure.mjs';
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';
 
 // decided_by: the instrument name from the row's decide, or "owner" for claim
@@ -19,7 +19,7 @@ export function decidedBy(d) {
 // is fleet-tagged but still needs to say which of those are ALSO floor rows).
 // Returns null when the run has no yardstick measurement yet.
 export function buildRows(runDir, tag, { withFloor = false } = {}) {
-  const reg = loadRegistry();
+  const reg = loadYardstick();
   const measurement = loadMeasurement(runDir);
   if (!measurement) return null;
   const byId = new Map(measurement.map((r) => [r.id, r]));

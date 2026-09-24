@@ -5,8 +5,8 @@ title: "assay maintainer report — structural template"
 <!--
   assay maintainer report TEMPLATE. Do not edit per-run.
   views/improve/report.mjs assembles a run's IMPROVE.md from this template +
-  eval/findings.yaml + eval/improve-security-gate.yaml + eval/improve-maturity-grades.yaml +
-  eval/report-prose.yaml + the shipped partials (concepts.md, method.md, glossary.yaml).
+  map/findings/ + views/improve/security-gate.yaml + views/improve/maturity-grades.yaml +
+  views/improve/prose.yaml + the shipped partials (concepts.md, method.md, glossary.yaml).
   This is the HUMAN briefing: light and scannable, and it issues no
   deploy/no-deploy verdict. Branded/styled rendering, where a downstream deployment
   wants it, lives outside this repo. The actionable remediation (verbatim fixes + proof steps) and
@@ -19,7 +19,7 @@ title: "assay maintainer report — structural template"
 **Prepared for:** {{MAINTAINER}}  ·  **Date:** {{DATE}}  ·  **Run:** `{{RUN_ID}}`
 
 ## Executive summary
-<!-- SOURCE: report-prose.yaml exec_summary (five-part map: scale, strength, watch,
+<!-- SOURCE: views/improve/prose.yaml exec_summary (five-part map: scale, strength, watch,
      maturity, gate), rendered as plain prose paragraphs in that order, followed by the
      computed stat strip below. -->
 {{PROSE:exec_summary}}
@@ -27,7 +27,7 @@ title: "assay maintainer report — structural template"
 {{COMPILE:snapshot_stats}}
 
 ## 1. Maturity, area by area
-<!-- SOURCE: eval/improve-maturity-grades.yaml (computed) for the native areas, then the axis
+<!-- SOURCE: views/improve/maturity-grades.yaml (computed) for the native areas, then the axis
      projection (computed) for any scanner-contributed areas + the not-measured honesty
      line. Areas are property-named and shared: a scanner measuring the same property
      lands in the same area, recorded separately. The exec summary carries the compact
@@ -37,11 +37,11 @@ title: "assay maintainer report — structural template"
 {{COMPILE:scanner_axes}}
 
 ## 2. Strengths worth keeping
-<!-- SOURCE: report-prose.yaml strengths[]. -->
+<!-- SOURCE: views/improve/prose.yaml strengths[]. -->
 {{PROSE:strengths}}
 
 ## 3. The main risks, and the questions only you can answer
-<!-- SOURCE: findings.yaml graph (computed by map/chains.mjs) + report-prose.yaml
+<!-- SOURCE: the findings base (map/findings/) graph (computed by map/chains.mjs) + views/improve/prose.yaml
      key_questions[]. The lead: the computed chains, then the open questions, together, so
      the big items and the big unknowns open the report with no jump. -->
 {{COMPILE:chains}}
@@ -50,25 +50,25 @@ title: "assay maintainer report — structural template"
 {{PROSE:key_questions}}
 
 ## 4. What {{APP}} can do
-<!-- SOURCE: findings.yaml effect channels + report-prose.yaml channel_notes (computed).
-     Full machine detail in the walk (eval/improve-axes.md). -->
+<!-- SOURCE: the findings base effect channels + views/improve/prose.yaml channel_notes (computed).
+     Full machine detail in the walk (views/improve/axes.md). -->
 {{COMPILE:capabilities}}
 
 ## 5. Security risks
-<!-- SOURCE: eval/improve-security-gate.yaml exposures (computed). The security exposures as
+<!-- SOURCE: views/improve/security-gate.yaml exposures (computed). The security exposures as
      illuminated risks, most-likely first — each a decision (fix / accept / investigate),
      never a deploy verdict. -->
 {{COMPILE:security_risks}}
 
 ## 6. Prioritized roadmap
-<!-- SOURCE: report-prose.yaml roadmap[]. Each item has a matching session prompt in handoff/plan/. -->
+<!-- SOURCE: views/improve/prose.yaml roadmap[]. Each item has a matching session prompt in handoff/plan/. -->
 {{PROSE:roadmap_intro}}
 
 {{PROSE:roadmap}}
 
 ## 7. Requirements by topic
-<!-- SOURCE: the yardstick's measurement (eval/yardstick.yaml), grouped by topic
-     (eval/improve.yaml, computed by views/improve/topics.mjs) — every requirement on
+<!-- SOURCE: the yardstick's measurement (yardstick.yaml), grouped by topic
+     (views/improve.yaml, computed by views/improve/topics.mjs) — every requirement on
      the yardstick exactly once, joined to the yardstick for title/tier/check. A topic
      with no requirements today still reads as measured, never silently clean. -->
 {{COMPILE:requirements_by_topic}}
@@ -91,7 +91,7 @@ title: "assay maintainer report — structural template"
 {{COMPILE:method}}
 
 ## Appendix D — The handoff package
-<!-- SOURCE: computed from report-prose.yaml roadmap[]. What's in handoff/ and how to use it. -->
+<!-- SOURCE: computed from views/improve/prose.yaml roadmap[]. What's in handoff/ and how to use it. -->
 {{COMPILE:handoff_guide}}
 
 {{COMPILE:colophon}}

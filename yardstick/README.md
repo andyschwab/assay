@@ -7,7 +7,7 @@ title: "yardstick/ — the requirements, and the measurement of one map against 
 `requirements.yaml` holds the **requirements**: what must be true of a repository
 somebody stands behind, stated without naming a stack, each with the mechanism
 that **decides** it from a map. `measure.mjs` measures one run's map against them
-and writes `eval/yardstick.yaml`: per requirement, `met`, `unmet`, `mixed` or
+and writes `yardstick.yaml`: per requirement, `met`, `unmet`, `mixed` or
 `not-measured`, with the finding ids and a note saying how it was decided. Every
 view reads that file and nothing else to decide a requirement.
 
@@ -34,7 +34,7 @@ run contradicts is a finding.
 | Kind | Decided from | Reads |
 |---|---|---|
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`) | met or unmet with the population; not-measured when the map has no effects |
-| `census` | an authored, enumerated population in the run's `maturity-inputs.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
+| `census` | an authored, enumerated population in the run's `map/censuses.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows; met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | always not-measured from a run: only the owner can decide it (the Intake view says `decided_by: owner`). The claim rows are the list of instruments still to build |
 
@@ -90,7 +90,7 @@ mechanism that holds, and a run that finds the mechanism absent reports it.
 
 ```sh
 node assay.mjs measure <run>            # the table
-node assay.mjs measure <run> --write    # eval/yardstick.yaml
+node assay.mjs measure <run> --write    # yardstick.yaml
 node assay.mjs compile <run>            # measures, then writes every view
 ```
 

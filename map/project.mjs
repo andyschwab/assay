@@ -19,6 +19,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { isMain } from './doctrine.mjs';
+import { findingsDir, scannersPath, coverageDir } from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -38,53 +39,33 @@ export function orderAxes(axes) {
   return [...AXIS_ORDER.filter((a) => set.has(a)), ...[...set].filter((a) => !AXIS_ORDER.includes(a)).sort()];
 }
 
-// ── legacy translation (grandfathered, like the frozen id bands) ─────────────
-// Findings forward-migrated under the retired five-domain model carry `domain:`
-// / `also_domains:`; they translate mechanically and are never rewritten in the
-// frozen fixtures. New findings carry `axis:` / `also_axes:`.
-export const LEGACY_DOMAIN_AXIS = {
-  'workspace-legibility': 'artifact-legibility',
-  'code-correctness': 'code-correctness',
-  'code-security': 'code-security',
-  'product-ai-safety': 'delegation',
-  'product-ai-quality': 'verification',
-};
-const toAxis = (v) => LEGACY_DOMAIN_AXIS[v] ?? v;
-const explicitAxis = (f) => f.axis ?? (f.domain ? toAxis(f.domain) : undefined);
-const explicitAlso = (f) => {
-  const raw = Array.isArray(f.also_axes) ? f.also_axes
-    : Array.isArray(f.also_domains) ? f.also_domains.map(toAxis) : [];
-  return raw;
-};
+// A finding's explicit classification: `axis:` (primary) and `also_axes:`
+// (compound cross-links). Every finding carries these directly — a scanner
+// that classified itself, never inferred from a retired vocabulary.
+const explicitAxis = (f) => f.axis;
+const explicitAlso = (f) => Array.isArray(f.also_axes) ? f.also_axes : [];
 
 // ── loaders ─────────────────────────────────────────────────────────────────
 // THE findings loader — every tool loads through this one function so the
 // semantics cannot drift (before consolidation there were five copies, one of
 // which skipped unparseable files and mis-read the loss as variance). Rules:
-//   • per-pass files first (what validate reads), else the merged findings.yaml
-//     — reading per-pass avoids a stale merged file silently winning;
+//   • every file under map/findings/ — one per scanner, or one per repo-eval
+//     pass — read and concatenated; no merged-file fallback;
 //   • FAIL CLOSED on an unparseable file (parseYaml throws; never caught here);
 //   • a missing directory reads as an empty base (callers decide whether empty
 //     is an error — most exit loudly on zero findings).
 // The one deliberate non-consumer is validate.mjs, which re-implements the walk
 // because it needs per-file error attribution (which file broke, at which key).
 export function loadFindings(dir) {
-  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-  if (!existsSync(ev)) return []; // clean empty rather than an ENOENT stack
-  const files = readdirSync(ev).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
-  if (files.length) {
-    let all = [];
-    for (const f of files) {
-      const p = parseYaml(readFileSync(join(ev, f), 'utf8'));
-      if (Array.isArray(p)) all = all.concat(p);
-    }
-    return all;
+  const fd = findingsDir(dir);
+  if (!existsSync(fd)) return []; // clean empty rather than an ENOENT stack
+  const files = readdirSync(fd).filter((f) => f.endsWith('.yaml')).sort();
+  let all = [];
+  for (const f of files) {
+    const p = parseYaml(readFileSync(join(fd, f), 'utf8'));
+    if (Array.isArray(p)) all = all.concat(p);
   }
-  if (existsSync(join(ev, 'findings.yaml'))) {
-    const p = parseYaml(readFileSync(join(ev, 'findings.yaml'), 'utf8'));
-    return Array.isArray(p) ? p : [];
-  }
-  return [];
+  return all;
 }
 
 export function loadAdapter(id) {
@@ -122,17 +103,16 @@ export function registryAxes(adapters) {
   return orderAxes([...contributedBySources(adapters, Object.keys(adoptedAdapters(adapters)))]);
 }
 
-// The run manifest — eval/scanners.yaml — records each adopted scanner's
+// The run manifest — map/scanners.yaml — records each adopted scanner's
 // disposition for THIS run: ran | skipped (reason) | failed (reason). Validated
 // fail-closed by validate.mjs (SCHEMA.md §5a); read here by every renderer so an
 // integration that did not run is NAMED with its reason, never implied absent.
 // A scanner that can be omitted without a recorded decision reads as coverage.
-export const MANIFEST_FILE = 'scanners.yaml';
+export const MANIFEST_FILE = 'map/scanners.yaml';
 export const MANIFEST_STATUS = ['ran', 'skipped', 'failed'];
 
 export function loadManifest(dir) {
-  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-  const p = join(ev, MANIFEST_FILE);
+  const p = scannersPath(dir);
   if (!existsSync(p)) return null;
   return parseYaml(readFileSync(p, 'utf8'));   // fail closed: an unparseable manifest throws
 }
@@ -161,7 +141,7 @@ export function scannerLine(manifest, sources, adapters) {
   const parts = [sources.join(', ') || '(none)'];
   if (d.skipped.length) parts.push(`skipped: ${d.skipped.map((s) => `${s.id} (${s.reason})`).join('; ')}`);
   if (d.failed.length) parts.push(`failed: ${d.failed.map((s) => `${s.id} (${s.reason})`).join('; ')}`);
-  if (!manifest) parts.push('no run manifest (eval/scanners.yaml missing — dispositions unknown)');
+  if (!manifest) parts.push('no run manifest (map/scanners.yaml missing — dispositions unknown)');
   else if (d.missing.length) parts.push(`no disposition recorded: ${d.missing.join(', ')}`);
   return parts.join(' · ');
 }
@@ -172,21 +152,21 @@ export function notRunPhrase(manifest, id) {
   if (r && r.status === 'skipped') return `skipped this run: ${String(r.reason || '').trim() || 'no reason recorded'}`;
   if (r && r.status === 'failed') return `failed this run: ${String(r.reason || '').trim() || 'no reason recorded'}`;
   if (r && r.status === 'ran') return 'recorded as ran, but the base carries none of its rows';
-  return manifest ? 'no disposition recorded in the run manifest' : 'no run manifest (eval/scanners.yaml)';
+  return manifest ? 'no disposition recorded in the run manifest' : 'no run manifest (map/scanners.yaml)';
 }
 
-// ── scanner coverage sidecars — eval/coverage-<scanner>.yaml ─────────────────
+// ── scanner coverage sidecars — map/coverage/<scanner>.yaml ───────────────────
 // A peer scanner that reports per-domain coverage (deep-code-review 1.72+'s
 // machine report) has it archived by ingest.mjs as a sidecar in the scanner's
 // own domain letters. Renderers read it so an axis the scanner contributes is
 // "measured" only where every mapped domain was scanned — a partial or skipped
 // domain makes the axis PARTIALLY measured, said in words, never a silent full.
 export function loadScannerCoverage(dir) {
-  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
+  const cd = coverageDir(dir);
   const out = {};
-  if (!existsSync(ev)) return out;
-  for (const f of readdirSync(ev).filter((x) => /^coverage-.+\.yaml$/.test(x))) {
-    const doc = parseYaml(readFileSync(join(ev, f), 'utf8'));   // fail closed
+  if (!existsSync(cd)) return out;
+  for (const f of readdirSync(cd).filter((x) => x.endsWith('.yaml'))) {
+    const doc = parseYaml(readFileSync(join(cd, f), 'utf8'));   // fail closed
     if (doc && doc.scanner) out[doc.scanner] = doc;
   }
   return out;
@@ -252,8 +232,8 @@ export function rosterFor(adapters, sources, projected) {
 // ── projection ───────────────────────────────────────────────────────────────
 // Returns { projected, unmapped, needsAxis }. A projected entry is
 // { f, axis (primary), also (string[]), source }. `also_axes` on the finding
-// merge into `also`. A finding carrying an explicit `axis` (or a grandfathered
-// `domain`) is honored as-is — a scanner that classified it itself.
+// merge into `also`. A finding carrying an explicit `axis` is honored as-is —
+// a scanner that classified it itself.
 export function projectMulti(findings, adapters) {
   const unmapped = [], needsAxis = [], projected = [];
   for (const f of findings) {

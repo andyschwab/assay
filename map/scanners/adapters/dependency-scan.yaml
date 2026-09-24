@@ -10,7 +10,7 @@
 # severity), each failed lockfile into one lockfile-failed gap, and each
 # not-supported lockfile into one lockfile-unsupported gap. A lockfile that
 # audited clean yields no row — a run with none of the seven categories below
-# is the explicit empty findings-95-dependency-scan.yaml. All seven categories
+# is the explicit empty map/findings/dependency-scan.yaml. All seven categories
 # land on the one shared property this instrument corroborates: whether a known
 # vulnerability is present in the dependency graph (code-security, the axis
 # deep-code-review and gitleaks also feed). A category this map does not know

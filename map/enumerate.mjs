@@ -22,8 +22,9 @@
 // answer. An enumerated item whose file appears in NO finding's evidence is an
 // unassessed population member — the class of miss this whole analysis is about.
 
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname, basename } from 'node:path';
+import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
 
 const target = process.argv[2];
 if (!target || target.startsWith('--')) {
@@ -252,16 +253,25 @@ if (runDir) {
   // effect-sites → many-to-few channel mappings. Those stay recall-only (printed).
   const GATE_POPS = new Set(['socketMounts', 'contracts', 'reportPaths', 'egressControls']);
 
-  // A member is "covered" if any of its evidence files appears anywhere the eval
-  // ASSESSED it: a finding's evidence, a census, or a view. Read all of them.
+  // A member is "covered" if any of its evidence files appears anywhere the run
+  // ASSESSED it: a finding's evidence (map/findings/), the counted populations
+  // (map/censuses.yaml), or a view (views/**, e.g. the axis walk). Read all of them.
   let cited = new Set();
   try {
-    const evalDir = join(runDir, 'eval');
-    const srcs = readdirSync(evalDir).filter((x) => /^findings-.*\.yaml$/.test(x) || /^census.*\.md$/.test(x) || x === 'censuses.md' || /^view-.*\.md$/.test(x));
-    for (const f of srcs) {
-      const txt = readFileSync(join(evalDir, f), 'utf8');
+    const srcs = [];
+    const fd = findingsDir(runDir);
+    if (existsSync(fd)) for (const f of readdirSync(fd)) if (f.endsWith('.yaml')) srcs.push(join(fd, f));
+    if (existsSync(censusesPath(runDir))) srcs.push(censusesPath(runDir));
+    const vd = viewsDir(runDir);
+    const walkMd = (dir) => { if (!existsSync(dir)) return; for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) walkMd(p); else if (e.name.endsWith('.md')) srcs.push(p);
+    } };
+    walkMd(vd);
+    for (const p of srcs) {
+      const txt = readFileSync(p, 'utf8');
       for (const m of txt.matchAll(/([A-Za-z0-9_./-]+?\.(?:py|sh|js|ts|json|ya?ml|txt|example|service)):\d/g)) cited.add(m[1].split(':')[0]);
-      for (const m of txt.matchAll(/evidence:\s*\[([^\]]*)\]/g)) for (const p of m[1].split(',')) { const path = p.trim().split(':')[0]; if (path) cited.add(path); }
+      for (const m of txt.matchAll(/evidence:\s*\[([^\]]*)\]/g)) for (const p2 of m[1].split(',')) { const path = p2.trim().split(':')[0]; if (path) cited.add(path); }
     }
   } catch (e) { console.error(`--run: could not read findings in ${runDir}: ${e.message}`); process.exit(2); }
 

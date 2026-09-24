@@ -6,9 +6,9 @@ of requirements, and writes three **views** of the result:
 
 | View | The question | Page | Data |
 |---|---|---|---|
-| **Intake** | Can this repository be taken on, and what must be true first? | `INTAKE.md` | `eval/intake.yaml` |
-| **Maintain** | Is it still healthy, and what do routines watch? | `MAINTAIN.md` | `eval/maintain.yaml` |
-| **Improve** | What makes it better next? | `IMPROVE.md`, the axis walk, `handoff/` | `eval/improve.yaml` |
+| **Intake** | Can this repository be taken on, and what must be true first? | `INTAKE.md` | `views/intake.yaml` |
+| **Maintain** | Is it still healthy, and what do routines watch? | `MAINTAIN.md` | `views/maintain.yaml` |
+| **Improve** | What makes it better next? | `IMPROVE.md`, the axis walk, `handoff/` | `views/improve.yaml` |
 
 Every view is computed from the same map in one pass, so the three never
 disagree about the repository. Each writes a data file with a schema and a plain
@@ -43,7 +43,7 @@ checkout and replays the README's commands, once per workspace in a monorepo;
 `dependency-scan`, `npm audit` over every lockfile; and `repo-census`, which
 checks for an architecture page, a present-tense agent contract, a runbook, a
 CI gate on the default branch, and the owner's evidence transcripts. Every run
-carries a **run record** (`eval/scanners.yaml`) saying, for each adopted
+carries a **run record** (`map/scanners.yaml`) saying, for each adopted
 scanner, that it ran, or was skipped or failed and why. The validator refuses a
 run without one, and a scanner that did not run reads **not measured**, never
 clean. The finding format is `map/SCHEMA.md`; the scanner contract is
@@ -82,7 +82,7 @@ node assay.mjs help                                   # every command, grouped m
 #   pointed at the target repository; it drives the passes
 node assay.mjs fresh-clone <target> --out <raw.json>  # an instrument, offline
 node assay.mjs ingest <run> --tool gitleaks --raw gitleaks.json --exit 1
-node assay.mjs ingest <run> --tool deep-code-review --raw findings.yaml
+node assay.mjs ingest <run> --tool deep-code-review --raw dcr-report.yaml
 node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed
 
 # measure and write every view from the same map

@@ -18,10 +18,10 @@ requirements contract, and `views/README.md` the views' data formats.
 3. **Fail loud, never empty.** A tool that errored never reads as "0 findings";
    an unmapped scanner category halts the projection; a clean instrument run is
    recorded explicitly; a scanner that did not run is recorded in the run record
-   (`eval/scanners.yaml`) as skipped or failed with a reason, and nothing compiles
+   (`map/scanners.yaml`) as skipped or failed with a reason, and nothing compiles
    without one. A requirement no run decided reads not measured, never met.
 4. **Every view reads the same measurement.** Views take the yardstick's
-   measurement of one map (`eval/yardstick.yaml`); a view never reaches around it
+   measurement of one map (`yardstick.yaml`); a view never reaches around it
    to decide a requirement on its own. `node assay.mjs compile` writes them all
    in one pass.
 5. **Axes and topics are property-named, never tool-named**, and shared: two

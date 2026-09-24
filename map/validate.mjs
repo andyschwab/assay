@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // assay findings validator — the format contract, enforced.
 // Usage:  node assay.mjs validate <run-dir>
-//   <run-dir> is a run root (…/runs/<slug>-<date>/) or its eval/ subdir.
+//   <run-dir> is a run root (…/runs/<slug>-<date>/) — findings live under its map/findings/.
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
 // is an error, not a pass — a checker that silently accepts unparseable input hides the very thing it exists to catch.
@@ -9,7 +9,12 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
-import { resolveRenamed } from '../lib/legacy-name.mjs';
+import {
+  findingsDir, coverageDir, scannersPath, yardstickPath as runYardstickPath,
+  prosePath as runProsePath, securityGatePath, maturityGradesPath,
+  leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
+  nativeReportPath, isRepoEvalPassFile,
+} from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -24,14 +29,11 @@ const TELEMETRY = new Set(['none','unstructured','structured-event','audited']);
 const BLAST = new Set(['user','tenant','fleet','cross-tenant']);
 const FAIL_MODE = new Set(['open','closed']);
 const PRECONDITIONS = new Set(['prompt-injection','stolen-credential','malicious-dependency','network-position','insider','zero-day','physical']);
-// overlay layer (SCHEMA.md §2a) — OPTIONAL, backward-compatible. A finding may
-// carry an explicit `axis`; absent is valid (the adapter projects it). The valid
-// set is DERIVED from the adapters — axes are scanner-contributed, so the vocab
-// is open by design: every axis any adapter contributes or maps to. The retired
-// five-domain names are grandfathered on frozen findings (`domain:`) and
-// translate mechanically (project.mjs LEGACY_DOMAIN_AXIS); new findings never
-// carry them. See map/scanners/CONTRACT.md.
-const { loadAdapters, projectMulti, LEGACY_DOMAIN_AXIS } = await import('./project.mjs');
+// overlay layer (SCHEMA.md §2a) — a finding may carry an explicit `axis`;
+// absent is valid (the adapter projects it). The valid set is DERIVED from the
+// adapters — axes are scanner-contributed, so the vocab is open by design:
+// every axis any adapter contributes or maps to. See map/scanners/CONTRACT.md.
+const { loadAdapters, projectMulti } = await import('./project.mjs');
 const AXES = new Set();
 let ADAPTERS = {};
 try {
@@ -41,13 +43,7 @@ try {
     for (const row of Object.values(a.map || {})) if (row && row.axis) AXES.add(row.axis);
   }
 } catch { /* adapters unreadable — the projection gate below reports it */ }
-const LEGACY_DOMAINS = new Set(Object.keys(LEGACY_DOMAIN_AXIS));
 const isInstrument = (src) => ADAPTERS[src]?.role === 'instrument';
-// exposures sidecar vocab (SCHEMA.md §6a). GATE_STAGE is the RETIRED stage
-// scale, kept only to validate grandfathered runs (frozen files carrying
-// gate:/blocks_stage: still validate; new runs never emit them — the same
-// grandfather rail as the legacy domains).
-const GATE_STAGE = new Set(['alpha','beta','prod','none','clear']);
 const WHO = new Set(['stranger-pre-auth','authorized-real-user','only-at-scale-or-adversarial']);
 const LIKELIHOOD = new Set(['high','moderate','low']);
 
@@ -56,13 +52,13 @@ const LIKELIHOOD = new Set(['high','moderate','low']);
 // the `dimension` field + filename↔dimension agreement is the source of truth for a finding's
 // dimension. No per-dimension id bands, no fixed budget, no ceiling. See SCHEMA §3.
 const FILE_DIM = {
-  'findings-01-legibility.yaml': 'artifact-legibility',
-  'findings-02-context.yaml': 'context-economy',
-  'findings-03-gates.yaml': 'deterministic-gates',
-  'findings-04-verification.yaml': 'verification',
-  'findings-05-delegation.yaml': 'delegation',
-  'findings-06-improvement.yaml': 'improvement-loop',
-  'findings-07-multiplayer.yaml': 'multiplayer',
+  'repo-eval-legibility.yaml': 'artifact-legibility',
+  'repo-eval-context.yaml': 'context-economy',
+  'repo-eval-gates.yaml': 'deterministic-gates',
+  'repo-eval-verification.yaml': 'verification',
+  'repo-eval-delegation.yaml': 'delegation',
+  'repo-eval-improvement.yaml': 'improvement-loop',
+  'repo-eval-multiplayer.yaml': 'multiplayer',
 };
 
 const errors = [];
@@ -71,16 +67,6 @@ const warnings = [];   // non-fatal: surfaced but do not fail the build (extensi
 const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
 
 // ── load findings ───────────────────────────────────────────────────────────
-function locateEval(runDir) {
-  if (existsSync(join(runDir, 'findings.yaml'))) return runDir;
-  const ev = join(runDir, 'eval');
-  if (existsSync(join(ev, 'findings.yaml'))) return ev;
-  // allow pointing at a dir that has per-pass files but no merged file yet
-  if (existsSync(runDir) && readdirSync(runDir).some((f) => /^findings-\d\d-/.test(f))) return runDir;
-  if (existsSync(ev) && readdirSync(ev).some((f) => /^findings-\d\d-/.test(f))) return ev;
-  return runDir;
-}
-
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <target-repo>]'); process.exit(2); }
 // Optional: verify every evidence path resolves to a real file in the TARGET repo.
@@ -90,11 +76,12 @@ if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <t
 // container mount alias instead of the repo path). Enable in-session; skip in CI.
 const tIdx = process.argv.indexOf('--target');
 const target = tIdx > -1 ? process.argv[tIdx + 1] : null;
-const evalDir = locateEval(arg);
+const runDir = arg;
+const evalDir = findingsDir(runDir);   // map/findings/ — every reader/writer uses this one path
 if (!existsSync(evalDir)) { console.error(`no such dir: ${evalDir}`); process.exit(2); }
 
 const allById = new Map();       // id -> {finding, file}
-const passFiles = readdirSync(evalDir).filter((f) => /^findings-\d\d-.*\.yaml$/.test(f)).sort();
+const passFiles = readdirSync(evalDir).filter((f) => f.endsWith('.yaml')).sort();
 
 function checkFinding(f, fileLabel, expectDim) {
   const id = f.id;
@@ -115,7 +102,6 @@ function checkFinding(f, fileLabel, expectDim) {
     if (f.polarity && !POLARITY.has(f.polarity)) err(at, `bad polarity "${f.polarity}"`);
     if (f.evidence !== undefined && (!Array.isArray(f.evidence) || f.evidence.length === 0)) err(at, `evidence must be a non-empty list`);
     if (f.axis !== undefined && !AXES.has(f.axis)) err(at, `bad axis "${f.axis}"`);
-    if (f.domain !== undefined && !LEGACY_DOMAINS.has(f.domain)) err(at, `bad legacy domain "${f.domain}" (new findings carry axis:)`);
     // fix is required on a PEER scanner's gaps (drives the handoff); an INSTRUMENT's
     // gap may omit it — it then lands owner-defined pending, listed loudly, never dropped.
     if (f.polarity === 'gap' && (f.fix === undefined || f.fix === '') && !isInstrument(f.source))
@@ -132,7 +118,6 @@ function checkFinding(f, fileLabel, expectDim) {
   if (f.evidence !== undefined && (!Array.isArray(f.evidence) || f.evidence.length === 0)) err(at, `evidence must be a non-empty list`);
   // overlay layer (optional; validated only when present — SCHEMA.md §2a)
   if (f.axis !== undefined && !AXES.has(f.axis)) err(at, `bad axis "${f.axis}"`);
-  if (f.domain !== undefined && !LEGACY_DOMAINS.has(f.domain)) err(at, `bad legacy domain "${f.domain}" (new findings carry axis:)`);
   // (no id-band check — ids are unique F-### with no dimension meaning; the field is the truth)
   // filename ↔ dimension (unprompted permitted anywhere)
   if (expectDim && f.dimension && f.dimension !== 'unprompted' && f.dimension !== expectDim)
@@ -200,14 +185,13 @@ for (const file of passFiles) {
 // says did not run are not evidence.
 {
   const { loadManifest, adoptedAdapters, MANIFEST_FILE, MANIFEST_STATUS } = await import('./project.mjs');
-  const mPath = join(evalDir, MANIFEST_FILE);
-  const runRoot = basename(evalDir) === 'eval' ? dirname(evalDir) : evalDir;
+  const mPath = scannersPath(runDir);
   const sourcesSeen = new Set([...allById.values()].map((v) => v.f.source || 'repo-eval'));
   if (!existsSync(mPath)) {
     err(MANIFEST_FILE, `missing — every run records each adopted scanner's disposition (ran | skipped + reason | failed + reason); a scanner that can be omitted without a recorded decision reads as coverage. Template: map/templates/scanners.yaml`);
   } else {
     let m = null, parsed = false;
-    try { m = loadManifest(evalDir); parsed = true; }
+    try { m = loadManifest(runDir); parsed = true; }
     catch (e) { err(MANIFEST_FILE, `YAML parse failed (fail-closed): ${e.message}`); }
     if (parsed) {
       if (!m || typeof m !== 'object' || Array.isArray(m) || !m.scanners || typeof m.scanners !== 'object' || Array.isArray(m.scanners)) {
@@ -228,27 +212,27 @@ for (const file of passFiles) {
           if (row.status === 'ran') {
             if (row.model === undefined && id !== 'repo-eval' && ADAPTERS[id].role !== 'instrument')
               warn(at, `no model: recorded for a judgment scanner — a repeat cannot separate model drift from method drift`);
-            const explicitFile = passFiles.some((f) => f.endsWith(`-${id}.yaml`));
+            const explicitFile = passFiles.includes(`${id}.yaml`);
             if (!sourcesSeen.has(id) && !explicitFile)
-              err(at, `status ran, but the base carries no rows from ${id} and no findings-9N-${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty)`);
-            if (ADAPTERS[id].role !== 'instrument' && id !== 'repo-eval'
-                && !existsSync(join(runRoot, `${id}.md`)) && !existsSync(join(evalDir, `${id}.md`)))
-              warn(at, `peer scanner ran but the run carries no native report ${id}.md — its port rows are the only record; the package lists no appendix for it`);
+              err(at, `status ran, but the base carries no rows from ${id} and no map/findings/${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty)`);
+            if (ADAPTERS[id].role !== 'instrument' && id !== 'repo-eval' && !existsSync(nativeReportPath(runDir, id)))
+              warn(at, `peer scanner ran but the run carries no native report map/native/${id}.md — its port rows are the only record; the package lists no appendix for it`);
           } else if (sourcesSeen.has(id)) {
             err(at, `status ${row.status}, but the base carries rows from ${id} — rows from a scanner recorded as not run are not evidence`);
           }
         }
         for (const src of sourcesSeen) if (!m.scanners[src]) err(`${MANIFEST_FILE}:${src}`, `the base carries rows from ${src} but the manifest records no disposition for it`);
-        // coverage sidecars (eval/coverage-<scanner>.yaml): a scanner's own per-domain
+        // coverage sidecars (map/coverage/<scanner>.yaml): a scanner's own per-domain
         // account. Complete against the adapter's coverage_domains, and only for a
         // scanner the manifest records as ran — a partial account of a run that did
         // not happen is not evidence either.
-        for (const f of readdirSync(evalDir).filter((x) => /^coverage-.+\.yaml$/.test(x))) {
-          const id = f.replace(/^coverage-/, '').replace(/\.yaml$/, '');
-          const at = f;
+        const covDir = coverageDir(runDir);
+        for (const f of existsSync(covDir) ? readdirSync(covDir).filter((x) => x.endsWith('.yaml')) : []) {
+          const id = f.replace(/\.yaml$/, '');
+          const at = `map/coverage/${f}`;
           if (!ADAPTERS[id]) { err(at, `coverage sidecar for unknown scanner ${id} (no adapter)`); continue; }
           let doc = null;
-          try { doc = parseYaml(readFileSync(join(evalDir, f), 'utf8')); } catch (e) { err(at, `YAML parse failed (fail-closed): ${e.message}`); continue; }
+          try { doc = parseYaml(readFileSync(join(covDir, f), 'utf8')); } catch (e) { err(at, `YAML parse failed (fail-closed): ${e.message}`); continue; }
           if (!doc || doc.scanner !== id || !doc.coverage || typeof doc.coverage !== 'object') { err(at, `needs scanner: ${id} and a coverage: map`); continue; }
           const row = m.scanners[id];
           if (!row || row.status !== 'ran') err(at, `coverage recorded for ${id} but the manifest does not record it as ran`);
@@ -276,8 +260,8 @@ if (target) {
       const p = String(ev).trim().replace(/:\d+(?:-\d+)?$/, '');   // strip :line or :a-b
       if (!p) continue;
       // an instrument's repo-level claim cites its archived raw report (run-relative
-      // eval/raw/…), which lives in the run, not the target — skip, don't fail.
-      if (isInstrument(f.source) && p.startsWith('eval/')) continue;
+      // map/raw/…), which lives in the run, not the target — skip, don't fail.
+      if (isInstrument(f.source) && p.startsWith('map/')) continue;
       if (!existsSync(join(target, p))) { err(`${file}:${id}`, `evidence path not found in target: ${p}`); evidencePathErrors.push({ finding: id, file, path: p }); }
     }
   }
@@ -315,23 +299,17 @@ function citationsIn(path) {
   const refs = new Set(txt.match(/F-\d{3,}/g) || []);
   for (const r of refs) if (!allById.has(r)) err(basename(path), `cites unknown finding ${r}`);
 }
-for (const key of ['improveLeverage', 'improveMaturity', 'improveSecurity'])
-  citationsIn(resolveRenamed(evalDir, key));
-citationsIn(join(evalDir, 'AI-NATIVE-EVAL.md'));
-// the Improve lead page may live at run root (one level up from eval/)
-const runRoot = basename(evalDir) === 'eval' ? join(evalDir, '..') : evalDir;
-citationsIn(resolveRenamed(runRoot, 'improveLead'));
+for (const p of [leveragePath(runDir), runMaturityPath(runDir), securityPath(runDir)]) citationsIn(p);
+citationsIn(improvePagePath(runDir));
 
-// security gate sidecar (eval/improve-security-gate.yaml, was view-security-gate.yaml)
-const gatePath = resolveRenamed(evalDir, 'improveSecurityGate');
-const gateLabel = basename(gatePath);
+// security gate sidecar (views/improve/security-gate.yaml)
+const gatePath = securityGatePath(runDir);
+const gateLabel = 'views/improve/security-gate.yaml';
 if (existsSync(gatePath)) {
   let gate;
   try { gate = parseYaml(readFileSync(gatePath, 'utf8')); }
   catch (e) { err(gateLabel, `YAML parse failed (fail-closed): ${e.message}`); gate = null; }
   if (gate) {
-    // gate: is retired (grandfathered) — optional; when present it must be legacy vocab
-    if (gate.gate !== undefined && !GATE_STAGE.has(gate.gate)) err(gateLabel, `bad legacy gate "${gate.gate}" (the stage scale is retired; new runs omit gate:)`);
     const ex = gate.exposures;
     if (!Array.isArray(ex)) err(gateLabel, `exposures must be a list`);
     else for (const e of ex) {
@@ -339,8 +317,6 @@ if (existsSync(gatePath)) {
       if (!e || typeof e !== 'object') { err(gateLabel, `exposure is not a mapping`); continue; }
       if (!e.name) err(at, `exposure missing name`);
       if (!e.title) err(at, `exposure missing title (the human display name the report renders)`);
-      // blocks_stage: is retired (grandfathered) — optional; legacy vocab when present
-      if (e.blocks_stage !== undefined && !GATE_STAGE.has(e.blocks_stage)) err(at, `bad legacy blocks_stage "${e.blocks_stage}" (the stage scale is retired; new runs omit it)`);
       if (e.standing_watch !== undefined && typeof e.standing_watch !== 'boolean') err(at, `standing_watch must be boolean`);
       if (e.who !== undefined && !WHO.has(e.who)) err(at, `bad who "${e.who}"`);
       if (e.likelihood !== undefined && !LIKELIHOOD.has(e.likelihood)) err(at, `bad likelihood "${e.likelihood}"`);
@@ -355,32 +331,32 @@ if (existsSync(gatePath)) {
 // reason it is not fixed). No silent gap. This is the remediation-side analogue of the
 // fail-closed-discovery rule above (every unheld-halt effect must state preconditions): there,
 // no gap is discovered without its difficulty; here, no gap is left without a plan or a reason.
-// Gated on report-prose.yaml (the roadmap source): a base-only run has no Pass-8 layer to check.
-const prosePath = join(evalDir, 'report-prose.yaml');
+// Gated on views/improve/prose.yaml (the roadmap source): a base-only run has no Pass-8 layer to check.
+const prosePath = runProsePath(runDir);
 if (existsSync(prosePath)) {
   let prose;
   try { prose = parseYaml(readFileSync(prosePath, 'utf8')); }
-  catch (e) { err('report-prose.yaml', `YAML parse failed (fail-closed): ${e.message}`); prose = null; }
+  catch (e) { err('views/improve/prose.yaml', `YAML parse failed (fail-closed): ${e.message}`); prose = null; }
   if (prose && Array.isArray(prose.roadmap)) {
     const { buildSupervision } = await import('./supervision.mjs');
     const sup = buildSupervision([...allById.values()].map((v) => v.f), prose.roadmap, prose.channel_notes || {});
     const DISPO_REASON = new Set(['accepted', 'deferred', 'out-of-scope']);
     const dispo = new Map();
     for (const d of (Array.isArray(prose.dispositions) ? prose.dispositions : [])) {
-      if (!d || !d.channel) { err('report-prose.yaml:dispositions', `disposition missing channel`); continue; }
-      if (!DISPO_REASON.has(d.reason)) err('report-prose.yaml:dispositions', `disposition "${d.channel}" bad reason "${d.reason}" (accepted|deferred|out-of-scope)`);
-      if (!d.note) err('report-prose.yaml:dispositions', `disposition "${d.channel}" needs a note (the reason it is not fixed)`);
+      if (!d || !d.channel) { err('views/improve/prose.yaml:dispositions', `disposition missing channel`); continue; }
+      if (!DISPO_REASON.has(d.reason)) err('views/improve/prose.yaml:dispositions', `disposition "${d.channel}" bad reason "${d.reason}" (accepted|deferred|out-of-scope)`);
+      if (!d.note) err('views/improve/prose.yaml:dispositions', `disposition "${d.channel}" needs a note (the reason it is not fixed)`);
       dispo.set(d.channel, d);
     }
     for (const k of sup.kinds) {
       if (!k.fixes.length && !dispo.has(k.channel))
-        err('report-prose.yaml', `unsupervised kind "${k.channel}" has no fix (a roadmap item's findings or covers_channels) and no disposition — every gap must trace to a remediation or a logged reason (solution-coverage, fail-closed)`);
+        err('views/improve/prose.yaml', `unsupervised kind "${k.channel}" has no fix (a roadmap item's findings or covers_channels) and no disposition — every gap must trace to a remediation or a logged reason (solution-coverage, fail-closed)`);
     }
     const unsup = new Set(sup.kinds.map((k) => k.channel));
-    for (const ch of dispo.keys()) if (!unsup.has(ch)) warn('report-prose.yaml:dispositions', `disposition for "${ch}" but it is not an unsupervised kind (stale — the gap it excused is closed or gone)`);
+    for (const ch of dispo.keys()) if (!unsup.has(ch)) warn('views/improve/prose.yaml:dispositions', `disposition for "${ch}" but it is not an unsupervised kind (stale — the gap it excused is closed or gone)`);
   }
   // ── canon check (SCHEMA.md §8) — advisory drift against the declared enumeration contract.
-  // Opt-in: the run names its canon in report-prose (`canon: <name>`). A named-but-missing
+  // Opt-in: the run names its canon in the prose (`canon: <name>`). A named-but-missing
   // canon is an ERROR (a declared contract must be present); a present one surfaces effect-channel
   // drift as non-fatal WARNINGS — a run may lead or lag its canon, and closing the drift is a
   // canon-maintenance decision (a reviewed diff), never a per-run gate.
@@ -395,7 +371,7 @@ if (existsSync(prosePath)) {
     ];
     const canonPath = candidates.find((p) => existsSync(p));
     if (!canonPath) {
-      err('report-prose.yaml', `canon: "${prose.canon}" names canon/${prose.canon}.yaml, which exists neither in the run's instance entry nor beside the tool (fail-closed — a declared contract must be present)`);
+      err('views/improve/prose.yaml', `canon: "${prose.canon}" names canon/${prose.canon}.yaml, which exists neither in the run's instance entry nor beside the tool (fail-closed — a declared contract must be present)`);
     } else {
       let canon = null;
       try { canon = parseYaml(readFileSync(canonPath, 'utf8')); }
@@ -414,14 +390,14 @@ if (existsSync(prosePath)) {
 // The file is GENERATED (views/improve/maturity.mjs --write); the counted numbers are
 // recomputed here from the base and any mismatch is an error — the maturity
 // view's own "enforced" property, applied to itself.
-const gradesPath = resolveRenamed(evalDir, 'improveMaturityGrades');
-const gradesLabel = basename(gradesPath);
+const gradesPath = maturityGradesPath(runDir);
+const gradesLabel = 'views/improve/maturity-grades.yaml';
 if (existsSync(gradesPath)) {
   let grades;
   try { grades = parseYaml(readFileSync(gradesPath, 'utf8')); }
   catch (e) { err(gradesLabel, `YAML parse failed (fail-closed): ${e.message}`); grades = null; }
   if (grades && grades.schema !== 'coverage') {
-    err(gradesLabel, `pre-coverage grades schema (found ${grades.ladder ? 'ladder form' : 'no schema key'}) — regenerate: node assay.mjs maturity <eval-dir> --write`);
+    err(gradesLabel, `maturity grades must carry schema: coverage — regenerate: node assay.mjs maturity <run> --write`);
   } else if (grades) {
     if (!Array.isArray(grades.dimensions)) err(gradesLabel, `dimensions must be a list`);
     else {
@@ -444,7 +420,7 @@ if (existsSync(gradesPath)) {
             else if (re.met !== c.met || re.of !== c.of) err(at, `counted drift: file says ${c.met}/${c.of}, base computes ${re.met}/${re.of} — regenerate with maturity.mjs --write`);
           }
         }
-        if (!d.depth) err(at, `needs an authored depth sentence (maturity-inputs.yaml)`);
+        if (!d.depth) err(at, `needs an authored depth sentence (map/censuses.yaml)`);
         for (const k of ['enforced', 'generative']) {
           const f = d[k];
           if (f !== false && !(f && f.claim === true && f.why)) err(at, `${k} must be false or an earned claim with a why`);
@@ -476,29 +452,25 @@ if (existsSync(gradesPath)) {
 
 // ── report ──────────────────────────────────────────────────────────────────
 const total = allById.size;
-// the yardstick's measurement tail (optional): eval/yardstick.yaml (was
-// eval/view-descriptors.yaml) + drift check. The file is GENERATED
-// (yardstick/measure.mjs --write, run by views/compile.mjs); every status is
-// recomputed here from the base, the manifest, the censuses and the scanner
-// coverage, and any mismatch is an error — a stale read would let a claim
-// outlive the fact it rode on. A frozen base carrying only the legacy name
-// (schema: descriptors, list key `descriptors:`) still validates.
-const yardstickPath = resolveRenamed(evalDir, 'yardstick');
-const yardstickLabel = basename(yardstickPath);
-if (existsSync(yardstickPath)) {
+// the yardstick's measurement tail (optional): yardstick.yaml + drift check. The
+// file is GENERATED (yardstick/measure.mjs --write, run by views/compile.mjs);
+// every status is recomputed here from the base, the manifest, the censuses and
+// the scanner coverage, and any mismatch is an error — a stale read would let a
+// claim outlive the fact it rode on.
+const yardstickResultPath = runYardstickPath(runDir);
+const yardstickLabel = 'yardstick.yaml';
+if (existsSync(yardstickResultPath)) {
   let view;
-  try { view = parseYaml(readFileSync(yardstickPath, 'utf8')); }
+  try { view = parseYaml(readFileSync(yardstickResultPath, 'utf8')); }
   catch (e) { err(yardstickLabel, `YAML parse failed (fail-closed): ${e.message}`); view = null; }
-  const legacySchema = view && view.schema === 'descriptors';
-  if (view && view.schema !== 'yardstick' && !legacySchema) err(yardstickLabel, `schema must be yardstick (or the legacy descriptors) — regenerate: node assay.mjs measure <run-dir> --write`);
+  if (view && view.schema !== 'yardstick') err(yardstickLabel, `schema must be yardstick — regenerate: node assay.mjs measure <run-dir> --write`);
   else if (view) {
     const { projectRun } = await import('../yardstick/measure.mjs');
-    const runDirForYardstick = basename(evalDir) === 'eval' ? dirname(evalDir) : evalDir;
     let re = null;
-    try { re = projectRun(runDirForYardstick); } catch (e) { err(yardstickLabel, `could not recompute the measurement: ${e.message}`); }
+    try { re = projectRun(runDir); } catch (e) { err(yardstickLabel, `could not recompute the measurement: ${e.message}`); }
     if (re) {
       const reById = Object.fromEntries(re.map((r) => [r.id, r]));
-      const rows = Array.isArray(view.requirements) ? view.requirements : Array.isArray(view.descriptors) ? view.descriptors : [];
+      const rows = Array.isArray(view.requirements) ? view.requirements : [];
       if (rows.length !== re.length) err(yardstickLabel, `carries ${rows.length} requirements, the yardstick has ${re.length} — regenerate`);
       for (const r of rows) {
         const at = `${yardstickLabel}:${r && r.id || '??'}`;

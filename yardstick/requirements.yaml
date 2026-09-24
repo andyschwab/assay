@@ -7,7 +7,7 @@
 #
 # decide.kind (closed):
 #   facet       computed from the finding schema's forced fields (effect and capability facets)
-#   census      an authored, enumerated population against a stated bar (maturity-inputs.yaml)
+#   census      an authored, enumerated population against a stated bar (map/censuses.yaml)
 #   instrument  a scanner's rows, read through the run record and the scanner's coverage
 #   claim       only the owner can decide it; a run reads it NOT MEASURED, never inferred from prose
 # topic (every row): an axis of the roster (map/project.mjs AXIS_ORDER), or custody,

@@ -1,6 +1,6 @@
-# findings-91-gitleaks.yaml — instrument rows ingested by map/ingest.mjs.
+# map/findings/gitleaks.yaml — instrument rows ingested by map/ingest.mjs.
 # Instrument: gitleaks · exit code 1 (verified in its success set) · 1 row(s).
-# Raw report archived at eval/raw/gitleaks.json. Regenerate with ingest.mjs; never hand-edit.
+# Raw report archived at map/raw/gitleaks.json. Regenerate with ingest.mjs; never hand-edit.
 
 - id: F-700
   source: gitleaks
