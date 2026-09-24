@@ -22,13 +22,7 @@
 # each one carries and, where the register row itself carries no axis, which
 # nearest tier-mate's axis it was assigned (registry/descriptors.yaml never edited
 # to match). Keyed by the check name (the runner's closed set); a category this map
-# does not know halts loud. The six evidence categories are the real, colon-bearing
-# names (`evidence:<descriptor-id>`) everywhere outside this file — findings,
-# registry/descriptors.yaml, tests; here they are spelled `evidence__<descriptor-id>`
-# because the minimal YAML reader's map-key grammar cannot spell a colon
-# ([A-Za-z0-9_-]+ only). tools/project.mjs resolves the `__` alias to `:` at
-# lookup time (the one place this translation happens); nothing else needs to
-# know it.
+# does not know halts loud. The six evidence categories are `evidence-<descriptor-id>`.
 scanner: repo-census
 targets_taxonomy: 3
 role: instrument
@@ -44,17 +38,17 @@ map:
     axis: artifact-legibility
   ci-gate:                       # a verification gate exists on the default branch and holds
     axis: deterministic-gates
-  evidence__d-backup-restore-exercised:   # evidence:d-backup-restore-exercised — register row carries no axis; nearest tier-mate (safety) is d-personal-data-enumerated, code-security
+  evidence-d-backup-restore-exercised:   # evidence-d-backup-restore-exercised — register row carries no axis; nearest tier-mate (safety) is d-personal-data-enumerated, code-security
     axis: code-security
-  evidence__d-rollback-exercised:         # evidence:d-rollback-exercised — register row carries no axis; nearest tier-mate (reproducibility) is d-schema-versioned, context-economy
+  evidence-d-rollback-exercised:         # evidence-d-rollback-exercised — register row carries no axis; nearest tier-mate (reproducibility) is d-schema-versioned, context-economy
     axis: context-economy
-  evidence__d-deploy-one-command:         # evidence:d-deploy-one-command — register row carries no axis; nearest tier-mate (reproducibility) is d-dependencies-pinned, code-security
+  evidence-d-deploy-one-command:         # evidence-d-deploy-one-command — register row carries no axis; nearest tier-mate (reproducibility) is d-dependencies-pinned, code-security
     axis: code-security
-  evidence__d-smoke-on-deployed:          # evidence:d-smoke-on-deployed — register row carries no axis; nearest tier-mate (verification) is d-lint-typecheck-gate, deterministic-gates
+  evidence-d-smoke-on-deployed:          # evidence-d-smoke-on-deployed — register row carries no axis; nearest tier-mate (verification) is d-lint-typecheck-gate, deterministic-gates
     axis: deterministic-gates
-  evidence__d-monitoring-with-alert:      # evidence:d-monitoring-with-alert — register row carries no axis; nearest tier-mate (operability) is d-errors-reach-a-person, verification
+  evidence-d-monitoring-with-alert:      # evidence-d-monitoring-with-alert — register row carries no axis; nearest tier-mate (operability) is d-errors-reach-a-person, verification
     axis: verification
-  evidence__d-cost-alerts:                # evidence:d-cost-alerts — register row carries no axis; nearest tier-mate (operability) is d-runbook, artifact-legibility
+  evidence-d-cost-alerts:                # evidence-d-cost-alerts — register row carries no axis; nearest tier-mate (operability) is d-runbook, artifact-legibility
     axis: artifact-legibility
 
 default: FAIL

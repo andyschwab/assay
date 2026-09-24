@@ -354,7 +354,7 @@ Six more floor rows describe things a repository cannot show by itself — a
 backup was restored, a rollback ran, a deploy came up as the committed sha, a
 smoke check hit the deployed app, a monitoring alert fired and was received,
 cost alerts are named per metered account. `repo-census` checks a dated
-transcript the owner commits per row, named `evidence:<descriptor-id>`
+transcript the owner commits per row, named `evidence-<descriptor-id>`
 (`d-backup-restore-exercised`, `d-rollback-exercised`, `d-deploy-one-command`,
 `d-smoke-on-deployed`, `d-monitoring-with-alert`, `d-cost-alerts`), root only.
 It decides the transcript's shape and freshness only, never the truth of what

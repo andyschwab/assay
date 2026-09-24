@@ -41,7 +41,7 @@
 //     tree shows.
 //
 // Plus six evidence checks (root only, one per descriptor id, named
-// `evidence:<descriptor-id>`): each reads ops/evidence/<id>.md (else
+// `evidence-<descriptor-id>`): each reads ops/evidence/<id>.md (else
 // docs/evidence/<id>.md, first found wins) — YAML frontmatter (descriptor, date,
 // by, commit, result, plus keys named per row) over a body that must carry at
 // least one fenced code block and at least 5 non-empty lines. `pass` only when
@@ -72,7 +72,7 @@ export const EVIDENCE_IDS = [
   'd-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command',
   'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts',
 ];
-export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...EVIDENCE_IDS.map((id) => `evidence:${id}`)];
+export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...EVIDENCE_IDS.map((id) => `evidence-${id}`)];
 export const CHECK_STATUS = ['pass', 'gap', 'not-applicable'];
 
 // ── small filesystem helpers (case-insensitive, read-only, never throw) ──────
@@ -557,7 +557,7 @@ function checkEvidenceBody(bodyLines) {
   return { nonEmptyCount, hasFencedBlock: fenceCount >= 2 };
 }
 function checkEvidenceRow(dir, id, asOfDate, maxAgeDays) {
-  const name = `evidence:${id}`;
+  const name = `evidence-${id}`;
   const rowSpec = EVIDENCE_ROWS[id];
   const detail = { path: '.', descriptor: id, file: null };
   const found = findEvidenceFile(dir, id);

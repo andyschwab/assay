@@ -268,13 +268,7 @@ export function projectMulti(findings, adapters) {
     const adapter = adapters[src];
     if (!adapter) { unmapped.push({ id: f.id, cat: `(no adapter for source "${src}")` }); continue; }
     const cat = f.native_category ?? f.dimension;
-    // adapter `map:` keys are the minimal YAML reader's plain-mapping-key grammar
-    // ([A-Za-z0-9_-]+), which cannot spell a colon — a category itself namespaced
-    // with one (repo-census's `evidence:<descriptor-id>`, andyschwab/ai-native-
-    // framework#124) is written in its adapter with `__` in place of `:`; this is
-    // the one place that alias is resolved, so the category on the finding stays
-    // the real, colon-bearing name everywhere else (findings, the register, tests).
-    const m = adapter.map[cat] ?? (typeof cat === 'string' && cat.includes(':') ? adapter.map[cat.replace(':', '__')] : undefined);
+    const m = adapter.map[cat];
     if (!m) { unmapped.push({ id: f.id, cat: `${src}:${cat}` }); continue; }
     if (m.needs_finding_axis) { needsAxis.push({ id: f.id, cat, f }); continue; }
     if (!m.axis) { unmapped.push({ id: f.id, cat: `${src}:${cat} (adapter row has no axis)` }); continue; }

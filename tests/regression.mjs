@@ -789,7 +789,7 @@ function adaptersOnce() { return loadAdapters(); }
     const ci = doc.checks.find((c) => c.name === 'ci-gate');
     if (ci?.status !== 'gap' || !/continue-on-error/.test(ci.observation) || !ci.evidence[0]?.includes('ci.yml')) fail(`ci-gate must gap citing the continue-on-error line (got ${ci?.status}/${ci?.observation}/${ci?.evidence})`);
     // the six owner-evidence checks: one pass, five gaps, each for its own planted reason
-    const ev = (id) => doc.checks.find((c) => c.name === `evidence:${id}`);
+    const ev = (id) => doc.checks.find((c) => c.name === `evidence-${id}`);
     const backupRestore = ev('d-backup-restore-exercised');
     if (backupRestore?.status !== 'pass' || !/attests, by platform-eng at commit/.test(backupRestore.observation) || !/not that the procedure actually happened/.test(backupRestore.observation))
       fail(`d-backup-restore-exercised must pass, attested by role and commit, with the truth disclaimer (got ${backupRestore?.status}/${backupRestore?.observation})`);
@@ -826,7 +826,7 @@ function adaptersOnce() { return loadAdapters(); }
     // one strength row (the pass), five gap rows (the rest)
     const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
     for (const id of EVIDENCE_IDS) {
-      const nc = `evidence:${id}`;
+      const nc = `evidence-${id}`;
       const want = id === 'd-backup-restore-exercised' ? 'strength' : 'gap';
       const got = byNc[nc];
       if (!got || got.length !== 1 || got[0].polarity !== want) fail(`${nc} must convert to exactly one ${want} row (got ${JSON.stringify(got)})`);
@@ -865,8 +865,8 @@ function adaptersOnce() { return loadAdapters(); }
       'd-cost-alerts': 'artifact-legibility',
     };
     for (const [id, wantAxis] of Object.entries(EVIDENCE_AXES)) {
-      const got = axisOf(`evidence:${id}`);
-      if (got !== wantAxis) fail(`evidence:${id} must land on ${wantAxis} (got ${got})`);
+      const got = axisOf(`evidence-${id}`);
+      if (got !== wantAxis) fail(`evidence-${id} must land on ${wantAxis} (got ${got})`);
     }
     if (contributedBySources(adaptersOnce(), ['repo-census']).size !== 0) fail('repo-census is an instrument and must contribute no axis');
     const rogue = projectMulti([{ ...rows[0], native_category: 'unknown-check' }], adaptersOnce());

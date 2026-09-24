@@ -212,7 +212,7 @@ what the public engine learned.
   reason when skipped). Goldens untouched.
 - **2026-09-24 — the owner-evidence transcript check, six more floor rows a run
   can now decide (andyschwab/ai-native-framework#124, option B).**
-  `tools/repo-census.mjs` gains six checks, named `evidence:<descriptor-id>`,
+  `tools/repo-census.mjs` gains six checks, named `evidence-<descriptor-id>`,
   root only: a dated YAML-frontmatter transcript at `ops/evidence/<id>.md` (or
   `docs/evidence/<id>.md`), for `d-backup-restore-exercised`,
   `d-rollback-exercised`, `d-deploy-one-command`, `d-smoke-on-deployed`,
@@ -228,14 +228,12 @@ what the public engine learned.
   verifies the transcript's shape and freshness, never the truth of what it
   describes — that rests on the named person's attestation in version history.
   `ingest.mjs`'s `repo-census` profile accepts the six check names
-  (`native_category: evidence:<id>`, `Medium` severity, a strength row on pass,
-  a gap row otherwise); `adapters/repo-census.yaml` maps each to the axis the
-  register homes its re-kinded row on (none of the six carried an `axis:` of
-  their own, so each took its nearest tier-mate's, noted inline) — spelled
-  `evidence__<id>` in the adapter's `map:` keys because the minimal YAML
-  reader's key grammar cannot hold a colon; `project.mjs` resolves that one
-  alias at lookup time, so every other consumer (findings, the register, tests)
-  keeps the real, colon-bearing name. The six rows re-kind from `claim` to
+  (`native_category: evidence-<descriptor-id>`, `Medium` severity, a strength
+  row on pass, a gap row otherwise); `adapters/repo-census.yaml` maps each to
+  the axis the register homes its re-kinded row on (none of the six carried an
+  `axis:` of their own, so each took its nearest tier-mate's, noted inline).
+  The category names carry no colon, so the adapter's minimal YAML reader needs
+  no special case. The six rows re-kind from `claim` to
   `instrument: repo-census` in the same change. A fixture addition under
   `tests/instruments/repo-census-target/ops/evidence/` (one passing transcript,
   four with one planted defect each, one absent) extends the `repo-census`

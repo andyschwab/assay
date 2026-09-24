@@ -170,7 +170,7 @@ descriptors:
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence:d-backup-restore-exercised
+      category: evidence-d-backup-restore-exercised
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/s-backup, gcp/nightly-restore]
     status: draft
@@ -230,7 +230,7 @@ descriptors:
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence:d-deploy-one-command
+      category: evidence-d-deploy-one-command
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/r-deploy, gcp/deploy-and-promote]
     status: draft
@@ -242,7 +242,7 @@ descriptors:
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence:d-rollback-exercised
+      category: evidence-d-rollback-exercised
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/r-rollback, gcp/promote]
     status: draft
@@ -314,7 +314,7 @@ descriptors:
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence:d-smoke-on-deployed
+      category: evidence-d-smoke-on-deployed
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/v-smoke, gcp/doctor]
     status: draft
@@ -448,7 +448,7 @@ descriptors:
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence:d-monitoring-with-alert
+      category: evidence-d-monitoring-with-alert
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check
     sources: [floor/o-monitoring]
     status: draft
@@ -460,7 +460,7 @@ descriptors:
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence:d-cost-alerts
+      category: evidence-d-cost-alerts
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check
     sources: [floor/o-cost, gcp/budgets]
     status: draft
