@@ -1,0 +1,43 @@
+# scanners.yaml — the RUN MANIFEST (SCHEMA.md §5a). One row per ADOPTED scanner,
+# every run, no exceptions: an integration that can be omitted without a recorded
+# decision reads as coverage. validate.mjs fails closed without this file, and
+# compile-package.mjs validates before it compiles anything.
+#
+#   status: ran      — the base carries its rows (or an explicit empty
+#                      findings-9N-<scanner>.yaml for a verified-clean instrument run)
+#   status: skipped  — a decision not to run it; `reason` required
+#   status: failed   — it was invoked and errored; `reason` carries the error
+#   model:           — optional: the model id a judgment scanner ran on (warned when a
+#                      judgment scanner ran without one); instruments need none
+#
+# The adopted roster is every adapter under map/scanners/adapters/ that does not
+# carry `adopted: false`. Rows from a scanner recorded as not run are rejected.
+engine: <engine commit SHA the run executed under>
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped
+    reason: "<why — e.g. out of the engagement's scope this run; decided by <role>>"
+  gitleaks:
+    status: ran
+  fresh-clone:
+    # the scripted fresh-clone run (map/fresh-clone.mjs → ingest --tool fresh-clone).
+    # ran = the base carries its rows or the explicit empty findings-94-fresh-clone.yaml;
+    # skipped needs the reason (e.g. no scratch clone possible in this environment).
+    status: skipped
+    reason: "<why — e.g. the run environment cannot execute the target's install step; decided by <role>>"
+  dependency-scan:
+    # npm audit over every lockfile in the tree (map/dependency-scan.mjs → ingest
+    # --tool dependency-scan). ran = the base carries its rows or the explicit empty
+    # findings-95-dependency-scan.yaml; skipped needs the reason (e.g. no registry
+    # reach in this environment).
+    status: skipped
+    reason: "<why — e.g. the run environment has no registry reach for npm audit; decided by <role>>"
+  repo-census:
+    # the deterministic repo census (map/repo-census.mjs → ingest --tool repo-census):
+    # architecture page, agent contract, runbook, CI gate on the default branch.
+    # ran = the base carries its rows or the explicit empty findings-96-repo-census.yaml;
+    # skipped needs the reason (e.g. no filesystem access to the target checkout).
+    status: skipped
+    reason: "<why — e.g. the run environment has no read access to the target checkout; decided by <role>>"

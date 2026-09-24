@@ -1,0 +1,11 @@
+- id: F-800
+  source: deep-code-review
+  native_id: "F1"
+  native_category: "A"
+  polarity: gap
+  severity: High
+  observation: >
+    A fictional defect with a failing case.
+  evidence: [src/a.ts:1]
+  fix: >
+    Fix it.

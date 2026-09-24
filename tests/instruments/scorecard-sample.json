@@ -1,0 +1,41 @@
+{
+  "score": 5.2,
+  "repo": { "name": "example.com/org/repo" },
+  "checks": [
+    {
+      "name": "Branch-Protection",
+      "score": 2,
+      "reason": "branch protection is not maximal on development and all release branches",
+      "details": null,
+      "documentation": { "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#branch-protection" }
+    },
+    {
+      "name": "CI-Tests",
+      "score": 10,
+      "reason": "all last 30 commits are tested with CI",
+      "details": null,
+      "documentation": { "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#ci-tests" }
+    },
+    {
+      "name": "Maintained",
+      "score": 8,
+      "reason": "30 commit(s) and 4 issue activity found in the last 90 days",
+      "details": null,
+      "documentation": { "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#maintained" }
+    },
+    {
+      "name": "Fuzzing",
+      "score": -1,
+      "reason": "no fuzzing integration detected",
+      "details": null,
+      "documentation": { "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#fuzzing" }
+    },
+    {
+      "name": "Dangerous-Workflow",
+      "score": 5,
+      "reason": "dangerous workflow patterns detected",
+      "details": ["Warn: script injection with untrusted input in .github/workflows/deploy.yml:12"],
+      "documentation": { "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#dangerous-workflow" }
+    }
+  ]
+}

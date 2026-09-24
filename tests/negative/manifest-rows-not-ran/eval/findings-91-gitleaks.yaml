@@ -1,0 +1,10 @@
+- id: F-700
+  source: gitleaks
+  native_id: generic-api-key@config/settings.py:8
+  native_category: secret
+  polarity: gap
+  observation: >
+    Committed secret detected by rule generic-api-key; the value is in the repository history at the cited location.
+  evidence: [config/settings.py:8]
+  fix: >
+    Rotate the credential now, then purge it from history.

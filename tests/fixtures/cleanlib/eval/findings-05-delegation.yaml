@@ -1,0 +1,11 @@
+# Delegation pass over the clean-lib control target.
+- id: F-050
+  dimension: delegation
+  polarity: strength
+  subject_type: process
+  observation: >
+    slugify is a pure function with no I/O, no network, no credentials, and no agent surface, so
+    there is nothing to delegate and nothing to gate — the delegation surface is confirmed to
+    hold no power to act.
+  evidence: [index.mjs:1]
+  confidence: confirmed

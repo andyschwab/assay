@@ -1,0 +1,12 @@
+# Minimal valid base for the NEW-FORM exposures sidecar (no gate:, no
+# blocks_stage:, standing_watch labeled) — must validate GREEN.
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    An exposure exists for the sidecar fixture to reference.
+  evidence: [a.py:1]
+  confidence: confirmed
+  fix: >
+    Close it.

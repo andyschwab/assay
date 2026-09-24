@@ -1,0 +1,22 @@
+# Artifact-legibility pass over the notesbox fixture target (assay-fixtures).
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The storage decision is recorded as a full ADR (context / decision / consequences /
+    why-not-the-alternative), so the rationale for the in-memory store behind an interface
+    reconstructs from the file alone.
+  evidence: [docs/adr/0001-storage-choice.md:1]
+  confidence: confirmed
+
+- id: F-002
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    The README documents the test command as `npm run test:all`, but package.json defines no
+    such script (the runnable entry point is `node test/smoke.mjs`), so a documented command
+    does not run.
+  evidence: [README.md:32, package.json:1]
+  confidence: confirmed

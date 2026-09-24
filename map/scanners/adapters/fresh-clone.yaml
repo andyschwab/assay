@@ -1,0 +1,42 @@
+# Adapter: fresh-clone (INSTRUMENT — the scripted fresh-clone run) -> the axis
+# roster (map/scanners/CONTRACT.md, instrument role). map/fresh-clone.mjs
+# clones the target into a scratch directory, runs the declared install / build /
+# lint / typecheck / test / migrate steps, and replays the README's command claims
+# for presence; map/ingest.mjs (profile fresh-clone) turns a failed or timed-out
+# step, a NOT-DECLARED floor step (lint, typecheck, test, migrate — absence is a
+# gap, never clean), or a MISSING README claim into one gap row each. A run where
+# every declared step passed and every claim is present is the explicit empty
+# findings-94-fresh-clone.yaml. Instruments never contribute an axis; these rows
+# feed the axes the yardstick already homes the floor rows on
+# (yardstick/requirements.yaml): the reproducibility rows (d-fresh-clone-runs) on
+# context-economy, the verification-gate rows (d-tests-execute-core,
+# d-lint-typecheck-gate) on deterministic-gates, the README-truth row
+# (d-readme-true) on artifact-legibility. Keyed by the step name (the runner's
+# closed set) plus readme-claim; a category this map does not know halts loud.
+scanner: fresh-clone
+targets_taxonomy: 3
+role: instrument
+
+contributes: []
+
+map:
+  install:                      # reproducibility: it installs from a clean checkout
+    axis: context-economy
+  build:                        # reproducibility: it builds from a clean checkout
+    axis: context-economy
+  migrate:                      # reproducibility: migrations replay from empty
+    axis: context-economy
+  lint:                         # a verification gate exists and is green
+    axis: deterministic-gates
+  typecheck:
+    axis: deterministic-gates
+  test:                         # tests exist and execute on a clean machine
+    axis: deterministic-gates
+  readme-claim:                 # the README is true, measured by replaying it
+    axis: artifact-legibility
+
+default: FAIL
+
+capabilities:
+  - id: verify-fix
+    invoke: "re-run map/fresh-clone.mjs against the target and confirm the step reads passed (or the README claim reads present)"

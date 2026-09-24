@@ -1,0 +1,49 @@
+# Known-answer sheet for the clean-lib target (slugify) — the CONTROL.
+# This target is kept deliberately healthy. Its job is to catch the OTHER failure
+# mode: an evaluator or instrument that manufactures problems in a clean codebase.
+# Matching is by evidence path + class. Method classes: gitleaks | scorecard | eval-pass | dcr.
+target: clean-lib
+
+# No planted defects. A run over this target SHOULD produce no code-security,
+# delegation, or correctness gaps. The assertion is near-emptiness, not literal
+# zero: a minor style nit is tolerable, a Medium-or-above gap is a false positive
+# that counts against the evaluator.
+planted: []
+
+max_gaps_above:            # the control's tolerance gate (scored by the harness)
+  severity: Low            # anything Medium+ here is a false positive
+  count: 0
+
+strengths:
+  - id: S-01
+    class: decision-record
+    axis: artifact-legibility
+    polarity: strength
+    evidence: docs/adr/0001-fold-table-over-normalize.md:1
+    detectable_by: [eval-pass]
+    note: >
+      A full ADR whose "why not the alternative" reconstructs the design choice
+      (explicit fold table over NFKD, for cross-version output stability) from the
+      file alone.
+
+  - id: S-02
+    class: behavioral-test
+    axis: verification
+    polarity: strength
+    evidence: test/slugify.test.mjs:9
+    detectable_by: [eval-pass]
+    note: >
+      The test suite asserts actual output across the edge cases the code exists to
+      handle (accents, punctuation, collapsing, trimming, the type guard) — a real
+      check, the opposite of flawed-webapp's P-06 false-green smoke test.
+
+  - id: S-03
+    class: no-effect-surface
+    axis: delegation
+    polarity: strength
+    evidence: index.mjs:1
+    detectable_by: [eval-pass]
+    note: >
+      A pure function with no I/O, no network, no credentials, no agent surface —
+      nothing to delegate and nothing to gate. The delegation axis should read this
+      as contained (no power to act), never as an un-scanned blank.

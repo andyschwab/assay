@@ -1,0 +1,20 @@
+{
+  "_score": {
+    "notesbox": {
+      "recall": 100,
+      "recovered": 9,
+      "in_scope": 9,
+      "missed": 0,
+      "misHomed": 0,
+      "falsePositives": 0
+    },
+    "cleanlib": {
+      "recall": 100,
+      "recovered": 3,
+      "in_scope": 3,
+      "missed": 0,
+      "misHomed": 0,
+      "falsePositives": 0
+    }
+  }
+}

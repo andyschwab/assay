@@ -1,0 +1,7 @@
+scanner: deep-code-review
+coverage:
+  A:
+    status: scanned
+  B:
+    status: partial
+    note: "only the routes"

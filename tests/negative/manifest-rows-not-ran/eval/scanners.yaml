@@ -1,0 +1,19 @@
+engine: fixture
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped
+    reason: "fixture: not executed"
+  gitleaks:
+    status: skipped
+    reason: "fixture: recorded as skipped although rows are present — must be rejected"
+  fresh-clone:
+    status: skipped
+    reason: "fixture: the fresh-clone run was not executed over this base"
+  dependency-scan:
+    status: skipped
+    reason: "fixture: the dependency-scan run was not executed over this base"
+  repo-census:
+    status: skipped
+    reason: "fixture: the repo census was not executed over this base"

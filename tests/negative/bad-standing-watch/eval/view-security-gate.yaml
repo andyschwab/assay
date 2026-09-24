@@ -1,0 +1,11 @@
+# standing_watch must be boolean — a string must validate RED.
+exposures:
+  - name: fixture-exposure
+    title: Fixture exposure
+    findings: [F-001]
+    who: authorized-real-user
+    what: fixture stake
+    likelihood: high
+    standing_watch: "yes"
+    fix: >
+      Close it.

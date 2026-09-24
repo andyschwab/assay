@@ -1,0 +1,19 @@
+# New-form exposures tail (SCHEMA §6a): properties only — no gate:, no blocks_stage:.
+exposures:
+  - name: fixture-exposure
+    title: Fixture exposure
+    findings: [F-001]
+    who: authorized-real-user
+    what: fixture stake
+    likelihood: high
+    fix: >
+      Close it.
+  - name: fixture-watch
+    title: Fixture watch item
+    findings: [F-001]
+    who: only-at-scale-or-adversarial
+    what: low-priority by the analyst's labeled judgment
+    likelihood: low
+    standing_watch: true
+    fix: >
+      Watch it.

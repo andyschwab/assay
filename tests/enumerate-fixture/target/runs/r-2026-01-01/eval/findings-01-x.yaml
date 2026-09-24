@@ -1,0 +1,8 @@
+- id: F-001
+  dimension: delegation
+  polarity: fact
+  subject_type: control
+  observation: >
+    A finding that cites something unrelated to the planted privileged mounts.
+  evidence: [src/other.py:1]
+  confidence: confirmed
