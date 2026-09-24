@@ -11,7 +11,7 @@ This repository is **assay**, an evidence-based repository-evaluation engine.
    priority — those are computed from the descriptors by the views. Keep that
    split intact.
 2. **No claim without evidence.** Every finding cites real file paths and line
-   numbers. `tools/validate.mjs` fails closed; run it before compiling anything.
+   numbers. `map/validate.mjs` fails closed; run it before compiling anything.
 3. **Fail loud, never empty.** A tool that errored must never read as "0
    findings"; an unmapped scanner category halts the projection; a verified-clean
    instrument run is recorded explicitly; a scanner that did not run is recorded
@@ -29,8 +29,8 @@ This repository is **assay**, an evidence-based repository-evaluation engine.
 
 ```sh
 npm test                       # the regression harness (fails closed)
-node tools/validate.mjs <run>  # validate a findings base
-node tools/score.mjs <run> --answers <target>/ANSWERS.yaml   # grade recall
+node assay.mjs validate <run>  # validate a findings base
+node assay.mjs score <run> --answers <target>/ANSWERS.yaml   # grade recall
 ```
 
 A change to a tool that moves a pinned score is a **reviewed** re-bless of

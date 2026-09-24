@@ -1,7 +1,7 @@
 # HISTORY — assay
 
-Append-only dated log. The contracts (`README.md`, `CLAUDE.md`, `SCHEMA.md`,
-`METHOD.md`, `integration/scanner-contract.md`) describe the present; this file
+Append-only dated log. The contracts (`README.md`, `CLAUDE.md`, `map/SCHEMA.md`,
+`map/METHOD.md`, `map/scanners/CONTRACT.md`) describe the present; this file
 records how it got that way. Client names, run data, and calibration records
 stay in the private deployments that produced them — entries here carry only
 what the public engine learned.
@@ -30,7 +30,7 @@ what the public engine learned.
   files wholesale.
 - **2026-08-18 — consolidation** (`45c8ccb`). One findings loader (per-pass
   first, fail closed — variance's old private loader skipped unparseable files
-  and mis-read the loss as variance), one doctrine home (`tools/doctrine.mjs`:
+  and mis-read the loss as variance), one doctrine home (`map/doctrine.mjs`:
   the gate rule, severity rank, fix-spine grouping, CLI idiom — previously
   restated in up to four files, now pinned in lockstep by the harness), one
   axis-label map (`display.mjs` AXIS_META). Extraction residue removed. A pure
@@ -80,12 +80,12 @@ what the public engine learned.
   first S/T/W row a loud halt. A fictional sample report, a negative fixture,
   and a `dcr-machine-report` invariant block pin it; goldens untouched.
 - **2026-09-22 — the descriptor register (v0) and its projection.** A second
-  projection beside the axis roster: `registry/descriptors.yaml` holds 55
+  projection beside the axis roster: `yardstick/requirements.yaml` holds 55
   descriptors, stack-neutral requirements each naming the mechanism that decides
   it (facet, census, instrument, claim), extracted from four lists that already
   existed (a takeover floor, a fleet contract, a template's guarantee manifest, a
   foundation template's universal rules) plus a takeover evaluation, every row
-  sourced. `tools/descriptors.mjs` projects a run onto it and writes
+  sourced. `yardstick/measure.mjs` projects a run onto it and writes
   `eval/view-descriptors.yaml`: met / unmet / mixed / not-measured, prose never
   read, instrument rows gated by the run manifest and the scanner's own coverage,
   claim rows always not-measured from a run because only a sidecar asserts them.
@@ -102,7 +102,7 @@ what the public engine learned.
   a claim-only row hand-edited to met) pins it. Goldens untouched; the axis
   projection still leads the package — the flip to descriptors leading is the
   next, reviewed, breaking release.
-- **2026-09-22 — the fresh-clone instrument.** `tools/fresh-clone.mjs`
+- **2026-09-22 — the fresh-clone instrument.** `map/fresh-clone.mjs`
   clones the target to scratch, detects the node toolchain, runs the declared
   install / build / lint / typecheck / test / migrate steps (migrate only through
   a `DATABASE_URL`-free dry form) and replays the README's command claims for
@@ -118,7 +118,7 @@ what the public engine learned.
   the runner, the converter's halts, the clean-run empty file and the
   projection. The register's floor rows keep their kinds; the re-kind to
   `instrument: fresh-clone` is a later change. Goldens untouched.
-- **2026-09-24 — the dependency-scan instrument.** `tools/dependency-scan.mjs`
+- **2026-09-24 — the dependency-scan instrument.** `map/dependency-scan.mjs`
   finds every `package-lock.json` / `npm-shrinkwrap.json` in the tree (skipping
   `node_modules`/`.git`) and runs `npm audit --json` against each, no install; a
   workspace member whose effective root carries no lockfile of its own (npm's
@@ -147,7 +147,7 @@ what the public engine learned.
   not declared, exit 0" while the apps that actually mattered each failed `npm
   ci` from a clean clone (a workspace's own lockfile resolves against the
   workspaces root, which has none: `EUSAGE`); the per-app results people had
-  only existed because a human ran the runner once per app. `tools/fresh-
+  only existed because a human ran the runner once per app. `map/fresh-
   clone.mjs` now resolves `workspaces` (an array, `{packages: [...]}`, globs
   `dir/*` / `dir/**`, plain paths — zero deps) and, when the root declares none
   but `apps/*` / `packages/*` exist with their own manifest, treats those as
@@ -181,7 +181,7 @@ what the public engine learned.
   the new behavior; the existing `fresh-clone` block and its fixture are
   unchanged. Goldens untouched.
 - **2026-09-24 — the repo-census instrument, and four floor rows a run can now
-  decide without an LLM.** `tools/repo-census.mjs` reads a checkout,
+  decide without an LLM.** `map/repo-census.mjs` reads a checkout,
   read-only, zero deps, no network: an architecture page present and naming an
   external service or data store (root and per app in a monorepo — package.json
   `workspaces`, or `apps/*` / `packages/*`); an agent contract (AGENTS.md or
@@ -212,7 +212,7 @@ what the public engine learned.
   reason when skipped). Goldens untouched.
 - **2026-09-24 — the owner-evidence transcript check, six more floor rows a run
   can now decide.**
-  `tools/repo-census.mjs` gains six checks, named `evidence-<descriptor-id>`,
+  `map/repo-census.mjs` gains six checks, named `evidence-<descriptor-id>`,
   root only: a dated YAML-frontmatter transcript at `ops/evidence/<id>.md` (or
   `docs/evidence/<id>.md`), for `d-backup-restore-exercised`,
   `d-rollback-exercised`, `d-deploy-one-command`, `d-smoke-on-deployed`,
@@ -220,7 +220,7 @@ what the public engine learned.
   show by itself. `pass` only when the file is present, its frontmatter carries
   `descriptor` (must equal the file's id), `date`, `by` (a role or handle — an
   email-shaped value is a gap), `commit` (7–40 hex), `result: pass`, the keys
-  named per row (`templates/evidence/README.md`, the one home of the format),
+  named per row (`owner/evidence/README.md`, the one home of the format),
   the date is fresh (`--evidence-max-age`, default 90 days, from `--as-of`,
   default today UTC — recorded in the document), and the body carries a fenced
   code block and at least 5 non-empty lines; the body itself never enters the
@@ -242,6 +242,6 @@ what the public engine learned.
 - **2026-09-24 — private material removed from the public tree.** Register
   sources that named an evaluated repository now read `takeover-eval/`,
   `template-eval/` and `foundation/`, and the prefixes are defined in
-  `registry/README.md`. Comments, tests, fixtures and this file no longer name
+  `yardstick/README.md`. Comments, tests, fixtures and this file no longer name
   evaluated repositories, and pointers into the private deployment's issue
   tracker are gone. No behaviour changed; goldens untouched.

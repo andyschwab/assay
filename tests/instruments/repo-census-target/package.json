@@ -2,7 +2,7 @@
   "name": "repo-census-target",
   "version": "0.0.0",
   "private": true,
-  "description": "Public known-answer fixture for tools/repo-census.mjs: a tiny monorepo (one workspace app, apps/one) whose root carries an Architecture section, a Status-tainted AGENTS.md, a RUNBOOK.md missing its restore procedure, and a CI workflow that gates on pull_request but fails open on one step. apps/one carries no docs at all — the fixture's monorepo gap.",
+  "description": "Public known-answer fixture for map/repo-census.mjs: a tiny monorepo (one workspace app, apps/one) whose root carries an Architecture section, a Status-tainted AGENTS.md, a RUNBOOK.md missing its restore procedure, and a CI workflow that gates on pull_request but fails open on one step. apps/one carries no docs at all — the fixture's monorepo gap.",
   "license": "Apache-2.0",
   "workspaces": ["apps/*"]
 }

@@ -22,17 +22,17 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseYaml } from '../tools/yaml-min.mjs';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../tools/project.mjs';
-import { isHalt } from '../tools/doctrine.mjs';
-import { buildSupervision } from '../tools/supervision.mjs';
-import { computeVariance } from '../tools/variance.mjs';
-import { decideProjected } from '../tools/decisions.mjs';
-import { convert, coverageYaml, nextStart } from '../tools/ingest.mjs';
-import { score } from '../tools/score.mjs';
-import { buildGrades } from '../tools/maturity.mjs';
-import { descriptorAgreement, varianceFromSweeps, groupKey } from '../tools/variance.mjs';
-import { loadRegistry, validateRegistry, projectDescriptors, summarize, KINDS } from '../tools/descriptors.mjs';
+import { parseYaml } from '../lib/yaml-min.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
+import { isHalt } from '../map/doctrine.mjs';
+import { buildSupervision } from '../map/supervision.mjs';
+import { computeVariance } from '../map/variance.mjs';
+import { decideProjected } from '../map/decisions.mjs';
+import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
+import { score } from '../map/score.mjs';
+import { buildGrades } from '../views/improve/maturity.mjs';
+import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
+import { loadRegistry, validateRegistry, projectDescriptors, summarize, KINDS } from '../yardstick/measure.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -55,7 +55,7 @@ const NEGATIVE = [
   ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file'],
   ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped'],
   ['coverage-incomplete', 'a scanner coverage sidecar missing rows for domains the adapter lists'],
-  // the register read (registry/README.md): a status the base does not recompute is drift, and a
+  // the register read (yardstick/README.md): a status the base does not recompute is drift, and a
   // claim-only row reading met is the exact laundering the two-file rule exists to prevent
   ['descriptors-drift', 'a view-descriptors.yaml whose statuses the base does not recompute (a claim row reads met)'],
 ];
@@ -73,7 +73,7 @@ const negFailures = [];
 // ── negative fixtures: each MUST validate RED ─────────────────────────────────
 for (const [dir, what] of NEGATIVE) {
   let red = false;
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), join(HERE, 'negative', dir)], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), join(HERE, 'negative', dir)], { stdio: 'pipe' }); }
   catch { red = true; }
   if (!red) negFailures.push(`negative/${dir} validated GREEN but must be RED (${what}) — the validator stopped catching this class`);
 }
@@ -96,7 +96,7 @@ for (const [dir, what] of NEGATIVE) {
 
 // ── doctrine lockstep: one gate rule everywhere ───────────────────────────────
 // The maturity halts-gated numerator, the supervision split, and the unheld-halt
-// flag must be the SAME rule (tools/doctrine.mjs). Before consolidation they were
+// flag must be the SAME rule (map/doctrine.mjs). Before consolidation they were
 // restated in four files; this pins that they can never silently diverge again.
 {
   const fail = (m) => negFailures.push('doctrine-lockstep: ' + m);
@@ -278,7 +278,7 @@ for (const [dir, what] of NEGATIVE) {
     const row = (id) => `- id: ${id}\n  source: gitleaks\n  native_id: "r@a.ts:1"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
     const manifest = readFileSync(join(tmp, 'eval', 'scanners.yaml'), 'utf8').replace(/gitleaks:[\s\S]*?(?=\n  \w|$)/, 'gitleaks:\n    status: ran');
     writeFileSync(join(tmp, 'eval', 'scanners.yaml'), manifest);
-    const runValidate = () => { try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); return true; } catch { return false; } };
+    const runValidate = () => { try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); return true; } catch { return false; } };
     writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), row('F-1000'));
     if (!runValidate()) fail('a four-digit finding id (F-1000) must validate green — the id space is not capped at 999');
     writeFileSync(join(tmp, 'eval', 'findings-91-gitleaks.yaml'), row('F-12'));
@@ -303,7 +303,7 @@ for (const [dir, what] of NEGATIVE) {
   // report into eval/raw/ verbatim, matched values and author identity included
   {
     const tmp = join(HERE, '.tmp-glarchive'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
-    execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], { stdio: 'pipe' });
+    execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], { stdio: 'pipe' });
     const archived = readFileSync(join(tmp, 'eval', 'raw', 'gitleaks.json'), 'utf8');
     if (archived.includes('AKIAFAKE') || archived.includes('sk-FAKE') || /"(Secret|Match|Line|Author|Email)"/.test(archived)) fail('the archived gitleaks report must carry locations only — never Secret, Match, Line, Author or Email');
     if (!/"RuleID"/.test(archived) || !/"File"/.test(archived) || !/"StartLine"/.test(archived)) fail('the archived gitleaks report must keep rule, file and line');
@@ -343,7 +343,7 @@ function adaptersOnce() { return loadAdapters(); }
 // runs — this goes red.
 {
   const fail = (m) => negFailures.push('exposures-sidecar: ' + m);
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), join(HERE, 'sidecar-fixture')], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), join(HERE, 'sidecar-fixture')], { stdio: 'pipe' }); }
   catch { fail('a NEW-FORM sidecar (no gate:, no blocks_stage:, standing_watch labeled) must validate green'); }
   const legacyDir = join(HERE, 'sidecar-fixture-legacy');
   mkdirSync(join(legacyDir, 'eval'), { recursive: true });
@@ -351,7 +351,7 @@ function adaptersOnce() { return loadAdapters(); }
   copyFileSync(join(HERE, 'sidecar-fixture', 'eval', 'scanners.yaml'), join(legacyDir, 'eval', 'scanners.yaml'));
   writeFileSync(join(legacyDir, 'eval', 'view-security-gate.yaml'),
     'gate: beta\nexposures:\n  - name: legacy-exposure\n    title: Legacy exposure\n    findings: [F-001]\n    blocks_stage: beta\n    who: authorized-real-user\n    what: legacy stake\n    likelihood: high\n    fix: >\n      Close it.\n');
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), legacyDir], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), legacyDir], { stdio: 'pipe' }); }
   catch { fail('a LEGACY sidecar (gate: + blocks_stage:) must still validate — frozen runs are grandfathered'); }
   rmSync(legacyDir, { recursive: true, force: true });
 }
@@ -383,7 +383,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,dependency-scan,fresh-clone,gitleaks,repo-census') fail('adopted scanners without a row must be reported missing');
   if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
   // the walk prints the reason on the not-measured register
-  const walk = execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
+  const walk = execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
   if (!walk.includes('deep-code-review (skipped this run: fixture run')) fail('the walk must print the skipped scanner and its reason on the not-measured register');
   // the package: refuses without a manifest; lists this run's appendices only, and names the skip
   const tmp = join(HERE, 'tmp-manifest');
@@ -394,11 +394,11 @@ function adaptersOnce() { return loadAdapters(); }
     copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(runA, 'eval', f));
   writeFileSync(join(runB, 'deep-code-review.md'), '# a sibling run\'s native report — must never be listed by run A\n');
   let refused = false;
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-package.mjs'), runA, '--no-pdf'], { stdio: 'pipe' }); } catch { refused = true; }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), runA], { stdio: 'pipe' }); } catch { refused = true; }
   if (!refused) fail('compile-package must refuse to compile a run with no manifest (the package is what gets read)');
   if (existsSync(join(runA, 'INDEX.md'))) fail('a refused package must not have written INDEX.md');
   copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), join(runA, 'eval', 'scanners.yaml'));
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-package.mjs'), runA, '--no-pdf'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), runA], { stdio: 'pipe' }); }
   catch (e) { fail(`compile-package must compile a run with a valid manifest (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
   const index = existsSync(join(runA, 'INDEX.md')) ? readFileSync(join(runA, 'INDEX.md'), 'utf8') : '';
   if (index.includes('b-2026-01-02')) fail('INDEX must not list a sibling run\'s native report as this run\'s appendix');
@@ -446,7 +446,7 @@ function adaptersOnce() { return loadAdapters(); }
     copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
   writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n  dependency-scan:\n    status: skipped\n    reason: "fixture: not executed"\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
   if (!existsSync(join(tmp, 'eval', 'findings-93-deep-code-review.yaml')) || !existsSync(join(tmp, 'eval', 'coverage-deep-code-review.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'deep-code-review.yaml'))) fail('ingest must write the rows file, the coverage sidecar, and the raw archive');
   const cov = loadScannerCoverage(tmp);
@@ -455,13 +455,13 @@ function adaptersOnce() { return loadAdapters(); }
   if (!ac || ac[0].full || !ac[0].partial.find((x) => x.l === 'B')) fail('code-security must read partially measured when domain B was partial');
   if (!coveragePhrase(ac).includes('B partial')) fail('the coverage phrase must name the partial domain');
   if (axisCoverage(adaptersOnce(), cov, 'delegation') !== null) fail('an axis dcr does not contribute has no dcr coverage groups (fed axes are not measured by it)');
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested machine report must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
-  const walk = execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-axes.mjs'), tmp, '--stdout'], { stdio: 'pipe' }).toString();
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested machine report must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
+  const walk = execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'axes.mjs'), tmp, '--stdout'], { stdio: 'pipe' }).toString();
   if (!walk.includes('Partially measured') || !walk.includes('B partial (mutating routes')) fail('the walk must say an axis is partially measured, with the scanner\'s note');
   rmSync(tmp, { recursive: true, force: true });
 }
 
-// ── fresh-clone instrument (tools/fresh-clone.mjs → ingest profile fresh-clone) ──
+// ── fresh-clone instrument (map/fresh-clone.mjs → ingest profile fresh-clone) ──
 // The runner over the public fixture must record what IS: the two declared steps
 // pass, the undeclared floor steps read not-declared (never passed), the planted
 // README claim reads missing, and the exit is 1. The converter turns exactly those
@@ -475,7 +475,7 @@ function adaptersOnce() { return loadAdapters(); }
   const out = join(tmp, 'fresh-clone.json');
   // (a) the runner, in place, no install (the fixture declares no dependencies)
   let exit = 0;
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'fresh-clone.mjs'), fx, '--no-clone', '--out', out, '--timeout', '120'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'fresh-clone.mjs'), fx, '--no-clone', '--out', out, '--timeout', '120'], { stdio: 'pipe' }); }
   catch (e) { exit = e.status; }
   if (exit !== 1) fail(`the runner over the fixture must exit 1 (a missing claim is a gap; got ${exit})`);
   const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
@@ -539,21 +539,21 @@ function adaptersOnce() { return loadAdapters(); }
     for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
       copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
     writeFileSync(join(tmp, 'eval', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), 'utf8').replace(/  fresh-clone:\n    status: skipped\n    reason: "[^"]*"\n/, '  fresh-clone:\n    status: ran\n'));
-    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'fresh-clone', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'fresh-clone', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
     catch (e) { fail(`ingest CLI must accept the fixture document (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
     if (!existsSync(join(tmp, 'eval', 'findings-94-fresh-clone.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'fresh-clone.json'))) fail('ingest must write findings-94-fresh-clone.yaml and archive the raw document');
-    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested fresh-clone run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested fresh-clone run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
     // a verified-clean run: the explicit empty file validates green with fresh-clone recorded as ran
     writeFileSync(join(tmp, 'clean.json'), JSON.stringify(cleanDoc));
-    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'fresh-clone', '--raw', join(tmp, 'clean.json'), '--exit', '0'], { stdio: 'pipe' }); } catch { fail('ingest must accept a clean (exit 0) document'); }
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'fresh-clone', '--raw', join(tmp, 'clean.json'), '--exit', '0'], { stdio: 'pipe' }); } catch { fail('ingest must accept a clean (exit 0) document'); }
     const cleanFile = readFileSync(join(tmp, 'eval', 'findings-94-fresh-clone.yaml'), 'utf8');
     if (!/0 row\(s\)/.test(cleanFile) || /^- id:/m.test(cleanFile)) fail('a clean run writes the explicit empty rows file');
-    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch { fail('a verified-clean fresh-clone run (empty explicit file, manifest ran) must validate green'); }
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch { fail('a verified-clean fresh-clone run (empty explicit file, manifest ran) must validate green'); }
   }
   rmSync(tmp, { recursive: true, force: true });
 }
 
-// ── dependency-scan instrument (tools/dependency-scan.mjs → ingest profile dependency-scan) ─
+// ── dependency-scan instrument (map/dependency-scan.mjs → ingest profile dependency-scan) ─
 // The converter turns a synthetic dependency-scan document into exactly: one gap row
 // per advisory (category = its own severity), one lockfile-failed gap per failed
 // lockfile, one lockfile-unsupported gap per not-supported (pnpm/yarn) lockfile, and
@@ -649,7 +649,7 @@ function adaptersOnce() { return loadAdapters(); }
   const tmp = join(HERE, 'tmp-fresh-clone-ws'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
   const out = join(tmp, 'fresh-clone.json');
   let exit = 0;
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'fresh-clone.mjs'), fx, '--no-clone', '--out', out, '--timeout', '60'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'fresh-clone.mjs'), fx, '--no-clone', '--out', out, '--timeout', '60'], { stdio: 'pipe' }); }
   catch (e) { exit = e.status; }
   if (exit !== 1) fail(`the runner over the monorepo fixture must exit 1 (apps/bad's build fails; got ${exit})`);
   const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
@@ -736,7 +736,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (!validateRegistry({ ...reg, descriptors: [emptyList] }).some((e) => /category/.test(e))) fail('validateRegistry must reject an empty category list');
 }
 
-// ── repo-census instrument (tools/repo-census.mjs → ingest profile repo-census) ──
+// ── repo-census instrument (map/repo-census.mjs → ingest profile repo-census) ──
 // The runner over the public fixture (a tiny monorepo, root + apps/one, plus
 // ops/evidence/) must record what IS:
 // architecture-page passes at the root (an Architecture section naming a
@@ -764,7 +764,7 @@ function adaptersOnce() { return loadAdapters(); }
   // deterministic regardless of when the harness actually runs
   const AS_OF = '2026-09-24';
   let exit = 0;
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'repo-census.mjs'), fx, '--out', out, '--default-branch', 'main', '--as-of', AS_OF], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), fx, '--out', out, '--default-branch', 'main', '--as-of', AS_OF], { stdio: 'pipe' }); }
   catch (e) { exit = e.status; }
   if (exit !== 1) fail(`the runner over the fixture must exit 1 (planted gaps; got ${exit})`);
   const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
@@ -896,10 +896,10 @@ function adaptersOnce() { return loadAdapters(); }
     for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
       copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
     writeFileSync(join(tmp, 'eval', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), 'utf8').replace(/  repo-census:\n    status: skipped\n    reason: "[^"]*"\n/, '  repo-census:\n    status: ran\n'));
-    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'repo-census', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'repo-census', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
     catch (e) { fail(`ingest CLI must accept the fixture document (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
     if (!existsSync(join(tmp, 'eval', 'findings-96-repo-census.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'repo-census.json'))) fail('ingest must write findings-96-repo-census.yaml and archive the raw document');
-    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested repo-census run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested repo-census run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
   }
   rmSync(tmp, { recursive: true, force: true });
 }
@@ -916,7 +916,7 @@ function adaptersOnce() { return loadAdapters(); }
     // gaps present ⇒ non-zero exit even in --json mode (the exit IS the verdict);
     // the payload is still on stdout either way.
     let out;
-    try { out = execFileSync(process.execPath, [join(ROOT, 'tools', 'enumerate.mjs'), fx, '--run', run, ...extra, '--json'], { stdio: 'pipe' }).toString(); }
+    try { out = execFileSync(process.execPath, [join(ROOT, 'map', 'enumerate.mjs'), fx, '--run', run, ...extra, '--json'], { stdio: 'pipe' }).toString(); }
     catch (e) { out = String(e.stdout || ''); }
     return JSON.parse(out).coverageGaps.map((g) => g.file);
   };
@@ -930,11 +930,11 @@ function adaptersOnce() { return loadAdapters(); }
   // exit-code honesty: --json must exit non-zero when gaps exist (a CI wiring
   // that checks only the exit code must never read green over uncovered surface)
   let gateExit = 0;
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'enumerate.mjs'), fx, '--run', run, '--json'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'enumerate.mjs'), fx, '--run', run, '--json'], { stdio: 'pipe' }); }
   catch (e) { gateExit = e.status; }
   if (gateExit !== 1) fail(`--json with coverage gaps must exit 1 (got ${gateExit})`);
   let vExit = 0;
-  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), join(HERE, 'negative', 'bad-dimension'), '--json'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), join(HERE, 'negative', 'bad-dimension'), '--json'], { stdio: 'pipe' }); }
   catch (e) { vExit = e.status; }
   if (vExit !== 1) fail(`validate --json over a red base must exit 1 (got ${vExit})`);
 }
@@ -946,7 +946,7 @@ function adaptersOnce() { return loadAdapters(); }
 {
   const fail = (m) => negFailures.push('enumerate-tooldef: ' + m);
   let out = '';
-  try { out = execFileSync(process.execPath, [join(ROOT, 'tools', 'enumerate.mjs'), join(HERE, 'enumerate-fixture', 'target')], { encoding: 'utf8' }); }
+  try { out = execFileSync(process.execPath, [join(ROOT, 'map', 'enumerate.mjs'), join(HERE, 'enumerate-fixture', 'target')], { encoding: 'utf8' }); }
   catch (e) { out = String(e.stdout || '') + String(e.message || ''); }
   for (const need of ['tool: send_thing', 'tool: read_thing', 'mcp-toolset: analytics']) {
     if (!out.includes(need)) fail(`enumerate did not surface "${need}" — the agent tool-def detector regressed`);
@@ -956,7 +956,7 @@ function adaptersOnce() { return loadAdapters(); }
 
 // ── descriptor-register invariants: extracted rows, honest deciders ───────────
 // The register must load and validate (closed vocab, every row sourced); each decider
-// must read a synthetic base the way registry/README.md says; and the two honesty
+// must read a synthetic base the way yardstick/README.md says; and the two honesty
 // gates must hold: an instrument row decides only when the manifest says it ran, and a
 // claim row NEVER reads met from a run. Prose is never a decider.
 {

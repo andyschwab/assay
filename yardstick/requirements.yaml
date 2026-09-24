@@ -1,0 +1,631 @@
+# yardstick/requirements.yaml — the descriptor register (v0, extracted 2026-09-22).
+#
+# One row per DESCRIPTOR: a requirement that must be true of a repository somebody
+# stands behind, stated stack-neutrally, with the mechanism that DECIDES it. The
+# register is the vocabulary a sidecar (a repo's own claims) and a run (assay's
+# verification) share; yardstick/README.md is the contract. Block YAML so
+# lib/yaml-min.mjs parses it.
+#
+# Extracted, not designed: every row names its sources in the four lists that
+# existed before it (a takeover floor, a fleet contract, a template's guarantee
+# manifest, a foundation template's universal rules) plus a takeover evaluation.
+#
+# decide.kind (closed):
+#   facet       computed from the schema's forced fields (effect / capability facets)
+#   census      an authored, enumerated population against a stated bar (maturity-inputs.yaml)
+#   instrument  a scanner's rows, read through the run manifest and the scanner's coverage
+#   claim       only a sidecar can assert it today; a run reads it NOT MEASURED until an
+#               instrument or census exists (never inferred from prose)
+version: 0
+namespace: assay
+tiers: [custody, safety, reproducibility, verification, legibility, operability]
+tags: [floor, fleet, ai-operating]
+
+descriptors:
+
+  # ── custody: we cannot carry what we do not control ──────────────────────
+  - id: d-accounts-enumerated
+    title: Every account the application depends on is enumerated with an owner and a transfer path
+    tier: custody
+    tags: [floor]
+    decide:
+      kind: claim
+    check: the owner questionnaire, one row per account (host, cloud, domain, data, mail, payments, model APIs, analytics, error tracking)
+    sources: [floor/c-accounts]
+    status: draft
+  - id: d-credentials-enumerated
+    title: Every credential is enumerated and its boundary confirmed
+    tier: custody
+    axis: delegation
+    tags: [floor, ai-operating]
+    decide:
+      kind: census
+      measures: [credentials-below-boundary, credential-boundary, credential]
+    check: the credential census, one row per secret, boundary traced not guessed
+    sources: [floor/c-credentials, manifest/d5-secrets-below-artifact, method/credential-census]
+    status: draft
+  - id: d-bus-factor
+    title: More than one person can build, deploy, and recover the application
+    tier: custody
+    tags: [floor]
+    decide:
+      kind: claim
+    check: an author census from history plus one deploy and one restore from a second machine
+    sources: [floor/c-bus-factor]
+    status: draft
+
+  # ── safety: nothing destructive can happen unnoticed ─────────────────────
+  - id: d-secrets-out-of-history
+    title: No secret lives in the tree or its history, and every leaked key has been rotated
+    tier: safety
+    axis: code-security
+    tags: [floor]
+    decide:
+      kind: instrument
+      scanner: gitleaks
+      category: secret
+    check: gitleaks over the full history exits clean; each prior leak has a rotation recorded
+    sources: [floor/s-secrets, foundation/never-a-secret-in-a-file, manifest/invariants]
+    status: draft
+  - id: d-routes-authorized
+    title: Every route that touches data is behind server-side authorization
+    tier: safety
+    axis: code-security
+    tags: [floor]
+    decide:
+      kind: instrument
+      scanner: deep-code-review
+      category: B
+    check: a route census where every data route names its check; the code scanner's application-security domain clean
+    sources: [floor/s-auth, takeover-eval/unauthenticated-paid-route]
+    status: draft
+  - id: d-tenant-isolation-in-data-layer
+    title: Scoping is enforced in the data layer, not only in the UI
+    tier: safety
+    axis: code-security
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: deep-code-review
+      category: T
+    check: every scoped table carries its policy; the scanner's multi-tenancy domain clean
+    sources: [foundation/structural-rule-3, takeover-eval/identity-re-derived]
+    status: draft
+  - id: d-dependencies-known-clean
+    title: No known-critical dependency vulnerability is present
+    tier: safety
+    axis: code-security
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: dependency-scan
+      category: critical
+    # the descriptor is worded on critical only (its category), so a run with high
+    # (or moderate/low/info) advisories and zero critical rows still reads met —
+    # narrower than the title; widen the category only with a reviewed change.
+    check: dependency-scan (npm audit over every lockfile in the tree) reports no critical advisory
+    sources: [floor/s-deps, scanner-candidates/core]
+    status: draft
+  - id: d-effects-gated
+    title: Every irreversible or outward effect runs behind a gate that holds
+    tier: safety
+    axis: deterministic-gates
+    tags: [floor, ai-operating]
+    decide:
+      kind: facet
+      rule: halts-gated
+    check: the effect inventory shows zero halt-class effects without a gate that holds (doctrine.mjs)
+    sources: [floor/s-effects-gated, manifest/d5-halt-tripwire, foundation/halts, takeover-eval/weekly-publish-unrecallable]
+    status: draft
+  - id: d-effects-traced
+    title: Every irreversible or outward effect leaves a durable record
+    tier: safety
+    axis: verification
+    tags: [floor, ai-operating]
+    decide:
+      kind: facet
+      rule: halts-traced
+    check: the effect inventory shows zero halt-class effects with no telemetry
+    sources: [floor/s-effects-traced, foundation/structural-rule-2]
+    status: draft
+  - id: d-gates-fail-closed
+    title: No gate is open when a dependency it needs is absent
+    tier: safety
+    axis: deterministic-gates
+    tags: [floor, fleet]
+    decide:
+      kind: facet
+      rule: gates-fail-closed
+    check: zero gated effects with fail_mode open; a gate whose secret or tool is missing goes red, never green
+    sources: [foundation/never-skip-a-test, takeover-eval/privacy-gate-passes-unset, manifest/d3-guards-bite]
+    status: draft
+  - id: d-capability-budget
+    title: No single AI context holds untrusted input, private data, and an outward effect at once
+    tier: safety
+    axis: delegation
+    tags: [floor, ai-operating]
+    decide:
+      kind: facet
+      rule: trifecta
+    check: no capability finding holds all three legs and reaches an effect with no gate that holds
+    sources: [floor/s-trifecta, manifest/d5-capability-budget, method/trifecta-screen]
+    status: draft
+  - id: d-personal-data-enumerated
+    title: Personal data held is enumerated, and nothing is stored the product never needed
+    tier: safety
+    axis: code-security
+    tags: [floor]
+    decide:
+      kind: instrument
+      scanner: deep-code-review
+      category: Q
+    check: a personal-data census over stores and schemas; the scanner's privacy domain clean
+    sources: [floor/s-personal-data]
+    status: draft
+  - id: d-backup-restore-exercised
+    title: Backups exist and a restore has been performed
+    tier: safety
+    axis: code-security   # register row carried no axis; nearest tier-mate (safety) is d-personal-data-enumerated
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-backup-restore-exercised
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check
+    sources: [floor/s-backup, foundation/nightly-restore]
+    status: draft
+  - id: d-ingested-content-is-data
+    title: Ingested content is stored verbatim, rendered escaped, and never acted on as instructions
+    tier: safety
+    axis: delegation
+    tags: [ai-operating, fleet]
+    decide:
+      kind: claim
+    check: every table holding outside text carries its provenance trio; no code path executes a directive read from content
+    sources: [foundation/ingested-content-is-data, method/acting-from]
+    status: draft
+
+  # ── reproducibility: it runs on a machine that is not yours ──────────────
+  - id: d-fresh-clone-runs
+    title: It installs, builds, and runs from the README on a clean machine
+    tier: reproducibility
+    axis: context-economy
+    tags: [floor]
+    decide:
+      kind: instrument
+      scanner: fresh-clone
+      category: [install, build]
+    check: the fresh-clone install and build steps both read passed from a clean checkout (map/fresh-clone.mjs), root and every workspace
+    sources: [floor/r-fresh-clone]
+    status: draft
+  - id: d-config-declared
+    title: Configuration is declared once and nothing environment-specific is hardcoded
+    tier: reproducibility
+    axis: code-security
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: deep-code-review
+      category: N
+    check: the env example is complete against the code's reads; the scanner's config domain clean
+    sources: [floor/r-config, foundation/config-stated-once]
+    status: draft
+  - id: d-dependencies-pinned
+    title: Dependencies and the toolchain are pinned, and CI actions by commit
+    tier: reproducibility
+    axis: code-security
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: deep-code-review
+      category: K
+    check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA
+    sources: [floor/r-deps-pinned, foundation/lockfile-and-nvmrc]
+    status: draft
+  - id: d-deploy-one-command
+    title: One documented command deploys, and what runs is what is committed
+    tier: reproducibility
+    axis: code-security   # register row carried no axis; nearest tier-mate (reproducibility) is d-dependencies-pinned
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-deploy-one-command
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check
+    sources: [floor/r-deploy, foundation/deploy-and-promote]
+    status: draft
+  - id: d-rollback-exercised
+    title: A rollback path exists and has been exercised
+    tier: reproducibility
+    axis: context-economy   # register row carried no axis; nearest tier-mate (reproducibility) is d-schema-versioned
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-rollback-exercised
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check
+    sources: [floor/r-rollback, foundation/promote]
+    status: draft
+  - id: d-schema-versioned
+    title: The schema is versioned and migrations replay from empty
+    tier: reproducibility
+    axis: context-economy
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: fresh-clone
+      category: migrate
+    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signals anywhere in the tree the runner emits no migrate row, so it reads met — nothing to migrate
+    sources: [floor/r-migrations, foundation/never-hand-apply-a-migration]
+    status: draft
+
+  # ── verification: something other than a person catches a regression ────
+  - id: d-tests-execute-core
+    title: Tests exist, run on a clean machine, and execute their core
+    tier: verification
+    axis: deterministic-gates
+    tags: [floor]
+    decide:
+      kind: instrument
+      scanner: fresh-clone
+      category: test
+    check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout; a suite that skips its core when a variable is unset is unmet
+    sources: [floor/v-tests, manifest/d3-gates-live, foundation/pnpm-check]
+    status: draft
+  - id: d-ci-gate-on-default-branch
+    title: A CI check on the default branch runs the gates and fails closed
+    tier: verification
+    axis: deterministic-gates
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: ci-gate
+    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
+    sources: [floor/v-ci, foundation/branch-protection]
+    status: draft
+  - id: d-guards-bite
+    title: Every shipped check carries a negative fixture that fails when the check is disabled
+    tier: verification
+    axis: deterministic-gates
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: the self-test flips red when any one check is weakened
+    sources: [manifest/d3-guards-bite]
+    status: draft
+  - id: d-lint-typecheck-gate
+    title: Lint and typecheck gates exist and pass
+    tier: verification
+    axis: deterministic-gates
+    tags: [floor]
+    decide:
+      kind: instrument
+      scanner: fresh-clone
+      category: [lint, typecheck]
+    check: the fresh-clone lint and typecheck steps both read passed from a clean checkout; never the raw output
+    sources: [floor/v-lint, scanner-candidates/inverted-mode]
+    status: draft
+  - id: d-smoke-on-deployed
+    title: A smoke check proves the deployed application comes up and the main path works
+    tier: verification
+    axis: deterministic-gates   # register row carried no axis; nearest tier-mate (verification) is d-lint-typecheck-gate
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-smoke-on-deployed
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check
+    sources: [floor/v-smoke, foundation/doctor]
+    status: draft
+  - id: d-effects-provable
+    title: Every effect can prove it happened, deterministically, from outside the AI
+    tier: verification
+    axis: verification
+    tags: [ai-operating]
+    decide:
+      kind: facet
+      rule: effects-provable
+    check: effects with a structured or audited record, of all effects
+    sources: [method/verification-measure]
+    status: draft
+  - id: d-contract-test-per-vendor
+    title: Every external system reached has a recorded contract test against its sandbox
+    tier: verification
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: one contract test per vendor; the null adapter every spec runs on
+    sources: [foundation/integrations-guide, takeover-eval/no-provider-contract]
+    status: draft
+  - id: d-effect-sites-tested
+    title: The code paths that produce effects are exercised by tests
+    tier: verification
+    axis: deterministic-gates
+    tags: [floor]
+    decide:
+      kind: claim
+    check: each effect channel's driver has a test that exercises the site where the effect is decided
+    sources: [takeover-eval/cascade-driver-untested]
+    status: draft
+  - id: d-change-carries-verification
+    title: Every change lands with its own verification stated
+    tier: verification
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: the PR template's verification section is mandatory and CI refuses an empty one
+    sources: [manifest/d4-verification-rhythm, foundation/pr-template]
+    status: draft
+
+  # ── legibility: someone else can find their way in ───────────────────────
+  - id: d-readme-true
+    title: The README is true for this application, measured by running it, not by reading it
+    tier: legibility
+    axis: artifact-legibility
+    tags: [floor, fleet]
+    decide:
+      kind: census
+      measures: [doc-freshness]
+    check: concrete doc claims replayed in the fresh-clone run
+    sources: [floor/l-readme, method/docs-freshness-probe]
+    status: draft
+  - id: d-decisions-reconstruct
+    title: Non-obvious decisions reconstruct their rationale from the files alone
+    tier: legibility
+    axis: artifact-legibility
+    tags: [floor]
+    decide:
+      kind: census
+      measures: [decision-reconstruction, decision-rationale, patch-rationale]
+    check: the decision census, n decisions frozen before assessment
+    sources: [floor/l-decisions, manifest/d1-decision-container, method/pass-1]
+    status: draft
+  - id: d-modules-standalone
+    title: A bounded context can load one module alone with something to read and something to run
+    tier: legibility
+    axis: context-economy
+    tags: [floor]
+    decide:
+      kind: census
+      measures: [modules-standalone, module-standalone, module-loadability, control-plane-modules-standalone]
+    check: the module census
+    sources: [method/pass-2]
+    status: draft
+  - id: d-architecture-page
+    title: One page shows the parts, the data flow, and the external services
+    tier: legibility
+    axis: artifact-legibility
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: architecture-page
+    check: the repo census, an architecture page present (root and per app in a monorepo) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
+    sources: [floor/l-architecture, foundation/docs-architecture]
+    status: draft
+  - id: d-agent-contract
+    title: An agent contract exists, is present-tense, and is the home for house rules
+    tier: legibility
+    axis: improvement-loop
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: agent-contract
+    check: the repo census, AGENTS.md or CLAUDE.md present (root and per app in a monorepo) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
+    sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, foundation/CLAUDE.md]
+    status: draft
+  - id: d-one-home-per-fact
+    title: Each fact the system relies on has one authoritative home, in docs and in code
+    tier: legibility
+    axis: code-correctness
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: a docs guard refuses a second account of a list; in code, one store per remembered fact
+    sources: [foundation/where-things-are-written, takeover-eval/one-fact-many-memories]
+    status: draft
+
+  # ── operability: we can see it and afford it ─────────────────────────────
+  - id: d-errors-reach-a-person
+    title: Errors and logs reach somewhere a person looks
+    tier: operability
+    axis: verification
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: deep-code-review
+      category: M
+    check: an error sink configured and one induced error observed arriving
+    sources: [floor/o-errors]
+    status: draft
+  - id: d-monitoring-with-alert
+    title: Uptime or smoke monitoring exists with an alert route that has been tested
+    tier: operability
+    axis: verification   # register row carried no axis; nearest tier-mate (operability) is d-errors-reach-a-person
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-monitoring-with-alert
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check
+    sources: [floor/o-monitoring]
+    status: draft
+  - id: d-cost-alerts
+    title: Cost alerts exist on every metered account from day one
+    tier: operability
+    axis: artifact-legibility   # register row carried no axis; nearest tier-mate (operability) is d-runbook
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-cost-alerts
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check
+    sources: [floor/o-cost, foundation/budgets]
+    status: draft
+  - id: d-runbook
+    title: A one-page runbook covers restart, roll back, rotate a key, restore
+    tier: operability
+    axis: artifact-legibility
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: repo-census
+      category: runbook
+    check: the repo census, the runbook present with a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup; each procedure having been run once stays the owner's evidence
+    sources: [floor/o-runbook, foundation/RUNBOOKS.md]
+    status: draft
+  - id: d-health-read
+    title: One command reports the whole foundation green or red with a reason
+    tier: operability
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: the doctor script, same output shape on every application
+    sources: [foundation/doctor]
+    status: draft
+  - id: d-every-run-terminates
+    title: Every automated run ends red or green with a reason, never hangs
+    tier: operability
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: every job declares a timeout; a stall is a red check in minutes
+    sources: [foundation/red-means-stop, foundation/deploy-timeouts]
+    status: draft
+  - id: d-backlog-is-issues
+    title: The backlog is the repository's issues, labelled by need-by, kind, and size, and the merge empties it
+    tier: operability
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: no list file carries rows; every PR closes the issues it finishes; the label set is the shared one
+    sources: [foundation/docs-backlog, manifest/d7-coordination-adapter]
+    status: draft
+  - id: d-foundation-asks-swept
+    title: Asks of the platform owner are marked at the code site and swept before they go stale
+    tier: operability
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: the marker sweep runs with a staleness threshold and goes red past it
+    sources: [foundation/foundation-asks]
+    status: draft
+  - id: d-template-partition-synced
+    title: The template-owned partition is declared, synced from the template, and guarded on both sides
+    tier: operability
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: the sync manifest present; the guard test red on a template-owned file edited locally
+    sources: [foundation/template-sync]
+    status: draft
+  - id: d-template-currency
+    title: The application knows which template version it carries and when it is behind
+    tier: operability
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: a template commit stamp, a sync check that exits non-zero on drift, a currency line in the health read
+    sources: [template-eval/F-107]
+    status: draft
+  - id: d-red-main-stops-work
+    title: A red run on the default branch is the work now, before anything else merges
+    tier: operability
+    tags: [fleet]
+    decide:
+      kind: claim
+    check: the contract states it; the default branch's latest runs are green at every merge
+    sources: [foundation/red-means-stop]
+    status: draft
+
+  # ── ai-operating: the model-call layer, on top of any foundation ─────────
+  - id: d-effect-channels-enumerated
+    title: Every channel through which an AI surface produces effects is enumerated in a declared canon
+    tier: safety
+    axis: delegation
+    tags: [ai-operating]
+    decide:
+      kind: claim
+    check: a canon file names the channels, AI surfaces, and census subject types; the run reads it rather than re-deriving
+    sources: [method/canon, method/enumerate]
+    status: draft
+  - id: d-model-call-telemetry
+    title: Every model call emits a structured record with tier, spend, and outcome
+    tier: verification
+    axis: context-economy
+    tags: [ai-operating]
+    decide:
+      kind: claim
+    check: one record per call in a machine-readable sink; spend metered per work class
+    sources: [manifest/d6-telemetry-native, method/spend-meter]
+    status: draft
+  - id: d-model-qualification
+    title: Model and tier choices are recorded with rationale and re-qualified when models ship
+    tier: verification
+    tags: [ai-operating]
+    decide:
+      kind: claim
+    check: a qualification record per model in use, dated, with the re-qualification trigger named
+    sources: [method/pass-2-spend]
+    status: draft
+  - id: d-calibration-harness
+    title: Any skill or rubric the application relies on is hardened by measurement, not assumed repeatable
+    tier: verification
+    tags: [ai-operating]
+    decide:
+      kind: claim
+    check: a frozen input run blind n times with the divergence disposed into named classes
+    sources: [manifest/d4-eval-seed, method/calibration-probe]
+    status: draft
+  - id: d-ai-feature-evals
+    title: Shipped AI features carry evals for answer quality
+    tier: verification
+    tags: [ai-operating]
+    decide:
+      kind: claim
+    check: an eval config present and run in CI for each AI feature; a dynamic scanner is the eventual instrument
+    sources: [scanner-candidates/dynamic-tier, issue/2]
+    status: draft
+  - id: d-ai-disclosure
+    title: AI involvement is disclosed to the audience's norms, structurally where the audience requires it
+    tier: safety
+    axis: delegation
+    tags: [ai-operating]
+    decide:
+      kind: claim
+    check: each outward channel names its disclosure mechanism or records why none is needed
+    sources: [method/authorship-probe]
+    status: draft
+  - id: d-agent-consumable-surface
+    title: Every capability is reachable by an agent through an API or format contract, not only a human UI
+    tier: legibility
+    axis: multiplayer
+    tags: [ai-operating, fleet]
+    decide:
+      kind: census
+      measures: [agent-access-surface, agent-consumable-surface]
+    check: the interface census, interfaces consumable by an agent of all interfaces
+    sources: [manifest/d7-agent-surface, manifest/d7-format-contracts, foundation/structural-rule-4]
+    status: draft
+  - id: d-corrections-become-mechanisms
+    title: Recorded lessons become durable mechanisms rather than notes
+    tier: legibility
+    axis: improvement-loop
+    tags: [fleet, ai-operating]
+    decide:
+      kind: census
+      measures: [incidents-became-mechanisms, incident-lesson, lessons-mechanized]
+    check: the incident census, lessons that became a mechanism of lessons recorded
+    sources: [manifest/d6-correction-capture, foundation/lesson-with-its-incident]
+    status: draft
+  - id: d-independent-review
+    title: Non-trivial work is reviewed by a context that did not produce it before it merges
+    tier: verification
+    tags: [ai-operating]
+    decide:
+      kind: claim
+    check: the review step present in the contract and evidenced on merged PRs
+    sources: [manifest/d4-independent-review]
+    status: draft

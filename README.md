@@ -53,8 +53,8 @@ thing plug in:
   "0 findings", and a secrets scanner's matched values are never copied out of
   its report.
 
-The contract for both is `integration/scanner-contract.md`; the candidate roster
-of further scanners is `integration/scanner-candidates.md`.
+The contract for both is `map/scanners/CONTRACT.md`; the candidate roster
+of further scanners is `map/scanners/CANDIDATES.md`.
 
 ## Quickstart
 
@@ -64,41 +64,37 @@ drives the passes. The supporting tools are zero-dependency Node (≥ 20):
 
 ```sh
 # validate a findings base (schema, ids, links, citations, the run manifest — fails closed)
-node tools/validate.mjs <run-dir> [--target <target-repo>]
+node assay.mjs validate <run-dir> [--target <target-repo>]
 
 # project + compile the package (validates first; report + walk + handoff + index)
-node tools/compile-package.mjs <run-dir>
+node assay.mjs compile <run-dir>
 
 # ingest a deterministic instrument (fails loud on a bad exit code)
-node tools/ingest.mjs <run-dir> --tool gitleaks --raw gitleaks.json --exit 1
+node assay.mjs ingest <run-dir> --tool gitleaks --raw gitleaks.json --exit 1
 
 # ingest a peer scanner's machine report (fails loud on incomplete coverage)
-node tools/ingest.mjs <run-dir> --tool deep-code-review --raw findings-2026-09-15.yaml
+node assay.mjs ingest <run-dir> --tool deep-code-review --raw findings-2026-09-15.yaml
 
 # grade a run against a known-answer fixture sheet
-node tools/score.mjs <run-dir> --answers <target>/ANSWERS.yaml
+node assay.mjs score <run-dir> --answers <target>/ANSWERS.yaml
 
 # measure repeatability across two or more runs of one target (two numbers:
 # fact presence, and agreement on the descriptors the verdict is computed from)
-node tools/variance.mjs <run-dir> <run-dir> [<run-dir> ...]
+node assay.mjs variance <run-dir> <run-dir> [<run-dir> ...]
 ```
-
-Rendering the report to PDF (`tools/render-pdf.mjs`) additionally needs
-`markdown-it` and a headless Chromium; the base tools stay dependency-free so they
-copy cleanly into any target repo.
 
 ## The descriptor register (v0)
 
 Beside the axis roster, findings project onto a **descriptor register**
-(`registry/descriptors.yaml`): one row per requirement a repository must meet to
+(`yardstick/requirements.yaml`): one row per requirement a repository must meet to
 be stood behind, stated stack-neutrally, each naming the mechanism that decides
 it (a schema facet, an authored census, a scanner's rows, or a sidecar claim).
-`tools/descriptors.mjs <run-dir>` reads a run and writes, per descriptor, met /
+`yardstick/measure.mjs <run-dir>` reads a run and writes, per descriptor, met /
 unmet / mixed / not-measured with the finding ids; a claim-only row always reads
 not-measured from a run, because only a repository's own sidecar asserts it and
-the two are compared, never merged. `registry/README.md` is the contract. Every package
-carries the read: `compile-package.mjs` writes it after validating, the index and
-the report state it once, and `validate.mjs` recomputes every status and fails
+the two are compared, never merged. `yardstick/README.md` is the contract. Every package
+carries the read: `views/compile.mjs` writes it after validating, the index and
+the report state it once, and `map/validate.mjs` recomputes every status and fails
 on drift, so a stale read cannot outlive its base. The axis views are unchanged.
 
 ## Repeatability is two numbers, not one
@@ -109,7 +105,7 @@ Repeatability is measured at both layers, because they drift independently.
 that is the layer the product's output rides on, since maturity coverage, the halt
 flags, the attack-chain ranking and the deployment gate are all computed from the
 effect facet. A pair of runs can agree on what exists and disagree on what it means,
-and only the second number sees it. `tools/variance.mjs` reports both, and gives each
+and only the second number sees it. `map/variance.mjs` reports both, and gives each
 divergence a direction: all-one-way is consistent with the target having changed,
 **both-ways at once is judgment drift** — and a cross-run coverage delta computed over
 those descriptors is not a trend.
@@ -118,7 +114,7 @@ those descriptors is not a trend.
 
 The engine's coverage is measured against **known-answer fixtures** — small
 targets whose every planted defect and strength is documented — in a companion
-repo, [assay-fixtures](https://github.com/andyschwab/assay-fixtures). `tools/score.mjs`
+repo, [assay-fixtures](https://github.com/andyschwab/assay-fixtures). `map/score.mjs`
 grades a run against a target's `ANSWERS.yaml` (recall of planted items, and a
 control target's false-positive count), and `tests/regression.mjs` pins those
 scores so a projection change that misfiles a finding drops recall and turns the
@@ -131,15 +127,16 @@ npm test
 ## Layout
 
 ```
-METHOD.md                  the built-in scanner method (the LLM passes)
-SCHEMA.md                  the finding format contract (validator-enforced)
-integration/               the scanner contract, adapters, and candidate roster
-registry/                  the descriptor register + the descriptor projection (v0)
-tools/                     zero-dep engine tools + the PDF renderer
-templates/                 report partials, styles, vendored fonts
-canon/                     per-target enumeration contracts (ships empty)
-tests/                     the regression harness + public scored fixtures
-HISTORY.md                 append-only dated log of how the engine got here
+assay.mjs                  the one CLI: node assay.mjs <command> [args]
+lib/                        yaml-min.mjs, display.mjs — shared, zero-dep
+map/                        drawing the map: SCHEMA.md, METHOD.md, the scanner
+                             contract + adapters (map/scanners/), the canon
+                             (map/canon/), and the zero-dep engine tools
+yardstick/                  the descriptor register + the descriptor projection (v0)
+views/                      the compiled readers: views/compile.mjs, views/improve/
+owner/                      evidence/ — what a repository's owner supplies
+tests/                      the regression harness + public scored fixtures
+HISTORY.md                  append-only dated log of how the engine got here
 ```
 
 ## Provenance

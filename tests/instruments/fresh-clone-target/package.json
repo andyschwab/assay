@@ -2,7 +2,7 @@
   "name": "fresh-clone-target",
   "version": "0.0.0",
   "private": true,
-  "description": "Public known-answer fixture for tools/fresh-clone.mjs: a dependency-free package whose test and build pass, whose lint/typecheck/migrate are not declared, and whose README claims one script that does not exist.",
+  "description": "Public known-answer fixture for map/fresh-clone.mjs: a dependency-free package whose test and build pass, whose lint/typecheck/migrate are not declared, and whose README claims one script that does not exist.",
   "license": "Apache-2.0",
   "scripts": {
     "test": "node -e \"process.exit(0)\"",

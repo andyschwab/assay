@@ -1,6 +1,6 @@
 # fresh-clone-target
 
-A public known-answer fixture for `tools/fresh-clone.mjs` (the fresh-clone
+A public known-answer fixture for `map/fresh-clone.mjs` (the fresh-clone
 instrument). It carries no dependencies, so the runner can exercise it in place
 (`--no-clone`) without an install. The expected raw document: `test` and `build`
 pass; `lint`, `typecheck` and `migrate` are not declared; `install` is not declared

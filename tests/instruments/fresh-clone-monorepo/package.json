@@ -2,7 +2,7 @@
   "name": "fresh-clone-monorepo",
   "version": "0.0.0",
   "private": true,
-  "description": "Public known-answer fixture for tools/fresh-clone.mjs workspace support: an npm-workspaces shell exactly like a real monorepo's root — no scripts, no dependencies, no lockfile of its own. Before workspace support the runner read this as six not-declared steps, exit 0, while apps/bad's real failure never surfaced. apps/good passes; apps/bad fails.",
+  "description": "Public known-answer fixture for map/fresh-clone.mjs workspace support: an npm-workspaces shell exactly like a real monorepo's root — no scripts, no dependencies, no lockfile of its own. Before workspace support the runner read this as six not-declared steps, exit 0, while apps/bad's real failure never surfaced. apps/good passes; apps/bad fails.",
   "license": "Apache-2.0",
   "workspaces": [
     "apps/*"
