@@ -44,7 +44,7 @@ contradictions:    # a packet claim of satisfied against a run-decided unmet row
 
 `met` and `of` appear when the requirement is decided over a counted population.
 `decided_by` names what would decide a row still to run: a scanner, `census`, or
-`owner` for a claim only the owner can make (`owner/custody.md`,
+`owner` for a claim only the owner can make (`owner/ask-owner.md`,
 `owner/PACKET.md`). `basis` (`run | owner`) is who decided the row THIS run —
 `owner` only where a repository's own packet decided it (`yardstick/measure.mjs
 --packet`, `owner/PACKET.md`); the page renders it as "met, by the owner's word".

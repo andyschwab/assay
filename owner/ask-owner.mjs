@@ -97,7 +97,11 @@ export function render(runDir) {
   const template = readFileSync(TEMPLATE_FILE, 'utf8');
   if (!template.includes(MARKER)) throw new Error(`${TEMPLATE_FILE} carries no ${MARKER} marker`);
   const found = buildWhatWeFound(runDir);
-  return template.replace(MARKER, () => found);   // a function replacer: $-sequences in `found` are never special
+  // only the part the owner receives: from the "Paste this whole message" line down (the
+  // frontmatter and the sender's note above it stay with us)
+  const start = template.indexOf('**Paste this whole message');
+  const body = start > -1 ? template.slice(start) : template;
+  return body.replace(MARKER, () => found);   // a function replacer: $-sequences in `found` are never special
 }
 
 if (isMain(import.meta.url)) {
