@@ -19,13 +19,14 @@
 //     (a repo's own claims) can assert it, and the two are compared, never merged.
 //
 // Usage:  node assay.mjs measure <run-dir> [--write] [--json]
-//   --write   regenerate eval/view-descriptors.yaml (generated; never hand-edit)
+//   --write   regenerate eval/yardstick.yaml (generated; never hand-edit)
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
+import { RENAMES, resolveRenamed } from '../lib/legacy-name.mjs';
 import { isHalt, isHaltClass, gateHolds, isMain } from '../map/doctrine.mjs';
-import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters } from '../map/project.mjs';
+import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 export const REGISTRY_FILE = join(HERE, 'requirements.yaml');
@@ -33,18 +34,23 @@ export const KINDS = ['facet', 'census', 'instrument', 'claim'];
 export const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable'];
 export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured'];
 const STRUCTURED = new Set(['structured-event', 'audited']);
+// TOPICS — the roster a requirement's `topic:` must land on: the axis roster
+// (map/project.mjs AXIS_ORDER) plus the two tiers with no axis of their own.
+export const TOPICS = [...AXIS_ORDER, 'custody', 'operability'];
 
 // ── the register: load + validate (fail closed) ───────────────────────────────
 export function validateRegistry(reg) {
   const errors = [];
   if (!reg || !Array.isArray(reg.descriptors)) return ['registry: no descriptors list'];
-  const tiers = new Set(reg.tiers || []), tags = new Set(reg.tags || []), seen = new Set();
+  if (!Array.isArray(reg.tiers) || !reg.tiers.length) errors.push('registry: tiers must be a non-empty list');
+  const tiers = new Set(reg.tiers || []), tags = new Set(reg.tags || []), topics = new Set(TOPICS), seen = new Set();
   for (const d of reg.descriptors) {
     const at = `registry: ${d.id ?? '(no id)'}`;
     if (!d.id || !/^d-[a-z0-9-]+$/.test(d.id)) errors.push(`${at}: id must match d-<slug>`);
     if (seen.has(d.id)) errors.push(`${at}: duplicate id`); seen.add(d.id);
     if (!d.title) errors.push(`${at}: title required`);
     if (!tiers.has(d.tier)) errors.push(`${at}: tier "${d.tier}" not in registry tiers`);
+    if (!topics.has(d.topic)) errors.push(`${at}: topic "${d.topic}" not in the allowed list (the axis roster plus custody, operability)`);
     for (const t of d.tags || []) if (!tags.has(t)) errors.push(`${at}: tag "${t}" not in registry tags`);
     if (!d.decide || !KINDS.includes(d.decide.kind)) errors.push(`${at}: decide.kind must be one of ${KINDS.join('|')}`);
     else if (d.decide.kind === 'facet' && !FACET_RULES.includes(d.decide.rule)) errors.push(`${at}: facet rule "${d.decide.rule}" unknown`);
@@ -174,7 +180,7 @@ export function projectDescriptors({ findings, manifest, inputs, coverage }, reg
     else if (d.decide.kind === 'census') r = byCensus(d, inputs);
     else if (d.decide.kind === 'instrument') r = byInstrument(d, findings, disp, coverage || {});
     else r = row('not-measured', 'claim', [], 'claim-only: decided by the sidecar, never inferred from a run');
-    return { id: d.id, title: d.title, tier: d.tier, tags: d.tags || [], axis: d.axis ?? null, kind: d.decide.kind, ...r };
+    return { id: d.id, title: d.title, tier: d.tier, tags: d.tags || [], topic: d.topic ?? null, kind: d.decide.kind, ...r };
   });
 }
 export function projectRun(runDir, reg) {
@@ -182,22 +188,39 @@ export function projectRun(runDir, reg) {
   if (!findings.length) throw new Error(`no findings under ${runDir}`);
   return projectDescriptors({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir) }, reg);
 }
+// Read back a run's own measurement — eval/yardstick.yaml, falling back to the
+// legacy eval/view-descriptors.yaml — the FILE, never recomputed. This is what
+// the three views (Intake, Maintain, Improve's topic grouping) read: only this
+// measurement plus the register (for title/tier/topic/check), never findings
+// directly. Returns null when the run has not been measured yet.
+export function loadMeasurement(dir) {
+  const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
+  const p = resolveRenamed(ev, 'yardstick');
+  if (!existsSync(p)) return null;
+  const doc = parseYaml(readFileSync(p, 'utf8'));
+  return Array.isArray(doc.requirements) ? doc.requirements
+    : Array.isArray(doc.descriptors) ? doc.descriptors : [];
+}
 export function summarize(rows) {
   const c = Object.fromEntries(STATUSES.map((s) => [s, 0]));
   for (const r of rows) c[r.status]++;
   return { ...c, decided: rows.length - c['not-measured'], of: rows.length };
 }
 const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
+// eval/yardstick.yaml — the run's measurement of the map against the yardstick.
+// Per row: what THIS RUN decided and how; a title/tier/topic/check is the
+// register's, joined by id, never duplicated here (one home per fact).
 export function toYaml(rows, runName) {
-  const L = [`# view-descriptors.yaml — GENERATED by yardstick/measure.mjs --write. Do not hand-edit.`,
-    `# The descriptor projection of run ${runName}: per descriptor, what THIS RUN decides and how.`,
-    `# A claim-only descriptor reads not-measured here by construction; the sidecar asserts it, the run never infers it.`,
-    'schema: descriptors', 'registry: 0', 'summary:'];
+  const L = [`# yardstick.yaml — GENERATED by yardstick/measure.mjs --write. Do not hand-edit.`,
+    `# The yardstick's measurement of run ${runName}: per requirement, what THIS RUN decides and how.`,
+    `# A claim-only requirement reads not-measured here by construction; the sidecar asserts it, the run never infers it.`,
+    `# title/tier/topic/check are the register's (yardstick/requirements.yaml), joined by id — not duplicated here.`,
+    'schema: yardstick', 'version: 0', 'summary:'];
   const s = summarize(rows);
   for (const k of [...STATUSES, 'decided', 'of']) L.push(`  ${k}: ${s[k]}`);
-  L.push('descriptors:');
+  L.push('requirements:');
   for (const r of rows) {
-    L.push(`  - id: ${r.id}`, `    status: ${r.status}`, `    how: ${r.how}`, `    tier: ${r.tier}`);
+    L.push(`  - id: ${r.id}`, `    status: ${r.status}`, `    how: ${r.how}`);
     if (r.of != null) L.push(`    met: ${r.met}`, `    of: ${r.of}`);
     L.push(`    findings: [${r.findings.join(', ')}]`, `    note: ${q(r.note)}`);
   }
@@ -217,7 +240,8 @@ if (isMain(import.meta.url)) {
   }
   if (args.includes('--write')) {
     const ev = existsSync(join(dir, 'eval')) ? join(dir, 'eval') : dir;
-    writeFileSync(join(ev, 'view-descriptors.yaml'), toYaml(rows, dir.split('/').filter(Boolean).pop()));
-    console.error(`wrote ${join(ev, 'view-descriptors.yaml')}`);
+    const out = join(ev, RENAMES.yardstick.current);
+    writeFileSync(out, toYaml(rows, dir.split('/').filter(Boolean).pop()));
+    console.error(`wrote ${out}`);
   }
 }

@@ -17,7 +17,7 @@
 // deliverable) and adds the AUTHORED items a tool cannot compute (a false strength over
 // an un-inspected class, a band-sizing limit, a granularity drift). That split mirrors
 // maturity: the tool computes what it can, the human authors the judgment. This file is
-// tool-owned and regenerable — like view-maturity-grades.yaml, never hand-edited.
+// tool-owned and regenerable — like eval/improve-maturity-grades.yaml, never hand-edited.
 //
 // Zero runtime deps beyond node + the sibling tools (which are themselves zero-dep).
 //

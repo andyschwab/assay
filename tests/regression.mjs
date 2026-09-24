@@ -710,7 +710,7 @@ function adaptersOnce() { return loadAdapters(); }
 {
   const fail = (m) => negFailures.push('descriptor-list-category: ' + m);
   const reg = loadRegistry();
-  const listDescriptor = { id: 'd-test-list', title: 'test', tier: 'reproducibility', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
+  const listDescriptor = { id: 'd-test-list', title: 'test', tier: 'reproducibility', topic: 'context-economy', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
   const testReg = { ...reg, descriptors: [listDescriptor] };
   const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
   // a gap in EITHER listed category decides the row (here: only "build" has a gap)
@@ -1011,6 +1011,109 @@ function adaptersOnce() { return loadAdapters(); }
   }
 }
 
+// ── yardstick topic invariants: every row needs one, from the allowed roster ──
+// Phase 2 (2026-09-24): a register row's `axis:` became `topic:`, required and
+// closed to the axis roster plus custody, operability (the two tiers with no
+// axis of their own). Missing or unknown must both fail closed.
+{
+  const fail = (m) => negFailures.push('yardstick-topic: ' + m);
+  const reg = loadRegistry();
+  const noTopic = { ...reg, descriptors: reg.descriptors.map((d, i) => i === 0 ? { ...d, topic: undefined } : d) };
+  if (!validateRegistry(noTopic).some((e) => /topic/.test(e))) fail('a requirement with no topic must be rejected');
+  const badTopic = { ...reg, descriptors: reg.descriptors.map((d, i) => i === 0 ? { ...d, topic: 'not-a-real-topic' } : d) };
+  if (!validateRegistry(badTopic).some((e) => /topic "not-a-real-topic"/.test(e))) fail('a topic outside the allowed list must be rejected');
+  if (validateRegistry(reg).length) fail('the shipped register must validate clean with every row carrying a topic');
+}
+
+// ── Intake, Maintain, Improve: three views of one yardstick measurement ───────
+// All three read ONLY eval/yardstick.yaml (+ the register for title/check/tier,
+// + the manifest for what was not seen) — never findings directly. Intake is the
+// floor population, Maintain the fleet population (every row also stamped
+// floor: true|false), Improve groups every requirement by topic exactly once.
+{
+  const fail = (m) => negFailures.push('intake-maintain-improve: ' + m);
+  const tmp = join(HERE, 'tmp-views'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml', 'scanners.yaml'])
+    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --write must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'intake.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/intake.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'maintain.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/maintain.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'topics.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/improve/topics.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+
+  for (const f of ['intake.yaml', 'maintain.yaml', 'improve.yaml']) if (!existsSync(join(tmp, 'eval', f))) fail(`eval/${f} must be written`);
+  if (!existsSync(join(tmp, 'INTAKE.md'))) fail('INTAKE.md must be written at the run root');
+  if (!existsSync(join(tmp, 'MAINTAIN.md'))) fail('MAINTAIN.md must be written at the run root');
+
+  const reg = loadRegistry();
+  const dupes = (ids) => ids.filter((id, i) => ids.indexOf(id) !== i);
+
+  if (existsSync(join(tmp, 'eval', 'intake.yaml'))) {
+    const doc = parseYaml(readFileSync(join(tmp, 'eval', 'intake.yaml'), 'utf8'));
+    const floorIds = reg.descriptors.filter((d) => (d.tags || []).includes('floor')).map((d) => d.id);
+    const all = [...(doc.open || []), ...(doc.met || []), ...(doc.to_run || [])];
+    const ids = all.map((r) => r.id);
+    const missing = floorIds.filter((id) => !ids.includes(id));
+    if (ids.length !== floorIds.length || missing.length || dupes(ids).length)
+      fail(`every floor row must appear exactly once across intake.yaml's open/met/to_run (got ${ids.length} of ${floorIds.length} floor rows; missing ${missing.join(', ') || 'none'}; duplicated ${dupes(ids).join(', ') || 'none'})`);
+  }
+
+  let maintainDoc = null;
+  if (existsSync(join(tmp, 'eval', 'maintain.yaml'))) {
+    maintainDoc = parseYaml(readFileSync(join(tmp, 'eval', 'maintain.yaml'), 'utf8'));
+    const fleetIds = reg.descriptors.filter((d) => (d.tags || []).includes('fleet')).map((d) => d.id);
+    const all = [...(maintainDoc.open || []), ...(maintainDoc.met || []), ...(maintainDoc.to_run || [])];
+    const ids = all.map((r) => r.id);
+    const missing = fleetIds.filter((id) => !ids.includes(id));
+    if (ids.length !== fleetIds.length || missing.length || dupes(ids).length)
+      fail(`every fleet row must appear exactly once in maintain.yaml (got ${ids.length} of ${fleetIds.length} fleet rows; missing ${missing.join(', ') || 'none'}; duplicated ${dupes(ids).join(', ') || 'none'})`);
+    if (all.some((r) => typeof r.floor !== 'boolean')) fail('every maintain.yaml row must carry floor: true|false');
+  }
+
+  if (existsSync(join(tmp, 'eval', 'improve.yaml'))) {
+    const doc = parseYaml(readFileSync(join(tmp, 'eval', 'improve.yaml'), 'utf8'));
+    const ids = (doc.topics || []).flatMap((t) => (t.rows || []).map((r) => r.id));
+    if (ids.length !== reg.descriptors.length || dupes(ids).length)
+      fail(`every requirement must appear exactly once in improve.yaml (got ${ids.length} of ${reg.descriptors.length}; duplicated ${dupes(ids).join(', ') || 'none'})`);
+  }
+
+  // decided_by: "owner" for every claim row (claim always reads not-measured, so
+  // it always lands in to_run) — check both Intake and Maintain's to_run lists.
+  const claimIds = new Set(reg.descriptors.filter((d) => d.decide.kind === 'claim').map((d) => d.id));
+  const intakeDoc = existsSync(join(tmp, 'eval', 'intake.yaml')) ? parseYaml(readFileSync(join(tmp, 'eval', 'intake.yaml'), 'utf8')) : null;
+  const toRunClaims = [...((intakeDoc && intakeDoc.to_run) || []), ...((maintainDoc && maintainDoc.to_run) || [])].filter((r) => claimIds.has(r.id));
+  if (!toRunClaims.length) fail('expected at least one claim row in to_run to check decided_by against');
+  else {
+    const bad = toRunClaims.filter((r) => r.decided_by !== 'owner');
+    if (bad.length) fail(`decided_by must be "owner" for every claim row (got ${bad.map((r) => `${r.id}:${r.decided_by}`).join(', ')})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── the yardstick's legacy-name fallback: eval/view-descriptors.yaml alone ────
+// Phase 2 renamed the measurement to eval/yardstick.yaml; a frozen base that
+// carries only the legacy name (schema: descriptors, list key `descriptors:`)
+// must still validate — the fallback lives in lib/legacy-name.mjs, read by
+// map/validate.mjs.
+{
+  const fail = (m) => negFailures.push('yardstick-legacy-fallback: ' + m);
+  const tmp = join(HERE, 'tmp-yardstick-legacy'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+  for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml', 'scanners.yaml'])
+    copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --write must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  const current = existsSync(join(tmp, 'eval', 'yardstick.yaml')) ? readFileSync(join(tmp, 'eval', 'yardstick.yaml'), 'utf8') : '';
+  rmSync(join(tmp, 'eval', 'yardstick.yaml'), { force: true });
+  const legacy = current.replace(/^schema: yardstick$/m, 'schema: descriptors').replace(/^requirements:$/m, 'descriptors:');
+  writeFileSync(join(tmp, 'eval', 'view-descriptors.yaml'), legacy);
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`a base carrying only the legacy eval/view-descriptors.yaml (schema: descriptors) must still validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -1044,7 +1147,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, descriptor-list-category, repo-census, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, descriptor-list-category, repo-census, enumerate-gate, enumerate-tooldef, descriptor-register, yardstick-topic, intake-maintain-improve, yardstick-legacy-fallback, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

@@ -1,23 +1,25 @@
 #!/usr/bin/env node
 // assay maintainer-report compiler.
 // Usage: node views/improve/report.mjs <run-dir>
-// Assembles <run-dir>/MAINTAINER-REPORT.md from:
+// Assembles <run-dir>/IMPROVE.md from:
 //   views/improve/templates/maintainer-report.md            (fixed structure + markers)
-//   <run-dir>/eval/findings.yaml               (computed tables)
-//   <run-dir>/eval/view-security-gate.yaml     (the security exposures)
-//   <run-dir>/eval/report-prose.yaml           (authored narrative)
+//   <run-dir>/eval/findings.yaml                 (computed tables)
+//   <run-dir>/eval/improve-security-gate.yaml    (the security exposures; was view-security-gate.yaml)
+//   <run-dir>/eval/report-prose.yaml             (authored narrative)
 // Tables are computed; prose is authored. Deterministic + re-runnable (a findings
 // fix + recompile never clobbers prose). Run map/validate.mjs first.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../../lib/yaml-min.mjs';
+import { RENAMES, resolveRenamed } from '../../lib/legacy-name.mjs';
 import { DIM_LABEL, WHO_LABEL, channelLabel } from '../../lib/display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capabilities.mjs';
 import { buildChains } from '../../map/chains.mjs';
 import { buildGlossary } from './glossary.mjs';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
 import { projectRun as projectDescriptorsOf, summarize as summarizeDescriptors } from '../../yardstick/measure.mjs';
+import { buildTopicsForRun } from './topics.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = join(HERE, 'templates', 'maintainer-report.md');
@@ -30,7 +32,7 @@ const need = (p) => { if (!existsSync(p)) { console.error(`missing required inpu
 
 const findings = loadFindings(evalDir);   // the shared per-pass-first, fail-closed loader
 if (!findings.length) { console.error(`no findings under ${evalDir}`); process.exit(2); }
-const gate = parseYaml(readFileSync(need(join(evalDir, 'view-security-gate.yaml')), 'utf8'));
+const gate = parseYaml(readFileSync(need(resolveRenamed(evalDir, 'improveSecurityGate')), 'utf8'));
 const prose = parseYaml(readFileSync(need(join(evalDir, 'report-prose.yaml')), 'utf8'));
 // Templates carry OKF frontmatter so they pass `npm run check` as bundle files;
 // strip it before splicing so it never lands in the report body.
@@ -44,7 +46,7 @@ const maturityGuideMd = stripFm(readFileSync(need(join(PART, 'maturity-guide.md'
 const app = String(prose.target_short || (prose.target || '').split(',')[0] || 'the app').trim();
 // run-level confidentiality (prose key or flag) — marks frontmatter + colophon
 const CONFIDENTIAL = process.argv.includes('--confidential') || prose.confidential === true;
-const gradesPath = join(evalDir, 'view-maturity-grades.yaml');
+const gradesPath = resolveRenamed(evalDir, 'improveMaturityGrades');
 const grades = existsSync(gradesPath) ? parseYaml(readFileSync(gradesPath, 'utf8')) : null;
 
 const byId = new Map(findings.map((f) => [f.id, f]));
@@ -232,7 +234,7 @@ function scannerAxes() {
 
 // ── computed: "What the app can do" (human capability section) ──────────────────
 // The effect inventory grouped and rendered for a reader (mechanism from channel_notes).
-// The full machine detail (facets + evidence paths) lives in the walk (view-axes.md).
+// The full machine detail (facets + evidence paths) lives in the walk (eval/improve-axes.md).
 function capabilities() {
   const groups = buildCapabilities(findings, prose.channel_notes || {});
   const c = capabilityCounts(groups);
@@ -273,6 +275,22 @@ function handoffGuide() {
     `in the ${app} repo. Each prompt confirms the finding, has you choose how to fix it, then`,
     'implements against the evidence and stops at a verifiable finish.',
   ].join('\n');
+}
+
+// ── computed: requirements by topic (eval/yardstick.yaml, grouped) ──────────
+function requirementsByTopic() {
+  const topics = buildTopicsForRun(runDir);
+  if (!topics) return '_No yardstick measurement for this run yet — run `node assay.mjs measure` first._';
+  const out = ['Every requirement on the yardstick (`yardstick/requirements.yaml`), grouped by ' +
+    'topic and joined to this run\'s measurement. A topic with no requirements decided today ' +
+    'still reads as measured — never silently clean.\n'];
+  for (const t of topics) {
+    if (!t.rows.length) continue;
+    out.push(`### ${capFirst(t.topic)} (${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured)\n`);
+    for (const r of t.rows) out.push(`- **${r.id}** _(${r.status})_ — ${cell(r.title)}`);
+    out.push('');
+  }
+  return out.join('\n');
 }
 
 function colophon() {
@@ -335,6 +353,7 @@ const repl = {
   '{{COMPILE:security_risks}}': securityRisks(),
   '{{COMPILE:capabilities}}': capabilities(),
   '{{COMPILE:handoff_guide}}': handoffGuide(),
+  '{{COMPILE:requirements_by_topic}}': requirementsByTopic(),
 };
 
 // strip the leading template HTML comment (the how-to block), keep section comments out of output
@@ -353,6 +372,6 @@ if (unfilled) { console.error(`unfilled markers remain: ${[...new Set(unfilled)]
 // reads from the first `## ` heading, so this frontmatter never reaches it.
 const fmTitle = String(prose.target || app).replace(/"/g, "'");
 const frontmatter = `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "AI-Native Readiness Report — ${fmTitle}"\n---\n\n`;
-const outPath = join(runDir, 'MAINTAINER-REPORT.md');
+const outPath = join(runDir, RENAMES.improveLead.current);
 writeFileSync(outPath, frontmatter + body);
 console.log(`✓ compiled ${outPath} (${findings.length} findings, ${(gate.exposures || []).length} security exposures)`);

@@ -193,7 +193,7 @@ function startHere() {
 
 The **machine-actionable half** of the evaluation, built to stand alone: everything an
 agent needs to act — and to **audit every claim before acting** — is in this folder.
-(The run package's \`MAINTAINER-REPORT.md\` is the human read; nothing here depends on it.)
+(The run package's \`IMPROVE.md\` is the human read; nothing here depends on it.)
 
 - Scanners in this run: **${scannerLine(manifest, sources, adapters)}**.
 - **${seq.length} sequenced remed${seq.length === 1 ? 'y' : 'ies'}** cover ${[...new Set(seq.flatMap(seqIds))].length} finding(s): ${voices.join('; ') || '_none_'}.

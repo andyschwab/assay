@@ -1,19 +1,20 @@
 #!/usr/bin/env node
-// compile.mjs — assemble the full evaluation package for a run.
+// compile.mjs — assemble the full evaluation package for a run: one map, one
+// yardstick, three views.
 //
-// One command → the whole deliverable, three readers, one bundle:
-//   • the REPORT  (MAINTAINER-REPORT.md)       — views/improve/report.mjs  [human, the lead]
-//   • the WALK    (eval/view-axes.md)          — views/improve/axes.mjs    [human, per-axis detail]
-//   • the HANDOFF (handoff/)                   — views/improve/handoff.mjs [machine, actionable]
-//   • the INDEX   (INDEX.md)                   — written here              [front door]
-// The report is the lead human deliverable: authored narrative over computed
-// structure, areas property-named and shared across scanners. It compiles only
-// when the run carries its authored inputs (eval/report-prose.yaml); a raw base
-// still gets the walk + handoff, and the INDEX says which lead is present.
-// Scanner-native reports (deep-code-review's own) are listed as APPENDICES —
-// provenance in each scanner's own voice, never merged. Branded/PDF output
-// lives outside assay (Andy's decision, 2026-09-24) — this writes Markdown +
-// YAML only.
+// One command → the whole deliverable, three readers over one measurement:
+//   • INTAKE   (eval/intake.yaml + INTAKE.md)     — views/intake.mjs           [can this map be carried?]
+//   • MAINTAIN (eval/maintain.yaml + MAINTAIN.md) — views/maintain.mjs         [is it still healthy?]
+//   • IMPROVE  (eval/improve.yaml + IMPROVE.md)   — views/improve/{report,axes,handoff,topics}.mjs [what makes it better?]
+//   • the INDEX (INDEX.md)                        — written here               [front door]
+// Assay draws a map, measures it against a yardstick, then writes these three
+// views. Improve's lead page (IMPROVE.md) compiles only when the run carries
+// its authored inputs (eval/report-prose.yaml); a raw base still gets the
+// walk + handoff + Intake + Maintain, and the INDEX says which lead is
+// present. Scanner-native reports (deep-code-review's own) are listed as
+// APPENDICES — provenance in each scanner's own voice, never merged.
+// Branded/PDF output lives outside assay (Andy's decision, 2026-09-24) — this
+// writes Markdown + YAML only.
 //
 // No safe-to-run, no single grade — each axis carries its own posture
 //.
@@ -26,6 +27,7 @@ import { spawnSync } from 'node:child_process';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
 import { loadDecisions, decideProjected } from '../map/decisions.mjs';
 import { projectRun as projectDescriptorsOf, summarize as summarizeDescriptors } from '../yardstick/measure.mjs';
+import { buildRows } from './floor-fleet.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';
 
@@ -54,20 +56,22 @@ const confArgs = CONFIDENTIAL ? ['--confidential'] : [];
 // disposition). A package that compiles over a base with an unrecorded scanner
 // reads as coverage that never happened; so the package never compiles without it.
 console.log('· validate …');                  run('../map/validate.mjs', []);
-// the register read: every package carries eval/view-descriptors.yaml (yardstick/README.md); the
+// the measurement: every package carries eval/yardstick.yaml (yardstick/README.md); the
 // validator drift-checks it on the next validate, so a stale read cannot outlive its base
-console.log('· register (measure) …');        run('../yardstick/measure.mjs', ['--write']);
+console.log('· measure  (yardstick) …');      run('../yardstick/measure.mjs', ['--write']);
+console.log('· topics   (improve.yaml) …');   run('improve/topics.mjs', ['--write']);
 
-// ── the compiled artifacts ───────────────────────────────────────────────────
-console.log('· walk    (improve/axes) …');    run('improve/axes.mjs', confArgs);
-console.log('· handoff (improve/handoff) …'); run('improve/handoff.mjs', confArgs);
+// ── the three views ───────────────────────────────────────────────────────────
+console.log('· walk     (improve/axes) …');   run('improve/axes.mjs', confArgs);
+console.log('· handoff  (improve/handoff) …'); run('improve/handoff.mjs', confArgs);
 let reportOk = false;
 if (hasProse) {
-  console.log('· report  (improve/report) …');
-  reportOk = run('improve/report.mjs', confArgs);
+  console.log('· report   (improve/report) …'); reportOk = run('improve/report.mjs', confArgs);
 } else {
-  console.log('· report  — skipped (no eval/report-prose.yaml; the walk is the human read for a raw base)');
+  console.log('· report   — skipped (no eval/report-prose.yaml; the walk is the human read for a raw base)');
 }
+console.log('· intake   (can it be carried?) …'); run('intake.mjs', []);
+console.log('· maintain (is it still healthy?) …'); run('maintain.mjs', []);
 
 // ── axis summary for the index ───────────────────────────────────────────────
 const findings = loadFindings(runDir);
@@ -114,18 +118,23 @@ function findAppendices() {
   return [...out.entries()];
 }
 
-// ── the register glance for the index ──────────────────────────────────────
+// ── the yardstick glance for the index ──────────────────────────────────────
 const descRows = projectDescriptorsOf(runDir);
 const descSum = summarizeDescriptors(descRows);
 const descUnmet = descRows.filter((r) => r.status === 'unmet').map((r) => `\`${r.id}\``);
 const descClaims = descRows.filter((r) => r.kind === 'claim').length;
 
+// ── the three views' own counts, for the lead lines ─────────────────────────
+const intakeBuilt = buildRows(runDir, 'floor');
+const maintainBuilt = buildRows(runDir, 'fleet', { withFloor: true });
+const viewCount = (b) => b ? `${b.open.length} open · ${b.met.length} met · ${b.to_run.length} to run` : 'not measured yet';
+
 // ── INDEX.md — the front door ────────────────────────────────────────────────
 const rel = (p) => relative(runDir, p) || basename(p);
 const apps = findAppendices();
-const reportRow = reportOk
-  ? `| [\`MAINTAINER-REPORT.md\`](MAINTAINER-REPORT.md) | human, the lead | The report: authored narrative over computed structure, area by area. |`
-  : `| _report not compiled_ (no \`eval/report-prose.yaml\`) | human, the lead | Author the prose to compile it; the walk below is the human read meanwhile. |`;
+const improveRow = reportOk
+  ? `**Improve** — [\`IMPROVE.md\`](IMPROVE.md): the report, authored narrative over computed structure, area by area.`
+  : `**Improve** — [\`eval/improve-axes.md\`](eval/improve-axes.md): the walk (no \`eval/report-prose.yaml\` — author it to compile \`IMPROVE.md\` too).`;
 
 const index = `---
 type: doc
@@ -134,28 +143,36 @@ ${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "${runId} — evaluation pac
 
 # ${runId} — evaluation package
 
-The full deliverable, three readers, one bundle. No single verdict: one flat axis
-roster, each axis its own posture. Severity is a property; the go/no-go is the
-reader's.
+One map, one yardstick, three views. No single verdict: one flat axis roster,
+each axis its own posture; a requirement is met, unmet, mixed, or not measured
+— never priced, never graded pass/fail.
 
 **Scanners:** ${scannerLine(manifest, sources, adapters)} · **${projected.length} findings** · run ${runDate}${hasDecisions ? ' · owner triage applied (`eval/decisions.yaml`)' : ' · raw base (no triage)'}.
+
+## The three views
+
+- **Intake** _(can this map be carried?)_ — [\`INTAKE.md\`](INTAKE.md): ${viewCount(intakeBuilt)} of the floor requirements.
+- **Maintain** _(is it still healthy?)_ — [\`MAINTAIN.md\`](MAINTAIN.md): ${viewCount(maintainBuilt)} of the fleet requirements.
+- ${improveRow}
 
 ## The roster (glance)
 
 ${axisLines.join('\n')}
 ${notMeasured.length ? `\n_Not measured this run: ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${ownersOf(notMeasured).map((o) => `${o} ${notRunPhrase(manifest, o)}`).join('; ')}. Absence of findings is absence of looking, not health._` : ''}
 
-## The register (glance)
+## The yardstick (glance)
 
-${descSum.decided} of ${descSum.of} descriptors decided by this run (met ${descSum.met} · unmet ${descSum.unmet} · mixed ${descSum.mixed}); ${descSum['not-measured']} not measured, of which ${descClaims} are claim-only rows a sidecar decides, never a run.${descUnmet.length ? ` Unmet: ${descUnmet.join(', ')}.` : ''} The full read is \`eval/view-descriptors.yaml\`.
+${descSum.decided} of ${descSum.of} requirements decided by this run (met ${descSum.met} · unmet ${descSum.unmet} · mixed ${descSum.mixed}); ${descSum['not-measured']} not measured, of which ${descClaims} are claim-only rows a sidecar decides, never a run.${descUnmet.length ? ` Unmet: ${descUnmet.join(', ')}.` : ''} The full measurement is \`eval/yardstick.yaml\`.
 
-## What's in the package
+## The data files
 
 | Artifact | Reader | What it is |
 |---|---|---|
-${reportRow}
-| [\`eval/view-axes.md\`](eval/view-axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register. |
-| [\`eval/view-descriptors.yaml\`](eval/view-descriptors.yaml) | machine / the sidecar's counterpart | The register read: per descriptor, what this run decides and how; claim rows read not measured by construction. |
+| [\`eval/intake.yaml\`](eval/intake.yaml) | machine | Intake's floor rows: open, met, to run, not seen. |
+| [\`eval/maintain.yaml\`](eval/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |
+| [\`eval/improve.yaml\`](eval/improve.yaml) | machine | Every requirement on the yardstick, grouped by topic. |
+| [\`eval/yardstick.yaml\`](eval/yardstick.yaml) | machine / the sidecar's counterpart | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
+| [\`eval/improve-axes.md\`](eval/improve-axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register, requirements by topic. |
 | [\`handoff/START-HERE.md\`](handoff/START-HERE.md) | machine / agent | How to act, sequenced worst-first. |
 | [\`handoff/REMEDIATION.md\`](handoff/REMEDIATION.md) | machine / agent | The full spine: every actionable gap, verbatim fix, proof step. |
 | [\`handoff/plan/\`](handoff/plan/) | machine / agent | One session prompt per Critical/High item (interview → fix → prove). |
@@ -168,8 +185,8 @@ ${[...apps.map(([label, p]) => `- **${label}** — [\`${rel(p)}\`](${rel(p)})`),
    ...dispo.failed.map((s) => `- **${s.id}** — failed this run: ${s.reason}.`),
   ].join('\n') || '_None generated for this run. Run a scanner\'s native reporter to add one._'}
 
-_The report leads; these are the raw scanner voices behind the projection — listed,
-never merged (independent convergence is recorded, not collapsed)._
+_Improve leads with the report; these are the raw scanner voices behind the projection —
+listed, never merged (independent convergence is recorded, not collapsed)._
 
 ## Regenerate
 
@@ -184,4 +201,4 @@ _assay evaluation engine. Run \`${runId}\`.${CONFIDENTIAL ? ' Confidential.' : '
 `;
 
 writeFileSync(join(runDir, 'INDEX.md'), index);
-console.log(`\n✓ package assembled — INDEX.md${reportOk ? ' + MAINTAINER-REPORT.md' : ''} + eval/view-axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);
+console.log(`\n✓ package assembled — INDEX.md + INTAKE.md + MAINTAIN.md${reportOk ? ' + IMPROVE.md' : ''} + eval/improve-axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);

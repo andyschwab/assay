@@ -9,6 +9,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
+import { resolveRenamed } from '../lib/legacy-name.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -314,26 +315,28 @@ function citationsIn(path) {
   const refs = new Set(txt.match(/F-\d{3,}/g) || []);
   for (const r of refs) if (!allById.has(r)) err(basename(path), `cites unknown finding ${r}`);
 }
-for (const v of ['view-leverage.md','view-maturity.md','view-security.md','AI-NATIVE-EVAL.md'])
-  citationsIn(join(evalDir, v));
-// maintainer report may live at run root (one level up from eval/)
+for (const key of ['improveLeverage', 'improveMaturity', 'improveSecurity'])
+  citationsIn(resolveRenamed(evalDir, key));
+citationsIn(join(evalDir, 'AI-NATIVE-EVAL.md'));
+// the Improve lead page may live at run root (one level up from eval/)
 const runRoot = basename(evalDir) === 'eval' ? join(evalDir, '..') : evalDir;
-citationsIn(join(runRoot, 'MAINTAINER-REPORT.md'));
+citationsIn(resolveRenamed(runRoot, 'improveLead'));
 
-// security gate sidecar
-const gatePath = join(evalDir, 'view-security-gate.yaml');
+// security gate sidecar (eval/improve-security-gate.yaml, was view-security-gate.yaml)
+const gatePath = resolveRenamed(evalDir, 'improveSecurityGate');
+const gateLabel = basename(gatePath);
 if (existsSync(gatePath)) {
   let gate;
   try { gate = parseYaml(readFileSync(gatePath, 'utf8')); }
-  catch (e) { err('view-security-gate.yaml', `YAML parse failed (fail-closed): ${e.message}`); gate = null; }
+  catch (e) { err(gateLabel, `YAML parse failed (fail-closed): ${e.message}`); gate = null; }
   if (gate) {
     // gate: is retired (grandfathered) — optional; when present it must be legacy vocab
-    if (gate.gate !== undefined && !GATE_STAGE.has(gate.gate)) err('view-security-gate.yaml', `bad legacy gate "${gate.gate}" (the stage scale is retired; new runs omit gate:)`);
+    if (gate.gate !== undefined && !GATE_STAGE.has(gate.gate)) err(gateLabel, `bad legacy gate "${gate.gate}" (the stage scale is retired; new runs omit gate:)`);
     const ex = gate.exposures;
-    if (!Array.isArray(ex)) err('view-security-gate.yaml', `exposures must be a list`);
+    if (!Array.isArray(ex)) err(gateLabel, `exposures must be a list`);
     else for (const e of ex) {
-      const at = `view-security-gate.yaml:${e && e.name || '??'}`;
-      if (!e || typeof e !== 'object') { err('view-security-gate.yaml', `exposure is not a mapping`); continue; }
+      const at = `${gateLabel}:${e && e.name || '??'}`;
+      if (!e || typeof e !== 'object') { err(gateLabel, `exposure is not a mapping`); continue; }
       if (!e.name) err(at, `exposure missing name`);
       if (!e.title) err(at, `exposure missing title (the human display name the report renders)`);
       // blocks_stage: is retired (grandfathered) — optional; legacy vocab when present
@@ -411,21 +414,22 @@ if (existsSync(prosePath)) {
 // The file is GENERATED (views/improve/maturity.mjs --write); the counted numbers are
 // recomputed here from the base and any mismatch is an error — the maturity
 // view's own "enforced" property, applied to itself.
-const gradesPath = join(evalDir, 'view-maturity-grades.yaml');
+const gradesPath = resolveRenamed(evalDir, 'improveMaturityGrades');
+const gradesLabel = basename(gradesPath);
 if (existsSync(gradesPath)) {
   let grades;
   try { grades = parseYaml(readFileSync(gradesPath, 'utf8')); }
-  catch (e) { err('view-maturity-grades.yaml', `YAML parse failed (fail-closed): ${e.message}`); grades = null; }
+  catch (e) { err(gradesLabel, `YAML parse failed (fail-closed): ${e.message}`); grades = null; }
   if (grades && grades.schema !== 'coverage') {
-    err('view-maturity-grades.yaml', `pre-coverage grades schema (found ${grades.ladder ? 'ladder form' : 'no schema key'}) — regenerate: node assay.mjs maturity <eval-dir> --write`);
+    err(gradesLabel, `pre-coverage grades schema (found ${grades.ladder ? 'ladder form' : 'no schema key'}) — regenerate: node assay.mjs maturity <eval-dir> --write`);
   } else if (grades) {
-    if (!Array.isArray(grades.dimensions)) err('view-maturity-grades.yaml', `dimensions must be a list`);
+    if (!Array.isArray(grades.dimensions)) err(gradesLabel, `dimensions must be a list`);
     else {
       const { computeCoverage } = await import('../views/improve/maturity.mjs');
       const recomputed = computeCoverage([...allById.values()].map((v) => v.f));
       const reByDim = Object.fromEntries(recomputed.dimensions.map((d) => [d.dimension, d]));
       for (const d of grades.dimensions) {
-        const at = `view-maturity-grades.yaml:${d && d.dimension || '??'}`;
+        const at = `${gradesLabel}:${d && d.dimension || '??'}`;
         if (!d || !DIMENSIONS.has(d.dimension)) { err(at, `bad or missing dimension`); continue; }
         const c = d.coverage;
         if (!c && !d.not_measured) err(at, `needs coverage or not_measured`);
@@ -460,11 +464,11 @@ if (existsSync(gradesPath)) {
         const pctExp = of ? Math.round((met / of) * 100) : 0;
         const a = grades.aggregate;
         if (a.met !== met || a.of !== of)
-          err('view-maturity-grades.yaml:aggregate', `aggregate ${a.met}/${a.of} does not pool the measured rows (${met}/${of}) — regenerate with maturity.mjs --write`);
+          err(`${gradesLabel}:aggregate`, `aggregate ${a.met}/${a.of} does not pool the measured rows (${met}/${of}) — regenerate: node assay.mjs maturity <eval-dir> --write`);
         else if (a.pct !== pctExp)
-          err('view-maturity-grades.yaml:aggregate', `aggregate.pct ${a.pct} does not equal met/of (${pctExp})`);
+          err(`${gradesLabel}:aggregate`, `aggregate.pct ${a.pct} does not equal met/of (${pctExp})`);
         if (typeof a.over === 'number' && a.over !== measured.length)
-          err('view-maturity-grades.yaml:aggregate', `aggregate.over ${a.over} does not equal the measured-row count (${measured.length})`);
+          err(`${gradesLabel}:aggregate`, `aggregate.over ${a.over} does not equal the measured-row count (${measured.length})`);
       }
     }
   }
@@ -472,31 +476,36 @@ if (existsSync(gradesPath)) {
 
 // ── report ──────────────────────────────────────────────────────────────────
 const total = allById.size;
-// descriptor projection tail (optional): the register read (yardstick/README.md) + drift check.
-// The file is GENERATED (yardstick/measure.mjs --write, run by compile-package); every status is
-// recomputed here from the base, the manifest, the censuses and the scanner coverage, and any
-// mismatch is an error — a stale register read would let a claim outlive the fact it rode on.
-const descPath = join(evalDir, 'view-descriptors.yaml');
-if (existsSync(descPath)) {
+// the yardstick's measurement tail (optional): eval/yardstick.yaml (was
+// eval/view-descriptors.yaml) + drift check. The file is GENERATED
+// (yardstick/measure.mjs --write, run by views/compile.mjs); every status is
+// recomputed here from the base, the manifest, the censuses and the scanner
+// coverage, and any mismatch is an error — a stale read would let a claim
+// outlive the fact it rode on. A frozen base carrying only the legacy name
+// (schema: descriptors, list key `descriptors:`) still validates.
+const yardstickPath = resolveRenamed(evalDir, 'yardstick');
+const yardstickLabel = basename(yardstickPath);
+if (existsSync(yardstickPath)) {
   let view;
-  try { view = parseYaml(readFileSync(descPath, 'utf8')); }
-  catch (e) { err('view-descriptors.yaml', `YAML parse failed (fail-closed): ${e.message}`); view = null; }
-  if (view && view.schema !== 'descriptors') err('view-descriptors.yaml', `schema must be descriptors — regenerate: node assay.mjs measure <run-dir> --write`);
+  try { view = parseYaml(readFileSync(yardstickPath, 'utf8')); }
+  catch (e) { err(yardstickLabel, `YAML parse failed (fail-closed): ${e.message}`); view = null; }
+  const legacySchema = view && view.schema === 'descriptors';
+  if (view && view.schema !== 'yardstick' && !legacySchema) err(yardstickLabel, `schema must be yardstick (or the legacy descriptors) — regenerate: node assay.mjs measure <run-dir> --write`);
   else if (view) {
     const { projectRun } = await import('../yardstick/measure.mjs');
-    const runDirForDesc = basename(evalDir) === 'eval' ? dirname(evalDir) : evalDir;
+    const runDirForYardstick = basename(evalDir) === 'eval' ? dirname(evalDir) : evalDir;
     let re = null;
-    try { re = projectRun(runDirForDesc); } catch (e) { err('view-descriptors.yaml', `could not recompute the projection: ${e.message}`); }
+    try { re = projectRun(runDirForYardstick); } catch (e) { err(yardstickLabel, `could not recompute the measurement: ${e.message}`); }
     if (re) {
       const reById = Object.fromEntries(re.map((r) => [r.id, r]));
-      const rows = Array.isArray(view.descriptors) ? view.descriptors : [];
-      if (rows.length !== re.length) err('view-descriptors.yaml', `carries ${rows.length} descriptors, the register has ${re.length} — regenerate`);
+      const rows = Array.isArray(view.requirements) ? view.requirements : Array.isArray(view.descriptors) ? view.descriptors : [];
+      if (rows.length !== re.length) err(yardstickLabel, `carries ${rows.length} requirements, the yardstick has ${re.length} — regenerate`);
       for (const r of rows) {
-        const at = `view-descriptors.yaml:${r && r.id || '??'}`;
+        const at = `${yardstickLabel}:${r && r.id || '??'}`;
         const x = r && reById[r.id];
-        if (!x) { err(at, `not a descriptor in the register`); continue; }
-        if (r.status !== x.status) err(at, `descriptor drift: file says ${r.status}, base computes ${x.status} — regenerate with descriptors.mjs --write`);
-        if (r.how !== x.how) err(at, `mechanism drift: file says ${r.how}, register decides by ${x.how}`);
+        if (!x) { err(at, `not a requirement in the yardstick`); continue; }
+        if (r.status !== x.status) err(at, `requirement drift: file says ${r.status}, the map computes ${x.status} — regenerate: node assay.mjs measure <run-dir> --write`);
+        if (r.how !== x.how) err(at, `mechanism drift: file says ${r.how}, the yardstick decides by ${x.how}`);
       }
     }
   }

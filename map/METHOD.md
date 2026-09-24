@@ -350,7 +350,7 @@ hard; zero-day / physical = exotic.
 
 ## The views (each reads `findings.yaml`, writes its own artifact; never edits the base)
 
-### Leverage view → `eval/view-leverage.md`
+### Leverage view → `eval/improve-leverage.md` (was `eval/view-leverage.md`)
 Read gaps as opportunities. For each, estimate leverage on **all three** axes —
 *faster* (whose hours does closing it save?), *better* (what becomes possible
 that isn't today? — including work that ships at all where the fixed overhead
@@ -361,7 +361,7 @@ never merge them — a cost-only estimate is blind to the other two, and a
 duration-inside-the-existing-shape estimate is blind to the third. Order by
 leverage per unit of verification cost, strengths noted first.
 
-### Maturity view → `eval/view-maturity.md` + `eval/maturity-inputs.yaml`
+### Maturity view → `eval/improve-maturity.md` (was `eval/view-maturity.md`) + `eval/maturity-inputs.yaml`
 Maturity is **measured coverage, not rung words** (SCHEMA §6b): for each dimension,
 the share of a review-enumerated population meeting that dimension's bar. Existence
 somewhere is not existence everywhere — one excellent artifact never promotes a
@@ -400,14 +400,14 @@ is no binning.
  enforced requires something *running* the checks automatically (CI pre-merge),
  not the checks existing.
 
-Write the prose reading in `view-maturity.md`, then run
+Write the prose reading in `improve-maturity.md` (was `view-maturity.md`), then run
 `node assay.mjs maturity <eval-dir> --write` to generate
-`view-maturity-grades.yaml`. Never hand-edit the generated file; the validator
+`improve-maturity-grades.yaml` (was `view-maturity-grades.yaml`). Never hand-edit the generated file; the validator
 recomputes the counted numbers and fails on drift. This is a *capability* measure —
 keep it distinct from the security view's *exposure* ladder; a dimension can measure
 high here and carry a critical exposure.
 
-### Security view (ALWAYS-ON) → `eval/view-security.md`
+### Security view (ALWAYS-ON) → `eval/improve-security.md` (was `eval/view-security.md`)
 Run the frame stack in order; lead the artifact with the posture headline.
 
 1. **Trifecta screen** — find every `capability` finding holding ≥2 legs; note
@@ -460,7 +460,7 @@ An exposure the analyst judges lower-priority watch material is labeled
 `standing_watch: true`, with the reason stated — a labeled judgment, never a tier.
 
 **Emit the machine-readable exposures tail.** Alongside the prose, the security view
-writes `eval/view-security-gate.yaml` (`SCHEMA.md` §6a — filename historic): one
+writes `eval/improve-security-gate.yaml` (`SCHEMA.md` §6a; was `eval/view-security-gate.yaml`): one
 `exposure` per chain/exposure with its `findings`, `who`, `likelihood`, optional
 `standing_watch`, the one-line `fix` (breaks_the_chain / leverage action), and what
 it `unlocks`. This is the only structured artifact a view produces; the maintainer
@@ -517,7 +517,7 @@ adoption** engagement, lead with strengths. Same evidence, owned ordering.
 `AI-NATIVE-EVAL.md` is the **internal** synthesis (dense, operator-facing, cites every
 finding). The **external, maintainer-facing** deliverable is Pass 9.
 
-## Pass 8.5 — The walk (per-axis profiles) → `eval/view-axes.md`
+## Pass 8.5 — The walk (per-axis profiles) → `eval/improve-axes.md` (was `eval/view-axes.md`)
 
 The detail layer under the axis model (`map/scanners/CONTRACT.md`):
 `node views/improve/axes.mjs <run-dir> [--base <dir>]...` projects the base
@@ -547,7 +547,7 @@ One command assembles the whole deliverable over the projected base:
 `node assay.mjs compile <run-dir>`. Three readers, one bundle
 (`INDEX.md` is the front door):
 
-- **`MAINTAINER-REPORT.md`** — **the lead human deliverable**: the report
+- **`IMPROVE.md`** — **the lead human deliverable** (was `MAINTAINER-REPORT.md`): the report
  chassis (below), authored narrative over computed structure, area by area over
  the whole axis roster. Compiled only when the run carries its authored inputs
  (`eval/report-prose.yaml`); a raw base still gets the walk + handoff, and the
@@ -605,7 +605,7 @@ its security section presents exposures as **illuminated risks** (a decision to 
 accept, or investigate), most-likely first. It is **two paired artifacts for two
 audiences**, from one authored surface:
 
-- **`MAINTAINER-REPORT.md`** — the **human briefing**. Light and scannable (a dozen-odd
+- **`IMPROVE.md`** — the **human briefing**. Light and scannable (a dozen-odd
  pages), organized maturity-and-strengths first, then the security risks — never a report
  card and never a deploy verdict. The
  cover carries the *How to read this report* panel (no table of contents — it isn't
@@ -703,15 +703,15 @@ authored**:
  Security risks" honest — nothing is silently unaddressed.
 2. **Compile the Markdown:** `node views/improve/report.mjs <run-dir>`.
  It merges `views/improve/templates/maintainer-report.md` + `findings.yaml` (the computed capability
- section) + `view-security-gate.yaml` (the coverage gap) + `view-maturity-grades.yaml`
+ section) + `improve-security-gate.yaml` (the coverage gap) + `improve-maturity-grades.yaml`
  (generated from `maturity-inputs.yaml` by `views/improve/maturity.mjs --write`)
- (the full ladder) + your prose → `MAINTAINER-REPORT.md`. Deterministic and
+ (the full ladder) + your prose → `IMPROVE.md`. Deterministic and
  re-runnable: fix a finding, re-validate, recompile — prose is never clobbered. Re-run
  `map/validate.mjs` first (it checks the report's citations).
  (The handoff is built by the engine's `views/improve/handoff.mjs`, not here.)
 
 **The package is the deliverable.** `views/compile.mjs` assembles it;
-`MAINTAINER-REPORT.md` is what you send a human, `handoff/` is what they (or you) paste
+`IMPROVE.md` is what you send a human, `handoff/` is what they (or you) paste
 into a Claude session to close the gaps, and the scanner-native appendices ride along as
 provenance. Branded/PDF rendering, where a downstream deployment wants it, lives outside
 this repo. Sending any of it is the halt — a human sends it.

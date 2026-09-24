@@ -17,6 +17,8 @@ import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterF
 import { buildChains } from '../../map/chains.mjs';
 import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
+import { RENAMES } from '../../lib/legacy-name.mjs';
+import { buildTopicsForRun } from './topics.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/axes.mjs <run-dir> [--base <dir>]... [--stdout]'); process.exit(2); }
@@ -96,6 +98,26 @@ const primaries = (a) => by[a].filter((p) => !p.cross);
 const measuredBy = (a) => sources.filter((s) => (adapters[s]?.contributes || []).includes(a));
 const fedBy = (a) => [...new Set(by[a].map((p) => p.source))].filter((s) => !measuredBy(a).includes(s));
 
+// the yardstick's requirements, grouped by topic (the axis roster plus custody,
+// operability) — null when the run has no measurement yet (raw base, not yet
+// `node assay.mjs measure --write`). A topic with rows renders under its axis
+// (or its own section for custody/operability), reading from the yardstick,
+// never "clean".
+let topicsByName = null;
+try {
+  const topics = buildTopicsForRun(arg);
+  if (topics) topicsByName = Object.fromEntries(topics.map((t) => [t.topic, t]));
+} catch { /* the yardstick read is optional to the walk */ }
+function requirementsBlock(topic) {
+  const t = topicsByName && topicsByName[topic];
+  if (!t) return [];
+  const out = [`**Requirements on this topic** _(${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured)_:`];
+  if (t.rows.length) for (const r of t.rows) out.push(`- ${r.id} _(${r.status})_ — ${r.title}`);
+  else out.push('_None on this topic in the yardstick._');
+  out.push('');
+  return out;
+}
+
 // ── severity census + start-here ─────────────────────────────────────────────
 const sevCount = {}; let unrated = 0;
 for (const p of projected) { if (p.f.severity) sevCount[p.f.severity] = (sevCount[p.f.severity] || 0) + 1; else unrated++; }
@@ -138,6 +160,7 @@ for (const a of roster) {
   if (!mb.length && prim.length) {
     out.push(`> **Not measured** — no present scanner's own method covers this axis; the findings below were fed in by ${fb.join(', ')} and are real, but they are not a measure of the axis.`, '');
   }
+  out.push(...requirementsBlock(a));
   if (!prim.length) {
     out.push(crossN
       ? `> **No primary findings** — ${crossN} finding(s) touch it as a compound cross-link only.`
@@ -184,12 +207,22 @@ for (const a of roster) {
     (top ? ` · worst: ${top.f.id}${top.f.severity ? ' ' + top.f.severity : ''}` : '') + '._', '');
 }
 
+// ── custody, operability — the two topics with no axis of their own ──────────
+// No scanner measures a tier by that name; these render as their own sections,
+// reading from the yardstick, never "clean" (SCHEMA has no finding axis for
+// either, so this is the only place either topic's requirements are shown).
+for (const topic of ['custody', 'operability']) {
+  out.push(`## ${topic[0].toUpperCase()}${topic.slice(1)}`, '');
+  out.push(`_No scanner measures \`${topic}\` as an axis; its requirements ride on the yardstick alone._`, '');
+  out.push(...requirementsBlock(topic));
+}
+
 // ── not measured this run — the honesty register (never a dead gauge) ────────
 if (notMeasured.length) {
   out.push('# Not measured this run', '');
   out.push('_Known axes whose measuring scanner did not run. Absence of findings there is');
   out.push('absence of looking, not health. The candidate roster for filling an axis is');
-  // Name the roster, do not link it: view-axes.md ships in the run bundle and the
+  // Name the roster, do not link it: improve-axes.md ships in the run bundle and the
   // run travels with its subject (SCHEMA §5), so a bundle-root-absolute link into
   // the assay engine resolves nowhere but the engine repo.
   out.push('`map/scanners/CANDIDATES.md` in the assay engine._', '');
@@ -240,4 +273,4 @@ if (spineMap.size) {
 
 const text = out.join('\n') + '\n';
 if (toStdout) process.stdout.write(text);
-else { const dst = join(evalDir, 'view-axes.md'); writeFileSync(dst, text); console.log(`wrote ${dst} (${projected.length} findings, ${roster.length} axes, scanners: ${sources.join(', ')})`); }
+else { const dst = join(evalDir, RENAMES.improveAxes.current); writeFileSync(dst, text); console.log(`wrote ${dst} (${projected.length} findings, ${roster.length} axes, scanners: ${sources.join(', ')})`); }

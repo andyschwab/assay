@@ -16,6 +16,8 @@
 #   instrument  a scanner's rows, read through the run manifest and the scanner's coverage
 #   claim       only a sidecar can assert it today; a run reads it NOT MEASURED until an
 #               instrument or census exists (never inferred from prose)
+# topic (required, every row): the axis roster (map/project.mjs AXIS_ORDER) plus
+# custody and operability, for the tiers with no axis of their own.
 version: 0
 namespace: assay
 tiers: [custody, safety, reproducibility, verification, legibility, operability]
@@ -27,6 +29,7 @@ descriptors:
   - id: d-accounts-enumerated
     title: Every account the application depends on is enumerated with an owner and a transfer path
     tier: custody
+    topic: custody   # register row carried no axis; its own tier (custody) is the nearest topic
     tags: [floor]
     decide:
       kind: claim
@@ -36,7 +39,7 @@ descriptors:
   - id: d-credentials-enumerated
     title: Every credential is enumerated and its boundary confirmed
     tier: custody
-    axis: delegation
+    topic: delegation
     tags: [floor, ai-operating]
     decide:
       kind: census
@@ -47,6 +50,7 @@ descriptors:
   - id: d-bus-factor
     title: More than one person can build, deploy, and recover the application
     tier: custody
+    topic: custody   # register row carried no axis; its own tier (custody) is the nearest topic
     tags: [floor]
     decide:
       kind: claim
@@ -58,7 +62,7 @@ descriptors:
   - id: d-secrets-out-of-history
     title: No secret lives in the tree or its history, and every leaked key has been rotated
     tier: safety
-    axis: code-security
+    topic: code-security
     tags: [floor]
     decide:
       kind: instrument
@@ -70,7 +74,7 @@ descriptors:
   - id: d-routes-authorized
     title: Every route that touches data is behind server-side authorization
     tier: safety
-    axis: code-security
+    topic: code-security
     tags: [floor]
     decide:
       kind: instrument
@@ -82,7 +86,7 @@ descriptors:
   - id: d-tenant-isolation-in-data-layer
     title: Scoping is enforced in the data layer, not only in the UI
     tier: safety
-    axis: code-security
+    topic: code-security
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -94,7 +98,7 @@ descriptors:
   - id: d-dependencies-known-clean
     title: No known-critical dependency vulnerability is present
     tier: safety
-    axis: code-security
+    topic: code-security
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -109,7 +113,7 @@ descriptors:
   - id: d-effects-gated
     title: Every irreversible or outward effect runs behind a gate that holds
     tier: safety
-    axis: deterministic-gates
+    topic: deterministic-gates
     tags: [floor, ai-operating]
     decide:
       kind: facet
@@ -120,7 +124,7 @@ descriptors:
   - id: d-effects-traced
     title: Every irreversible or outward effect leaves a durable record
     tier: safety
-    axis: verification
+    topic: verification
     tags: [floor, ai-operating]
     decide:
       kind: facet
@@ -131,7 +135,7 @@ descriptors:
   - id: d-gates-fail-closed
     title: No gate is open when a dependency it needs is absent
     tier: safety
-    axis: deterministic-gates
+    topic: deterministic-gates
     tags: [floor, fleet]
     decide:
       kind: facet
@@ -142,7 +146,7 @@ descriptors:
   - id: d-capability-budget
     title: No single AI context holds untrusted input, private data, and an outward effect at once
     tier: safety
-    axis: delegation
+    topic: delegation
     tags: [floor, ai-operating]
     decide:
       kind: facet
@@ -153,7 +157,7 @@ descriptors:
   - id: d-personal-data-enumerated
     title: Personal data held is enumerated, and nothing is stored the product never needed
     tier: safety
-    axis: code-security
+    topic: code-security
     tags: [floor]
     decide:
       kind: instrument
@@ -165,7 +169,7 @@ descriptors:
   - id: d-backup-restore-exercised
     title: Backups exist and a restore has been performed
     tier: safety
-    axis: code-security   # register row carried no axis; nearest tier-mate (safety) is d-personal-data-enumerated
+    topic: code-security   # register row carried no topic; nearest tier-mate (safety) is d-personal-data-enumerated
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -177,7 +181,7 @@ descriptors:
   - id: d-ingested-content-is-data
     title: Ingested content is stored verbatim, rendered escaped, and never acted on as instructions
     tier: safety
-    axis: delegation
+    topic: delegation
     tags: [ai-operating, fleet]
     decide:
       kind: claim
@@ -189,7 +193,7 @@ descriptors:
   - id: d-fresh-clone-runs
     title: It installs, builds, and runs from the README on a clean machine
     tier: reproducibility
-    axis: context-economy
+    topic: context-economy
     tags: [floor]
     decide:
       kind: instrument
@@ -201,7 +205,7 @@ descriptors:
   - id: d-config-declared
     title: Configuration is declared once and nothing environment-specific is hardcoded
     tier: reproducibility
-    axis: code-security
+    topic: code-security
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -213,7 +217,7 @@ descriptors:
   - id: d-dependencies-pinned
     title: Dependencies and the toolchain are pinned, and CI actions by commit
     tier: reproducibility
-    axis: code-security
+    topic: code-security
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -225,7 +229,7 @@ descriptors:
   - id: d-deploy-one-command
     title: One documented command deploys, and what runs is what is committed
     tier: reproducibility
-    axis: code-security   # register row carried no axis; nearest tier-mate (reproducibility) is d-dependencies-pinned
+    topic: code-security   # register row carried no topic; nearest tier-mate (reproducibility) is d-dependencies-pinned
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -237,7 +241,7 @@ descriptors:
   - id: d-rollback-exercised
     title: A rollback path exists and has been exercised
     tier: reproducibility
-    axis: context-economy   # register row carried no axis; nearest tier-mate (reproducibility) is d-schema-versioned
+    topic: context-economy   # register row carried no topic; nearest tier-mate (reproducibility) is d-schema-versioned
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -249,7 +253,7 @@ descriptors:
   - id: d-schema-versioned
     title: The schema is versioned and migrations replay from empty
     tier: reproducibility
-    axis: context-economy
+    topic: context-economy
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -263,7 +267,7 @@ descriptors:
   - id: d-tests-execute-core
     title: Tests exist, run on a clean machine, and execute their core
     tier: verification
-    axis: deterministic-gates
+    topic: deterministic-gates
     tags: [floor]
     decide:
       kind: instrument
@@ -275,7 +279,7 @@ descriptors:
   - id: d-ci-gate-on-default-branch
     title: A CI check on the default branch runs the gates and fails closed
     tier: verification
-    axis: deterministic-gates
+    topic: deterministic-gates
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -287,7 +291,7 @@ descriptors:
   - id: d-guards-bite
     title: Every shipped check carries a negative fixture that fails when the check is disabled
     tier: verification
-    axis: deterministic-gates
+    topic: deterministic-gates
     tags: [fleet]
     decide:
       kind: claim
@@ -297,7 +301,7 @@ descriptors:
   - id: d-lint-typecheck-gate
     title: Lint and typecheck gates exist and pass
     tier: verification
-    axis: deterministic-gates
+    topic: deterministic-gates
     tags: [floor]
     decide:
       kind: instrument
@@ -309,7 +313,7 @@ descriptors:
   - id: d-smoke-on-deployed
     title: A smoke check proves the deployed application comes up and the main path works
     tier: verification
-    axis: deterministic-gates   # register row carried no axis; nearest tier-mate (verification) is d-lint-typecheck-gate
+    topic: deterministic-gates   # register row carried no topic; nearest tier-mate (verification) is d-lint-typecheck-gate
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -321,7 +325,7 @@ descriptors:
   - id: d-effects-provable
     title: Every effect can prove it happened, deterministically, from outside the AI
     tier: verification
-    axis: verification
+    topic: verification
     tags: [ai-operating]
     decide:
       kind: facet
@@ -332,6 +336,7 @@ descriptors:
   - id: d-contract-test-per-vendor
     title: Every external system reached has a recorded contract test against its sandbox
     tier: verification
+    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
     tags: [fleet]
     decide:
       kind: claim
@@ -341,7 +346,7 @@ descriptors:
   - id: d-effect-sites-tested
     title: The code paths that produce effects are exercised by tests
     tier: verification
-    axis: deterministic-gates
+    topic: deterministic-gates
     tags: [floor]
     decide:
       kind: claim
@@ -351,6 +356,7 @@ descriptors:
   - id: d-change-carries-verification
     title: Every change lands with its own verification stated
     tier: verification
+    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
     tags: [fleet]
     decide:
       kind: claim
@@ -362,7 +368,7 @@ descriptors:
   - id: d-readme-true
     title: The README is true for this application, measured by running it, not by reading it
     tier: legibility
-    axis: artifact-legibility
+    topic: artifact-legibility
     tags: [floor, fleet]
     decide:
       kind: census
@@ -373,7 +379,7 @@ descriptors:
   - id: d-decisions-reconstruct
     title: Non-obvious decisions reconstruct their rationale from the files alone
     tier: legibility
-    axis: artifact-legibility
+    topic: artifact-legibility
     tags: [floor]
     decide:
       kind: census
@@ -384,7 +390,7 @@ descriptors:
   - id: d-modules-standalone
     title: A bounded context can load one module alone with something to read and something to run
     tier: legibility
-    axis: context-economy
+    topic: context-economy
     tags: [floor]
     decide:
       kind: census
@@ -395,7 +401,7 @@ descriptors:
   - id: d-architecture-page
     title: One page shows the parts, the data flow, and the external services
     tier: legibility
-    axis: artifact-legibility
+    topic: artifact-legibility
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -407,7 +413,7 @@ descriptors:
   - id: d-agent-contract
     title: An agent contract exists, is present-tense, and is the home for house rules
     tier: legibility
-    axis: improvement-loop
+    topic: improvement-loop
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -419,7 +425,7 @@ descriptors:
   - id: d-one-home-per-fact
     title: Each fact the system relies on has one authoritative home, in docs and in code
     tier: legibility
-    axis: code-correctness
+    topic: code-correctness
     tags: [fleet]
     decide:
       kind: claim
@@ -431,7 +437,7 @@ descriptors:
   - id: d-errors-reach-a-person
     title: Errors and logs reach somewhere a person looks
     tier: operability
-    axis: verification
+    topic: verification
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -443,7 +449,7 @@ descriptors:
   - id: d-monitoring-with-alert
     title: Uptime or smoke monitoring exists with an alert route that has been tested
     tier: operability
-    axis: verification   # register row carried no axis; nearest tier-mate (operability) is d-errors-reach-a-person
+    topic: verification   # register row carried no topic; nearest tier-mate (operability) is d-errors-reach-a-person
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -455,7 +461,7 @@ descriptors:
   - id: d-cost-alerts
     title: Cost alerts exist on every metered account from day one
     tier: operability
-    axis: artifact-legibility   # register row carried no axis; nearest tier-mate (operability) is d-runbook
+    topic: artifact-legibility   # register row carried no topic; nearest tier-mate (operability) is d-runbook
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -467,7 +473,7 @@ descriptors:
   - id: d-runbook
     title: A one-page runbook covers restart, roll back, rotate a key, restore
     tier: operability
-    axis: artifact-legibility
+    topic: artifact-legibility
     tags: [floor, fleet]
     decide:
       kind: instrument
@@ -479,6 +485,7 @@ descriptors:
   - id: d-health-read
     title: One command reports the whole foundation green or red with a reason
     tier: operability
+    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
     tags: [fleet]
     decide:
       kind: claim
@@ -488,6 +495,7 @@ descriptors:
   - id: d-every-run-terminates
     title: Every automated run ends red or green with a reason, never hangs
     tier: operability
+    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
     tags: [fleet]
     decide:
       kind: claim
@@ -497,6 +505,7 @@ descriptors:
   - id: d-backlog-is-issues
     title: The backlog is the repository's issues, labelled by need-by, kind, and size, and the merge empties it
     tier: operability
+    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
     tags: [fleet]
     decide:
       kind: claim
@@ -506,6 +515,7 @@ descriptors:
   - id: d-foundation-asks-swept
     title: Asks of the platform owner are marked at the code site and swept before they go stale
     tier: operability
+    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
     tags: [fleet]
     decide:
       kind: claim
@@ -515,6 +525,7 @@ descriptors:
   - id: d-template-partition-synced
     title: The template-owned partition is declared, synced from the template, and guarded on both sides
     tier: operability
+    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
     tags: [fleet]
     decide:
       kind: claim
@@ -524,6 +535,7 @@ descriptors:
   - id: d-template-currency
     title: The application knows which template version it carries and when it is behind
     tier: operability
+    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
     tags: [fleet]
     decide:
       kind: claim
@@ -533,6 +545,7 @@ descriptors:
   - id: d-red-main-stops-work
     title: A red run on the default branch is the work now, before anything else merges
     tier: operability
+    topic: operability   # register row carried no axis; its own tier (operability) is the nearest topic
     tags: [fleet]
     decide:
       kind: claim
@@ -544,7 +557,7 @@ descriptors:
   - id: d-effect-channels-enumerated
     title: Every channel through which an AI surface produces effects is enumerated in a declared canon
     tier: safety
-    axis: delegation
+    topic: delegation
     tags: [ai-operating]
     decide:
       kind: claim
@@ -554,7 +567,7 @@ descriptors:
   - id: d-model-call-telemetry
     title: Every model call emits a structured record with tier, spend, and outcome
     tier: verification
-    axis: context-economy
+    topic: context-economy
     tags: [ai-operating]
     decide:
       kind: claim
@@ -564,6 +577,7 @@ descriptors:
   - id: d-model-qualification
     title: Model and tier choices are recorded with rationale and re-qualified when models ship
     tier: verification
+    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
     tags: [ai-operating]
     decide:
       kind: claim
@@ -573,6 +587,7 @@ descriptors:
   - id: d-calibration-harness
     title: Any skill or rubric the application relies on is hardened by measurement, not assumed repeatable
     tier: verification
+    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
     tags: [ai-operating]
     decide:
       kind: claim
@@ -582,6 +597,7 @@ descriptors:
   - id: d-ai-feature-evals
     title: Shipped AI features carry evals for answer quality
     tier: verification
+    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
     tags: [ai-operating]
     decide:
       kind: claim
@@ -591,7 +607,7 @@ descriptors:
   - id: d-ai-disclosure
     title: AI involvement is disclosed to the audience's norms, structurally where the audience requires it
     tier: safety
-    axis: delegation
+    topic: delegation
     tags: [ai-operating]
     decide:
       kind: claim
@@ -601,7 +617,7 @@ descriptors:
   - id: d-agent-consumable-surface
     title: Every capability is reachable by an agent through an API or format contract, not only a human UI
     tier: legibility
-    axis: multiplayer
+    topic: multiplayer
     tags: [ai-operating, fleet]
     decide:
       kind: census
@@ -612,7 +628,7 @@ descriptors:
   - id: d-corrections-become-mechanisms
     title: Recorded lessons become durable mechanisms rather than notes
     tier: legibility
-    axis: improvement-loop
+    topic: improvement-loop
     tags: [fleet, ai-operating]
     decide:
       kind: census
@@ -623,6 +639,7 @@ descriptors:
   - id: d-independent-review
     title: Non-trivial work is reviewed by a context that did not produce it before it merges
     tier: verification
+    topic: verification   # register row carried no axis; nearest topic to its tier (verification) and title
     tags: [ai-operating]
     decide:
       kind: claim

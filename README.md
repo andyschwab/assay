@@ -1,23 +1,24 @@
 # assay
 
-**Evidence-based repository evaluation.** assay reads a codebase and produces a
-neutral base of findings — facts with structured descriptors and `file:line`
-evidence — then projects that base through per-scanner adapters onto a flat,
-property-named **axis roster**, and compiles it into three readers:
+**Evidence-based repository evaluation.** assay draws a **map** of a repository
+(a neutral base of findings — facts with structured descriptors and `file:line`
+evidence, projected through per-scanner adapters onto a flat, property-named
+**axis roster**), measures that map against a **yardstick** of requirements, and
+writes three **views** of the result:
 
-- a **maintainer report** (the human lead: authored narrative over computed
-  structure, area by area, with the attack chains computed and ranked, never
-  asserted),
-- a **per-axis walk** (the detail: properties, severity-ranked risks, seams),
-- an **agent-ready remediation handoff** (paste one file into a coding session to
-  close a gap, with every claim auditable before you act).
+- **Intake** (can it be carried? — the floor-tagged requirements),
+- **Maintain** (is it still healthy? — the fleet-tagged requirements),
+- **Improve** (what makes it better? — the maintainer report: authored narrative
+  over computed structure, the per-axis walk, and an agent-ready remediation
+  handoff you can paste into a coding session, every claim auditable before you
+  act).
 
 The one rule that makes it honest: **the base states _what is_; the views compute
 _how good / how bad / how urgent_.** A finding may record "this effect is
 irreversible and has no gate"; it may not record "critical." Severity and
-priority are computed from the descriptors, and the engine issues **no
-deploy/no-deploy verdict** — it presents properties and risks and leaves the
-go/no-go to the reader.
+priority are computed from the base, and the engine issues **no deploy/no-deploy
+verdict** — it presents properties and risks and leaves the go/no-go to the
+reader. assay never prices anything.
 
 ## The axis model
 
@@ -66,7 +67,7 @@ drives the passes. The supporting tools are zero-dependency Node (≥ 20):
 # validate a findings base (schema, ids, links, citations, the run manifest — fails closed)
 node assay.mjs validate <run-dir> [--target <target-repo>]
 
-# project + compile the package (validates first; report + walk + handoff + index)
+# draw the map, measure it against the yardstick, write Intake + Maintain + Improve
 node assay.mjs compile <run-dir>
 
 # ingest a deterministic instrument (fails loud on a bad exit code)
@@ -83,19 +84,22 @@ node assay.mjs score <run-dir> --answers <target>/ANSWERS.yaml
 node assay.mjs variance <run-dir> <run-dir> [<run-dir> ...]
 ```
 
-## The descriptor register (v0)
+## The yardstick (v0)
 
-Beside the axis roster, findings project onto a **descriptor register**
+Beside the axis roster, findings project onto **the yardstick**
 (`yardstick/requirements.yaml`): one row per requirement a repository must meet to
-be stood behind, stated stack-neutrally, each naming the mechanism that decides
-it (a schema facet, an authored census, a scanner's rows, or a sidecar claim).
-`yardstick/measure.mjs <run-dir>` reads a run and writes, per descriptor, met /
+be stood behind, stated stack-neutrally, each tagged with a tier (fix order),
+a topic (the axis roster, plus `custody` and `operability` for the two tiers with
+none of their own), and naming the mechanism that decides it (a schema facet, an
+authored census, a scanner's rows, or a sidecar claim). `yardstick/measure.mjs
+<run-dir>` reads a run and writes `eval/yardstick.yaml`: per requirement, met /
 unmet / mixed / not-measured with the finding ids; a claim-only row always reads
 not-measured from a run, because only a repository's own sidecar asserts it and
-the two are compared, never merged. `yardstick/README.md` is the contract. Every package
-carries the read: `views/compile.mjs` writes it after validating, the index and
-the report state it once, and `map/validate.mjs` recomputes every status and fails
-on drift, so a stale read cannot outlive its base. The axis views are unchanged.
+the two are compared, never merged. `yardstick/README.md` is the contract. Every
+run carries the measurement: `views/compile.mjs` writes it after validating, then
+writes the three views from it, and `map/validate.mjs` recomputes every status and
+fails on drift, so a stale read cannot outlive its base. The axis views are
+unchanged.
 
 ## Repeatability is two numbers, not one
 
@@ -132,8 +136,8 @@ lib/                        yaml-min.mjs, display.mjs — shared, zero-dep
 map/                        drawing the map: SCHEMA.md, METHOD.md, the scanner
                              contract + adapters (map/scanners/), the canon
                              (map/canon/), and the zero-dep engine tools
-yardstick/                  the descriptor register + the descriptor projection (v0)
-views/                      the compiled readers: views/compile.mjs, views/improve/
+yardstick/                  the requirements + the measurement of one map against them (v0)
+views/                      the three views: intake.mjs, maintain.mjs, compile.mjs, improve/
 owner/                      evidence/ — what a repository's owner supplies
 tests/                      the regression harness + public scored fixtures
 HISTORY.md                  append-only dated log of how the engine got here

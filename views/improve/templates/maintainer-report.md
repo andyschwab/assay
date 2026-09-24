@@ -4,8 +4,8 @@ title: "assay maintainer report — structural template"
 ---
 <!--
   assay maintainer report TEMPLATE. Do not edit per-run.
-  views/improve/report.mjs assembles a run's MAINTAINER-REPORT.md from this template +
-  eval/findings.yaml + eval/view-security-gate.yaml + eval/view-maturity-grades.yaml +
+  views/improve/report.mjs assembles a run's IMPROVE.md from this template +
+  eval/findings.yaml + eval/improve-security-gate.yaml + eval/improve-maturity-grades.yaml +
   eval/report-prose.yaml + the shipped partials (concepts.md, method.md, glossary.yaml).
   This is the HUMAN briefing: light and scannable, and it issues no
   deploy/no-deploy verdict. Branded/styled rendering, where a downstream deployment
@@ -27,7 +27,7 @@ title: "assay maintainer report — structural template"
 {{COMPILE:snapshot_stats}}
 
 ## 1. Maturity, area by area
-<!-- SOURCE: view-maturity-grades.yaml (computed) for the native areas, then the axis
+<!-- SOURCE: eval/improve-maturity-grades.yaml (computed) for the native areas, then the axis
      projection (computed) for any scanner-contributed areas + the not-measured honesty
      line. Areas are property-named and shared: a scanner measuring the same property
      lands in the same area, recorded separately. The exec summary carries the compact
@@ -51,11 +51,11 @@ title: "assay maintainer report — structural template"
 
 ## 4. What {{APP}} can do
 <!-- SOURCE: findings.yaml effect channels + report-prose.yaml channel_notes (computed).
-     The PDF renders this as a status-rail list. Full machine detail in the walk (view-axes.md). -->
+     Full machine detail in the walk (eval/improve-axes.md). -->
 {{COMPILE:capabilities}}
 
 ## 5. Security risks
-<!-- SOURCE: view-security-gate.yaml exposures (computed). The security exposures as
+<!-- SOURCE: eval/improve-security-gate.yaml exposures (computed). The security exposures as
      illuminated risks, most-likely first — each a decision (fix / accept / investigate),
      never a deploy verdict. -->
 {{COMPILE:security_risks}}
@@ -65,6 +65,13 @@ title: "assay maintainer report — structural template"
 {{PROSE:roadmap_intro}}
 
 {{PROSE:roadmap}}
+
+## 7. Requirements by topic
+<!-- SOURCE: the yardstick's measurement (eval/yardstick.yaml), grouped by topic
+     (eval/improve.yaml, computed by views/improve/topics.mjs) — every requirement on
+     the yardstick exactly once, joined to the register for title/tier/check. A topic
+     with no requirements today still reads as measured, never silently clean. -->
+{{COMPILE:requirements_by_topic}}
 
 ## Appendix A — In plain terms
 <!-- SOURCE: views/improve/templates/concepts.md (the primer) + views/improve/templates/glossary.yaml (core + concepts).
