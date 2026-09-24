@@ -7,6 +7,8 @@
 #                      findings-9N-<scanner>.yaml for a verified-clean instrument run)
 #   status: skipped  — a decision not to run it; `reason` required
 #   status: failed   — it was invoked and errored; `reason` carries the error
+#   model:           — optional: the model id a judgment scanner ran on (warned when a
+#                      judgment scanner ran without one); instruments need none
 #
 # The adopted roster is every adapter under integration/adapters/ that does not
 # carry `adopted: false`. Rows from a scanner recorded as not run are rejected.

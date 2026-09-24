@@ -53,6 +53,12 @@ const PROFILES = {
     file: 'findings-91-gitleaks.yaml',
     startId: 700,
     okExits: [0, 1],
+    // the raw archive is LOCATION-ONLY: a gitleaks report carries the matched value in
+    // Secret, Match and Line (and the author's name and email); none of it may enter a run
+    archive(raw) {
+      const leaks = JSON.parse(raw);
+      return JSON.stringify(leaks.map((l) => Object.fromEntries(GITLEAKS_ARCHIVE_KEYS.filter((k) => l[k] !== undefined).map((k) => [k, k === 'Commit' ? String(l[k]).slice(0, 12) : l[k]]))), null, 1) + '\n';
+    },
     convert(raw, startId) {
       const leaks = parseJson(raw, 'gitleaks');
       if (!Array.isArray(leaks)) throw new Error('gitleaks report must be a JSON array');
@@ -239,6 +245,8 @@ const PROFILES = {
   },
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
+// the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)
+const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'EndLine', 'StartColumn', 'EndColumn', 'Commit', 'Date', 'Fingerprint', 'Entropy', 'Tags'];
 // fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
@@ -406,7 +414,9 @@ if (isMain(import.meta.url)) {
   try { rows = convert(tool, rawText, exit, startId, { stripPrefix }); }
   catch (e) { console.error(`✗ ingest halted: ${e.message}`); process.exit(1); }
   mkdirSync(join(evalDir, 'raw'), { recursive: true });
-  copyFileSync(rawPath, join(evalDir, 'raw', PROFILES[tool].raw || `${tool}.json`));
+  const rawDst = join(evalDir, 'raw', PROFILES[tool].raw || `${tool}.json`);
+  if (PROFILES[tool].archive) writeFileSync(rawDst, PROFILES[tool].archive(rawText));
+  else copyFileSync(rawPath, rawDst);
   const dst = join(evalDir, PROFILES[tool].file);
   writeFileSync(dst, toYaml(rows, tool, exit, rows.skipped, startNote));
   if (rows.coverage) writeFileSync(join(evalDir, `coverage-${tool}.yaml`), coverageYaml(rows.coverage));

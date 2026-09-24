@@ -299,6 +299,16 @@ for (const [dir, what] of NEGATIVE) {
     if (nextStart(tmp, 'fresh-clone').start !== 1700) fail('fresh-clone must start above both existing blocks (F-1700)');
     rmSync(tmp, { recursive: true, force: true });
   }
+  // the raw archive of a gitleaks report must be location-only: the CLI once copied the raw
+  // report into eval/raw/ verbatim, matched values and author identity included
+  {
+    const tmp = join(HERE, '.tmp-glarchive'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+    execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], { stdio: 'pipe' });
+    const archived = readFileSync(join(tmp, 'eval', 'raw', 'gitleaks.json'), 'utf8');
+    if (archived.includes('AKIAFAKE') || archived.includes('sk-FAKE') || /"(Secret|Match|Line|Author|Email)"/.test(archived)) fail('the archived gitleaks report must carry locations only — never Secret, Match, Line, Author or Email');
+    if (!/"RuleID"/.test(archived) || !/"File"/.test(archived) || !/"StartLine"/.test(archived)) fail('the archived gitleaks report must keep rule, file and line');
+    rmSync(tmp, { recursive: true, force: true });
+  }
   const proj = projectMulti([...gl, ...sc], adaptersOnce());
   if (proj.unmapped.length) fail(`instrument rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   if (proj.projected.find((p) => p.f.id === gl[0].id)?.axis !== 'code-security') fail('a gitleaks secret must land on code-security');

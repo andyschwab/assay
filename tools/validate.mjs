@@ -220,7 +220,11 @@ for (const file of passFiles) {
           if (!MANIFEST_STATUS.includes(row.status)) { err(at, `bad status "${row.status}" (ran | skipped | failed)`); continue; }
           if (row.status !== 'ran' && !(typeof row.reason === 'string' && row.reason.trim()))
             err(at, `${row.status} needs a reason — a skip without one is indistinguishable from an omission`);
+          if (row.model !== undefined && !(typeof row.model === 'string' && row.model.trim()))
+            err(at, `model must be the model id the scanner ran on (a string), or absent`);
           if (row.status === 'ran') {
+            if (row.model === undefined && id !== 'repo-eval' && ADAPTERS[id].role !== 'instrument')
+              warn(at, `no model: recorded for a judgment scanner — a repeat cannot separate model drift from method drift`);
             const explicitFile = passFiles.some((f) => f.endsWith(`-${id}.yaml`));
             if (!sourcesSeen.has(id) && !explicitFile)
               err(at, `status ran, but the base carries no rows from ${id} and no findings-9N-${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty)`);
