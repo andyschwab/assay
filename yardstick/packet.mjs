@@ -194,7 +194,12 @@ export function loadPacket(pathOrDir) {
   if (!existsSync(file)) throw new Error(`no packet at ${file}`);
   let doc;
   try { doc = parseYaml(readFileSync(file, 'utf8')); }
-  catch (e) { throw new Error(`${file}: not valid YAML (${e instanceof YamlError ? e.message : String(e.message || e)})`); }
+  catch (e) {
+    const msg = e instanceof YamlError ? e.message : String(e.message || e);
+    // the reply goes back to the owner's AI: say how to fix the one mistake it is most likely to make
+    const hint = /\{/.test(msg) ? ' Write each item on its own lines ("- key: value", then "  key: value"), never as a { } group on one line.' : '';
+    throw new Error(`${file}: not valid YAML (${msg}).${hint}`);
+  }
   return { doc, file };
 }
 
