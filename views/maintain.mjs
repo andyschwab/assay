@@ -12,7 +12,7 @@
 // Usage: node assay.mjs maintain <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows, toYaml } from './floor-fleet.mjs';
+import { buildRows, toYaml, basisNote } from './floor-fleet.mjs';
 import { loadYardstick } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -31,13 +31,13 @@ export function renderMd(runId, built, confidential = false) {
 
   out.push('## Open', '');
   if (open.length) {
-    for (const r of open) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. Today: ${r.status}${r.of != null ? ` (${r.met} of ${r.of})` : ''} — ${r.note}. Proving check: ${r.check}.`);
+    for (const r of open) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. Today: ${r.status}${basisNote(r)}${r.of != null ? ` (${r.met} of ${r.of})` : ''} — ${r.note}. Proving check: ${r.check}.`);
   } else out.push('_Nothing open._');
   out.push('');
 
   out.push('## Met', '');
   if (met.length) {
-    for (const r of met) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. ${r.note}`);
+    for (const r of met) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. ${r.note} (met${basisNote(r)}).`);
   } else out.push('_Nothing met yet._');
   out.push('');
 

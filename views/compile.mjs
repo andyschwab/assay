@@ -19,7 +19,9 @@
 // No safe-to-run, no single grade — each axis carries its own posture
 //.
 //
-// Usage: node assay.mjs compile <run-dir>
+// Usage: node assay.mjs compile <run-dir> [--packet <dir>]
+//   --packet   validate a repository's own packet and fold it into the measurement
+//              (forwarded to yardstick/measure.mjs --write; owner/PACKET.md)
 import { writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,8 +35,11 @@ import { readFileSync } from 'node:fs';
 import { prosePath as runProsePath, nativeDir, indexPath } from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const arg = process.argv[2];
-if (!arg) { console.error('usage: node assay.mjs compile <run-dir>'); process.exit(2); }
+const argv = process.argv.slice(2);
+const packetIdx = argv.indexOf('--packet');
+const packetArgs = packetIdx > -1 ? ['--packet', argv[packetIdx + 1]] : [];
+const arg = argv.find((a, i) => !a.startsWith('--') && !(packetIdx > -1 && i === packetIdx + 1));
+if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>]'); process.exit(2); }
 const runDir = arg;
 const runId = basename(runDir);
 
@@ -58,7 +63,7 @@ const confArgs = CONFIDENTIAL ? ['--confidential'] : [];
 console.log('· validate …');                  run('../map/validate.mjs', []);
 // the measurement: every package carries yardstick.yaml (yardstick/README.md); the
 // validator drift-checks it on the next validate, so a stale read cannot outlive its base
-console.log('· measure  (yardstick) …');      run('../yardstick/measure.mjs', ['--write']);
+console.log('· measure  (yardstick) …');      run('../yardstick/measure.mjs', ['--write', ...packetArgs]);
 console.log('· topics   (improve.yaml) …');   run('improve/topics.mjs', ['--write']);
 
 // ── the three views ───────────────────────────────────────────────────────────

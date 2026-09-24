@@ -478,7 +478,14 @@ if (existsSync(yardstickResultPath)) {
         if (!x) { err(at, `not a requirement in the yardstick`); continue; }
         if (r.status !== x.status) err(at, `requirement drift: file says ${r.status}, the map computes ${x.status} — regenerate: node assay.mjs measure <run-dir> --write`);
         if (r.how !== x.how) err(at, `mechanism drift: file says ${r.how}, the yardstick decides by ${x.how}`);
+        if ((r.basis || 'run') !== (x.basis || 'run')) err(at, `basis drift: file says ${r.basis || 'run'}, the map computes ${x.basis || 'run'} (owner/PACKET.md) — regenerate: node assay.mjs measure <run-dir> --write`);
       }
+      // contradictions (owner/PACKET.md "Claims and a run, compared"): a packet claim of
+      // satisfied against a run-decided unmet row — recomputed the same way, same drift rule.
+      const fileContras = Array.isArray(view.contradictions) ? view.contradictions : [];
+      const reContras = re.contradictions || [];
+      if (JSON.stringify(fileContras) !== JSON.stringify(reContras))
+        err(yardstickLabel, `contradictions drift: the file's contradictions: list does not match what the map recomputes — regenerate: node assay.mjs measure <run-dir> --write`);
     }
   }
 }

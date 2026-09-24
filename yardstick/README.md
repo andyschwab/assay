@@ -11,15 +11,16 @@ and writes `yardstick.yaml`: per requirement, `met`, `unmet`, `mixed` or
 `not-measured`, with the finding ids and a note saying how it was decided. Every
 view reads that file and nothing else to decide a requirement.
 
-A repository may also state its own **claims** per requirement (the format is
-below). Claims and a run's measurement are compared, never merged: a claim the
-run contradicts is a finding.
+A repository may also state its own **claims** per requirement, in a **packet**
+(`/owner/PACKET.md` is the one home of its format). Claims and a run's
+measurement are compared, never merged: a claim the run contradicts is a
+finding, never silently overwritten.
 
 ## The rows
 
 | Field | Meaning |
 |---|---|
-| `id` | `d-<slug>`, the public namespace. A team's private requirements carry their own prefix in their claims file and join this one when a second team needs them |
+| `id` | `d-<slug>`, the public namespace. A team's private requirements carry their own prefix in their packet and join this one when a second team needs them |
 | `title` | the requirement, one sentence, no stack in it |
 | `tier` | the order to fix things when taking a repository on, which is also the order of irreversibility: custody, safety, reproducibility, verification, legibility, operability (the file's `tiers:` list) |
 | `topic` | what part of the code it is about: an axis of the roster (`map/project.mjs`), or custody, reproducibility or operability, which no scanner measures as an axis. Improve groups by topic |
@@ -36,7 +37,7 @@ run contradicts is a finding.
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`) | met or unmet with the population; not-measured when the map has no effects |
 | `census` | an authored, enumerated population in the run's `map/censuses.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows; met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
-| `claim` | nothing in a run | always not-measured from a run: only the owner can decide it (the Intake view says `decided_by: owner`). The claim rows are the list of instruments still to build |
+| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`). The claim rows a packet never speaks to are the list of instruments still to build |
 
 `decide.category` on an `instrument` row may be a **list**: categories one scanner
 must hold jointly (`d-fresh-clone-runs` needs both `install` and `build`). A

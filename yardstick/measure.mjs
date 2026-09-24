@@ -15,18 +15,26 @@
 //   • a peer scanner's category with no rows reads met only where the scanner's
 //     own coverage sidecar says the domain was scanned; partial or not-scanned
 //     reads not-measured;
-//   • a `claim` requirement always reads not-measured from a run: only the owner
-//     (a repo's own claims) can assert it, and the two are compared, never merged.
+//   • a `claim` requirement always reads not-measured from a run UNLESS a
+//     repository's own packet (owner/PACKET.md) decides it — then it reads from
+//     the packet, `basis: owner` on the row, never inferred from a run;
+//   • a claim on a row the RUN decides (facet/census/instrument) never changes
+//     that row's status — a claim never lets presence stand in for enforcement.
+//     `satisfied` against a run-`unmet` row is a contradiction, recorded, not merged.
 //
-// Usage:  node assay.mjs measure <run-dir> [--write] [--json]
-//   --write   regenerate yardstick.yaml (generated; never hand-edit)
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+// Usage:  node assay.mjs measure <run-dir> [--write] [--json] [--packet <dir>]
+//   --write    regenerate yardstick.yaml (generated; never hand-edit)
+//   --packet   validate a repository's packet and copy it into the run
+//              (lib/run-layout.mjs packetManifestPath) before measuring; a run that
+//              already carries that copy reads it with no flag (owner/PACKET.md)
+import { readFileSync, existsSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
-import { censusesPath, yardstickPath } from '../lib/run-layout.mjs';
+import { censusesPath, yardstickPath, ownerDir, packetManifestPath } from '../lib/run-layout.mjs';
 import { isHalt, isHaltClass, gateHolds, isMain } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
+import { loadPacket, validatePacket, decidePacketClaim } from './packet.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 export const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
@@ -78,6 +86,16 @@ export function loadYardstick(file = YARDSTICK_FILE) {
 // ── the run's inputs beyond the base ─────────────────────────────────────────
 export function loadMaturityInputs(dir) {
   const p = censusesPath(dir);
+  if (!existsSync(p)) return null;
+  return parseYaml(readFileSync(p, 'utf8'));
+}
+// The run's own copy of a repository's packet (owner/manifest.yaml —
+// lib/run-layout.mjs packetManifestPath), if `measure --packet` ever copied one
+// in. Read-only, already-validated data: never re-validated here (that happened
+// at copy time) and never reached for outside the run — a re-compile reproduces
+// from exactly what the run itself carries. Absent is the norm, not an error.
+export function loadRunPacket(dir) {
+  const p = packetManifestPath(dir);
   if (!existsSync(p)) return null;
   return parseYaml(readFileSync(p, 'utf8'));
 }
@@ -171,21 +189,48 @@ function byInstrument(d, fs, disp, coverage) {
 }
 
 // ── the projection ────────────────────────────────────────────────────────────
-export function measureRun({ findings, manifest, inputs, coverage }, reg = loadYardstick()) {
+// `packet` (optional): a repository's own VALIDATED claims (yardstick/packet.mjs
+// loadPacket().doc — the caller validates; this function trusts it). Every row
+// gains `basis`: 'owner' only when the packet itself decided that row (a claim
+// row it spoke to, extracted or generic); 'run' otherwise — including a claim
+// row the packet is silent on, which still reads not-measured, unchanged.
+// Contradictions (a packet claim of `satisfied` against a run-decided `unmet`
+// row) are collected and attached as `rows.contradictions` — an own property on
+// the returned array, not a second return value, so every existing caller
+// (`.map`/`.find`/`Object.fromEntries`) keeps working unmodified.
+export function measureRun({ findings, manifest, inputs, coverage, packet }, reg = loadYardstick()) {
   const disp = dispositionsOf(manifest);
-  return reg.requirements.map((d) => {
-    let r;
+  const contradictions = [];
+  const claims = packet && Array.isArray(packet.claims) ? packet.claims : [];
+  const rows = reg.requirements.map((d) => {
+    let r, basis = 'run';
     if (d.decide.kind === 'facet') r = byFacet(d, findings);
     else if (d.decide.kind === 'census') r = byCensus(d, inputs);
     else if (d.decide.kind === 'instrument') r = byInstrument(d, findings, disp, coverage || {});
-    else r = row('not-measured', 'claim', [], 'claim-only: decided by the owner, never inferred from a run');
-    return { id: d.id, title: d.title, tier: d.tier, tags: d.tags || [], topic: d.topic ?? null, kind: d.decide.kind, ...r };
+    else {
+      const pd = decidePacketClaim(d.id, packet);
+      if (pd) { r = row(pd.status, 'claim', [], pd.note); basis = 'owner'; }
+      else r = row('not-measured', 'claim', [], 'claim-only: decided by the owner, never inferred from a run');
+    }
+    if (d.decide.kind !== 'claim') {
+      const c = claims.find((x) => x && x.id === d.id);
+      if (c && c.state === 'satisfied' && r.status === 'unmet') {
+        contradictions.push({ id: d.id, claim: 'satisfied', run_status: r.status, findings: r.findings || [] });
+      }
+    }
+    return { id: d.id, title: d.title, tier: d.tier, tags: d.tags || [], topic: d.topic ?? null, kind: d.decide.kind, basis, ...r };
   });
+  rows.contradictions = contradictions;
+  return rows;
 }
-export function projectRun(runDir, reg) {
+// packet: optional explicit override (already-validated doc); default reads the
+// run's own copy (owner/manifest.yaml), so a run measured after `measure
+// --packet <dir>` (or one that already carries the copy) folds it in with no
+// flag — owner/PACKET.md, yardstick/README.md.
+export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   const findings = loadFindings(runDir);
   if (!findings.length) throw new Error(`no findings under ${runDir}`);
-  return measureRun({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir) }, reg);
+  return measureRun({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what the three views (Intake, Maintain, Improve's topic
@@ -198,6 +243,15 @@ export function loadMeasurement(dir) {
   const doc = parseYaml(readFileSync(p, 'utf8'));
   return Array.isArray(doc.requirements) ? doc.requirements : [];
 }
+// The run's recorded contradictions (a packet claim of satisfied against a
+// run-decided unmet row) — yardstick.yaml's own contradictions: list, never
+// recomputed here. Always an array, even when the run carries no packet.
+export function loadContradictions(dir) {
+  const p = yardstickPath(dir);
+  if (!existsSync(p)) return [];
+  const doc = parseYaml(readFileSync(p, 'utf8'));
+  return Array.isArray(doc.contradictions) ? doc.contradictions : [];
+}
 export function summarize(rows) {
   const c = Object.fromEntries(STATUSES.map((s) => [s, 0]));
   for (const r of rows) c[r.status]++;
@@ -205,29 +259,51 @@ export function summarize(rows) {
 }
 const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 // yardstick.yaml — the run's measurement of the map against the yardstick.
-// Per row: what THIS RUN decided and how; a title/tier/topic/check is the
-// register's, joined by id, never duplicated here (one home per fact).
+// Per row: what THIS RUN decided, how, and its basis (run | owner — owner/PACKET.md);
+// a title/tier/topic/check is the register's, joined by id, never duplicated here.
 export function toYaml(rows, runName) {
   const L = [`# yardstick.yaml — GENERATED by yardstick/measure.mjs --write. Do not hand-edit.`,
     `# The yardstick's measurement of run ${runName}: per requirement, what THIS RUN decides and how.`,
-    `# A claim-only requirement reads not-measured here by construction; the owner decides it, the run never infers it.`,
+    `# A claim-only requirement reads not-measured here by construction unless a repository's own`,
+    `# packet decided it (basis: owner — owner/PACKET.md); the run never infers one.`,
     `# title/tier/topic/check are the yardstick's (yardstick/requirements.yaml), joined by id — not duplicated here.`,
     'schema: yardstick', 'version: 0', 'summary:'];
   const s = summarize(rows);
   for (const k of [...STATUSES, 'decided', 'of']) L.push(`  ${k}: ${s[k]}`);
   L.push('requirements:');
   for (const r of rows) {
-    L.push(`  - id: ${r.id}`, `    status: ${r.status}`, `    how: ${r.how}`);
+    L.push(`  - id: ${r.id}`, `    status: ${r.status}`, `    how: ${r.how}`, `    basis: ${r.basis || 'run'}`);
     if (r.of != null) L.push(`    met: ${r.met}`, `    of: ${r.of}`);
     L.push(`    findings: [${r.findings.join(', ')}]`, `    note: ${q(r.note)}`);
+  }
+  const contradictions = rows.contradictions || [];
+  L.push('contradictions:');
+  for (const c of contradictions) {
+    L.push(`  - id: ${c.id}`, `    claim: ${c.claim}`, `    run_status: ${c.run_status}`, `    findings: [${(c.findings || []).join(', ')}]`);
   }
   return L.join('\n') + '\n';
 }
 
 if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
-  const dir = args.find((a) => !a.startsWith('--'));
-  if (!dir) { console.error('usage: node assay.mjs measure <run-dir> [--write] [--json]'); process.exit(2); }
+  const packetIdx = args.indexOf('--packet');
+  const packetDir = packetIdx > -1 ? args[packetIdx + 1] : null;
+  const dir = args.find((a, i) => !a.startsWith('--') && !(packetIdx > -1 && i === packetIdx + 1));
+  if (!dir) { console.error('usage: node assay.mjs measure <run-dir> [--write] [--json] [--packet <dir>]'); process.exit(2); }
+  if (packetDir) {
+    let doc, file;
+    try { ({ doc, file } = loadPacket(packetDir)); }
+    catch (e) { console.error(`✗ assay measure --packet: ${e.message}`); process.exit(1); }
+    const errors = validatePacket(doc, { requirementIds: loadYardstick().requirements.map((d) => d.id) });
+    if (errors.length) {
+      console.error(`✗ assay measure --packet: ${errors.length} violation(s) in ${file} (fails closed — nothing measured)\n`);
+      for (const e of errors) console.error('  • ' + e);
+      process.exit(1);
+    }
+    mkdirSync(ownerDir(dir), { recursive: true });
+    copyFileSync(file, packetManifestPath(dir));
+    console.error(`packet copied: ${file} → ${packetManifestPath(dir)}`);
+  }
   const rows = projectRun(dir);
   const s = summarize(rows);
   if (args.includes('--json')) { console.log(JSON.stringify({ summary: s, requirements: rows }, null, 1)); }

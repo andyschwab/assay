@@ -14,17 +14,29 @@
 //     this row" (basis stays `run`); a result means the packet decided it
 //     (basis `owner`).
 //
-// No import of yardstick/measure.mjs here — measure.mjs imports THIS module for
-// Phase 2, and this module stays a leaf so the two never form a cycle. The CLI
-// below reaches measure.mjs's loadYardstick with a dynamic import instead (the
-// same avoidance the rest of this engine already uses — see map/validate.mjs).
+// No import of yardstick/measure.mjs here, not even a dynamic one: measure.mjs
+// imports THIS module for Phase 2, and a module with a top-level await (the CLI
+// below used to reach for one) genuinely deadlocks in a cycle — the two settling
+// promises wait on each other (this is a real ECMAScript module-graph hazard,
+// not just style). The CLI reads requirements.yaml directly instead.
 //
 // Usage:
 //   node assay.mjs validate-packet <manifest.yaml | packet-dir>
 import { readFileSync, existsSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseYaml, YamlError } from '../lib/yaml-min.mjs';
 import { isMain } from '../map/doctrine.mjs';
+
+const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
+const REQUIREMENTS_FILE = join(HERE, 'requirements.yaml');
+// The claim-id roster alone (no full validateYardstick — that closed-vocab check
+// is the register's own concern, pinned by tests/regression.mjs's
+// yardstick-register block; this only needs to know which ids exist).
+export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
+  const reg = parseYaml(readFileSync(file, 'utf8'));
+  return Array.isArray(reg && reg.requirements) ? reg.requirements.map((d) => d.id) : [];
+}
 
 export const PACKET_VERSION = 1;
 export const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answered', 'claims', 'custody', 'notes'];
@@ -251,12 +263,8 @@ if (isMain(import.meta.url)) {
   try { ({ doc, file } = loadPacket(arg)); }
   catch (e) { console.error(`✗ assay validate-packet: ${e.message}`); process.exit(1); }
   let requirementIds = [];
-  try {
-    // dynamic — measure.mjs is the module that imports THIS file's deciders
-    // (Phase 2); a static import here would make a cycle of it.
-    const { loadYardstick } = await import('./measure.mjs');
-    requirementIds = loadYardstick().requirements.map((d) => d.id);
-  } catch (e) { console.error(`✗ assay validate-packet: could not load requirements.yaml to check claim ids (${e.message.split('\n')[0]})`); process.exit(1); }
+  try { requirementIds = requirementIdsOnDisk(); }
+  catch (e) { console.error(`✗ assay validate-packet: could not load requirements.yaml to check claim ids (${e.message.split('\n')[0]})`); process.exit(1); }
   const errors = validatePacket(doc, { requirementIds });
   if (errors.length) {
     console.error(`✗ assay validate-packet: ${errors.length} violation(s) in ${file}\n`);
