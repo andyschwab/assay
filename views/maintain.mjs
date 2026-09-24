@@ -11,16 +11,17 @@
 // no verdict, no severity words) at the run root.
 //
 // Usage: node assay.mjs maintain <run-dir> [--stdout]
-import { writeFileSync, existsSync } from 'node:fs';
+import { writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { buildRows, toYaml } from './floor-fleet.mjs';
 import { loadRegistry } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
+import { parseYaml } from '../lib/yaml-min.mjs';
 
-export function renderMd(runId, built) {
+export function renderMd(runId, built, confidential = false) {
   const { open, met, to_run, not_seen } = built;
   const out = [];
-  out.push('---', 'type: doc', `title: "Maintain — ${runId}"`, '---', '');
+  out.push('---', 'type: doc', ...(confidential ? ['confidential: true'] : []), `title: "Maintain — ${runId}"`, '---', '');
   out.push(`# Maintain — ${runId}`, '');
   out.push('_Is this map still healthy? The fleet: what a steward\'s routines read, floor and');
   out.push('non-floor requirements together, each marked whether it is also a floor requirement.');
@@ -66,7 +67,10 @@ if (isMain(import.meta.url)) {
   const evalDir = existsSync(join(runDir, 'eval')) ? join(runDir, 'eval') : runDir;
   const runRoot = basename(evalDir) === 'eval' ? join(evalDir, '..') : evalDir;
   const yamlOut = toYaml('maintain', runId, reg.version, built);
-  const mdOut = renderMd(runId, built);
+  // run-level confidentiality, the same rule as the Improve writers: the flag or report-prose.yaml
+  let proseConfidential = false;
+  try { const pp = join(evalDir, 'report-prose.yaml'); if (existsSync(pp)) proseConfidential = parseYaml(readFileSync(pp, 'utf8'))?.confidential === true; } catch {}
+  const mdOut = renderMd(runId, built, process.argv.includes('--confidential') || proseConfidential);
   if (process.argv.includes('--stdout')) { process.stdout.write(mdOut); }
   else {
     writeFileSync(join(evalDir, 'maintain.yaml'), yamlOut);

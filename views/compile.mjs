@@ -70,8 +70,8 @@ if (hasProse) {
 } else {
   console.log('· report   — skipped (no eval/report-prose.yaml; the walk is the human read for a raw base)');
 }
-console.log('· intake   (can it be carried?) …'); run('intake.mjs', []);
-console.log('· maintain (is it still healthy?) …'); run('maintain.mjs', []);
+console.log('· intake   (can it be carried?) …'); run('intake.mjs', confArgs);
+console.log('· maintain (is it still healthy?) …'); run('maintain.mjs', confArgs);
 
 // ── axis summary for the index ───────────────────────────────────────────────
 const findings = loadFindings(runDir);

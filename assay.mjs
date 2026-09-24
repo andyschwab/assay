@@ -33,6 +33,8 @@ const GROUPS = [
   }],
   ['Views: Intake, Maintain, Improve', {
     'compile': ['views/compile.mjs', 'measure, then write all three views and the index'],
+    'intake': ['views/intake.mjs', 'the Intake view alone, from an existing measurement'],
+    'maintain': ['views/maintain.mjs', 'the Maintain view alone, from an existing measurement'],
     'maturity': ['views/improve/maturity.mjs', "Improve's maturity coverage per dimension"],
   }],
 ];
