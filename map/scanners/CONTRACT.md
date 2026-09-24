@@ -12,9 +12,6 @@ model, the port, the adapter format, and the fail-closed rule. The roster of
 candidate external scanners and instruments, with licenses and integration
 properties, is
 [`scanner-candidates.md`](/map/scanners/CANDIDATES.md).
-(An earlier version organized findings into five fixed domains under three
-subjects; the flat axis roster replaced it because the taxonomy distracted from
-the target more than it clarified.)
 
 `taxonomy_version: 3`
 
@@ -145,17 +142,13 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b), and
-**dependency-scan** (`adapters/dependency-scan.yaml`, §3c). **OpenSSF Scorecard**
-(`adapters/scorecard.yaml`) is integrated but **retired from the adopted
-roster** (2026-09-15): its checks are remote repository-configuration reads
-that need direct GitHub API access at run time. The wider candidate roster:
-`scanner-candidates.md`.
-**repo-census** (`adapters/repo-census.yaml`, §3d).
-**OpenSSF Scorecard** (`adapters/scorecard.yaml`) is
-integrated but **retired from the adopted roster** (2026-09-15): its checks are
-remote repository-configuration reads that need direct GitHub API access at run
-time. The wider candidate roster: `scanner-candidates.md`.
+credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
+**dependency-scan** (`adapters/dependency-scan.yaml`, §3c), and **repo-census**
+(`adapters/repo-census.yaml`, §3d). **OpenSSF Scorecard**
+(`adapters/scorecard.yaml`) is integrated but not part of the adopted roster:
+its checks are remote repository-configuration reads that need direct GitHub
+API access at run time, which an offline run does not have. The wider
+candidate roster: `scanner-candidates.md`.
 
 ### 3b. The fresh-clone instrument (`map/fresh-clone.mjs`)
 
@@ -196,9 +189,10 @@ on `artifact-legibility`.
 
 **Workspaces.** An npm-workspaces root is not one repository, it is
 several: a root that is only a workspaces shell (no scripts, no dependencies, no
-lockfile of its own) reads honestly as "six steps not declared" — that used to be
-mistaken for the whole picture while the apps underneath it failed `npm ci` from a
-clean clone. The runner resolves `workspaces` (an array, or `{packages: [...]}`;
+lockfile of its own) reads honestly as "six steps not declared" — a distinct
+reading from the whole picture, since the apps underneath such a root can still
+fail `npm ci` from a clean clone even while the root's own six steps read
+not-declared. The runner resolves `workspaces` (an array, or `{packages: [...]}`;
 globs `dir/*` and `dir/**`, and a plain path, resolved with zero dependencies) and,
 when the root declares none but `apps/*` or `packages/*` exist with their own
 `package.json`, treats those as workspaces too. The step plan then runs once per
@@ -233,16 +227,17 @@ node assay.mjs fresh-clone <target-dir | git URL> --out fresh-clone.json [--time
 node assay.mjs ingest <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
 ```
 
-**Descriptor category as a list (`yardstick/requirements.yaml`.** A
-`decide.category` in the yardstick may name one native category or a list of them
-— two rows one instrument decider must hold jointly, such as fresh-clone's
+**A requirement's `decide.category` as a list (`yardstick/requirements.yaml`).**
+A `decide.category` in the yardstick may name one native category or a list of
+them — two rows one instrument decider must hold jointly, such as fresh-clone's
 `[install, build]` for `d-fresh-clone-runs` or `[lint, typecheck]` for
-`d-lint-typecheck-gate`. A finding matches the descriptor when its
-`native_category` is **any** listed value; the descriptor reads **met** only when
+`d-lint-typecheck-gate`. A finding matches the requirement when its
+`native_category` is **any** listed value; the requirement reads **met** only when
 **every** listed category is met by the single-category rules above (`yardstick/
-README.md` has the full decider table). This is a register-side reading of the
+README.md` has the full decider table). This is the yardstick's own reading of the
 same rows the adapter maps one at a time — the adapter's `map:` stays keyed by one
 native category each; nothing here widens what a category means to it.
+
 ### 3c. The dependency-scan instrument (`map/dependency-scan.mjs`)
 
 **What it measures.** Whether a known vulnerability is present anywhere in the
@@ -293,6 +288,8 @@ never clean.
 ```sh
 node assay.mjs dependency-scan <target-dir> --out dependency-scan.json [--timeout 300]
 node assay.mjs ingest <run-dir> --tool dependency-scan --raw dependency-scan.json --exit <its exit code>
+```
+
 ### 3d. The repo-census instrument (`map/repo-census.mjs`)
 
 **What it measures.** Four floor rows a run could not decide before except by an
@@ -317,8 +314,8 @@ tree checks:
   section headed "Runbook" or "Operations". `pass` only when it carries a heading
   or paragraph for **each** of restart, roll back, rotate (a key/secret/credential),
   and restore (a backup). Presence of the words is what this decides — whether a
-  procedure was ever actually **run** is a separate, sidecar claim, said in the
-  observation every time.
+  procedure was ever actually **run** is a separate claim, one only the owner's
+  evidence can make, said in the observation every time.
 - **ci-gate** — every `.github/workflows/*.yml|.yaml`, read with a minimal
   line-based reader (zero deps, no YAML library; handles the common shapes: `on:
   [push, pull_request]`, block-form `on: / push: / branches: [main]`,
@@ -384,7 +381,7 @@ complement covers a scanner the run never invoked: **every run carries
 `eval/scanners.yaml`**, one row per adopted scanner — `ran`, `skipped` with a
 reason, or `failed` with the error (`SCHEMA.md` §5a). `validate.mjs` rejects a
 run without it, a skip without a reason, a `ran` with no rows and no explicit
-empty file, and rows from a scanner recorded as not run; `compile-package.mjs`
+empty file, and rows from a scanner recorded as not run; `views/compile.mjs`
 validates before it compiles anything. Every renderer then names a scanner that
 did not run with its recorded reason. An integration that can be omitted
 without a recorded decision reads as coverage; this is what makes "not
@@ -398,10 +395,10 @@ the walk, the index, and the report. The scanner's taxonomy can grow (deep-code-
 review 1.71 added S, T, W); `default: FAIL` catches a new letter loudly and the
 fix is one mapping row.
 
-**Retirement is a recorded decision, never a deletion.** An adapter that carries
-`adopted: false` (with a `retired:` note) leaves the roster a run must dispose
-of and no longer widens the not-measured registry, but stays loadable so frozen
-runs that carry its rows still project.
+**Not-adopted is a recorded decision, never a deletion.** An adapter that carries
+`adopted: false` (with a `retired:` note stating why) leaves the roster a run
+must dispose of, without adding to the not-measured registry, but stays loadable
+so a run that carries its rows still projects.
 
 ## 5. Evolution across the seam
 
@@ -411,11 +408,11 @@ runs that carry its rows still project.
 - **We evolve** (revise the axis model): bump `taxonomy_version`; each adapter
   declares `targets_taxonomy`. Findings are stored raw (native category +
   evidence) alongside the projection, so re-projecting onto a new taxonomy version
-  is cheap and lossless — no re-scan. (The move from the five-domain
-  `taxonomy_version: 2` to this axis model was exactly such a re-projection.)
-- **Grandfathering:** findings frozen under the five-domain model carry
-  `domain:` / `also_domains:`; they translate mechanically
-  (`project.mjs` `LEGACY_DOMAIN_AXIS`) and are never rewritten in place.
+  is cheap and lossless — no re-scan.
+- **An older finding may still carry `domain:` / `also_domains:`**, the fields of
+  a five-domain model, instead of `axis:`. They translate to an axis
+  mechanically (`project.mjs` `LEGACY_DOMAIN_AXIS`) and are never rewritten in
+  place.
 
 ## 6. What the engine guarantees back
 

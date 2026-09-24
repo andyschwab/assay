@@ -31,19 +31,19 @@ the instrument role in §3a):
 |---|---|---|---|
 | repo-eval (native) | peer scanner | `adapters/repo-eval.yaml` | The seven dimension passes; dogfooded as one scanner |
 | deep-code-review | peer scanner | `adapters/deep-code-review.yaml` | LLM skill, own A–W taxonomy (1.71+), per-finding severity + verbatim fixes; contributes the two code axes. Its 1.72+ machine report (`findings-YYYY-MM-DD.yaml`, a coverage row per domain) is ingested by `map/ingest.mjs --tool deep-code-review`, which also archives the coverage sidecar |
-| Gitleaks | instrument | `adapters/gitleaks.yaml` | Integrated via `map/ingest.mjs` (w-assay-02): every leak → one `secret` row onto code-security; converter validated against a live v8.24.3 run; secrets never copied out of the raw report |
-| fresh-clone (native) | instrument | `adapters/fresh-clone.yaml` | `map/fresh-clone.mjs` (2026-09-22): clones to scratch, runs the declared install / build / lint / typecheck / test / migrate steps, replays README command claims for presence; ingested via `map/ingest.mjs --tool fresh-clone` (exits 0 and 1 are runs, 2 halts). A not-declared floor step and a missing claim are gaps; rows never carry step output. Contract §3b |
-| dependency-scan (native) | instrument | `adapters/dependency-scan.yaml` | `map/dependency-scan.mjs` (2026-09-24): finds every `package-lock.json` / `npm-shrinkwrap.json` in the tree and runs `npm audit --json` against each (an ENOLOCK workspace member is retried from a scratch copy of just its own package.json + lockfile); `pnpm-lock.yaml` / `yarn.lock` are recorded not-supported. Ingested via `map/ingest.mjs --tool dependency-scan` (exits 0 and 1 are runs, 2 halts); one gap row per advisory (severity-categorized), one per failed lockfile, one per not-supported lockfile. Decides `d-dependencies-known-clean` on its `critical` category. Contract §3c |
-| repo-census (native) | instrument | `adapters/repo-census.yaml` | `map/repo-census.mjs` (2026-09-24): four checks against the tree alone — an architecture page naming an external service/data store, a present-tense agent contract, a runbook covering restart/roll back/rotate/restore, and a CI gate on the default branch that does not fail open; ingested via `map/ingest.mjs --tool repo-census` (exits 0 and 1 are runs, 2 halts). A gap row per `gap` check, a strength row per `pass` check; ci-gate fail-open is High, the rest Medium. Contract §3d |
+| Gitleaks | instrument | `adapters/gitleaks.yaml` | Integrated via `map/ingest.mjs`: every leak → one `secret` row onto code-security; converter validated against a live v8.24.3 run; secrets never copied out of the raw report |
+| fresh-clone (native) | instrument | `adapters/fresh-clone.yaml` | `map/fresh-clone.mjs`: clones to scratch, runs the declared install / build / lint / typecheck / test / migrate steps, replays README command claims for presence; ingested via `map/ingest.mjs --tool fresh-clone` (exits 0 and 1 are runs, 2 halts). A not-declared floor step and a missing claim are gaps; rows never carry step output. Contract §3b |
+| dependency-scan (native) | instrument | `adapters/dependency-scan.yaml` | `map/dependency-scan.mjs`: finds every `package-lock.json` / `npm-shrinkwrap.json` in the tree and runs `npm audit --json` against each (an ENOLOCK workspace member is retried from a scratch copy of just its own package.json + lockfile); `pnpm-lock.yaml` / `yarn.lock` are recorded not-supported. Ingested via `map/ingest.mjs --tool dependency-scan` (exits 0 and 1 are runs, 2 halts); one gap row per advisory (severity-categorized), one per failed lockfile, one per not-supported lockfile. Decides `d-dependencies-known-clean` on its `critical` category. Contract §3c |
+| repo-census (native) | instrument | `adapters/repo-census.yaml` | `map/repo-census.mjs`: four checks against the tree alone — an architecture page naming an external service/data store, a present-tense agent contract, a runbook covering restart/roll back/rotate/restore, and a CI gate on the default branch that does not fail open; ingested via `map/ingest.mjs --tool repo-census` (exits 0 and 1 are runs, 2 halts). A gap row per `gap` check, a strength row per `pass` check; ci-gate fail-open is High, the rest Medium. Contract §3d |
 
 Every adopted scanner gets a disposition in every run's manifest
-(`scanner-contract.md` §4a): ran, skipped with a reason, or failed with the error.
+(`CONTRACT.md` §4a): ran, skipped with a reason, or failed with the error.
 
-## Retired from the adopted roster
+## Not adopted
 
 | Scanner | Role | Adapter | Why |
 |---|---|---|---|
-| OpenSSF Scorecard | instrument | `adapters/scorecard.yaml` (`adopted: false`) | Integrated via `map/ingest.mjs` (19 checks onto the native workspace axes, score-banded); retired 2026-09-15 because its checks are remote repository-configuration reads that need direct GitHub API access at run time — it cannot run against a local checkout, so in an environment without API reach it is a forever-fail every run would have to dispose of. The adapter stays so frozen runs carrying its rows still project. Re-adoption needs an offline mode or a different environment |
+| OpenSSF Scorecard | instrument | `adapters/scorecard.yaml` (`adopted: false`) | Integrated via `map/ingest.mjs` (19 checks onto the native workspace axes, score-banded), but not part of the adopted roster: its checks are remote repository-configuration reads that need direct GitHub API access at run time — it cannot run against a local checkout, so in an environment without API reach it is a forever-fail every run would have to dispose of. The adapter stays loadable so a run carrying its rows still projects. Adoption needs an offline mode or a different environment |
 
 ## Core instrument candidates (license-clean, best coverage per integration cost)
 
@@ -75,7 +75,7 @@ Every adopted scanner gets a disposition in every run's manifest
 
 These need credentials and a live target; they produce per-probe results at repo
 granularity, never file:line. They are the realistic path to real
-`product-ai-quality` coverage (`w-toolchain-27`).
+`product-ai-quality` coverage.
 
 | Tool | License | Notes |
 |---|---|---|

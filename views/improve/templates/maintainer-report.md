@@ -19,9 +19,9 @@ title: "assay maintainer report — structural template"
 **Prepared for:** {{MAINTAINER}}  ·  **Date:** {{DATE}}  ·  **Run:** `{{RUN_ID}}`
 
 ## Executive summary
-<!-- SOURCE: report-prose.yaml exec_summary (five-part map) + computed stat strip. In the PDF
-     this renders as a one-page dashboard: each paragraph paired with its visual (stat strip,
-     strength and watch callouts, a compact maturity ladder). -->
+<!-- SOURCE: report-prose.yaml exec_summary (five-part map: scale, strength, watch,
+     maturity, gate), rendered as plain prose paragraphs in that order, followed by the
+     computed stat strip below. -->
 {{PROSE:exec_summary}}
 
 {{COMPILE:snapshot_stats}}

@@ -129,14 +129,13 @@ assess a closed list. After the base is merged, run it again with
 no finding cites; verdict each or record why it is out of scope. And when a **prior
 run of the same target exists**, diff the new base against it (matching on *fact*,
 not id) and re-verify any prior-only fact — a cheap, deterministic completeness
-check that recovers real misses (see
-a frozen calibration set).
+check that recovers real misses.
 
-**Every `.md` file you author in a run** (`00-terrain.md`, `view-*.md`,
+**Every `.md` file you author in a run** (`00-terrain.md`, `improve-*.md`,
 `AI-NATIVE-EVAL.md`, `censuses.md`, `candidate-insights.md`) opens with OKF
-frontmatter so the bundle guardrail (`npm run check`) passes — `type: doc` plus a
-`title:`. The generated docs (report + handoff) get theirs from the tools; see
-`SCHEMA.md` §5.
+frontmatter — `type: doc` plus a `title:` — so the file is well-formed wherever an
+OKF bundle guardrail reads it. The generated docs (report + handoff) get theirs
+from the tools; see `SCHEMA.md` §5.
 
 ## Passes 1–7 — Base observation (each dimension emits FINDINGS, not verdicts)
 
@@ -350,7 +349,7 @@ hard; zero-day / physical = exotic.
 
 ## The views (each reads `findings.yaml`, writes its own artifact; never edits the base)
 
-### Leverage view → `eval/improve-leverage.md` (was `eval/view-leverage.md`)
+### Leverage view → `eval/improve-leverage.md`
 Read gaps as opportunities. For each, estimate leverage on **all three** axes —
 *faster* (whose hours does closing it save?), *better* (what becomes possible
 that isn't today? — including work that ships at all where the fixed overhead
@@ -361,7 +360,7 @@ never merge them — a cost-only estimate is blind to the other two, and a
 duration-inside-the-existing-shape estimate is blind to the third. Order by
 leverage per unit of verification cost, strengths noted first.
 
-### Maturity view → `eval/improve-maturity.md` (was `eval/view-maturity.md`) + `eval/maturity-inputs.yaml`
+### Maturity view → `eval/improve-maturity.md` + `eval/maturity-inputs.yaml`
 Maturity is **measured coverage, not rung words** (SCHEMA §6b): for each dimension,
 the share of a review-enumerated population meeting that dimension's bar. Existence
 somewhere is not existence everywhere — one excellent artifact never promotes a
@@ -381,17 +380,19 @@ is no binning.
  dimension reads `not_measured` — an honest gap beats a judged grade.
 - **A census outranks a blind pass on its own axis.** Where a delegation pass's
  blind claim about a secret's boundary disagrees with the credential census, the
- **census wins** — it traced the actual strip, the blind pass guessed. (In the
- a calibration, both blind sweeps flagged a "fleet-shared key exfil" that the
- census had already traced as stripped below the boundary; the census-correct answer
- is the one that ships.) Same for the module census over a blind coupling claim.
+ **census wins** — it traced the actual strip, the blind pass guessed. A blind
+ sweep can flag a false positive the census has already resolved — for example a
+ "fleet-shared key exfil" the credential census has already traced as stripped
+ below the boundary; the census-correct answer is the one that ships. Same for
+ the module census over a blind coupling claim.
 - **Census-augmented run mode = the repeatability lever (`SCHEMA.md` §6b).**
  When run-to-run repeatability of the *findings* matters (not just the verdict), emit
  the observational dimensions as **one finding per enumerated population item**
  (one per ADR / bounded context / effect-provability channel / knowledge doc), each
  with the item's own file as evidence and the census's **canonical `subject_type`**
- (`SCHEMA.md` §2 — decide it once, never re-choose per run). On a
- calibration this ~doubled fact-level repeatability (48% → 78%). A base sweep stays
+ (`SCHEMA.md` §2 — decide it once, never re-choose per run). Measured on
+ calibration pairs (a repeated run over one frozen target), this roughly doubles
+ fact-level repeatability (48% to 78% in one measured pair). A base sweep stays
  fine for a one-off client read.
 - **Author depth separately**: one judged sentence per dimension on how good the
  *best instance* is, with finding ids. High depth over low coverage is a finding
@@ -400,14 +401,14 @@ is no binning.
  enforced requires something *running* the checks automatically (CI pre-merge),
  not the checks existing.
 
-Write the prose reading in `improve-maturity.md` (was `view-maturity.md`), then run
+Write the prose reading in `improve-maturity.md`, then run
 `node assay.mjs maturity <eval-dir> --write` to generate
-`improve-maturity-grades.yaml` (was `view-maturity-grades.yaml`). Never hand-edit the generated file; the validator
+`improve-maturity-grades.yaml`. Never hand-edit the generated file; the validator
 recomputes the counted numbers and fails on drift. This is a *capability* measure —
 keep it distinct from the security view's *exposure* ladder; a dimension can measure
 high here and carry a critical exposure.
 
-### Security view (ALWAYS-ON) → `eval/improve-security.md` (was `eval/view-security.md`)
+### Security view (ALWAYS-ON) → `eval/improve-security.md`
 Run the frame stack in order; lead the artifact with the posture headline.
 
 1. **Trifecta screen** — find every `capability` finding holding ≥2 legs; note
@@ -442,11 +443,10 @@ Run the frame stack in order; lead the artifact with the posture headline.
  effects that escape that isolation — surface them first.
 
 **Severity is computed from the evidence, never asserted — and it drives no deploy
-verdict** (safe-to-run is retired; the report presents risks, not a go/no-go — and
-that retirement covers the old alpha/beta/prod stage scale too, not only the rendered
-verdict: assigning a deployment stage per exposure is a small risk-tolerance decision
-that belongs to the reader). Each exposure carries the PROPERTIES the reader decides
-from, stated separately and never composited into a tier:
+verdict.** The report presents risks, not a go/no-go, and carries no alpha/beta/prod
+stage scale either: assigning a deployment stage per exposure is a small
+risk-tolerance decision that belongs to the reader. Each exposure carries the
+PROPERTIES the reader decides from, stated separately and never composited into a tier:
 
 - **WHO can trigger it** — `who`: an unauthenticated stranger · an authorized real
   user · only at scale or adversarial. Reach is the sharpest single property.
@@ -460,7 +460,7 @@ An exposure the analyst judges lower-priority watch material is labeled
 `standing_watch: true`, with the reason stated — a labeled judgment, never a tier.
 
 **Emit the machine-readable exposures tail.** Alongside the prose, the security view
-writes `eval/improve-security-gate.yaml` (`SCHEMA.md` §6a; was `eval/view-security-gate.yaml`): one
+writes `eval/improve-security-gate.yaml` (`SCHEMA.md` §6a): one
 `exposure` per chain/exposure with its `findings`, `who`, `likelihood`, optional
 `standing_watch`, the one-line `fix` (breaks_the_chain / leverage action), and what
 it `unlocks`. This is the only structured artifact a view produces; the maintainer
@@ -479,7 +479,7 @@ zero-dependency and **fails closed** — schema, closed vocab, conditional facet
 recorded as not run all halt),
 and **view/report citation-integrity** (every `F-###` a view or report cites must
 resolve). Green is the gate: don't compile views or the report on an unvalidated base
-(`compile-package.mjs` runs it first and refuses otherwise).
+(`views/compile.mjs` runs it first and refuses otherwise).
 Re-run it after the views and after Pass 9 (it then also checks the gate sidecar and
 the report's citations).
 
@@ -517,7 +517,7 @@ adoption** engagement, lead with strengths. Same evidence, owned ordering.
 `AI-NATIVE-EVAL.md` is the **internal** synthesis (dense, operator-facing, cites every
 finding). The **external, maintainer-facing** deliverable is Pass 9.
 
-## Pass 8.5 — The walk (per-axis profiles) → `eval/improve-axes.md` (was `eval/view-axes.md`)
+## Pass 8.5 — The walk (per-axis profiles) → `eval/improve-axes.md`
 
 The detail layer under the axis model (`map/scanners/CONTRACT.md`):
 `node views/improve/axes.mjs <run-dir> [--base <dir>]...` projects the base
@@ -547,7 +547,7 @@ One command assembles the whole deliverable over the projected base:
 `node assay.mjs compile <run-dir>`. Three readers, one bundle
 (`INDEX.md` is the front door):
 
-- **`IMPROVE.md`** — **the lead human deliverable** (was `MAINTAINER-REPORT.md`): the report
+- **`IMPROVE.md`** — **the lead human deliverable**: the report
  chassis (below), authored narrative over computed structure, area by area over
  the whole axis roster. Compiled only when the run carries its authored inputs
  (`eval/report-prose.yaml`); a raw base still gets the walk + handoff, and the
@@ -605,48 +605,37 @@ its security section presents exposures as **illuminated risks** (a decision to 
 accept, or investigate), most-likely first. It is **two paired artifacts for two
 audiences**, from one authored surface:
 
-- **`IMPROVE.md`** — the **human briefing**. Light and scannable (a dozen-odd
- pages), organized maturity-and-strengths first, then the security risks — never a report
- card and never a deploy verdict. The
- cover carries the *How to read this report* panel (no table of contents — it isn't
- clickable, and section headers navigate a short doc fine), so the **executive summary is
- page 1 by default** (the cover is off unless `cover: true`, so a shared PDF's thumbnail
- shows the compelling part). The front page has **no "Executive summary" heading and no
- editorialized verdict line** — a compact masthead names it (the **app name is the big line**,
- "AI-Native Readiness Report" the subheading, the app's descriptor below), then the report
- leads straight into **computed visuals**: the defined-stat row (three numbers each with its
- meaning), the coverage bars beside the supervision bar, the best-trait/watch chips — then the
- scale/maturity/security **narrative below**. Nothing LLM-authored is the first critical thing;
- the numbers are. **The front page must fit one page for any target regardless of complexity**,
- and the renderer *enforces* it: the exec section carries a hard `max-height` (one page's content
- box) with `overflow: hidden`, so it can never spill to page 2; a fit pass first zoom-scales the
- ES down to a readable floor, and only if that is not enough does it drop trailing rows of the
- enumerable lists (coverage areas, oversight kinds) and append a **"+N more (see …)"** note so the
- dropped count is never silently lost — the prose paragraphs are never truncated, and a still-over
- case prints a review warning rather than clipping quietly. `cover: true` prepends a plain title page (title +
- meta only, no content) for a formal leave-behind; *How to read this report* lives in Appendix A
- either way, never on the cover. **The body sections run maturity + positives first, then
- the security items — matching the left→right ES flow (coverage/strength on the left, risk on
- the right) and how a maintainer wants to experience the report.** In order: **§1 Maturity,
- area by area** (the **full coverage table** — bar, percent, met-of count, what-was-measured
- microcopy, and the depth sentence per area, closing with the labeled aggregate and the
- enforced/generative frontier line, the ES preview expanded); **§2 Strengths worth keeping**;
- **§3 The main risks, and the questions only you can answer** (the computed chains, then the
- open questions); **§4 What `<target>` can do**, rendered as a **status-rail list** (one row
- per kind of action, grouped by reach with per-group counts, a red rail + ▲ on the unguarded
- ones — the effect inventory made the visual, answering "what can this thing actually do?");
- **§5 Security risks** (the exposures as decisions — fix / accept / investigate — most-likely
- first, no deploy verdict); **§6
- Prioritized roadmap**; then short appendices (*In plain terms* = the concepts primer + a core
- glossary, *Method & scope*, *the handoff package*). ELI5 is a **voice property**, not a
- component: the prose glosses each technical term in-sentence on first use, so a non-engineer
- is never stranded. No count-of-findings charts — every visual encodes *state* (coverage level,
- measured coverage, guarded/unguarded), never a count dressed up as a score — a coverage
- percent is a measured fraction with its denominator shown, not a score. **The main-risks
- section is "The main risks, start to finish": the attack chains, computed by
- `map/chains.mjs` from the `reaches` graph and ranked by reach-then-ease, never authored.**
- The widest, easiest chain (for a security-critical target, the fleet-compromise chain) sorts to
- the top on its own; a target whose untrusted-input surfaces hold no effect leg computes to zero
+- **`IMPROVE.md`** — the **human briefing**. Light and scannable, organized
+ maturity-and-strengths first, then the security risks — never a report card and
+ never a deploy verdict. It opens with the masthead (title, prepared-for, date,
+ run id) and the **executive summary**: the five authored paragraphs (scale,
+ strength, watch, maturity, gate — SCHEMA §6c), followed by a small computed
+ table of counts (findings, strengths, gaps, facts, effect channels, capability
+ findings) and a one-line breakdown by dimension. No editorialized verdict line
+ — the numbers come first, and the narrative that follows explains them.
+ **The body sections run maturity + positives first, then the security items**,
+ matching how a maintainer wants to experience the report. In order: **§1
+ Maturity, area by area** (each area's measured coverage — percent, met-of
+ count, what was measured, and a depth sentence — closing with the pooled
+ aggregate and the enforced/generative frontier note); **§2 Strengths worth
+ keeping**; **§3 The main risks, and the questions only you can answer** (the
+ computed chains, then the open questions); **§4 What `<target>` can do** (the
+ effect inventory grouped by how far each action reaches, each unsupervised one
+ flagged ⚑ — answering "what can this thing actually do?"); **§5 Security
+ risks** (the exposures as decisions — fix / accept / investigate — most-likely
+ first, no deploy verdict); **§6 Prioritized roadmap**; **§7 Requirements by
+ topic** (every yardstick requirement, grouped, joined to this run's
+ measurement); then short appendices (*In plain terms* = the concepts primer +
+ a core glossary, *the maturity areas explained*, *Method & scope*, *the
+ handoff package*). ELI5 is a **voice property**, not a layout element: the
+ prose glosses each technical term in-sentence on first use, so a non-engineer
+ is never stranded. No count-of-findings charts — every number shown is a
+ measured fraction with its denominator, never a count dressed up as a score.
+ **The main-risks section is "The main risks, start to finish": the attack
+ chains, computed by `map/chains.mjs` from the `reaches` graph and ranked by
+ reach-then-ease, never authored.** The widest, easiest chain (for a
+ security-critical target, the fleet-compromise chain) sorts to the top on its
+ own; a target whose untrusted-input surfaces hold no effect leg computes to zero
  chains and the section says so honestly. That is how a chained, remote-triggerable exploit gets
  the lead deterministically instead of being flattened into one calm card (the
  base proposes the edges as evidence-backed facts, the computation disposes which chain leads).
@@ -661,7 +650,7 @@ audiences**, from one authored surface:
  live attack chain" (not "none exists"), and a reached-but-limited path is stated as *what the review
  found* in the way, never as a guarantee. **The chains and "Questions only your team can answer" open
  together in §3** (the questions folded up out of their own section) so the big items and the big
- unknowns lead with no jump, and the executive summary owns its own page (a break after it). And
+ unknowns lead with no jump. And
  `validate.mjs` **fails closed** on a chain sink with no `preconditions` — its difficulty must
  be discoverable, so its absence is an eval defect to go fix, not a silent default.
 
@@ -678,13 +667,10 @@ authored**:
  - Narrative keys: `target`, `target_short`, `maintainer`, `strengths[]`, `roadmap_intro`,
  `key_questions[]`, and `exec_summary` as the **five-part map** `{scale, strength, watch,
  maturity, gate}` (SCHEMA §6c). Author `scale`/`maturity`/`gate` as flowing paragraphs —
- they render as the ES's unbroken narrative — and `strength`/`watch` **chip-length**
- (one tight sentence or two), since they render side by side inside the instrument
- panel, not as prose. Keep the five-part shape and keep it all tight — the ES must fit
- one page.
- - `operating:` — legacy, no longer rendered (the levels-of-use runway was retired with
- the safe-to-run verdict; see `SCHEMA.md` §6c). Kept only so older `report-prose.yaml`
- files still validate; new runs may omit it.
+ they render as the executive summary's unbroken narrative — and `strength`/`watch`
+ **short** (one tight sentence or two), since nothing else renders beside them. Keep
+ the five-part shape and keep it all tight.
+ - `operating:` — optional; not read by the compiler. Safe to omit.
  - `channel_notes:` — one `{group, what}` per effect channel, naming the real mechanism
  (Resend, Nango, Stripe) the read-only descriptors can't. `group ∈ {outward, data, read,
  ai}` sorts the *What it can do* section.
@@ -699,7 +685,7 @@ authored**:
  halt must trace to a roadmap fix — its `findings`, or a `covers_channels: [slug]` on the
  composite item that closes it by pattern — or to a `dispositions:` entry (`{channel,
  reason, note}`) that logs why it is deliberately not fixed. `validate.mjs` fails closed on
- a silent gap. The ES shows the count; this is what makes the report's "the rest is in
+ a silent gap. §4 shows the count; this is what makes the report's "the rest is in
  Security risks" honest — nothing is silently unaddressed.
 2. **Compile the Markdown:** `node views/improve/report.mjs <run-dir>`.
  It merges `views/improve/templates/maintainer-report.md` + `findings.yaml` (the computed capability
@@ -713,7 +699,7 @@ authored**:
 **The package is the deliverable.** `views/compile.mjs` assembles it;
 `IMPROVE.md` is what you send a human, `handoff/` is what they (or you) paste
 into a Claude session to close the gaps, and the scanner-native appendices ride along as
-provenance. Branded/PDF rendering, where a downstream deployment wants it, lives outside
+provenance. Branded rendering, where a downstream deployment wants it, lives outside
 this repo. Sending any of it is the halt — a human sends it.
 
 ## Scoring against known answers (the calibration lever)

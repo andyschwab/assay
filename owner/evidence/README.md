@@ -9,7 +9,7 @@ restored, a rollback ran, a deploy came up as the committed sha, a smoke check h
 the deployed app, a monitoring alert fired and was received, and cost alerts are
 named per metered account. Nothing in a checkout can prove any of that — so the
 owner commits a dated transcript instead, and `map/repo-census.mjs`
-(scanner-contract §3d) checks its **shape and freshness**, deterministically, the
+(`CONTRACT.md` §3d) checks its **shape and freshness**, deterministically, the
 same way it checks an architecture page or a runbook. This file is the one home of
 the format; nowhere else restates
 it — `SCHEMA.md`, `map/scanners/CONTRACT.md` §3d, and
