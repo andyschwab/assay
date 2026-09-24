@@ -39,6 +39,7 @@ export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
 }
 
 export const PACKET_VERSION = 1;
+const PLACEHOLDER_ROLE = /^(unknown|nobody|none|no one|n\/a|tbd|\?+)$/i;
 export const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answered', 'claims', 'custody', 'notes'];
 export const ANSWERED_VIA = ['owner-prompt', 'steward'];
 export const CLAIM_STATES = ['satisfied', 'not-applicable', 'open', 'unknown'];
@@ -106,6 +107,11 @@ function walkStrings(node, path, cb) {
 export function validatePacket(doc, { requirementIds = [] } = {}) {
   const errors = [];
   const err = (m) => errors.push(m);
+  const roleList = (v, at) => {
+    if (v === undefined) return;
+    if (!Array.isArray(v)) { err(`${at}: must be a list of roles ([] when nobody)`); return; }
+    for (const r of v) if (typeof r !== 'string' || PLACEHOLDER_ROLE.test(r.trim())) err(`${at}: holds ${JSON.stringify(r)}, which is not a role; write [] when nobody can, or name the role`);
+  };
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { err('the packet must be a YAML mapping at the top level'); return errors; }
 
   for (const k of Object.keys(doc)) if (!TOP_KEYS.includes(k)) err(`unknown top-level key: ${k}`);
@@ -153,17 +159,21 @@ export function validatePacket(doc, { requirementIds = [] } = {}) {
       if (acc.organisational !== undefined && !YES_NO_UNKNOWN.includes(acc.organisational)) err(`${at}.organisational: must be one of ${YES_NO_UNKNOWN.join('|')} (got ${JSON.stringify(acc.organisational)})`);
       if (acc.transferable !== undefined && !YES_NO_UNKNOWN.includes(acc.transferable)) err(`${at}.transferable: must be one of ${YES_NO_UNKNOWN.join('|')} (got ${JSON.stringify(acc.transferable)})`);
       if (acc.certainty !== undefined && !CERTAINTY.includes(acc.certainty)) err(`${at}.certainty: must be one of ${CERTAINTY.join('|')} (got ${JSON.stringify(acc.certainty)})`);
+      roleList(acc.login_roles, `${at}.login_roles`);
     }
     if (cu.credentials !== undefined && !Array.isArray(cu.credentials)) err('custody.credentials: must be a list');
     for (const [i, cr] of (Array.isArray(cu.credentials) ? cu.credentials : []).entries()) {
       const at = `custody.credentials[${i}]`;
       if (!cr || typeof cr !== 'object') { err(`${at}: must be a mapping`); continue; }
       if (cr.certainty !== undefined && !CERTAINTY.includes(cr.certainty)) err(`${at}.certainty: must be one of ${CERTAINTY.join('|')} (got ${JSON.stringify(cr.certainty)})`);
+      roleList(cr.readers, `${at}.readers`);
     }
     if (cu.people !== undefined) {
       const p = cu.people;
       if (!p || typeof p !== 'object' || Array.isArray(p)) err('custody.people: must be a mapping');
       else if (p.restore_done !== undefined && !YES_NO_UNKNOWN.includes(p.restore_done)) err(`custody.people.restore_done: must be one of ${YES_NO_UNKNOWN.join('|')} (got ${JSON.stringify(p.restore_done)})`);
+      // a role list holds roles only: a placeholder would count as a person who does not exist
+      if (p && typeof p === 'object') for (const k of ['build', 'deploy', 'restore']) roleList(p[k], `custody.people.${k}`);
     }
     if (cu.money !== undefined && (typeof cu.money !== 'object' || Array.isArray(cu.money))) err('custody.money: must be a mapping');
     if (cu.money && cu.money.monthly !== undefined && !Array.isArray(cu.money.monthly)) err('custody.money.monthly: must be a list');

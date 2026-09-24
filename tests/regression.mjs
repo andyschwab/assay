@@ -1077,6 +1077,10 @@ function adaptersOnce() { return loadAdapters(); }
   if (validatePacket({ packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } }, { requirementIds: ids }).length)
     fail('a minimal packet with no claims/custody must still validate clean (every field beyond answered/packet/yardstick is optional)');
   if (!validatePacket({}, { requirementIds: ids }).some((e) => /answered: required/.test(e))) fail('a packet with no answered block must be refused');
+  // a placeholder in a role list would count as a person who does not exist (bus factor)
+  const withPlaceholder = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' }, custody: { people: { build: ['founder'], deploy: ['founder'], restore: ['unknown'] } } };
+  if (!validatePacket(withPlaceholder, { requirementIds: ids }).some((e) => /custody\.people\.restore: holds "unknown", which is not a role/.test(e))) fail('a placeholder in a role list must be refused');
+  if (validatePacket({ ...withPlaceholder, custody: { people: { build: ['founder'], deploy: ['founder'], restore: [] } } }, { requirementIds: ids }).length) fail('an empty role list ([] when nobody can) must validate');
 }
 
 // ── packet phase 2: the yardstick reads the packet (owner/PACKET.md) ──────────
