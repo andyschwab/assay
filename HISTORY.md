@@ -118,3 +118,124 @@ what the public engine learned.
   the runner, the converter's halts, the clean-run empty file and the
   projection. The register's floor rows keep their kinds; the re-kind to
   `instrument: fresh-clone` is #123. Goldens untouched.
+- **2026-09-24 — the dependency-scan instrument (#121).** `tools/dependency-scan.mjs`
+  finds every `package-lock.json` / `npm-shrinkwrap.json` in the tree (skipping
+  `node_modules`/`.git`) and runs `npm audit --json` against each, no install; a
+  workspace member whose effective root carries no lockfile of its own (npm's
+  `ENOLOCK`) is retried from a scratch copy of just that member's package.json +
+  lockfile (`method: scratch-copy`, vs `in-place`). `pnpm-lock.yaml` / `yarn.lock`
+  are recorded `not-supported`, never clean. Exit 0 / 1 (zero vs. any advisory) are
+  runs, 2 is a crash; any other exit or a report that does not parse into npm's
+  `vulnerabilities` + `metadata` shape (a network-unreachable audit looks exactly
+  like this) makes that lockfile `failed`, never clean. `ingest.mjs` gains the
+  profile (`findings-95-dependency-scan.yaml`, ids from F-950): one gap per
+  advisory (category = its own severity), one `lockfile-failed` gap per failed
+  lockfile, one `lockfile-unsupported` gap per unsupported one.
+  `adapters/dependency-scan.yaml` is adopted (instrument, contributes nothing; all
+  seven categories → code-security), so every fixture manifest and the template
+  gain a disposition row. `d-dependencies-known-clean` re-kinds from `claim` to
+  `instrument: dependency-scan` on its `critical` category alone — a run with
+  high/moderate/low/info advisories and zero critical rows still reads met,
+  narrower than the row's title. A `dependency-scan` harness block (synthetic
+  documents; no real `npm audit` invoked) pins the converter's rows, its halts,
+  the clean-run empty file, the projection, and the three descriptor reads.
+  Goldens untouched.
+- **2026-09-24 — the fresh-clone runner goes workspace-aware (#127), and the
+  register learns list categories (#123, fresh-clone half).** The defect: on a
+  real monorepo (Scout) the root `package.json` is a bare npm-workspaces shell —
+  no scripts, no dependencies, no lockfile — so the runner read it as "six steps
+  not declared, exit 0" while the apps that actually mattered each failed `npm
+  ci` from a clean clone (a workspace's own lockfile resolves against the
+  workspaces root, which has none: `EUSAGE`); the per-app results people had
+  only existed because a human ran the runner once per app. `tools/fresh-
+  clone.mjs` now resolves `workspaces` (an array, `{packages: [...]}`, globs
+  `dir/*` / `dir/**`, plain paths — zero deps) and, when the root declares none
+  but `apps/*` / `packages/*` exist with their own manifest, treats those as
+  workspaces too; the step plan runs once per workspace in its own directory, in
+  addition to the root. Install is the one step rebased: when the root carries a
+  lockfile, a workspace installs via `npm ci --workspace <path>` run from the root;
+  otherwise its own plan runs in its own directory, which reproduces the real
+  `EUSAGE` honestly instead of masking it. The document gains `workspaces:
+  [{path, toolchain, steps, readme, readme_claims}]`; `exit` is 1 when the root
+  or any workspace has a failed/timed-out step or a missing claim; a workspace-
+  free repo still emits exactly today's document plus `workspaces: []`. The
+  `fresh-clone` ingest profile emits the same per-step and per-claim gap rows
+  per workspace, `native_id` prefixed by the workspace path
+  (`apps/x:install:failed`), evidence scoped to the workspace's own manifest or
+  README, `native_category` left as the plain closed step name so the adapter
+  map is untouched; a pre-#127 document with no `workspaces` key still converts
+  exactly as before. Separately, `decide.category` on a register `instrument`
+  row may now be a list — two categories one decider holds jointly — reading
+  met only when every listed category is independently met by the single-
+  category rules (`validateRegistry` rejects an empty list). Four of the
+  fresh-clone floor rows are re-kinded from `claim` onto it:
+  `d-fresh-clone-runs` (`[install, build]`), `d-tests-execute-core` (`test`),
+  `d-lint-typecheck-gate` (`[lint, typecheck]`), `d-schema-versioned`
+  (`migrate` — no database signals in the tree means no migrate row, which
+  reads met: nothing to migrate). `d-readme-true` stays a census; every other
+  register row is untouched. A public fixture
+  (`tests/instruments/fresh-clone-monorepo` — a `workspaces: ["apps/*"]` root
+  with no scripts/deps/lockfile, `apps/good` passing, `apps/bad` failing its
+  build offline and deterministically in place of a real `npm ci` EUSAGE) and
+  two harness blocks (`fresh-clone-workspaces`, `descriptor-list-category`) pin
+  the new behavior; the existing `fresh-clone` block and its fixture are
+  unchanged. Goldens untouched.
+- **2026-09-24 — the repo-census instrument, and four floor rows a run can now
+  decide without an LLM (#122).** `tools/repo-census.mjs` reads a checkout,
+  read-only, zero deps, no network: an architecture page present and naming an
+  external service or data store (root and per app in a monorepo — package.json
+  `workspaces`, or `apps/*` / `packages/*`); an agent contract (AGENTS.md or
+  CLAUDE.md, same monorepo rule) present and present-tense (no status/history/
+  changelog/todo/backlog heading, no dated changelog line); a runbook carrying a
+  heading or paragraph for restart, roll back, rotate a key/secret/credential,
+  and restore from backup (presence of the words only — whether a procedure was
+  ever run stays a sidecar claim); and a CI gate — a `.github/workflows/*.yml`
+  that triggers on pull_request or push to the default branch and runs a
+  test/lint/typecheck/build step with no step failing open (`continue-on-error:
+  true` is a gap, High; whether the check is *required* by branch protection is
+  not visible from the tree, said in every observation). Exit 0 / 1 are runs, 2
+  is a crash. `ingest.mjs` gains the profile (`findings-96-repo-census.yaml`,
+  ids from F-960): one gap row per `gap` check, one strength row per `pass`
+  check (so the axis sees the evidence, not just the absence of a gap);
+  `not-applicable` yields nothing. `adapters/repo-census.yaml` is adopted
+  (instrument, contributes nothing; architecture-page / runbook →
+  artifact-legibility, agent-contract → improvement-loop where the register
+  homes d-agent-contract, ci-gate → deterministic-gates), so every fixture
+  manifest and the template gain a disposition row. `d-architecture-page`,
+  `d-agent-contract`, `d-runbook`, and `d-ci-gate-on-default-branch` (the last
+  previously `kind: census`) are re-kinded to `instrument: repo-census` in this
+  same change — the four floor rows the register could only read `claim` /
+  `census` for before. A public fixture (`tests/instruments/repo-census-target`,
+  a tiny monorepo) and a `repo-census` harness block pin the runner, the
+  converter's halts, the all-pass strength-only conversion, the projection, and
+  the descriptor reads (met on an all-pass `ran` manifest, not-measured with the
+  reason when skipped). Goldens untouched.
+- **2026-09-24 — the owner-evidence transcript check, six more floor rows a run
+  can now decide (andyschwab/ai-native-framework#124, option B).**
+  `tools/repo-census.mjs` gains six checks, named `evidence-<descriptor-id>`,
+  root only: a dated YAML-frontmatter transcript at `ops/evidence/<id>.md` (or
+  `docs/evidence/<id>.md`), for `d-backup-restore-exercised`,
+  `d-rollback-exercised`, `d-deploy-one-command`, `d-smoke-on-deployed`,
+  `d-monitoring-with-alert`, `d-cost-alerts` — six things a repository cannot
+  show by itself. `pass` only when the file is present, its frontmatter carries
+  `descriptor` (must equal the file's id), `date`, `by` (a role or handle — an
+  email-shaped value is a gap), `commit` (7–40 hex), `result: pass`, the keys
+  named per row (`templates/evidence/README.md`, the one home of the format),
+  the date is fresh (`--evidence-max-age`, default 90 days, from `--as-of`,
+  default today UTC — recorded in the document), and the body carries a fenced
+  code block and at least 5 non-empty lines; the body itself never enters the
+  document past those counts. Every observation, pass or gap, says the check
+  verifies the transcript's shape and freshness, never the truth of what it
+  describes — that rests on the named person's attestation in version history.
+  `ingest.mjs`'s `repo-census` profile accepts the six check names
+  (`native_category: evidence-<descriptor-id>`, `Medium` severity, a strength
+  row on pass, a gap row otherwise); `adapters/repo-census.yaml` maps each to
+  the axis the register homes its re-kinded row on (none of the six carried an
+  `axis:` of their own, so each took its nearest tier-mate's, noted inline).
+  The category names carry no colon, so the adapter's minimal YAML reader needs
+  no special case. The six rows re-kind from `claim` to
+  `instrument: repo-census` in the same change. A fixture addition under
+  `tests/instruments/repo-census-target/ops/evidence/` (one passing transcript,
+  four with one planted defect each, one absent) extends the `repo-census`
+  harness block; the fixture's new checks widen its own counts (6 checks/6 rows
+  → 12/12), asserted explicitly, nothing else moved. Goldens untouched.

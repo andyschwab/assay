@@ -299,6 +299,16 @@ for (const [dir, what] of NEGATIVE) {
     if (nextStart(tmp, 'fresh-clone').start !== 1700) fail('fresh-clone must start above both existing blocks (F-1700)');
     rmSync(tmp, { recursive: true, force: true });
   }
+  // the raw archive of a gitleaks report must be location-only: the CLI once copied the raw
+  // report into eval/raw/ verbatim, matched values and author identity included
+  {
+    const tmp = join(HERE, '.tmp-glarchive'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
+    execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], { stdio: 'pipe' });
+    const archived = readFileSync(join(tmp, 'eval', 'raw', 'gitleaks.json'), 'utf8');
+    if (archived.includes('AKIAFAKE') || archived.includes('sk-FAKE') || /"(Secret|Match|Line|Author|Email)"/.test(archived)) fail('the archived gitleaks report must carry locations only — never Secret, Match, Line, Author or Email');
+    if (!/"RuleID"/.test(archived) || !/"File"/.test(archived) || !/"StartLine"/.test(archived)) fail('the archived gitleaks report must keep rule, file and line');
+    rmSync(tmp, { recursive: true, force: true });
+  }
   const proj = projectMulti([...gl, ...sc], adaptersOnce());
   if (proj.unmapped.length) fail(`instrument rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   if (proj.projected.find((p) => p.f.id === gl[0].id)?.axis !== 'code-security') fail('a gitleaks secret must land on code-security');
@@ -359,17 +369,18 @@ function adaptersOnce() { return loadAdapters(); }
   if (adopted.includes('scorecard')) fail('scorecard is retired (adopted: false) and must not be in the adopted roster');
   if (!adapters.scorecard) fail('the retired scorecard adapter must still LOAD (frozen runs carrying its rows must project)');
   // the adopted roster is pinned by name: adopting or retiring a scanner is a reviewed
-  // change to this line in the same commit (fresh-clone adopted 2026-09-22, #120)
-  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'fresh-clone', 'gitleaks', 'repo-eval'])) fail(`adopted roster must be deep-code-review, fresh-clone, gitleaks, repo-eval (got ${adopted.join(', ')})`);
+  // change to this line in the same commit (fresh-clone adopted 2026-09-22, #120;
+  // dependency-scan and repo-census adopted 2026-09-24, #121, #122)
+  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'repo-census', 'repo-eval'])) fail(`adopted roster must be deep-code-review, dependency-scan, fresh-clone, gitleaks, repo-census, repo-eval (got ${adopted.join(', ')})`);
   const reg = registryAxes(adapters);
   if (!reg.includes('code-security') || !reg.includes('multiplayer') || reg.length !== 9) fail(`registry must be the 9 axes the adopted scanners contribute — an instrument adds none (got ${reg.length}: ${reg.join(', ')})`);
-  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' } } };
+  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'dependency-scan': { status: 'skipped', reason: 'no registry reach here' }, 'repo-census': { status: 'skipped', reason: 'no filesystem access here' } } };
   const d = dispositions(m, adapters);
   if (d.ran.join() !== 'repo-eval' || d.skipped[0]?.reason !== 'out of scope' || d.failed[0]?.id !== 'gitleaks' || d.missing.length) fail('dispositions must group ran / skipped / failed with reasons and report nothing missing');
   const line = scannerLine(m, ['repo-eval'], adapters);
   if (!line.includes('skipped: deep-code-review (out of scope)') || !line.includes('failed: gitleaks (binary missing)') || !line.includes('fresh-clone (no scratch clone here)')) fail(`the scanners line must name skipped and failed scanners with their reasons (got "${line}")`);
   if (!scannerLine(null, ['repo-eval'], adapters).includes('no run manifest')) fail('a missing manifest must be named on the scanners line, never silently omitted');
-  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,fresh-clone,gitleaks') fail('adopted scanners without a row must be reported missing');
+  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,dependency-scan,fresh-clone,gitleaks,repo-census') fail('adopted scanners without a row must be reported missing');
   if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
   // the walk prints the reason on the not-measured register
   const walk = execFileSync(process.execPath, [join(ROOT, 'tools', 'compile-axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
@@ -433,7 +444,7 @@ function adaptersOnce() { return loadAdapters(); }
   const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'eval'), { recursive: true });
   for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
     copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
-  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n');
+  writeFileSync(join(tmp, 'eval', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n  dependency-scan:\n    status: skipped\n    reason: "fixture: not executed"\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
   try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
@@ -538,6 +549,357 @@ function adaptersOnce() { return loadAdapters(); }
     const cleanFile = readFileSync(join(tmp, 'eval', 'findings-94-fresh-clone.yaml'), 'utf8');
     if (!/0 row\(s\)/.test(cleanFile) || /^- id:/m.test(cleanFile)) fail('a clean run writes the explicit empty rows file');
     try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch { fail('a verified-clean fresh-clone run (empty explicit file, manifest ran) must validate green'); }
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── dependency-scan instrument (tools/dependency-scan.mjs → ingest profile dependency-scan) ─
+// The converter turns a synthetic dependency-scan document into exactly: one gap row
+// per advisory (category = its own severity), one lockfile-failed gap per failed
+// lockfile, one lockfile-unsupported gap per not-supported (pnpm/yarn) lockfile, and
+// nothing for a clean audited lockfile. A runner crash (exit 2) halts it; a document
+// whose exit disagrees with the runner exit halts; a truncated document halts. Every
+// category maps onto the shared code-security axis and the instrument contributes
+// none. The descriptor register decides d-dependencies-known-clean on the `critical`
+// category alone — a run with high rows and none critical still reads met.
+{
+  const fail = (m) => negFailures.push('dependency-scan: ' + m);
+  const mustThrow = (label, fn) => { let threw = false; try { fn(); } catch { threw = true; } if (!threw) fail(`${label} must halt (fail-loud intake)`); };
+  const doc = {
+    tool: 'dependency-scan', version: '0.1.0', started_at: 't1', finished_at: 't2',
+    target: { path: 'x' }, timeout_seconds: 300,
+    lockfiles: [
+      {
+        path: 'package-lock.json', status: 'audited', method: 'in-place', npm_exit_code: 1,
+        counts: { critical: 0, high: 1, moderate: 0, low: 0, info: 0 }, dependencies_audited: 42,
+        advisories: [{ id: 'GHSA-aaaa-bbbb-cccc', package: 'left-pad', installed: '1.0.0', range: '<1.0.1', severity: 'high', fix_available: true, url: 'https://github.com/advisories/GHSA-aaaa-bbbb-cccc' }],
+      },
+      { path: 'packages/foo/package-lock.json', status: 'failed', method: 'scratch-copy', npm_exit_code: null, reason: 'npm audit did not produce parseable JSON (registry unreachable, or npm printed a non-JSON error)' },
+      { path: 'packages/bar/pnpm-lock.yaml', status: 'not-supported', manager: 'pnpm', reason: 'dependency-scan audits npm lockfiles only; pnpm lockfiles are not covered' },
+    ],
+    exit: 1,
+  };
+  const raw = JSON.stringify(doc);
+  // (a) convert: one row per advisory, one per failed lockfile, one per unsupported lockfile
+  const rows = convert('dependency-scan', raw, 1);
+  const cats = rows.map((r) => r.native_category).sort().join(',');
+  if (cats !== 'high,lockfile-failed,lockfile-unsupported') fail(`convert must yield exactly high, lockfile-failed, lockfile-unsupported gap rows (got ${cats || '(none)'})`);
+  if (rows.some((r) => r.polarity !== 'gap' || !r.fix || !r.severity)) fail('every dependency-scan row is a gap with a severity and a fix');
+  const by = Object.fromEntries(rows.map((r) => [r.native_category, r]));
+  if (by.high?.severity !== 'High') fail(`a high advisory must map severity High (got ${by.high?.severity})`);
+  if (by['lockfile-failed']?.severity !== 'Medium' || by['lockfile-unsupported']?.severity !== 'Medium') fail('a failed or unsupported lockfile reads severity Medium');
+  if (by.high?.evidence[0] !== 'package-lock.json:1') fail(`an advisory row must cite its lockfile at :1 (got ${by.high?.evidence[0]})`);
+  if (by['lockfile-failed']?.evidence[0] !== 'packages/foo/package-lock.json:1') fail('a failed-lockfile row must cite its own lockfile path');
+  if (!/left-pad/.test(by.high?.fix || '') || !/GHSA-aaaa-bbbb-cccc/.test(by.high?.observation || '')) fail('an advisory row must name the package (fix) and the advisory id (observation)');
+  if (rows[0]?.id !== 'F-950') fail(`dependency-scan ids start at F-950 (got ${rows[0]?.id})`);
+  // (b) a runner crash halts; an exit/document mismatch halts; truncation halts
+  mustThrow('a runner crash (exit 2)', () => convert('dependency-scan', raw, 2));
+  mustThrow('a document whose exit disagrees with the runner exit', () => convert('dependency-scan', raw, 0));
+  mustThrow('a truncated document (no lockfiles)', () => convert('dependency-scan', JSON.stringify({ tool: 'dependency-scan', exit: 1 }), 1));
+  mustThrow('a foreign report', () => convert('dependency-scan', '[]', 0));
+  mustThrow('a lockfile row with no status', () => convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: doc.lockfiles.map((l) => l.path === 'package-lock.json' ? { ...l, status: undefined } : l) }), 1));
+  mustThrow('an advisory with no severity', () => convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: doc.lockfiles.map((l) => l.path === 'package-lock.json' ? { ...l, advisories: [{ ...l.advisories[0], severity: undefined }] } : l) }), 1));
+  // (c) a clean document (exit 0, no advisories, every lockfile audited) is a verified-clean run
+  const cleanDoc = { ...doc, exit: 0, lockfiles: [{ path: 'package-lock.json', status: 'audited', method: 'in-place', npm_exit_code: 0, counts: { critical: 0, high: 0, moderate: 0, low: 0, info: 0 }, dependencies_audited: 42, advisories: [] }] };
+  if (convert('dependency-scan', JSON.stringify(cleanDoc), 0).length !== 0) fail('an all-clean document (exit 0) must convert to zero rows (the explicit empty file records the run)');
+  // (d) projection: every category maps, onto the shared code-security axis, and the instrument contributes none
+  const proj = projectMulti(rows, adaptersOnce());
+  if (proj.unmapped.length) fail(`dependency-scan rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
+  const axisOf = (cat) => proj.projected.find((p) => p.f.native_category === cat)?.axis;
+  if (axisOf('high') !== 'code-security' || axisOf('lockfile-failed') !== 'code-security' || axisOf('lockfile-unsupported') !== 'code-security') fail('every dependency-scan category must land on code-security');
+  if (contributedBySources(adaptersOnce(), ['dependency-scan']).size !== 0) fail('dependency-scan is an instrument and must contribute no axis');
+  const rogue = projectMulti([{ ...rows[0], native_category: 'severe' }], adaptersOnce());
+  if (!rogue.unmapped.length) fail('an unknown dependency-scan category must halt at projection (default: FAIL)');
+  // (e) descriptor register: d-dependencies-known-clean decides on the `critical` category alone
+  let reg = null;
+  try { reg = loadRegistry(); } catch (e) { fail('registry failed to load: ' + e.message.split('\n')[0]); }
+  if (reg) {
+    const ranHigh = projectDescriptors({
+      findings: [{ id: 'F-1', source: 'dependency-scan', native_category: 'high', polarity: 'gap' }],
+      manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {},
+    }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (ranHigh?.status !== 'met') fail(`zero critical rows (even with a high row present) must read d-dependencies-known-clean met (got ${ranHigh?.status})`);
+    const ranCritical = projectDescriptors({
+      findings: [{ id: 'F-1', source: 'dependency-scan', native_category: 'critical', polarity: 'gap' }],
+      manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {},
+    }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (ranCritical?.status !== 'unmet') fail(`a critical row must read d-dependencies-known-clean unmet (got ${ranCritical?.status})`);
+    const skipped = projectDescriptors({
+      findings: [], manifest: [{ scanner: 'dependency-scan', status: 'skipped', reason: 'no registry reach' }], inputs: null, coverage: {},
+    }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (skipped?.status !== 'not-measured' || !/no registry reach/.test(skipped.note || '')) fail(`a skipped manifest must read not-measured with the recorded reason (got ${skipped?.status}/${skipped?.note})`);
+  }
+}
+
+// ── fresh-clone workspaces (#127, the fresh-clone half of #123) ──────────────
+// The public fixture is Scout's shape: a root that is a bare npm-workspaces shell
+// (workspaces: ["apps/*"], no scripts, no dependencies, no lockfile of its own) with
+// apps/good (passes) and apps/bad (fails offline and deterministically — a failing
+// build script standing in for the real npm-ci EUSAGE a clean workspace clone hits
+// when the workspace carries its own lockfile but the root has none; see the
+// fixture's package.json for why). The runner must record the root as not-declared
+// across the board, run each workspace's own plan in its own directory, and read
+// exit 1 from apps/bad's failure alone. The converter must turn that into per-
+// workspace rows with prefixed native_ids and workspace-relative evidence, and an
+// older (pre-#127) document with no `workspaces` key must still convert exactly as
+// it always has.
+{
+  const fail = (m) => negFailures.push('fresh-clone-workspaces: ' + m);
+  const fx = join(HERE, 'instruments', 'fresh-clone-monorepo');
+  const tmp = join(HERE, 'tmp-fresh-clone-ws'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  const out = join(tmp, 'fresh-clone.json');
+  let exit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'fresh-clone.mjs'), fx, '--no-clone', '--out', out, '--timeout', '60'], { stdio: 'pipe' }); }
+  catch (e) { exit = e.status; }
+  if (exit !== 1) fail(`the runner over the monorepo fixture must exit 1 (apps/bad's build fails; got ${exit})`);
+  const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
+  let doc = null;
+  try { doc = JSON.parse(raw); } catch { fail('the runner must write a JSON document at --out'); }
+  if (doc) {
+    if (doc.exit !== 1) fail(`document exit must be 1 (got ${doc.exit})`);
+    if (!Array.isArray(doc.workspaces) || doc.workspaces.length !== 2) fail(`document must carry two workspaces (got ${doc.workspaces?.length})`);
+    if (doc.steps.some((s) => s.status !== 'not-declared')) fail(`the root (a bare workspaces shell) must read every step not-declared (got ${JSON.stringify(doc.steps.map((s) => s.status))})`);
+    const byPath = Object.fromEntries((doc.workspaces || []).map((w) => [w.path, w]));
+    const good = byPath['apps/good'], bad = byPath['apps/bad'];
+    if (!good || !bad) fail(`workspaces must be apps/good and apps/bad (got ${Object.keys(byPath).join(', ')})`);
+    if (good) {
+      const st = Object.fromEntries(good.steps.map((s) => [s.name, s.status]));
+      if (st.build !== 'passed' || st.test !== 'passed') fail(`apps/good must pass build and test (got build ${st.build}, test ${st.test})`);
+    }
+    if (bad) {
+      const st = Object.fromEntries(bad.steps.map((s) => [s.name, s.status]));
+      if (st.build !== 'failed') fail(`apps/bad must read its failure — build failed (got ${st.build})`);
+    }
+    // convert: rows for both workspaces, prefixed native_ids, workspace-relative evidence
+    const rows = convert('fresh-clone', raw, 1);
+    const wsRows = rows.filter((r) => r.native_id.startsWith('apps/'));
+    if (!wsRows.length) fail('convert must emit rows for the workspaces, not only the root');
+    const badBuild = rows.find((r) => r.native_id === 'apps/bad:build:failed');
+    if (!badBuild) fail(`convert must emit a row native_id apps/bad:build:failed (got ${rows.map((r) => r.native_id).join(', ')})`);
+    if (badBuild && (badBuild.native_category !== 'build' || badBuild.evidence[0] !== 'apps/bad/package.json:1')) fail(`the workspace build row must keep native_category build (for the adapter map) and cite apps/bad/package.json:1 (got ${badBuild.native_category} / ${badBuild.evidence[0]})`);
+    if (badBuild && !/workspace apps\/bad/.test(badBuild.observation)) fail('the workspace row observation must name the workspace');
+    if (rows.some((r) => r.native_id.startsWith('apps/good:') && r.native_category !== 'lint' && r.native_category !== 'typecheck')) fail('apps/good must yield gap rows only for its not-declared floor steps (lint, typecheck), never for its passing build/test');
+    // every category still maps (no rogue category is introduced by the workspace prefix)
+    const proj = projectMulti(rows, adaptersOnce());
+    if (proj.unmapped.length) fail(`workspace rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
+    // an older document with no `workspaces` key at all still converts exactly as before
+    const oldShape = { ...doc }; delete oldShape.workspaces;
+    const oldRows = convert('fresh-clone', JSON.stringify(oldShape), 1);
+    if (oldRows.some((r) => r.native_id.startsWith('apps/'))) fail('a document with no workspaces key must convert with no workspace rows');
+    const rootOnly = rows.filter((r) => !r.native_id.startsWith('apps/'));
+    if (JSON.stringify(oldRows) !== JSON.stringify(rootOnly)) fail('a document with no workspaces key must convert its root rows exactly as a document with an empty workspaces list does');
+    // a workspace entry missing its steps[] halts (fail loud, never empty)
+    let threw = false;
+    try { convert('fresh-clone', JSON.stringify({ ...doc, workspaces: [{ path: 'apps/bad', readme_claims: [] }] }), 1); } catch { threw = true; }
+    if (!threw) fail('a workspace entry with no steps[] must halt');
+    threw = false;
+    try { convert('fresh-clone', JSON.stringify({ ...doc, workspaces: [{ ...bad, steps: bad.steps.filter((s) => s.name !== 'test') }] }), 1); } catch { threw = true; }
+    if (!threw) fail('a workspace entry missing a step row must halt');
+    threw = false;
+    try { convert('fresh-clone', JSON.stringify({ ...doc, workspaces: 'apps/bad' }), 1); } catch { threw = true; }
+    if (!threw) fail('a workspaces value that is not a list must halt');
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── descriptor category as a list (#123): two rows one instrument decider holds jointly ─
+// A descriptor's `decide.category` may be a list of native_category values it must hold
+// jointly (e.g. fresh-clone [install, build]): a finding in EITHER listed category is part
+// of the population; the descriptor reads met only when EVERY listed category is met by
+// the same rules a single-category row already uses.
+{
+  const fail = (m) => negFailures.push('descriptor-list-category: ' + m);
+  const reg = loadRegistry();
+  const listDescriptor = { id: 'd-test-list', title: 'test', tier: 'reproducibility', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
+  const testReg = { ...reg, descriptors: [listDescriptor] };
+  const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
+  // a gap in EITHER listed category decides the row (here: only "build" has a gap)
+  const withGap = [{ id: 'F-1', source: 'fresh-clone', native_category: 'build', polarity: 'gap', observation: 'x', evidence: ['a:1'] }];
+  const gapRows = projectDescriptors({ findings: withGap, manifest: ran, inputs: null, coverage: {} }, testReg);
+  if (gapRows[0]?.status !== 'unmet' || !gapRows[0].findings.includes('F-1')) fail(`a gap in either listed category must decide the row unmet (got ${gapRows[0]?.status})`);
+  // no rows in either listed category, from an instrument that ran: met (nothing to report)
+  const noRows = projectDescriptors({ findings: [], manifest: ran, inputs: null, coverage: {} }, testReg);
+  if (noRows[0]?.status !== 'met') fail(`no rows in either listed category from a clean instrument run must read met (got ${noRows[0]?.status})`);
+  // a skipped manifest reads not-measured regardless of the category shape
+  const skipped = projectDescriptors({ findings: [], manifest: [{ scanner: 'fresh-clone', status: 'skipped', reason: 'no scratch clone here' }], inputs: null, coverage: {} }, testReg);
+  if (skipped[0]?.status !== 'not-measured' || !/no scratch clone here/.test(skipped[0].note)) fail(`a skipped manifest must read not-measured with its reason, list category or not (got ${skipped[0]?.status} / ${skipped[0]?.note})`);
+  // a peer scanner with a list category: met only when EVERY listed category is scanned clean
+  const peerDescriptor = { ...listDescriptor, id: 'd-test-list-peer', decide: { kind: 'instrument', scanner: 'deep-code-review', category: ['B', 'N'] } };
+  const peerRan = [{ scanner: 'deep-code-review', status: 'ran' }];
+  const oneScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'not-scanned', note: 'no config surface' } } } } }, { ...testReg, descriptors: [peerDescriptor] });
+  if (oneScanned[0]?.status !== 'not-measured') fail(`a list category met in one member and not-scanned in the other must NOT read met (got ${oneScanned[0]?.status})`);
+  const bothScanned = projectDescriptors({ findings: [], manifest: peerRan, inputs: null, coverage: { 'deep-code-review': { coverage: { B: { status: 'scanned' }, N: { status: 'scanned' } } } } }, { ...testReg, descriptors: [peerDescriptor] });
+  if (bothScanned[0]?.status !== 'met') fail(`a list category must read met once every listed category is independently scanned clean (got ${bothScanned[0]?.status})`);
+  // validateRegistry: accepts a list category, rejects an empty one
+  if (validateRegistry({ ...reg, descriptors: [listDescriptor] }).length) fail('validateRegistry must accept a non-empty list category');
+  const emptyList = { ...listDescriptor, decide: { kind: 'instrument', scanner: 'fresh-clone', category: [] } };
+  if (!validateRegistry({ ...reg, descriptors: [emptyList] }).some((e) => /category/.test(e))) fail('validateRegistry must reject an empty category list');
+}
+
+// ── repo-census instrument (tools/repo-census.mjs → ingest profile repo-census) ──
+// The runner over the public fixture (a tiny monorepo, root + apps/one, plus
+// ops/evidence/ — andyschwab/ai-native-framework#124) must record what IS:
+// architecture-page passes at the root (an Architecture section naming a
+// database) and gaps for apps/one (no docs there at all); agent-contract gaps at the
+// root citing the planted `## Status` heading, and gaps for apps/one (absent); runbook
+// gaps naming the missing restore procedure; ci-gate gaps citing the planted
+// continue-on-error step; and the six owner-evidence transcript checks read one pass
+// (d-backup-restore-exercised, a complete fresh transcript) and five gaps, each for a
+// different planted defect: an email-shaped `by` plus `result: fail` (d-rollback-
+// exercised), a `deployed_sha` that disagrees with `commit` (d-deploy-one-command), a
+// date outside the freshness window (d-smoke-on-deployed), a stub body (d-monitoring-
+// with-alert), and an absent file (d-cost-alerts). The converter turns every gap into
+// a gap row (Medium, except ci-gate fail-open which is High) and every pass into a
+// strength row; a runner crash (exit 2) halts it; every category maps; an all-pass run
+// reads the ten re-kinded floor rows met, with a skipped manifest reading not-measured
+// instead; the real (non-synthetic) run reads d-backup-restore-exercised met and the
+// other five evidence rows unmet.
+{
+  const fail = (m) => negFailures.push('repo-census: ' + m);
+  const mustThrow = (label, fn) => { let threw = false; try { fn(); } catch { threw = true; } if (!threw) fail(`${label} must halt (fail-loud intake)`); };
+  const fx = join(HERE, 'instruments', 'repo-census-target');
+  const tmp = join(HERE, 'tmp-repo-census'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  const out = join(tmp, 'repo-census.json');
+  // a fixed --as-of makes the planted staleness (d-smoke-on-deployed, dated 2026-01-01)
+  // deterministic regardless of when the harness actually runs
+  const AS_OF = '2026-09-24';
+  let exit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'tools', 'repo-census.mjs'), fx, '--out', out, '--default-branch', 'main', '--as-of', AS_OF], { stdio: 'pipe' }); }
+  catch (e) { exit = e.status; }
+  if (exit !== 1) fail(`the runner over the fixture must exit 1 (planted gaps; got ${exit})`);
+  const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
+  let doc = null;
+  try { doc = JSON.parse(raw); } catch { fail('the runner must write a JSON document at --out'); }
+  if (doc) {
+    if (doc.exit !== 1 || doc.tool !== 'repo-census') fail(`document must carry tool repo-census, exit 1 (got ${doc.tool}/${doc.exit})`);
+    if (!doc.monorepo?.detected || doc.monorepo.locations.join() !== 'apps/one') fail(`the fixture must be detected as a monorepo with apps/one (got ${JSON.stringify(doc.monorepo)})`);
+    if (doc.evidence?.asOf !== AS_OF) fail(`the document must record the --as-of date (got ${JSON.stringify(doc.evidence)})`);
+    const at = (nm, loc) => doc.checks.find((c) => c.name === nm && c.detail?.path === loc);
+    const arch = at('architecture-page', '.');
+    if (arch?.status !== 'pass') fail(`architecture-page must pass at root (got ${arch?.status})`);
+    const archApp = at('architecture-page', 'apps/one');
+    if (archApp?.status !== 'gap') fail(`architecture-page must gap for apps/one (got ${archApp?.status})`);
+    const agent = at('agent-contract', '.');
+    if (agent?.status !== 'gap' || !agent.evidence[0]?.includes('AGENTS.md')) fail(`agent-contract must gap at root citing AGENTS.md (got ${agent?.status}/${agent?.evidence})`);
+    if (!/Status/.test(agent?.observation || '')) fail('agent-contract gap must cite the planted Status heading');
+    const agentApp = at('agent-contract', 'apps/one');
+    if (agentApp?.status !== 'gap') fail(`agent-contract must gap for apps/one (got ${agentApp?.status})`);
+    const rb = doc.checks.find((c) => c.name === 'runbook');
+    if (rb?.status !== 'gap' || !/restore/.test(rb.observation)) fail(`runbook must gap naming restore (got ${rb?.status}/${rb?.observation})`);
+    const ci = doc.checks.find((c) => c.name === 'ci-gate');
+    if (ci?.status !== 'gap' || !/continue-on-error/.test(ci.observation) || !ci.evidence[0]?.includes('ci.yml')) fail(`ci-gate must gap citing the continue-on-error line (got ${ci?.status}/${ci?.observation}/${ci?.evidence})`);
+    // the six owner-evidence checks: one pass, five gaps, each for its own planted reason
+    const ev = (id) => doc.checks.find((c) => c.name === `evidence-${id}`);
+    const backupRestore = ev('d-backup-restore-exercised');
+    if (backupRestore?.status !== 'pass' || !/attests, by platform-eng at commit/.test(backupRestore.observation) || !/not that the procedure actually happened/.test(backupRestore.observation))
+      fail(`d-backup-restore-exercised must pass, attested by role and commit, with the truth disclaimer (got ${backupRestore?.status}/${backupRestore?.observation})`);
+    const rollback = ev('d-rollback-exercised');
+    if (rollback?.status !== 'gap' || !/looks like an email address/.test(rollback.observation) || !/result: fail/.test(rollback.observation))
+      fail(`d-rollback-exercised must gap citing both the email-shaped by and result: fail (got ${rollback?.status}/${rollback?.observation})`);
+    const deploy = ev('d-deploy-one-command');
+    if (deploy?.status !== 'gap' || !/deployed_sha .* does not match commit/.test(deploy.observation))
+      fail(`d-deploy-one-command must gap citing the deployed_sha/commit mismatch (got ${deploy?.status}/${deploy?.observation})`);
+    const smoke = ev('d-smoke-on-deployed');
+    if (smoke?.status !== 'gap' || !/stale: dated 2026-01-01/.test(smoke.observation))
+      fail(`d-smoke-on-deployed must gap as stale, naming the planted date (got ${smoke?.status}/${smoke?.observation})`);
+    const monitoring = ev('d-monitoring-with-alert');
+    if (monitoring?.status !== 'gap' || !/stub/.test(monitoring.observation))
+      fail(`d-monitoring-with-alert must gap as a stub body (got ${monitoring?.status}/${monitoring?.observation})`);
+    const costAlerts = ev('d-cost-alerts');
+    if (costAlerts?.status !== 'gap' || !/No evidence transcript found/.test(costAlerts.observation) || costAlerts.evidence?.[0] !== '.:1')
+      fail(`d-cost-alerts must gap as absent, evidence .:1 (got ${costAlerts?.status}/${costAlerts?.observation}/${costAlerts?.evidence})`);
+    // the document never carries the transcript's body — header fields (counts) only
+    const docText = JSON.stringify(doc);
+    if (/torn down after verification/.test(docText)) fail('the document must never carry evidence body text, only header fields and line counts');
+    if (typeof backupRestore?.detail?.bodyNonEmptyLines !== 'number' || typeof backupRestore?.detail?.bodyHasFencedBlock !== 'boolean') fail('an evidence check detail must carry body line counts, not body text');
+    if (doc.checks.length !== 12) fail(`the fixture must yield 12 checks (2 architecture-page + 2 agent-contract + runbook + ci-gate + 6 evidence; got ${doc.checks.length})`);
+    // (b) convert: a gap row per gap check, a strength row per pass check
+    const rows = convert('repo-census', raw, 1);
+    if (rows.length !== 12) fail(`convert must yield 12 rows (got ${rows.length})`);
+    const byNc = {}; for (const r of rows) (byNc[r.native_category] ??= []).push(r);
+    if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'strength').length !== 1) fail('exactly one architecture-page strength row (root)');
+    if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'gap').length !== 1) fail('exactly one architecture-page gap row (apps/one)');
+    if ((byNc['agent-contract'] || []).filter((r) => r.polarity === 'gap').length !== 2) fail('two agent-contract gap rows (root + apps/one)');
+    if ((byNc['runbook'] || []).length !== 1 || byNc['runbook'][0].polarity !== 'gap') fail('one runbook gap row');
+    if ((byNc['ci-gate'] || []).length !== 1 || byNc['ci-gate'][0].polarity !== 'gap' || byNc['ci-gate'][0].severity !== 'High') fail(`ci-gate fail-open must read gap/High (got ${byNc['ci-gate']?.[0]?.polarity}/${byNc['ci-gate']?.[0]?.severity})`);
+    // the six evidence categories: native_category is the real, colon-bearing name;
+    // one strength row (the pass), five gap rows (the rest)
+    const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
+    for (const id of EVIDENCE_IDS) {
+      const nc = `evidence-${id}`;
+      const want = id === 'd-backup-restore-exercised' ? 'strength' : 'gap';
+      const got = byNc[nc];
+      if (!got || got.length !== 1 || got[0].polarity !== want) fail(`${nc} must convert to exactly one ${want} row (got ${JSON.stringify(got)})`);
+    }
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => r.native_category !== 'ci-gate' && r.severity !== 'Medium')) fail('every non-ci-gate gap must read Medium severity');
+    if (rows.some((r) => !Array.isArray(r.evidence) || !r.evidence.length)) fail('every row needs at least one path:line');
+    if (rows[0]?.id !== 'F-960') fail(`repo-census ids start at F-960 (got ${rows[0]?.id})`);
+    // (c) a runner crash halts; a document that disagrees with the exit code halts; truncation halts
+    mustThrow('a runner crash (exit 2)', () => convert('repo-census', raw, 2));
+    mustThrow('a document whose exit disagrees with the runner exit', () => convert('repo-census', raw, 0));
+    mustThrow('a truncated document (no checks)', () => convert('repo-census', JSON.stringify({ tool: 'repo-census', exit: 1, checks: [] }), 1));
+    mustThrow('an unknown check name', () => convert('repo-census', JSON.stringify({ ...doc, checks: doc.checks.map((c) => c.name === 'runbook' ? { ...c, name: 'unknown-check' } : c) }), 1));
+    mustThrow('an unknown status', () => convert('repo-census', JSON.stringify({ ...doc, checks: doc.checks.map((c) => c.name === 'runbook' ? { ...c, status: 'ok' } : c) }), 1));
+    mustThrow('malformed JSON', () => convert('repo-census', raw.slice(0, 50), 1));
+    mustThrow('a foreign report', () => convert('repo-census', '[]', 0));
+    // (d) an all-passing synthetic document with exit 0 is a verified-clean-in-the-strength-
+    // sense run: one strength row per check, no gap rows
+    const cleanDoc = { ...doc, exit: 0, checks: doc.checks.map((c) => ({ ...c, status: 'pass', observation: `${c.name} passes`, evidence: (c.evidence && c.evidence.length) ? c.evidence : ['README.md:1'] })) };
+    const cleanRows = convert('repo-census', JSON.stringify(cleanDoc), 0);
+    if (cleanRows.length !== 12 || cleanRows.some((r) => r.polarity !== 'strength')) fail('an all-passing document must convert to strength rows only, one per check');
+    // (e) projection: every category maps, onto existing axes, and the instrument contributes none
+    const proj = projectMulti(rows, adaptersOnce());
+    if (proj.unmapped.length) fail(`repo-census rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
+    const axisOf = (cat) => proj.projected.find((p) => p.f.native_category === cat)?.axis;
+    if (axisOf('architecture-page') !== 'artifact-legibility' || axisOf('runbook') !== 'artifact-legibility') fail('architecture-page / runbook must land on the docs-legibility axis (artifact-legibility)');
+    // the agent contract stays on the axis the register homes d-agent-contract on (improvement-loop): the adapter follows the register, never the reverse
+    if (axisOf('agent-contract') !== 'improvement-loop') fail('agent-contract must land on improvement-loop, the axis the register homes d-agent-contract on');
+    if (axisOf('ci-gate') !== 'deterministic-gates') fail('ci-gate must land on the shared deterministic-gates axis');
+    // the six evidence categories, mapped onto the axis the register homes each re-kinded row on
+    const EVIDENCE_AXES = {
+      'd-backup-restore-exercised': 'code-security',
+      'd-rollback-exercised': 'context-economy',
+      'd-deploy-one-command': 'code-security',
+      'd-smoke-on-deployed': 'deterministic-gates',
+      'd-monitoring-with-alert': 'verification',
+      'd-cost-alerts': 'artifact-legibility',
+    };
+    for (const [id, wantAxis] of Object.entries(EVIDENCE_AXES)) {
+      const got = axisOf(`evidence-${id}`);
+      if (got !== wantAxis) fail(`evidence-${id} must land on ${wantAxis} (got ${got})`);
+    }
+    if (contributedBySources(adaptersOnce(), ['repo-census']).size !== 0) fail('repo-census is an instrument and must contribute no axis');
+    const rogue = projectMulti([{ ...rows[0], native_category: 'unknown-check' }], adaptersOnce());
+    if (!rogue.unmapped.length) fail('an unknown repo-census category must halt at projection (default: FAIL)');
+    // (f) the descriptor register: the four pre-existing re-kinded floor rows, plus the
+    // six evidence rows, read met from an all-pass run with a `ran` manifest, and
+    // not-measured (with the reason) when repo-census is recorded skipped instead
+    const reg = loadRegistry();
+    const RC_DESCRIPTOR_IDS = ['d-architecture-page', 'd-agent-contract', 'd-runbook', 'd-ci-gate-on-default-branch', ...EVIDENCE_IDS];
+    const metRows = Object.fromEntries(projectDescriptors({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    for (const id of RC_DESCRIPTOR_IDS) {
+      if (metRows[id]?.status !== 'met') fail(`${id} must read met from an all-pass repo-census run (got ${metRows[id]?.status})`);
+    }
+    const skippedRows = Object.fromEntries(projectDescriptors({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'skipped', reason: 'no filesystem access' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    for (const id of RC_DESCRIPTOR_IDS) {
+      if (skippedRows[id]?.status !== 'not-measured' || !/no filesystem access/.test(skippedRows[id].note)) fail(`${id} must read not-measured with the recorded reason when repo-census is skipped (got ${skippedRows[id]?.status}/${skippedRows[id]?.note})`);
+    }
+    // the REAL (non-synthetic) run: d-backup-restore-exercised is the one evidence row
+    // actually met; the other five are actually unmet (planted gaps), same `ran` manifest
+    const realRows = Object.fromEntries(projectDescriptors({ findings: rows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
+    if (realRows['d-backup-restore-exercised']?.status !== 'met') fail(`d-backup-restore-exercised must read met from the real fixture run (got ${realRows['d-backup-restore-exercised']?.status})`);
+    for (const id of ['d-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts']) {
+      if (realRows[id]?.status !== 'unmet') fail(`${id} must read unmet from the real fixture run (its planted gap; got ${realRows[id]?.status})`);
+    }
+    // the CLI end to end: ingest writes the rows file and the raw archive, and the run validates green
+    mkdirSync(join(tmp, 'eval'), { recursive: true });
+    for (const f of ['findings-01-legibility.yaml', 'findings-02-context.yaml', 'findings-04-verification.yaml', 'findings-05-delegation.yaml', 'findings-91-gitleaks.yaml'])
+      copyFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', f), join(tmp, 'eval', f));
+    writeFileSync(join(tmp, 'eval', 'scanners.yaml'), readFileSync(join(HERE, 'fixtures', 'notesbox', 'eval', 'scanners.yaml'), 'utf8').replace(/  repo-census:\n    status: skipped\n    reason: "[^"]*"\n/, '  repo-census:\n    status: ran\n'));
+    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'ingest.mjs'), tmp, '--tool', 'repo-census', '--raw', out, '--exit', '1'], { stdio: 'pipe' }); }
+    catch (e) { fail(`ingest CLI must accept the fixture document (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+    if (!existsSync(join(tmp, 'eval', 'findings-96-repo-census.yaml')) || !existsSync(join(tmp, 'eval', 'raw', 'repo-census.json'))) fail('ingest must write findings-96-repo-census.yaml and archive the raw document');
+    try { execFileSync(process.execPath, [join(ROOT, 'tools', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested repo-census run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
   }
   rmSync(tmp, { recursive: true, force: true });
 }
@@ -682,7 +1044,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, descriptor-list-category, repo-census, enumerate-gate, enumerate-tooldef, descriptor-register, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

@@ -39,14 +39,53 @@ The two are compared, never merged: a claim the run contradicts is the finding.
 | `instrument` | a scanner's rows, gated by the run manifest and, for a peer scanner, its coverage sidecar | unmet on gap rows; met when the scanner ran clean (an instrument) or scanned the domain with no gaps (a peer); not-measured when skipped, failed, or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | always not-measured from a run; only a sidecar asserts it. The list of `claim` rows is the register's instrument backlog |
 
-Adopted instruments the register can decide by: `gitleaks` (secrets) and
+`decide.category` on an `instrument` row is usually one native category, but may
+be a **list** — two rows one instrument decider must hold jointly (fresh-clone's
+`d-fresh-clone-runs` needs both `install` and `build`; `d-lint-typecheck-gate`
+needs both `lint` and `typecheck`). A finding in **any** listed category joins the
+population the row decides from; the row reads **met** only when **every** listed
+category is independently met by the same rules a single category uses — one
+member scanned clean and the other not-scanned is `not-measured`, never met.
+`validateRegistry` requires the list to be non-empty; an empty list names nothing
+and is rejected the same as a missing category.
+
+Adopted instruments the register can decide by: `gitleaks` (secrets);
 `fresh-clone` (`tools/fresh-clone.mjs`, scanner-contract §3b — install / build /
-lint / typecheck / test / migrate from a clean checkout, plus README claim replay).
-The fresh-clone rows the floor asked for (`d-fresh-clone-runs`,
-`d-tests-execute-core`, `d-lint-typecheck-gate`, `d-schema-versioned`,
-`d-readme-true`) still read `claim` / `census` here; their re-kind to
-`instrument: fresh-clone` is one reviewed change of its own, so the register's
-statuses never move as a side effect of adopting a tool.
+lint / typecheck / test / migrate from a clean checkout plus README claim replay,
+workspace-aware: an npm-workspaces root runs the same step plan once per
+workspace, in addition to the root, #127); and `dependency-scan`
+(`tools/dependency-scan.mjs`, scanner-contract §3c — `npm audit` over every
+lockfile in the tree). Four fresh-clone rows decide on it: `d-fresh-clone-runs`
+(`[install, build]`), `d-tests-execute-core` (`test`), `d-lint-typecheck-gate`
+(`[lint, typecheck]`), and `d-schema-versioned` (`migrate` — with no database
+signals in the tree the runner emits no migrate row, so the row reads met:
+nothing to migrate). `d-readme-true` stays `census`. `d-dependencies-known-clean`
+decides on dependency-scan's `critical` category alone, so a run with
+high/moderate/low/info advisories and zero critical rows still reads met —
+narrower than the row's title.
+Adopted instruments the register can decide by: `gitleaks` (secrets),
+`fresh-clone` (`tools/fresh-clone.mjs`, scanner-contract §3b — install / build /
+lint / typecheck / test / migrate from a clean checkout, plus README claim replay),
+and `repo-census` (`tools/repo-census.mjs`, scanner-contract §3d — an architecture
+page, a present-tense agent contract, a runbook, a CI gate on the default
+branch, and six owner-evidence transcript checks, decided from the tree alone).
+The fresh-clone rows the floor asked for
+(`d-fresh-clone-runs`, `d-tests-execute-core`, `d-lint-typecheck-gate`,
+`d-schema-versioned`, `d-readme-true`) still read `claim` / `census` here; their
+re-kind to `instrument: fresh-clone` is one reviewed change of its own, so the
+register's statuses never move as a side effect of adopting a tool.
+`d-architecture-page`, `d-agent-contract`, `d-runbook`, and
+`d-ci-gate-on-default-branch` are re-kinded to `instrument: repo-census` already
+(#122) — the four floor rows a run could not decide before except by an
+LLM-authored census. `d-backup-restore-exercised`, `d-rollback-exercised`,
+`d-deploy-one-command`, `d-smoke-on-deployed`, `d-monitoring-with-alert`, and
+`d-cost-alerts` are re-kinded to `instrument: repo-census` in the same way
+(andyschwab/ai-native-framework#124, option B) — six floor rows describing
+things a repository cannot show by itself, decided from a dated transcript the
+owner commits (`templates/evidence/README.md` is the one home of that format).
+None of the six carried an `axis:` of their own; each now carries its nearest
+tier-mate's, noted inline at the row (`registry/descriptors.yaml`) and in the
+adapter (`integration/adapters/repo-census.yaml`).
 
 Prose is never read. An observation that merely mentions a topic is not a
 measurement; the first prototype of this projection term-matched observation

@@ -97,8 +97,13 @@ descriptors:
     axis: code-security
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: a dependency scanner (osv-scanner or Trivy) exits clean; candidate instrument, not yet adopted
+      kind: instrument
+      scanner: dependency-scan
+      category: critical
+    # the descriptor is worded on critical only (its category), so a run with high
+    # (or moderate/low/info) advisories and zero critical rows still reads met —
+    # narrower than the title; widen the category only with a reviewed change.
+    check: dependency-scan (npm audit over every lockfile in the tree) reports no critical advisory
     sources: [floor/s-deps, scanner-candidates/core]
     status: draft
   - id: d-effects-gated
@@ -160,10 +165,13 @@ descriptors:
   - id: d-backup-restore-exercised
     title: Backups exist and a restore has been performed
     tier: safety
+    axis: code-security   # register row carried no axis; nearest tier-mate (safety) is d-personal-data-enumerated
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: a restore transcript against a scratch instance, dated
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-backup-restore-exercised
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/s-backup, gcp/nightly-restore]
     status: draft
   - id: d-ingested-content-is-data
@@ -184,8 +192,10 @@ descriptors:
     axis: context-economy
     tags: [floor]
     decide:
-      kind: claim
-    check: a scripted fresh-clone run with the transcript attached; the instrument the floor most needs
+      kind: instrument
+      scanner: fresh-clone
+      category: [install, build]
+    check: the fresh-clone install and build steps both read passed from a clean checkout (tools/fresh-clone.mjs), root and every workspace
     sources: [floor/r-fresh-clone]
     status: draft
   - id: d-config-declared
@@ -215,28 +225,37 @@ descriptors:
   - id: d-deploy-one-command
     title: One documented command deploys, and what runs is what is committed
     tier: reproducibility
+    axis: code-security   # register row carried no axis; nearest tier-mate (reproducibility) is d-dependencies-pinned
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the deploy script or workflow run once from a clean checkout; the running build's commit matches the branch
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-deploy-one-command
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/r-deploy, gcp/deploy-and-promote]
     status: draft
   - id: d-rollback-exercised
     title: A rollback path exists and has been exercised
     tier: reproducibility
+    axis: context-economy   # register row carried no axis; nearest tier-mate (reproducibility) is d-schema-versioned
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: rollback documented and run once against staging
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-rollback-exercised
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/r-rollback, gcp/promote]
     status: draft
   - id: d-schema-versioned
     title: The schema is versioned and migrations replay from empty
     tier: reproducibility
+    axis: context-economy
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: migrate from an empty database in the fresh-clone run
+      kind: instrument
+      scanner: fresh-clone
+      category: migrate
+    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signals anywhere in the tree the runner emits no migrate row, so it reads met — nothing to migrate
     sources: [floor/r-migrations, gcp/never-hand-apply-a-migration]
     status: draft
 
@@ -247,8 +266,10 @@ descriptors:
     axis: deterministic-gates
     tags: [floor]
     decide:
-      kind: claim
-    check: tests-run counted in the fresh-clone transcript, never tests-passed; a suite that skips its core when a variable is unset is unmet
+      kind: instrument
+      scanner: fresh-clone
+      category: test
+    check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout; a suite that skips its core when a variable is unset is unmet
     sources: [floor/v-tests, manifest/d3-gates-live, gcp/pnpm-check]
     status: draft
   - id: d-ci-gate-on-default-branch
@@ -257,9 +278,10 @@ descriptors:
     axis: deterministic-gates
     tags: [floor, fleet]
     decide:
-      kind: census
-      measures: [gates-coverage]
-    check: the gate census, every enumerated gate meeting its bar and run pre-merge
+      kind: instrument
+      scanner: repo-census
+      category: ci-gate
+    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
     sources: [floor/v-ci, gcp/branch-protection]
     status: draft
   - id: d-guards-bite
@@ -278,17 +300,22 @@ descriptors:
     axis: deterministic-gates
     tags: [floor]
     decide:
-      kind: claim
-    check: the inverted lint read, the gate runs and is green; never the raw output
+      kind: instrument
+      scanner: fresh-clone
+      category: [lint, typecheck]
+    check: the fresh-clone lint and typecheck steps both read passed from a clean checkout; never the raw output
     sources: [floor/v-lint, scanner-candidates/inverted-mode]
     status: draft
   - id: d-smoke-on-deployed
     title: A smoke check proves the deployed application comes up and the main path works
     tier: verification
+    axis: deterministic-gates   # register row carried no axis; nearest tier-mate (verification) is d-lint-typecheck-gate
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: smoke against the deployed URL in CI or on a schedule
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-smoke-on-deployed
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/v-smoke, gcp/doctor]
     status: draft
   - id: d-effects-provable
@@ -371,8 +398,10 @@ descriptors:
     axis: artifact-legibility
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the page exists and names every effect channel the inventory found
+      kind: instrument
+      scanner: repo-census
+      category: architecture-page
+    check: the repo census, an architecture page present (root and per app in a monorepo) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
     sources: [floor/l-architecture, gcp/docs-architecture]
     status: draft
   - id: d-agent-contract
@@ -381,8 +410,10 @@ descriptors:
     axis: improvement-loop
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the contract file exists with dated evidence it is used; history and status live elsewhere
+      kind: instrument
+      scanner: repo-census
+      category: agent-contract
+    check: the repo census, AGENTS.md or CLAUDE.md present (root and per app in a monorepo) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
     sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, gcp/CLAUDE.md]
     status: draft
   - id: d-one-home-per-fact
@@ -412,28 +443,37 @@ descriptors:
   - id: d-monitoring-with-alert
     title: Uptime or smoke monitoring exists with an alert route that has been tested
     tier: operability
+    axis: verification   # register row carried no axis; nearest tier-mate (operability) is d-errors-reach-a-person
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the monitor configured, the alert route named and exercised once
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-monitoring-with-alert
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check
     sources: [floor/o-monitoring]
     status: draft
   - id: d-cost-alerts
     title: Cost alerts exist on every metered account from day one
     tier: operability
+    axis: artifact-legibility   # register row carried no axis; nearest tier-mate (operability) is d-runbook
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: a budget alert per metered account, recipients named
+      kind: instrument
+      scanner: repo-census
+      category: evidence-d-cost-alerts
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check
     sources: [floor/o-cost, gcp/budgets]
     status: draft
   - id: d-runbook
     title: A one-page runbook covers restart, roll back, rotate a key, restore
     tier: operability
+    axis: artifact-legibility
     tags: [floor, fleet]
     decide:
-      kind: claim
-    check: the runbook present under fixed headings and each procedure run once
+      kind: instrument
+      scanner: repo-census
+      category: runbook
+    check: the repo census, the runbook present with a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup; each procedure having been run once stays the owner's evidence
     sources: [floor/o-runbook, gcp/RUNBOOKS.md]
     status: draft
   - id: d-health-read

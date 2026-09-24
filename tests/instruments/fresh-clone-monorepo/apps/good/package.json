@@ -1,0 +1,10 @@
+{
+  "name": "fresh-clone-monorepo-good",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The workspace app that behaves: test and build pass, no dependencies so the fixture stays offline.",
+  "scripts": {
+    "test": "node -e \"process.exit(0)\"",
+    "build": "node -e \"console.log('built')\""
+  }
+}

@@ -132,15 +132,26 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   --target` knows to skip — instrument evidence lives in the run, not the target.
   A secrets tool's matched value is **never copied** out of the raw report; rows
   carry rule id + location only.
-- **An adopted instrument runs offline, against the checkout under review.** A
-  tool that needs a remote API at run time is a forever-fail in any environment
-  without that reach, and a scanner that cannot run is worse than none: every run
-  would have to dispose of it, and its absence reads as coverage. Such a tool may
-  be integrated, but not adopted.
+- **An adopted instrument runs against the checkout under review, without
+  needing a repo-hosting platform's own API.** A tool that needs a remote
+  *configuration* API (GitHub's, for Scorecard's checks) is a forever-fail in
+  any environment without that reach, and a scanner that cannot run is worse
+  than none: every run would have to dispose of it, and its absence reads as
+  coverage. Such a tool may be integrated, but not adopted. This is distinct
+  from a toolchain's own package registry, which install already needs
+  (fresh-clone's `install` step runs `npm ci` against it) — dependency-scan's
+  `npm audit` reaches the same registry, not a hosting platform's API, and a
+  lockfile it cannot reach is recorded `failed`, never silently skipped.
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census) and **fresh-clone** (`adapters/fresh-clone.yaml`, below).
+credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b), and
+**dependency-scan** (`adapters/dependency-scan.yaml`, §3c). **OpenSSF Scorecard**
+(`adapters/scorecard.yaml`) is integrated but **retired from the adopted
+roster** (2026-09-15): its checks are remote repository-configuration reads
+that need direct GitHub API access at run time. The wider candidate roster:
+`scanner-candidates.md`.
+**repo-census** (`adapters/repo-census.yaml`, §3d).
 **OpenSSF Scorecard** (`adapters/scorecard.yaml`) is
 integrated but **retired from the adopted roster** (2026-09-15): its checks are
 remote repository-configuration reads that need direct GitHub API access at run
@@ -183,6 +194,34 @@ axes the register already homes those floor rows on: install / build / migrate o
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
 on `artifact-legibility`.
 
+**Workspaces (#127).** An npm-workspaces root is not one repository, it is
+several: a root that is only a workspaces shell (no scripts, no dependencies, no
+lockfile of its own) reads honestly as "six steps not declared" — that used to be
+mistaken for the whole picture while the apps underneath it failed `npm ci` from a
+clean clone. The runner resolves `workspaces` (an array, or `{packages: [...]}`;
+globs `dir/*` and `dir/**`, and a plain path, resolved with zero dependencies) and,
+when the root declares none but `apps/*` or `packages/*` exist with their own
+`package.json`, treats those as workspaces too. The step plan then runs once per
+workspace, in its own directory, **in addition to** the root. Install is the one
+step handled specially: when the root carries a lockfile, a workspace installs via
+`npm ci --workspace <path>` run from the root (the lockfile covers the whole
+tree); when it does not, the workspace's own plan runs in its own directory — which
+reproduces the real `EUSAGE` failure npm gives a workspace whose own lockfile
+disagrees with a root that has none, and that failure is the honest result,
+recorded like any other step failure. The document carries this as `workspaces:
+[{ path, toolchain, steps, readme, readme_claims }]` beside the root's existing
+fields, unchanged; `exit` is `1` when the root **or any workspace** has a failed or
+timed-out step or a missing claim. A workspace-free repo emits `workspaces: []`
+and nothing else about the document changes. `ingest.mjs` emits the same per-step
+and per-claim gap rows for each workspace as it does for the root, with
+`native_id` prefixed by the workspace path (`apps/x:install:failed`) so two
+workspaces failing the same step never collide, and evidence scoped to the
+workspace's own manifest or README (`apps/x/package.json:1`, `apps/x/README.md:12`)
+— `native_category` stays the plain, closed step name (`install`, `build`, …,
+`readme-claim`) the adapter map below already knows, so a workspace row projects
+exactly like a root row. A document with no `workspaces` key at all (a runner from
+before #127) still converts exactly as it always did.
+
 **What it deliberately does not do.** It never executes a README command beyond
 the declared steps it already ran — presence in the tree is what the claim replay
 decides, and a `missing` claim is a gap; a `present` one is not proof the command
@@ -192,6 +231,141 @@ toolchain family it cannot exercise, and does not read step output into rows.
 ```sh
 node tools/fresh-clone.mjs <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone]
 node tools/ingest.mjs <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
+```
+
+**Descriptor category as a list (`registry/descriptors.yaml`, #123).** A
+`decide.category` in the register may name one native category or a list of them
+— two rows one instrument decider must hold jointly, such as fresh-clone's
+`[install, build]` for `d-fresh-clone-runs` or `[lint, typecheck]` for
+`d-lint-typecheck-gate`. A finding matches the descriptor when its
+`native_category` is **any** listed value; the descriptor reads **met** only when
+**every** listed category is met by the single-category rules above (`registry/
+README.md` has the full decider table). This is a register-side reading of the
+same rows the adapter maps one at a time — the adapter's `map:` stays keyed by one
+native category each; nothing here widens what a category means to it.
+### 3c. The dependency-scan instrument (`tools/dependency-scan.mjs`)
+
+**What it measures.** Whether a known vulnerability is present anywhere in the
+target's npm dependency graph — the floor the descriptor register asks a
+dependency scanner to clear (`d-dependencies-known-clean`, decided on its
+`critical` category). It walks the tree (skipping `node_modules/` and `.git/`)
+for every `package-lock.json` / `npm-shrinkwrap.json` and runs `npm audit
+--json` against each, with no install. A directory that is a workspace member
+whose effective root carries no lockfile of its own makes npm fail `ENOLOCK`;
+that member's `package.json` and its own lockfile are copied into a scratch
+directory and audited there instead (`method: scratch-copy`, vs `in-place`).
+Every `pnpm-lock.yaml` / `yarn.lock` found is recorded `not-supported` — this
+instrument audits npm lockfiles only, and an absent audit is never read as a
+clean one. Each lockfile records its path, audit method, npm's own exit code,
+severity counts, dependencies audited, and one advisory row per (advisory id,
+package): the id (GHSA when the advisory's url names one, else the npm source
+id), the package, its installed version(s) read straight out of the lockfile,
+the vulnerable range, severity, whether npm reports a fix available, and the
+advisory url.
+
+**Success set.** npm audit's own exit is `0` when a lockfile carries zero
+advisories and `1` when it carries any — both are successful AUDITS. Any other
+exit code, a timeout, a spawn failure, or output that does not parse into npm's
+`vulnerabilities` + `metadata` report shape (an npm *error* document — no
+registry reachable is exactly this shape) makes that lockfile `status: failed`,
+never clean. The runner's own document `exit` is `0` only when every lockfile
+in the tree audited with zero advisories; `1` when any advisory exists, any
+lockfile failed, or any lockfile is not-supported; both are successful RUNS and
+`ingest.mjs --tool dependency-scan` accepts both. A crash of the runner itself
+exits `2` and halts the intake. The converter writes one gap row per advisory
+(`native_category` = its own severity — `critical | high | moderate | low |
+info` — mapped `Critical | High | Medium | Low | Low` respectively, evidence
+the lockfile at `:1`), one gap (`lockfile-failed`) per failed lockfile, and one gap
+(`lockfile-unsupported`) per not-supported lockfile. A run with none of the
+three is the explicit empty `findings-95-dependency-scan.yaml`. All seven
+categories land on `code-security` — the shared property gitleaks and
+deep-code-review also feed.
+
+**What it deliberately does not do.** It never runs `npm install` or otherwise
+mutates the tree — the existing lockfile is read as-is. It never audits
+pnpm/yarn lockfiles (recorded, never guessed at), and it never infers an
+installed version or a fix from anything but the lockfile and npm's own report.
+It needs the npm registry to resolve advisories — the same reach `npm ci`
+already needs in fresh-clone's `install` step — never a repo-hosting
+platform's own configuration API (§3a); a lockfile it cannot reach is `failed`,
+never clean.
+
+```sh
+node tools/dependency-scan.mjs <target-dir> --out dependency-scan.json [--timeout 300]
+node tools/ingest.mjs <run-dir> --tool dependency-scan --raw dependency-scan.json --exit <its exit code>
+### 3d. The repo-census instrument (`tools/repo-census.mjs`)
+
+**What it measures.** Four floor rows a run could not decide before except by an
+LLM-authored census (`d-architecture-page`, `d-agent-contract`, `d-runbook`,
+`d-ci-gate-on-default-branch`), decided deterministically from the tree, read-only,
+offline, zero deps, plus six owner-evidence transcript checks (below). Four
+tree checks:
+
+- **architecture-page** — ARCHITECTURE.md / docs/ARCHITECTURE.md /
+  docs/architecture.md / docs/architecture/*.md (case-insensitive), or a README
+  "Architecture" section. `pass` only when it also **names** an external service or
+  data store (a heading or line mentioning database / queue / API / service / store
+  / bucket / provider, or a mermaid / diagram block) — presence alone is not
+  enough. In a **monorepo** (package.json `workspaces`, or `apps/*/package.json`,
+  or `packages/*/package.json`) it runs at the root **and** at every app, one check
+  per location.
+- **agent-contract** — AGENTS.md or CLAUDE.md (root and per app, same monorepo
+  rule). `pass` only when it is **present-tense**: no heading matching
+  `/^#+\s*(status|history|changelog|todo|backlog)\b/i` and no dated changelog line
+  (a line starting with a date like `2026-09-01`, or a `- 2026-…` bullet).
+- **runbook** — RUNBOOK.md / docs/RUNBOOK.md / docs/runbook*.md, or a README/doc
+  section headed "Runbook" or "Operations". `pass` only when it carries a heading
+  or paragraph for **each** of restart, roll back, rotate (a key/secret/credential),
+  and restore (a backup). Presence of the words is what this decides — whether a
+  procedure was ever actually **run** is a separate, sidecar claim, said in the
+  observation every time.
+- **ci-gate** — every `.github/workflows/*.yml|.yaml`, read with a minimal
+  line-based reader (zero deps, no YAML library; handles the common shapes: `on:
+  [push, pull_request]`, block-form `on: / push: / branches: [main]`,
+  `pull_request:` with no filters). A workflow **gates** when it triggers on
+  pull_request (or push to the default branch — `--default-branch`, else `git
+  symbolic-ref refs/remotes/origin/HEAD`, else `main`) and runs a step whose
+  `run:` invokes a test / lint / typecheck / build command (npm / pnpm / yarn
+  test|lint|typecheck|build, `tsc`, `jest`, `vitest`, `pytest`, `go test`, `cargo
+  test`, `make test`). It **fails open** — a gap, cited by file:line — when the
+  gating job or step carries `continue-on-error: true`; a gate that can fail open
+  is not a gate.
+
+**Success set.** `exit` is `0` when every check reads `pass` (or `not-applicable`),
+`1` when at least one check is a `gap`; both are successful runs and `ingest.mjs
+--tool repo-census` accepts both. A crash of the runner itself exits `2` and halts
+the intake. The converter writes one gap row per `gap` check and one strength row
+per `pass` check (so the axis sees the evidence, not just the absence of a gap); a
+`not-applicable` check yields nothing. `Medium` severity throughout, except a
+ci-gate gap from a fail-open step, which reads `High` — a gate that can be turned
+off from inside the workflow is worse than no gate recorded. Rows carry the
+check's own evidence (`file:line`) or, where a check has nothing more specific to
+cite (an absent file, an absent workflow directory), a `<location>/:1`-style path
+into the target; every row carries at least one.
+
+**What it deliberately does not decide.** Whether a runbook's procedures were ever
+actually **run** — only that the words for each are present — stays with the
+owner's evidence. Whether a CI check is **required** by branch protection is not
+visible from a checked-out tree at all; every ci-gate observation says so. Neither
+is inferred, guessed, or defaulted to met.
+
+**The six owner-evidence checks** (andyschwab/ai-native-framework#124, option B).
+Six more floor rows describe things a repository cannot show by itself — a
+backup was restored, a rollback ran, a deploy came up as the committed sha, a
+smoke check hit the deployed app, a monitoring alert fired and was received,
+cost alerts are named per metered account. `repo-census` checks a dated
+transcript the owner commits per row, named `evidence-<descriptor-id>`
+(`d-backup-restore-exercised`, `d-rollback-exercised`, `d-deploy-one-command`,
+`d-smoke-on-deployed`, `d-monitoring-with-alert`, `d-cost-alerts`), root only.
+It decides the transcript's shape and freshness only, never the truth of what
+it describes — that rests on the named person's attestation in version
+history. The format — path, header keys, per-row keys, body minimum, freshness
+window — is documented once, at `templates/evidence/README.md`; this is the
+one home of it.
+
+```sh
+node tools/repo-census.mjs <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90]
+node tools/ingest.mjs <run-dir> --tool repo-census --raw repo-census.json --exit <its exit code>
 ```
 
 ## 4. The fail-closed rule (the coherence guarantee)

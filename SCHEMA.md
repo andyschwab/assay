@@ -328,6 +328,11 @@ scanners:
     reason: "gitleaks binary not on PATH in the run container"
 ```
 
+A row may carry `model:`, the model id a judgment scanner ran on (deep-code-review, a
+census authored by a model). It is warned when a judgment scanner ran without one: a
+repeat cannot separate model drift from method drift. Deterministic instruments need
+none.
+
 Rules (`validate.mjs`, fail-closed; `compile-package.mjs` validates before it
 compiles anything):
 
