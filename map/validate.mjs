@@ -29,14 +29,11 @@ const TELEMETRY = new Set(['none','unstructured','structured-event','audited']);
 const BLAST = new Set(['user','tenant','fleet','cross-tenant']);
 const FAIL_MODE = new Set(['open','closed']);
 const PRECONDITIONS = new Set(['prompt-injection','stolen-credential','malicious-dependency','network-position','insider','zero-day','physical']);
-// overlay layer (SCHEMA.md §2a) — OPTIONAL, backward-compatible. A finding may
-// carry an explicit `axis`; absent is valid (the adapter projects it). The valid
-// set is DERIVED from the adapters — axes are scanner-contributed, so the vocab
-// is open by design: every axis any adapter contributes or maps to. The retired
-// five-domain names are grandfathered on frozen findings (`domain:`) and
-// translate mechanically (project.mjs LEGACY_DOMAIN_AXIS); new findings never
-// carry them. See map/scanners/CONTRACT.md.
-const { loadAdapters, projectMulti, LEGACY_DOMAIN_AXIS } = await import('./project.mjs');
+// overlay layer (SCHEMA.md §2a) — a finding may carry an explicit `axis`;
+// absent is valid (the adapter projects it). The valid set is DERIVED from the
+// adapters — axes are scanner-contributed, so the vocab is open by design:
+// every axis any adapter contributes or maps to. See map/scanners/CONTRACT.md.
+const { loadAdapters, projectMulti } = await import('./project.mjs');
 const AXES = new Set();
 let ADAPTERS = {};
 try {
@@ -46,13 +43,7 @@ try {
     for (const row of Object.values(a.map || {})) if (row && row.axis) AXES.add(row.axis);
   }
 } catch { /* adapters unreadable — the projection gate below reports it */ }
-const LEGACY_DOMAINS = new Set(Object.keys(LEGACY_DOMAIN_AXIS));
 const isInstrument = (src) => ADAPTERS[src]?.role === 'instrument';
-// exposures sidecar vocab (SCHEMA.md §6a). GATE_STAGE is the RETIRED stage
-// scale, kept only to validate grandfathered runs (frozen files carrying
-// gate:/blocks_stage: still validate; new runs never emit them — the same
-// grandfather rail as the legacy domains).
-const GATE_STAGE = new Set(['alpha','beta','prod','none','clear']);
 const WHO = new Set(['stranger-pre-auth','authorized-real-user','only-at-scale-or-adversarial']);
 const LIKELIHOOD = new Set(['high','moderate','low']);
 
@@ -111,7 +102,6 @@ function checkFinding(f, fileLabel, expectDim) {
     if (f.polarity && !POLARITY.has(f.polarity)) err(at, `bad polarity "${f.polarity}"`);
     if (f.evidence !== undefined && (!Array.isArray(f.evidence) || f.evidence.length === 0)) err(at, `evidence must be a non-empty list`);
     if (f.axis !== undefined && !AXES.has(f.axis)) err(at, `bad axis "${f.axis}"`);
-    if (f.domain !== undefined && !LEGACY_DOMAINS.has(f.domain)) err(at, `bad legacy domain "${f.domain}" (new findings carry axis:)`);
     // fix is required on a PEER scanner's gaps (drives the handoff); an INSTRUMENT's
     // gap may omit it — it then lands owner-defined pending, listed loudly, never dropped.
     if (f.polarity === 'gap' && (f.fix === undefined || f.fix === '') && !isInstrument(f.source))
@@ -128,7 +118,6 @@ function checkFinding(f, fileLabel, expectDim) {
   if (f.evidence !== undefined && (!Array.isArray(f.evidence) || f.evidence.length === 0)) err(at, `evidence must be a non-empty list`);
   // overlay layer (optional; validated only when present — SCHEMA.md §2a)
   if (f.axis !== undefined && !AXES.has(f.axis)) err(at, `bad axis "${f.axis}"`);
-  if (f.domain !== undefined && !LEGACY_DOMAINS.has(f.domain)) err(at, `bad legacy domain "${f.domain}" (new findings carry axis:)`);
   // (no id-band check — ids are unique F-### with no dimension meaning; the field is the truth)
   // filename ↔ dimension (unprompted permitted anywhere)
   if (expectDim && f.dimension && f.dimension !== 'unprompted' && f.dimension !== expectDim)
@@ -311,7 +300,6 @@ function citationsIn(path) {
   for (const r of refs) if (!allById.has(r)) err(basename(path), `cites unknown finding ${r}`);
 }
 for (const p of [leveragePath(runDir), runMaturityPath(runDir), securityPath(runDir)]) citationsIn(p);
-citationsIn(join(runDir, 'AI-NATIVE-EVAL.md'));
 citationsIn(improvePagePath(runDir));
 
 // security gate sidecar (views/improve/security-gate.yaml)
@@ -322,8 +310,6 @@ if (existsSync(gatePath)) {
   try { gate = parseYaml(readFileSync(gatePath, 'utf8')); }
   catch (e) { err(gateLabel, `YAML parse failed (fail-closed): ${e.message}`); gate = null; }
   if (gate) {
-    // gate: is retired (grandfathered) — optional; when present it must be legacy vocab
-    if (gate.gate !== undefined && !GATE_STAGE.has(gate.gate)) err(gateLabel, `bad legacy gate "${gate.gate}" (the stage scale is retired; new runs omit gate:)`);
     const ex = gate.exposures;
     if (!Array.isArray(ex)) err(gateLabel, `exposures must be a list`);
     else for (const e of ex) {
@@ -331,8 +317,6 @@ if (existsSync(gatePath)) {
       if (!e || typeof e !== 'object') { err(gateLabel, `exposure is not a mapping`); continue; }
       if (!e.name) err(at, `exposure missing name`);
       if (!e.title) err(at, `exposure missing title (the human display name the report renders)`);
-      // blocks_stage: is retired (grandfathered) — optional; legacy vocab when present
-      if (e.blocks_stage !== undefined && !GATE_STAGE.has(e.blocks_stage)) err(at, `bad legacy blocks_stage "${e.blocks_stage}" (the stage scale is retired; new runs omit it)`);
       if (e.standing_watch !== undefined && typeof e.standing_watch !== 'boolean') err(at, `standing_watch must be boolean`);
       if (e.who !== undefined && !WHO.has(e.who)) err(at, `bad who "${e.who}"`);
       if (e.likelihood !== undefined && !LIKELIHOOD.has(e.likelihood)) err(at, `bad likelihood "${e.likelihood}"`);
@@ -486,7 +470,7 @@ if (existsSync(yardstickResultPath)) {
     try { re = projectRun(runDir); } catch (e) { err(yardstickLabel, `could not recompute the measurement: ${e.message}`); }
     if (re) {
       const reById = Object.fromEntries(re.map((r) => [r.id, r]));
-      const rows = Array.isArray(view.requirements) ? view.requirements : Array.isArray(view.descriptors) ? view.descriptors : [];
+      const rows = Array.isArray(view.requirements) ? view.requirements : [];
       if (rows.length !== re.length) err(yardstickLabel, `carries ${rows.length} requirements, the yardstick has ${re.length} — regenerate`);
       for (const r of rows) {
         const at = `${yardstickLabel}:${r && r.id || '??'}`;

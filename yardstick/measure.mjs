@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// measure.mjs — the descriptor projection (yardstick/README.md).
+// measure.mjs — the yardstick's measurement (yardstick/README.md).
 //
-// Projects a findings base onto the DESCRIPTOR REGISTER (yardstick/requirements.yaml):
-// for each descriptor, what the run decides — met | unmet | mixed | not-measured —
+// Measures a findings base against the YARDSTICK (yardstick/requirements.yaml):
+// for each requirement, what the run decides — met | unmet | mixed | not-measured —
 // and by which mechanism. A second projection beside the axis projection
 // (project.mjs); it changes nothing the axis views compute. Read-only over the
 // base. The honesty rules, in order:
-//   • a descriptor is decided only by its declared mechanism (facet, census,
+//   • a requirement is decided only by its declared mechanism (facet, census,
 //     instrument); prose is never read — an observation that merely mentions a
 //     topic is not a measurement (the first prototype turned "single authored
 //     contract" into a met bus-factor row);
@@ -15,7 +15,7 @@
 //   • a peer scanner's category with no rows reads met only where the scanner's
 //     own coverage sidecar says the domain was scanned; partial or not-scanned
 //     reads not-measured;
-//   • a `claim` descriptor always reads not-measured from a run: only the owner
+//   • a `claim` requirement always reads not-measured from a run: only the owner
 //     (a repo's own claims) can assert it, and the two are compared, never merged.
 //
 // Usage:  node assay.mjs measure <run-dir> [--write] [--json]
@@ -29,7 +29,7 @@ import { isHalt, isHaltClass, gateHolds, isMain } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
-export const REGISTRY_FILE = join(HERE, 'requirements.yaml');
+export const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
 export const KINDS = ['facet', 'census', 'instrument', 'claim'];
 export const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable'];
 export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured'];
@@ -39,19 +39,19 @@ const STRUCTURED = new Set(['structured-event', 'audited']);
 export const TOPICS = [...AXIS_ORDER, 'custody', 'reproducibility', 'operability'];
 
 // ── the yardstick: load + validate (fail closed) ───────────────────────────────
-export function validateRegistry(reg) {
+export function validateYardstick(reg) {
   const errors = [];
   if (!reg || !Array.isArray(reg.requirements)) return ['yardstick: no requirements list'];
-  if (!Array.isArray(reg.tiers) || !reg.tiers.length) errors.push('registry: tiers must be a non-empty list');
+  if (!Array.isArray(reg.tiers) || !reg.tiers.length) errors.push('yardstick: tiers must be a non-empty list');
   const tiers = new Set(reg.tiers || []), tags = new Set(reg.tags || []), topics = new Set(TOPICS), seen = new Set();
   for (const d of reg.requirements) {
-    const at = `registry: ${d.id ?? '(no id)'}`;
+    const at = `yardstick: ${d.id ?? '(no id)'}`;
     if (!d.id || !/^d-[a-z0-9-]+$/.test(d.id)) errors.push(`${at}: id must match d-<slug>`);
     if (seen.has(d.id)) errors.push(`${at}: duplicate id`); seen.add(d.id);
     if (!d.title) errors.push(`${at}: title required`);
-    if (!tiers.has(d.tier)) errors.push(`${at}: tier "${d.tier}" not in registry tiers`);
+    if (!tiers.has(d.tier)) errors.push(`${at}: tier "${d.tier}" not in the yardstick's tiers`);
     if (!topics.has(d.topic)) errors.push(`${at}: topic "${d.topic}" not in the allowed list (the axis roster plus custody, reproducibility and operability)`);
-    for (const t of d.tags || []) if (!tags.has(t)) errors.push(`${at}: tag "${t}" not in registry tags`);
+    for (const t of d.tags || []) if (!tags.has(t)) errors.push(`${at}: tag "${t}" not in the yardstick's tags`);
     if (!d.decide || !KINDS.includes(d.decide.kind)) errors.push(`${at}: decide.kind must be one of ${KINDS.join('|')}`);
     else if (d.decide.kind === 'facet' && !FACET_RULES.includes(d.decide.rule)) errors.push(`${at}: facet rule "${d.decide.rule}" unknown`);
     else if (d.decide.kind === 'census' && !(Array.isArray(d.decide.measures) && d.decide.measures.length)) errors.push(`${at}: census needs measures: [names]`);
@@ -68,9 +68,9 @@ export function validateRegistry(reg) {
   }
   return errors;
 }
-export function loadRegistry(file = REGISTRY_FILE) {
+export function loadYardstick(file = YARDSTICK_FILE) {
   const reg = parseYaml(readFileSync(file, 'utf8'));
-  const errors = validateRegistry(reg);
+  const errors = validateYardstick(reg);
   if (errors.length) throw new Error(errors.join('\n'));
   return reg;
 }
@@ -152,7 +152,7 @@ function categoryVerdict(scanner, category, rows, coverage) {
 function byInstrument(d, fs, disp, coverage) {
   const { scanner, category } = d.decide;
   // category may be one native_category or a list of them (two rows the decider must
-  // hold jointly, e.g. install AND build for one descriptor): a finding matches when its
+  // hold jointly, e.g. install AND build for one requirement): a finding matches when its
   // native_category is ANY listed value; met requires EVERY listed category to be met.
   const categories = (Array.isArray(category) ? category : [category]).map(String);
   const catLabel = categories.length > 1 ? `[${categories.join(', ')}]` : categories[0];
@@ -171,7 +171,7 @@ function byInstrument(d, fs, disp, coverage) {
 }
 
 // ── the projection ────────────────────────────────────────────────────────────
-export function projectDescriptors({ findings, manifest, inputs, coverage }, reg = loadRegistry()) {
+export function measureRun({ findings, manifest, inputs, coverage }, reg = loadYardstick()) {
   const disp = dispositionsOf(manifest);
   return reg.requirements.map((d) => {
     let r;
@@ -185,7 +185,7 @@ export function projectDescriptors({ findings, manifest, inputs, coverage }, reg
 export function projectRun(runDir, reg) {
   const findings = loadFindings(runDir);
   if (!findings.length) throw new Error(`no findings under ${runDir}`);
-  return projectDescriptors({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir) }, reg);
+  return measureRun({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir) }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what the three views (Intake, Maintain, Improve's topic
@@ -230,7 +230,7 @@ if (isMain(import.meta.url)) {
   if (!dir) { console.error('usage: node assay.mjs measure <run-dir> [--write] [--json]'); process.exit(2); }
   const rows = projectRun(dir);
   const s = summarize(rows);
-  if (args.includes('--json')) { console.log(JSON.stringify({ summary: s, descriptors: rows }, null, 1)); }
+  if (args.includes('--json')) { console.log(JSON.stringify({ summary: s, requirements: rows }, null, 1)); }
   else {
     for (const r of rows) console.log(`${r.status.padEnd(12)} ${r.how.padEnd(10)} ${r.id.padEnd(34)} ${r.note}`);
     console.log(`\n${s.decided} of ${s.of} decided (met ${s.met} · unmet ${s.unmet} · mixed ${s.mixed}) · not measured ${s['not-measured']}`);

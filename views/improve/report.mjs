@@ -18,7 +18,7 @@ import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capa
 import { buildChains } from '../../map/chains.mjs';
 import { buildGlossary } from './glossary.mjs';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
-import { projectRun as projectDescriptorsOf, summarize as summarizeDescriptors } from '../../yardstick/measure.mjs';
+import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '../../yardstick/measure.mjs';
 import { buildTopicsForRun } from './topics.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -79,9 +79,8 @@ function snapshotStats() {
 function securityRisks() {
   const ex = gate.exposures || [];
   const rank = { high: 0, moderate: 1, low: 2 };
-  // watch = the analyst's labeled standing_watch, or the grandfathered legacy form
-  // (blocks_stage none/clear); everything else is an active exposure.
-  const isWatch = (e) => e.standing_watch === true || e.blocks_stage === 'none' || e.blocks_stage === 'clear';
+  // watch = the analyst's labeled standing_watch; everything else is an active exposure.
+  const isWatch = (e) => e.standing_watch === true;
   const active = ex.filter((e) => !isWatch(e))
     .sort((a, b) => (rank[a.likelihood] ?? 3) - (rank[b.likelihood] ?? 3));
   const watch = ex.filter(isWatch);
@@ -222,8 +221,8 @@ function scannerAxes() {
   // the yardstick measurement: what this run decides against the yardstick, stated once,
   // with the claim-only rows named as the sidecar's to assert — never inferred here
   try {
-    const rows = projectDescriptorsOf(runDir);
-    const sm = summarizeDescriptors(rows);
+    const rows = measureRunOf(runDir);
+    const sm = summarizeMeasurement(rows);
     const claims = rows.filter((r) => r.kind === 'claim').length;
     const unmet = rows.filter((r) => r.status === 'unmet');
     out.push(`\nAgainst the yardstick (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed; ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
@@ -365,7 +364,7 @@ if (unfilled) { console.error(`unfilled markers remain: ${[...new Set(unfilled)]
 
 // Frontmatter for deployments whose tree-checkers read it. `confidential: true`
 // is RUN-LEVEL, never an engine default: set `confidential: true` in
-// report-prose.yaml or pass --confidential (a deployment holding client runs —
+// views/improve/prose.yaml or pass --confidential (a deployment holding client runs —
 // e.g. an instances/ tree with a confidentiality floor — turns it on; a public
 // or self-eval run stays unmarked). A downstream renderer, where one exists,
 // reads from the first `## ` heading, so this frontmatter never reaches it.

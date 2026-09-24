@@ -42,7 +42,7 @@ for (const f of raw) {
 const findings = [...byId.values()];
 if (!findings.length) { console.error(`no findings under ${arg}`); process.exit(2); }
 
-// channel labels are authored per run (report-prose channel_notes); a raw base
+// channel labels are authored per run (the prose's channel_notes); a raw base
 // without prose renders humanized slugs.
 let channelNotes = {}, proseConfidential = false;
 try {

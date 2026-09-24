@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
 import { loadDecisions, decideProjected } from '../map/decisions.mjs';
-import { projectRun as projectDescriptorsOf, summarize as summarizeDescriptors } from '../yardstick/measure.mjs';
+import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '../yardstick/measure.mjs';
 import { buildRows } from './floor-fleet.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';
@@ -119,8 +119,8 @@ function findAppendices() {
 }
 
 // ── the yardstick glance for the index ──────────────────────────────────────
-const descRows = projectDescriptorsOf(runDir);
-const descSum = summarizeDescriptors(descRows);
+const descRows = measureRunOf(runDir);
+const descSum = summarizeMeasurement(descRows);
 const descUnmet = descRows.filter((r) => r.status === 'unmet').map((r) => `\`${r.id}\``);
 const descClaims = descRows.filter((r) => r.kind === 'claim').length;
 

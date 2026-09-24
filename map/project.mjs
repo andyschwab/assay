@@ -39,31 +39,18 @@ export function orderAxes(axes) {
   return [...AXIS_ORDER.filter((a) => set.has(a)), ...[...set].filter((a) => !AXIS_ORDER.includes(a)).sort()];
 }
 
-// ── legacy translation (grandfathered, like the frozen id bands) ─────────────
-// Findings forward-migrated under the retired five-domain model carry `domain:`
-// / `also_domains:`; they translate mechanically and are never rewritten in the
-// frozen fixtures. New findings carry `axis:` / `also_axes:`.
-export const LEGACY_DOMAIN_AXIS = {
-  'workspace-legibility': 'artifact-legibility',
-  'code-correctness': 'code-correctness',
-  'code-security': 'code-security',
-  'product-ai-safety': 'delegation',
-  'product-ai-quality': 'verification',
-};
-const toAxis = (v) => LEGACY_DOMAIN_AXIS[v] ?? v;
-const explicitAxis = (f) => f.axis ?? (f.domain ? toAxis(f.domain) : undefined);
-const explicitAlso = (f) => {
-  const raw = Array.isArray(f.also_axes) ? f.also_axes
-    : Array.isArray(f.also_domains) ? f.also_domains.map(toAxis) : [];
-  return raw;
-};
+// A finding's explicit classification: `axis:` (primary) and `also_axes:`
+// (compound cross-links). Every finding carries these directly — a scanner
+// that classified itself, never inferred from a retired vocabulary.
+const explicitAxis = (f) => f.axis;
+const explicitAlso = (f) => Array.isArray(f.also_axes) ? f.also_axes : [];
 
 // ── loaders ─────────────────────────────────────────────────────────────────
 // THE findings loader — every tool loads through this one function so the
 // semantics cannot drift (before consolidation there were five copies, one of
 // which skipped unparseable files and mis-read the loss as variance). Rules:
-//   • per-pass files first (what validate reads), else the merged findings.yaml
-//     — reading per-pass avoids a stale merged file silently winning;
+//   • every file under map/findings/ — one per scanner, or one per repo-eval
+//     pass — read and concatenated; no merged-file fallback;
 //   • FAIL CLOSED on an unparseable file (parseYaml throws; never caught here);
 //   • a missing directory reads as an empty base (callers decide whether empty
 //     is an error — most exit loudly on zero findings).
@@ -245,8 +232,8 @@ export function rosterFor(adapters, sources, projected) {
 // ── projection ───────────────────────────────────────────────────────────────
 // Returns { projected, unmapped, needsAxis }. A projected entry is
 // { f, axis (primary), also (string[]), source }. `also_axes` on the finding
-// merge into `also`. A finding carrying an explicit `axis` (or a grandfathered
-// `domain`) is honored as-is — a scanner that classified it itself.
+// merge into `also`. A finding carrying an explicit `axis` is honored as-is —
+// a scanner that classified it itself.
 export function projectMulti(findings, adapters) {
   const unmapped = [], needsAxis = [], projected = [];
   for (const f of findings) {

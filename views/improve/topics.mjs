@@ -10,7 +10,7 @@
 //   --write   regenerate views/improve.yaml (generated; never hand-edit)
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { loadRegistry, loadMeasurement, TOPICS } from '../../yardstick/measure.mjs';
+import { loadYardstick, loadMeasurement, TOPICS } from '../../yardstick/measure.mjs';
 import { isMain } from '../../map/doctrine.mjs';
 import { viewPath } from '../../lib/run-layout.mjs';
 
@@ -56,7 +56,7 @@ export function toYaml(topics) {
 export function buildTopicsForRun(runDir) {
   const rows = loadMeasurement(runDir);
   if (!rows) return null;
-  const reg = loadRegistry();
+  const reg = loadYardstick();
   return buildTopics(rows, reg);
 }
 

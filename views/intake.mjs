@@ -12,7 +12,7 @@
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { buildRows, toYaml } from './floor-fleet.mjs';
-import { loadRegistry } from '../yardstick/measure.mjs';
+import { loadYardstick } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { viewPath, intakePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
@@ -60,7 +60,7 @@ if (isMain(import.meta.url)) {
   if (!runDir) { console.error('usage: node assay.mjs intake <run-dir> [--stdout]'); process.exit(2); }
   const built = buildRows(runDir, 'floor');
   if (!built) { console.error(`no yardstick measurement under ${runDir} — run: node assay.mjs measure ${runDir} --write`); process.exit(2); }
-  const reg = loadRegistry();
+  const reg = loadYardstick();
   const runId = basename(runDir);
   const yamlOut = toYaml('intake', runId, reg.version, built);
   // run-level confidentiality, the same rule as the Improve writers: the flag or views/improve/prose.yaml
