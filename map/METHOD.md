@@ -132,7 +132,7 @@ not id) and re-verify any prior-only fact — a cheap, deterministic completenes
 check that recovers real misses.
 
 **Every `.md` file you author in a run** (`map/terrain.md`, `views/improve/*.md`,
-`map/AI-NATIVE-EVAL.md`, `map/censuses.md`, `candidate-insights.md`) opens with OKF
+`views/improve/synthesis.md`, `map/censuses.md`, `candidate-insights.md`) opens with OKF
 frontmatter — `type: doc` plus a `title:` — so the file is well-formed wherever an
 OKF bundle guardrail reads it. The generated docs (report + handoff) get theirs
 from the tools; see `SCHEMA.md` §5.
@@ -491,7 +491,7 @@ file** in the target, failing closed on a cited path that does not exist — the
 ("no CI") must cite what it *did* inspect (the human-run gate that exists instead),
 not the missing path, and state the absence in the observation.
 
-## Pass 8 — Meta-synthesis → `map/AI-NATIVE-EVAL.md`
+## Pass 8 — Meta-synthesis → `views/improve/synthesis.md`
 
 Reconcile the three views into one document (reads only the view artifacts):
 
@@ -515,7 +515,7 @@ Ordering note: for a **security-purpose** engagement, lead the whole document
 with the security posture + gate verdict, *then* strengths. For a **self-eval /
 adoption** engagement, lead with strengths. Same evidence, owned ordering.
 
-`AI-NATIVE-EVAL.md` is the **internal** synthesis (dense, operator-facing, cites every
+`synthesis.md` is the **internal** synthesis (dense, operator-facing, cites every
 finding). The **external, maintainer-facing** deliverable is Pass 9.
 
 ## Pass 8.5 — The walk (per-axis profiles) → `views/improve/axes.md`

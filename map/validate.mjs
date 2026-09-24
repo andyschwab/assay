@@ -397,7 +397,7 @@ if (existsSync(gradesPath)) {
   try { grades = parseYaml(readFileSync(gradesPath, 'utf8')); }
   catch (e) { err(gradesLabel, `YAML parse failed (fail-closed): ${e.message}`); grades = null; }
   if (grades && grades.schema !== 'coverage') {
-    err(gradesLabel, `pre-coverage grades schema (found ${grades.ladder ? 'ladder form' : 'no schema key'}) — regenerate: node assay.mjs maturity <eval-dir> --write`);
+    err(gradesLabel, `maturity grades must carry schema: coverage — regenerate: node assay.mjs maturity <run> --write`);
   } else if (grades) {
     if (!Array.isArray(grades.dimensions)) err(gradesLabel, `dimensions must be a list`);
     else {
