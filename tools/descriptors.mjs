@@ -50,7 +50,13 @@ export function validateRegistry(reg) {
     if (!d.decide || !KINDS.includes(d.decide.kind)) errors.push(`${at}: decide.kind must be one of ${KINDS.join('|')}`);
     else if (d.decide.kind === 'facet' && !FACET_RULES.includes(d.decide.rule)) errors.push(`${at}: facet rule "${d.decide.rule}" unknown`);
     else if (d.decide.kind === 'census' && !(Array.isArray(d.decide.measures) && d.decide.measures.length)) errors.push(`${at}: census needs measures: [names]`);
-    else if (d.decide.kind === 'instrument' && !(d.decide.scanner && d.decide.category)) errors.push(`${at}: instrument needs scanner + category`);
+    else if (d.decide.kind === 'instrument') {
+      const cat = d.decide.category;
+      // category is one native_category, OR a list of them (two rows the decider must
+      // hold jointly — e.g. install AND build); an empty list names nothing and is rejected
+      const validCategory = typeof cat === 'string' ? cat.length > 0 : Array.isArray(cat) && cat.length > 0 && cat.every((c) => typeof c === 'string' && c.length > 0);
+      if (!(d.decide.scanner && validCategory)) errors.push(`${at}: instrument needs scanner + category (a non-empty string, or a non-empty list of strings)`);
+    }
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
     if (!Array.isArray(d.sources) || !d.sources.length) errors.push(`${at}: sources required (extracted, not designed)`);
     if (!['draft', 'stable', 'deprecated'].includes(d.status)) errors.push(`${at}: status must be draft|stable|deprecated`);
@@ -124,25 +130,40 @@ function byCensus(d, inputs) {
   return row(met === of ? 'met' : met === 0 ? 'unmet' : 'mixed', 'census', [], `${met} of ${of} ${s.what ?? s.name} (census ${s.name}, ${s.dimension})`, { met, of, measure: s.name });
 }
 
+// one listed category's own "no gap rows" verdict — a deterministic INSTRUMENT that ran
+// clean is met (its exit code is the verdict); a PEER scanner is met only where its own
+// coverage sidecar says it scanned the domain — no sidecar means no account of what it
+// looked at, which is not clean.
+function categoryVerdict(scanner, category, rows, coverage) {
+  const cov = coverage[scanner]?.coverage?.[category];
+  if (!cov) {
+    if (isInstrument(scanner)) return { status: 'met', note: `ran and reported no ${category} rows${rows.length ? ' (' + rows.length + ' strength row(s))' : ''}` };
+    if (rows.length) return { status: 'met', note: `${rows.length} strength row(s), no gaps` };
+    return { status: 'not-measured', note: coverage[scanner] ? `reported coverage but no row for category ${category}` : `left no coverage account for category ${category} (a peer scanner's silence is not clean)` };
+  }
+  if (cov.status === 'scanned') return { status: 'met', note: `scanned category ${category}: no gaps${rows.length ? ', ' + rows.length + ' strength row(s)' : ''}` };
+  return { status: 'not-measured', note: `category ${category} ${cov.status}${cov.note ? ': ' + cov.note : ''}` };
+}
+
 function byInstrument(d, fs, disp, coverage) {
   const { scanner, category } = d.decide;
-  const rows = fs.filter((f) => f.source === scanner && String(f.native_category ?? '') === String(category));
+  // category may be one native_category or a list of them (two rows the decider must
+  // hold jointly, e.g. install AND build for one descriptor): a finding matches when its
+  // native_category is ANY listed value; met requires EVERY listed category to be met.
+  const categories = (Array.isArray(category) ? category : [category]).map(String);
+  const catLabel = categories.length > 1 ? `[${categories.join(', ')}]` : categories[0];
+  const rows = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')));
   const dp = disp[scanner];
   if (!dp) return row(rows.length ? 'unmet' : 'not-measured', 'instrument', rows.map((f) => f.id), rows.length ? `${rows.length} row(s) from ${scanner} (no manifest disposition recorded)` : `${scanner} has no disposition in the run manifest`);
   if (dp.status !== 'ran') return row('not-measured', 'instrument', [], `${scanner} ${dp.status}${dp.reason ? ': ' + dp.reason : ''}`);
   const gaps = rows.filter((f) => f.polarity === 'gap'), strengths = rows.filter((f) => f.polarity === 'strength');
-  if (gaps.length) return row(strengths.length ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${category}${strengths.length ? ', ' + strengths.length + ' strength' : ''}`);
-  // no gap rows: a deterministic INSTRUMENT that ran clean is met (its exit code is the
-  // verdict); a PEER scanner is met only where its own coverage sidecar says it scanned
-  // the domain — no sidecar means no account of what it looked at, which is not clean.
-  const cov = coverage[scanner]?.coverage?.[category];
-  if (!cov) {
-    if (isInstrument(scanner)) return row('met', 'instrument', rows.map((f) => f.id), `${scanner} ran and reported no ${category} rows${rows.length ? ' (' + rows.length + ' strength row(s))' : ''}`);
-    if (rows.length) return row('met', 'instrument', rows.map((f) => f.id), `${rows.length} strength row(s), no gaps, from ${scanner}`);
-    return row('not-measured', 'instrument', [], coverage[scanner] ? `${scanner} reported coverage but no row for category ${category}` : `${scanner} ran but left no coverage account for category ${category} (a peer scanner's silence is not clean)`);
-  }
-  if (cov.status === 'scanned') return row('met', 'instrument', rows.map((f) => f.id), `${scanner} scanned category ${category}: no gaps${rows.length ? ', ' + rows.length + ' strength row(s)' : ''}`);
-  return row('not-measured', 'instrument', rows.map((f) => f.id), `${scanner} category ${category} ${cov.status}${cov.note ? ': ' + cov.note : ''}`);
+  if (gaps.length) return row(strengths.length ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${catLabel}${strengths.length ? ', ' + strengths.length + ' strength' : ''}`);
+  // no gap rows anywhere in the listed categories: met only where every listed category
+  // independently clears categoryVerdict — a list is an AND, never decided by one member alone.
+  const perCat = categories.map((c) => ({ c, ...categoryVerdict(scanner, c, rows.filter((f) => String(f.native_category) === c), coverage) }));
+  const unmet = perCat.filter((p) => p.status !== 'met');
+  if (!unmet.length) return row('met', 'instrument', rows.map((f) => f.id), `${scanner} ${perCat.map((p) => p.note).join('; ')}`);
+  return row('not-measured', 'instrument', rows.map((f) => f.id), `${scanner} ${unmet.map((p) => `${p.c}: ${p.note}`).join('; ')}`);
 }
 
 // ── the projection ────────────────────────────────────────────────────────────

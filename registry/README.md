@@ -39,14 +39,30 @@ The two are compared, never merged: a claim the run contradicts is the finding.
 | `instrument` | a scanner's rows, gated by the run manifest and, for a peer scanner, its coverage sidecar | unmet on gap rows; met when the scanner ran clean (an instrument) or scanned the domain with no gaps (a peer); not-measured when skipped, failed, or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | always not-measured from a run; only a sidecar asserts it. The list of `claim` rows is the register's instrument backlog |
 
+`decide.category` on an `instrument` row is usually one native category, but may
+be a **list** — two rows one instrument decider must hold jointly (fresh-clone's
+`d-fresh-clone-runs` needs both `install` and `build`; `d-lint-typecheck-gate`
+needs both `lint` and `typecheck`). A finding in **any** listed category joins the
+population the row decides from; the row reads **met** only when **every** listed
+category is independently met by the same rules a single category uses — one
+member scanned clean and the other not-scanned is `not-measured`, never met.
+`validateRegistry` requires the list to be non-empty; an empty list names nothing
+and is rejected the same as a missing category.
+
 Adopted instruments the register can decide by: `gitleaks` (secrets) and
 `fresh-clone` (`tools/fresh-clone.mjs`, scanner-contract §3b — install / build /
-lint / typecheck / test / migrate from a clean checkout, plus README claim replay).
-The fresh-clone rows the floor asked for (`d-fresh-clone-runs`,
-`d-tests-execute-core`, `d-lint-typecheck-gate`, `d-schema-versioned`,
-`d-readme-true`) still read `claim` / `census` here; their re-kind to
-`instrument: fresh-clone` is one reviewed change of its own, so the register's
-statuses never move as a side effect of adopting a tool.
+lint / typecheck / test / migrate from a clean checkout plus README claim replay,
+now workspace-aware: an npm-workspaces root runs the same step plan once per
+workspace, in addition to the root, and a workspace's gap rows carry its path in
+`native_id` and evidence, #127). Four of the fresh-clone rows the floor asked for
+are re-kinded onto it: `d-fresh-clone-runs` (`category: [install, build]`),
+`d-tests-execute-core` (`category: test`), `d-lint-typecheck-gate` (`category:
+[lint, typecheck]`), and `d-schema-versioned` (`category: migrate` — with no
+database signals anywhere in the tree the runner emits no migrate row, so the row
+reads met: nothing to migrate). `d-readme-true` stays `census` (`measures:
+[doc-freshness]`) — the README-claim mechanism is the same fresh-clone run, but
+the row is decided as a census, not this instrument, and is out of scope for this
+re-kind.
 
 Prose is never read. An observation that merely mentions a topic is not a
 measurement; the first prototype of this projection term-matched observation
