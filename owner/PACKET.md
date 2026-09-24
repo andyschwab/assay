@@ -67,8 +67,8 @@ claims:                           # per requirement the answerer can speak to
 custody:
   accounts:
     - { account: "<what it is>", provider: "<name>", holds: "<what>", owner_role: "<role>",
-        login_roles: ["<role>"], organisational: yes | no | unknown,
-        billing: "<role or card type>", transferable: yes | no | unknown, certainty: … }
+        login_roles: ["<role>"], organisational: yes | no | unsure | unknown,
+        billing: "<role or card type>", transferable: yes | no | unsure | unknown, certainty: … }
   credentials:
     - { name: "<variable or key name, never a value>", used_by: "<part>", lives: "<where>",
         readers: ["<role>"], rotated: "<when or never>", leak_noticed: "<how or no>", certainty: … }
@@ -76,7 +76,7 @@ custody:
     build: ["<role>"]             # who can build from a clean machine today
     deploy: ["<role>"]
     restore: ["<role>"]
-    restore_done: yes | no | unknown
+    restore_done: yes | no | unsure | unknown
     only_copies: ["<what, where>"]
   data:
     personal: "<what, about whom>"

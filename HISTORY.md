@@ -282,3 +282,14 @@ what the public engine learned.
   with the fallback they pinned. Public deployments migrate their live runs
   file-by-file against the old → new path table in the migration commits.
   Goldens untouched.
+- **2026-09-24 — the packet, and the one prompt that fills it.** A repository's
+  `packet/manifest.yaml` states what is true of it in the yardstick's terms
+  (`owner/PACKET.md`). `owner/ask-owner.md` is the one prompt an owner pastes into
+  the AI they built with: it reads the code first, asks about a dozen plain
+  questions, never takes a secret or a name, and ends with the manifest in one
+  block. `validate-packet` checks what comes back and says how to fix each
+  problem; `measure --packet` copies it into the run and decides the claim-only
+  requirements from it (`basis: owner`), and a claim the map contradicts is
+  recorded, never merged. Tested with simulated owners on an invented app; the
+  parser now reads a flow list on the line below its key, and yes/no fields
+  accept `unsure`. The custody questions file is retired: the prompt carries them.

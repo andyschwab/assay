@@ -83,8 +83,8 @@ pre-fill the answers below.
 ## The block to produce at the end
 
 When the questions are done, check your block against the rules above (no secrets, no names,
-usernames or emails, every row marked). Fields shown as `yes | no | unknown` take only those
-three words; how sure you are goes in `certainty`. A list of roles holds only roles: write
+usernames or emails, every row marked). Fields shown as `yes | no | unsure | unknown` take only
+those four words. A list of roles holds only roles: write
 `[]` when nobody can, never "unknown" or "nobody". Then show it inside one fenced code block and say:
 "Copy everything in the box and send it back to whoever sent you this." Use exactly these
 keys and this layout: one key per line, list items as `- ` lines, and lists of plain words in
@@ -113,9 +113,9 @@ custody:
       holds: "<what lives there>"
       owner_role: "<role>"
       login_roles: ["<role>"]
-      organisational: yes             # yes | no | unknown
+      organisational: yes             # yes | no | unsure | unknown
       billing: "<role or kind of card>"
-      transferable: yes               # yes | no | unknown
+      transferable: yes               # yes | no | unsure | unknown
       certainty: sure
   credentials:
     - name: "<the variable or key name, never its value>"
@@ -129,7 +129,7 @@ custody:
     build: ["<role>"]
     deploy: ["<role>"]
     restore: ["<role>"]
-    restore_done: yes                 # yes | no | unknown
+    restore_done: yes                 # yes | no | unsure | unknown
     only_copies: ["<what, and where>"]
   data:
     personal: "<what, about whom>"

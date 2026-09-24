@@ -44,7 +44,7 @@ export const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answere
 export const ANSWERED_VIA = ['owner-prompt', 'steward'];
 export const CLAIM_STATES = ['satisfied', 'not-applicable', 'open', 'unknown'];
 export const CERTAINTY = ['sure', 'unsure', 'unknown'];
-export const YES_NO_UNKNOWN = ['yes', 'no', 'unknown'];
+export const YES_NO = ['yes', 'no', 'unsure', 'unknown'];   // unsure and unknown both leave a claim undecided
 export const COMMIT_RE = /^[0-9a-fA-F]{7,40}$/;
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
@@ -156,8 +156,8 @@ export function validatePacket(doc, { requirementIds = [] } = {}) {
     for (const [i, acc] of (Array.isArray(cu.accounts) ? cu.accounts : []).entries()) {
       const at = `custody.accounts[${i}]`;
       if (!acc || typeof acc !== 'object') { err(`${at}: must be a mapping`); continue; }
-      if (acc.organisational !== undefined && !YES_NO_UNKNOWN.includes(acc.organisational)) err(`${at}.organisational: must be one of ${YES_NO_UNKNOWN.join('|')} (got ${JSON.stringify(acc.organisational)})`);
-      if (acc.transferable !== undefined && !YES_NO_UNKNOWN.includes(acc.transferable)) err(`${at}.transferable: must be one of ${YES_NO_UNKNOWN.join('|')} (got ${JSON.stringify(acc.transferable)})`);
+      if (acc.organisational !== undefined && !YES_NO.includes(acc.organisational)) err(`${at}.organisational: must be one of ${YES_NO.join('|')} (got ${JSON.stringify(acc.organisational)})`);
+      if (acc.transferable !== undefined && !YES_NO.includes(acc.transferable)) err(`${at}.transferable: must be one of ${YES_NO.join('|')} (got ${JSON.stringify(acc.transferable)})`);
       if (acc.certainty !== undefined && !CERTAINTY.includes(acc.certainty)) err(`${at}.certainty: must be one of ${CERTAINTY.join('|')} (got ${JSON.stringify(acc.certainty)})`);
       roleList(acc.login_roles, `${at}.login_roles`);
     }
@@ -171,7 +171,7 @@ export function validatePacket(doc, { requirementIds = [] } = {}) {
     if (cu.people !== undefined) {
       const p = cu.people;
       if (!p || typeof p !== 'object' || Array.isArray(p)) err('custody.people: must be a mapping');
-      else if (p.restore_done !== undefined && !YES_NO_UNKNOWN.includes(p.restore_done)) err(`custody.people.restore_done: must be one of ${YES_NO_UNKNOWN.join('|')} (got ${JSON.stringify(p.restore_done)})`);
+      else if (p.restore_done !== undefined && !YES_NO.includes(p.restore_done)) err(`custody.people.restore_done: must be one of ${YES_NO.join('|')} (got ${JSON.stringify(p.restore_done)})`);
       // a role list holds roles only: a placeholder would count as a person who does not exist
       if (p && typeof p === 'object') for (const k of ['build', 'deploy', 'restore']) roleList(p[k], `custody.people.${k}`);
     }
@@ -248,7 +248,7 @@ export function decideBusFactorClaim(custody) {
     const why = [...singleRole.map((r) => `${r}: ${people[r].length} role(s)`), ...(people.restore_done === 'no' ? ['restore_done: no'] : [])];
     return { status: 'unmet', note: why.join('; ') };
   }
-  if (named.length < roles.length || people.restore_done === 'unknown' || people.restore_done === undefined)
+  if (named.length < roles.length || people.restore_done !== 'yes')
     return { status: 'mixed', note: 'role coverage or restore_done unknown for at least one of build/deploy/restore' };
   return { status: 'met', note: 'build, deploy and restore each name 2+ roles, and restore_done: yes' };
 }
