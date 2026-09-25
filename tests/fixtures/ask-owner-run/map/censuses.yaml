@@ -1,0 +1,21 @@
+# map/censuses.yaml (authored) — invented, for the ask-owner fixture only.
+dimensions:
+  - dimension: delegation
+    depth: >
+      Every secret traced below the model's prompt boundary; the credential census
+      confirms it (invented for this fixture).
+    sampled:
+      - name: credentials-below-boundary
+        what: "secrets confirmed below the prompt boundary"
+        met: 3
+        of: 4
+        method: "the credential census, one row per secret"
+  - dimension: artifact-legibility
+    depth: >
+      Personal-data stores are named where the census reaches them (invented).
+    sampled:
+      - name: personal-data-stores
+        what: "stores holding personal data"
+        met: 2
+        of: 2
+        method: "grep for the users table + the session store"

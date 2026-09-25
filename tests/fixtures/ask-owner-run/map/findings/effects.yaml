@@ -1,0 +1,32 @@
+# invented, for the ask-owner fixture only — one external effect finding so
+# ask-owner.mjs's externalSystemsLine has something real to read.
+- id: F-001
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    The notification service sends transactional email through a third-party provider.
+  evidence: [src/notify.ts:12]
+  confidence: confirmed
+  effect:
+    channel: email-send
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: user
+- id: F-002
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    A reversible, internal-only write — not an external system (checks the filter).
+  evidence: [src/db.ts:5]
+  confidence: confirmed
+  effect:
+    channel: internal-write
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: user

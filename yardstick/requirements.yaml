@@ -27,7 +27,7 @@ requirements:
     tags: [floor]
     decide:
       kind: claim
-    check: the owner questionnaire, one row per account (host, cloud, domain, data, mail, payments, model APIs, analytics, error tracking)
+    check: the owner's packet (owner/ask-owner.md), one row per account (host, cloud, domain, data, mail, payments, model APIs, analytics, error tracking), each with an owner role and a transfer path
     sources: [floor/c-accounts]
     status: draft
   - id: d-credentials-enumerated

@@ -1,0 +1,12 @@
+# negative/packet-claim-no-by — a "satisfied" claim with no `by` (the mechanism
+# that holds); validate-packet must refuse it — presence never stands in for
+# a stated mechanism.
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+claims:
+  - id: d-effect-sites-tested
+    state: satisfied

@@ -32,7 +32,10 @@ import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
 import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
-import { loadYardstick, validateYardstick, measureRun, summarize, KINDS } from '../yardstick/measure.mjs';
+import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
+import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim } from '../yardstick/packet.mjs';
+import { packetManifestPath } from '../lib/run-layout.mjs';
+import { buildWhatWeFound, render, MARKER, NOTHING_YET } from '../owner/ask-owner.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -1015,6 +1018,177 @@ function adaptersOnce() { return loadAdapters(); }
   const badTopic = { ...reg, requirements: reg.requirements.map((d, i) => i === 0 ? { ...d, topic: 'not-a-real-topic' } : d) };
   if (!validateYardstick(badTopic).some((e) => /topic "not-a-real-topic"/.test(e))) fail('a topic outside the allowed list must be rejected');
   if (validateYardstick(reg).length) fail('the shipped register must validate clean with every row carrying a topic');
+}
+
+// ── packet: validate-packet (owner/PACKET.md) — strict, fail-closed ───────────
+// A public invented packet fixture must validate clean; each negative fixture
+// must be refused, FOR ITS OWN REASON (never merely "red") — the class of check
+// that class of fixture exists to pin. The CLI is exercised directly (exit code
+// + message), the way NEGATIVE above pins map/validate.mjs.
+{
+  const fail = (m) => negFailures.push('packet: ' + m);
+  const reg = loadYardstick();
+  const ids = reg.requirements.map((d) => d.id);
+
+  const { doc: validDoc } = loadPacket(join(HERE, 'fixtures', 'packet-valid'));
+  if (validatePacket(validDoc, { requirementIds: ids }).length) fail('the public packet-valid fixture must validate clean');
+
+  const PACKET_NEGATIVE = [
+    ['packet-secret-shaped', /looks like a secret value/],
+    ['packet-email', /looks like an email address/],
+    ['packet-unknown-claim', /is not a requirement in yardstick\/requirements\.yaml/],
+    ['packet-claim-no-by', /state satisfied requires by/],
+    ['packet-unknown-top-key', /unknown top-level key/],
+  ];
+  for (const [dir, msgRe] of PACKET_NEGATIVE) {
+    let stderr = '', code = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'packet.mjs'), join(HERE, 'negative', dir)], { stdio: 'pipe' }); }
+    catch (e) { code = e.status; stderr = String(e.stderr || ''); }
+    if (code !== 1) fail(`negative/${dir} must exit 1 (fail-closed) — got ${code}`);
+    else if (!msgRe.test(stderr)) fail(`negative/${dir} must be refused for its own reason (expected ${msgRe}, got: ${stderr.trim().split('\n').slice(-1)[0]})`);
+  }
+  // bad YAML: one error, never a stack trace (the packet is data, parsed defensively)
+  {
+    let stderr = '', code = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'packet.mjs'), join(HERE, 'negative', 'packet-bad-yaml')], { stdio: 'pipe' }); }
+    catch (e) { code = e.status; stderr = String(e.stderr || ''); }
+    if (code !== 1) fail(`negative/packet-bad-yaml must exit 1 (got ${code})`);
+    else if (!/not valid YAML/.test(stderr)) fail('negative/packet-bad-yaml must report one plain YAML error, never a raw stack trace');
+    else if (/\bat\s+\S+\.mjs:\d+/.test(stderr)) fail('negative/packet-bad-yaml leaked a stack trace — a YAML the parser cannot read must be one error, not a trace');
+  }
+
+  // secret/email shape unit checks — the false-positive guards this class of
+  // check depends on: a commit sha, a UUID, and a kebab-case id must all pass
+  // clean, or every packet with one in it would be unusable.
+  if (secretShape('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2')) fail('a 40-char commit sha must not read as a secret (hex-only exemption)');
+  if (secretShape('550e8400-e29b-41d4-a716-446655440000')) fail('a UUID must not read as a secret (hex-plus-dash exemption)');
+  if (secretShape('d-this-requirement-does-not-exist-and-is-long')) fail('a long kebab-case id must not read as a secret (class-diversity gate)');
+  if (!secretShape('sk-ThisLooksLikeARealSecretKeyValue123456')) fail('an sk-… value must read as a secret');
+  if (!secretShape('AKIAABCDEFGHIJKLMNOP')) fail('an AKIA… value must read as a secret');
+  if (!secretShape('https://user:hunter2@example.com/db')) fail('a URL with an embedded password must read as a secret');
+  if (!emailShape('alice@example.com')) fail('an email address must be flagged as one');
+  if (emailShape('platform-eng')) fail('a role/handle with no @ must not be flagged as an email address');
+
+  // structural unit checks not covered by a fixture: unknown decide.kind never
+  // reachable here, but claim-id cross-check, state enum and not-applicable/reason
+  // are exercised directly (fixtures cover the CLI path; these pin the library fn).
+  if (!validatePacket({ packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' }, claims: [{ id: ids[0], state: 'not-applicable' }] }, { requirementIds: ids }).some((e) => /not-applicable requires reason/.test(e)))
+    fail('a not-applicable claim with no reason must be refused');
+  if (validatePacket({ packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } }, { requirementIds: ids }).length)
+    fail('a minimal packet with no claims/custody must still validate clean (every field beyond answered/packet/yardstick is optional)');
+  if (!validatePacket({}, { requirementIds: ids }).some((e) => /answered: required/.test(e))) fail('a packet with no answered block must be refused');
+  // a flow list on the line below its key is standard YAML an owner's AI writes; the parser reads it
+  { const doc = parseYaml('people:\n  restore:\n    []\n  build: [founder]\n');
+    if (!Array.isArray(doc.people.restore) || doc.people.restore.length !== 0 || doc.people.build[0] !== 'founder') fail('a flow list on the line below its key must parse'); }
+  // a placeholder in a role list would count as a person who does not exist (bus factor)
+  const withPlaceholder = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' }, custody: { people: { build: ['founder'], deploy: ['founder'], restore: ['unknown'] } } };
+  if (!validatePacket(withPlaceholder, { requirementIds: ids }).some((e) => /custody\.people\.restore: holds "unknown", which is not a role/.test(e))) fail('a placeholder in a role list must be refused');
+  if (validatePacket({ ...withPlaceholder, custody: { people: { build: ['founder'], deploy: ['founder'], restore: [] } } }, { requirementIds: ids }).length) fail('an empty role list ([] when nobody can) must validate');
+}
+
+// ── packet phase 2: the yardstick reads the packet (owner/PACKET.md) ──────────
+// decideAccountsClaim / decideBusFactorClaim: the two extracted claim rows, met
+// / unmet / mixed / null (not decided) — the exact thresholds owner/PACKET.md
+// states. decideGenericClaim + measureRun: every other claim row, `basis: owner`
+// only when the packet actually spoke to it, and a contradiction recorded (never
+// merged) when a packet's `satisfied` meets a run-decided `unmet` row.
+{
+  const fail = (m) => negFailures.push('packet-measure: ' + m);
+  const reg = loadYardstick();
+
+  // accounts: met / unmet / mixed / null(not decided)
+  if (decideAccountsClaim(undefined) !== null) fail('no custody.accounts must read null (not decided by the packet)');
+  if (decideAccountsClaim({ accounts: [] }) !== null) fail('an empty accounts list must read null, same as absent');
+  const acctMet = decideAccountsClaim({ accounts: [{ account: 'a', owner_role: 'founder', transferable: 'yes' }] });
+  if (acctMet?.status !== 'met') fail(`every account transferable:yes with an owner_role must read met (got ${acctMet?.status})`);
+  const acctUnmet = decideAccountsClaim({ accounts: [{ account: 'a', owner_role: 'founder', transferable: 'yes' }, { account: 'b', transferable: 'no' }] });
+  if (acctUnmet?.status !== 'unmet' || !/\bb\b/.test(acctUnmet.note)) fail(`any account transferable:no must read unmet, naming it (got ${acctUnmet?.status} / ${acctUnmet?.note})`);
+  const acctMixed = decideAccountsClaim({ accounts: [{ account: 'a', owner_role: 'founder', transferable: 'yes' }, { account: 'b', transferable: 'unknown' }] });
+  if (acctMixed?.status !== 'mixed') fail(`an account with unknown owner/transfer (and none transferable:no) must read mixed (got ${acctMixed?.status})`);
+
+  // bus factor: met / unmet / mixed / null(not decided)
+  if (decideBusFactorClaim(undefined) !== null) fail('no custody.people must read null (not decided by the packet)');
+  const bfMet = decideBusFactorClaim({ people: { build: ['a', 'b'], deploy: ['a', 'b'], restore: ['a', 'b'], restore_done: 'yes' } });
+  if (bfMet?.status !== 'met') fail(`build/deploy/restore each 2+ roles and restore_done:yes must read met (got ${bfMet?.status})`);
+  const bfUnmetRole = decideBusFactorClaim({ people: { build: ['a', 'b'], deploy: ['a', 'b'], restore: ['a'], restore_done: 'yes' } });
+  if (bfUnmetRole?.status !== 'unmet') fail(`a single-role restore must read unmet (got ${bfUnmetRole?.status})`);
+  const bfUnmetRestore = decideBusFactorClaim({ people: { build: ['a', 'b'], deploy: ['a', 'b'], restore: ['a', 'b'], restore_done: 'no' } });
+  if (bfUnmetRestore?.status !== 'unmet') fail(`restore_done:no must read unmet even with 2+ roles everywhere (got ${bfUnmetRestore?.status})`);
+  const bfMixed = decideBusFactorClaim({ people: { build: ['a', 'b'], deploy: ['a', 'b'], restore: ['a', 'b'], restore_done: 'unknown' } });
+  if (bfMixed?.status !== 'mixed') fail(`an unknown restore_done (no unmet condition otherwise) must read mixed (got ${bfMixed?.status})`);
+
+  // generic claim row (any id): satisfied/not-applicable -> met, open -> unmet, unknown -> not-measured (basis owner still), absent -> null
+  const genId = reg.requirements.find((d) => d.decide.kind === 'claim' && d.id !== 'd-accounts-enumerated' && d.id !== 'd-bus-factor').id;
+  if (decideGenericClaim(genId, { claims: [] }) !== null) fail('a claim row absent from claims: must read null (not decided)');
+  if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'satisfied', by: 'x' }] })?.status !== 'met') fail('satisfied must read met');
+  if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'not-applicable', reason: 'x' }] })?.status !== 'met') fail('not-applicable must read met');
+  if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'open' }] })?.status !== 'unmet') fail('open must read unmet');
+  const unk = decideGenericClaim(genId, { claims: [{ id: genId, state: 'unknown' }] });
+  if (unk?.status !== 'not-measured') fail('unknown must read not-measured (but still packet-decided — basis owner)');
+
+  // measureRun end-to-end: basis:owner on the packet-decided rows, basis:run elsewhere,
+  // and a contradiction when a packet's satisfied meets a run-decided unmet row
+  const findings = [{ id: 'F-1', source: 'gitleaks', native_category: 'secret', polarity: 'gap', observation: 'x', evidence: ['a:1'] }];
+  const manifest = [{ scanner: 'gitleaks', status: 'ran' }];
+  const packet = {
+    claims: [{ id: 'd-secrets-out-of-history', state: 'satisfied', by: 'ci scan' }, { id: genId, state: 'open' }],
+    custody: { accounts: [{ account: 'a', owner_role: 'founder', transferable: 'yes' }] },
+  };
+  const rows = measureRun({ findings, manifest, inputs: null, coverage: {}, packet }, reg);
+  const by = Object.fromEntries(rows.map((r) => [r.id, r]));
+  if (by['d-secrets-out-of-history']?.status !== 'unmet') fail('a claim on a run-decided row must never change that row\'s own status');
+  if (by['d-secrets-out-of-history']?.basis !== 'run') fail('a run-decided row\'s basis must stay run even when a packet also claims it');
+  if (by['d-accounts-enumerated']?.basis !== 'owner' || by['d-accounts-enumerated']?.status !== 'met') fail('an extracted claim row the packet decided must read basis:owner');
+  if (by[genId]?.basis !== 'owner' || by[genId]?.status !== 'unmet') fail('a generic claim row the packet decided must read basis:owner');
+  const untouched = reg.requirements.find((d) => d.decide.kind === 'claim' && !packet.claims.some((c) => c.id === d.id) && d.id !== 'd-accounts-enumerated' && d.id !== 'd-bus-factor').id;
+  if (by[untouched]?.basis !== 'run') fail(`a claim row the packet never speaks to must stay basis:run (${untouched})`);
+  if (rows.contradictions.length !== 1 || rows.contradictions[0].id !== 'd-secrets-out-of-history' || rows.contradictions[0].run_status !== 'unmet')
+    fail(`exactly one contradiction must be recorded for d-secrets-out-of-history (got ${JSON.stringify(rows.contradictions)})`);
+  // no packet at all: every row basis:run, no contradictions, identical to pre-packet behavior
+  const noPacket = measureRun({ findings, manifest, inputs: null, coverage: {} }, reg);
+  if (noPacket.some((r) => r.basis !== 'run')) fail('with no packet, every row must read basis:run');
+  if (noPacket.contradictions.length) fail('with no packet, there must be no contradictions');
+
+  // CLI round trip: measure --packet copies the packet into the run; a re-measure
+  // with no flag reuses that copy and reproduces byte-for-byte.
+  const tmp = join(HERE, 'tmp-packet-measure'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
+  const packetDir = join(HERE, 'fixtures', 'packet-valid');
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--packet', packetDir, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --packet must succeed on the public packet-valid fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  if (!existsSync(packetManifestPath(tmp))) fail('measure --packet must copy manifest.yaml into the run at owner/manifest.yaml (lib/run-layout.mjs)');
+  const yardstickFile = join(tmp, 'yardstick.yaml');
+  const firstYaml = existsSync(yardstickFile) ? readFileSync(yardstickFile, 'utf8') : null;
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`a re-measure with no --packet flag must succeed, reusing the run's own copy (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  const secondYaml = existsSync(yardstickFile) ? readFileSync(yardstickFile, 'utf8') : null;
+  if (firstYaml == null || firstYaml !== secondYaml) fail('re-measuring with no --packet flag must reproduce yardstick.yaml byte-for-byte (the run already carries the packet)');
+  const reusedPacket = loadRunPacket(tmp);
+  if (!reusedPacket || reusedPacket.repository !== 'example/notesbox') fail("loadRunPacket must read the run's own copied packet with no flag");
+  // packet-valid's claims are all on claim-kind rows (never a run-decided one), so
+  // this combination must record no contradiction — loadContradictions reads
+  // yardstick.yaml's own list, never recomputing it.
+  if (loadContradictions(tmp).length) fail(`notesbox + packet-valid must record no contradictions (got ${JSON.stringify(loadContradictions(tmp))})`);
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── ask-owner: the {{WHAT_WE_FOUND}} marker, with and without a run ───────────
+{
+  const fail = (m) => negFailures.push('ask-owner: ' + m);
+  if (buildWhatWeFound(null) !== NOTHING_YET) fail('with no run, the block must read "Nothing yet: ask everything."');
+  if (buildWhatWeFound(join(HERE, 'fixtures', 'ask-owner-run')) === NOTHING_YET) fail('the public ask-owner-run fixture carries real signal — the block must not fall back to "ask everything"');
+  const found = buildWhatWeFound(join(HERE, 'fixtures', 'ask-owner-run'));
+  if (!/example\/notesbox/.test(found) || !/a1b2c3d4/.test(found)) fail('the block must name the repository and commit from the run\'s own packet');
+  if (!/3 of 4/.test(found)) fail('the block must name the credential census count (met of N)');
+  if (!/email-send/.test(found) || /internal-write/.test(found)) fail('the block must name only EXTERNAL effect channels (email-send), never an internal one (internal-write)');
+  if (!/personal data/i.test(found)) fail('the block must name a census-declared personal-data store');
+
+  const withRun = render(join(HERE, 'fixtures', 'ask-owner-run'));
+  if (withRun.includes(MARKER)) fail('render() must replace the marker, never leave it in place');
+  if (!/example\/notesbox/.test(withRun)) fail('render() with a run must fold buildWhatWeFound into the template');
+  const withoutRun = render(null);
+  if (withoutRun.includes(MARKER) || !withoutRun.includes(NOTHING_YET)) fail('render() with no run must replace the marker with "Nothing yet: ask everything."');
 }
 
 // ── Intake, Maintain, Improve: three views of one yardstick measurement ───────

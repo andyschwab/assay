@@ -30,6 +30,8 @@ const GROUPS = [
   }],
   ['Yardstick: measuring the map against the requirements', {
     'measure': ['yardstick/measure.mjs', 'per requirement: met, unmet, mixed or not measured'],
+    'validate-packet': ['yardstick/packet.mjs', "validate a repository's own packet (owner/PACKET.md); fails closed"],
+    'ask-owner': ['owner/ask-owner.mjs', 'print the owner prompt, prefilled with what a run already shows'],
   }],
   ['Views: Intake, Maintain, Improve', {
     'compile': ['views/compile.mjs', 'measure, then write all three views and the index'],

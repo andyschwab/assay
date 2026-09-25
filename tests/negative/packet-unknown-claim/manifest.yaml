@@ -1,0 +1,12 @@
+# negative/packet-unknown-claim — a claim id that names no requirement in
+# yardstick/requirements.yaml; validate-packet must refuse it.
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+claims:
+  - id: d-this-requirement-does-not-exist
+    state: satisfied
+    by: "a mechanism that does not matter — the id itself is the point"

@@ -31,26 +31,35 @@ run: <run name>
 yardstick: <requirements.yaml version>
 counts: { requirements: N, open: N, met: N, to_run: N }
 open:              # status unmet or mixed
-  - { id, tier, topic, title, status, met, of, findings: [F-…], note, check }
+  - { id, tier, topic, title, status, basis, met, of, findings: [F-…], note, check }
 met:
-  - { id, tier, topic, title, note }
+  - { id, tier, topic, title, basis, note }
 to_run:            # status not-measured
-  - { id, tier, topic, title, check, decided_by, note }
+  - { id, tier, topic, title, check, decided_by, basis, note }
 not_seen:          # every run-record row that did not run
   - { scanner, status, reason }
+contradictions:    # a packet claim of satisfied against a run-decided unmet row (Intake only)
+  - { id, claim, run_status, findings: [F-…] }
 ```
 
 `met` and `of` appear when the requirement is decided over a counted population.
 `decided_by` names what would decide a row still to run: a scanner, `census`, or
-`owner` for a claim only the owner can make (`owner/custody.md`,
-`owner/evidence/`).
+`owner` for a claim only the owner can make (`owner/ask-owner.md`,
+`owner/PACKET.md`). `basis` (`run | owner`) is who decided the row THIS run —
+`owner` only where a repository's own packet decided it (`yardstick/measure.mjs
+--packet`, `owner/PACKET.md`); the page renders it as "met, by the owner's word".
+`contradictions` is the run's own recorded list (never recomputed by a view) — a
+packet's `satisfied` claim the run itself found unmet, the claim and the run's
+status and findings kept side by side, never merged. `INTAKE.md`'s "Contradicted
+claims" section renders it.
 
 ## Maintain: is it still healthy?
 
 `views/maintain.mjs` → `views/maintain.yaml` and `MAINTAIN.md`. The requirements
 tagged `fleet`: what a steward's routines read to keep a repository healthy
-without a person looking. Same shape as Intake, with `view: maintain` and
-`floor: true | false` on every row (whether Intake also reads it).
+without a person looking. Same shape as Intake (including `basis`, shown the
+same way on the page) minus `contradictions` (Intake-only), with `view:
+maintain` and `floor: true | false` on every row (whether Intake also reads it).
 
 ## Improve: what makes it better?
 

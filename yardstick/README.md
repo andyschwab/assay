@@ -11,15 +11,16 @@ and writes `yardstick.yaml`: per requirement, `met`, `unmet`, `mixed` or
 `not-measured`, with the finding ids and a note saying how it was decided. Every
 view reads that file and nothing else to decide a requirement.
 
-A repository may also state its own **claims** per requirement (the format is
-below). Claims and a run's measurement are compared, never merged: a claim the
-run contradicts is a finding.
+A repository may also state its own **claims** per requirement, in a **packet**
+(`/owner/PACKET.md` is the one home of its format). Claims and a run's
+measurement are compared, never merged: a claim the run contradicts is a
+finding, never silently overwritten.
 
 ## The rows
 
 | Field | Meaning |
 |---|---|
-| `id` | `d-<slug>`, the public namespace. A team's private requirements carry their own prefix in their claims file and join this one when a second team needs them |
+| `id` | `d-<slug>`, the public namespace. A team's private requirements carry their own prefix in their packet and join this one when a second team needs them |
 | `title` | the requirement, one sentence, no stack in it |
 | `tier` | the order to fix things when taking a repository on, which is also the order of irreversibility: custody, safety, reproducibility, verification, legibility, operability (the file's `tiers:` list) |
 | `topic` | what part of the code it is about: an axis of the roster (`map/project.mjs`), or custody, reproducibility or operability, which no scanner measures as an axis. Improve groups by topic |
@@ -36,7 +37,7 @@ run contradicts is a finding.
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`) | met or unmet with the population; not-measured when the map has no effects |
 | `census` | an authored, enumerated population in the run's `map/censuses.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows; met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
-| `claim` | nothing in a run | always not-measured from a run: only the owner can decide it (the Intake view says `decided_by: owner`). The claim rows are the list of instruments still to build |
+| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`). The claim rows a packet never speaks to are the list of instruments still to build |
 
 `decide.category` on an `instrument` row may be a **list**: categories one scanner
 must hold jointly (`d-fresh-clone-runs` needs both `install` and `build`). A
@@ -67,31 +68,23 @@ The instruments that decide rows:
 Prose is never read. An observation that mentions a topic is not a measurement.
 Census names are accepted as a list per requirement; a new run uses the first.
 
-## The claims file
+## The packet: a repository's own claims
 
-A repository that states its own claims keeps `packet/manifest.yaml`:
-
-```yaml
-yardstick: 0                      # the requirements.yaml version claimed against
-namespaces: [assay]               # plus any team prefix the file uses
-supplements: [<name>]             # the prescriptions this repository inherits
-claims:
-  - id: d-effects-gated
-    state: satisfied              # satisfied | not-applicable | open
-    by: core/workflow halts + audit in one transaction
-  - id: d-backup-restore-exercised
-    state: open
-```
-
-A claim never lets presence stand in for enforcement: `satisfied` names the
-mechanism that holds, and a run that finds the mechanism absent reports it.
+A repository that states its own claims keeps a **packet** — `/owner/PACKET.md`
+is the one home of its format (`packet/manifest.yaml`, validated by
+`node assay.mjs validate-packet`) and of how a packet's claims and a run's
+measurement are read together, compared, never merged. `basis: run | owner` on
+every row in `yardstick.yaml` says which decided it this run; a claim the run
+contradicts lands in `yardstick.yaml`'s `contradictions:` list, never silently
+overwritten.
 
 ## Running it
 
 ```sh
-node assay.mjs measure <run>            # the table
-node assay.mjs measure <run> --write    # yardstick.yaml
-node assay.mjs compile <run>            # measures, then writes every view
+node assay.mjs measure <run>                       # the table
+node assay.mjs measure <run> --write                # yardstick.yaml
+node assay.mjs measure <run> --packet <dir> --write  # + a repository's own packet
+node assay.mjs compile <run> [--packet <dir>]        # measures, then writes every view
 ```
 
 `requirements.yaml` is validated on load (closed kinds, tiers, topics, tags,
