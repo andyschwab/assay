@@ -1,12 +1,12 @@
 # assay-routine.yml — the routine a stewarded repository runs on its own schedule
 # (routine/README.md is the contract). Copy this file into the STEWARDED repository
 # as .github/workflows/assay-routine.yml, then:
-#   1. set ASSAY_REPO and ASSAY_REF below (ASSAY_REF is a full 40-char commit SHA —
+#   1. set ASSAY_REF below (ASSAY_REF is a full 40-char commit SHA —
 #      NEVER a branch name: a branch moves, and a scheduled run must run the exact
 #      engine a steward reviewed);
 #   2. if the branch below isn't your default branch, change it;
-#   3. if assay's own repository is private, uncomment the token line in the
-#      "assay" checkout step and add a secret that can read it.
+#   3. if you run assay from a private fork, point ASSAY_REPO at it, uncomment the
+#      token line in the "assay" checkout step and add a secret that can read it.
 #
 # The routine never writes to the repository and needs no write token — read the
 # checked-out tree, measure it, and upload the result as an artifact.
@@ -14,8 +14,8 @@ name: assay routine
 
 on:
   schedule:
-    # weekly, a jittered minute (never :00 — see create_trigger's own guidance on
-    # avoiding the top-of-hour pile-up): Monday 06:17 UTC.
+    # weekly, off the top of the hour (scheduled runs on :00 queue behind
+    # everyone else's): Monday 06:17 UTC.
     - cron: '17 6 * * 1'
   workflow_dispatch: {}
   pull_request:
@@ -25,7 +25,7 @@ permissions:
   contents: read   # least privilege: this workflow never writes anything back
 
 env:
-  ASSAY_REPO: your-org/assay                                       # where assay itself lives
+  ASSAY_REPO: andyschwab/assay                                     # where assay itself lives
   ASSAY_REF: '0000000000000000000000000000000000000000'           # a full commit SHA — NEVER a branch name
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '22'
 
       # gitleaks is optional (routine/README.md): the routine detects the binary and
       # records it skipped, with the reason, when it is absent — never as clean. To
