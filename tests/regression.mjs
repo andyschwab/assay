@@ -38,6 +38,7 @@ import { compare, classify, fingerprintFinding, compareFindings } from '../yards
 import { loadBaseline, loadYardstickDoc, evaluateRatchet } from '../yardstick/ratchet.mjs';
 import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET } from '../owner/ask-owner.mjs';
+import { runRoutine } from '../routine/run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -1475,6 +1476,113 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── routine/run.mjs: the driver a stewarded repository runs, network-free parts ──
+// fresh-clone-target has no dependencies and no lockfile (tests/instruments/
+// fresh-clone-target/package.json), so fresh-clone's install step is
+// not-declared and dependency-scan finds no lockfile to audit — this run needs
+// no network at all, so every part of it must be asserted, never skipped.
+{
+  const fail = (m) => negFailures.push('routine: ' + m);
+  const target = join(HERE, 'instruments', 'fresh-clone-target');
+  const tmp = join(HERE, 'tmp-routine'); rmSync(tmp, { recursive: true, force: true });
+  const runDir = join(tmp, 'run');
+  const logs = [];
+  let result;
+  try { result = runRoutine({ repoDir: target, outDir: runDir }, (l) => logs.push(l)); }
+  catch (e) { fail(`runRoutine must not throw (${e.message})`); }
+  if (result) {
+    if (!result.ok || result.exitCode !== 0) fail(`runRoutine over a clean, network-free fixture with no baseline must succeed (got ok=${result.ok} exit=${result.exitCode}):\n${logs.join('\n')}`);
+    const manifestPath = join(runDir, 'map', 'scanners.yaml');
+    if (!existsSync(manifestPath)) fail('runRoutine must write map/scanners.yaml');
+    else {
+      const manifest = parseYaml(readFileSync(manifestPath, 'utf8'));
+      const rows = manifest.scanners || {};
+      if (rows['repo-eval']?.status !== 'skipped' || !/not run by the routine/.test(rows['repo-eval']?.reason || '')) fail(`repo-eval must always read skipped with the fixed reason (got ${JSON.stringify(rows['repo-eval'])})`);
+      if (rows['deep-code-review']?.status !== 'skipped' || !/not run by the routine/.test(rows['deep-code-review']?.reason || '')) fail(`deep-code-review must always read skipped with the fixed reason (got ${JSON.stringify(rows['deep-code-review'])})`);
+      if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone needs no network against this fixture and must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
+      if (rows['dependency-scan']?.status !== 'ran') fail(`dependency-scan needs no network against this lockfile-free fixture and must read ran (got ${JSON.stringify(rows['dependency-scan'])})`);
+      if (rows['repo-census']?.status !== 'ran') fail(`repo-census is a pure tree read and must read ran (got ${JSON.stringify(rows['repo-census'])})`);
+      // gitleaks depends on whether the binary happens to be on this machine's PATH —
+      // the only row this test does not pin to one outcome — but it must NEVER be
+      // silently absent from the record (CLAUDE.md rule 3: fail loud, never empty).
+      if (!rows['gitleaks'] || !['ran', 'skipped', 'failed'].includes(rows['gitleaks'].status)) fail(`gitleaks must be recorded ran, skipped or failed — never absent (got ${JSON.stringify(rows['gitleaks'])})`);
+      if (rows['gitleaks'] && rows['gitleaks'].status !== 'ran' && !rows['gitleaks'].reason) fail('gitleaks skipped/failed must carry a reason');
+    }
+    if (!existsSync(join(runDir, 'INDEX.md'))) fail('runRoutine must compile the package (INDEX.md missing)');
+    if (!logs.some((l) => /no packet\/baseline\.yaml committed yet/.test(l))) fail('with no baseline, runRoutine must print a visible warning, never silence');
+
+    // --write-baseline from this run, then a second run over the SAME fixture must
+    // hold (exit 0) — nothing changed between the two.
+    const baselineFile = join(tmp, 'baseline.yaml');
+    let wb;
+    try { wb = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runDir, '--write-baseline', baselineFile, '--by', 'steward'], { stdio: 'pipe' }); }
+    catch (e) { fail(`--write-baseline over the routine's own run must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+    if (existsSync(baselineFile)) {
+      const runDir2 = join(tmp, 'run2');
+      let result2;
+      try { result2 = runRoutine({ repoDir: target, outDir: runDir2, baseline: baselineFile }, () => {}); }
+      catch (e) { fail(`a second runRoutine with --baseline must not throw (${e.message})`); }
+      if (result2 && (!result2.ok || result2.exitCode !== 0)) fail(`a second routine run over the SAME unchanged fixture must hold against its own just-written baseline (got ok=${result2.ok} exit=${result2.exitCode})`);
+    }
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── routine/assay-routine.yml: the workflow template's own invariants ─────────
+// Not run (no GitHub Actions runner here) — parsed as text, since it is a real
+// GitHub Actions YAML file, not the constrained subset lib/yaml-min.mjs reads.
+{
+  const fail = (m) => negFailures.push('routine-workflow: ' + m);
+  const yml = readFileSync(join(ROOT, 'routine', 'assay-routine.yml'), 'utf8');
+  const lines = yml.split('\n');
+
+  // every `uses:` pinned to a 40-hex commit SHA (a version tag or branch is refused).
+  const usesLines = lines.filter((l) => /^\s*uses:\s*/.test(l));
+  if (!usesLines.length) fail('the template must use at least one action');
+  for (const l of usesLines) {
+    const m = l.match(/uses:\s*([^\s#]+)/);
+    const ref = m && m[1].split('@')[1];
+    if (!ref || !/^[0-9a-f]{40}$/.test(ref)) fail(`"${l.trim()}" is not pinned to a 40-hex commit SHA`);
+  }
+
+  // permissions: read-only, and nothing broader than contents: read.
+  const permIdx = lines.findIndex((l) => /^permissions:\s*$/.test(l));
+  if (permIdx === -1) fail('the template must declare a top-level permissions: block');
+  else {
+    const block = [];
+    for (let i = permIdx + 1; i < lines.length && /^\s{2}\S/.test(lines[i]); i++) block.push(lines[i].trim().split('#')[0].trim());
+    const nonEmpty = block.filter(Boolean);
+    if (nonEmpty.length !== 1 || nonEmpty[0] !== 'contents: read') fail(`permissions must be exactly "contents: read" and nothing broader (got ${JSON.stringify(nonEmpty)})`);
+  }
+
+  // timeout-minutes on every job.
+  const jobsIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  if (jobsIdx === -1) fail('the template must declare a jobs: block');
+  else {
+    const jobNames = [];
+    for (let i = jobsIdx + 1; i < lines.length; i++) {
+      const m = lines[i].match(/^\s{2}(\S[^:]*):\s*$/);
+      if (m) jobNames.push({ name: m[1], line: i });
+    }
+    if (!jobNames.length) fail('jobs: must declare at least one job');
+    for (let j = 0; j < jobNames.length; j++) {
+      const start = jobNames[j].line, end = j + 1 < jobNames.length ? jobNames[j + 1].line : lines.length;
+      const body = lines.slice(start, end);
+      if (!body.some((l) => /^\s{4}timeout-minutes:\s*\d+/.test(l))) fail(`job "${jobNames[j].name}" has no timeout-minutes`);
+    }
+  }
+
+  // ASSAY_REF is a placeholder / a full SHA in the template, and the comment beside
+  // it warns against a branch name — the steward fills in a real one before use.
+  const refLine = lines.find((l) => /ASSAY_REF:/.test(l));
+  if (!refLine) fail('the template must declare ASSAY_REF');
+  else if (!/[0-9a-f]{40}/.test(refLine)) fail('ASSAY_REF must be a 40-hex placeholder (never a branch name) for the steward to replace');
+  if (!/never a branch name/i.test(yml)) fail('the template must warn, in words, that ASSAY_REF is a commit SHA and never a branch name');
+
+  if (!/schedule:/.test(yml) || !/workflow_dispatch:/.test(yml) || !/pull_request:/.test(yml)) fail('the template must trigger on schedule, workflow_dispatch and pull_request');
+}
+
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -1508,7 +1616,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

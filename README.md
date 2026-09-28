@@ -99,6 +99,11 @@ node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
 ```
 
+Once a steward accepts a repository, `routine/` is a GitHub Actions template the
+stewarded repository runs on its own schedule — it runs the offline instruments,
+compiles the package, and ratchets against a committed baseline; `routine/README.md`
+is the contract.
+
 ## Measured, not asserted
 
 The engine is graded against **known-answer fixtures**: small targets whose every
@@ -123,6 +128,7 @@ map/             drawing the map: the finding format, the built-in method, scann
 yardstick/       the requirements, the measurement of one map against them, and comparing two (since/ratchet)
 views/           Intake, Maintain, Improve and Since, and the one compile that writes them
 owner/           what a repository's owner supplies that no scan can
+routine/         the routine a stewarded repository runs on its own schedule (GitHub Actions template + driver)
 lib/             shared helpers
 tests/           the regression harness and the public scored fixtures
 HISTORY.md       how the engine got here

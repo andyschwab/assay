@@ -313,3 +313,24 @@ what the public engine learned.
   regressions and improvements, ending with findings new and "no longer found"
   — never "fixed": absence of a finding is absence of re-detection, not proof
   the fact is gone. Goldens untouched.
+- **2026-09-28 — the routine a stewarded repository runs.** `routine/` is a
+  GitHub Actions workflow template (`assay-routine.yml`) a steward copies into
+  the stewarded repository, plus the zero-dep driver it calls
+  (`routine/run.mjs`) — the same driver a steward runs locally, so CI and a
+  terminal take the identical path. It runs the offline instruments
+  (`repo-census`, `fresh-clone`, `dependency-scan`; `gitleaks` when its binary
+  is present), records `repo-eval` and `deep-code-review` skipped every time
+  ("not run by the routine; a steward session runs them"), validates, compiles
+  — folding in a committed `packet/` when one exists — then ratchets against
+  `packet/baseline.yaml` when that file is committed, printing a visible
+  warning rather than silence when it is not. The template pins every action by
+  full commit SHA (`actions/checkout` 11bd71901bbe5b1630ceea73d27597364c9af683
+  = v4.2.2, `actions/setup-node` 49933ea5288caeca8642d1e84afbd3f7d6820020 =
+  v4.4.0, `actions/upload-artifact` ea165f8d65b6e75b540449e92b4886f43607fa02 =
+  v4.6.2 — all three verified live against `git ls-remote` at the time of
+  writing), carries `permissions: contents: read` and nothing more, and takes
+  `ASSAY_REF` as a full commit SHA, never a branch. `--since` is deliberately
+  not wired into the template: identifying and downloading a prior **scheduled**
+  run's artifact needs the Actions API's `actions: read` permission, which the
+  template does not add (`routine/README.md` says why) — a steward who wants it
+  runs the driver locally against two kept run directories. Goldens untouched.
