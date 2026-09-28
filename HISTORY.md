@@ -486,3 +486,21 @@ what the public engine learned.
   never counted as met. `yardstick/README.md` and `views/README.md` document
   all of it; `owner/PACKET.md`'s claim-mapping table is corrected. Goldens
   untouched.
+- **2026-09-28 — database detection knows Supabase and Drizzle.**
+  `map/fresh-clone.mjs`'s database-signal detection (the evidence
+  `d-schema-versioned`'s not-applicable status now rests on) gains
+  `supabase/migrations/`, `supabase/config.toml`, `@supabase/supabase-js`,
+  `@supabase/ssr`, a bare `drizzle/` migrations folder, `drizzle-kit`, and the
+  common `migrations/*.sql` shape under `db/` or `sql/` (matched by content —
+  actual `.sql` files present — not just the directory's existence). A
+  Supabase project often carries no ORM dependency at all, only the client
+  package and a migrations folder, so it needed its own signals rather than
+  an implied one from the generic ORM list. "Database present, no migrate
+  step declared" already read unmet through `FC_FLOOR_STEPS` (`migrate` was
+  already floor-gated before this change; `build` joined it two commits ago)
+  — Supabase now reaches that same path instead of the no-database branch, so
+  it reads unmet, never met. Verified end to end: a synthetic Supabase-shaped
+  repo (a `@supabase/supabase-js` dependency and
+  `supabase/migrations/0001_init.sql`, no migrate script) reads
+  `d-schema-versioned` unmet; a repo with zero database signals anywhere
+  reads not-applicable. Goldens untouched.

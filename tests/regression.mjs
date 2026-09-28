@@ -40,6 +40,7 @@ import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPa
 import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
 import { runRoutine } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
+import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -930,6 +931,55 @@ function adaptersOnce() { return loadAdapters(); }
   const schemaUnmet = measureRun({ findings: dbButNoMigrate, manifest: ran, inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
   if (schemaUnmet?.status !== 'unmet') fail(`d-schema-versioned must read unmet (never met) when a database signal exists and migrate is not declared (got ${schemaUnmet?.status})`);
 }
+
+// ── database detection: Supabase, Drizzle, and a raw db/sql migrations folder ──
+// A Supabase-shaped repo (a client dependency and a migrations folder, no ORM at
+// all) must be recognized as carrying a database — d-schema-versioned must NEVER
+// read met over it with no migrate step declared; a repo with no database signal
+// anywhere reads not-applicable.
+{
+  const fail = (m) => negFailures.push('database-signals: ' + m);
+  const tmp = join(HERE, 'tmp-db-signals'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'supabase', 'migrations'), { recursive: true });
+  writeFileSync(join(tmp, 'package.json'), JSON.stringify({ name: 'supabase-shaped', version: '0.0.0', private: true, dependencies: { '@supabase/supabase-js': '^2.0.0' } }));
+  writeFileSync(join(tmp, 'supabase', 'migrations', '0001_init.sql'), 'create table t (id int);\n');
+  writeFileSync(join(tmp, 'README.md'), '# supabase-shaped\n');
+  let { toolchain } = detectToolchain(tmp);
+  if (!toolchain.database_signals.includes('dep:@supabase/supabase-js')) fail(`a @supabase/supabase-js dependency must be a database signal (got ${JSON.stringify(toolchain.database_signals)})`);
+  if (!toolchain.database_signals.includes('file:supabase/migrations')) fail(`a supabase/migrations directory must be a database signal (got ${JSON.stringify(toolchain.database_signals)})`);
+  // end to end through the real runner: no migrate step declared -> d-schema-versioned
+  // must read unmet or not-measured, NEVER met
+  let doc = null;
+  try { doc = runFreshClone({ target: tmp, clone: false, timeout: 30 }); } catch (e) { fail(`fresh-clone must run over the Supabase-shaped fixture (${e.message})`); }
+  if (doc) {
+    const rows = convert('fresh-clone', JSON.stringify(doc), doc.exit);
+    if (rows.some((r) => r.native_category === 'no-database-signal')) fail('a Supabase-shaped repo must never emit a no-database-signal fact — it has a database');
+    const migrateGap = rows.find((r) => r.native_category === 'migrate');
+    if (!migrateGap) fail('a Supabase-shaped repo with no migrate script must emit a migrate gap row (undeclared means unmet, not met)');
+    const reg = loadYardstick();
+    const schema = measureRun({ findings: rows, manifest: [{ scanner: 'fresh-clone', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+    if (schema?.status === 'met') fail(`d-schema-versioned must NEVER read met over a Supabase-shaped repo with no migrate step (got ${schema?.status})`);
+    if (schema?.status !== 'unmet') fail(`d-schema-versioned should read unmet over a Supabase-shaped repo with no migrate step (got ${schema?.status})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+
+  // a repo with no database signal at all: not-applicable, never met by silence
+  const tmpNone = join(HERE, 'tmp-db-none'); rmSync(tmpNone, { recursive: true, force: true });
+  mkdirSync(tmpNone, { recursive: true });
+  writeFileSync(join(tmpNone, 'package.json'), JSON.stringify({ name: 'no-db', version: '0.0.0', private: true, scripts: { test: 'node -e "process.exit(0)"' } }));
+  writeFileSync(join(tmpNone, 'README.md'), '# no-db\n');
+  let doc2 = null;
+  try { doc2 = runFreshClone({ target: tmpNone, clone: false, timeout: 30 }); } catch (e) { fail(`fresh-clone must run over the no-database fixture (${e.message})`); }
+  if (doc2) {
+    if (doc2.toolchain.database_signals.length) fail(`the no-database fixture must carry zero database signals (got ${JSON.stringify(doc2.toolchain.database_signals)})`);
+    const rows2 = convert('fresh-clone', JSON.stringify(doc2), doc2.exit);
+    const reg = loadYardstick();
+    const schema2 = measureRun({ findings: rows2, manifest: [{ scanner: 'fresh-clone', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+    if (schema2?.status !== 'not-applicable') fail(`d-schema-versioned must read not-applicable with no database signal anywhere (got ${schema2?.status})`);
+  }
+  rmSync(tmpNone, { recursive: true, force: true });
+}
+
 
 // ── the not-applicable status: compare(), ratchet, and the views ────────────
 {
@@ -2079,7 +2129,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, not-applicable, not-applicable-views, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, not-applicable, not-applicable-views, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

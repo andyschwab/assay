@@ -89,11 +89,36 @@ export function detectToolchain(dir) {
     tc.scripts = Object.keys(pkg.scripts || {});
   }
   // database signals: a migration command is a floor requirement only where a database
-  // exists; recorded here so ingest can tell "no migrate script" from "no database"
-  const dbFiles = ['prisma', 'migrations', 'db/migrations', 'knexfile.js', 'knexfile.ts', 'drizzle.config.ts', 'drizzle.config.js', 'ormconfig.json', 'alembic.ini', 'db/schema.rb', 'schema.prisma'].filter((f) => existsSync(join(dir, f)));
-  const dbDeps = ['@prisma/client', 'prisma', 'knex', 'typeorm', 'sequelize', 'drizzle-orm', 'mongoose', 'pg', 'mysql2', 'better-sqlite3', 'sqlite3', 'kysely', 'mikro-orm', '@mikro-orm/core'];
+  // exists; recorded here so ingest can tell "no migrate script" from "no database" —
+  // and, with none of these anywhere, d-schema-versioned reads not-applicable, never
+  // met (yardstick/requirements.yaml). Supabase and Drizzle are their own signals, not
+  // implied by the generic ORM list: a Supabase project often carries no ORM dependency
+  // at all, only supabase/migrations/*.sql and the client package.
+  const dbFiles = [
+    'prisma', 'migrations', 'db/migrations', 'knexfile.js', 'knexfile.ts',
+    'drizzle.config.ts', 'drizzle.config.js', 'ormconfig.json', 'alembic.ini',
+    'db/schema.rb', 'schema.prisma', 'supabase/migrations', 'supabase/config.toml',
+    'drizzle',
+  ].filter((f) => existsSync(join(dir, f)));
+  const dbDeps = [
+    '@prisma/client', 'prisma', 'knex', 'typeorm', 'sequelize', 'drizzle-orm',
+    'drizzle-kit', 'mongoose', 'pg', 'mysql2', 'better-sqlite3', 'sqlite3',
+    'kysely', 'mikro-orm', '@mikro-orm/core', '@supabase/supabase-js', '@supabase/ssr',
+  ];
   const deps = pkg ? { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) } : {};
-  tc.database_signals = [...dbFiles.map((f) => `file:${f}`), ...dbDeps.filter((d) => deps[d] !== undefined).map((d) => `dep:${d}`)];
+  // the common `migrations/*.sql` shape under a plain db/ or sql/ directory — no ORM,
+  // no config file, just numbered SQL files a raw migration runner (or a hand-rolled
+  // script) replays; matched by content, not just the directory's existence, so an
+  // empty or unrelated db/migrations dir does not (already covered by dbFiles above,
+  // this catches the sibling `sql/migrations` shape too).
+  const sqlMigrationDirs = ['db/migrations', 'sql/migrations'].filter((d) => {
+    try { return readdirSync(join(dir, d)).some((f) => f.toLowerCase().endsWith('.sql')); } catch { return false; }
+  });
+  tc.database_signals = [
+    ...dbFiles.map((f) => `file:${f}`),
+    ...dbDeps.filter((d) => deps[d] !== undefined).map((d) => `dep:${d}`),
+    ...sqlMigrationDirs.map((d) => `file:${d}/*.sql`),
+  ];
   const nvmrc = readText(join(dir, '.nvmrc'));
   if (nvmrc) tc.declared.nvmrc = nvmrc.trim();
   const toolVersions = readText(join(dir, '.tool-versions'));
