@@ -23,7 +23,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSyn
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase, loadManifest } from '../map/project.mjs';
 import { isHalt } from '../map/doctrine.mjs';
 import { buildSupervision } from '../map/supervision.mjs';
 import { computeVariance } from '../map/variance.mjs';
@@ -353,6 +353,31 @@ function adaptersOnce() { return loadAdapters(); }
   const by = Object.fromEntries(r.results.map((x) => [x.id, x.status]));
   if (by['P-1'] !== 'recovered') fail(`a full-path match must recover (P-1 got ${by['P-1']})`);
   if (by['P-2'] !== 'missed') fail(`a different file sharing only the basename must read missed, never matched (P-2 got ${by['P-2']})`);
+}
+
+// ── score scope + instrument answers ──────────────────────────────────────────
+// "Ran" comes from the run record: an instrument that ran clean and missed a
+// planted item reads MISSED, never out of scope (fail loud, never empty). An
+// instrument answer (`check:`) matches by method + check name + polarity, and a
+// control's run gap it accounts for is a known answer, not a false positive; an
+// instrument gap no answer names still is one.
+{
+  const fail = (m) => negFailures.push('score-scope: ' + m);
+  const secret = { target: 't', planted: [{ id: 'P-1', polarity: 'gap', axis: 'code-security', evidence: 'config/k.mjs:3', detectable_by: ['gitleaks'] }] };
+  const ranClean = { scanners: { gitleaks: { status: 'ran' } } };
+  if (score([], adaptersOnce(), secret, ranClean).results[0].status !== 'missed') fail('an instrument recorded as ran with no rows must read missed, not out of scope');
+  if (score([], adaptersOnce(), secret, { scanners: { gitleaks: { status: 'skipped', reason: 'x' } } }).results[0].status !== 'out-of-scope') fail('an instrument recorded as skipped must leave its items out of scope');
+  const row = (id, cat, pol, sev) => ({ id, source: 'repo-census', native_id: `${cat}@root`, native_category: cat, polarity: pol, ...(sev ? { severity: sev } : {}), observation: 'x', evidence: ['./:1'], ...(pol === 'gap' ? { fix: 'y' } : {}) });
+  const control = { target: 'c', planted: [], max_gaps_above: { severity: 'Low', count: 0 }, strengths: [
+    { id: 'I-1', polarity: 'gap', axis: 'artifact-legibility', check: 'runbook', detectable_by: ['repo-census'] },
+    { id: 'I-2', polarity: 'strength', axis: 'deterministic-gates', check: 'ci-gate', detectable_by: ['repo-census'] },
+  ] };
+  const rc = { scanners: { 'repo-census': { status: 'ran' } } };
+  const r = score([row('F-1', 'runbook', 'gap', 'Medium'), row('F-2', 'ci-gate', 'gap', 'Medium'), row('F-3', 'agent-contract', 'gap', 'Medium')], adaptersOnce(), control, rc);
+  const by = Object.fromEntries(r.results.map((x) => [x.id, x.status]));
+  if (by['I-1'] !== 'recovered') fail(`a census gap on the answered check must recover (I-1 got ${by['I-1']})`);
+  if (by['I-2'] !== 'missed') fail(`a census gap where a pass was expected must read missed — polarity is part of the answer (I-2 got ${by['I-2']})`);
+  if (r.falsePositives.map((x) => x.id).sort().join() !== 'F-2,F-3') fail(`on a control, only instrument gaps no answer accounts for are false positives (got ${r.falsePositives.map((x) => x.id).join()})`);
 }
 
 // ── exposures sidecar: standing_watch, not the retired stage scale ────────────
@@ -1799,7 +1824,7 @@ for (const [key, dir] of SCORED) {
   try {
     const answers = parseYaml(readFileSync(join(dir, 'ANSWERS.yaml'), 'utf8'));
     const findings = loadFindings(dir);
-    const r = score(findings, loadAdapters(), answers);
+    const r = score(findings, loadAdapters(), answers, loadManifest(dir));
     const missed = r.results.filter((x) => x.status === 'missed').length;
     const misHomed = r.results.filter((x) => x.status === 'mis-homed').length;
     current._score[key] = { recall: r.recall, recovered: r.recovered, in_scope: r.total_in_scope, missed, misHomed, falsePositives: r.falsePositives.length };
@@ -1826,7 +1851,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {
