@@ -2300,8 +2300,13 @@ function adaptersOnce() { return loadAdapters(); }
   const runDir = join(tmp, 'run');
   const logs = [];
   let result;
+  // this run asserts trigger: local, so it runs with no GITHUB_EVENT_NAME even under CI (which sets it)
+  const hadEvent0 = Object.prototype.hasOwnProperty.call(process.env, 'GITHUB_EVENT_NAME');
+  const savedEvent0 = process.env.GITHUB_EVENT_NAME;
+  delete process.env.GITHUB_EVENT_NAME;
   try { result = runRoutine({ repoDir: target, outDir: runDir }, (l) => logs.push(l)); }
   catch (e) { fail(`runRoutine must not throw (${e.message})`); }
+  if (hadEvent0) process.env.GITHUB_EVENT_NAME = savedEvent0;
   if (result) {
     if (!result.ok || result.exitCode !== 0) fail(`runRoutine over a clean, network-free fixture with no baseline must succeed (got ok=${result.ok} exit=${result.exitCode}):\n${logs.join('\n')}`);
     const manifestPath = join(runDir, 'map', 'scanners.yaml');
