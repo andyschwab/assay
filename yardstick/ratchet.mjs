@@ -12,13 +12,26 @@
 // yardstick/README.md links here rather than restating it.
 //
 // Usage:
-//   node assay.mjs ratchet <run-dir> [--baseline <baseline.yaml>]
+//   node assay.mjs ratchet <run-dir> [--baseline <baseline.yaml> | --baseline-ref <git-ref> --repo <dir>]
 //                                     [--write-baseline <file>] [--by <role>] [--commit <sha>]
 //
-//   --baseline        compare the run against this committed baseline (the gate).
-//                      Omit it to skip the gate entirely — the only supported way
-//                      to produce a FIRST baseline is --write-baseline with no
-//                      --baseline to hold against yet.
+//   --baseline        compare the run against this committed baseline (the gate),
+//                      read from a file on disk.
+//   --baseline-ref     compare against packet/baseline.yaml as it reads at this git
+//                      ref, in the repository named by --repo — `git show
+//                      <ref>:packet/baseline.yaml`, never a file the run's own
+//                      working tree could have edited. This is what a pull
+//                      request is graded against: the accepted baseline on the
+//                      DEFAULT branch, never the copy the pull request itself
+//                      carries (routine/README.md "The baseline: accepted by a
+//                      named steward" — a change that edited the file it is
+//                      graded against would otherwise switch its own gate off).
+//   --repo             the git repository --baseline-ref reads from; required
+//                      with --baseline-ref.
+//                      Omitting both --baseline and --baseline-ref skips the gate
+//                      entirely — the only supported way to produce a FIRST
+//                      baseline is --write-baseline with no baseline to hold
+//                      against yet.
 //   --write-baseline  write (or overwrite) a baseline file from the run's CURRENT
 //                      measurement — every requirement, its status and basis —
 //                      dated today under the given --by role (default "steward")
@@ -27,20 +40,27 @@
 //                      steward's own reviewed act (routine/README.md).
 //
 // Exit codes:
-//   0   nothing held regressed or dropped off the scale (or no --baseline given)
-//   1   a met/mixed baseline requirement is now worse or no-longer-measured, or a
-//       baseline requirement is absent from the current measurement entirely
-//   2   a missing or unreadable input (the run's yardstick.yaml, or the baseline
-//       file when --baseline names one) — NEVER 0 on a bad input
+//   0   nothing held regressed or dropped off the scale, and no contradiction
+//       (or no --baseline/--baseline-ref given and no contradiction)
+//   1   a met/mixed baseline requirement is now worse or no-longer-measured, a
+//       baseline requirement is absent from the current measurement entirely, OR
+//       the current measurement carries any contradiction (a repository's own
+//       packet claimed satisfied; this run found the mechanism absent) — a
+//       contradiction is ALWAYS a failure under stewardship; there is no
+//       --allow-contradictions escape hatch (yardstick/README.md)
+//   2   a missing or unreadable input (the run's yardstick.yaml, the baseline
+//       file when --baseline names one, or the git ref/repo when --baseline-ref
+//       names one) — NEVER 0 on a bad input
 //
 // A baseline row recorded unmet or not-measured never fails the ratchet — there
 // is nothing there to hold.
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { dirname } from 'node:path';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { yardstickPath, rawPath } from '../lib/run-layout.mjs';
 import { isMain } from '../map/doctrine.mjs';
-import { loadYardstick, STATUSES } from './measure.mjs';
+import { loadYardstick, STATUSES, loadContradictions } from './measure.mjs';
 import { compare } from './compare.mjs';
 
 export const BASIS = ['run', 'owner'];
@@ -68,6 +88,29 @@ export function validateBaseline(doc) {
 }
 export function loadBaseline(file) {
   const doc = parseYaml(readFileSync(file, 'utf8'));
+  const errors = validateBaseline(doc);
+  if (errors.length) throw new Error(errors.join('\n'));
+  return doc;
+}
+
+// ── reading a baseline from a git ref, never the working tree ───────────────
+// `catGitFile(repoDir, ref, path)` is `git show <ref>:<path>` in that repository —
+// the CONTENT git holds for `path` at `ref`, independent of whatever the current
+// working tree carries. Returns { ok: true, content } or { ok: false, error }; it
+// never throws, so a caller can tell "not present at that ref" (routine/run.mjs's
+// own "no baseline yet" case) apart from every other kind of failure.
+export function catGitFile(repoDir, ref, path) {
+  const r = spawnSync('git', ['-C', repoDir, 'show', `${ref}:${path}`], { encoding: 'utf8' });
+  if (r.status !== 0) return { ok: false, error: String(r.stderr || r.stdout || '').trim() || `git show ${ref}:${path} failed` };
+  return { ok: true, content: r.stdout };
+}
+// loadBaselineFromRef — the --baseline-ref gate's own loader: the SAME
+// fail-closed validation as loadBaseline, over content read from a git ref
+// instead of the working tree.
+export function loadBaselineFromRef(repoDir, ref, path = 'packet/baseline.yaml') {
+  const got = catGitFile(repoDir, ref, path);
+  if (!got.ok) throw new Error(`cannot read ${path} at ${ref} in ${repoDir} (${got.error})`);
+  const doc = parseYaml(got.content);
   const errors = validateBaseline(doc);
   if (errors.length) throw new Error(errors.join('\n'));
   return doc;
@@ -137,9 +180,9 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const flag = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
   const flagIdx = new Set();
-  ['--baseline', '--write-baseline', '--by', '--commit'].forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
+  ['--baseline', '--baseline-ref', '--repo', '--write-baseline', '--by', '--commit'].forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
   const dir = args.find((a, i) => !flagIdx.has(i) && !a.startsWith('--'));
-  if (!dir) { console.error('usage: node assay.mjs ratchet <run-dir> [--baseline <baseline.yaml>] [--write-baseline <file>] [--by <role>] [--commit <sha>]'); process.exit(2); }
+  if (!dir) { console.error('usage: node assay.mjs ratchet <run-dir> [--baseline <baseline.yaml> | --baseline-ref <git-ref> --repo <dir>] [--write-baseline <file>] [--by <role>] [--commit <sha>]'); process.exit(2); }
 
   let currentDoc;
   try { currentDoc = loadYardstickDoc(dir); }
@@ -152,12 +195,21 @@ if (isMain(import.meta.url)) {
   const titleOf = (id) => titleById.get(id) || id;
 
   const baselineFile = flag('--baseline');
+  const baselineRef = flag('--baseline-ref');
+  const repoFlag = flag('--repo');
+  if (baselineFile && baselineRef) { console.error('✗ ratchet: --baseline and --baseline-ref are mutually exclusive'); process.exit(2); }
+  if (baselineRef && !repoFlag) { console.error('✗ ratchet: --baseline-ref requires --repo <dir>'); process.exit(2); }
   let exitCode = 0;
-  if (baselineFile) {
-    if (!existsSync(baselineFile)) { console.error(`✗ ratchet: no such baseline file: ${baselineFile}`); process.exit(2); }
+  if (baselineFile || baselineRef) {
     let baselineDoc;
-    try { baselineDoc = loadBaseline(baselineFile); }
-    catch (e) { console.error(`✗ ratchet: ${baselineFile} is not a valid baseline (fails closed):\n${e.message}`); process.exit(2); }
+    if (baselineFile) {
+      if (!existsSync(baselineFile)) { console.error(`✗ ratchet: no such baseline file: ${baselineFile}`); process.exit(2); }
+      try { baselineDoc = loadBaseline(baselineFile); }
+      catch (e) { console.error(`✗ ratchet: ${baselineFile} is not a valid baseline (fails closed):\n${e.message}`); process.exit(2); }
+    } else {
+      try { baselineDoc = loadBaselineFromRef(repoFlag, baselineRef); }
+      catch (e) { console.error(`✗ ratchet: ${baselineRef}:packet/baseline.yaml in ${repoFlag} is not a valid baseline (fails closed):\n${e.message}`); process.exit(2); }
+    }
     const { failures, held, improved } = evaluateRatchet(baselineDoc, currentDoc, titleOf);
     if (failures.length) {
       console.error(`✗ ratchet: ${failures.length} requirement(s) the baseline held are now worse:\n`);
@@ -166,10 +218,24 @@ if (isMain(import.meta.url)) {
     } else {
       console.log(`✓ ratchet held: held ${held}, improved ${improved.length}`);
       for (const r of improved) console.log(`  ↑ ${r.id} — ${r.title}: ${r.before} → ${r.after}`);
-      if (improved.length) console.log(`\nLock these in: node assay.mjs ratchet ${dir} --write-baseline ${baselineFile}`);
+      if (improved.length && baselineFile) console.log(`\nLock these in: node assay.mjs ratchet ${dir} --write-baseline ${baselineFile}`);
     }
   } else {
     console.log('· no --baseline given — nothing to hold against (the gate is skipped)');
+  }
+
+  // Contradictions: checked ALWAYS, independent of any baseline — a repository's
+  // own packet claiming satisfied against a run-decided unmet row is a failure
+  // under stewardship every time, never something an --allow flag can wave
+  // through (yardstick/README.md, CLAUDE.md rule 1: no claim without evidence).
+  const contradictions = loadContradictions(dir);
+  if (contradictions.length) {
+    console.error(`\n✗ ratchet: ${contradictions.length} contradiction(s) — a repository's own packet claimed satisfied; this run found otherwise:\n`);
+    for (const c of contradictions) {
+      const findings = (c.findings || []).length ? ` (${c.findings.join(', ')})` : '';
+      console.error(`  ✗ ${c.id} — ${titleOf(c.id)}: the owner's packet claimed satisfied; this run found ${c.run_status}${findings}`);
+    }
+    exitCode = 1;
   }
 
   const writeTo = flag('--write-baseline');

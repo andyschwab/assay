@@ -39,6 +39,17 @@ jobs:
           path: repo
           fetch-depth: 0   # full history — gitleaks (when installed) and repo-census both read it
 
+      - name: Fetch the base branch (pull_request only)
+        # A pull request's own copy of this workflow could edit packet/baseline.yaml —
+        # the file its own gate is supposed to hold against. fetch-depth: 0 above
+        # already pulled the full history reachable from the checked-out ref, but the
+        # base branch needs its OWN local ref (origin/<base>) for `git show` to read
+        # the ACCEPTED baseline from, never whatever this pull request carries
+        # (routine/README.md "The baseline: accepted by a named steward").
+        if: github.event_name == 'pull_request'
+        working-directory: repo
+        run: git fetch origin "${{ github.base_ref }}"
+
       - name: Check out assay at the pinned engine commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -59,11 +70,20 @@ jobs:
       - name: Run the routine
         id: routine
         run: |
+          BASE_REF_FLAG=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # On a pull request, the baseline comes from the BASE branch's own
+            # packet/baseline.yaml (git show), never the working tree this pull
+            # request carries — see the "Fetch the base branch" step above and
+            # routine/README.md "The baseline: accepted by a named steward".
+            BASE_REF_FLAG="--base-ref origin/${{ github.base_ref }}"
+          fi
           node "$GITHUB_WORKSPACE/assay/routine/run.mjs" "$GITHUB_WORKSPACE/repo" \
-            --out "$GITHUB_WORKSPACE/run"
-          # --baseline defaults to repo/packet/baseline.yaml when that file is
-          # committed (routine/README.md); with none, the routine prints a warning
-          # and skips the gate rather than failing silently.
+            --out "$GITHUB_WORKSPACE/run" $BASE_REF_FLAG
+          # With no --base-ref (schedule / workflow_dispatch), --baseline defaults to
+          # repo/packet/baseline.yaml when that file is committed (routine/README.md);
+          # with none, the routine prints a warning and skips the gate rather than
+          # failing silently.
           # --since is not wired up here: downloading a PRIOR scheduled run's own
           # artifact needs the Actions API (an `actions: read` permission this
           # template deliberately does not add — routine/README.md explains why)

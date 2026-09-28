@@ -407,3 +407,19 @@ what the public engine learned.
   (repo-census over the fixture repository, 10/10 in scope; Scorecard-only
   branch protection and dcr-only action pinning read out of scope). Goldens
   re-blessed for exactly those additions.
+- **2026-09-28 — the no-regression gate reads the accepted baseline from the
+  base branch, never from the change it gates.** A pull request's own working
+  tree could edit `packet/baseline.yaml` — the very file its gate holds against
+  — and the routine used to read that copy unconditionally. `ratchet` gains
+  `--baseline-ref <git-ref> --repo <dir>`, reading `packet/baseline.yaml` with
+  `git show <ref>:packet/baseline.yaml` in that repository instead of a file on
+  disk (`catGitFile`/`loadBaselineFromRef`, `yardstick/ratchet.mjs`).
+  `routine/run.mjs` gains `--base-ref <ref>`: on a pull request (the workflow
+  template now fetches the base branch and passes `--base-ref
+  origin/${{ github.base_ref }}`) the baseline comes from that ref, never the
+  working tree, and when the working tree's own `packet/baseline.yaml` differs
+  from the base ref's copy at all, the routine says so plainly — "this change
+  edits the accepted baseline; the gate holds against the default branch's
+  copy; a steward accepts a new baseline in its own reviewed change." A
+  schedule or `workflow_dispatch` run (no base ref) reads the working tree's
+  committed copy exactly as before. Goldens untouched.

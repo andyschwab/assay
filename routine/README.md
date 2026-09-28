@@ -55,6 +55,22 @@ Until a baseline is committed, the routine still runs and still compiles the
 package; it prints a visible warning that no baseline exists yet rather than
 skipping the ratchet in silence.
 
+**On a pull request, the baseline is read from the base branch, never from the
+change under review.** The pull request's own working tree is whatever the
+change proposes — including, potentially, an edited `packet/baseline.yaml` —
+so grading it against its own copy would let a change switch off the very gate
+meant to hold it. The workflow template detects a pull request (it passes
+`--base-ref origin/${{ github.base_ref }}` after fetching that branch) and
+`routine/run.mjs` then reads the baseline with `git show
+<base-ref>:packet/baseline.yaml` in the checkout (`yardstick/ratchet.mjs`'s
+`--baseline-ref --repo`), never the file on disk. When the working tree's
+`packet/baseline.yaml` differs from the base ref's copy at all, the routine
+prints that plainly — a steward accepts a new baseline in its own reviewed
+change, never silently through the pull request it would otherwise gate. On a
+schedule or `workflow_dispatch` run (no base ref — there is no "pull request"
+to distinguish from the accepted state), the working tree's committed copy is
+read directly, exactly as before.
+
 ## Installing it
 
 1. Copy `routine/assay-routine.yml` into the stewarded repository as
