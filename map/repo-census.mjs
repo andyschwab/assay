@@ -80,7 +80,7 @@
 // with validate-packet (yardstick/packet.mjs).
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join, resolve, isAbsolute } from 'node:path';
+import { join, resolve, isAbsolute, relative, sep } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadPacket, validatePacket, requirementIdsOnDisk } from '../yardstick/packet.mjs';
@@ -173,6 +173,10 @@ export function detectMonorepo(dir) {
 // the same way validate-packet does, and an invalid packet halts this runner
 // (thrown here, caught by the CLI's own crash handler below: exit 2, same rule
 // as any other runner crash).
+// A pointer to a missing path cannot cite that path (validate refuses evidence the
+// tree does not have), so it cites the packet itself when the packet is in the tree
+// (the claim that is wrong), else the repository root. Set per run().
+let missingPointerCite = './:1';
 export function findPacketSource(dir, packetArg) {
   if (packetArg) return { source: packetArg, auto: false };
   if (existsSync(join(dir, 'packet', 'manifest.yaml'))) return { source: join(dir, 'packet'), auto: true };
@@ -209,13 +213,13 @@ function checkArchitecturePage(dir, loc, pointerPath) {
   const detail = { path: loc };
   if (loc !== '.' && !existsSync(base)) {
     detail.pointer = 'apps';
-    return { name, status: 'gap', detail, evidence: [`${loc}:1`], observation: `The packet points at ${loc} as an app, which does not exist.` };
+    return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${loc} as an app, which does not exist.` };
   }
   if (pointerPath) {
     detail.pointer = 'architecture';
     const full = join(dir, pointerPath);
     if (!existsSync(full)) {
-      return { name, status: 'gap', detail, evidence: [`${pointerPath}:1`], observation: `The packet points at ${pointerPath} for the architecture page, which does not exist.` };
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${pointerPath} for the architecture page, which does not exist.` };
     }
     const content = safeRead(full) || '';
     const namesExternal = EXTERNAL_RE.test(content) || DIAGRAM_RE.test(content);
@@ -277,7 +281,7 @@ function checkAgentContract(dir, loc, pointerPath) {
   const detail = { path: loc };
   if (loc !== '.' && !existsSync(base)) {
     detail.pointer = 'apps';
-    return { name, status: 'gap', detail, evidence: [`${loc}:1`], observation: `The packet points at ${loc} as an app, which does not exist.` };
+    return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${loc} as an app, which does not exist.` };
   }
 
   let filePath, text;
@@ -285,7 +289,7 @@ function checkAgentContract(dir, loc, pointerPath) {
     detail.pointer = 'agent_contract';
     const full = join(dir, pointerPath);
     if (!existsSync(full)) {
-      return { name, status: 'gap', detail, evidence: [`${pointerPath}:1`], observation: `The packet points at ${pointerPath} for the agent contract, which does not exist.` };
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${pointerPath} for the agent contract, which does not exist.` };
     }
     filePath = pointerPath;
     text = safeRead(full) || '';
@@ -348,7 +352,7 @@ function checkRunbook(dir, pointerPath) {
     detail.pointer = 'runbook';
     const full = join(dir, pointerPath);
     if (!existsSync(full)) {
-      return { name, status: 'gap', detail, evidence: [`${pointerPath}:1`], observation: `The packet points at ${pointerPath} for the runbook, which does not exist.` };
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${pointerPath} for the runbook, which does not exist.` };
     }
     const content = safeRead(full) || '';
     const missing = PROCEDURES.filter(([, verbRe, nounRe]) => !hasProcedure(content, verbRe, nounRe)).map(([label]) => label);
@@ -549,7 +553,7 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
   if (!files.length) {
     return {
       name, status: 'gap', detail,
-      evidence: [`${wfRelBase}/:1`],
+      evidence: [existsSync(wfDir) ? `${wfRelBase}/:1` : './:1'],   // never cite a path the tree does not have
       observation: `No ${wfRelBase}/*.yml|.yaml found${pointerNote(!!workflowsPointer)}; nothing runs the gates on the default branch (${defaultBranch}) or on a pull request. ${branchNote}`,
     };
   }
@@ -668,7 +672,7 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   if (!found) {
     if (evidencePointer) {
       const rel = `${evidencePointer.replace(/\/$/, '')}/${id}.md`;
-      return { name, status: 'gap', detail, evidence: [`${rel}:1`], observation: `The packet points at ${rel}, which does not exist.` };
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${rel}, which does not exist.` };
     }
     return {
       name, status: 'gap', detail,
@@ -784,6 +788,8 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
     const { doc, file } = loadValidatedPacket(packetSource.source);
     packetDoc = doc; packetFile = file; packetAuto = packetSource.auto;
   }
+  const packetRel = packetFile ? relative(dir, resolve(packetFile)) : null;
+  missingPointerCite = packetRel && !packetRel.startsWith('..') && !isAbsolute(packetRel) ? `${packetRel.split(sep).join('/')}:1` : './:1';
   const pointers = (packetDoc && packetDoc.pointers) || {};
   const pointersUsed = new Set();
   const note = (key) => pointersUsed.add(key);

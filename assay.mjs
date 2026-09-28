@@ -30,13 +30,15 @@ const GROUPS = [
   }],
   ['Yardstick: measuring the map against the requirements', {
     'measure': ['yardstick/measure.mjs', 'per requirement: met, unmet, mixed or not measured'],
+    'ratchet': ['yardstick/ratchet.mjs', 'fail when a baseline requirement regresses or drops off the scale'],
     'validate-packet': ['yardstick/packet.mjs', "validate a repository's own packet (owner/PACKET.md); fails closed"],
     'ask-owner': ['owner/ask-owner.mjs', 'print the owner prompt, prefilled with what a run already shows'],
   }],
-  ['Views: Intake, Maintain, Improve', {
+  ['Views: Intake, Maintain, Improve, Since', {
     'compile': ['views/compile.mjs', 'measure, then write all three views and the index'],
     'intake': ['views/intake.mjs', 'the Intake view alone, from an existing measurement'],
     'maintain': ['views/maintain.mjs', 'the Maintain view alone, from an existing measurement'],
+    'since': ['views/since.mjs', 'what changed since a previous run — regressions, improvements, new/gone findings'],
     'maturity': ['views/improve/maturity.mjs', "Improve's maturity coverage per dimension"],
   }],
 ];

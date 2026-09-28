@@ -93,7 +93,16 @@ node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, 
 
 # measure and write every view from the same map
 node assay.mjs compile <run>
+
+# what changed since a previous run, and holding the line on it
+node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
+node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
 ```
+
+Once a steward accepts a repository, `routine/` is a GitHub Actions template the
+stewarded repository runs on its own schedule — it runs the offline instruments,
+compiles the package, and ratchets against a committed baseline; `routine/README.md`
+is the contract.
 
 ## Measured, not asserted
 
@@ -116,9 +125,10 @@ changed; both ways at once is judgment drift.
 ```
 assay.mjs        the command line
 map/             drawing the map: the finding format, the built-in method, scanners, instruments, validation
-yardstick/       the requirements and the measurement of one map against them
-views/           Intake, Maintain and Improve, and the one compile that writes them
+yardstick/       the requirements, the measurement of one map against them, and comparing two (since/ratchet)
+views/           Intake, Maintain, Improve and Since, and the one compile that writes them
 owner/           what a repository's owner supplies that no scan can
+routine/         the routine a stewarded repository runs on its own schedule (GitHub Actions template + driver)
 lib/             shared helpers
 tests/           the regression harness and the public scored fixtures
 HISTORY.md       how the engine got here

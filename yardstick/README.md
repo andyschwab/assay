@@ -90,3 +90,71 @@ node assay.mjs compile <run> [--packet <dir>]        # measures, then writes eve
 `requirements.yaml` is validated on load (closed kinds, tiers, topics, tags,
 facet rules; every row sourced), and the harness pins each decider's behaviour on
 a synthetic map.
+
+## Comparing two measurements: `since` and `ratchet`
+
+`compare.mjs` is the pure core both of the below build on: `compare(previous,
+current)` over two documents shaped like `yardstick.yaml`
+(`{ version, requirements: [{ id, status, basis, findings, note }] }`), classifying
+every requirement id present on either side as `improved`, `regressed`,
+`unchanged`, `newly-measured`, `no-longer-measured`, or `yardstick-only` (present
+on only one side — the yardstick itself changed). The order `met > mixed > unmet`
+is total; `not-measured` is deliberately **off** that scale, so a status leaving
+the measured scale reads `no-longer-measured` — never `improved`, never
+`unchanged`. A yardstick version difference between the two sides is reported on
+the result, never hidden. `compare.mjs` also exports `fingerprintFinding` /
+`compareFindings`, a **finding**-level match across two runs for the `since` view
+below — never by `id` (a finding's id carries no meaning across independent runs,
+`map/SCHEMA.md` §3), but by `(scanner, dimension-or-native-category, evidence file
+paths with the line stripped)`. A collision on that key is a known, accepted
+coarsening (the same one `map/variance.mjs`'s own identity tokens accept); it
+fails toward under-reporting "new", never toward inventing one.
+
+### `since`: what changed between two runs
+
+```sh
+node assay.mjs since <run> --previous <prev-run>        # writes views/since.yaml + SINCE.md
+node assay.mjs compile <run> --since <prev-run>          # compiles every other view too
+```
+
+Reads both runs' `yardstick.yaml` through `compare()` for the requirement-level
+story and both runs' findings through `compareFindings()` for which findings are
+new since the previous run and which are no longer found — schema and page
+documented in `views/README.md`, the one home of the Since view's shape. Compile
+with no `--since` writes neither file.
+
+### `ratchet`: a baseline can never quietly regress
+
+```sh
+node assay.mjs ratchet <run> --baseline <baseline.yaml> [--write-baseline <file>]
+```
+
+A **baseline** is a small, reviewed, GENERATED-then-committed file — `ratchet
+--write-baseline` writes it from a run's current measurement; a named steward
+reviews it and commits it themselves, never the command (`routine/README.md`).
+Its format, documented here as its one home:
+
+```yaml
+baseline: 1                      # format version
+yardstick: 0                     # the requirements.yaml version these rows speak to
+accepted:
+  date: 2026-09-28
+  by: steward                    # a role, never a name (same convention as owner/PACKET.md)
+commit: <7-40 hex, or "">        # the target commit the baseline describes, filled by the reviewer
+requirements:                    # every requirement id, its status and basis AT ACCEPTANCE
+  - id: d-secrets-out-of-history
+    status: met
+    basis: run
+```
+
+`ratchet` reads the baseline as `compare()`'s `previous` side and the run's own
+`yardstick.yaml` as `current`, then fails (exit 1) when a requirement the
+baseline recorded `met` or `mixed` is now worse or `no-longer-measured`, or when
+a baseline requirement is absent from the current measurement entirely (the
+yardstick itself dropped or renamed it — nothing there to hold any more). A
+baseline row recorded `unmet` or `not-measured` never fails the ratchet — there
+is nothing held to lose. Every failure line names the requirement, its title,
+its before → after, and the current finding ids behind it when the row carries
+any. Exit 0 prints a one-line `held N, improved M` summary plus the improved
+rows, and suggests locking them in with `--write-baseline`. Exit 2 — never 0 —
+on a missing or unreadable run or baseline file.

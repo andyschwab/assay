@@ -32,14 +32,17 @@ import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '.
 import { buildRows } from './floor-fleet.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';
-import { prosePath as runProsePath, nativeDir, indexPath } from '../lib/run-layout.mjs';
+import { prosePath as runProsePath, nativeDir, indexPath, sincePagePath } from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
 const packetIdx = argv.indexOf('--packet');
 const packetArgs = packetIdx > -1 ? ['--packet', argv[packetIdx + 1]] : [];
-const arg = argv.find((a, i) => !a.startsWith('--') && !(packetIdx > -1 && i === packetIdx + 1));
-if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>]'); process.exit(2); }
+const sinceIdx = argv.indexOf('--since');
+const previousRun = sinceIdx > -1 ? argv[sinceIdx + 1] : null;
+const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1].filter((i) => i > -1));
+const arg = argv.find((a, i) => !a.startsWith('--') && !reserved.has(i));
+if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>]'); process.exit(2); }
 const runDir = arg;
 const runId = basename(runDir);
 
@@ -77,6 +80,12 @@ if (hasProse) {
 }
 console.log('· intake   (can it be carried?) …'); run('intake.mjs', confArgs);
 console.log('· maintain (is it still healthy?) …'); run('maintain.mjs', confArgs);
+let sinceOk = false;
+if (previousRun) {
+  console.log('· since    (what changed?) …'); sinceOk = run('since.mjs', ['--previous', previousRun, ...confArgs]);
+} else {
+  console.log('· since    — skipped (no --since <prev-run-dir> given)');
+}
 
 // ── axis summary for the index ───────────────────────────────────────────────
 const findings = loadFindings(runDir);
@@ -140,6 +149,9 @@ const apps = findAppendices();
 const improveRow = reportOk
   ? `**Improve** — [\`IMPROVE.md\`](IMPROVE.md): the report, authored narrative over computed structure, area by area.`
   : `**Improve** — [\`views/improve/axes.md\`](views/improve/axes.md): the walk (no \`views/improve/prose.yaml\` — author it to compile \`IMPROVE.md\` too).`;
+const sinceRow = sinceOk
+  ? `\n- **Since** _(what changed?)_ — [\`SINCE.md\`](SINCE.md): compared against \`${basename(previousRun)}\`.`
+  : '';
 
 const index = `---
 type: doc
@@ -158,7 +170,7 @@ each axis its own posture; a requirement is met, unmet, mixed, or not measured
 
 - **Intake** _(can this map be carried?)_ — [\`INTAKE.md\`](INTAKE.md): ${viewCount(intakeBuilt)} of the floor requirements.
 - **Maintain** _(is it still healthy?)_ — [\`MAINTAIN.md\`](MAINTAIN.md): ${viewCount(maintainBuilt)} of the fleet requirements.
-- ${improveRow}
+- ${improveRow}${sinceRow}
 
 ## The roster (glance)
 
@@ -174,7 +186,7 @@ ${descSum.decided} of ${descSum.of} requirements decided by this run (met ${desc
 | Artifact | Reader | What it is |
 |---|---|---|
 | [\`views/intake.yaml\`](views/intake.yaml) | machine | Intake's floor rows: open, met, to run, not seen. |
-| [\`views/maintain.yaml\`](views/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |
+| [\`views/maintain.yaml\`](views/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |${sinceOk ? `\n| [\`views/since.yaml\`](views/since.yaml) | machine | What changed vs \`${basename(previousRun)}\`: regressed, improved, newly/no-longer measured, findings new/no-longer-found. |` : ''}
 | [\`views/improve.yaml\`](views/improve.yaml) | machine | Every requirement on the yardstick, grouped by topic. |
 | [\`yardstick.yaml\`](yardstick.yaml) | machine, and what a repository's own claims are compared against | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
 | [\`views/improve/axes.md\`](views/improve/axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register, requirements by topic. |
@@ -206,4 +218,4 @@ _assay evaluation engine. Run \`${runId}\`.${CONFIDENTIAL ? ' Confidential.' : '
 `;
 
 writeFileSync(join(runDir, 'INDEX.md'), index);
-console.log(`\n✓ package assembled — INDEX.md + INTAKE.md + MAINTAIN.md${reportOk ? ' + IMPROVE.md' : ''} + views/improve/axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);
+console.log(`\n✓ package assembled — INDEX.md + INTAKE.md + MAINTAIN.md${reportOk ? ' + IMPROVE.md' : ''}${sinceOk ? ' + SINCE.md' : ''} + views/improve/axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);
