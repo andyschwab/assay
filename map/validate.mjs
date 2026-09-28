@@ -195,7 +195,7 @@ for (const file of passFiles) {
   const mPath = scannersPath(runDir);
   const sourcesSeen = new Set([...allById.values()].map((v) => v.f.source || 'repo-eval'));
   if (!existsSync(mPath)) {
-    err(MANIFEST_FILE, `missing — every run records each adopted scanner's disposition (ran | skipped + reason | failed + reason); a scanner that can be omitted without a recorded decision reads as coverage. Template: map/templates/scanners.yaml`);
+    err(MANIFEST_FILE, `missing — every run records each adopted scanner's disposition (ran | skipped + reason | failed + reason); a scanner that can be omitted without a recorded decision reads as coverage. Start the run: node assay.mjs start --out ${runDir} <target> (or see the template: map/templates/scanners.yaml).`);
   } else {
     let m = null, parsed = false;
     try { m = loadManifest(runDir); parsed = true; }
@@ -221,11 +221,11 @@ for (const file of passFiles) {
               warn(at, `no model: recorded for a judgment scanner — a repeat cannot separate model drift from method drift`);
             const explicitFile = passFiles.includes(`${id}.yaml`);
             if (!sourcesSeen.has(id) && !explicitFile)
-              err(at, `status ran, but the base carries no rows from ${id} and no map/findings/${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty)`);
+              err(at, `status ran, but the base carries no rows from ${id} and no map/findings/${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty); if it did not run, record that: node assay.mjs record ${runDir} ${id} skipped --reason "<why>"`);
             if (ADAPTERS[id].role !== 'instrument' && id !== 'repo-eval' && !existsSync(nativeReportPath(runDir, id)))
               warn(at, `peer scanner ran but the run carries no native report map/native/${id}.md — its port rows are the only record; the package lists no appendix for it`);
           } else if (sourcesSeen.has(id)) {
-            err(at, `status ${row.status}, but the base carries rows from ${id} — rows from a scanner recorded as not run are not evidence`);
+            err(at, `status ${row.status}, but the base carries rows from ${id} — rows from a scanner recorded as not run are not evidence; if it ran, record it: node assay.mjs record ${runDir} ${id} ran`);
           }
         }
         for (const src of sourcesSeen) if (!m.scanners[src]) err(`${MANIFEST_FILE}:${src}`, `the base carries rows from ${src} but the manifest records no disposition for it`);

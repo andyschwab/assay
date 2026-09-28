@@ -89,12 +89,15 @@ The tools are zero-dependency Node (20 or later), behind one command:
 ```sh
 node assay.mjs help                                   # every command, grouped map / yardstick / views
 
-# draw the map
+# draw the map — one command makes the run, runs every offline instrument, and
+# records every other adopted scanner skipped, with how to record it once it runs
+node assay.mjs start --out <run> <target>
+
 #   repo-eval: open map/METHOD.md as the opening context of a coding-agent session
 #   pointed at the target repository; it drives the passes
-node assay.mjs fresh-clone <target> --out <raw.json>  # an instrument, offline
-node assay.mjs ingest <run> --tool gitleaks --raw gitleaks.json --exit 1
 node assay.mjs ingest <run> --tool deep-code-review --raw dcr-report.yaml
+#   ingesting a report also flips that scanner's row to ran in map/scanners.yaml
+node assay.mjs record <run> repo-eval ran                          # or record one directly (no report to ingest)
 node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed
 
 # measure and write every view from the same map

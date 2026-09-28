@@ -45,15 +45,15 @@
 // A repository's own packet/manifest.yaml (owner/PACKET.md), when present at
 // <repo-dir>/packet/manifest.yaml, is folded into the measurement automatically.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync, rmSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve, isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { tmpdir } from 'node:os';
 import { isMain } from '../map/doctrine.mjs';
 import { catGitFile } from '../yardstick/ratchet.mjs';
 import { gitHead, gitRemote } from '../map/repo-census.mjs';
 import { loadContradictions } from '../yardstick/measure.mjs';
 import { routinePath } from '../lib/run-layout.mjs';
+import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit } from '../map/start.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // routine/
 const ASSAY_ROOT = join(HERE, '..');
@@ -62,84 +62,21 @@ const ASSAY_CLI = join(ASSAY_ROOT, 'assay.mjs');
 function assay(args) {
   return spawnSync(process.execPath, [ASSAY_CLI, ...args], { encoding: 'utf8' });
 }
-function which(bin) {
-  const r = spawnSync(process.platform === 'win32' ? 'where' : 'which', [bin], { encoding: 'utf8' });
-  return r.status === 0;
-}
-function engineCommit() {
-  if (process.env.ASSAY_REF) return process.env.ASSAY_REF;
-  const r = spawnSync('git', ['-C', ASSAY_ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' });
-  return r.status === 0 ? String(r.stdout || '').trim() : 'unknown';
-}
+const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;   // used by toRoutineYaml below
 
-// One instrument step, run through assay's own CLI: `node assay.mjs <cmd> <repoDir>
-// --out <raw>`, then `node assay.mjs ingest <outDir> --tool <tool> --raw <raw> --exit <code>`
-// when the exit is in the tool's documented success set (map/scanners/CONTRACT.md);
-// anything else (a crash) is recorded FAILED, with the tool's own stderr as the
-// reason — the routine keeps going, never crashing the whole run over one instrument.
-function runAssayInstrument({ tool, cmd, cliArgs, okExits, outDir, log }) {
-  const rawFile = join(tmpdir(), `assay-routine-${tool}-${process.pid}.json`);
-  log(`· ${tool} …`);
-  const r = assay([cmd, ...cliArgs, '--out', rawFile]);
-  const exit = r.status;
-  if (exit == null || !okExits.includes(exit)) {
-    const reason = `${tool} exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
-    log(`  ✗ ${tool} failed: ${reason}`);
-    try { rmSync(rawFile, { force: true }); } catch {}
-    return { status: 'failed', reason };
-  }
-  const ing = assay(['ingest', outDir, '--tool', tool, '--raw', rawFile, '--exit', String(exit)]);
-  try { rmSync(rawFile, { force: true }); } catch {}
-  if (ing.status !== 0) {
-    const reason = `${tool} ran (exit ${exit}) but its report failed to ingest: ${String(ing.stderr || ing.stdout || '').trim().split('\n').slice(-3).join(' | ')}`;
-    log(`  ✗ ${reason}`);
-    return { status: 'failed', reason };
-  }
-  log(`  ✓ ${tool} ran (exit ${exit})`);
-  return { status: 'ran' };
-}
-
-// gitleaks is an external binary, not part of assay's own CLI — run it directly
-// when present; when it is not, skip it with the reason (CONTRACT.md §3a: an
-// adopted instrument may be absent from an environment, and its absence must be
-// RECORDED, never silently read as clean).
-function runGitleaks(repoDir, outDir, log) {
-  if (!which('gitleaks')) {
-    log('· gitleaks — binary not found on PATH, skipped');
-    return { status: 'skipped', reason: 'gitleaks binary not on PATH in the routine\'s runner' };
-  }
-  const rawFile = join(tmpdir(), `assay-routine-gitleaks-${process.pid}.json`);
-  log('· gitleaks …');
-  const r = spawnSync('gitleaks', ['detect', '--source', repoDir, '--report-format', 'json', '--report-path', rawFile, '--redact'], { encoding: 'utf8' });
-  const exit = r.status;
-  if (exit == null || (exit !== 0 && exit !== 1)) {
-    const reason = `gitleaks exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
-    log(`  ✗ gitleaks failed: ${reason}`);
-    try { rmSync(rawFile, { force: true }); } catch {}
-    return { status: 'failed', reason };
-  }
-  const ing = assay(['ingest', outDir, '--tool', 'gitleaks', '--raw', rawFile, '--exit', String(exit)]);
-  try { rmSync(rawFile, { force: true }); } catch {}
-  if (ing.status !== 0) {
-    const reason = `gitleaks ran (exit ${exit}) but its report failed to ingest: ${String(ing.stderr || ing.stdout || '').trim().split('\n').slice(-3).join(' | ')}`;
-    log(`  ✗ ${reason}`);
-    return { status: 'failed', reason };
-  }
-  log(`  ✓ gitleaks ran (exit ${exit})`);
-  return { status: 'ran' };
-}
-
-const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
+// The instrument sequencing itself (runAssayInstrument, runGitleaks,
+// drawOfflineMap) and the run-record writer (toScannersYaml) now live in
+// map/start.mjs — the same code `assay start` uses for a person starting a
+// run by hand. Re-exported here so nothing that imported them from this file
+// breaks; the routine's own header line keeps its exact original wording so a
+// routine-drawn scanners.yaml stays byte-identical to before the move.
+export { runAssayInstrument, runGitleaks, engineCommit };
 export function toScannersYaml(engine, rows) {
-  const L = ['# scanners.yaml — GENERATED by routine/run.mjs. The routine\'s own run record (SCHEMA.md §5a).', `engine: ${engine}`, 'scanners:'];
-  for (const [id, r] of Object.entries(rows)) {
-    L.push(`  ${id}:`, `    status: ${r.status}`);
-    if (r.reason) L.push(`    reason: ${q(r.reason)}`);
-  }
-  return L.join('\n') + '\n';
+  return toScannersYamlBase(engine, rows, '# scanners.yaml — GENERATED by routine/run.mjs. The routine\'s own run record (SCHEMA.md §5a).');
 }
 
 const NOT_RUN_BY_ROUTINE = 'not run by the routine; a steward session runs them';
+const GITLEAKS_ABSENT_IN_ROUTINE = 'gitleaks binary not on PATH in the routine\'s runner';
 
 // GITHUB_EVENT_NAME is what Actions sets for the trigger that fired the workflow
 // (schedule | push | pull_request | workflow_dispatch, …) — a steward's own
@@ -237,14 +174,12 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   // still gets written, with gate: not-run and the reason, rather than the run
   // directory carrying no record at all of what happened.
   try {
-  const scanners = {
-    'repo-eval': { status: 'skipped', reason: NOT_RUN_BY_ROUTINE },
-    'deep-code-review': { status: 'skipped', reason: NOT_RUN_BY_ROUTINE },
-  };
-  scanners['repo-census'] = runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log: say });
-  scanners['fresh-clone'] = runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: [repoDir, '--no-clone'], okExits: [0, 1], outDir, log: say });
-  scanners['dependency-scan'] = runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log: say });
-  scanners['gitleaks'] = runGitleaks(repoDir, outDir, say);
+  // The routine's own repoDir is already a fresh CI checkout (or --base-ref's
+  // working tree), so fresh-clone runs with --no-clone (in place) — exactly as
+  // before this sequencing moved to map/start.mjs (drawOfflineMap's
+  // freshCloneNoClone param; `assay start`, run against a person's own working
+  // tree, leaves it false and lets fresh-clone clone repoDir itself instead).
+  const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true }, say);
 
   writeFileSync(join(outDir, 'map', 'scanners.yaml'), toScannersYaml(engineCommit(), scanners));
 
