@@ -2,18 +2,21 @@
 
 **Evidence-based repository evaluation.** assay reads a codebase into a **map**
 of what exists and what is true of it, measures the map against a **yardstick**
-of requirements, and writes three **views** of the result:
+of requirements, and writes four **views** of the result:
 
 | View | The question | Page | Data |
 |---|---|---|---|
 | **Intake** | Can this repository be taken on, and what must be true first? | `INTAKE.md` | `views/intake.yaml` |
 | **Maintain** | Is it still healthy, and what do routines watch? | `MAINTAIN.md` | `views/maintain.yaml` |
 | **Improve** | What makes it better next? | `IMPROVE.md`, the axis walk, `handoff/` | `views/improve.yaml` |
+| **Owner** | What is true of my app, and what do I do first? | `OWNER.md` | `views/owner.yaml` |
 
-Every view is computed from the same map in one pass, so the three never
-disagree about the repository. Each writes a data file with a schema and a plain
-page; anything fancier (a branded report, a deck) is a template over the data
-file and lives with whoever publishes it.
+Every view is computed from the same map in one pass, so the four never
+disagree about the repository. Owner reads the same measurement in plain,
+non-engineer language — consequence first, no score, no grade, no verdict —
+for the person who built the app with an AI. Each writes a data file with a
+schema and a plain page; anything fancier (a branded report, a deck) is a
+template over the data file and lives with whoever publishes it.
 
 **The one rule that makes it honest: the map states what is; the views compute
 how good, how bad, how urgent.** A finding may record "this effect is
@@ -62,7 +65,10 @@ contract.
 **The views** (`views/`). Intake reads the floor requirements in tier order;
 Maintain reads the fleet requirements; Improve reads every requirement by topic
 and adds the maturity of each dimension, the attack paths through the code, and
-a fix prompt per gap. `views/README.md` gives each data file's schema.
+a fix prompt per gap; Owner reads the same floor and beyond-floor requirements
+in plain, non-engineer language, joined with a risk and a fix from the
+yardstick's own `owner:` register. `views/README.md` gives each data file's
+schema.
 
 **What the owner supplies** (`owner/`). Some requirements are about things a
 repository cannot show by itself: a restore was run, a rollback was exercised,
@@ -126,7 +132,7 @@ changed; both ways at once is judgment drift.
 assay.mjs        the command line
 map/             drawing the map: the finding format, the built-in method, scanners, instruments, validation
 yardstick/       the requirements, the measurement of one map against them, and comparing two (since/ratchet)
-views/           Intake, Maintain, Improve and Since, and the one compile that writes them
+views/           Intake, Maintain, Improve, Owner and Since, and the one compile that writes them
 owner/           what a repository's owner supplies that no scan can
 routine/         the routine a stewarded repository runs on its own schedule (GitHub Actions template + driver)
 lib/             shared helpers
