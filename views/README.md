@@ -1,22 +1,23 @@
 ---
 type: doc
-title: "views/ — Intake, Maintain and Improve: what each writes"
+title: "views/ — Intake, Maintain, Improve and Owner: what each writes"
 ---
 # views/
 
-Three views of one run, written by one command from the same measurement, plus a
-fourth — Since — of two runs, when there is a previous one to compare against:
+Four views of one run, written by one command from the same measurement, plus a
+fifth — Since — of two runs, when there is a previous one to compare against:
 
 ```sh
-node assay.mjs compile <run>                     # Intake, Maintain, Improve
+node assay.mjs compile <run>                     # Intake, Maintain, Improve, Owner
 node assay.mjs compile <run> --since <prev-run>  # + Since
 ```
 
 `compile` validates the map, measures it against the yardstick
 (`yardstick.yaml`), then writes every view and `INDEX.md`. A view decides no
 requirement on its own: it reads the measurement, joins each requirement's
-title, tier, topic and check from `yardstick/requirements.yaml`, and reads the
-run record for what was not seen. No view prices work or issues a verdict.
+title, tier, topic and check (and, for Owner, its `owner.risk` / `owner.fix`)
+from `yardstick/requirements.yaml`, and reads the run record for what was not
+seen. No view prices work or issues a verdict.
 
 Every list is in tier order (custody, safety, reproducibility, verification,
 legibility, operability), then in `requirements.yaml` order. Each data file is
@@ -62,6 +63,51 @@ tagged `fleet`: what a steward's routines read to keep a repository healthy
 without a person looking. Same shape as Intake (including `basis`, shown the
 same way on the page) minus `contradictions` (Intake-only), with `view:
 maintain` and `floor: true | false` on every row (whether Intake also reads it).
+
+## Owner: what is true of it?
+
+`views/owner.mjs` → `views/owner.yaml` and `OWNER.md`. The same measurement as
+Intake and Maintain, for the person who built the app with an AI and is not an
+engineer — consequence first, plain words, a term explained in a short clause
+the first time, no stack names, no tool names; no score, no grade, no verdict.
+The tier order (custody, safety, reproducibility, verification, legibility,
+operability) is the priority. The register lives once, on every row of
+`yardstick/requirements.yaml` (`owner.risk` / `owner.fix`); this view only
+joins it to the measurement.
+
+```yaml
+view: owner
+run: <run name>
+yardstick: <requirements.yaml version>
+counts: { floor_open, floor_not_measured, floor_met, beyond_floor_open, beyond_floor_not_measured, beyond_floor_met }
+floor:                # the same population Intake reads (tags: [floor])
+  open:
+    - { id, tier, topic, title, status, risk, fix, where: [F-…], check, reason }
+  not_measured:
+    - { id, tier, topic, title, status, risk, fix, where: [], check, decided_by, reason }
+  met:
+    - { id, tier, topic, title, status, risk, fix, where: [F-…], check, reason }
+beyond_floor:          # every requirement NOT tagged floor — fleet and ai-operating rows together
+  open: [...]
+  not_measured: [...]
+  met: [...]
+not_looked_at:         # every run-record row that did not run (map/scanners.yaml)
+  - { scanner, status, reason }
+```
+
+`status` is `unmet | mixed | met | not-measured` — the same statuses
+`yardstick.yaml` carries, never a score or a severity word. `where` is the
+measurement's own finding ids when the deciding mechanism produced any
+(instrument and some facet rows); a census or claim row decides over a named
+population or the owner's own word rather than individual findings, so
+`where` reads empty there and `reason` (the measurement's note) carries what
+there is to point at instead. `decided_by` names what would decide a
+`not_measured` row (a scanner, `census`, or `owner` for a claim only the
+owner can make) — present only there, the same convention as Intake's
+`to_run`. `OWNER.md` renders `floor` in full (one fix prompt per open row, in
+tier order) and `beyond_floor` compactly; its "Fix in this order" list and
+`floor.open` always agree by id and status with Intake's `open` list — same
+measurement, never a second opinion.
 
 ## Improve: what makes it better?
 
@@ -130,5 +176,5 @@ delta last.
 
 ## The index
 
-`INDEX.md` leads with the three pages, one line each with its counts, then lists
+`INDEX.md` leads with the four pages, one line each with its counts, then lists
 the data files and any scanner's native report kept as an appendix.

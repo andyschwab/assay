@@ -29,6 +29,7 @@ finding, never silently overwritten.
 | `check` | the proving check: what shows the requirement met |
 | `sources` | where the row was extracted from, as `<kind>/<slug>`: `floor/` a takeover floor, `manifest/` a template's guarantee manifest, `foundation/` a foundation template's rules, `takeover-eval/` and `template-eval/` evaluations of real repositories (never named), `method/` this method, `scanner-candidates/` the scanner roster, `issue/` an assay issue. Every row has one: requirements are extracted from practice, not designed |
 | `status` | draft, stable or deprecated: the row's own lifecycle |
+| `owner` | a nested `{ risk, fix }` block for the Owner view (`views/owner.mjs`, `OWNER.md`): `risk` is what could happen to the app's owner if the requirement stays unmet — consequence to a person first, plain words, a term explained in a short clause the first time, no stack names, no tool names, one or two sentences; `fix` is the next thing to do, one sentence, actionable by the owner's own AI. Never a score, a grade, or a severity word — the tier already carries the priority. Required on every row |
 
 ## The four deciding kinds
 

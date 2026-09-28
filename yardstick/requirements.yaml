@@ -30,6 +30,9 @@ requirements:
     check: the owner's packet (owner/ask-owner.md), one row per account (host, cloud, domain, data, mail, payments, model APIs, analytics, error tracking), each with an owner role and a transfer path
     sources: [floor/c-accounts]
     status: draft
+    owner:
+      risk: "If the logins for your hosting, domain, database, email, payments and AI provider are not written down with who owns each one, losing access to one person's account can mean losing the app or its data for good, with no way back in."
+      fix: "Have your AI list every paid or hosted account the app depends on, name who owns the login for each, and write down how ownership could be handed to someone else."
   - id: d-credentials-enumerated
     title: Every credential is enumerated and its boundary confirmed
     tier: custody
@@ -41,6 +44,9 @@ requirements:
     check: the credential census, one row per secret, boundary traced not guessed
     sources: [floor/c-credentials, manifest/d5-secrets-below-artifact, method/credential-census]
     status: draft
+    owner:
+      risk: "A key or password whose reach (what it is allowed to do) you have not confirmed might do far more than the app actually needs, for example delete everything instead of only reading it, so a single leak does more damage than it has to."
+      fix: "Have your AI list every key and password the app uses, and for each one confirm and write down exactly what it is allowed to do."
   - id: d-bus-factor
     title: More than one person can build, deploy, and recover the application
     tier: custody
@@ -51,6 +57,9 @@ requirements:
     check: an author census from history plus one deploy and one restore from a second machine
     sources: [floor/c-bus-factor]
     status: draft
+    owner:
+      risk: "If only one person can build, deploy, and recover the app, that person becoming unavailable (illness, a lost laptop, a falling-out) can leave the app stuck with nobody able to fix or even restart it."
+      fix: "Have a second person actually deploy the app and restore it from a backup, from their own machine, once, and write down what they needed."
 
   # ── safety: nothing destructive can happen unnoticed ─────────────────────
   - id: d-secrets-out-of-history
@@ -65,6 +74,9 @@ requirements:
     check: gitleaks over the full history exits clean; each prior leak has a rotation recorded
     sources: [floor/s-secrets, foundation/never-a-secret-in-a-file, manifest/invariants]
     status: draft
+    owner:
+      risk: "Anyone who ever gets a copy of the code gets any key written into it too, and the code's history remembers every past version forever, so deleting the line later does not undo it. That key can then be used to act as your app: read data, send mail, or run up a bill."
+      fix: "Have your AI search the whole project and its history for anything that looks like a password or key, move each one out of the code into the hosting platform's settings, and then replace (rotate) every key that was ever exposed."
   - id: d-routes-authorized
     title: Every route that touches data is behind server-side authorization
     tier: safety
@@ -77,6 +89,9 @@ requirements:
     check: a route census where every data route names its check; the code scanner's application-security domain clean
     sources: [floor/s-auth, takeover-eval/unauthenticated-paid-route]
     status: draft
+    owner:
+      risk: "If the check for who is allowed to see something lives only in what the screen shows and hides, anyone who knows how to ask the server directly, which is easy, can read or change any user's data, not just their own."
+      fix: "Have your AI review every place the app reads or writes data and confirm the server itself checks who is asking before it answers, not just the screen."
   - id: d-tenant-isolation-in-data-layer
     title: Scoping is enforced in the data layer, not only in the UI
     tier: safety
@@ -89,6 +104,9 @@ requirements:
     check: every scoped table carries its policy; the scanner's multi-tenancy domain clean
     sources: [foundation/structural-rule-3, takeover-eval/identity-re-derived]
     status: draft
+    owner:
+      risk: "If keeping one customer's or user's data separate from another's is enforced only in what the app displays, a bug or a direct request can show one person's data to another, even though the screen never would have."
+      fix: "Have your AI confirm that every shared table or store enforces which user or account owns each row where the data actually lives, not only in the app's screens."
   - id: d-dependencies-known-clean
     title: No known-critical dependency vulnerability is present
     tier: safety
@@ -104,6 +122,9 @@ requirements:
     check: dependency-scan (npm audit over every lockfile in the tree) reports no critical advisory
     sources: [floor/s-deps, scanner-candidates/core]
     status: draft
+    owner:
+      risk: "The app is built partly from other people's free code, and a known serious flaw in one of those pieces is a published weakness, not a secret one; anyone can look up how to exploit it."
+      fix: "Have your AI run the dependency check and fix or replace any package it flags as critically vulnerable."
   - id: d-effects-gated
     title: Every irreversible or outward effect runs behind a gate that holds
     tier: safety
@@ -115,6 +136,9 @@ requirements:
     check: the effect inventory shows zero halt-class effects without a gate that holds (doctrine.mjs)
     sources: [floor/s-effects-gated, manifest/d5-halt-tripwire, foundation/halts, takeover-eval/weekly-publish-unrecallable]
     status: draft
+    owner:
+      risk: "An action that cannot be undone or that reaches outside the app, sending an email, charging a card, deleting data, running with nothing standing in front of it means one bug or one bad input performs it for real, with no chance to catch it first."
+      fix: "Have your AI list every action that sends, charges, deletes, or otherwise cannot be undone, and add a check in front of each one that must pass before it runs."
   - id: d-effects-traced
     title: Every irreversible or outward effect leaves a durable record
     tier: safety
@@ -126,6 +150,9 @@ requirements:
     check: the effect inventory shows zero halt-class effects with no telemetry
     sources: [floor/s-effects-traced, foundation/structural-rule-2]
     status: draft
+    owner:
+      risk: "If a send, a charge, or a delete leaves no record, you cannot later tell whether it happened, when, or to whom, so when a customer says 'I never got that email' or 'I was charged twice,' you have nothing to check it against."
+      fix: "Have your AI make sure every send, charge, or delete writes a timestamped record you can look up afterward."
   - id: d-gates-fail-closed
     title: No gate is open when a dependency it needs is absent
     tier: safety
@@ -137,6 +164,9 @@ requirements:
     check: zero gated effects with fail_mode open; a gate whose secret or tool is missing goes red, never green
     sources: [foundation/never-skip-a-test, takeover-eval/privacy-gate-passes-unset, manifest/d3-guards-bite]
     status: draft
+    owner:
+      risk: "If a safety check quietly turns itself off when something it needs is missing, a setting, a key, a connection, instead of blocking the action, the app can look protected while actually running wide open, at the moment it is most likely to matter."
+      fix: "Have your AI test each safety check with its setting or key removed, and confirm the check blocks the action instead of letting it through."
   - id: d-capability-budget
     title: No single AI context holds untrusted input, private data, and an outward effect at once
     tier: safety
@@ -148,6 +178,9 @@ requirements:
     check: no capability finding holds all three legs and reaches an effect with no gate that holds
     sources: [floor/s-trifecta, manifest/d5-capability-budget, method/trifecta-screen]
     status: draft
+    owner:
+      risk: "If one AI-driven step can read something a stranger wrote, see private data, and also send or delete something, a stranger's note or message can instruct the AI to leak that data or take that action, because to the model the words in the data and the words in its instructions look the same."
+      fix: "Have your AI redesign any single step that reads outside text, sees private data, and can act, so a person confirms before the action, or split reading from acting into separate steps."
   - id: d-personal-data-enumerated
     title: Personal data held is enumerated, and nothing is stored the product never needed
     tier: safety
@@ -160,6 +193,9 @@ requirements:
     check: a personal-data census over stores and schemas; the scanner's privacy domain clean
     sources: [floor/s-personal-data]
     status: draft
+    owner:
+      risk: "Without a written list of what personal information the app stores (names, emails, notes, locations), you cannot tell people what you hold about them, cannot delete it properly if asked, and are more likely to be keeping things you never actually needed."
+      fix: "Have your AI list every place personal data is stored in the app, and remove anything that is not actually used."
   - id: d-backup-restore-exercised
     title: Backups exist and a restore has been performed
     tier: safety
@@ -172,6 +208,9 @@ requirements:
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/s-backup, foundation/nightly-restore]
     status: draft
+    owner:
+      risk: "If backups exist but nobody has ever restored from one, you do not actually know they work; the first time you find out is the day you need them and they fail."
+      fix: "Take a backup, restore it into a throwaway copy of the app, confirm the data is really there, and write down what you did."
   - id: d-ingested-content-is-data
     title: Ingested content is stored verbatim, rendered escaped, and never acted on as instructions
     tier: safety
@@ -182,6 +221,9 @@ requirements:
     check: every table holding outside text carries its provenance trio; no code path executes a directive read from content
     sources: [foundation/ingested-content-is-data, method/acting-from]
     status: draft
+    owner:
+      risk: "If text the app pulls in from outside (a note, an email, a web page) can be treated as commands rather than as content, anyone who can get text into the app can quietly steer what the app or its AI does."
+      fix: "Have your AI confirm that anything read in from outside is only ever displayed or analyzed, never executed as an instruction, anywhere in the app."
 
   # ── reproducibility: it runs on a machine that is not yours ──────────────
   - id: d-fresh-clone-runs
@@ -196,6 +238,9 @@ requirements:
     check: the fresh-clone install and build steps both read passed from a clean checkout (map/fresh-clone.mjs), root and every workspace
     sources: [floor/r-fresh-clone]
     status: draft
+    owner:
+      risk: "If the app does not reliably start from a plain copy of the code on a different computer, you depend on the one machine that happens to still have it working; losing that machine can mean losing the ability to run or fix your app at all."
+      fix: "On a clean checkout of the code, on a different machine if possible, follow your own setup instructions exactly and fix anything that does not work."
   - id: d-config-declared
     title: Configuration is declared once and nothing environment-specific is hardcoded
     tier: reproducibility
@@ -208,6 +253,9 @@ requirements:
     check: the env example is complete against the code's reads; the scanner's config domain clean
     sources: [floor/r-config, foundation/config-stated-once]
     status: draft
+    owner:
+      risk: "If settings that differ between your computer and the live app (addresses, keys, feature switches) are baked into the code instead of declared in one place, moving the app to a new environment silently carries over the wrong settings, or breaks it."
+      fix: "Have your AI move every environment-specific value out of the code and into one declared settings list, with an example file showing what each one is."
   - id: d-dependencies-pinned
     title: Dependencies and the toolchain are pinned, and CI actions by commit
     tier: reproducibility
@@ -220,6 +268,9 @@ requirements:
     check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA
     sources: [floor/r-deps-pinned, foundation/lockfile-and-nvmrc]
     status: draft
+    owner:
+      risk: "If the exact versions of the tools and packages the app depends on are not locked, the app you test today may not be the app that actually gets built or deployed tomorrow; an update nobody chose can quietly change behavior."
+      fix: "Have your AI confirm every dependency and the automated setup use pinned, exact versions rather than 'latest'."
   - id: d-deploy-one-command
     title: One documented command deploys, and what runs is what is committed
     tier: reproducibility
@@ -232,6 +283,9 @@ requirements:
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/r-deploy, foundation/deploy-and-promote]
     status: draft
+    owner:
+      risk: "If deploying takes more than one documented step, or what gets deployed is not provably the same code that is committed, you cannot be sure the live app matches what you or anyone else reviewed."
+      fix: "Have your AI write one documented command or button that deploys the app, and confirm the deployed version matches exactly what is committed."
   - id: d-rollback-exercised
     title: A rollback path exists and has been exercised
     tier: reproducibility
@@ -244,6 +298,9 @@ requirements:
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check
     sources: [floor/r-rollback, foundation/promote]
     status: draft
+    owner:
+      risk: "If you have never actually gone back to a previous version, a bad release can leave the app broken for everyone with no proven way back, exactly when you are under the most pressure to fix it fast."
+      fix: "Deploy a small change, then roll it back to the previous version using your documented process, and confirm the app still works afterward."
   - id: d-schema-versioned
     title: The schema is versioned and migrations replay from empty
     tier: reproducibility
@@ -256,6 +313,9 @@ requirements:
     check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signals anywhere in the tree the runner emits no migrate row, so it reads met — nothing to migrate
     sources: [floor/r-migrations, foundation/never-hand-apply-a-migration]
     status: draft
+    owner:
+      risk: "If the shape of your stored data is not tracked in files that can rebuild it from nothing, restoring from a backup, moving to a new host, or bringing on a second developer can leave you unable to recreate the database at all."
+      fix: "Have your AI put every change to the data's shape into tracked files that can replay from an empty database, and confirm they do."
 
   # ── verification: something other than a person catches a regression ────
   - id: d-tests-execute-core
@@ -270,6 +330,9 @@ requirements:
     check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout; a suite that skips its core when a variable is unset is unmet
     sources: [floor/v-tests, manifest/d3-gates-live, foundation/pnpm-check]
     status: draft
+    owner:
+      risk: "If the automated tests do not actually run their real checks on a clean machine, 'all tests passed' can be true while the app is broken; the green checkmark is telling you nothing."
+      fix: "On a clean checkout, run the test command and confirm it actually executes the real checks rather than skipping them."
   - id: d-ci-gate-on-default-branch
     title: A CI check on the default branch runs the gates and fails closed
     tier: verification
@@ -282,6 +345,9 @@ requirements:
     check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
     sources: [floor/v-ci, foundation/branch-protection]
     status: draft
+    owner:
+      risk: "Without an automatic check that runs on every change to the main version of the app and blocks anything that fails, a broken change can reach the live app before a person happens to notice."
+      fix: "Have your AI set up an automatic check that runs the tests on every change and blocks it from merging if anything fails."
   - id: d-guards-bite
     title: Every shipped check carries a negative fixture that fails when the check is disabled
     tier: verification
@@ -292,6 +358,9 @@ requirements:
     check: the self-test flips red when any one check is weakened
     sources: [manifest/d3-guards-bite]
     status: draft
+    owner:
+      risk: "A safety check that has never been proven to actually catch anything might be doing nothing at all; it looks reassuring but has never been tested against the thing it is supposed to catch."
+      fix: "For each safety check, deliberately break the thing it is supposed to catch and confirm the check turns red."
   - id: d-lint-typecheck-gate
     title: Lint and typecheck gates exist and pass
     tier: verification
@@ -304,6 +373,9 @@ requirements:
     check: the fresh-clone lint and typecheck steps both read passed from a clean checkout; never the raw output
     sources: [floor/v-lint, scanner-candidates/inverted-mode]
     status: draft
+    owner:
+      risk: "Without automatic checks that catch obvious mistakes (typos, wrong kinds of values) before they ship, small careless errors that a machine could catch in seconds reach the live app instead."
+      fix: "Have your AI add and confirm automatic style and type checks run and pass on a clean copy of the code."
   - id: d-smoke-on-deployed
     title: A smoke check proves the deployed application comes up and the main path works
     tier: verification
@@ -316,6 +388,9 @@ requirements:
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check
     sources: [floor/v-smoke, foundation/doctor]
     status: draft
+    owner:
+      risk: "If nothing actually checks that the live, deployed app comes up and its main feature works, a broken deploy can sit there unnoticed until a real user hits it."
+      fix: "Set up a simple check that hits the live app after every deploy and confirms the main path works, and run it once now."
   - id: d-effects-provable
     title: Every effect can prove it happened, deterministically, from outside the AI
     tier: verification
@@ -327,6 +402,9 @@ requirements:
     check: effects with a structured or audited record, of all effects
     sources: [method/verification-measure]
     status: draft
+    owner:
+      risk: "If an important action (a send, a charge) cannot prove afterward that it actually happened, using something other than the AI's own claim, you are trusting the AI's word for something that may have failed silently."
+      fix: "Have your AI make sure every important action writes a record that something outside the AI itself (a log, a receipt) can check afterward."
   - id: d-contract-test-per-vendor
     title: Every external system reached has a recorded contract test against its sandbox
     tier: verification
@@ -337,6 +415,9 @@ requirements:
     check: one contract test per vendor; the null adapter every spec runs on
     sources: [foundation/integrations-guide, takeover-eval/no-provider-contract]
     status: draft
+    owner:
+      risk: "If you have never tested against a real outside service's own test environment, your code might work against your own assumptions about that service while breaking the moment it talks to the real thing."
+      fix: "Have your AI write and run one test against each outside service's own sandbox or test mode, not just a fake stand-in."
   - id: d-effect-sites-tested
     title: The code paths that produce effects are exercised by tests
     tier: verification
@@ -347,6 +428,9 @@ requirements:
     check: each effect channel's driver has a test that exercises the site where the effect is decided
     sources: [takeover-eval/cascade-driver-untested]
     status: draft
+    owner:
+      risk: "If the exact code that decides whether to send, charge, or delete is never exercised by a test, you are relying on nobody ever breaking it, and eventually someone will, without anyone noticing."
+      fix: "Have your AI add a test that specifically exercises the code path where each send, charge, or delete decision is made."
   - id: d-change-carries-verification
     title: Every change lands with its own verification stated
     tier: verification
@@ -357,6 +441,9 @@ requirements:
     check: the PR template's verification section is mandatory and CI refuses an empty one
     sources: [manifest/d4-verification-rhythm, foundation/pr-template]
     status: draft
+    owner:
+      risk: "If nobody has to say how a change was checked before it ships, changes can merge on hope rather than on having actually been verified."
+      fix: "Require every change to state how it was checked before it can be merged, and have your AI refuse to skip that."
 
   # ── legibility: someone else can find their way in ───────────────────────
   - id: d-readme-true
@@ -370,6 +457,9 @@ requirements:
     check: concrete doc claims replayed in the fresh-clone run
     sources: [floor/l-readme, method/docs-freshness-probe]
     status: draft
+    owner:
+      risk: "If your setup instructions describe commands or features that do not actually work, the next person, or the next AI session, will trust them, waste time, or ship something broken because they believed the instructions."
+      fix: "Run every command your setup instructions describe, on a clean copy, and fix or remove any that do not actually work."
   - id: d-decisions-reconstruct
     title: Non-obvious decisions reconstruct their rationale from the files alone
     tier: legibility
@@ -381,6 +471,9 @@ requirements:
     check: the decision census, n decisions frozen before assessment
     sources: [floor/l-decisions, manifest/d1-decision-container, method/pass-1]
     status: draft
+    owner:
+      risk: "If the reasoning behind a non-obvious choice lives only in someone's memory or a chat history, that reasoning is gone the moment they are not available, and the next person may undo a decision that was made for a good reason."
+      fix: "Have your AI write down, next to the code, why each non-obvious decision was made, so someone new could understand it from the files alone."
   - id: d-modules-standalone
     title: A bounded context can load one module alone with something to read and something to run
     tier: legibility
@@ -392,6 +485,9 @@ requirements:
     check: the module census
     sources: [method/pass-2]
     status: draft
+    owner:
+      risk: "If understanding one part of the app requires holding the whole thing in your head, or an AI's working memory, at once, every small task becomes expensive, and mistakes creep in from parts nobody could actually see at the same time."
+      fix: "Have your AI confirm each major part of the app has something to read and something to run on its own, without needing the rest of the app loaded."
   - id: d-architecture-page
     title: One page shows the parts, the data flow, and the external services
     tier: legibility
@@ -404,6 +500,9 @@ requirements:
     check: the repo census, an architecture page present (root and per app in a monorepo) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
     sources: [floor/l-architecture, foundation/docs-architecture]
     status: draft
+    owner:
+      risk: "Without one page showing what the app is made of and what outside services it talks to, a new person, or a new AI session, has to reverse-engineer that from scratch every time, and easily misses an outside service that matters."
+      fix: "Have your AI write one page naming the app's parts, how data flows between them, and every outside service it depends on."
   - id: d-agent-contract
     title: An agent contract exists, is present-tense, and is the home for house rules
     tier: legibility
@@ -416,6 +515,9 @@ requirements:
     check: the repo census, AGENTS.md or CLAUDE.md present (root and per app in a monorepo) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
     sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, foundation/CLAUDE.md]
     status: draft
+    owner:
+      risk: "Without one clear, current page of house rules for anyone, human or AI, working on the app, habits and decisions drift, and each new session or person re-guesses the rules instead of following them."
+      fix: "Have your AI write one present-tense page stating the house rules for working on this app, and keep it current rather than a history log."
   - id: d-one-home-per-fact
     title: Each fact the system relies on has one authoritative home, in docs and in code
     tier: legibility
@@ -426,6 +528,9 @@ requirements:
     check: a docs guard refuses a second account of a list; in code, one store per remembered fact
     sources: [foundation/where-things-are-written, takeover-eval/one-fact-many-memories]
     status: draft
+    owner:
+      risk: "If the same fact, a list of accounts, a set of rules, is written down in two places, they will eventually disagree, and nobody will know which one is true."
+      fix: "Have your AI find every fact that is duplicated across the docs or code and consolidate each one to a single authoritative place."
 
   # ── operability: we can see it and afford it ─────────────────────────────
   - id: d-errors-reach-a-person
@@ -440,6 +545,9 @@ requirements:
     check: an error sink configured and one induced error observed arriving
     sources: [floor/o-errors]
     status: draft
+    owner:
+      risk: "If errors only print to a log nobody watches, the app can be failing for real users right now and you would only find out when they complain, if they bother to."
+      fix: "Set up a place that collects errors from the running app, and deliberately cause one error to confirm it actually arrives there."
   - id: d-monitoring-with-alert
     title: Uptime or smoke monitoring exists with an alert route that has been tested
     tier: operability
@@ -452,6 +560,9 @@ requirements:
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check
     sources: [floor/o-monitoring]
     status: draft
+    owner:
+      risk: "Without a check that watches whether the app is actually up, and an alert proven to reach a real person, the app can go down and stay down until a user happens to notice and tell you."
+      fix: "Set up an uptime or health check with an alert to a person, then deliberately trigger it once and confirm the alert arrives."
   - id: d-cost-alerts
     title: Cost alerts exist on every metered account from day one
     tier: operability
@@ -464,6 +575,9 @@ requirements:
     check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check
     sources: [floor/o-cost, foundation/budgets]
     status: draft
+    owner:
+      risk: "A hosting plan, database, or AI provider with no spending limit or alert means a bug, a loop, or someone else using a leaked key can run up a bill far larger than expected before anyone notices."
+      fix: "On every account the app pays for, turn on a spending alert with a threshold and a recipient, today."
   - id: d-runbook
     title: A one-page runbook covers restart, roll back, rotate a key, restore
     tier: operability
@@ -476,6 +590,9 @@ requirements:
     check: the repo census, the runbook present with a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup; each procedure having been run once stays the owner's evidence
     sources: [floor/o-runbook, foundation/RUNBOOKS.md]
     status: draft
+    owner:
+      risk: "Without a written page covering how to restart the app, undo a bad release, replace a leaked key, and restore from backup, an outage becomes a from-scratch investigation instead of following steps that already exist."
+      fix: "Have your AI write one page covering how to restart, roll back, replace a key, and restore from backup."
   - id: d-health-read
     title: One command reports the whole foundation green or red with a reason
     tier: operability
@@ -486,6 +603,9 @@ requirements:
     check: the doctor script, same output shape on every application
     sources: [foundation/doctor]
     status: draft
+    owner:
+      risk: "Without one command that tells you the whole app is healthy or names exactly what is wrong, checking on the app after a change means guessing what to look at, and things get missed."
+      fix: "Have your AI add one command that checks the whole app and reports healthy, or exactly what is wrong."
   - id: d-every-run-terminates
     title: Every automated run ends red or green with a reason, never hangs
     tier: operability
@@ -496,6 +616,9 @@ requirements:
     check: every job declares a timeout; a stall is a red check in minutes
     sources: [foundation/red-means-stop, foundation/deploy-timeouts]
     status: draft
+    owner:
+      risk: "An automated job that can hang forever instead of failing with a reason ties up time and money and hides the fact that something actually went wrong."
+      fix: "Have your AI add a time limit to every automated job, so a stall shows up as a clear failure within minutes."
   - id: d-backlog-is-issues
     title: The backlog is the repository's issues, labelled by need-by, kind, and size, and the merge empties it
     tier: operability
@@ -506,6 +629,9 @@ requirements:
     check: no list file carries rows; every PR closes the issues it finishes; the label set is the shared one
     sources: [foundation/docs-backlog, manifest/d7-coordination-adapter]
     status: draft
+    owner:
+      risk: "If outstanding work lives scattered across notes and files instead of one tracked list, things get forgotten or done twice, and nobody has one place to see what is still open."
+      fix: "Have your AI move every outstanding to-do into the repository's tracked issue list and remove the scattered notes."
   - id: d-foundation-asks-swept
     title: Asks of the platform owner are marked at the code site and swept before they go stale
     tier: operability
@@ -516,6 +642,9 @@ requirements:
     check: the marker sweep runs with a staleness threshold and goes red past it
     sources: [foundation/foundation-asks]
     status: draft
+    owner:
+      risk: "A request left as a comment in the code for someone else to handle, with nobody checking it periodically, can sit forgotten for months, quietly blocking something that was supposed to happen."
+      fix: "Have your AI find every such request left in the code, and set up a periodic check that flags any left unresolved too long."
   - id: d-template-partition-synced
     title: The template-owned partition is declared, synced from the template, and guarded on both sides
     tier: operability
@@ -526,6 +655,9 @@ requirements:
     check: the sync manifest present; the guard test red on a template-owned file edited locally
     sources: [foundation/template-sync]
     status: draft
+    owner:
+      risk: "If a shared starting template updates its own files and yours have silently drifted from it with no boundary enforced, you can lose fixes or protections the template added without knowing it happened."
+      fix: "Have your AI declare which files are template-owned, and add a check that flags if they are edited locally without syncing."
   - id: d-template-currency
     title: The application knows which template version it carries and when it is behind
     tier: operability
@@ -536,6 +668,9 @@ requirements:
     check: a template commit stamp, a sync check that exits non-zero on drift, a currency line in the health read
     sources: [template-eval/F-107]
     status: draft
+    owner:
+      risk: "Not knowing which version of a shared starting template your app is built from means you cannot tell when it has fallen behind on a fix or improvement everyone else already has."
+      fix: "Have your AI record which template version the app is on and add a check that flags when a newer one is available."
   - id: d-red-main-stops-work
     title: A red run on the default branch is the work now, before anything else merges
     tier: operability
@@ -546,6 +681,9 @@ requirements:
     check: the contract states it; the default branch's latest runs are green at every merge
     sources: [foundation/red-means-stop]
     status: draft
+    owner:
+      risk: "If a broken check on the main version of the app does not stop everything else, more work piles on top of a broken foundation, and untangling it later gets harder the longer it is ignored."
+      fix: "Agree, and write down, that a broken check on the main version is fixed before anything else merges, and confirm the main version is currently passing."
 
   # ── ai-operating: the model-call layer, on top of any foundation ─────────
   - id: d-effect-channels-enumerated
@@ -558,6 +696,9 @@ requirements:
     check: a canon file names the channels, AI surfaces, and census subject types; the run reads it rather than re-deriving
     sources: [method/canon, method/enumerate]
     status: draft
+    owner:
+      risk: "Without one written list of every way an AI feature can cause a real-world effect (sending, paying, deleting), it is easy to miss one when reviewing what could go wrong; you cannot check a channel you did not know existed."
+      fix: "Have your AI list every channel through which an AI feature in the app can send, pay, delete, or otherwise act, in one place."
   - id: d-model-call-telemetry
     title: Every model call emits a structured record with tier, spend, and outcome
     tier: verification
@@ -568,6 +709,9 @@ requirements:
     check: one record per call in a machine-readable sink; spend metered per work class
     sources: [manifest/d6-telemetry-native, method/spend-meter]
     status: draft
+    owner:
+      risk: "Without a record of every call made to an AI model, what it cost, which tier, what happened, a cost spike or a bad response has no trail to investigate, and spending can run away unnoticed."
+      fix: "Have your AI make every model call write a record of which model, what it cost, and what the outcome was, to one place you can look up."
   - id: d-model-qualification
     title: Model and tier choices are recorded with rationale and re-qualified when models ship
     tier: verification
@@ -578,6 +722,9 @@ requirements:
     check: a qualification record per model in use, dated, with the re-qualification trigger named
     sources: [method/pass-2-spend]
     status: draft
+    owner:
+      risk: "Using an AI model without having checked it actually works well for what you are asking it to do, and without re-checking when a newer model comes out, means quality can quietly degrade without anyone deciding to accept that."
+      fix: "Have your AI write down which model is used for what, why, and what would trigger re-checking it."
   - id: d-calibration-harness
     title: Any skill or rubric the application relies on is hardened by measurement, not assumed repeatable
     tier: verification
@@ -588,6 +735,9 @@ requirements:
     check: a frozen input run blind n times with the divergence disposed into named classes
     sources: [manifest/d4-eval-seed, method/calibration-probe]
     status: draft
+    owner:
+      risk: "If a skill or a scoring rule the app leans on has never been tested for how consistent it actually is, you are assuming it behaves the same way every time when it may not, and you would have no way to know."
+      fix: "Run the same input through the skill or rule several times and record how much the results actually differ."
   - id: d-ai-feature-evals
     title: Shipped AI features carry evals for answer quality
     tier: verification
@@ -598,6 +748,9 @@ requirements:
     check: an eval config present and run in CI for each AI feature; a dynamic scanner is the eventual instrument
     sources: [scanner-candidates/dynamic-tier, issue/2]
     status: draft
+    owner:
+      risk: "Shipping an AI feature with nothing checking the quality of its answers means a change to the model or the prompt can quietly make it worse, and nobody would notice until a user does."
+      fix: "Have your AI write a small set of example checks for each AI feature's answer quality, and run them automatically."
   - id: d-ai-disclosure
     title: AI involvement is disclosed to the audience's norms, structurally where the audience requires it
     tier: safety
@@ -608,6 +761,9 @@ requirements:
     check: each outward channel names its disclosure mechanism or records why none is needed
     sources: [method/authorship-probe]
     status: draft
+    owner:
+      risk: "If people interacting with an AI-driven part of the app do not know they are talking to one, and your audience expects to know that, you can lose their trust the moment they find out."
+      fix: "For every place the app shows AI-generated content or replies to people, name how it discloses that, or write down why it does not need to."
   - id: d-agent-consumable-surface
     title: Every capability is reachable by an agent through an API or format contract, not only a human UI
     tier: legibility
@@ -619,6 +775,9 @@ requirements:
     check: the interface census, interfaces consumable by an agent of all interfaces
     sources: [manifest/d7-agent-surface, manifest/d7-format-contracts, foundation/structural-rule-4]
     status: draft
+    owner:
+      risk: "If every capability of the app is only reachable by clicking through a human screen, no automated tool or AI assistant can use it on your behalf, which limits what can be automated later."
+      fix: "Have your AI list which capabilities have no non-screen way to reach them, and add one where it matters."
   - id: d-corrections-become-mechanisms
     title: Recorded lessons become durable mechanisms rather than notes
     tier: legibility
@@ -630,6 +789,9 @@ requirements:
     check: the incident census, lessons that became a mechanism of lessons recorded
     sources: [manifest/d6-correction-capture, foundation/lesson-with-its-incident]
     status: draft
+    owner:
+      risk: "A lesson learned from a past mistake that only lives as a note, rather than as something the system enforces, gets forgotten, and the same mistake happens again."
+      fix: "Have your AI turn your most recently recorded lessons into an actual enforced check rather than leaving them as notes."
   - id: d-independent-review
     title: Non-trivial work is reviewed by a context that did not produce it before it merges
     tier: verification
@@ -640,3 +802,6 @@ requirements:
     check: the review step present in the contract and evidenced on merged PRs
     sources: [manifest/d4-independent-review]
     status: draft
+    owner:
+      risk: "Work that ships without anyone, or anything, other than whoever built it looking it over is more likely to carry a mistake the builder was too close to see."
+      fix: "Require a review by a different person or a fresh AI session before non-trivial work merges, and confirm it happened on your last few changes."

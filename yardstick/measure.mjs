@@ -73,6 +73,10 @@ export function validateYardstick(reg) {
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
     if (!Array.isArray(d.sources) || !d.sources.length) errors.push(`${at}: sources required (extracted, not designed)`);
     if (!['draft', 'stable', 'deprecated'].includes(d.status)) errors.push(`${at}: status must be draft|stable|deprecated`);
+    // owner.risk / owner.fix — the Owner view's register (yardstick/README.md, views/owner.mjs):
+    // required on every row, fail-closed, the same as check/sources above — a row with no
+    // owner register would read as an owner page with a blank line, never an absence.
+    if (!d.owner || !d.owner.risk || !d.owner.fix) errors.push(`${at}: owner.risk and owner.fix required (the Owner view's register)`);
   }
   return errors;
 }
