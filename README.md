@@ -30,7 +30,7 @@ repository ─ scanners and instruments ─▶ map/ ─▶ yardstick/ ─▶ vie
    populations, attack paths, and a  ─────┘          │            └ Improve
    record of what was not looked at                  │
                   requirements, each decided from the map:
-                  met · unmet · mixed · not measured
+                  met · unmet · mixed · not measured · not applicable
 ```
 
 **The map** (`map/`). Scanners of two kinds draw it. **Peer scanners** bring
