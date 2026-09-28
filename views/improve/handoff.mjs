@@ -148,12 +148,14 @@ function claimBlock(p) {
   return out.join('\n');
 }
 // the two proofs every remedy carries (§3): what the repo's OWN team can run (no assay),
-// and what the next assay run checks. `doneWhen` (roadmap items only) leads Your-proof.
+// and what the next assay run checks. A roadmap item's authored `done_when` IS its proof: the
+// reviewer's specific finish beats the scanners' generic one, so the adapters' client proofs
+// stand in only when the item has none.
 function proofBlock(ps, doneWhen = []) {
   const gapPs = ps.filter((p) => p.f.polarity === 'gap');
   const yourParts = [];
   if (doneWhen.length) yourParts.push(doneWhen.map((d) => `- ${clean(d)}`).join('\n'));
-  const cp = gapPs.length ? clientProofFor(adapters, gapPs) : [];
+  const cp = !doneWhen.length && gapPs.length ? clientProofFor(adapters, gapPs) : [];
   if (cp.length) yourParts.push(cp.join(' '));
   const yourText = yourParts.length ? yourParts.join('\n\n') : '_No machine-checkable proof declared for this item; confirm the change against the approach chosen above._';
   const ourText = gapPs.length ? proofFor(gapPs) : 'No open gap in this item to re-check.';
@@ -421,20 +423,25 @@ Open each file above and confirm which reported secrets are real, live credentia
 false positives (test fixtures, already-rotated values, placeholders). Ask me if a file's
 purpose is unclear, and wait.
 
-## Step 2 — Rotate the live ones first
+## Step 2 — Prepare the rotation of the live ones; a person performs it
 
-For every hit confirmed live, rotate the credential now — before any history rewrite —
-assuming it is burned.
+Rotating a credential and rewriting history both reach outside this checkout and cannot be
+undone, so neither is yours to do. For every hit confirmed live, write down the credential's
+account, where the new value will live, and every place that reads it, and hand me that list:
+I rotate each one, first, assuming it is burned. When the application is changing hands,
+rotating every credential at the handover makes the history's old values dead in one act.
 
-## Step 3 — Purge or suppress, with the reason recorded
+## Step 3 — Suppress the dead ones, and propose the purge
 
-For each hit: purge it from history, or suppress it in \`.gitleaksignore\` with the reason a
-person confirmed it is not a live secret. Do not choose silently — tell me which you did,
+For each hit that is not a live secret (a fixture, a placeholder, a value already rotated),
+add it to \`.gitleaksignore\` with the reason a person confirmed. For history, propose; do not
+rewrite: say whether a purge is still worth its cost once nothing in history is live, and
+what it would take (every clone re-cloned, open branches rebased). Tell me which you chose,
 per file.
 
 ## Step 4 — Prove it
 
-${proofBlock(s.ps)} Summarize what you rotated, purged, and suppressed.
+${proofBlock(s.ps)} Summarize what you found live (and handed me to rotate), what you suppressed and why, and your proposal on history.
 `;
 }
 

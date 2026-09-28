@@ -3029,6 +3029,17 @@ function adaptersOnce() { return loadAdapters(); }
   if (!/npm audit --package-lock-only/.test(lockBody)) fail(`the lockfile plan must carry dependency-scan's declared client_proof (got:\n${lockBody.slice(0, 400)})`);
   if (/\{paths\}|\{dirs\}/.test(lockBody)) fail(`dependency-scan's client_proof {paths}/{dirs} placeholders must be filled, never left literal (got:\n${lockBody.slice(0, 400)})`);
 
+  // 4b. irreversible acts stay a person's: the triage prompt prepares rotation and proposes a
+  // purge, never performs either; a roadmap item's authored done_when is its whole proof (the
+  // adapters' generic client proof never dilutes it)
+  const triageBody = existsSync(join(planDir, '02-triage-gitleaks.md')) ? readFileSync(join(planDir, '02-triage-gitleaks.md'), 'utf8') : '';
+  if (/rotate the credential now|purge it from history/i.test(triageBody)) fail('the triage prompt must never have the agent rotate a credential or rewrite history itself');
+  if (!/a person performs it/.test(triageBody) || !/propose; do not\s+rewrite/.test(triageBody)) fail(`the triage prompt must hand rotation to a person and only propose a purge (got:\n${triageBody.slice(0, 600)})`);
+  const roadPlan = plans.find((p) => /^01-/.test(p));
+  const roadBody = roadPlan ? readFileSync(join(planDir, roadPlan), 'utf8') : '';
+  const roadYours = (roadBody.split('**Your proof**')[1] || '').split('**Our re-check**')[0];
+  if (!/package\.json declares a lint script/.test(roadYours) || /From a fresh clone|A test in the repository/.test(roadYours)) fail(`a roadmap item's Your proof must be its done_when alone (got: ${roadYours})`);
+
   // 5. the stderr note fires for the uncovered Critical (and the uncovered triage item)
   if (!/does not cover/.test(hRun.stderr) || !/F-1000/.test(hRun.stderr)) fail(`handoff.mjs must print a stderr note naming the uncovered Critical F-1000 (got: ${hRun.stderr})`);
   if (!/gitleaks triage item/.test(hRun.stderr)) fail(`handoff.mjs's note must also name the uncovered gitleaks triage item (got: ${hRun.stderr})`);
