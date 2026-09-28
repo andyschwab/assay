@@ -51,7 +51,8 @@ import { join } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
-import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath } from '../lib/run-layout.mjs';
+import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
+import { setScannerRow } from './record.mjs';
 
 // ── tool profiles ────────────────────────────────────────────────────────────
 // okExits: the tool's documented success exits (anything else = tool error, halt).
@@ -663,12 +664,12 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const runDir = args[0];
   const opt = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
-  const tool = opt('--tool'), rawPath = opt('--raw'), exit = opt('--exit'), start = opt('--start'), stripPrefix = opt('--strip-prefix');
+  const tool = opt('--tool'), rawPath = opt('--raw'), exit = opt('--exit'), start = opt('--start'), stripPrefix = opt('--strip-prefix'), model = opt('--model');
   const exitless = tool && PROFILES[tool] && PROFILES[tool].exitless;
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>]');
-    console.error('       node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]');
+    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--model <id>]');
+    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--model <id>]');
+    console.error('       node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
     process.exit(2);
   }
   const rawText = readFileSync(rawPath, 'utf8');
@@ -690,4 +691,19 @@ if (isMain(import.meta.url)) {
   writeFileSync(dst, toYaml(rows, tool, exit, rows.skipped, startNote));
   if (rows.coverage) { mkdirSync(coverageDir(runDir), { recursive: true }); writeFileSync(coveragePath(runDir, tool), coverageYaml(rows.coverage)); }
   console.log(`✓ ingested ${rows.length} ${tool} row(s) → ${dst}${rows.coverage ? ` + map/coverage/${tool}.yaml (${Object.keys(rows.coverage.coverage).length} domain rows)` : ''}${rows.skipped && rows.skipped.length ? ` (${rows.skipped.length} N/A check(s) logged in header)` : ''}${rows.length === 0 ? ` — verified-clean run (${exitless ? 'full coverage, empty findings' : 'success exit, empty report'}), recorded explicitly` : ''}`);
+
+  // Keep the run record current: a run started with `assay start` (or the
+  // routine) already carries map/scanners.yaml, listing this tool as not yet
+  // run — a successful ingest IS that tool running, so flip its row to ran
+  // here rather than leaving a person to remember `record` afterward. A run
+  // with no scanners.yaml (e.g. the routine's own sequencing, which writes the
+  // manifest only after every instrument has been ingested) is untouched —
+  // exactly today's behavior.
+  const mPath = scannersPath(runDir);
+  if (existsSync(mPath)) {
+    const before = readFileSync(mPath, 'utf8');
+    const { text: after } = setScannerRow(before, tool, 'ran', { model: model ?? undefined });
+    writeFileSync(mPath, after);
+    console.log(`✓ recorded ${tool} ran in map/scanners.yaml`);
+  }
 }

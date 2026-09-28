@@ -324,6 +324,15 @@ indistinguishable from one that ran clean, and the package reads as coverage tha
 never happened — which is exactly how a full package once shipped with its queued
 code scanner never run and nothing saying so.
 
+`node assay.mjs start --out <run> [<target>]` (`map/start.mjs`) writes this file:
+it draws a run with every instrument assay can run offline on its own and records
+every other adopted scanner skipped, plainly, with how to record it once it has
+run. From there, `ingest` flips a scanner's row to `ran` as it lands that
+scanner's report, and `node assay.mjs record <run> <scanner> ran|skipped|failed
+[--reason "<text>"] [--model <id>]` (`map/record.mjs`) sets one row directly — a
+judgment scanner's own review, a skip decision — leaving every other row and the
+file's own comments untouched.
+
 ```yaml
 # map/scanners.yaml — template: map/templates/scanners.yaml
 engine: 759240a               # the engine commit the run executed under (warned if absent)

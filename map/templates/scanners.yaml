@@ -3,6 +3,13 @@
 # decision reads as coverage. validate.mjs fails closed without this file, and
 # compile-package.mjs validates before it compiles anything.
 #
+# This file is normally WRITTEN, not hand-authored: `node assay.mjs start --out
+# <run> [<target>]` draws a run and writes it; `node assay.mjs ingest` flips a
+# row to ran as it lands that scanner's report; `node assay.mjs record <run>
+# <scanner> ran|skipped|failed [--reason "<text>"]` sets one row directly (a
+# judgment scanner's own review, a skip decision) without disturbing any other
+# row or this file's comments. Hand-edit only when none of those fit.
+#
 #   status: ran      — the base carries its rows (or an explicit empty
 #                      map/findings/<scanner>.yaml for a verified-clean instrument run)
 #   status: skipped  — a decision not to run it; `reason` required

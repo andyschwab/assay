@@ -656,3 +656,26 @@ what the public engine learned.
   `gitRemote` so the record reuses the same "is this dir a repo root" check
   fixtures rely on, rather than letting git's upward discovery resolve to an
   enclosing repo. Documented in `routine/README.md`. Goldens untouched.
+- **2026-09-28 — starting a run takes no guesswork: `assay start` and `assay
+  record`.** The instrument sequencing that lived in `routine/run.mjs`
+  (`runAssayInstrument`, `runGitleaks`, `toScannersYaml`, `engineCommit`, and a
+  new `drawOfflineMap`) moved to `map/start.mjs`, parametrized so the routine's
+  own reasons (`NOT_RUN_BY_ROUTINE`, its gitleaks-absent line) and its
+  `fresh-clone --no-clone` stay byte-identical; `routine/run.mjs` now imports
+  and re-exports them. `node assay.mjs start --out <run> [<target>]` makes the
+  run folder, runs every instrument assay can run offline (repo-census,
+  fresh-clone, dependency-scan, gitleaks when present), and records every
+  other adopted scanner (derived from `map/scanners/adapters/`, never
+  hard-coded) skipped with a plain reason naming how to record it — with no
+  target, every adopted scanner is recorded skipped, so a run whose instruments
+  run elsewhere still starts with a valid record. Unlike the routine,
+  `assay start` runs fresh-clone in its DEFAULT clone mode: a person's own
+  checkout is not a fresh CI checkout, and running in place would install into
+  their working tree and measure uncommitted state. `node assay.mjs record
+  <run> <scanner> ran|skipped|failed [--reason] [--model]` (`map/record.mjs`,
+  `setScannerRow`) sets one row directly — a line-level edit that leaves every
+  other row and the file's own comments untouched; `ingest` now calls the same
+  function after a successful ingest, flipping that scanner's row to `ran`
+  (keeping an existing `model:`) so a report landing IS the record updating
+  itself. `validate.mjs`'s manifest errors now name the exact `record`/`start`
+  command that fixes them. Goldens untouched.

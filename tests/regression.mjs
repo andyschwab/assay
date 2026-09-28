@@ -43,6 +43,8 @@ import { runRoutine, toRoutineYaml } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
 import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
 import { run as runDependencyScan } from '../map/dependency-scan.mjs';
+import { scannersPath as runScannersPath } from '../lib/run-layout.mjs';
+import { setScannerRow } from '../map/record.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -2689,6 +2691,227 @@ function adaptersOnce() { return loadAdapters(); }
   if (!/CODEOWNERS/.test(readme) || !/packet\//.test(readme) || !/\.github\/workflows\//.test(readme)) fail('routine/README.md must say to add CODEOWNERS entries for packet/ and .github/workflows/');
 }
 
+// ── map/start.mjs: `assay start` makes a run, draws it, and records the rest ──
+// `assay start` (unlike the routine) runs fresh-clone in its DEFAULT clone
+// mode, never --no-clone: a person's own checkout is not a fresh CI checkout,
+// and running fresh-clone in place would install into their working tree and
+// measure uncommitted state. That means fresh-clone-target — a plain
+// directory, no .git (the routine test above runs it with --no-clone, which
+// never clones) — is not a usable target here: `git clone` refuses a source
+// with no .git at all, offline or not. A real target IS a git repository, so
+// this wraps a throwaway copy of the fixture in `git init` once, in the temp
+// dir, so the clone stays a same-machine, no-network filesystem clone.
+{
+  const fail = (m) => negFailures.push('start: ' + m);
+  const tmp = join(HERE, 'tmp-start'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(tmp, { recursive: true });
+  const target = join(tmp, 'target');
+  cpSync(join(HERE, 'instruments', 'fresh-clone-target'), target, { recursive: true });
+  const git = (args) => spawnSync('git', args, { cwd: target, encoding: 'utf8' });
+  git(['init', '-q']);
+  git(['config', 'user.email', 'test@example.com']);
+  git(['config', 'user.name', 'assay regression']);
+  git(['add', '-A']);
+  const committed = git(['commit', '-q', '-m', 'init']);
+  if (committed.status !== 0) fail(`could not git-init the scratch target (${committed.stderr})`);
+
+  const runDir = join(tmp, 'run');
+  const start = execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDir, target], { encoding: 'utf8' });
+  const manifestPath = runScannersPath(runDir);
+  if (!existsSync(manifestPath)) fail('start must write map/scanners.yaml');
+  else {
+    const manifest = parseYaml(readFileSync(manifestPath, 'utf8'));
+    if (!manifest.engine) fail('start must record engine:');
+    const rows = manifest.scanners || {};
+    const adopted = adoptedAdapters(loadAdapters());
+    for (const id of Object.keys(adopted)) if (!rows[id]) fail(`start must record a row for every adopted scanner (missing ${id})`);
+    if (rows['repo-census']?.status !== 'ran') fail(`repo-census needs no network and must read ran (got ${JSON.stringify(rows['repo-census'])})`);
+    if (rows['dependency-scan']?.status !== 'ran') fail(`dependency-scan needs no network against this lockfile-free fixture and must read ran (got ${JSON.stringify(rows['dependency-scan'])})`);
+    if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone (default clone mode, a real local git target) must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
+    for (const id of ['repo-eval', 'deep-code-review']) {
+      const r = rows[id];
+      if (r?.status !== 'skipped') fail(`${id} must be recorded skipped by start (got ${JSON.stringify(r)})`);
+      else if (!/not yet run: a steward session runs it/.test(r.reason || '') || !r.reason.includes(`node assay.mjs record <run> ${id} ran`))
+        fail(`${id}'s skip reason must say it has not run yet and name the exact record command (got ${JSON.stringify(r.reason)})`);
+    }
+    if (!rows['gitleaks'] || !['ran', 'skipped'].includes(rows['gitleaks'].status)) fail(`gitleaks must be recorded ran or skipped, never absent (got ${JSON.stringify(rows['gitleaks'])})`);
+    if (rows['gitleaks']?.status === 'skipped' && rows['gitleaks'].reason !== 'gitleaks binary not on PATH where this run was drawn')
+      fail(`gitleaks-absent must carry start's own reason, verbatim (got ${JSON.stringify(rows['gitleaks'].reason)})`);
+  }
+  if (!/✓ assay validate/.test(start)) fail(`start must run validate and print its verdict (got:\n${start})`);
+  const val = execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), runDir, '--target', target], { encoding: 'utf8' });
+  if (!/^✓ assay validate/.test(val)) fail(`validate must pass over a run start just drew (got:\n${val})`);
+
+  // start refuses an existing run — nothing is redrawn in place.
+  let refused = null;
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDir, target], { encoding: 'utf8', stdio: 'pipe' }); }
+  catch (e) { refused = e; }
+  if (!refused) fail('start over an existing map/scanners.yaml must refuse, not redraw it');
+  else if (refused.status !== 2) fail(`start refusing an existing run must exit 2 (got ${refused.status})`);
+  else if (!/already exists/.test(String(refused.stderr))) fail(`start's refusal must say the manifest already exists (got: ${refused.stderr})`);
+
+  // start with no target: every adopted scanner skipped, still validates green
+  // (a run whose instruments run elsewhere — a child session publishing its
+  // own documents — still starts with a valid record).
+  const runDirNoTarget = join(tmp, 'run-no-target');
+  const startNT = execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDirNoTarget], { encoding: 'utf8' });
+  const manifestNT = parseYaml(readFileSync(runScannersPath(runDirNoTarget), 'utf8'));
+  const rowsNT = manifestNT.scanners || {};
+  const adopted = adoptedAdapters(loadAdapters());
+  for (const id of Object.keys(adopted)) {
+    const r = rowsNT[id];
+    if (r?.status !== 'skipped') fail(`with no target, ${id} must be recorded skipped (got ${JSON.stringify(r)})`);
+    else if (r.reason !== 'not yet run: ingesting its report records it ran') fail(`with no target, ${id}'s reason must be the generic one, verbatim (got ${JSON.stringify(r.reason)})`);
+  }
+  if (!/✓ assay validate/.test(startNT)) fail(`start with no target must still validate green (got:\n${startNT})`);
+
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── map/record.mjs: set one scanner's disposition, keeping every other row
+// and the file's own comments intact — a line-level edit, never a reformat ──
+{
+  const fail = (m) => negFailures.push('record: ' + m);
+  const original = [
+    '# a hand-written header comment — must survive untouched',
+    'engine: deadbeef',
+    'scanners:',
+    '  repo-eval:',
+    '    status: ran',
+    '  gitleaks:',
+    '    # a comment that belongs to the gitleaks row',
+    '    status: skipped',
+    "    reason: \"not yet run: ingesting its report records it ran\"",
+    '  fresh-clone:',
+    '    status: ran',
+    '',
+  ].join('\n');
+
+  // flip gitleaks to ran: repo-eval, fresh-clone, the header, and engine: must
+  // not move a single character.
+  const { text: afterRan, row: rowRan } = setScannerRow(original, 'gitleaks', 'ran');
+  if (!/^# a hand-written header comment — must survive untouched$/m.test(afterRan)) fail('record must not touch the file\'s header comment');
+  if (!/engine: deadbeef/.test(afterRan)) fail('record must not touch engine:');
+  if (!/ {2}repo-eval:\n {4}status: ran/.test(afterRan)) fail('record must leave an untouched row (repo-eval) exactly as it was');
+  if (!/ {2}fresh-clone:\n {4}status: ran/.test(afterRan)) fail('record must leave the row AFTER the edited one exactly as it was');
+  if (!/ {2}gitleaks:\n {4}status: ran\n/.test(afterRan)) fail(`record must rewrite the target row to the new status (got:\n${afterRan})`);
+  if (/ingesting its report records it ran/.test(afterRan)) fail('switching a row to ran must drop its prior skip reason when no new --reason is given');
+  if (rowRan.join('\n') !== '  gitleaks:\n    status: ran') fail(`record must return exactly the row it wrote (got ${JSON.stringify(rowRan)})`);
+
+  // skipped again, with a new reason: the reason is the one just given, not any prior one.
+  const { text: afterSkip } = setScannerRow(afterRan, 'gitleaks', 'skipped', { reason: 'binary missing here' });
+  if (!/gitleaks:\n {4}status: skipped\n {4}reason: "binary missing here"/.test(afterSkip)) fail(`record must write the new skip reason (got:\n${afterSkip})`);
+  if (!/repo-eval:\n {4}status: ran/.test(afterSkip) || !/fresh-clone:\n {4}status: ran/.test(afterSkip)) fail('record must still leave the other rows untouched on a second edit');
+
+  // model: carries over across a status change unless overridden.
+  const { text: withModel } = setScannerRow(original, 'repo-eval', 'ran', { model: 'model-a' });
+  const { text: keptModel } = setScannerRow(withModel, 'repo-eval', 'ran', {});
+  if (!/repo-eval:\n {4}status: ran\n {4}model: "model-a"/.test(keptModel)) fail(`record must keep an existing model: when --model is not given again (got:\n${keptModel})`);
+  const { text: keptModelOnSkip } = setScannerRow(withModel, 'repo-eval', 'skipped', { reason: 'x' });
+  if (!/model: "model-a"/.test(keptModelOnSkip)) fail('model: should still carry over into a skipped row too, unless the caller means to drop it');
+
+  // a scanner with no row yet is APPENDED, after the last existing row.
+  const { text: added } = setScannerRow(original, 'dependency-scan', 'skipped', { reason: 'no registry reach' });
+  if (!/fresh-clone:\n {4}status: ran\n {2}dependency-scan:\n {4}status: skipped\n {4}reason: "no registry reach"\n$/.test(added))
+    fail(`record must append a missing scanner's row after the last one (got:\n${added})`);
+
+  // the CLI: unknown scanner and skip-without-reason both refuse (exit 2), nothing written.
+  const tmp = join(HERE, 'tmp-record'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'run', 'map'), { recursive: true });
+  const mPath = join(tmp, 'run', 'map', 'scanners.yaml');
+  writeFileSync(mPath, original);
+  const before = readFileSync(mPath, 'utf8');
+
+  let e1 = null;
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'record.mjs'), join(tmp, 'run'), 'no-such-scanner', 'ran'], { encoding: 'utf8', stdio: 'pipe' }); }
+  catch (e) { e1 = e; }
+  if (!e1 || e1.status !== 2) fail(`record must refuse an unknown scanner with exit 2 (got ${e1 && e1.status})`);
+  if (!e1 || !/unknown scanner/.test(String(e1.stderr))) fail(`record's unknown-scanner refusal must name the scanner (got: ${e1 && e1.stderr})`);
+
+  let e2 = null;
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'record.mjs'), join(tmp, 'run'), 'gitleaks', 'skipped'], { encoding: 'utf8', stdio: 'pipe' }); }
+  catch (e) { e2 = e; }
+  if (!e2 || e2.status !== 2) fail(`record must refuse skipped with no --reason (got ${e2 && e2.status})`);
+  if (!e2 || !/needs a reason/.test(String(e2.stderr))) fail(`record's no-reason refusal must say a reason is needed (got: ${e2 && e2.stderr})`);
+
+  const e3 = spawnSync(process.execPath, [join(ROOT, 'map', 'record.mjs'), join(tmp, 'run'), 'gitleaks', 'failed'], { encoding: 'utf8' });
+  if (e3.status !== 2) fail(`record must refuse failed with no --reason (got ${e3.status})`);
+
+  if (readFileSync(mPath, 'utf8') !== before) fail('a refused record call must leave the file byte-for-byte unchanged');
+
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── ingest keeps the run record: a successful ingest flips that scanner's row
+// to ran, without disturbing anything else in map/scanners.yaml ─────────────
+{
+  const fail = (m) => negFailures.push('ingest-record: ' + m);
+  const tmp = join(HERE, 'tmp-ingest-record'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'map'), { recursive: true });
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), [
+    '# a header comment',
+    'engine: cafef00d',
+    'scanners:',
+    '  repo-eval:',
+    '    status: skipped',
+    '    reason: "not yet run: ingesting its report records it ran"',
+    '  gitleaks:',
+    '    status: skipped',
+    '    reason: "not yet run: ingesting its report records it ran"',
+    '',
+  ].join('\n'));
+  execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1', '--model', 'test-model'], { encoding: 'utf8' });
+  const manifest = parseYaml(readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8'));
+  if (manifest.scanners?.gitleaks?.status !== 'ran') fail(`ingest must flip the ingested tool's row to ran (got ${JSON.stringify(manifest.scanners?.gitleaks)})`);
+  if (manifest.scanners.gitleaks.reason) fail('ingest flipping a row to ran must drop its prior skip reason');
+  if (manifest.scanners.gitleaks.model !== 'test-model') fail(`ingest --model must be recorded on the flipped row (got ${JSON.stringify(manifest.scanners.gitleaks.model)})`);
+  if (manifest.scanners?.['repo-eval']?.status !== 'skipped') fail('ingest must not disturb a DIFFERENT scanner\'s row');
+  if (manifest.engine !== 'cafef00d') fail('ingest must not disturb engine:');
+  const raw = readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8');
+  if (!raw.startsWith('# a header comment')) fail('ingest\'s record-keeping must not disturb the file\'s own header comment');
+
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── validate's messages name the fix: `record`/`start`, not just the problem ──
+{
+  const fail = (m) => negFailures.push('validate-hints: ' + m);
+  const tmp = join(HERE, 'tmp-validate-hints'); rmSync(tmp, { recursive: true, force: true });
+
+  // missing manifest → point at `assay start`
+  mkdirSync(join(tmp, 'no-manifest', 'map', 'findings'), { recursive: true });
+  writeFileSync(join(tmp, 'no-manifest', 'map', 'findings', 'repo-eval-legibility.yaml'), '[]\n');
+  let out1 = '';
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), join(tmp, 'no-manifest')], { encoding: 'utf8', stdio: 'pipe' }); }
+  catch (e) { out1 = String(e.stderr); }
+  if (!/node assay\.mjs start --out/.test(out1)) fail(`the missing-manifest error must name \`assay start\` (got:\n${out1})`);
+
+  // status ran, no rows → point at `record ... skipped`
+  const runA = join(tmp, 'ran-no-rows');
+  mkdirSync(join(runA, 'map', 'findings'), { recursive: true });
+  writeFileSync(join(runA, 'map', 'scanners.yaml'), 'engine: x\nscanners:\n  gitleaks:\n    status: ran\n');
+  let out2 = '';
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), runA], { encoding: 'utf8', stdio: 'pipe' }); }
+  catch (e) { out2 = String(e.stderr); }
+  if (!new RegExp(`node assay\\.mjs record ${runA.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} gitleaks skipped`).test(out2))
+    fail(`the ran-with-no-rows error must name \`record ... skipped\` (got:\n${out2})`);
+
+  // status skipped, but rows present → point at `record ... ran`
+  const runB = join(tmp, 'rows-not-ran');
+  mkdirSync(join(runB, 'map', 'findings'), { recursive: true });
+  writeFileSync(join(runB, 'map', 'findings', 'gitleaks.yaml'), [
+    '- id: F-700', '  source: gitleaks', '  native_id: "x@a.js:1"', '  native_category: secret', '  polarity: gap',
+    '  observation: x', '  evidence: [a.js:1]', '',
+  ].join('\n'));
+  writeFileSync(join(runB, 'map', 'scanners.yaml'), 'engine: x\nscanners:\n  gitleaks:\n    status: skipped\n    reason: "x"\n');
+  let out3 = '';
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), runB], { encoding: 'utf8', stdio: 'pipe' }); }
+  catch (e) { out3 = String(e.stderr); }
+  if (!new RegExp(`node assay\\.mjs record ${runB.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} gitleaks ran`).test(out3))
+    fail(`the skipped-but-rows-present error must name \`record ... ran\` (got:\n${out3})`);
+
+  rmSync(tmp, { recursive: true, force: true });
+}
 
 // ── an all-clean run compiles (measure/compile must never crash on zero findings) ──
 // Every instrument ran, every pass file is the explicit empty list, and a run
@@ -2764,7 +2987,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {
