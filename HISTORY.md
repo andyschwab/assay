@@ -475,3 +475,17 @@ what the public engine learned.
   correctly followed `owner/PACKET.md`; fixed to `custody.handover`, pinned by
   a test asserting the exact fixture text. Documented in `views/README.md`.
   Goldens untouched.
+- **2026-09-28 — `validate-packet` accepts a reply still wrapped for chat, and
+  refuses a name where `answered.by` wants a role.** An owner's own AI
+  (`owner/ask-owner.md`'s whole design) often hands a reply back with prose
+  around the actual YAML; `loadPacket` now takes the first ` ```yaml ` or
+  ` ``` ` fenced block's content before parsing when the reply carries one,
+  discarding the chatter, and reads the text as-is when there is no fence —
+  still parsed defensively, nothing in or around the fence ever executed or
+  trusted (`yardstick/packet.mjs unwrapChatReply`). `validatePacket` also
+  refuses `answered.by` written as a person's name rather than a role: two or
+  more Title Case words with no recognizable role word ("Dana Reyes"), or a
+  name followed by a parenthetical role ("Dana Reyes (founder)") — a role
+  PHRASE like "Lead Engineer" still validates, since one of its own words is a
+  role word. One plain line: "answered.by: write a role (for example
+  founder), not a name." Documented in `owner/PACKET.md`. Goldens untouched.

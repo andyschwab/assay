@@ -33,7 +33,7 @@ import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
 import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
-import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef } from '../yardstick/packet.mjs';
+import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef, unwrapChatReply, looksLikePersonName } from '../yardstick/packet.mjs';
 import { compare, classify, fingerprintFinding, compareFindings } from '../yardstick/compare.mjs';
 import { loadBaseline, loadYardstickDoc, evaluateRatchet, catGitFile } from '../yardstick/ratchet.mjs';
 import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath } from '../lib/run-layout.mjs';
@@ -1225,6 +1225,39 @@ function adaptersOnce() { return loadAdapters(); }
     if (code !== 1) fail(`negative/packet-bad-yaml must exit 1 (got ${code})`);
     else if (!/not valid YAML/.test(stderr)) fail('negative/packet-bad-yaml must report one plain YAML error, never a raw stack trace');
     else if (/\bat\s+\S+\.mjs:\d+/.test(stderr)) fail('negative/packet-bad-yaml leaked a stack trace — a YAML the parser cannot read must be one error, not a trace');
+  }
+
+  // a reply still wrapped for chat: prose before and after, the actual YAML
+  // fenced in a ```yaml code block. loadPacket must parse only the fence's
+  // content, discarding the chatter — never executing or trusting it.
+  if (unwrapChatReply('no fence here at all') !== 'no fence here at all') fail('unwrapChatReply with no fence must return the text unchanged');
+  if (unwrapChatReply('prose\n```yaml\npacket: 1\n```\nmore prose').trim() !== 'packet: 1') fail('unwrapChatReply must take the first fenced block\'s content, discarding the chatter around it');
+  {
+    const tmp = join(HERE, 'tmp-packet-chat'); rmSync(tmp, { recursive: true, force: true });
+    mkdirSync(tmp, { recursive: true });
+    const raw = readFileSync(join(HERE, 'fixtures', 'packet-valid', 'manifest.yaml'), 'utf8');
+    writeFileSync(join(tmp, 'manifest.yaml'), `Sure! Here is the completed packet:\n\n\`\`\`yaml\n${raw}\`\`\`\n\nLet me know if you need anything else.\n`);
+    let chatDoc = null;
+    try { ({ doc: chatDoc } = loadPacket(tmp)); } catch (e) { fail(`loadPacket must accept a reply still wrapped for chat (${e.message})`); }
+    if (chatDoc && validatePacket(chatDoc, { requirementIds: ids }).length) fail('a chat-wrapped reply, once unwrapped, must validate exactly like the raw packet');
+    if (chatDoc && chatDoc.repository !== 'example/notesbox') fail("the unwrapped packet must carry the fenced content's own fields, not the chatter");
+    rmSync(tmp, { recursive: true, force: true });
+  }
+
+  // answered.by must be a role, never a person's name (owner/PACKET.md) — a role
+  // PHRASE is fine (one of its words IS a role word); a bare name, or a name
+  // followed by a parenthetical role, is refused with one plain line.
+  {
+    const roleBase = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } };
+    const wantsRole = (by) => validatePacket({ ...roleBase, answered: { ...roleBase.answered, by } }, { requirementIds: ids }).some((e) => e === 'answered.by: write a role (for example founder), not a name');
+    if (!wantsRole('Dana Reyes')) fail('a bare two-word Title Case name ("Dana Reyes") must be refused as not a role');
+    if (!wantsRole('Dana Reyes (founder)')) fail('a name followed by a parenthesized role ("Dana Reyes (founder)") must be refused as not a role');
+    if (wantsRole('Lead Engineer')) fail('a role PHRASE containing a role word ("Lead Engineer") must still validate clean');
+    if (wantsRole('founder')) fail('a plain role must still validate clean');
+    if (wantsRole('co-founder')) fail('a role word with a hyphen must still validate clean');
+
+    if (!looksLikePersonName('Dana Reyes') || !looksLikePersonName('Dana Reyes (founder)')) fail('looksLikePersonName must flag both name shapes directly');
+    if (looksLikePersonName('Product Manager') || looksLikePersonName('founder') || looksLikePersonName('Jane')) fail('looksLikePersonName must not flag a role phrase, a plain role, or a single capitalized word');
   }
 
   // secret/email shape unit checks — the false-positive guards this class of
