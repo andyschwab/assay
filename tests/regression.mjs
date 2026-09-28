@@ -41,6 +41,7 @@ import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFou
 import { runRoutine } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
 import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
+import { run as runDependencyScan } from '../map/dependency-scan.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -776,6 +777,71 @@ function adaptersOnce() { return loadAdapters(); }
     }, reg).find((r) => r.id === 'd-dependencies-known-clean');
     if (skipped?.status !== 'not-measured' || !/no registry reach/.test(skipped.note || '')) fail(`a skipped manifest must read not-measured with the recorded reason (got ${skipped?.status}/${skipped?.note})`);
   }
+  // (f) manifests / noManifest: a manifest with dependencies and no lockfile covering
+  // it is a FACT (not a gap) — zero lockfiles audited is never clean, but it is a
+  // different claim than a known advisory. Decides d-dependencies-known-clean
+  // not-measured; zero manifests anywhere decides not-applicable.
+  const noLockDoc = { tool: 'dependency-scan', version: '0.1.0', started_at: 't1', finished_at: 't2', target: { path: 'x' }, timeout_seconds: 300, lockfiles: [], manifests: [{ path: 'package.json', status: 'no-lockfile' }], noManifest: false, exit: 1 };
+  const noLockRows = convert('dependency-scan', JSON.stringify(noLockDoc), 1);
+  const noLockFact = noLockRows.find((r) => r.native_category === 'no-lockfile');
+  if (noLockFact?.polarity !== 'fact' || !/no lockfile/.test(noLockFact?.observation || '')) fail(`a manifest with no lockfile must convert to a FACT row naming "no lockfile" (got ${JSON.stringify(noLockFact)})`);
+  if (noLockFact?.severity || noLockFact?.fix) fail('the no-lockfile fact row carries neither severity nor fix (it is not a gap)');
+  const noManifestDoc = { ...noLockDoc, manifests: [], noManifest: true, exit: 0 };
+  const noManifestRows = convert('dependency-scan', JSON.stringify(noManifestDoc), 0);
+  const noManifestFact = noManifestRows.find((r) => r.native_category === 'no-manifest');
+  if (noManifestFact?.polarity !== 'fact') fail(`noManifest: true must convert to a no-manifest FACT row (got ${JSON.stringify(noManifestFact)})`);
+  mustThrow('a manifest row with a bad status', () => convert('dependency-scan', JSON.stringify({ ...noLockDoc, manifests: [{ path: 'x', status: 'bogus' }] }), 1));
+  if (reg) {
+    const nmRow = measureRun({ findings: noLockRows, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (nmRow?.status !== 'not-measured' || !/no lockfile/.test(nmRow.note || '')) fail(`a manifest with no lockfile must read d-dependencies-known-clean not-measured (got ${nmRow?.status}/${nmRow?.note})`);
+    const naRow = measureRun({ findings: noManifestRows, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (naRow?.status !== 'not-applicable') fail(`zero manifests anywhere must read d-dependencies-known-clean not-applicable (got ${naRow?.status})`);
+    // a real critical advisory always governs over either fact
+    const bothRow = measureRun({ findings: [...noLockRows, { id: 'F-9', source: 'dependency-scan', native_category: 'critical', polarity: 'gap' }], manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (bothRow?.status !== 'unmet') fail(`a real critical advisory must govern over the no-lockfile fact (got ${bothRow?.status})`);
+  }
+  const projNl = projectMulti(noManifestRows.concat(noLockRows), adaptersOnce());
+  if (projNl.unmapped.length) fail(`no-lockfile / no-manifest rows must map (unmapped: ${projNl.unmapped.map((u) => u.cat).join(', ')})`);
+}
+
+// ── dependency-scan: manifest enumeration + lockfile coverage on real directories ──
+// findManifests / isCoveredByLockfile / run() end to end: a manifest with real
+// dependencies and no lockfile anywhere up its own directory tree is uncovered
+// (never silently clean); zero package.json anywhere is the distinct
+// not-applicable fact.
+{
+  const fail = (m) => negFailures.push('dependency-scan-manifests: ' + m);
+  const tmp = join(HERE, 'tmp-dep-manifests'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'covered'), { recursive: true });
+  mkdirSync(join(tmp, 'uncovered'), { recursive: true });
+  writeFileSync(join(tmp, 'covered', 'package.json'), JSON.stringify({ name: 'covered', dependencies: { left: '1.0.0' } }));
+  writeFileSync(join(tmp, 'covered', 'package-lock.json'), JSON.stringify({ name: 'covered', lockfileVersion: 3, packages: {} }));
+  writeFileSync(join(tmp, 'uncovered', 'package.json'), JSON.stringify({ name: 'uncovered', dependencies: { right: '1.0.0' } }));
+  const doc = runDependencyScan({ target: tmp, timeout: 5, log: () => {} });
+  const uncoveredPaths = doc.manifests.map((m) => m.path);
+  if (!uncoveredPaths.includes('uncovered/package.json')) fail(`a manifest with dependencies and no lockfile anywhere up its tree must be recorded uncovered (got ${JSON.stringify(uncoveredPaths)})`);
+  if (uncoveredPaths.includes('covered/package.json')) fail('a manifest whose own directory carries a lockfile must NOT be recorded uncovered');
+  if (doc.noManifest !== false) fail('with real package.json files present, noManifest must be false');
+  if (doc.exit !== 1) fail(`an uncovered manifest must make the document exit 1 (got ${doc.exit})`);
+  rmSync(tmp, { recursive: true, force: true });
+
+  const tmpEmpty = join(HERE, 'tmp-dep-empty'); rmSync(tmpEmpty, { recursive: true, force: true });
+  mkdirSync(tmpEmpty, { recursive: true });
+  writeFileSync(join(tmpEmpty, 'README.md'), '# nothing here\n');
+  const docEmpty = runDependencyScan({ target: tmpEmpty, timeout: 5, log: () => {} });
+  if (docEmpty.noManifest !== true) fail('a tree with zero package.json anywhere must record noManifest: true');
+  if (docEmpty.manifests.length) fail('a tree with zero package.json anywhere must record zero uncovered manifests');
+  if (docEmpty.exit !== 0) fail(`a tree with nothing to audit must exit 0 (not-applicable is not a failure, got ${docEmpty.exit})`);
+  rmSync(tmpEmpty, { recursive: true, force: true });
+
+  // an ancestor lockfile covers a nested manifest with no lockfile of its own
+  const tmpAncestor = join(HERE, 'tmp-dep-ancestor'); rmSync(tmpAncestor, { recursive: true, force: true });
+  mkdirSync(join(tmpAncestor, 'packages', 'sub'), { recursive: true });
+  writeFileSync(join(tmpAncestor, 'package-lock.json'), JSON.stringify({ name: 'root', lockfileVersion: 3, packages: {} }));
+  writeFileSync(join(tmpAncestor, 'packages', 'sub', 'package.json'), JSON.stringify({ name: 'sub', dependencies: { left: '1.0.0' } }));
+  const docAncestor = runDependencyScan({ target: tmpAncestor, timeout: 5, log: () => {} });
+  if (docAncestor.manifests.length) fail(`a manifest covered by an ANCESTOR lockfile must not be recorded uncovered (got ${JSON.stringify(docAncestor.manifests)})`);
+  rmSync(tmpAncestor, { recursive: true, force: true });
 }
 
 // ── fresh-clone workspaces ──────────────
@@ -2129,7 +2195,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, not-applicable, not-applicable-views, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

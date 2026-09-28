@@ -36,6 +36,10 @@ map:
     axis: code-security
   lockfile-unsupported:         # a pnpm/yarn lockfile this instrument does not audit
     axis: code-security
+  no-lockfile:                  # a fact row: a manifest with dependencies, no lockfile covers it —
+    axis: code-security         # decides d-dependencies-known-clean not-measured (yardstick/requirements.yaml)
+  no-manifest:                  # a fact row: no package.json anywhere in the tree —
+    axis: code-security         # decides d-dependencies-known-clean not-applicable (yardstick/requirements.yaml)
 
 default: FAIL
 

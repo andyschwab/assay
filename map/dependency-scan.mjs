@@ -29,11 +29,20 @@
 // npm error document, e.g. no registry reachable, looks exactly like this), a
 // timeout, or a spawn failure makes that lockfile `status: failed`, never
 // read as clean — a tool that errored must never read as "0 findings". A
-// pnpm-lock.yaml / yarn.lock is `not-supported`, never clean. The document's
-// own `exit` is 0 only when every lockfile in the tree audited with zero
-// advisories; 1 when any advisory exists, any lockfile failed, or any
-// lockfile is not-supported; a crash of the runner itself exits 2 (uncaught
-// at the CLI boundary), so ingest.mjs (success set [0, 1]) halts on it.
+// pnpm-lock.yaml / yarn.lock is `not-supported`, never clean. A package.json
+// that declares real dependencies with NO lockfile (npm or otherwise) covering
+// it — in its own directory or any ancestor up to the scan root — is recorded
+// in `manifests` (`status: no-lockfile`): zero lockfiles audited is never read
+// as clean (`yardstick/requirements.yaml` `d-dependencies-known-clean` reads
+// not-measured over it, "no lockfile: nothing to audit", never met). Zero
+// package.json files anywhere in the tree is the DIFFERENT fact `noManifest:
+// true` — no dependency graph exists at all, and the requirement reads
+// not-applicable, never met by silence. The document's own `exit` is 0 only
+// when every lockfile in the tree audited with zero advisories AND every
+// manifest with dependencies is covered by a lockfile; 1 when any advisory
+// exists, any lockfile failed, any lockfile is not-supported, or any manifest
+// is uncovered; a crash of the runner itself exits 2 (uncaught at the CLI
+// boundary), so ingest.mjs (success set [0, 1]) halts on it.
 //
 // Network: npm audit needs the registry; a lockfile whose audit cannot reach
 // it comes back as an npm error document (see above) and is recorded failed,
@@ -77,6 +86,43 @@ export function findLockfiles(root) {
     }
   })(root);
   return { npm: npm.sort(), other: other.sort((a, b) => a.path < b.path ? -1 : 1) };
+}
+
+// ── enumerate manifests (package.json with real dependencies) ───────────────
+// A manifest with nothing to install has nothing to audit either — not counted.
+// Zero manifests anywhere in the tree is a DIFFERENT fact from "a manifest with
+// no lockfile": the former is not-applicable (there is no dependency graph to
+// speak of); the latter is not-measured (there is one, but nothing audited it).
+const nonEmptyDeps = (pkg) => !!(pkg && typeof pkg === 'object' && ['dependencies', 'devDependencies', 'optionalDependencies'].some((k) => pkg[k] && typeof pkg[k] === 'object' && Object.keys(pkg[k]).length));
+export function findManifests(root) {
+  const manifests = [];
+  (function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries.sort((a, b) => a.name < b.name ? -1 : 1)) {
+      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name)); continue; }
+      if (e.name !== 'package.json') continue;
+      const p = join(dir, e.name);
+      let pkg = null;
+      try { pkg = JSON.parse(readFileSync(p, 'utf8')); } catch { /* unreadable manifest: not counted either way */ continue; }
+      manifests.push({ dir, path: p, hasDependencies: nonEmptyDeps(pkg) });
+    }
+  })(root);
+  return manifests.sort((a, b) => a.path < b.path ? -1 : 1);
+}
+// A manifest is "covered" when a lockfile (npm or otherwise — any lockfile is
+// evidence something tracked its dependency graph, even one this instrument
+// cannot itself audit) sits in its own directory or any ancestor directory up
+// to the scan root — the same resolution npm itself walks for `npm ci`.
+export function isCoveredByLockfile(manifestDir, root, lockDirs) {
+  let d = resolve(manifestDir), stop = resolve(root);
+  for (;;) {
+    if (lockDirs.has(d)) return true;
+    if (d === stop) return false;
+    const parent = dirname(d);
+    if (parent === d) return false;
+    d = parent;
+  }
 }
 
 // ── read installed version(s) of a package straight out of the lockfile itself ─
@@ -210,13 +256,28 @@ export function run({ target, timeout = 300, log = () => {} }) {
       reason: `audit with ${o.manager === 'pnpm' ? 'pnpm audit' : 'yarn npm audit'} instead` });
   }
   lockfiles.sort((a, b) => a.path < b.path ? -1 : 1);
+
+  // manifests: a package.json with real dependencies and NO lockfile (npm or
+  // otherwise) covering it has nothing audited it — never read as clean (a zero
+  // count of lockfiles audited is not the same fact as zero advisories found).
+  // Zero manifests anywhere in the tree is the distinct not-applicable fact:
+  // there is no dependency graph at all to audit.
+  const lockDirs = new Set([...npm.map((p) => dirname(p)), ...other.map((o) => dirname(o.path))]);
+  const allManifests = findManifests(root);
+  const uncovered = allManifests.filter((m) => m.hasDependencies && !isCoveredByLockfile(m.dir, root, lockDirs));
+  const manifests = uncovered.map((m) => ({ path: relative(root, m.path).split('\\').join('/'), status: 'no-lockfile' }));
+  const noManifest = allManifests.length === 0;
+  if (manifests.length) for (const m of manifests) log(`  → ${m.path}: no-lockfile (declares dependencies, no lockfile covers it — nothing to audit)`);
+  else if (noManifest) log('  → no package.json anywhere in the tree — not applicable, nothing to audit');
+
   const anyAdvisory = lockfiles.some((l) => l.status === 'audited' && l.advisories.length);
   const anyFailed = lockfiles.some((l) => l.status === 'failed');
   const anyUnsupported = lockfiles.some((l) => l.status === 'not-supported');
+  const anyUncovered = manifests.length > 0;
   return {
     tool: 'dependency-scan', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
-    target: { path: target }, timeout_seconds: timeout, lockfiles,
-    exit: (anyAdvisory || anyFailed || anyUnsupported) ? 1 : 0,
+    target: { path: target }, timeout_seconds: timeout, lockfiles, manifests, noManifest,
+    exit: (anyAdvisory || anyFailed || anyUnsupported || anyUncovered) ? 1 : 0,
   };
 }
 
@@ -238,7 +299,8 @@ if (isMain(import.meta.url)) {
     const advisories = audited.reduce((n, l) => n + l.advisories.length, 0);
     const failed = doc.lockfiles.filter((l) => l.status === 'failed').length;
     const unsupported = doc.lockfiles.filter((l) => l.status === 'not-supported').length;
-    console.error(`${doc.exit === 0 ? '✓' : '✗'} dependency-scan: ${audited.length} lockfile(s) audited (${advisories} advisor${advisories === 1 ? 'y' : 'ies'}) · ${failed} failed · ${unsupported} not supported → ${out}`);
+    const uncoveredNote = doc.manifests.length ? ` · ${doc.manifests.length} manifest(s) with no lockfile` : doc.noManifest ? ' · no manifest in the tree (not applicable)' : '';
+    console.error(`${doc.exit === 0 ? '✓' : '✗'} dependency-scan: ${audited.length} lockfile(s) audited (${advisories} advisor${advisories === 1 ? 'y' : 'ies'}) · ${failed} failed · ${unsupported} not supported${uncoveredNote} → ${out}`);
     process.exit(doc.exit);
   } catch (e) {
     console.error(`✗ dependency-scan crashed: ${e.message}`);

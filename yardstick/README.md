@@ -79,7 +79,11 @@ The instruments that decide rows:
   unmet).
 - `dependency-scan` (`map/dependency-scan.mjs`, contract §3c): `npm audit` over
   every lockfile. `d-dependencies-known-clean` decides on the `critical` category
-  alone, so high and lower advisories do not unmeet it.
+  alone, so high and lower advisories do not unmeet it. A manifest with real
+  dependencies and no lockfile covering it (npm, pnpm, or yarn — zero lockfiles
+  audited is never clean) reads **not-measured**, "no lockfile: nothing to
+  audit"; no `package.json` anywhere in the tree reads **not-applicable** — there
+  is no dependency graph to speak of.
 - `repo-census` (`map/repo-census.mjs`, contract §3d), from the tree alone: an
   architecture page, a present-tense agent contract, a runbook, a CI gate on the
   default branch, and six **owner-evidence transcripts** for what a repository

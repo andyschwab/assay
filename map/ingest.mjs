@@ -375,6 +375,34 @@ const PROFILES = {
           });
         }
       }
+      // manifests: a package.json declaring dependencies with no lockfile covering it
+      // is a FACT, not a gap — zero lockfiles audited is never clean, but it is not the
+      // same claim as a known advisory either. Decides d-dependencies-known-clean
+      // not-measured via decide.not_measured_when: no-lockfile (yardstick/measure.mjs).
+      if (rep.manifests !== undefined) {
+        if (!Array.isArray(rep.manifests)) throw new Error('dependency-scan report manifests must be a list (truncated report?)');
+        for (const m of rep.manifests) {
+          if (!m || typeof m.path !== 'string' || !m.path) throw new Error('dependency-scan manifest row missing path (truncated report?)');
+          if (m.status !== 'no-lockfile') throw new Error(`dependency-scan manifest ${m.path}: status "${m.status}" is not "no-lockfile" (truncated report?)`);
+          rows.push({
+            id: fid(startId + n++), source: 'dependency-scan',
+            native_id: `no-lockfile@${m.path}`, native_category: 'no-lockfile', polarity: 'fact',
+            observation: `${m.path} declares dependencies but no lockfile (npm, pnpm, or yarn) covers it — no lockfile: nothing to audit.`,
+            evidence: [`${m.path}:1`],
+          });
+        }
+      }
+      // noManifest: zero package.json anywhere in the tree — a different fact from "a
+      // manifest with no lockfile": there is no dependency graph at all. Decides
+      // d-dependencies-known-clean not-applicable via decide.not_applicable_when: no-manifest.
+      if (rep.noManifest === true) {
+        rows.push({
+          id: fid(startId + n++), source: 'dependency-scan',
+          native_id: 'no-manifest', native_category: 'no-manifest', polarity: 'fact',
+          observation: 'No package.json anywhere in the tree — there is no dependency graph to audit.',
+          evidence: ['./:1'],
+        });
+      }
       return rows;
     },
   },

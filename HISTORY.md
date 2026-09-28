@@ -504,3 +504,26 @@ what the public engine learned.
   `supabase/migrations/0001_init.sql`, no migrate script) reads
   `d-schema-versioned` unmet; a repo with zero database signals anywhere
   reads not-applicable. Goldens untouched.
+- **2026-09-28 — dependency-scan: dependencies with no lockfile are not
+  "clean".** A repository with a `package.json` declaring real dependencies
+  and no lockfile at all (npm, pnpm, or yarn) enumerated zero lockfiles, so
+  `d-dependencies-known-clean` read met — zero audited is not the same fact as
+  zero advisories found, but nothing recorded the difference.
+  `map/dependency-scan.mjs` now enumerates every `package.json` in the tree
+  (`findManifests`) and checks each one with real dependencies for a lockfile
+  covering it (`isCoveredByLockfile`, walking up to the scan root the same way
+  `npm ci` resolves): an uncovered manifest lands in the document's new
+  `manifests: [{path, status: "no-lockfile"}]`, and makes the exit 1, same as
+  an unsupported lockfile. Zero `package.json` files anywhere in the tree
+  (`noManifest: true`) is the distinct fact that there is no dependency graph
+  to speak of. `map/ingest.mjs` converts each into a `polarity: fact` row
+  (`no-lockfile` / `no-manifest`, never a gap — this is not itself a known
+  vulnerability); `yardstick/requirements.yaml`'s `d-dependencies-known-clean`
+  reads `not_measured_when: no-lockfile` (not-measured, "no lockfile: nothing
+  to audit") and `not_applicable_when: no-manifest` (not-applicable), through
+  the same evidence-condition mechanism `d-schema-versioned` uses — a real
+  critical advisory always governs over either fact. Test fixtures: a manifest
+  with dependencies and no lockfile anywhere up its own directory tree reads
+  not-measured; a manifest covered by an ancestor's lockfile reads clean; a
+  tree with zero `package.json` anywhere reads not-applicable and exits 0 (not
+  a failure). Goldens untouched.
