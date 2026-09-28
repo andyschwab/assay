@@ -42,16 +42,24 @@ export function buildRows(runDir, tag, { withFloor = false } = {}) {
   const byId = new Map(measurement.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));
 
+  // tag: a tag name ("floor" | "fleet") to filter by membership, or a predicate
+  // function (d) => boolean for a population no single tag names (Owner's
+  // "beyond the floor" — every row NOT tagged floor, regardless of fleet/ai-operating).
+  const matches = typeof tag === 'function' ? tag : (d) => (d.tags || []).includes(tag);
   const population = reg.requirements
     .map((d, i) => ({ d, i }))
-    .filter(({ d }) => (d.tags || []).includes(tag))
+    .filter(({ d }) => matches(d))
     .sort((a, b) => (tierRank[a.d.tier] ?? 999) - (tierRank[b.d.tier] ?? 999) || a.i - b.i)
     .map(({ d }) => d);
 
   const open = [], met = [], to_run = [], not_applicable = [];
   for (const d of population) {
     const m = byId.get(d.id) || { status: 'not-measured', basis: 'run', findings: [], note: 'not measured — the run carries no yardstick row for this requirement' };
-    const base = { id: d.id, tier: d.tier, topic: d.topic, title: d.title, basis: m.basis || 'run' };
+    // check + findings ride on every row's base (not just open/to_run) so a
+    // consumer that needs them on a met row too (Owner's "where") can read them
+    // without re-deciding anything; the existing per-view YAML/MD renderers below
+    // cherry-pick only the named fields they already used, so this is invisible there.
+    const base = { id: d.id, tier: d.tier, topic: d.topic, title: d.title, basis: m.basis || 'run', check: d.check, findings: m.findings || [] };
     if (withFloor) base.floor = (d.tags || []).includes('floor');
     if (m.status === 'met') {
       met.push({ ...base, note: m.note });

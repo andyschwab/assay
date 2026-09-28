@@ -167,6 +167,14 @@ export function ratchetFailureLines(stderr) {
 // routine.yaml — the run's own record of what the routine did and whether its
 // gate held (routine/README.md), so a fleet collector reading only the uploaded
 // run artifact knows the outcome without the CI logs.
+// A failure reason is often a whole command's output (validate, compile) or an error. The
+// record keeps it to one readable line: assay's YAML reader (lib/yaml-min.mjs) takes no
+// multi-line or backslash-escaped scalars, and a fleet page needs the gist, not the log
+// (the full output stays in the CI log and the run's own files).
+export function oneLineReason(s, max = 400) {
+  const flat = String(s ?? '').replace(/\u001b\[[0-9;]*m/g, '').replace(/\\/g, '/').replace(/\s*\r?\n\s*/g, ' · ').replace(/\s+/g, ' ').trim();
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
+}
 export function toRoutineYaml(rec) {
   const L = [
     '# routine.yaml — written by routine/run.mjs; the run\'s own record of what the routine did.',
@@ -180,7 +188,7 @@ export function toRoutineYaml(rec) {
   L.push('baseline:', `  source: ${rec.baseline.source}`);
   if (rec.baseline.where) L.push(`  where: ${q(rec.baseline.where)}`);
   L.push(`gate: ${rec.gate}`);
-  if (rec.failures.length) { L.push('failures:'); for (const f of rec.failures) L.push(`  - ${q(f)}`); }
+  if (rec.failures.length) { L.push('failures:'); for (const f of rec.failures) L.push(`  - ${q(oneLineReason(f))}`); }
   else L.push('failures: []');
   L.push(`contradictions: ${rec.contradictions}`);
   L.push(`exit: ${rec.exit}`);
@@ -215,6 +223,13 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
     try { writeFileSync(routinePath(outDir), toRoutineYaml(record)); }
     catch (e) { say(`⚠ could not write routine.yaml: ${e.message}`); }
     return { ok, exitCode, log: lines };
+  }
+  // ratchet exit 2: it could not evaluate (an unreadable baseline, a missing ref) — that is
+  // not a regression, so the gate reads not-run with ratchet's own reason, never failed
+  function couldNotEvaluate(rat, baselineInfo) {
+    say(rat.stderr || '');
+    say('✗ ratchet could not evaluate the gate (above) — nothing was held against the baseline.');
+    return finish({ ok: false, exitCode: 1, gate: 'not-run', baselineInfo, failures: [String(rat.stderr || 'ratchet exited 2').trim()] });
   }
 
   // Everything from here down is wrapped so that if the routine dies unexpectedly
@@ -281,6 +296,7 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
     const rat = assay(['ratchet', outDir, '--baseline-ref', baseRef, '--repo', repoDir]);
     say(rat.stdout || '');
     const baselineInfo = { source: 'ref', where: baseRef };
+    if (rat.status === 2) return couldNotEvaluate(rat, baselineInfo);
     if (rat.status !== 0) {
       say(rat.stderr || '');
       say('✗ ratchet failed — a held requirement regressed or dropped off the measured scale.');
@@ -303,6 +319,7 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   // describe the machine the routine ran on (a CI runner's workspace), not the repository
   const relBaseline = relative(repoDir, resolvedBaseline);
   const baselineInfo = { source: 'file', where: relBaseline && !relBaseline.startsWith('..') && !isAbsolute(relBaseline) ? relBaseline.split(sep).join('/') : resolvedBaseline };
+  if (rat.status === 2) return couldNotEvaluate(rat, baselineInfo);
   if (rat.status !== 0) {
     say(rat.stderr || '');
     say('✗ ratchet failed — a held requirement regressed or dropped off the measured scale.');
@@ -310,7 +327,8 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   }
   return finish({ ok: true, exitCode: 0, gate: 'held', baselineInfo });
   } catch (e) {
-    const reason = `routine crashed before compiling a measurement: ${e && e.stack ? e.stack : String(e)}`;
+    const reason = `routine crashed before compiling a measurement: ${e && e.message ? e.message : String(e)}`;
+    if (e && e.stack) say(e.stack);
     say(`✗ ${reason}`);
     return finish({ ok: false, exitCode: 1, gate: 'not-run', failures: [reason] });
   }

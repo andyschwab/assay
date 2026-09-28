@@ -36,10 +36,10 @@ import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadCon
 import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef, unwrapChatReply, looksLikePersonName } from '../yardstick/packet.mjs';
 import { compare, classify, fingerprintFinding, compareFindings } from '../yardstick/compare.mjs';
 import { loadBaseline, loadYardstickDoc, evaluateRatchet, catGitFile } from '../yardstick/ratchet.mjs';
-import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath, routinePath } from '../lib/run-layout.mjs';
+import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath, routinePath, ownerPagePath as runOwnerPagePath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
 import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../views/intake.mjs';
-import { runRoutine } from '../routine/run.mjs';
+import { runRoutine, toRoutineYaml } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
 import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
 import { run as runDependencyScan } from '../map/dependency-scan.mjs';
@@ -924,7 +924,7 @@ function adaptersOnce() { return loadAdapters(); }
 {
   const fail = (m) => negFailures.push('yardstick-list-category: ' + m);
   const reg = loadYardstick();
-  const listRequirement = { id: 'd-test-list', title: 'test', tier: 'reproducibility', topic: 'context-economy', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft' };
+  const listRequirement = { id: 'd-test-list', title: 'test', tier: 'reproducibility', topic: 'context-economy', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: ['install', 'build'] }, check: 'x', sources: ['x'], status: 'draft', owner: { risk: 'x', fix: 'x' } };
   const testReg = { ...reg, requirements: [listRequirement] };
   const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
   // a gap in EITHER listed category decides the row (here: only "build" has a gap)
@@ -958,7 +958,7 @@ function adaptersOnce() { return loadAdapters(); }
 {
   const fail = (m) => negFailures.push('not-applicable: ' + m);
   const reg = loadYardstick();
-  const naReq = { id: 'd-test-na', title: 'test', tier: 'reproducibility', topic: 'reproducibility', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: 'migrate', not_applicable_when: 'no-database-signal' }, check: 'x', sources: ['x'], status: 'draft' };
+  const naReq = { id: 'd-test-na', title: 'test', tier: 'reproducibility', topic: 'reproducibility', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: 'migrate', not_applicable_when: 'no-database-signal' }, check: 'x', sources: ['x'], status: 'draft', owner: { risk: 'x', fix: 'x' } };
   const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
   // a fact row naming the condition, with nothing in the decided category: not-applicable
   const factOnly = [{ id: 'F-1', source: 'fresh-clone', native_category: 'no-database-signal', polarity: 'fact', observation: 'no database signal found anywhere in the tree', evidence: ['package.json:1'] }];
@@ -2031,6 +2031,81 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── Owner: the fourth view of the same measurement, in the owner's own register ─
+// (a) every requirement row carries a non-empty owner.risk / owner.fix (fail-closed,
+//     mirrored by validateYardstick's own rejection of a row with neither);
+// (b) compiling the public notesbox fixture writes OWNER.md with the six headings the
+//     brief specifies, and views/owner.yaml's floor rows agree with Intake's floor rows
+//     by id and status — the SAME measurement, never a second opinion;
+// (c) OWNER.md carries no score/grade line (CLAUDE.md rule 1: the map states what is,
+//     a view computes open/met/not-measured, never prices or grades it);
+// (d) a requirement row with its owner block removed fails validateYardstick — the
+//     negative half of (a), a missing register is a validation failure, not a blank page.
+{
+  const fail = (m) => negFailures.push('owner-view: ' + m);
+  const reg = loadYardstick();
+
+  // (a) every one of the 55 rows carries owner.risk / owner.fix
+  const missingOwner = reg.requirements.filter((d) => !d.owner || !String(d.owner.risk || '').trim() || !String(d.owner.fix || '').trim());
+  if (missingOwner.length) fail(`every requirement row must carry non-empty owner.risk and owner.fix (missing on ${missingOwner.map((d) => d.id).join(', ')})`);
+
+  // (d) the negative half: strip one row's owner block and confirm the register-level
+  // validator (the same one loadYardstick calls) rejects it — never silently blank
+  const stripped = JSON.parse(JSON.stringify(reg));
+  delete stripped.requirements[0].owner;
+  const strippedErrors = validateYardstick(stripped);
+  if (!strippedErrors.some((e) => /owner\.risk and owner\.fix required/.test(e))) fail('validateYardstick must reject a requirement row with no owner block');
+
+  // (b) + (c): compile the notesbox fixture and read OWNER.md + views/owner.yaml back
+  const tmp = join(HERE, 'tmp-owner-view'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --write must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'intake.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/intake.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'owner.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/owner.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+
+  const ownerPage = existsSync(runOwnerPagePath(tmp)) ? readFileSync(runOwnerPagePath(tmp), 'utf8') : '';
+  if (!ownerPage) fail('OWNER.md must be written at the run root');
+  const HEADINGS = ['## Fix in this order', '## Could not tell', '## Holds', '## Beyond the floor', '## What was not looked at'];
+  for (const h of HEADINGS) if (!ownerPage.includes(h)) fail(`OWNER.md must carry the heading "${h}"`);
+  if (!/^# What is true of /m.test(ownerPage)) fail('OWNER.md must open with "# What is true of …"');
+
+  // (c) no score/grade/verdict line — CLAUDE.md rule 1, the same discipline Intake/Maintain hold
+  const SCORE_PATTERN = /\b\d+(\.\d+)?\s*\/\s*\d+\b|\b\d+\s*(out of|of)\s*\d+\s*(points?|stars?)\b|\bscore\s*[:=]|\bgrade\s*[:=]|\b[A-F][+-]?\s+grade\b|\bpass(ed)?\/fail(ed)?\b|\boverall\s+(rating|verdict)\b/i;
+  const scoreLines = ownerPage.split('\n').filter((l) => SCORE_PATTERN.test(l));
+  if (scoreLines.length) fail(`OWNER.md must carry no score/grade line (found: ${JSON.stringify(scoreLines)})`);
+
+  if (!existsSync(runViewPath(tmp, 'owner'))) fail('views/owner.yaml must be written');
+  else {
+    const ownerDoc = parseYaml(readFileSync(runViewPath(tmp, 'owner'), 'utf8'));
+    const intakeYamlDoc = parseYaml(readFileSync(runViewPath(tmp, 'intake'), 'utf8'));
+    const intakeStatus = {};
+    for (const r of intakeYamlDoc.open || []) intakeStatus[r.id] = r.status;
+    for (const r of intakeYamlDoc.met || []) intakeStatus[r.id] = 'met';
+    for (const r of intakeYamlDoc.to_run || []) intakeStatus[r.id] = 'not-measured';
+    for (const r of intakeYamlDoc.not_applicable || []) intakeStatus[r.id] = 'not-applicable';
+    const ownerStatus = {};
+    for (const r of ownerDoc.floor?.open || []) ownerStatus[r.id] = r.status;
+    for (const r of ownerDoc.floor?.met || []) ownerStatus[r.id] = r.status;
+    for (const r of ownerDoc.floor?.not_measured || []) ownerStatus[r.id] = r.status;
+    for (const r of ownerDoc.floor?.not_applicable || []) ownerStatus[r.id] = r.status;
+    const intakeIds = Object.keys(intakeStatus), ownerIds = Object.keys(ownerStatus);
+    const missing = intakeIds.filter((id) => !(id in ownerStatus));
+    const mismatched = intakeIds.filter((id) => id in ownerStatus && ownerStatus[id] !== intakeStatus[id]);
+    if (intakeIds.length !== ownerIds.length || missing.length || mismatched.length)
+      fail(`views/owner.yaml's floor rows must equal Intake's rows by id and status (intake ${intakeIds.length}, owner ${ownerIds.length}; missing ${missing.join(', ') || 'none'}; mismatched ${mismatched.join(', ') || 'none'})`);
+
+    // every floor row carries a non-empty risk/fix/check, joined from the register
+    const allFloor = [...(ownerDoc.floor.open || []), ...(ownerDoc.floor.met || []), ...(ownerDoc.floor.not_measured || [])];
+    const blank = allFloor.filter((r) => !r.risk || !r.fix || !r.check);
+    if (blank.length) fail(`every owner.yaml floor row must carry risk, fix and check (blank on ${blank.map((r) => r.id).join(', ')})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── contradictions surface in Maintain too, and ratchet always fails on one
 // (yardstick/README.md; views/README.md) — a repository's own packet claimed a
 // run-decided requirement satisfied; this run found it unmet, never silently
@@ -2383,8 +2458,38 @@ function adaptersOnce() { return loadAdapters(); }
       const recTrigger = parseYaml(readFileSync(routineFileTrigger, 'utf8'));
       if (recTrigger.trigger !== 'schedule') fail(`trigger must read GITHUB_EVENT_NAME (got ${JSON.stringify(recTrigger.trigger)})`);
     }
+
+    // an unreadable baseline: the ratchet cannot evaluate (exit 2) — that is not a regression,
+    // so the record reads gate: not-run with ratchet's reason, never failed with no lines
+    const badBaseline = join(tmp, 'broken-baseline.yaml');
+    writeFileSync(badBaseline, 'this is: [not a baseline\n');
+    const runDirBad = join(tmp, 'run-bad-baseline');
+    let badResult = null;
+    try { badResult = runRoutine({ repoDir: target, outDir: runDirBad, baseline: badBaseline }, () => {}); }
+    catch (e) { fail(`runRoutine with an unreadable baseline must not throw (${e.message})`); }
+    if (badResult && badResult.exitCode === 0) fail('an unreadable baseline must not exit 0');
+    const recBad = existsSync(routinePath(runDirBad)) ? parseYaml(readFileSync(routinePath(runDirBad), 'utf8')) : null;
+    if (!recBad) fail('runRoutine must write a parseable routine.yaml when the baseline is unreadable');
+    else {
+      if (recBad.gate !== 'not-run') fail(`an unreadable baseline must record gate: not-run, never failed (got ${JSON.stringify(recBad.gate)})`);
+      if (!Array.isArray(recBad.failures) || !recBad.failures.length || !/baseline/i.test(recBad.failures[0])) fail(`not-run must carry the ratchet's reason (got ${JSON.stringify(recBad.failures)})`);
+    }
   }
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── routine.yaml stays readable whatever a failure reason carries ──
+{
+  const fail = (m) => negFailures.push('routine-record: ' + m);
+  const y = toRoutineYaml({ date: 'd', commit: 'c', engine: 'e', trigger: 'local', baseline: { source: 'none' }, gate: 'not-run', failures: ['validate failed:\n  • F-1: bad C:\\\\tmp\\\\x "quoted"\n' + 'z'.repeat(900)], contradictions: 0, exit: 1 });
+  let doc = null;
+  try { doc = parseYaml(y); } catch (e) { fail(`a multi-line, quoted, backslashed reason must still parse (${e.message})`); }
+  if (doc) {
+    const f = doc.failures && doc.failures[0];
+    if (typeof f !== 'string' || f.includes('\n')) fail(`a reason is recorded on one line (got ${JSON.stringify(f)})`);
+    if (f && f.length > 400) fail(`a reason is capped (got ${f.length} chars)`);
+    if (f && !f.includes('"quoted"')) fail('quotes inside a reason survive the round trip');
+  }
 }
 
 // ── routine --base-ref: a pull request is graded against the BASE branch's own
@@ -2659,7 +2764,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

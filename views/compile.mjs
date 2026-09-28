@@ -1,16 +1,17 @@
 #!/usr/bin/env node
 // compile.mjs — assemble the full evaluation package for a run: one map, one
-// yardstick, three views.
+// yardstick, four views.
 //
-// One command → the whole deliverable, three readers over one measurement:
+// One command → the whole deliverable, four readers over one measurement:
 //   • INTAKE   (views/intake.yaml + INTAKE.md)     — views/intake.mjs           [can this map be carried?]
 //   • MAINTAIN (views/maintain.yaml + MAINTAIN.md) — views/maintain.mjs         [is it still healthy?]
 //   • IMPROVE  (views/improve.yaml + IMPROVE.md)   — views/improve/{report,axes,handoff,topics}.mjs [what makes it better?]
+//   • OWNER    (views/owner.yaml + OWNER.md)       — views/owner.mjs            [what is true of it, for the person who is not an engineer?]
 //   • the INDEX (INDEX.md)                        — written here               [front door]
-// Assay draws a map, measures it against a yardstick, then writes these three
+// Assay draws a map, measures it against a yardstick, then writes these four
 // views. Improve's lead page (IMPROVE.md) compiles only when the run carries
 // its authored inputs (views/improve/prose.yaml); a raw base still gets the
-// walk + handoff + Intake + Maintain, and the INDEX says which lead is
+// walk + handoff + Intake + Maintain + Owner, and the INDEX says which lead is
 // present. Scanner-native reports (deep-code-review's own) are listed as
 // APPENDICES — provenance in each scanner's own voice, never merged.
 // Branded/PDF output lives outside assay (Andy's decision, 2026-09-24) — this
@@ -30,6 +31,7 @@ import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterF
 import { loadDecisions, decideProjected } from '../map/decisions.mjs';
 import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '../yardstick/measure.mjs';
 import { buildRows } from './floor-fleet.mjs';
+import { buildOwner } from './owner.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';
 import { prosePath as runProsePath, nativeDir, indexPath, sincePagePath } from '../lib/run-layout.mjs';
@@ -69,7 +71,7 @@ console.log('· validate …');                  run('../map/validate.mjs', []);
 console.log('· measure  (yardstick) …');      run('../yardstick/measure.mjs', ['--write', ...packetArgs]);
 console.log('· topics   (improve.yaml) …');   run('improve/topics.mjs', ['--write']);
 
-// ── the three views ───────────────────────────────────────────────────────────
+// ── the four views ───────────────────────────────────────────────────────────
 console.log('· walk     (improve/axes) …');   run('improve/axes.mjs', confArgs);
 console.log('· handoff  (improve/handoff) …'); run('improve/handoff.mjs', confArgs);
 let reportOk = false;
@@ -80,6 +82,7 @@ if (hasProse) {
 }
 console.log('· intake   (can it be carried?) …'); run('intake.mjs', confArgs);
 console.log('· maintain (is it still healthy?) …'); run('maintain.mjs', confArgs);
+console.log('· owner    (what is true of it?) …'); run('owner.mjs', confArgs);
 let sinceOk = false;
 if (previousRun) {
   console.log('· since    (what changed?) …'); sinceOk = run('since.mjs', ['--previous', previousRun, ...confArgs]);
@@ -138,10 +141,12 @@ const descSum = summarizeMeasurement(descRows);
 const descUnmet = descRows.filter((r) => r.status === 'unmet').map((r) => `\`${r.id}\``);
 const descClaims = descRows.filter((r) => r.kind === 'claim').length;
 
-// ── the three views' own counts, for the lead lines ─────────────────────────
+// ── the four views' own counts, for the lead lines ─────────────────────────
 const intakeBuilt = buildRows(runDir, 'floor');
 const maintainBuilt = buildRows(runDir, 'fleet', { withFloor: true });
+const ownerBuilt = buildOwner(runDir);
 const viewCount = (b) => b ? `${b.open.length} open · ${b.met.length} met · ${b.to_run.length} to run` : 'not measured yet';
+const ownerCount = (b) => b ? `${b.floor.open.length} open · ${b.floor.met.length} met · ${b.floor.not_measured.length} could not tell` : 'not measured yet';
 
 // ── INDEX.md — the front door ────────────────────────────────────────────────
 const rel = (p) => relative(runDir, p) || basename(p);
@@ -160,17 +165,18 @@ ${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "${runId} — evaluation pac
 
 # ${runId} — evaluation package
 
-One map, one yardstick, three views. No single verdict: one flat axis roster,
+One map, one yardstick, four views. No single verdict: one flat axis roster,
 each axis its own posture; a requirement is met, unmet, mixed, or not measured
 — never priced, never graded pass/fail.
 
 **Scanners:** ${scannerLine(manifest, sources, adapters)} · **${projected.length} findings** · run ${runDate}${hasDecisions ? ' · owner triage applied (`owner/decisions.yaml`)' : ' · raw base (no triage)'}.
 
-## The three views
+## The four views
 
 - **Intake** _(can this map be carried?)_ — [\`INTAKE.md\`](INTAKE.md): ${viewCount(intakeBuilt)} of the floor requirements.
 - **Maintain** _(is it still healthy?)_ — [\`MAINTAIN.md\`](MAINTAIN.md): ${viewCount(maintainBuilt)} of the fleet requirements.
 - ${improveRow}${sinceRow}
+- **Owner** _(what is true of it, and what do I do first?)_ — [\`OWNER.md\`](OWNER.md): ${ownerCount(ownerBuilt)} of the floor requirements, in the owner's own register.
 
 ## The roster (glance)
 
@@ -186,7 +192,8 @@ ${descSum.decided} of ${descSum.of} requirements decided by this run (met ${desc
 | Artifact | Reader | What it is |
 |---|---|---|
 | [\`views/intake.yaml\`](views/intake.yaml) | machine | Intake's floor rows: open, met, to run, not seen. |
-| [\`views/maintain.yaml\`](views/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |${sinceOk ? `\n| [\`views/since.yaml\`](views/since.yaml) | machine | What changed vs \`${basename(previousRun)}\`: regressed, improved, newly/no-longer measured, findings new/no-longer-found. |` : ''}
+| [\`views/maintain.yaml\`](views/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |
+| [\`views/owner.yaml\`](views/owner.yaml) | machine | Owner's floor and beyond-floor rows, each joined with the owner's risk/fix register, plus what was not looked at. |${sinceOk ? `\n| [\`views/since.yaml\`](views/since.yaml) | machine | What changed vs \`${basename(previousRun)}\`: regressed, improved, newly/no-longer measured, findings new/no-longer-found. |` : ''}
 | [\`views/improve.yaml\`](views/improve.yaml) | machine | Every requirement on the yardstick, grouped by topic. |
 | [\`yardstick.yaml\`](yardstick.yaml) | machine, and what a repository's own claims are compared against | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
 | [\`views/improve/axes.md\`](views/improve/axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register, requirements by topic. |
@@ -218,4 +225,4 @@ _assay evaluation engine. Run \`${runId}\`.${CONFIDENTIAL ? ' Confidential.' : '
 `;
 
 writeFileSync(join(runDir, 'INDEX.md'), index);
-console.log(`\n✓ package assembled — INDEX.md + INTAKE.md + MAINTAIN.md${reportOk ? ' + IMPROVE.md' : ''}${sinceOk ? ' + SINCE.md' : ''} + views/improve/axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);
+console.log(`\n✓ package assembled — INDEX.md + INTAKE.md + MAINTAIN.md + OWNER.md${reportOk ? ' + IMPROVE.md' : ''}${sinceOk ? ' + SINCE.md' : ''} + views/improve/axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);

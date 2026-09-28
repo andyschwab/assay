@@ -59,11 +59,15 @@ directory must be a repo root of its own, never resolved through git's own
 upward discovery to an enclosing repository, and `repository` is left out
 entirely when no `origin` remote is configured. `baseline.source` is `ref` on
 a pull request (`--base-ref`, `where` the base ref), `file` on a schedule or
-local run that found a baseline (`where` its resolved path), and `none` when
+local run that found a baseline (`where` its path in the repository, or its absolute path
+when it lives outside it), and `none` when
 no baseline was found at all — which is exactly when `gate` reads `skipped`.
 `gate: failed` is a ratchet exit of 1 (`failures` non-empty); `gate: held` is
-exit 0 with a baseline in hand; `gate: not-run` means the gate never ran at
-all, with whatever reason is known in `failures`. `failures` is read straight
+exit 0 with a baseline in hand; `gate: not-run` means the gate never ran —
+validation or compile failed, the routine crashed, or the ratchet could not
+evaluate (exit 2: an unreadable baseline, a missing ref) — with the reason in
+`failures`. A reason is recorded on one line, capped at 400 characters (the full
+output stays in the CI log). `failures` is read straight
 from the ratchet subprocess's own stderr — the lines `evaluateRatchet`
 already prints with a `✗ ` prefix, minus its one summary line — rather than
 re-loading the baseline and re-running the comparison a second time.
