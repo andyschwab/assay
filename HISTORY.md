@@ -451,3 +451,27 @@ what the public engine learned.
   line names the requirement, that the owner claimed it satisfied, and what
   the run found instead. Documented in `yardstick/README.md` and
   `views/README.md`. Goldens untouched.
+- **2026-09-28 — Intake gains "What the owner told us."** Most of what a
+  repository's own packet (`owner/manifest.yaml`, `owner/PACKET.md`) says about
+  itself appeared nowhere before this: `views/intake.mjs` now reduces the
+  run's copied packet to a fact-only `owner:` block in `views/intake.yaml` and
+  a "What the owner told us" section in `INTAKE.md` — accounts (counts,
+  personal vs organisational, transferable yes/no/unknown, one line per
+  account), credentials (count, where they live, never-rotated count,
+  readers), people (who can build/deploy/restore, whether restore was ever
+  done), data (personal data held, what it leaves via), money (monthly per
+  provider, alerts), handover, notes, and the answered date/by/via — assay
+  issues no verdict on any of it. A role list the packet never spoke to reads
+  `null` ("unknown"); one the owner explicitly emptied (`[]`, "nobody can" per
+  `owner/PACKET.md`'s own convention) renders "nobody" — every other unknown
+  renders as the literal word "unknown", never dropped. With no packet at all,
+  the section reads "No owner's packet yet: the owner prompt (`assay.mjs
+  ask-owner`) collects these." `custody.credentials` also informs
+  `d-credentials-enumerated`, but only as a trailing note on whichever list the
+  run itself put that row in ("… (the owner listed N credentials)") — it never
+  changes the row's run-decided status. Caught in review before landing: the
+  packet's `handover` field lives under `custody:`, not the top level —
+  reading `packet.handover` silently produced "unknown" for every packet that
+  correctly followed `owner/PACKET.md`; fixed to `custody.handover`, pinned by
+  a test asserting the exact fixture text. Documented in `views/README.md`.
+  Goldens untouched.
