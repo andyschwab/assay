@@ -39,6 +39,7 @@ import { loadBaseline, loadYardstickDoc, evaluateRatchet } from '../yardstick/ra
 import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
 import { runRoutine } from '../routine/run.mjs';
+import { parseWorkflow } from '../map/repo-census.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -474,6 +475,19 @@ function adaptersOnce() { return loadAdapters(); }
   const walk = execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'axes.mjs'), tmp, '--stdout'], { stdio: 'pipe' }).toString();
   if (!walk.includes('Partially measured') || !walk.includes('B partial (mutating routes')) fail('the walk must say an axis is partially measured, with the scanner\'s note');
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── repo-census gate commands: what a CI step must run to count as a gate ─────
+// A zero-dependency repository runs its tests with `node` directly (the public
+// fixture repository's CI does); the census read that as no gate. A test runner or
+// a test file is a gate; running the app, or a script that merely mentions tests, is not.
+{
+  const fail = (m) => negFailures.push('census-gate-commands: ' + m);
+  const wf = (cmd) => `on:\n  pull_request:\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: ${cmd}\n`;
+  for (const cmd of ['npm test', 'node --test', 'node test/smoke.mjs', 'node targets/clean-lib/test/slugify.test.mjs', 'node lib/a.spec.ts', 'bun test', 'deno test', 'pytest -q'])
+    if (!parseWorkflow(wf(cmd)).steps[0]?.isGateCmd) fail(`"${cmd}" must count as a gate step`);
+  for (const cmd of ['node server.mjs', 'node scripts/build-tests.mjs', 'node testing.mjs', 'echo test'])
+    if (parseWorkflow(wf(cmd)).steps[0]?.isGateCmd) fail(`"${cmd}" must not count as a gate step`);
 }
 
 // ── fresh-clone instrument (map/fresh-clone.mjs → ingest profile fresh-clone) ──
@@ -1812,7 +1826,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

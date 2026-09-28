@@ -329,7 +329,8 @@ tree checks:
   symbolic-ref refs/remotes/origin/HEAD`, else `main`) and runs a step whose
   `run:` invokes a test / lint / typecheck / build command (npm / pnpm / yarn
   test|lint|typecheck|build, `tsc`, `jest`, `vitest`, `pytest`, `go test`, `cargo
-  test`, `make test`). It **fails open** — a gap, cited by file:line — when the
+  test`, `make test`, `deno test` / `bun test`, `node --test`, or `node` running a
+  file in a `test/` / `tests/` directory or named `*.test.*` / `*.spec.*`). It **fails open** — a gap, cited by file:line — when the
   gating job or step carries `continue-on-error: true`; a gate that can fail open
   is not a gate.
 
