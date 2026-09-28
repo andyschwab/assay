@@ -3052,6 +3052,23 @@ function adaptersOnce() { return loadAdapters(); }
   if (!/item 2, 8 hits/.test(sixSection)) fail(`report §6 must name the triage item's number and hit count matching the handoff (got: ${sixSection})`);
   if (!/F-1000/.test(sixSection) || !/item 3/.test(sixSection)) fail(`report §6 must name the uncovered Critical F-1000 at item 3, matching the handoff (got: ${sixSection})`);
 
+  // 6b. a roadmap item that takes in a bundling scanner's findings renders them the way that
+  // scanner's own remedy does (a per-file summary for triage), never one claim block per hit,
+  // and the triage item it absorbs leaves the sequence
+  writeFileSync(join(tmp, 'views', 'improve', 'prose.yaml'), [
+    'target: "sequence test target"', 'maintainer: "the test maintainers"', 'exec_summary: "test"',
+    'roadmap:', '  - slug: rotate-at-handover', '    title: "Rotate every credential at handover"',
+    '    body: "Rotate, then settle the hits."', `    findings: [${Array.from({ length: 8 }, (_, i) => `F-${800 + i}`).join(', ')}]`,
+    '    done_when:', '      - "every credential rotated"', '',
+  ].join('\n'));
+  const hRun2 = spawnSync(process.execPath, [join(ROOT, 'views', 'improve', 'handoff.mjs'), tmp], { encoding: 'utf8' });
+  const start2 = existsSync(join(tmp, 'handoff', 'START-HERE.md')) ? readFileSync(join(tmp, 'handoff', 'START-HERE.md'), 'utf8') : '';
+  const plan01 = existsSync(join(tmp, 'handoff', 'plan')) ? readdirSync(join(tmp, 'handoff', 'plan')).find((f) => /^01-/.test(f)) : null;
+  const body01 = plan01 ? readFileSync(join(tmp, 'handoff', 'plan', plan01), 'utf8') : '';
+  if (hRun2.status !== 0) fail(`handoff.mjs must succeed with a roadmap that absorbs the triage (stderr: ${hRun2.stderr})`);
+  if (/Triage gitleaks/.test(start2)) fail('a roadmap item citing every secret hit absorbs the triage item; it must leave the sequence');
+  if (!/8 findings from gitleaks\*\*, summarized per file/.test(body01) || (body01.match(/<<<OBSERVATION/g) || []).length > 0) fail(`an authored item must summarize a triage scanner's hits per file, never one claim block each (got:\n${body01.slice(0, 900)})`);
+
   // 7. the degenerate gate still fails closed: an open gap, no fix, no roadmap → no sequence
   const tmpDeg = join(HERE, 'tmp-sequence-degenerate'); rmSync(tmpDeg, { recursive: true, force: true });
   mkdirSync(join(tmpDeg, 'map', 'findings'), { recursive: true });

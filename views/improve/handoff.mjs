@@ -43,7 +43,7 @@ import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterF
 import { loadDecisions, decideProjected } from '../../map/decisions.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { prosePath as runProsePath, handoffDir } from '../../lib/run-layout.mjs';
-import { buildRoadmap, buildSequence, clientProofFor, stripLine, urgentNote } from './sequence.mjs';
+import { buildRoadmap, buildSequence, clientProofFor, handoffConfig, stripLine, urgentNote } from './sequence.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]...'); process.exit(2); }
@@ -352,9 +352,10 @@ ${proofBlock(s.ps)} Summarize what changed and confirm the finding flips.
 
 // file/scanner unit — a bundle too big to give one claim block per finding (§5): one
 // compact fence, one line per finding (id, severity, evidence, verbatim observation + fix).
+const groupedRow = (p) => `- \`${p.f.id}\` — ${p.f.severity || 'unrated'} — ${evPaths(p.f)} — ${clean(p.f.observation)} — FIX: ${clean(p.f.fix)}`;
 function planGrouped(s) {
   const scope = s.unit === 'file' ? `grouped by file: \`${s.fileKey}\`` : `all of ${s.source}'s remaining open findings`;
-  const row = (p) => `- \`${p.f.id}\` — ${p.f.severity || 'unrated'} — ${evPaths(p.f)} — ${clean(p.f.observation)} — FIX: ${clean(p.f.fix)}`;
+  const row = groupedRow;
   return `# Session prompt — ${seqTitle(s)}
 
 ${preamble}
@@ -392,19 +393,22 @@ ${proofBlock(s.ps)} Summarize what changed and confirm every finding above flips
 
 // triage — never inline every hit (§5): summarize per evidence file, rotate live secrets
 // before any history rewrite, then purge or suppress with the reason recorded.
-function planTriage(s) {
+function triageRows(ps) {
   const byFile = new Map();
-  for (const p of s.ps) for (const e of (p.f.evidence || [])) {
+  for (const p of ps) for (const e of (p.f.evidence || [])) {
     const file = stripLine(e);
     if (!byFile.has(file)) byFile.set(file, []);
     byFile.get(file).push(p);
   }
-  const rows = [...byFile.entries()].map(([file, group]) => {
+  return [...byFile.entries()].map(([file, group]) => {
     const ruleIds = [...new Set(group.map((p) => p.f.native_id).filter(Boolean))];
     const ids = group.map((p) => p.f.id).sort();
     const idRange = ids.length > 1 ? `${ids[0]}..${ids[ids.length - 1]}` : ids[0];
     return `- ${file} — ${group.length} hit${group.length === 1 ? '' : 's'}; rule(s): ${ruleIds.join(', ') || '(none recorded)'}; finding(s) ${idRange}`;
   });
+}
+function planTriage(s) {
+  const rows = triageRows(s.ps);
   return `# Session prompt — ${seqTitle(s)}
 
 ${preamble}
@@ -445,6 +449,24 @@ ${proofBlock(s.ps)} Summarize what you found live (and handed me to rotate), wha
 `;
 }
 
+// an authored item may take in a whole bundling scanner's findings (every advisory in a lockfile,
+// every secret hit): those render the way that scanner's own remedies do (a per-file summary for a
+// triage scanner, one line per finding for a file or scanner unit), never one claim block per hit;
+// findings from a finding-unit scanner keep their full claim block.
+function authoredClaims(ps, s) {
+  const full = [], bundled = new Map();
+  for (const p of ps) {
+    const cfg = handoffConfig(adapters[p.source]);
+    if (cfg.unit === 'finding') full.push(p);
+    else { if (!bundled.has(p.source)) bundled.set(p.source, { cfg, ps: [] }); bundled.get(p.source).ps.push(p); }
+  }
+  const out = full.map(claimBlock);
+  for (const [src, { cfg, ps: group }] of bundled) {
+    const rows = cfg.triage ? triageRows(group) : group.map(groupedRow);
+    out.push(`**${group.length} finding${group.length === 1 ? '' : 's'} from ${src}**${cfg.triage ? ', summarized per file' : ', one line each'} (every claim block in full: REMEDIATION.md item ${s ? s.n : ''} / FINDINGS.md):`, '', fence(cfg.triage ? 'FILES' : 'FINDINGS', rows.join('\n')), '');
+  }
+  return out.join('\n');
+}
 function planAuthored(r, s) {
   return `# Session prompt — ${r.title}
 
@@ -459,7 +481,7 @@ ${clean(r.body)}
 
 ## The claims to verify first
 
-${r.ps.map(claimBlock).join('\n')}
+${authoredClaims(r.ps, s)}
 Open each evidence path and confirm the claim still holds. An **established** claim is a
 working pattern to copy or preserve, not a defect. If any claim no longer holds, stop and
 tell me before changing anything.
