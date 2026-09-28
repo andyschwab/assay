@@ -129,10 +129,11 @@ const SECRET_SHAPES = [
 // A file path is not a secret: `apps/web-app/docs/SHARED_LEADS` has slashes, mixed
 // case and underscores, so it passed the entropy gate and a real packet's pointers
 // were refused (2026-09-28). Exempt a token only when every slash-separated segment
-// reads as a word: all lowercase, ALL CAPS or Capitalised, joined by - or _. A
+// reads as a word: all lowercase, ALL CAPS, or CamelCase whose humps start with
+// a capital and two lowercase letters, joined by - or _. A
 // base64 secret that happens to contain '/' mixes case inside its segments
 // ("Xk9aB2") and stays caught.
-const WORD = '(?:[a-z0-9]+|[A-Z0-9]+|[A-Z][a-z0-9]+)';
+const WORD = '(?:[a-z0-9]+|[A-Z0-9]+|[a-z]*(?:[A-Z][a-z]{2,}[a-z0-9]*)+)';   // lower, UPPER, or CamelCase whose humps are words
 const PATH_SEGMENT = new RegExp(`^${WORD}(?:[-_]${WORD})*$`);
 export function isPathLike(token) {
   const segs = token.split('/').filter(Boolean);
