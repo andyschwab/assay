@@ -293,3 +293,23 @@ what the public engine learned.
   recorded, never merged. Tested with simulated owners on an invented app; the
   parser now reads a flow list on the line below its key, and yes/no fields
   accept `unsure`. The custody questions file is retired: the prompt carries them.
+- **2026-09-28 — comparing two measurements: `since` and `ratchet`.**
+  `yardstick/compare.mjs` is a new pure core, `compare(previous, current)`, over
+  two documents shaped like `yardstick.yaml`: every requirement id classifies as
+  `improved`, `regressed`, `unchanged`, `newly-measured`, `no-longer-measured` or
+  `yardstick-only`, on a total order (`met > mixed > unmet`) that deliberately
+  puts `not-measured` off the scale — a status leaving the measured scale is a
+  loss, never a lateral move. `node assay.mjs ratchet <run> --baseline
+  <baseline.yaml>` fails the moment a `met`/`mixed` baseline row gets worse or
+  drops off the scale, or a baseline row is absent from the current measurement
+  entirely; `--write-baseline` writes the reviewed snapshot from a run, but never
+  commits it — a named steward does that themselves (`yardstick/README.md`). The
+  same module's `fingerprintFinding`/`compareFindings` match findings across two
+  independent runs by `(scanner, dimension-or-category, evidence file paths with
+  the line stripped)` — never by `id`, which carries no meaning across runs
+  (`map/SCHEMA.md` §3) — for the new Since view: `node assay.mjs since <run>
+  --previous <prev-run>` and `compile <run> --since <prev-run>` write
+  `views/since.yaml` and `SINCE.md` (`views/README.md`), leading with
+  regressions and improvements, ending with findings new and "no longer found"
+  — never "fixed": absence of a finding is absence of re-detection, not proof
+  the fact is gone. Goldens untouched.

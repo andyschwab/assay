@@ -34,7 +34,9 @@ import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
 import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
 import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim } from '../yardstick/packet.mjs';
-import { packetManifestPath } from '../lib/run-layout.mjs';
+import { compare, classify, fingerprintFinding, compareFindings } from '../yardstick/compare.mjs';
+import { loadBaseline, loadYardstickDoc, evaluateRatchet } from '../yardstick/ratchet.mjs';
+import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET } from '../owner/ask-owner.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -1259,6 +1261,220 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── compare(): the classification table, incl. no-longer-measured + yardstick-only ──
+// Pure, no fixtures needed. Pins the ordering rule (met > mixed > unmet, not-measured
+// off-scale) so a status leaving the measured scale can never silently read as
+// "improved" or "unchanged" — a loss of information is not progress (yardstick/README.md).
+{
+  const fail = (m) => negFailures.push('compare: ' + m);
+  const TABLE = [
+    ['unmet', 'unmet', 'unchanged'], ['unmet', 'mixed', 'improved'], ['unmet', 'met', 'improved'],
+    ['mixed', 'unmet', 'regressed'], ['mixed', 'mixed', 'unchanged'], ['mixed', 'met', 'improved'],
+    ['met', 'unmet', 'regressed'], ['met', 'mixed', 'regressed'], ['met', 'met', 'unchanged'],
+    ['not-measured', 'not-measured', 'unchanged'],
+    ['not-measured', 'unmet', 'newly-measured'], ['not-measured', 'mixed', 'newly-measured'], ['not-measured', 'met', 'newly-measured'],
+    ['unmet', 'not-measured', 'no-longer-measured'], ['mixed', 'not-measured', 'no-longer-measured'], ['met', 'not-measured', 'no-longer-measured'],
+  ];
+  for (const [p, c, want] of TABLE) {
+    const got = classify(p, c);
+    if (got !== want) fail(`classify(${p} -> ${c}) = "${got}", want "${want}"`);
+  }
+  let threw = false; try { classify('met', 'bogus'); } catch { threw = true; }
+  if (!threw) fail('classify must throw on a status outside the closed vocabulary (fail loud)');
+
+  const prevDoc = { version: 0, requirements: [{ id: 'd-a', status: 'met', basis: 'run' }, { id: 'd-b', status: 'unmet', basis: 'run' }] };
+  const currDoc = { version: 1, requirements: [{ id: 'd-a', status: 'unmet', basis: 'run', findings: ['F-1'] }, { id: 'd-c', status: 'met', basis: 'owner' }] };
+  const result = compare(prevDoc, currDoc);
+  if (!result.versionChanged || result.previousVersion !== 0 || result.currentVersion !== 1) fail('a yardstick version difference must be reported, never hidden');
+  const byId = Object.fromEntries(result.rows.map((r) => [r.id, r]));
+  if (byId['d-a'].classification !== 'regressed' || byId['d-a'].current.findings.join() !== 'F-1') fail('d-a (met -> unmet) must classify regressed and carry the current row\'s findings');
+  if (byId['d-b'].classification !== 'yardstick-only' || byId['d-b'].side !== 'previous') fail('d-b (dropped from the current yardstick) must read yardstick-only/previous');
+  if (byId['d-c'].classification !== 'yardstick-only' || byId['d-c'].side !== 'current' || byId['d-c'].current.basis !== 'owner') fail('d-c (new to the yardstick) must read yardstick-only/current and carry its basis');
+  if (Object.keys(byId).length !== 3) fail(`compare must emit exactly one row per id across both sides (got ${Object.keys(byId).join(', ')})`);
+}
+
+// ── compareFindings(): the fingerprint — never line numbers alone, never id ────
+{
+  const fail = (m) => negFailures.push('compare-findings: ' + m);
+  const prevF = [
+    { id: 'F-1', source: 'gitleaks', native_category: 'secret', evidence: ['a.js:6'] },
+    { id: 'F-2', dimension: 'delegation', evidence: ['lib/x.py:10'] },
+  ];
+  const currF = [
+    { id: 'F-9', source: 'gitleaks', native_category: 'secret', evidence: ['a.js:99'] }, // same file, line moved
+    { id: 'F-2', dimension: 'delegation', evidence: ['lib/x.py:1'] },                    // same file, line moved
+    { id: 'F-3', dimension: 'delegation', evidence: ['lib/y.py:1'] },                    // a genuinely different file
+  ];
+  const delta = compareFindings(prevF, currF);
+  if (delta.new.some((f) => f.id === 'F-9') || delta.no_longer_found.some((f) => f.id === 'F-1')) fail('a finding whose evidence FILE is unchanged (only the line moved) must match across runs, never read as new/no-longer-found');
+  if (delta.new.some((f) => f.id === 'F-2') || delta.no_longer_found.some((f) => f.id === 'F-2')) fail('F-2 (same scanner/category/file both runs) must match across runs');
+  if (!delta.new.some((f) => f.id === 'F-3')) fail('F-3 (a genuinely new evidence file) must read as new');
+  if (fingerprintFinding({ source: 'gitleaks', native_category: 'secret', evidence: ['a.js:6'] }) !== fingerprintFinding({ source: 'gitleaks', native_category: 'secret', evidence: ['a.js:999'] })) fail('the fingerprint must be line-number-independent');
+}
+
+// ── ratchet: exit 0 / 1 / 2, --write-baseline, and the failure/summary lines ──
+{
+  const fail = (m) => negFailures.push('ratchet: ' + m);
+  const tmp = join(HERE, 'tmp-ratchet'); rmSync(tmp, { recursive: true, force: true });
+  const runMet = join(tmp, 'met'), runRegressed = join(tmp, 'regressed'), runUnmet = join(tmp, 'unmet');
+  // runMet: notesbox with gitleaks emptied — d-secrets-out-of-history reads MET.
+  copyFixtureFindings('notesbox', runMet); copyFixtureScanners('notesbox', runMet);
+  writeFileSync(join(runMet, 'map', 'findings', 'gitleaks.yaml'), '[]\n');
+  // runRegressed: the same base, gitleaks restored — d-secrets-out-of-history reads UNMET again.
+  copyFixtureFindings('notesbox', runRegressed); copyFixtureScanners('notesbox', runRegressed);
+  // runUnmet: the plain fixture, unmet from the start (nothing to hold — never fails).
+  copyFixtureFindings('notesbox', runUnmet); copyFixtureScanners('notesbox', runUnmet);
+  for (const r of [runMet, runRegressed, runUnmet]) {
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), r, '--write'], { stdio: 'pipe' }); }
+    catch (e) { fail(`measure --write must succeed on ${r} (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  }
+
+  const baselineFile = join(tmp, 'baseline.yaml');
+  let wbOut = '';
+  try { wbOut = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runMet, '--write-baseline', baselineFile, '--by', 'qa-steward', '--commit', 'abc1234def'], { stdio: 'pipe' }).toString(); }
+  catch (e) { fail(`--write-baseline with no --baseline must exit 0 (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
+  if (!existsSync(baselineFile)) fail('--write-baseline must write the file');
+  let baseline = null;
+  try { baseline = loadBaseline(baselineFile); } catch (e) { fail(`the written baseline must itself validate (${e.message})`); }
+  if (baseline) {
+    if (baseline.baseline !== 1) fail('baseline: format version must be 1');
+    if (baseline.accepted?.by !== 'qa-steward' || baseline.accepted?.date !== new Date().toISOString().slice(0, 10)) fail('baseline: accepted.by/date must come from --by and today');
+    if (baseline.commit !== 'abc1234def') fail('baseline: commit must come from --commit');
+    const row = (baseline.requirements || []).find((r) => r.id === 'd-secrets-out-of-history');
+    const runDoc = loadYardstickDoc(runMet);
+    const runRow = runDoc.requirements.find((r) => r.id === 'd-secrets-out-of-history');
+    if (!row || row.status !== runRow.status || row.basis !== (runRow.basis || 'run')) fail(`--write-baseline round-trip: baseline row for d-secrets-out-of-history must match the run's own yardstick.yaml (got ${JSON.stringify(row)} vs ${JSON.stringify(runRow)})`);
+    if (row.status !== 'met') fail('the fixture setup is wrong: d-secrets-out-of-history must read met in runMet (gitleaks emptied) for this test to mean anything');
+  }
+
+  // exit 0: unchanged (still met) — held counted, no failures, the summary line names it.
+  {
+    let out = '', status = 0;
+    try { out = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runMet, '--baseline', baselineFile], { stdio: 'pipe' }).toString(); }
+    catch (e) { status = e.status ?? 1; out = String(e.stdout || ''); }
+    if (status !== 0) fail(`ratchet against an unchanged met baseline must exit 0 (got ${status})`);
+    if (!/held \d+, improved \d+/.test(out)) fail(`exit-0 output must carry a one-line "held N, improved M" summary (got: ${out.split('\n')[0]})`);
+  }
+
+  // exit 1: d-secrets-out-of-history regresses back to unmet — the failure line names
+  // the requirement, its title, before -> after, and the current finding id.
+  {
+    let out = '', err = '', status = 0;
+    try { out = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runRegressed, '--baseline', baselineFile], { stdio: 'pipe' }).toString(); }
+    catch (e) { status = e.status ?? 1; err = String(e.stderr || ''); out = String(e.stdout || ''); }
+    if (status !== 1) fail(`ratchet must exit 1 when a met/mixed baseline row regresses (got ${status})`);
+    const line = err || out;
+    if (!line.includes('d-secrets-out-of-history')) fail('the failure line must name the requirement id');
+    if (!/No secret lives in the tree/.test(line)) fail('the failure line must name the requirement title');
+    if (!/met\s*→\s*unmet/.test(line)) fail('the failure line must show before → after');
+    if (!line.includes('F-700')) fail('the failure line must name the current finding id(s) behind the regression');
+  }
+
+  // a baseline row recorded unmet never fails, even against a run where it stays unmet.
+  {
+    const wb2 = join(tmp, 'baseline-unmet.yaml');
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runUnmet, '--write-baseline', wb2], { stdio: 'pipe' }); }
+    catch (e) { fail(`--write-baseline on runUnmet must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+    let status = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runUnmet, '--baseline', wb2], { stdio: 'pipe' }); }
+    catch (e) { status = e.status ?? 1; }
+    if (status !== 0) fail(`a baseline row recorded unmet must never fail the ratchet even when nothing changed (got exit ${status})`);
+  }
+
+  // exit 2: a missing/unreadable input is never 0.
+  for (const [args, what] of [
+    [[runMet, '--baseline', join(tmp, 'does-not-exist.yaml')], 'a missing baseline file'],
+    [[join(tmp, 'no-such-run'), '--baseline', baselineFile], 'a missing run (no yardstick.yaml)'],
+  ]) {
+    let status = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), ...args], { stdio: 'pipe' }); }
+    catch (e) { status = e.status ?? 1; }
+    if (status !== 2) fail(`ratchet must exit 2 on ${what}, never 0 (got ${status})`);
+  }
+
+  // the pure core directly, for the "absent from the current measurement" case
+  // (a baseline requirement id the current run's yardstick no longer decides at all).
+  {
+    const bDoc = { baseline: 1, yardstick: 0, accepted: { date: '2026-01-01', by: 'steward' }, requirements: [{ id: 'd-does-not-exist-anymore', status: 'met', basis: 'run' }] };
+    const cDoc = { version: 0, requirements: [{ id: 'd-secrets-out-of-history', status: 'met', basis: 'run', findings: [] }] };
+    const { failures } = evaluateRatchet(bDoc, cDoc, (id) => id);
+    if (!failures.length || !failures[0].includes('absent from this run')) fail('a baseline requirement absent from the current measurement must always fail, regardless of its recorded status');
+  }
+
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── since: two small runs (a fixture copy, one requirement flipped), incl. a
+// finding "no longer found" — never "fixed" (views/README.md) ────────────────
+{
+  const fail = (m) => negFailures.push('since: ' + m);
+  const tmp = join(HERE, 'tmp-since'); rmSync(tmp, { recursive: true, force: true });
+  const prev = join(tmp, 'prev-2026-01-01'), curr = join(tmp, 'curr-2026-02-01');
+  copyFixtureFindings('notesbox', prev); copyFixtureScanners('notesbox', prev);
+  copyFixtureFindings('notesbox', curr); copyFixtureScanners('notesbox', curr);
+  // flip one requirement's deciding findings: gitleaks emptied in `curr` only —
+  // d-secrets-out-of-history: unmet (prev) -> met (curr), and F-700 reads "no longer found".
+  writeFileSync(join(curr, 'map', 'findings', 'gitleaks.yaml'), '[]\n');
+  // a finding "no longer found" that carries no requirement at all (subject_type: control,
+  // decided by no facet/instrument row) — removing it must change since's findings tally
+  // and NOTHING in the yardstick, proving the two are read from independent inputs.
+  const delFile = join(curr, 'map', 'findings', 'repo-eval-delegation.yaml');
+  const delRaw = readFileSync(delFile, 'utf8');
+  const delWithoutF050 = delRaw.replace(/- id: F-050[\s\S]*?(?=\n- id: F-051)/, '');
+  if (delWithoutF050 === delRaw || delWithoutF050.includes('F-050')) fail('test setup: could not remove F-050 from the curr fixture copy — the since "no longer found" case would be vacuous');
+  writeFileSync(delFile, delWithoutF050);
+  for (const r of [prev, curr]) {
+    // triage every open gap so a later compile of `curr` never hits the handoff's
+    // degenerate gate — decisions.yaml never changes what measure.mjs decides (it
+    // reads raw findings only), so this cannot affect the since comparison itself.
+    const gaps = loadFindings(r).filter((f) => f.polarity === 'gap');
+    mkdirSync(dirname(decisionsPath(r)), { recursive: true });
+    writeFileSync(decisionsPath(r), gaps.map((f) => `- finding: ${f.id}\n  action: accept\n  reason: "regression fixture: triaged so the handoff never degenerates"\n  by: test\n  at: "2026-01-01"`).join('\n') + '\n');
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), r, '--write'], { stdio: 'pipe' }); }
+    catch (e) { fail(`measure --write must succeed on ${r} (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  }
+
+  let sinceOut = '';
+  try { sinceOut = execFileSync(process.execPath, [join(ROOT, 'views', 'since.mjs'), curr, '--previous', prev], { stdio: 'pipe' }).toString(); }
+  catch (e) { fail(`views/since.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
+  const sinceYamlPath = runViewPath(curr, 'since');
+  if (!existsSync(sinceYamlPath)) fail('views/since.yaml must be written');
+  if (!existsSync(sincePagePath(curr))) fail('SINCE.md must be written at the run root');
+  const doc = existsSync(sinceYamlPath) ? parseYaml(readFileSync(sinceYamlPath, 'utf8')) : null;
+  if (doc) {
+    if (doc.view !== 'since' || doc.run !== 'curr-2026-02-01' || doc.previous !== 'prev-2026-01-01') fail('since.yaml must name itself, the run and the previous run');
+    const improvedIds = (doc.improved || []).map((r) => r.id);
+    if (!improvedIds.includes('d-secrets-out-of-history')) fail(`d-secrets-out-of-history must read improved (unmet -> met) in since.yaml (got improved: ${improvedIds.join(', ')})`);
+    if ((doc.regressed || []).length) fail('nothing should have regressed in this fixture');
+    const noLongerFound = (doc.findings?.no_longer_found || []).map((f) => f.id);
+    if (!noLongerFound.includes('F-700')) fail(`F-700 (gitleaks, emptied in curr) must read as no-longer-found (got ${noLongerFound.join(', ')})`);
+    if (!noLongerFound.includes('F-050')) fail(`F-050 (removed from curr's repo-eval pass) must read as no-longer-found (got ${noLongerFound.join(', ')})`);
+  }
+  const sincePage = existsSync(sincePagePath(curr)) ? readFileSync(sincePagePath(curr), 'utf8') : '';
+  if (!/no longer found/i.test(sincePage) || /\bfixed\b/i.test(sincePage.replace(/never "fixed"/i, ''))) fail('SINCE.md must say "no longer found", never "fixed", for an unmatched finding');
+  if (!sincePage.includes('regressed') || sincePage.indexOf('Regressed') > sincePage.indexOf('Improved')) fail('SINCE.md must lead with regressions, then improvements (most useful first)');
+
+  // compile --since: writes SINCE.md and INDEX links it; compile without --since writes neither.
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), curr, '--since', prev], { stdio: 'pipe' }); }
+  catch (e) { fail(`compile --since must succeed (${String(e.stderr || e.message).split('\n').slice(-5).join(' | ')})`); }
+  if (!existsSync(sincePagePath(curr))) fail('compile --since must write SINCE.md');
+  const index = existsSync(runIndexPath(curr)) ? readFileSync(runIndexPath(curr), 'utf8') : '';
+  if (!index.includes('SINCE.md')) fail('INDEX.md must link SINCE.md when a since view was compiled');
+
+  const curr2 = join(tmp, 'curr-no-since-2026-03-01');
+  copyFixtureFindings('notesbox', curr2); copyFixtureScanners('notesbox', curr2);
+  const gaps2 = loadFindings(curr2).filter((f) => f.polarity === 'gap');
+  mkdirSync(dirname(decisionsPath(curr2)), { recursive: true });
+  writeFileSync(decisionsPath(curr2), gaps2.map((f) => `- finding: ${f.id}\n  action: accept\n  reason: "regression fixture"\n  by: test\n  at: "2026-01-01"`).join('\n') + '\n');
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), curr2], { stdio: 'pipe' }); }
+  catch (e) { fail(`compile with no --since must still succeed (${String(e.stderr || e.message).split('\n').slice(-5).join(' | ')})`); }
+  if (existsSync(sincePagePath(curr2)) || existsSync(runViewPath(curr2, 'since'))) fail('compile with no --since must write neither SINCE.md nor views/since.yaml');
+  const index2 = existsSync(runIndexPath(curr2)) ? readFileSync(runIndexPath(curr2), 'utf8') : '';
+  if (index2.includes('SINCE.md')) fail('INDEX.md must not link SINCE.md when no since view was compiled');
+
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -1292,7 +1508,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {
