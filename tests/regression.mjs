@@ -2731,7 +2731,7 @@ function adaptersOnce() { return loadAdapters(); }
     for (const id of ['repo-eval', 'deep-code-review']) {
       const r = rows[id];
       if (r?.status !== 'skipped') fail(`${id} must be recorded skipped by start (got ${JSON.stringify(r)})`);
-      else if (!/not yet run: a steward session runs it/.test(r.reason || '') || !r.reason.includes(`node assay.mjs record ${runDir} ${id} ran`))
+      else if (!/not yet run: a steward session runs it/.test(r.reason || '') || !r.reason.includes(`node assay.mjs record <run> ${id} ran`))
         fail(`${id}'s skip reason must say it has not run yet and name the exact record command (got ${JSON.stringify(r.reason)})`);
     }
     if (!rows['gitleaks'] || !['ran', 'skipped'].includes(rows['gitleaks'].status)) fail(`gitleaks must be recorded ran or skipped, never absent (got ${JSON.stringify(rows['gitleaks'])})`);

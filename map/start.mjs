@@ -13,9 +13,10 @@
 // records (tests/regression.mjs's routine block pins this byte-for-byte).
 //
 // Usage: node assay.mjs start --out <run> [<target>]
-//   <target> given  — runs repo-census, fresh-clone (--no-clone, as the routine
-//                      does), dependency-scan, and gitleaks when its binary is
-//                      on PATH; every OTHER adopted scanner (every adapter under
+//   <target> given  — runs repo-census, fresh-clone (from a scratch clone of the
+//                      target's committed head, never in place: the routine's
+//                      CI checkout is the only in-place caller), dependency-scan,
+//                      and gitleaks when its binary is on PATH; every OTHER adopted scanner (every adapter under
 //                      map/scanners/adapters/ without `adopted: false`) is
 //                      recorded skipped, plainly saying it has not run yet and
 //                      how to record it.
@@ -166,9 +167,11 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentR
 }
 
 // the reason a `start` run gives for a judgment scanner it never runs, naming
-// the exact command that records it once its report is ingested or reviewed.
-const pendingReasonFor = (runArg) => (id) =>
-  `not yet run: a steward session runs it; ingesting its report records it ran (${id}: node assay.mjs record ${runArg} ${id} ran)`;
+// the command that records it once its report is ingested or reviewed. The run's
+// own path stays out of it: the reason is printed in every view that names what
+// was not measured, and a local path describes the machine, not the run.
+const pendingReasonFor = () => (id) =>
+  `not yet run: a steward session runs it; ingesting its report records it ran (${id}: node assay.mjs record <run> ${id} ran)`;
 const GITLEAKS_ABSENT_HERE = 'gitleaks binary not on PATH where this run was drawn';
 const NO_TARGET_REASON = 'not yet run: ingesting its report records it ran';
 
