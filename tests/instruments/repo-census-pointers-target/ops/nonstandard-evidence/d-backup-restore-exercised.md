@@ -1,4 +1,5 @@
 ---
+produced_by: person
 descriptor: d-backup-restore-exercised
 date: 2026-09-20
 by: platform-eng

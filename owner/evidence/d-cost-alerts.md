@@ -1,4 +1,5 @@
 ---
+produced_by: person
 descriptor: d-cost-alerts
 date: 2026-09-20
 by: finance-eng

@@ -1,4 +1,5 @@
 ---
+produced_by: person
 descriptor: d-rollback-exercised
 date: 2026-09-12
 by: on-call@example.com

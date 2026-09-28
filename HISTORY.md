@@ -527,3 +527,37 @@ what the public engine learned.
   not-measured; a manifest covered by an ancestor's lockfile reads clean; a
   tree with zero `package.json` anywhere reads not-applicable and exits 0 (not
   a failure). Goldens untouched.
+- **2026-09-28 — owner-evidence transcripts say who produced them, and their
+  commit is real.** Two gaps in the owner-evidence contract (`owner/evidence/
+  README.md`, `map/repo-census.mjs`): nothing said who could write a
+  transcript (an agent could have, and nothing would have caught it), and
+  nothing checked that the `commit` a transcript names is real — a made-up
+  hex string passed the shape check as readily as a genuine sha. Every
+  transcript now carries `produced_by: ci | person` (required): `ci`
+  additionally requires `run` (the CI run's id or URL); `person`'s
+  requirement is `by`, already mandatory. `repo-census` checks the named
+  `commit` resolves in the checkout's history (`git cat-file -e
+  <sha>^{commit}`); a commit it cannot find, in a real full-history checkout,
+  is a **gap**, naming it. A checkout that cannot say either way — no `.git`
+  at all, or a shallow clone where the commit may simply sit outside the
+  fetched depth — reads **not-measured**, never `pass`: `map/ingest.mjs`
+  converts it to a `polarity: fact` row in its own `<check>-unverifiable`
+  category (never the check's own — that would let an instrument's
+  zero-rows-means-met default silently pass it again), and the six
+  evidence-based requirements in `yardstick/requirements.yaml` each declare
+  `not_measured_when: evidence-<id>-unverifiable`, the same evidence-condition
+  mechanism `d-schema-versioned` and `d-dependencies-known-clean` use.
+  `owner/evidence/README.md` says plainly, in its own section: evidence comes
+  from running the procedure — a person who ran it commits the transcript, or
+  a CI job writes it from the procedure's real output; an agent never writes
+  one. `map/ingest.mjs`'s remedy text for an evidence gap says the same:
+  "Run the procedure; a person or CI writes this file from its real output —
+  an agent must never write it." `map/scanners/CONTRACT.md` §3d documents
+  both changes. The six example transcripts in `owner/evidence/` and the
+  fixture transcripts under `tests/instruments/` gain `produced_by`
+  (`d-deploy-one-command` and `d-smoke-on-deployed` as `ci`, with a `run`;
+  the rest as `person`). Tested end to end against real git repositories: a
+  real, resolvable commit passes; a plausible-but-absent commit gaps, naming
+  it; no `.git` at all and a shallow clone both read not-measured, never a
+  gap, and the requirement they decide reads not-measured, never met.
+  Goldens untouched.

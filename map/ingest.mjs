@@ -412,8 +412,10 @@ const PROFILES = {
     // Both are successful RUNS. A crash of the runner itself exits 2 and halts here.
     okExits: [0, 1],
     // Rows: one gap row per `gap` check, one strength row per `pass` check (so the
-    // axis sees the evidence, not just the absence of a gap) — a `not-applicable`
-    // check yields nothing. native_id is `<check name>@<location>` (location is the
+    // axis sees the evidence, not just the absence of a gap), one FACT row (its own
+    // `<check>-unverifiable` category) per `not-measured` check (the checkout could
+    // not confirm a transcript's commit either way — never silently "clean") — a
+    // `not-applicable` check yields nothing. native_id is `<check name>@<location>` (location is the
     // check's detail.path, "." for the whole-repo checks); evidence is the check's
     // own evidence, which always carries at least one path:line (the runner falls
     // back to `<location>/:1` when a check has nothing more specific to cite).
@@ -456,6 +458,21 @@ const PROFILES = {
             observation: oneLine(c.observation),
             evidence,
           });
+        } else if (c.status === 'not-measured') {
+          // a FACT row, in its own category (never the check's own — a category the
+          // yardstick decides must carry no rows for its not_measured_when condition
+          // to fire; see yardstick/measure.mjs and yardstick/requirements.yaml's six
+          // evidence-<id> rows): the checkout could not confirm the transcript's
+          // commit either way (no .git, or too shallow), so nothing was decided.
+          rows.push({
+            id: fid(startId + n++),
+            source: 'repo-census',
+            native_id: `${c.name}@${nativeLoc}`,
+            native_category: `${c.name}-unverifiable`,
+            polarity: 'fact',
+            observation: oneLine(c.observation),
+            evidence,
+          });
         }
       }
       return rows;
@@ -464,14 +481,14 @@ const PROFILES = {
 };
 const RC_EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
 const RC_CHECKS = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...RC_EVIDENCE_IDS.map((id) => `evidence-${id}`)];
-const RC_STATUS = ['pass', 'gap', 'not-applicable'];
+const RC_STATUS = ['pass', 'gap', 'not-applicable', 'not-measured'];
 const RC_FIX = {
   'architecture-page': 'Add a page (ARCHITECTURE.md, docs/ARCHITECTURE.md, or a README "Architecture" section) that names every external service and data store the target depends on (database, queue, API, service, store, bucket, provider); a diagram is a bonus, not a substitute. Re-run repo-census and confirm it reads pass.',
   'agent-contract': 'Make the agent contract (AGENTS.md or CLAUDE.md) present-tense: move any Status / History / Changelog / Todo / Backlog section and dated changelog lines to a separate, co-located history file. Re-run repo-census and confirm it reads pass.',
   'runbook': 'Add the missing procedure(s) to the runbook (RUNBOOK.md, docs/RUNBOOK.md, or a README/doc "Runbook"/"Operations" section) — a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup. Re-run repo-census and confirm it reads pass. (This decides presence only; run each procedure once and record that separately.)',
   'ci-gate': 'Add or fix a workflow that triggers on pull_request (or push to the default branch) and runs a test/lint/typecheck/build step with no `continue-on-error: true` on that step or its job. Re-run repo-census and confirm it reads pass.',
   ...Object.fromEntries(RC_EVIDENCE_IDS.map((id) => [`evidence-${id}`,
-    `Commit a fresh, complete, passing transcript at ops/evidence/${id}.md (or docs/evidence/${id}.md) per owner/evidence/README.md — the required frontmatter keys, a body with a fenced code block and at least 5 non-empty lines, and a date inside the freshness window. Re-run repo-census and confirm it reads pass.`])),
+    `Run the procedure; a person or CI writes this file from its real output — an agent must never write it. The resulting transcript at ops/evidence/${id}.md (or docs/evidence/${id}.md) needs the required frontmatter keys (owner/evidence/README.md), a body with a fenced code block and at least 5 non-empty lines, a commit that resolves in the checkout's history, and a date inside the freshness window. Re-run repo-census and confirm it reads pass.`])),
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
 // the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)

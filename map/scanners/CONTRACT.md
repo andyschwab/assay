@@ -336,12 +336,18 @@ tree checks:
   `|| :`, or a `set +e` line anywhere in a multi-line block-scalar script,
   disabling errexit for the rest of it); a gate that can fail open is not a gate.
 
-**Success set.** `exit` is `0` when every check reads `pass` (or `not-applicable`),
+**Success set.** `exit` is `0` when every check reads `pass`, `not-applicable`, or
+`not-measured` (the last, owner-evidence-only, means the checkout could not
+confirm a transcript's commit either way — never a failure of the tool itself),
 `1` when at least one check is a `gap`; both are successful runs and `ingest.mjs
 --tool repo-census` accepts both. A crash of the runner itself exits `2` and halts
 the intake. The converter writes one gap row per `gap` check and one strength row
 per `pass` check (so the axis sees the evidence, not just the absence of a gap); a
-`not-applicable` check yields nothing. `Medium` severity throughout, except a
+`not-applicable` check yields nothing, and a `not-measured` check (the six
+owner-evidence checks only — below) yields a FACT row in its own
+`<check>-unverifiable` category, never the check's own category, so the
+requirement it decides reads not-measured rather than a silent met. `Medium`
+severity throughout, except a
 ci-gate gap from a fail-open step, which reads `High` — a gate that can be turned
 off from inside the workflow is worse than no gate recorded. Rows carry the
 check's own evidence (`file:line`) or, where a check has nothing more specific to
@@ -374,14 +380,20 @@ Six more floor rows describe things a repository cannot show by itself — a
 backup was restored, a rollback ran, a deploy came up as the committed sha, a
 smoke check hit the deployed app, a monitoring alert fired and was received,
 cost alerts are named per metered account. `repo-census` checks a dated
-transcript the owner commits per row, named `evidence-<descriptor-id>`
+transcript, named `evidence-<descriptor-id>`
 (`d-backup-restore-exercised`, `d-rollback-exercised`, `d-deploy-one-command`,
-`d-smoke-on-deployed`, `d-monitoring-with-alert`, `d-cost-alerts`), root only.
-It decides the transcript's shape and freshness only, never the truth of what
-it describes — that rests on the named person's attestation in version
-history. The format — path, header keys, per-row keys, body minimum, freshness
-window — is documented once, at `owner/evidence/README.md`; this is the
-one home of it.
+`d-smoke-on-deployed`, `d-monitoring-with-alert`, `d-cost-alerts`), root only —
+**a person who ran the procedure commits it, or a CI job writes it from the
+procedure's own output; an agent never writes one** (`produced_by: ci | person`
+says which, `owner/evidence/README.md`). It decides the transcript's shape,
+freshness, and that its named `commit` resolves in the checkout's history —
+never the truth of what it describes, which rests on the named person's or CI
+job's attestation in version history. A commit genuinely absent from a real,
+full history is a `gap`, naming it; a checkout that cannot say either way (no
+`.git`, or too shallow to know) reads `not-measured`, never `pass` — the check
+refuses to guess. The format — path, header keys, per-row keys, body minimum,
+freshness window — is documented once, at `owner/evidence/README.md`; this is
+the one home of it.
 
 ```sh
 node assay.mjs repo-census <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90] [--packet <dir|manifest.yaml>]

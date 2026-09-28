@@ -41,20 +41,28 @@
 //
 // Plus six evidence checks (root only, one per descriptor id, named
 // `evidence-<descriptor-id>`): each reads ops/evidence/<id>.md (else
-// docs/evidence/<id>.md, first found wins) — YAML frontmatter (descriptor, date,
-// by, commit, result, plus keys named per row) over a body that must carry at
-// least one fenced code block and at least 5 non-empty lines. `pass` only when
+// docs/evidence/<id>.md, first found wins) — YAML frontmatter (produced_by,
+// descriptor, date, by, commit, result, plus keys named per row) over a body
+// that must carry at least one fenced code block and at least 5 non-empty
+// lines. `produced_by: ci | person` says who produced the transcript from the
+// procedure's real output (never an agent — owner/evidence/README.md);
+// `ci` additionally requires `run` (the CI run's id or URL). `pass` only when
 // the file is present, the frontmatter is complete and well-formed, `result:
-// pass`, and `date` is not in the future and no older than the freshness window
-// (`--evidence-max-age`, default 90 days, measured from `--as-of`, default
-// today UTC). The document never reads the body past line counts — a transcript
-// can hold operational detail. Every observation, pass or gap, says this check
-// verifies the transcript's shape and freshness, never the truth of what it
-// describes. Full format: owner/evidence/README.md.
+// pass`, its `commit` resolves in the checkout's history, and `date` is not in
+// the future and no older than the freshness window (`--evidence-max-age`,
+// default 90 days, measured from `--as-of`, default today UTC). A commit
+// genuinely absent from a real, full history is a `gap`, naming it; a checkout
+// that cannot say either way (no `.git`, or too shallow to know) reads
+// `not-measured`, never `pass` or `gap` — the check refuses to guess. The
+// document never reads the body past line counts — a transcript can hold
+// operational detail. Every observation, pass, gap or not-measured, says this
+// check verifies the transcript's shape, freshness and commit, never the truth
+// of what it describes. Full format: owner/evidence/README.md.
 //
 // Fail loud, never empty: `exit` is 1 when any check is `gap`, 0 when every check is
-// `pass` or `not-applicable`. A crash of the runner itself exits 2, so ingest.mjs
-// (success set [0, 1]) halts on it.
+// `pass`, `not-applicable`, or `not-measured` (the checkout could not confirm a
+// commit either way — never itself a failure). A crash of the runner itself
+// exits 2, so ingest.mjs (success set [0, 1]) halts on it.
 //
 // The packet's pointers (owner/PACKET.md "Pointers"): with `--packet <dir |
 // manifest.yaml>`, or with no flag when `<target>/packet/manifest.yaml` exists
@@ -91,7 +99,7 @@ export const EVIDENCE_IDS = [
   'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts',
 ];
 export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...EVIDENCE_IDS.map((id) => `evidence-${id}`)];
-export const CHECK_STATUS = ['pass', 'gap', 'not-applicable'];
+export const CHECK_STATUS = ['pass', 'gap', 'not-applicable', 'not-measured'];
 
 // ── small filesystem helpers (case-insensitive, read-only, never throw) ──────
 function safeReaddir(dir) { try { return readdirSync(dir); } catch { return []; } }
@@ -694,6 +702,23 @@ const EVIDENCE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EVIDENCE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EVIDENCE_COMMIT_RE = /^[0-9a-f]{7,40}$/i;
 const EVIDENCE_ACCOUNT_RE = /^[^:]+:.+->.+$/; // "<account>: <threshold> -> <recipient>"
+const EVIDENCE_PRODUCED_BY = ['ci', 'person'];
+
+// Does `sha` resolve in this checkout's history? `{ state: 'found' | 'missing' |
+// 'unknown', reason }` — 'unknown' (never a gap) when there is no git history to
+// check against at all, or the checkout is too shallow to say either way (a
+// commit "not found" in a shallow clone may simply be older than the fetch
+// depth, not absent from the real repository).
+function checkCommitInHistory(dir, sha) {
+  if (!existsSync(join(dir, '.git'))) return { state: 'unknown', reason: 'this checkout carries no .git — there is no history here to verify a commit against' };
+  const found = spawnSync('git', ['cat-file', '-e', `${sha}^{commit}`], { cwd: dir, encoding: 'utf8' });
+  if (found.status === 0) return { state: 'found' };
+  const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: dir, encoding: 'utf8' });
+  if (shallow.status === 0 && String(shallow.stdout || '').trim() === 'true') {
+    return { state: 'unknown', reason: 'this is a shallow checkout — it cannot confirm a commit is absent from history, only that it is not present within the fetched depth' };
+  }
+  return { state: 'missing' };
+}
 
 // find ops/evidence/<id>.md, else docs/evidence/<id>.md; first found wins
 function findEvidenceFile(dir, id, pointerDir) {
@@ -775,7 +800,13 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   if (!EVIDENCE_DATE_RE.test(dateStr)) problems.push(`date "${dateStr}" is not YYYY-MM-DD`);
   if (typeof fm.by !== 'string' || !fm.by.trim()) problems.push('by is missing');
   else if (EVIDENCE_EMAIL_RE.test(fm.by.trim())) problems.push(`by "${fm.by}" looks like an email address (a role or handle is required)`);
-  if (typeof fm.commit !== 'string' || !EVIDENCE_COMMIT_RE.test(fm.commit)) problems.push(`commit "${fm.commit ?? ''}" is not 7-40 hex characters`);
+  // produced_by says who produced this transcript from the procedure's real output —
+  // never an agent (owner/evidence/README.md): ci additionally requires run (the CI
+  // run's id or URL); person's requirement is the by field already checked above.
+  if (!EVIDENCE_PRODUCED_BY.includes(fm.produced_by)) problems.push(`produced_by "${fm.produced_by ?? ''}" is not ci|person`);
+  else if (fm.produced_by === 'ci' && !(typeof fm.run === 'string' && fm.run.trim())) problems.push('produced_by: ci requires run (the CI run\'s id or URL)');
+  const commitValid = typeof fm.commit === 'string' && EVIDENCE_COMMIT_RE.test(fm.commit);
+  if (!commitValid) problems.push(`commit "${fm.commit ?? ''}" is not 7-40 hex characters`);
   if (fm.result !== 'pass' && fm.result !== 'fail') problems.push(`result "${fm.result ?? ''}" is not pass|fail`);
   else if (fm.result === 'fail') problems.push('result: fail');
   const missingKeys = rowSpec.keys.filter((k) => fm[k] === undefined || fm[k] === null || fm[k] === '');
@@ -807,6 +838,26 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   detail.bodyHasFencedBlock = body.hasFencedBlock;
   if (body.nonEmptyCount < 5 || !body.hasFencedBlock) {
     problems.push(`body is a stub (${body.nonEmptyCount} non-empty line(s), fenced code block ${body.hasFencedBlock ? 'present' : 'absent'} — needs at least 5 non-empty lines and at least one fenced code block)`);
+  }
+  // the commit gate: checked last, only once everything else about the transcript
+  // is otherwise in order — a shape problem is reported before an unresolved commit.
+  // A commit genuinely not in history is a gap (the transcript names a claim the
+  // checkout cannot back); a checkout that cannot say either way (no .git, or too
+  // shallow) reads not-measured, never pass — the whole point of this row.
+  let commitState = null;
+  if (commitValid && !problems.length) {
+    commitState = checkCommitInHistory(dir, fm.commit);
+    if (commitState.state === 'unknown') {
+      detail.commitVerification = commitState;
+      return {
+        name, status: 'not-measured', detail,
+        evidence: [`${found.relPath}:1`],
+        observation: `${found.relPath}${pointerNote(!!evidencePointer)} is otherwise complete, but ${commitState.reason} — commit ${fm.commit} could not be confirmed in or out of this checkout's history.`,
+      };
+    }
+    if (commitState.state === 'missing') {
+      problems.push(`the commit this transcript names (${fm.commit}) is not in the repository's history`);
+    }
   }
   if (problems.length) {
     return {

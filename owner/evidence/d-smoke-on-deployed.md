@@ -1,4 +1,6 @@
 ---
+produced_by: ci
+run: "https://ci.example.test/anthropic/smoke/runs/91027"
 descriptor: d-smoke-on-deployed
 date: 2026-09-16
 by: on-call
