@@ -423,3 +423,17 @@ what the public engine learned.
   copy; a steward accepts a new baseline in its own reviewed change." A
   schedule or `workflow_dispatch` run (no base ref) reads the working tree's
   committed copy exactly as before. Goldens untouched.
+- **2026-09-28 — installation makes the gate binding.** A red job nobody is
+  required to look at is not a gate. `routine/README.md`'s install steps now
+  say to make the `routine` job a required status check on the default branch
+  (GitHub runs a pull request's own copy of the workflow regardless of whether
+  its job passes — nothing blocks the merge until a branch rule says this job
+  is required) and to add `CODEOWNERS` entries for `packet/` and
+  `.github/workflows/` naming the steward team, so a change to the baseline or
+  the workflow itself needs a steward's review. The template gains a `push`
+  trigger on the default branch (a pull request only measures the change; this
+  is what measures merged main the same day rather than waiting for the next
+  weekly schedule) and a commented-out, disabled-by-default step that installs
+  `gitleaks` from a pinned release, verified against its published sha256
+  before it is ever executed — copied in and uncommented, never an unpinned
+  `curl | sh`. Goldens untouched.

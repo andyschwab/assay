@@ -20,6 +20,13 @@ on:
   workflow_dispatch: {}
   pull_request:
     branches: [main]   # the default branch — edit if yours differs (e.g. master)
+  push:
+    branches: [main]   # the default branch — measures merged main the same day,
+                        # rather than waiting for the next weekly schedule (a pull
+                        # request only measures the CHANGE; something can still
+                        # reach the default branch without going through one —
+                        # an admin merge, a direct push, a merge commit that
+                        # changes the diff — and this trigger is what catches that)
 
 permissions:
   contents: read   # least privilege: this workflow never writes anything back
@@ -65,7 +72,23 @@ jobs:
 
       # gitleaks is optional (routine/README.md): the routine detects the binary and
       # records it skipped, with the reason, when it is absent — never as clean. To
-      # include it, add a step here that installs `gitleaks` onto PATH before this one.
+      # include it, copy the step below in (before "Run the routine") and uncomment
+      # it: a pinned release, downloaded and checked against its published sha256
+      # before it is ever executed — never an unpinned `curl | sh`. Bump GITLEAKS_
+      # VERSION and GITLEAKS_SHA256 together from that release's own checksums.txt
+      # (https://github.com/gitleaks/gitleaks/releases) when you update it.
+      #
+      # - name: Install gitleaks (optional, pinned + checksummed)
+      #   env:
+      #     GITLEAKS_VERSION: '8.21.2'
+      #     GITLEAKS_SHA256: '5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba'
+      #   run: |
+      #     set -euo pipefail
+      #     cd "$RUNNER_TEMP"
+      #     curl -sSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+      #     echo "${GITLEAKS_SHA256}  gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sha256sum -c -
+      #     tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+      #     sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
 
       - name: Run the routine
         id: routine
