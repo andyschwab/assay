@@ -51,6 +51,9 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { isMain } from '../map/doctrine.mjs';
 import { catGitFile } from '../yardstick/ratchet.mjs';
+import { gitHead, gitRemote } from '../map/repo-census.mjs';
+import { loadContradictions } from '../yardstick/measure.mjs';
+import { routinePath } from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // routine/
 const ASSAY_ROOT = join(HERE, '..');
@@ -138,6 +141,52 @@ export function toScannersYaml(engine, rows) {
 
 const NOT_RUN_BY_ROUTINE = 'not run by the routine; a steward session runs them';
 
+// GITHUB_EVENT_NAME is what Actions sets for the trigger that fired the workflow
+// (schedule | push | pull_request | workflow_dispatch, …) — a steward's own
+// terminal run sets none of that, so it reads 'local' (routine/README.md).
+function triggerName() {
+  const ev = String(process.env.GITHUB_EVENT_NAME || '').trim();
+  return ev || 'local';
+}
+
+// The ratchet subprocess's own stderr already carries evaluateRatchet's failure
+// lines verbatim (ratchet.mjs prints each with a "  ✗ " prefix, one per baseline
+// requirement or contradiction) — scraping them keeps routine.yaml's `failures`
+// exactly what a human reading the CI log would have seen, without re-loading
+// the baseline and re-running evaluateRatchet a second time over the same
+// inputs. The one line excluded is ratchet's own summary ("✗ ratchet: N
+// requirement(s)/contradiction(s) …"), which is a count, not a failure line.
+export function ratchetFailureLines(stderr) {
+  return String(stderr || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('✗ ') && !l.startsWith('✗ ratchet:'))
+    .map((l) => l.slice(2));
+}
+
+// routine.yaml — the run's own record of what the routine did and whether its
+// gate held (routine/README.md), so a fleet collector reading only the uploaded
+// run artifact knows the outcome without the CI logs.
+export function toRoutineYaml(rec) {
+  const L = [
+    '# routine.yaml — written by routine/run.mjs; the run\'s own record of what the routine did.',
+    'routine: 1',
+    `date: ${q(rec.date)}`,
+  ];
+  if (rec.repository) L.push(`repository: ${q(rec.repository)}`);
+  L.push(`commit: ${q(rec.commit || '')}`);
+  L.push(`engine: ${q(rec.engine || '')}`);
+  L.push(`trigger: ${q(rec.trigger)}`);
+  L.push('baseline:', `  source: ${rec.baseline.source}`);
+  if (rec.baseline.where) L.push(`  where: ${q(rec.baseline.where)}`);
+  L.push(`gate: ${rec.gate}`);
+  if (rec.failures.length) { L.push('failures:'); for (const f of rec.failures) L.push(`  - ${q(f)}`); }
+  else L.push('failures: []');
+  L.push(`contradictions: ${rec.contradictions}`);
+  L.push(`exit: ${rec.exit}`);
+  return L.join('\n') + '\n';
+}
+
 // runRoutine — the pure sequencing (spawns child processes; no process.exit of its
 // own), so it is both the CLI's body and the thing tests/regression.mjs calls
 // directly. Returns { ok, exitCode, log: [lines] }.
@@ -148,6 +197,31 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   outDir = resolve(outDir);
   mkdirSync(join(outDir, 'map'), { recursive: true });
 
+  const startDate = new Date().toISOString();
+  const engine = engineCommit();
+  const commit = gitHead(repoDir);
+  const repository = gitRemote(repoDir);
+  const trigger = triggerName();
+
+  // finish() writes routine.yaml as the LAST step before every return — including
+  // the failure and skip paths — so a run artifact always says what happened,
+  // never only a job that exited green or red in CI (the goal this record exists
+  // for). baselineInfo defaults to "none" for the paths that never got far enough
+  // to resolve one (validate/compile failing before the baseline is even looked at).
+  function finish({ ok, exitCode, gate, baselineInfo = { source: 'none' }, failures = [] }) {
+    let contradictions = 0;
+    try { contradictions = loadContradictions(outDir).length; } catch { /* no readable yardstick.yaml yet */ }
+    const record = { date: startDate, repository, commit, engine, trigger, baseline: baselineInfo, gate, failures, contradictions, exit: exitCode };
+    try { writeFileSync(routinePath(outDir), toRoutineYaml(record)); }
+    catch (e) { say(`⚠ could not write routine.yaml: ${e.message}`); }
+    return { ok, exitCode, log: lines };
+  }
+
+  // Everything from here down is wrapped so that if the routine dies unexpectedly
+  // — before it ever reaches a compiled measurement to gate on — routine.yaml
+  // still gets written, with gate: not-run and the reason, rather than the run
+  // directory carrying no record at all of what happened.
+  try {
   const scanners = {
     'repo-eval': { status: 'skipped', reason: NOT_RUN_BY_ROUTINE },
     'deep-code-review': { status: 'skipped', reason: NOT_RUN_BY_ROUTINE },
@@ -162,8 +236,9 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   say('· validate …');
   const val = assay(['validate', outDir, '--target', repoDir]);
   if (val.status !== 0) {
-    say(`✗ validate failed:\n${val.stdout}${val.stderr}`);
-    return { ok: false, exitCode: 1, log: lines };
+    const reason = `validate failed:\n${val.stdout}${val.stderr}`;
+    say(`✗ ${reason}`);
+    return finish({ ok: false, exitCode: 1, gate: 'not-run', failures: [reason] });
   }
 
   const packetDir = packet || join(repoDir, 'packet');
@@ -175,8 +250,9 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   const comp = assay(['compile', ...compileArgs]);
   say(comp.stdout || '');
   if (comp.status !== 0) {
-    say(`✗ compile failed:\n${comp.stderr}`);
-    return { ok: false, exitCode: 1, log: lines };
+    const reason = `compile failed:\n${comp.stderr}`;
+    say(`✗ ${reason}`);
+    return finish({ ok: false, exitCode: 1, gate: 'not-run', failures: [reason] });
   }
 
   // A pull request (a --base-ref was given) is graded against the BASE REF's own
@@ -199,34 +275,42 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
     if (!baseGot.ok) {
       say(`⚠ no packet/baseline.yaml at ${baseRef} yet — the ratchet gate is skipped. A steward accepts the first`);
       say('  run and commits one (routine/README.md) to turn this warning into a real no-regression gate.');
-      return { ok: true, exitCode: 0, log: lines };
+      return finish({ ok: true, exitCode: 0, gate: 'skipped', baselineInfo: { source: 'none' } });
     }
     say(`· ratchet --baseline-ref ${baseRef} --repo ${repoDir} …`);
     const rat = assay(['ratchet', outDir, '--baseline-ref', baseRef, '--repo', repoDir]);
     say(rat.stdout || '');
+    const baselineInfo = { source: 'ref', where: baseRef };
     if (rat.status !== 0) {
       say(rat.stderr || '');
       say('✗ ratchet failed — a held requirement regressed or dropped off the measured scale.');
-      return { ok: false, exitCode: 1, log: lines };
+      return finish({ ok: false, exitCode: 1, gate: 'failed', baselineInfo, failures: ratchetFailureLines(rat.stderr) });
     }
-    return { ok: true, exitCode: 0, log: lines };
+    return finish({ ok: true, exitCode: 0, gate: 'held', baselineInfo });
   }
 
   const baselineFile = baseline || (existsSync(join(packetDir, 'baseline.yaml')) ? join(packetDir, 'baseline.yaml') : null);
   if (!baselineFile) {
     say('⚠ no packet/baseline.yaml committed yet — the ratchet gate is skipped. A steward accepts the first');
     say('  run and commits one (routine/README.md) to turn this warning into a real no-regression gate.');
-    return { ok: true, exitCode: 0, log: lines };
+    return finish({ ok: true, exitCode: 0, gate: 'skipped', baselineInfo: { source: 'none' } });
   }
   say(`· ratchet --baseline ${baselineFile} …`);
-  const rat = assay(['ratchet', outDir, '--baseline', resolve(baselineFile)]);
+  const resolvedBaseline = resolve(baselineFile);
+  const rat = assay(['ratchet', outDir, '--baseline', resolvedBaseline]);
   say(rat.stdout || '');
+  const baselineInfo = { source: 'file', where: resolvedBaseline };
   if (rat.status !== 0) {
     say(rat.stderr || '');
     say('✗ ratchet failed — a held requirement regressed or dropped off the measured scale.');
-    return { ok: false, exitCode: 1, log: lines };
+    return finish({ ok: false, exitCode: 1, gate: 'failed', baselineInfo, failures: ratchetFailureLines(rat.stderr) });
   }
-  return { ok: true, exitCode: 0, log: lines };
+  return finish({ ok: true, exitCode: 0, gate: 'held', baselineInfo });
+  } catch (e) {
+    const reason = `routine crashed before compiling a measurement: ${e && e.stack ? e.stack : String(e)}`;
+    say(`✗ ${reason}`);
+    return finish({ ok: false, exitCode: 1, gate: 'not-run', failures: [reason] });
+  }
 }
 
 if (isMain(import.meta.url)) {

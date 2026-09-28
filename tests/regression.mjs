@@ -36,7 +36,7 @@ import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadCon
 import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef, unwrapChatReply, looksLikePersonName } from '../yardstick/packet.mjs';
 import { compare, classify, fingerprintFinding, compareFindings } from '../yardstick/compare.mjs';
 import { loadBaseline, loadYardstickDoc, evaluateRatchet, catGitFile } from '../yardstick/ratchet.mjs';
-import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath } from '../lib/run-layout.mjs';
+import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath, routinePath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
 import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../views/intake.mjs';
 import { runRoutine } from '../routine/run.mjs';
@@ -2323,6 +2323,22 @@ function adaptersOnce() { return loadAdapters(); }
     if (!existsSync(join(runDir, 'INDEX.md'))) fail('runRoutine must compile the package (INDEX.md missing)');
     if (!logs.some((l) => /no packet\/baseline\.yaml committed yet/.test(l))) fail('with no baseline, runRoutine must print a visible warning, never silence');
 
+    // routine.yaml — the run's own record (routine/README.md) — must exist and read
+    // gate: skipped with no baseline, so a fleet collector reading only the run
+    // artifact (never the CI log) still knows nothing was held against.
+    const routineFile = routinePath(runDir);
+    if (!existsSync(routineFile)) fail('runRoutine must write routine.yaml, even with no baseline');
+    else {
+      const rec = parseYaml(readFileSync(routineFile, 'utf8'));
+      if (rec.gate !== 'skipped') fail(`with no baseline, routine.yaml must read gate: skipped (got ${JSON.stringify(rec.gate)})`);
+      if (!Array.isArray(rec.failures) || rec.failures.length !== 0) fail(`skipped must carry no failures (got ${JSON.stringify(rec.failures)})`);
+      if (rec.baseline?.source !== 'none') fail(`skipped must record baseline.source: none (got ${JSON.stringify(rec.baseline)})`);
+      if (rec.exit !== 0) fail(`skipped must record exit: 0 (got ${JSON.stringify(rec.exit)})`);
+      if (rec.trigger !== 'local') fail(`with no GITHUB_EVENT_NAME set, trigger must read local (got ${JSON.stringify(rec.trigger)})`);
+      if (typeof rec.contradictions !== 'number') fail(`contradictions must be a number (got ${JSON.stringify(rec.contradictions)})`);
+      if (typeof rec.engine !== 'string' || !rec.engine) fail(`engine must be recorded (got ${JSON.stringify(rec.engine)})`);
+    }
+
     // --write-baseline from this run, then a second run over the SAME fixture must
     // hold (exit 0) — nothing changed between the two.
     const baselineFile = join(tmp, 'baseline.yaml');
@@ -2335,6 +2351,32 @@ function adaptersOnce() { return loadAdapters(); }
       try { result2 = runRoutine({ repoDir: target, outDir: runDir2, baseline: baselineFile }, () => {}); }
       catch (e) { fail(`a second runRoutine with --baseline must not throw (${e.message})`); }
       if (result2 && (!result2.ok || result2.exitCode !== 0)) fail(`a second routine run over the SAME unchanged fixture must hold against its own just-written baseline (got ok=${result2.ok} exit=${result2.exitCode})`);
+
+      const routineFile2 = routinePath(runDir2);
+      if (!existsSync(routineFile2)) fail('a second, held routine run must still write routine.yaml');
+      else {
+        const rec2 = parseYaml(readFileSync(routineFile2, 'utf8'));
+        if (rec2.gate !== 'held') fail(`a held run's routine.yaml must read gate: held (got ${JSON.stringify(rec2.gate)})`);
+        if (!Array.isArray(rec2.failures) || rec2.failures.length !== 0) fail(`held must carry no failures (got ${JSON.stringify(rec2.failures)})`);
+        if (rec2.baseline?.source !== 'file' || rec2.baseline?.where !== baselineFile) fail(`held must record baseline.source: file and its path (got ${JSON.stringify(rec2.baseline)})`);
+        if (rec2.exit !== 0) fail(`held must record exit: 0 (got ${JSON.stringify(rec2.exit)})`);
+      }
+    }
+
+    // trigger reads GITHUB_EVENT_NAME when the environment sets it (a routine fired
+    // by the GitHub Actions template), independent of the gate outcome.
+    const hadEvent = Object.prototype.hasOwnProperty.call(process.env, 'GITHUB_EVENT_NAME');
+    const savedEvent = process.env.GITHUB_EVENT_NAME;
+    process.env.GITHUB_EVENT_NAME = 'schedule';
+    const runDirTrigger = join(tmp, 'run-trigger');
+    try { runRoutine({ repoDir: target, outDir: runDirTrigger }, () => {}); }
+    catch (e) { fail(`runRoutine with GITHUB_EVENT_NAME set must not throw (${e.message})`); }
+    finally { if (hadEvent) process.env.GITHUB_EVENT_NAME = savedEvent; else delete process.env.GITHUB_EVENT_NAME; }
+    const routineFileTrigger = routinePath(runDirTrigger);
+    if (!existsSync(routineFileTrigger)) fail('runRoutine must write routine.yaml when GITHUB_EVENT_NAME is set');
+    else {
+      const recTrigger = parseYaml(readFileSync(routineFileTrigger, 'utf8'));
+      if (recTrigger.trigger !== 'schedule') fail(`trigger must read GITHUB_EVENT_NAME (got ${JSON.stringify(recTrigger.trigger)})`);
     }
   }
   rmSync(tmp, { recursive: true, force: true });
@@ -2379,6 +2421,20 @@ function adaptersOnce() { return loadAdapters(); }
   const runbookRow1 = yardstick1 && (yardstick1.requirements || []).find((r) => r.id === 'd-runbook');
   if (!runbookRow1 || runbookRow1.status !== 'met') fail(`test setup: d-runbook must read met with a complete RUNBOOK.md in place (got ${JSON.stringify(runbookRow1)})`);
 
+  // routine.yaml, before any baseline exists: gate: skipped, and the checkout's
+  // own commit recorded — this repo IS its own git root, unlike the offline
+  // fixture above, so this pins that gitHead(repoDir) reads it (never a parent
+  // repo's HEAD by git's own upward discovery, and never omitted).
+  const headCommit1 = git(['rev-parse', 'HEAD']).stdout.trim();
+  const routineFile1 = routinePath(runDir1);
+  if (!existsSync(routineFile1)) fail('the seeding run must write routine.yaml before any baseline exists');
+  else {
+    const rec1 = parseYaml(readFileSync(routineFile1, 'utf8'));
+    if (rec1.gate !== 'skipped') fail(`before a baseline is committed, routine.yaml must read gate: skipped (got ${JSON.stringify(rec1.gate)})`);
+    if (rec1.commit !== headCommit1) fail(`routine.yaml must record the checkout's own HEAD sha (got ${JSON.stringify(rec1.commit)}, want ${headCommit1})`);
+    if ('repository' in rec1) fail(`repository must be omitted when this fixture repo has no remote (got ${JSON.stringify(rec1.repository)})`);
+  }
+
   mkdirSync(join(repoDir, 'packet'), { recursive: true });
   const baselineFile = join(repoDir, 'packet', 'baseline.yaml');
   let wb;
@@ -2411,6 +2467,16 @@ function adaptersOnce() { return loadAdapters(); }
       if (!/edits the accepted baseline/.test(joined)) fail(`the routine must name the baseline edit plainly when the working tree's packet\/baseline.yaml differs from the base ref's (got:\n${joined})`);
       if (!/d-runbook/.test(joined)) fail(`the ratchet failure must name d-runbook (got:\n${joined})`);
       if (!/met\s*→\s*unmet/.test(joined)) fail(`the ratchet failure must show the before → after (got:\n${joined})`);
+
+      const routineFile2 = routinePath(runDir2);
+      if (!existsSync(routineFile2)) fail('a failed --base-ref run must still write routine.yaml');
+      else {
+        const rec2 = parseYaml(readFileSync(routineFile2, 'utf8'));
+        if (rec2.gate !== 'failed') fail(`a regressed pull request's routine.yaml must read gate: failed (got ${JSON.stringify(rec2.gate)})`);
+        if (rec2.exit !== 1) fail(`failed must record exit: 1 (got ${JSON.stringify(rec2.exit)})`);
+        if (rec2.baseline?.source !== 'ref' || rec2.baseline?.where !== baseCommit) fail(`failed must record baseline.source: ref and the base commit (got ${JSON.stringify(rec2.baseline)})`);
+        if (!Array.isArray(rec2.failures) || !rec2.failures.some((f) => /d-runbook/.test(f) && /met\s*→\s*unmet/.test(f))) fail(`routine.yaml's failures must carry the ratchet's own d-runbook line, verbatim (got ${JSON.stringify(rec2.failures)})`);
+      }
     }
 
     // the base ref's own copy — never the working tree's loosened one — is what
@@ -2426,6 +2492,16 @@ function adaptersOnce() { return loadAdapters(); }
     try { result3 = runRoutine({ repoDir, outDir: runDir3 }, () => {}); }
     catch (e) { fail(`runRoutine with no --base-ref must not throw (${e.message})`); }
     if (result3 && (!result3.ok || result3.exitCode !== 0)) fail(`with no --base-ref, the routine must read the working tree's own (loosened) baseline and hold (got ok=${result3.ok} exit=${result3.exitCode})`);
+    if (result3) {
+      const routineFile3 = routinePath(runDir3);
+      if (!existsSync(routineFile3)) fail('a held, no-base-ref run must still write routine.yaml');
+      else {
+        const rec3 = parseYaml(readFileSync(routineFile3, 'utf8'));
+        if (rec3.gate !== 'held') fail(`the held, no-base-ref run's routine.yaml must read gate: held (got ${JSON.stringify(rec3.gate)})`);
+        if (!Array.isArray(rec3.failures) || rec3.failures.length !== 0) fail(`held must carry no failures (got ${JSON.stringify(rec3.failures)})`);
+        if (rec3.baseline?.source !== 'file') fail(`with no --base-ref, routine.yaml must record baseline.source: file (got ${JSON.stringify(rec3.baseline)})`);
+      }
+    }
   }
   rmSync(tmp, { recursive: true, force: true });
 }
