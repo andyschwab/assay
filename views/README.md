@@ -96,12 +96,13 @@ not_looked_at:         # every run-record row that did not run (map/scanners.yam
 ```
 
 `status` is `unmet | mixed | met | not-measured` — the same statuses
-`yardstick.yaml` carries, never a score or a severity word. `where` (the deciding findings' evidence, `file:line` in the target, what the owner can open) and `findings` (those findings' ids, for whoever reads the map) is the
+`yardstick.yaml` carries, never a score or a severity word. `findings` is the
 measurement's own finding ids when the deciding mechanism produced any
-(instrument and some facet rows); a census or claim row decides over a named
-population or the owner's own word rather than individual findings, so
-`where` reads empty there and `reason` (the measurement's note) carries what
-there is to point at instead. `decided_by` names what would decide a
+(instrument and some facet rows), and `where` is those findings' evidence,
+`file:line` in the target, what the owner can open; a census or claim row
+decides over a named population or the owner's own word rather than
+individual findings, so both read empty there and `reason` (the
+measurement's note) carries what there is to point at instead. `decided_by` names what would decide a
 `not_measured` row (a scanner, `census`, or `owner` for a claim only the
 owner can make) — present only there, the same convention as Intake's
 `to_run`. `OWNER.md` renders `floor` in full (one fix prompt per open row, in
