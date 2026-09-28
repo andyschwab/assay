@@ -21,6 +21,15 @@ map:
 
 default: FAIL
 
+# handoff (map/scanners/CONTRACT.md §3, block style only): every leak is a
+# read-first TRIAGE bucket, never one session prompt per hit — confirm which
+# are live before rotating or purging anything. triage: true implies
+# unit: scanner. client_proof needs nothing this repository's own team does not
+# already have: the gitleaks binary itself, scoped both to history and the tree.
+handoff:
+  triage: true
+  client_proof: "`gitleaks detect --source . --redact` (the history) and `gitleaks detect --no-git --source . --redact` (the tree) report none of these, or each remaining one is recorded in `.gitleaksignore` with the reason a person confirmed it is not a live secret."
+
 capabilities:
   - id: verify-fix
     invoke: "re-run gitleaks scoped to the finding's evidence path (and its history) and confirm the rule no longer fires"

@@ -43,6 +43,15 @@ map:
 
 default: FAIL
 
+# handoff (map/scanners/CONTRACT.md §3, block style only): bundle one remedy per
+# lockfile — every advisory in it, worst severity first — instead of one
+# session prompt per advisory. client_proof needs nothing this repository's own
+# team does not already have: npm's own registry reach, the same the lockfile's
+# own audit already needed.
+handoff:
+  unit: file
+  client_proof: "Run `npm audit --package-lock-only` in {dirs}; none of the advisories listed here appears."
+
 capabilities:
   - id: verify-fix
     invoke: "re-run map/dependency-scan.mjs against the target and confirm the advisory is gone from the lockfile's audit"

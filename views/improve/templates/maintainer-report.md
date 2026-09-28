@@ -61,10 +61,15 @@ title: "assay maintainer report — structural template"
 {{COMPILE:security_risks}}
 
 ## 6. Prioritized roadmap
-<!-- SOURCE: views/improve/prose.yaml roadmap[]. Each item has a matching session prompt in handoff/plan/. -->
+<!-- SOURCE: views/improve/prose.yaml roadmap[]. Each item has a matching session prompt in
+     handoff/plan/, numbered 1..R — the same numbers the handoff's sequence uses for these
+     items. The paragraph after the list (computed by views/improve/sequence.mjs, shared with
+     the handoff) says what the handoff sequences next and at which item numbers. -->
 {{PROSE:roadmap_intro}}
 
 {{PROSE:roadmap}}
+
+{{COMPILE:sequence_followup}}
 
 ## 7. Requirements by topic
 <!-- SOURCE: the yardstick's measurement (yardstick.yaml), grouped by topic
