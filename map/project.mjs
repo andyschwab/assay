@@ -156,7 +156,7 @@ export function notRunPhrase(manifest, id) {
 }
 
 // ── scanner coverage sidecars — map/coverage/<scanner>.yaml ───────────────────
-// A peer scanner that reports per-domain coverage (deep-code-review 1.72+'s
+// A peer scanner that reports per-domain coverage (deep-code-review 1.128+'s
 // machine report) has it archived by ingest.mjs as a sidecar in the scanner's
 // own domain letters. Renderers read it so an axis the scanner contributes is
 // "measured" only where every mapped domain was scanned — a partial or skipped

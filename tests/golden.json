@@ -2,16 +2,24 @@
   "_score": {
     "notesbox": {
       "recall": 100,
-      "recovered": 9,
-      "in_scope": 9,
+      "recovered": 12,
+      "in_scope": 12,
       "missed": 0,
       "misHomed": 0,
       "falsePositives": 0
     },
     "cleanlib": {
       "recall": 100,
-      "recovered": 3,
-      "in_scope": 3,
+      "recovered": 5,
+      "in_scope": 5,
+      "missed": 0,
+      "misHomed": 0,
+      "falsePositives": 0
+    },
+    "fixtures-root": {
+      "recall": 100,
+      "recovered": 10,
+      "in_scope": 10,
       "missed": 0,
       "misHomed": 0,
       "falsePositives": 0

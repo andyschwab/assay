@@ -1,0 +1,27 @@
+# map/findings/fresh-clone.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: fresh-clone · exit code 0 (verified in its success set) · 2 row(s).
+# Ids start at F-900: the profile floor (highest existing id F-50 is below it).
+# Raw report archived at map/raw/fresh-clone.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-900
+  source: fresh-clone
+  native_id: "lint:not-declared"
+  native_category: "lint"
+  polarity: gap
+  severity: Medium
+  observation: >
+    Fresh-clone step lint is not declared in a runnable form (no "lint" script in package.json); nothing in the repository declares a lint gate, so a clean checkout cannot lint clean.
+  evidence: [package.json:1]
+  fix: >
+    Declare a lint script in the package manifest that runs the linter and exits non-zero on a violation, and wire it into CI; re-run fresh-clone and confirm lint passes.
+- id: F-901
+  source: fresh-clone
+  native_id: "typecheck:not-declared"
+  native_category: "typecheck"
+  polarity: gap
+  severity: Medium
+  observation: >
+    Fresh-clone step typecheck is not declared in a runnable form (no "typecheck" script in package.json); nothing in the repository declares a typecheck gate, so a clean checkout cannot typecheck clean.
+  evidence: [package.json:1]
+  fix: >
+    Declare a typecheck script in the package manifest (tsc --noEmit or the stack equivalent) that exits non-zero on a type error, and wire it into CI; re-run fresh-clone and confirm typecheck passes.

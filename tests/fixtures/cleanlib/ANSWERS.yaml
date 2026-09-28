@@ -1,13 +1,17 @@
 # Known-answer sheet for the clean-lib target (slugify) — the CONTROL.
 # This target is kept deliberately healthy. Its job is to catch the OTHER failure
 # mode: an evaluator or instrument that manufactures problems in a clean codebase.
-# Matching is by evidence path + class. Method classes: gitleaks | scorecard | eval-pass | dcr.
+# Matching is by evidence path + class (an instrument answer: by check name).
+# Method classes: eval-pass | dcr | gitleaks | fresh-clone | dependency-scan
+# (repo-scoped instruments are answered in the repo-root sheet).
 target: clean-lib
 
 # No planted defects. A run over this target SHOULD produce no code-security,
 # delegation, or correctness gaps. The assertion is near-emptiness, not literal
 # zero: a minor style nit is tolerable, a Medium-or-above gap is a false positive
-# that counts against the evaluator.
+# that counts against the evaluator — unless it is one of the instrument answers
+# at the end of this sheet, which record what the offline instruments measure
+# here (standing facts, not manufactured problems).
 planted: []
 
 max_gaps_above:            # the control's tolerance gate (scored by the harness)
@@ -47,3 +51,29 @@ strengths:
       A pure function with no I/O, no network, no credentials, no agent surface —
       nothing to delegate and nothing to gate. The delegation axis should read this
       as contained (no power to act), never as an un-scanned blank.
+
+# What each path-scoped offline instrument should record over this target, keyed
+# by the instrument's check name (an absence has no file to cite). Standing facts,
+# not planted defects: this sheet stays a control. They pin the instruments'
+# readings on a healthy target — an instrument that starts reading anything else
+# here is either a new false positive (an unanswered gap) or a miss.
+#   fresh-clone     test runs and passes (`npm test`); install / build / migrate
+#                   read not-declared with no row (no dependencies, nothing to
+#                   build, no database). The two below are its only rows.
+#   dependency-scan no lockfile, so nothing to audit: a recorded clean run, no rows.
+instruments:
+  - id: I-01
+    check: lint
+    detectable_by: [fresh-clone]
+    axis: deterministic-gates
+    polarity: gap
+    note: >
+      A zero-dependency plain-JS library declares no linter. The instrument records
+      the absence; whether that matters is the views' call, not the map's.
+
+  - id: I-02
+    check: typecheck
+    detectable_by: [fresh-clone]
+    axis: deterministic-gates
+    polarity: gap
+    note: No typecheck is declared (plain JS, no type annotations to check).

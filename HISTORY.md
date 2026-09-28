@@ -373,3 +373,37 @@ what the public engine learned.
   run's artifact needs the Actions API's `actions: read` permission, which the
   template does not add (`routine/README.md` says why) — a steward who wants it
   runs the driver locally against two kept run directories. Goldens untouched.
+- **2026-09-28 — deep-code-review re-checked against 1.471.0.** The machine-report
+  spec (`references/machine-report.md`) has not changed since it landed upstream
+  in 1.128.0, and the domain map is still A–T and W, so the adapter's mapping
+  stands; the "1.71 / 1.72" citations were wrong (T and W arrived in 1.60.0, the
+  machine report in 1.128.0) and are corrected throughout. The adapter records
+  the contract as data: `min_version: "1.128.0"` (ingest halts on an older
+  report, and on a report whose header does not name the tool and a
+  `skill_version`) and `verified_against: "1.471.0"`. Ingest now enforces the
+  spec's field rules it had let through — no severity on a strength row,
+  `resolves_with` on every `unverified` row (carried into the port beside
+  `native_tag`), a `prior_status` only with its `prior_id`, a prior finding
+  re-verified `fixed` filed as a strength — and the `verify-fix` capability
+  names the upstream `PRIOR` re-verification mode. The fictional sample moves to
+  1.471.0 with an `unverified` row; eight negative assertions pin the new halts.
+  Goldens untouched.
+- **2026-09-28 — the known-answer fixtures measure the offline instruments.**
+  Running fresh-clone, dependency-scan and repo-census over
+  [assay-fixtures](https://github.com/andyschwab/assay-fixtures) showed the
+  fixtures had fallen behind the engine: the clean-lib control read twelve
+  false positives the moment the instruments ran (real absences — no lint
+  script, no runbook — that its contract predated), P-05 was recoverable by
+  fresh-clone's README replay but not credited to it, and the repo-root sheet
+  depended only on the retired Scorecard. It also surfaced three engine
+  defects, fixed separately: repo-census cited `:1` (no path) at the root and
+  validate let it through; the census did not count `node test/…` as a CI
+  gate; and `score` decided which methods ran from rows present, so an
+  instrument that ran clean and missed read out of scope. The answer sheets
+  gain an `instruments:` list (matched by check name + polarity, standing
+  facts that keep a control a control), `score` reads the run record and
+  grades them, and the vendored runs carry the instruments' real output: notesbox
+  12/12, cleanlib 5/5 with 0 false positives, and a new `fixtures-root` run
+  (repo-census over the fixture repository, 10/10 in scope; Scorecard-only
+  branch protection and dcr-only action pinning read out of scope). Goldens
+  re-blessed for exactly those additions.

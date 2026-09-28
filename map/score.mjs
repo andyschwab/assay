@@ -14,11 +14,21 @@
 //     clean recovery (the projection put a real finding in the wrong area).
 //   • detectable_by gates scope: a planted item is only counted for/against recall
 //     if at least one of its expected method classes actually ran (repo-eval →
-//     eval-pass, gitleaks → gitleaks, scorecard → scorecard, deep-code-review → dcr).
-//     An item no present method could find is reported as OUT-OF-SCOPE, never a miss.
+//     eval-pass, deep-code-review → dcr, an instrument → its own id). "Ran" is read
+//     from the run record (map/scanners.yaml) when there is one, so an instrument
+//     that ran clean and missed an item reads MISSED, not out of scope; without a
+//     record, a method ran if it left rows. An item no method that ran could find is
+//     reported as OUT-OF-SCOPE, never a miss.
+//   • an item with a `check:` is an INSTRUMENT answer (a sheet's `instruments:`
+//     list, or a repo-level check): it has no single file to point at (a missing
+//     runbook is an absence), so it matches a row by method + native category (the
+//     instrument's check name) + polarity, and the axis tie-break applies as above.
+//     Instrument answers are standing facts, not planted defects: a sheet with
+//     `planted: []` stays a control whatever its `instruments:` list says.
 //
 // A control target (planted: []) is scored inversely: any run gap at or above its
-// `max_gaps_above.severity` that matches no planted item is a FALSE POSITIVE.
+// `max_gaps_above.severity` that matches no known answer (a planted or strength
+// evidence path, or an instrument answer) is a FALSE POSITIVE.
 //
 // Usage:
 //   node assay.mjs score <run-dir> --answers <ANSWERS.yaml> [--json]
@@ -26,9 +36,10 @@ import { readFileSync, existsSync } from 'node:fs';
 import { basename } from 'node:path';
 import { isMain, sevRank } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
-import { loadFindings, loadAdapters, projectMulti } from './project.mjs';
+import { loadFindings, loadAdapters, projectMulti, loadManifest } from './project.mjs';
 
-const SOURCE_METHOD = { 'repo-eval': 'eval-pass', 'gitleaks': 'gitleaks', 'scorecard': 'scorecard', 'deep-code-review': 'dcr' };
+const SOURCE_METHOD = { 'repo-eval': 'eval-pass', 'deep-code-review': 'dcr' };   // anything else: its own id
+const methodOf = (source) => SOURCE_METHOD[source] || source;
 
 // path matching: the file portion (before any :line), compared by FULL PATH with
 // a suffix rule so a run recorded relative to the target root and a sheet written
@@ -41,9 +52,11 @@ const fileKey = (p) => basename(stripLine(p));
 const samePath = (a, b) => !!a && !!b && (a === b || a.endsWith('/' + b) || b.endsWith('/' + a));
 const lineOf = (p) => { const m = String(p).match(/:(\d+)/); return m ? Number(m[1]) : null; };
 
-export function score(findings, adapters, answers) {
+export function score(findings, adapters, answers, manifest = null) {
   const { projected } = projectMulti(findings, adapters);
-  const runMethods = new Set(projected.map((p) => SOURCE_METHOD[p.source] || p.source));
+  const runMethods = new Set(projected.map((p) => methodOf(p.source)));
+  const recorded = manifest && manifest.scanners && typeof manifest.scanners === 'object' ? manifest.scanners : {};
+  for (const [id, r] of Object.entries(recorded)) if (r && r.status === 'ran') runMethods.add(methodOf(id));
 
   // index run findings by evidence file
   const byFile = new Map();
@@ -55,14 +68,18 @@ export function score(findings, adapters, answers) {
     }
   }
 
-  const items = [...(answers.planted || []), ...(answers.strengths || [])];
+  const items = [...(answers.planted || []), ...(answers.strengths || []), ...(answers.instruments || [])];
   const results = [];
+  const answeredIds = new Set();   // run rows an instrument answer accounts for
   for (const it of items) {
     const expectMethods = Array.isArray(it.detectable_by) ? it.detectable_by : [];
     const inScope = !expectMethods.length || expectMethods.some((m) => runMethods.has(m));
     const wantAxes = new Set([it.axis, ...(Array.isArray(it.also_axes) ? it.also_axes : [])].filter(Boolean));
     const wantPath = stripLine(it.evidence || '');
-    const hits = (byFile.get(fileKey(it.evidence || '')) || []).filter((h) => samePath(h.path, wantPath));
+    const hits = it.check
+      ? projected.filter((p) => String(p.f.native_category) === String(it.check) && p.f.polarity === it.polarity && expectMethods.includes(methodOf(p.source))).map((p) => ({ p }))
+      : (byFile.get(fileKey(it.evidence || '')) || []).filter((h) => samePath(h.path, wantPath));
+    if (it.check) for (const h of hits) answeredIds.add(h.p.f.id);
     const axisHit = hits.find((h) => wantAxes.has(h.p.axis));
     const anyHit = hits[0];
     let status;
@@ -70,7 +87,7 @@ export function score(findings, adapters, answers) {
     else if (axisHit) status = 'recovered';
     else if (anyHit) status = 'mis-homed';
     else status = 'missed';
-    results.push({ id: it.id, polarity: it.polarity, axis: it.axis, evidence: it.evidence,
+    results.push({ id: it.id, polarity: it.polarity, axis: it.axis, evidence: it.evidence || (it.check ? `${expectMethods.join('/')}:${it.check}` : undefined),
       status, foundAxis: axisHit ? axisHit.p.axis : anyHit ? anyHit.p.axis : null,
       foundId: axisHit ? axisHit.p.f.id : anyHit ? anyHit.p.f.id : null, expectMethods });
   }
@@ -84,6 +101,7 @@ export function score(findings, adapters, answers) {
     for (const p of projected) {
       if (p.f.polarity !== 'gap') continue;
       if (sevRank(p.f.severity) > floor) continue;               // below the tolerance line
+      if (answeredIds.has(p.f.id)) continue;                     // a known instrument answer, not a manufactured one
       const onPlanted = (p.f.evidence || []).some((ev) => plantedPaths.some((a) => samePath(stripLine(ev), a)));
       if (!onPlanted) falsePositives.push({ id: p.f.id, axis: p.axis, severity: p.f.severity || 'unrated', source: p.source, evidence: (p.f.evidence || [])[0] });
     }
@@ -112,7 +130,7 @@ if (isMain(import.meta.url)) {
   const answers = parseYaml(readFileSync(answersPath, 'utf8'));
   const findings = loadFindings(runDir);
   if (!findings.length) { console.error(`no findings under ${runDir}`); process.exit(2); }
-  const r = score(findings, loadAdapters(), answers);
+  const r = score(findings, loadAdapters(), answers, loadManifest(runDir));
 
   if (process.argv.includes('--json')) { console.log(JSON.stringify(r, null, 2)); process.exit(0); }
 

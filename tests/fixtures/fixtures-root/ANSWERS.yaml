@@ -1,0 +1,116 @@
+# Repo-root known-answer sheet — the REPOSITORY as a whole.
+# Repo-scoped instruments (anything reading repository hygiene: the CI gate, the
+# agent contract, the runbook, owner evidence, branch protection, action pinning)
+# see the whole repository, so their known answers live here and only here.
+# Per-target sheets deliberately carry no repo-hygiene class. Matching is by check
+# name + method for an instrument answer, by evidence path otherwise.
+# Method classes: repo-census | dcr | scorecard (retired — see R-01).
+target: __repository__
+
+planted:
+  - id: R-01
+    class: repo-hygiene
+    check: Branch-Protection
+    axis: deterministic-gates
+    polarity: gap
+    detectable_by: [scorecard]
+    note: >
+      This fixture repo runs without branch protection (no required reviews or
+      status checks before merge). Only Scorecard's Branch-Protection check measures
+      it, and assay retired Scorecard: its checks need live GitHub API access, and
+      an adopted instrument runs offline against the checkout. repo-census states
+      that branch protection is not visible from the tree. Kept as the record of
+      the fact; it reads out of scope until an adopted method can see it.
+
+  - id: R-02
+    class: unpinned-action
+    axis: code-security
+    polarity: gap
+    evidence: .github/workflows/ci.yml:14
+    detectable_by: [dcr]
+    note: >
+      The CI workflow pins actions/checkout (and setup-node) by a mutable major tag
+      (@v4), not a commit SHA, so the code CI runs can change under the same
+      workflow file. deep-code-review's supply-chain domain (K) reads this and lands
+      it on code-security. (Scorecard's Pinned-Dependencies check was the first
+      method named here.)
+
+strengths:
+  - id: R-S1
+    class: ci-gate
+    check: ci-gate
+    axis: deterministic-gates
+    polarity: strength
+    detectable_by: [repo-census]
+    note: >
+      .github/workflows/ci.yml triggers on push and pull_request and runs each
+      target's tests (`node targets/<t>/test/…`), so the census reads a gate on the
+      default branch. A planted repo-level strength.
+
+# What repo-census should record at the repository root, beyond R-S1. The
+# repository is a collection of fixture targets with no deployment and no
+# operators, and carries none of these by design: standing facts, pinned so a
+# change in the census's reading shows as missed.
+instruments:
+  - id: R-I1
+    check: architecture-page
+    detectable_by: [repo-census]
+    axis: artifact-legibility
+    polarity: gap
+    note: No architecture page (the README describes layout, not parts and services).
+
+  - id: R-I2
+    check: agent-contract
+    detectable_by: [repo-census]
+    axis: improvement-loop
+    polarity: gap
+    note: No AGENTS.md or CLAUDE.md.
+
+  - id: R-I3
+    check: runbook
+    detectable_by: [repo-census]
+    axis: artifact-legibility
+    polarity: gap
+    note: No runbook — there is nothing to restart, roll back, rotate, or restore.
+
+  - id: R-I4
+    check: evidence-d-backup-restore-exercised
+    detectable_by: [repo-census]
+    axis: code-security
+    polarity: gap
+    note: No owner evidence transcript (no deployment, so none can exist).
+
+  - id: R-I5
+    check: evidence-d-rollback-exercised
+    detectable_by: [repo-census]
+    axis: context-economy
+    polarity: gap
+    note: No owner evidence transcript.
+
+  - id: R-I6
+    check: evidence-d-deploy-one-command
+    detectable_by: [repo-census]
+    axis: code-security
+    polarity: gap
+    note: No owner evidence transcript.
+
+  - id: R-I7
+    check: evidence-d-smoke-on-deployed
+    detectable_by: [repo-census]
+    axis: deterministic-gates
+    polarity: gap
+    note: No owner evidence transcript.
+
+  - id: R-I8
+    check: evidence-d-monitoring-with-alert
+    detectable_by: [repo-census]
+    axis: verification
+    polarity: gap
+    note: No owner evidence transcript.
+
+  - id: R-I9
+    check: evidence-d-cost-alerts
+    detectable_by: [repo-census]
+    axis: artifact-legibility
+    polarity: gap
+    note: No owner evidence transcript.

@@ -524,7 +524,7 @@ The detail layer under the axis model (`map/scanners/CONTRACT.md`):
 `node views/improve/axes.mjs <run-dir> [--base <dir>]...` projects the base
 through each scanner's adapter onto the **flat axis roster** — the seven native
 dimension axes plus each peer scanner's contributed axes (deep-code-review adds
-*code-correctness* and *code-security*; its 1.72+ machine report is ingested with
+*code-correctness* and *code-security*; its 1.128+ machine report is ingested with
 `node assay.mjs ingest <run-dir> --tool deep-code-review --raw <file>`, which also
 archives the scanner's per-domain coverage so an axis reads **partially measured**
 where the scanner itself said it looked partially), **property-named and shared**, so two

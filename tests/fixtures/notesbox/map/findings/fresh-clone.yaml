@@ -1,0 +1,49 @@
+# map/findings/fresh-clone.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: fresh-clone · exit code 1 (verified in its success set) · 4 row(s).
+# Ids start at F-900: the profile floor (highest existing id F-700 is below it).
+# Raw report archived at map/raw/fresh-clone.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-900
+  source: fresh-clone
+  native_id: "lint:not-declared"
+  native_category: "lint"
+  polarity: gap
+  severity: Medium
+  observation: >
+    Fresh-clone step lint is not declared in a runnable form (no "lint" script in package.json); nothing in the repository declares a lint gate, so a clean checkout cannot lint clean.
+  evidence: [package.json:1]
+  fix: >
+    Declare a lint script in the package manifest that runs the linter and exits non-zero on a violation, and wire it into CI; re-run fresh-clone and confirm lint passes.
+- id: F-901
+  source: fresh-clone
+  native_id: "typecheck:not-declared"
+  native_category: "typecheck"
+  polarity: gap
+  severity: Medium
+  observation: >
+    Fresh-clone step typecheck is not declared in a runnable form (no "typecheck" script in package.json); nothing in the repository declares a typecheck gate, so a clean checkout cannot typecheck clean.
+  evidence: [package.json:1]
+  fix: >
+    Declare a typecheck script in the package manifest (tsc --noEmit or the stack equivalent) that exits non-zero on a type error, and wire it into CI; re-run fresh-clone and confirm typecheck passes.
+- id: F-902
+  source: fresh-clone
+  native_id: "test:not-declared"
+  native_category: "test"
+  polarity: gap
+  severity: Medium
+  observation: >
+    Fresh-clone step test is not declared in a runnable form (no "test" script in package.json); nothing in the repository declares a test command, so a clean checkout cannot run its tests.
+  evidence: [package.json:1]
+  fix: >
+    Declare a test script that executes the suite's core on a clean machine without an unset variable silently skipping it, and make it pass; re-run fresh-clone and confirm test passes.
+- id: F-903
+  source: fresh-clone
+  native_id: "readme-claim@README.md:32"
+  native_category: "readme-claim"
+  polarity: gap
+  severity: Medium
+  observation: >
+    README claims `npm run test:all` (README.md:32) but the package script it names does not exist in the tree; the README is not true of this checkout at that line.
+  evidence: [README.md:32]
+  fix: >
+    Make the README true: add the package script the line claims, or correct the line to the command that exists; re-run fresh-clone and confirm the claim reads present.

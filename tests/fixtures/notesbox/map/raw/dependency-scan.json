@@ -1,0 +1,12 @@
+{
+  "tool": "dependency-scan",
+  "version": "0.1.0",
+  "started_at": "2026-09-28T09:54:59.131Z",
+  "finished_at": "2026-09-28T09:54:59.132Z",
+  "target": {
+    "path": "targets/flawed-webapp"
+  },
+  "timeout_seconds": 300,
+  "lockfiles": [],
+  "exit": 0
+}

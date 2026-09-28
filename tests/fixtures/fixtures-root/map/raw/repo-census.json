@@ -1,0 +1,159 @@
+{
+  "tool": "repo-census",
+  "version": "0.3.0",
+  "target": {
+    "path": ".",
+    "head": "4f96bf22a930b1b5fb52a8d610e764c599ac83bd",
+    "remote": "https://github.com/andyschwab/assay-fixtures"
+  },
+  "monorepo": {
+    "detected": false,
+    "locations": []
+  },
+  "evidence": {
+    "asOf": "2026-09-28",
+    "maxAgeDays": 90
+  },
+  "checks": [
+    {
+      "name": "architecture-page",
+      "status": "gap",
+      "detail": {
+        "path": "."
+      },
+      "evidence": [
+        "./:1"
+      ],
+      "observation": "No architecture page found (checked ARCHITECTURE.md, docs/ARCHITECTURE.md, docs/architecture.md, docs/architecture/*.md, and a README \"Architecture\" section) — nothing shows the parts, the data flow, and the external services."
+    },
+    {
+      "name": "agent-contract",
+      "status": "gap",
+      "detail": {
+        "path": "."
+      },
+      "evidence": [
+        "./:1"
+      ],
+      "observation": "No AGENTS.md or CLAUDE.md found."
+    },
+    {
+      "name": "runbook",
+      "status": "gap",
+      "detail": {
+        "path": "."
+      },
+      "evidence": [
+        "./:1"
+      ],
+      "observation": "No runbook found (checked RUNBOOK.md, docs/RUNBOOK.md, docs/runbook*.md, and a README/doc \"Runbook\" or \"Operations\" section). Presence of the words is what this decides; whether a procedure was ever run is a separate, sidecar claim."
+    },
+    {
+      "name": "ci-gate",
+      "status": "pass",
+      "detail": {
+        "path": ".",
+        "defaultBranch": "main",
+        "workflows": [
+          {
+            "file": ".github/workflows/ci.yml",
+            "events": [
+              "push",
+              "pull_request"
+            ],
+            "pushBranches": null,
+            "gates": true,
+            "gateCommands": [
+              "node targets/clean-lib/test/slugify.test.mjs",
+              "node targets/flawed-webapp/test/smoke.mjs"
+            ]
+          }
+        ],
+        "failOpen": []
+      },
+      "evidence": [
+        ".github/workflows/ci.yml:1"
+      ],
+      "observation": "At least one workflow gates on pull_request or push to the default branch (main) and runs a test/lint/typecheck/build step, with no gate step failing open. Branch protection (whether this check is required to merge) is not visible from the tree; this check decides only what the tree shows."
+    },
+    {
+      "name": "evidence-d-backup-restore-exercised",
+      "status": "gap",
+      "detail": {
+        "path": ".",
+        "descriptor": "d-backup-restore-exercised",
+        "file": null
+      },
+      "evidence": [
+        ".:1"
+      ],
+      "observation": "No evidence transcript found for d-backup-restore-exercised (checked ops/evidence/d-backup-restore-exercised.md, docs/evidence/d-backup-restore-exercised.md)."
+    },
+    {
+      "name": "evidence-d-rollback-exercised",
+      "status": "gap",
+      "detail": {
+        "path": ".",
+        "descriptor": "d-rollback-exercised",
+        "file": null
+      },
+      "evidence": [
+        ".:1"
+      ],
+      "observation": "No evidence transcript found for d-rollback-exercised (checked ops/evidence/d-rollback-exercised.md, docs/evidence/d-rollback-exercised.md)."
+    },
+    {
+      "name": "evidence-d-deploy-one-command",
+      "status": "gap",
+      "detail": {
+        "path": ".",
+        "descriptor": "d-deploy-one-command",
+        "file": null
+      },
+      "evidence": [
+        ".:1"
+      ],
+      "observation": "No evidence transcript found for d-deploy-one-command (checked ops/evidence/d-deploy-one-command.md, docs/evidence/d-deploy-one-command.md)."
+    },
+    {
+      "name": "evidence-d-smoke-on-deployed",
+      "status": "gap",
+      "detail": {
+        "path": ".",
+        "descriptor": "d-smoke-on-deployed",
+        "file": null
+      },
+      "evidence": [
+        ".:1"
+      ],
+      "observation": "No evidence transcript found for d-smoke-on-deployed (checked ops/evidence/d-smoke-on-deployed.md, docs/evidence/d-smoke-on-deployed.md)."
+    },
+    {
+      "name": "evidence-d-monitoring-with-alert",
+      "status": "gap",
+      "detail": {
+        "path": ".",
+        "descriptor": "d-monitoring-with-alert",
+        "file": null
+      },
+      "evidence": [
+        ".:1"
+      ],
+      "observation": "No evidence transcript found for d-monitoring-with-alert (checked ops/evidence/d-monitoring-with-alert.md, docs/evidence/d-monitoring-with-alert.md)."
+    },
+    {
+      "name": "evidence-d-cost-alerts",
+      "status": "gap",
+      "detail": {
+        "path": ".",
+        "descriptor": "d-cost-alerts",
+        "file": null
+      },
+      "evidence": [
+        ".:1"
+      ],
+      "observation": "No evidence transcript found for d-cost-alerts (checked ops/evidence/d-cost-alerts.md, docs/evidence/d-cost-alerts.md)."
+    }
+  ],
+  "exit": 1
+}

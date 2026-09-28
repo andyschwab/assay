@@ -256,7 +256,7 @@ function checkArchitecturePage(dir, loc, pointerPath) {
   if (!content) {
     return {
       name, status: 'gap', detail,
-      evidence: [`${relPath('')}:1`],
+      evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
       observation: `No architecture page found${loc !== '.' ? ` for ${loc}` : ''} (checked ARCHITECTURE.md, docs/ARCHITECTURE.md, docs/architecture.md, docs/architecture/*.md, and a README "Architecture" section) — nothing shows the parts, the data flow, and the external services.`,
     };
   }
@@ -299,7 +299,7 @@ function checkAgentContract(dir, loc, pointerPath) {
     if (!file) {
       return {
         name, status: 'gap', detail,
-        evidence: [`${relPath('')}:1`],
+        evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
         observation: `No AGENTS.md or CLAUDE.md found${loc !== '.' ? ` for ${loc}` : ''}.`,
       };
     }
@@ -472,7 +472,9 @@ function parseTrigger(lines) {
   }
   return { events, pushBranches, line: idx + 1 };
 }
-const GATE_CMD_RE = /\b(?:npm\s+(?:run\s+)?(?:test|lint|typecheck|build)|pnpm\s+(?:run\s+)?(?:test|lint|typecheck|build)|yarn\s+(?:run\s+)?(?:test|lint|typecheck|build)|tsc\b|jest\b|vitest\b|pytest\b|go\s+test|cargo\s+test|make\s+test)\b/i;
+// `node --test`, and `node <file>` where the file sits in a test/ or tests/ directory or
+// is named *.test.* / *.spec.*: the zero-dependency form of a test step
+const GATE_CMD_RE = /\b(?:npm\s+(?:run\s+)?(?:test|lint|typecheck|build)|pnpm\s+(?:run\s+)?(?:test|lint|typecheck|build)|yarn\s+(?:run\s+)?(?:test|lint|typecheck|build)|tsc\b|jest\b|vitest\b|pytest\b|go\s+test|cargo\s+test|make\s+test|(?:deno|bun)\s+test|node\s+--test|node\s+(?:\S*\/)?(?:tests?|__tests__)\/\S+|node\s+\S+\.(?:test|spec)\.[cm]?[jt]s)\b/i;
 function parseSteps(lines) {
   const jobsIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l.trimmed));
   if (jobsIdx === -1) return [];

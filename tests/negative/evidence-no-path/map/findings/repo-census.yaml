@@ -1,0 +1,11 @@
+# evidence-no-path — a census gap row as repo-census once wrote it at the root:
+# `:1` is a line number of no file. validate must refuse it.
+- id: F-960
+  source: repo-census
+  native_id: "architecture-page@root"
+  native_category: "architecture-page"
+  polarity: gap
+  severity: Medium
+  observation: >
+    No architecture page found.
+  evidence: [:1]

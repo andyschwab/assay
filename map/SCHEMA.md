@@ -367,7 +367,7 @@ recorded reason — on the scanners line, on the not-measured register, and in t
 appendix list — never "did not run" alone, never silence.
 
 **Coverage sidecars — `map/coverage/<scanner>.yaml`.** A peer scanner that reports its
-own per-domain coverage (deep-code-review 1.72+'s machine report) has it archived by
+own per-domain coverage (deep-code-review 1.128+'s machine report) has it archived by
 `map/ingest.mjs` alongside its rows, in the scanner's own domain letters:
 
 ```yaml

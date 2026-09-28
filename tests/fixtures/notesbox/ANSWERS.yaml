@@ -2,8 +2,9 @@
 # Ground truth: every item below is planted on purpose. An evaluation run over this
 # target is scored against this sheet — which planted items it recovered, which it
 # missed, what it flagged that is not here. Matching is by evidence path + class,
-# never by wording. Method classes: gitleaks | scorecard | eval-pass | dcr.
-# (repo-hygiene lives only in the repo-root sheet, never here — see /README.md.)
+# never by wording. Method classes: eval-pass | dcr | gitleaks | fresh-clone |
+# dependency-scan (the path-scoped methods; repo-census and the other repo-scoped
+# instruments are answered in the repo-root sheet, never here — see /README.md).
 target: flawed-webapp
 
 planted:
@@ -78,11 +79,12 @@ planted:
     axis: artifact-legibility
     polarity: gap
     evidence: README.md:32
-    detectable_by: [eval-pass]
+    detectable_by: [eval-pass, fresh-clone]
     note: >
       The README documents `npm run test:all` as the test command, but package.json
       defines no such script (the real entry point is `node test/smoke.mjs`). A
-      documented command that does not run.
+      documented command that does not run. fresh-clone replays the README's
+      commands and records this one missing at this line.
 
   - id: P-06
     class: false-green-test
@@ -133,3 +135,37 @@ chains:
       fail-open-to-admin (P-02) defeats the requireAdmin gate on /admin/purge, so an
       unauthenticated caller can purge all notes; and reaches the unguarded /sync
       cross-tenant read (P-04). The gate exists; the auth defect walks through it.
+
+# What each path-scoped offline instrument should record over this target, keyed
+# by the instrument's check name: an absence has no single file to cite, so these
+# match by method + check + polarity. They are the target's standing facts, not
+# planted defects; they pin the instruments' readings, so a change in what an
+# instrument records here reads as missed.
+#   fresh-clone     install / build / migrate read not-declared and yield no row
+#                   (no dependencies, nothing to build, no database); the three
+#                   below are the declared-gate gaps. P-05 above is its fourth row.
+#   dependency-scan no lockfile, so nothing to audit: a recorded clean run, no rows.
+instruments:
+  - id: I-01
+    check: test
+    detectable_by: [fresh-clone]
+    axis: deterministic-gates
+    polarity: gap
+    note: >
+      package.json declares no test script: the smoke suite runs only when someone
+      types `node test/smoke.mjs`. The other face of P-05 — the documented command
+      is missing and the real one is not declared.
+
+  - id: I-02
+    check: lint
+    detectable_by: [fresh-clone]
+    axis: deterministic-gates
+    polarity: gap
+    note: No lint script is declared.
+
+  - id: I-03
+    check: typecheck
+    detectable_by: [fresh-clone]
+    axis: deterministic-gates
+    polarity: gap
+    note: No typecheck script is declared.
