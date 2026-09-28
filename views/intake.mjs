@@ -11,18 +11,11 @@
 // Usage: node assay.mjs intake <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows, toYaml, basisNote } from './floor-fleet.mjs';
+import { buildRows, toYaml, basisNote, joinContradictions } from './floor-fleet.mjs';
 import { loadYardstick, loadContradictions } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { viewPath, intakePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
-
-// Join a run's raw contradictions (yardstick.yaml: id/claim/run_status/findings)
-// with the register's title, for display — Intake only (owner/PACKET.md, yardstick/README.md).
-export function joinContradictions(raw, reg) {
-  const byId = new Map(reg.requirements.map((d) => [d.id, d]));
-  return raw.map((c) => ({ ...c, title: byId.get(c.id)?.title || c.id }));
-}
 
 export function renderMd(runId, built, confidential = false, contradictions = []) {
   const { open, met, to_run, not_seen } = built;

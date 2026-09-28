@@ -437,3 +437,17 @@ what the public engine learned.
   `gitleaks` from a pinned release, verified against its published sha256
   before it is ever executed — copied in and uncommented, never an unpinned
   `curl | sh`. Goldens untouched.
+- **2026-09-28 — a contradicted claim is visible under stewardship, not just at
+  intake.** Maintain (`views/maintain.mjs`) gains the same "Contradicted
+  claims" section and `contradictions:` list Intake already carried — moved to
+  the shared `joinContradictions` in `views/floor-fleet.mjs` so both read it
+  the same way — because a steward's routines, not just an intake read, are
+  where a repository's own packet claiming `satisfied` against a run-decided
+  `unmet` row must not go unseen. `ratchet` (landed alongside the
+  `--baseline-ref` change above) now fails the run whenever its measurement
+  carries ANY contradiction, checked every time regardless of whether a
+  baseline was given at all — there is no `--allow-contradictions`; a claim the
+  run itself disproves is always a failure under stewardship. Each failure
+  line names the requirement, that the owner claimed it satisfied, and what
+  the run found instead. Documented in `yardstick/README.md` and
+  `views/README.md`. Goldens untouched.

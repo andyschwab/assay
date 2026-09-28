@@ -6,6 +6,15 @@
 import { loadYardstick, loadMeasurement } from '../yardstick/measure.mjs';
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';
 
+// Join a run's raw contradictions (yardstick.yaml: id/claim/run_status/findings)
+// with the register's title, for display — read by both Intake and Maintain
+// (yardstick/README.md, owner/PACKET.md): a repository's own packet claimed a
+// requirement satisfied; this run found the mechanism absent.
+export function joinContradictions(raw, reg) {
+  const byId = new Map(reg.requirements.map((d) => [d.id, d]));
+  return raw.map((c) => ({ ...c, title: byId.get(c.id)?.title || c.id }));
+}
+
 // decided_by: the instrument name from the row's decide, or "owner" for claim
 // rows; a census/facet row is decided by that mechanism's own name.
 export function decidedBy(d) {

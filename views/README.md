@@ -59,9 +59,11 @@ claims" section renders it.
 
 `views/maintain.mjs` → `views/maintain.yaml` and `MAINTAIN.md`. The requirements
 tagged `fleet`: what a steward's routines read to keep a repository healthy
-without a person looking. Same shape as Intake (including `basis`, shown the
-same way on the page) minus `contradictions` (Intake-only), with `view:
-maintain` and `floor: true | false` on every row (whether Intake also reads it).
+without a person looking. Same shape as Intake, including `basis` (shown the
+same way on the page) and `contradictions` (the run's own recorded list, same
+shape and rendering as Intake's — a claim a steward's routines must not lose
+sight of between intake and the next human look), with `view: maintain` and
+`floor: true | false` on every row (whether Intake also reads it).
 
 ## Improve: what makes it better?
 
