@@ -40,7 +40,10 @@ for (const f of raw) {
   byId.set(f.id, f);
 }
 const findings = [...byId.values()];
-if (!findings.length) { console.error(`no findings under ${arg}`); process.exit(2); }
+// Zero findings is a valid, clean walk when the run carries a manifest (every
+// instrument ran clean, explicit empty files) — only no findings AND no manifest
+// is the truly empty case (CLAUDE.md rule 3: a clean run with a run record measures).
+if (!findings.length && !loadManifest(arg)) { console.error(`no findings under ${arg}`); process.exit(2); }
 
 // channel labels are authored per run (the prose's channel_notes); a raw base
 // without prose renders humanized slugs.
@@ -111,7 +114,7 @@ try {
 function requirementsBlock(topic) {
   const t = topicsByName && topicsByName[topic];
   if (!t) return [];
-  const out = [`**Requirements on this topic** _(${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured)_:`];
+  const out = [`**Requirements on this topic** _(${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured · ${t.not_applicable} not applicable)_:`];
   if (t.rows.length) for (const r of t.rows) out.push(`- ${r.id} _(${r.status})_ — ${r.title}`);
   else out.push('_None on this topic in the yardstick._');
   out.push('');

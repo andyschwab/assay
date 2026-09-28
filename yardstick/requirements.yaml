@@ -116,10 +116,12 @@ requirements:
       kind: instrument
       scanner: dependency-scan
       category: critical
+      not_applicable_when: no-manifest
+      not_measured_when: no-lockfile
     # the descriptor is worded on critical only (its category), so a run with high
     # (or moderate/low/info) advisories and zero critical rows still reads met —
     # narrower than the title; widen the category only with a reviewed change.
-    check: dependency-scan (npm audit over every lockfile in the tree) reports no critical advisory
+    check: dependency-scan (npm audit over every lockfile in the tree) reports no critical advisory; a manifest with dependencies and no lockfile covering it reads not-measured ("no lockfile: nothing to audit"), never clean; no package.json anywhere in the tree reads not-applicable
     sources: [floor/s-deps, scanner-candidates/core]
     status: draft
     owner:
@@ -205,7 +207,8 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-backup-restore-exercised
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check
+      not_measured_when: evidence-d-backup-restore-exercised-unverifiable
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
     sources: [floor/s-backup, foundation/nightly-restore]
     status: draft
     owner:
@@ -235,7 +238,7 @@ requirements:
       kind: instrument
       scanner: fresh-clone
       category: [install, build]
-    check: the fresh-clone install and build steps both read passed from a clean checkout (map/fresh-clone.mjs), root and every workspace
+    check: the fresh-clone install and build steps both read passed from a clean checkout (map/fresh-clone.mjs), root and every workspace; an undeclared build reads unmet, the same as an undeclared lint or test gate — absence is not a pass
     sources: [floor/r-fresh-clone]
     status: draft
     owner:
@@ -280,7 +283,8 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-deploy-one-command
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check
+      not_measured_when: evidence-d-deploy-one-command-unverifiable
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
     sources: [floor/r-deploy, foundation/deploy-and-promote]
     status: draft
     owner:
@@ -295,7 +299,8 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-rollback-exercised
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check
+      not_measured_when: evidence-d-rollback-exercised-unverifiable
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
     sources: [floor/r-rollback, foundation/promote]
     status: draft
     owner:
@@ -310,7 +315,8 @@ requirements:
       kind: instrument
       scanner: fresh-clone
       category: migrate
-    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signals anywhere in the tree the runner emits no migrate row, so it reads met — nothing to migrate
+      not_applicable_when: no-database-signal
+    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signal (file or dependency — Prisma, Knex, TypeORM, Supabase, Drizzle, a raw db/sql migrations folder, …) anywhere in the tree, fresh-clone records that it looked and found none, and the requirement reads not-applicable — never met, nothing was measured; a database signal with no migrate step declared reads unmet, never met
     sources: [floor/r-migrations, foundation/never-hand-apply-a-migration]
     status: draft
     owner:
@@ -342,7 +348,7 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: ci-gate
-    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
+    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error, or a run script that swallows its own non-zero exit with `|| true` / `|| exit 0` / `|| :` / `set +e`); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
     sources: [floor/v-ci, foundation/branch-protection]
     status: draft
     owner:
@@ -385,7 +391,8 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-smoke-on-deployed
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check
+      not_measured_when: evidence-d-smoke-on-deployed-unverifiable
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
     sources: [floor/v-smoke, foundation/doctor]
     status: draft
     owner:
@@ -557,7 +564,8 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-monitoring-with-alert
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check
+      not_measured_when: evidence-d-monitoring-with-alert-unverifiable
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
     sources: [floor/o-monitoring]
     status: draft
     owner:
@@ -572,7 +580,8 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-cost-alerts
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check
+      not_measured_when: evidence-d-cost-alerts-unverifiable
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
     sources: [floor/o-cost, foundation/budgets]
     status: draft
     owner:

@@ -118,7 +118,7 @@ export function renderMd(runId, previousId, since, findingsDelta, confidential =
   out.push('');
 
   out.push('## No longer measured', '');
-  if (since.no_longer_measured.length) for (const r of since.no_longer_measured) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${r.previous.status} → not-measured. ${r.note}`);
+  if (since.no_longer_measured.length) for (const r of since.no_longer_measured) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${r.previous.status} → ${r.current.status}. ${r.note}`);
   else out.push('_Nothing dropped off the measured scale._');
   out.push('');
 

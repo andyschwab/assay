@@ -407,3 +407,239 @@ what the public engine learned.
   (repo-census over the fixture repository, 10/10 in scope; Scorecard-only
   branch protection and dcr-only action pinning read out of scope). Goldens
   re-blessed for exactly those additions.
+- **2026-09-28 — an all-clean run measures and compiles.** A product review
+  found a check that looked at nothing never reads "met" — and, sharpening
+  that same honesty rule, found the inverse defect: a run where every
+  instrument ran clean (every `map/findings/*.yaml` the explicit empty list,
+  a complete run manifest) crashed `measure` with "no findings", so the one
+  case that most deserves a clean bill of health could not even compile one.
+  `yardstick/measure.mjs`'s `projectRun` now refuses only the truly empty case
+  — no findings **and** no manifest; zero findings **with** a manifest is a
+  real, valid measurement (CLAUDE.md rule 3: a clean run with an explicit run
+  record measures). `views/improve/axes.mjs`, `views/improve/handoff.mjs` and
+  `views/improve/report.mjs` carried the identical guard (each is invoked
+  unconditionally, or near it, by `compile`) and are fixed the same way.
+  Verified end to end: a synthetic all-clean run now validates green and
+  `compile` writes INDEX/INTAKE/MAINTAIN/axes/handoff with zero crashes; the
+  genuinely empty case (no findings, no manifest) still throws. Goldens
+  untouched — no fixture's recall changed.
+- **2026-09-28 — ci-gate: a gate that can fail open through its own shell
+  script, not only `continue-on-error: true`.** A gate that can fail open is
+  not a gate; `map/repo-census.mjs`'s workflow reader caught the GitHub
+  Actions declaration but not the identical outcome reached in plain shell —
+  a `run:` command ending `|| true`, `|| exit 0` or `|| :`, or a `set +e` line
+  anywhere in a multi-line block-scalar script (disabling errexit for every
+  line after it, including a gate command on a later line). `parseSteps` now
+  captures a block-scalar `run: |` script's full body with real line numbers
+  and checks every line for either shape; a hit is cited at its own line, not
+  the step's first line, so `set +e` on line one of a script whose actual test
+  command is on line two still points at line one. A literal
+  `continue-on-error: true` citation is unchanged. Tested each shape (inline
+  and block) end to end through `repo-census`, plus a clean multi-line script
+  that must not gap. `map/scanners/CONTRACT.md` §3d and
+  `yardstick/requirements.yaml`'s `d-ci-gate-on-default-branch` check text
+  name the shell shapes explicitly. Goldens untouched.
+- **2026-09-28 — fresh-clone: an undeclared build reads unmet, the same as an
+  undeclared lint, typecheck or test gate.** `d-fresh-clone-runs` decides on
+  `[install, build]` jointly, but only `build` quietly read "met" when the
+  package declared no build script at all — lint, typecheck and test already
+  treated their own absence as a gap (`FC_FLOOR_STEPS`). `build` now joins
+  that list in `map/ingest.mjs`; an undeclared build emits a gap row exactly
+  like an undeclared lint or typecheck, and `d-fresh-clone-runs` reads unmet
+  rather than met on a package with no build step. `install` is unaffected —
+  "no dependencies and no lockfile" stays a genuine, non-gap absence, the one
+  case fresh-clone's own planner already treats as legitimately nothing to
+  install. `yardstick/requirements.yaml`'s `d-fresh-clone-runs` check text
+  says so explicitly. Rows changed: only `d-fresh-clone-runs`, for any run
+  whose target declares no build script (no committed run in this repository
+  was affected — the scored fixtures' fresh-clone rows carry no
+  install/build gap either way). Goldens untouched.
+- **2026-09-28 — a `not-applicable` status, decided only by evidence, never a
+  packet claim.** A product review found assay reporting `met` where nothing
+  was measured — a tree with no database read `d-schema-versioned` met by
+  silence, and a packet claim of `not-applicable` on a claim-only row read
+  `met` too, the identical laundering in a different place. `not-applicable`
+  joins `met | unmet | mixed | not-measured` in `yardstick/measure.mjs`'s
+  `STATUSES`, and everywhere a status is defined, validated, counted or
+  rendered follows: `validateYardstick`, `compare.mjs`'s `classify` (off the
+  ranked scale, the same way `not-measured` is), `ratchet.mjs`'s gate,
+  `since.mjs`, `views/floor-fleet.mjs` (Intake/Maintain's shared row builder),
+  `views/improve/topics.mjs`, the axis walk and report summary lines, and
+  `views/compile.mjs`'s glance line. A `facet`/`census`/`instrument` row can
+  now declare `decide.not_applicable_when: <fact-category>` (and
+  symmetrically `not_measured_when`, for dependency-scan's "nothing to audit"
+  case): the name of a `polarity: fact` row the same scanner records when it
+  looked for something and found none, which decides the status only when the
+  row's own category carries no rows this run — real evidence always governs
+  over the condition. `d-schema-versioned` is wired to it:
+  `map/ingest.mjs`'s fresh-clone converter now emits a `no-database-signal`
+  fact row instead of silently skipping the migrate check, and the
+  requirement reads not-applicable, never met, with no database signal
+  anywhere. Separately, `yardstick/packet.mjs`'s `decideGenericClaim` stops
+  mapping a packet's `not-applicable` claim to `met` — a requirement that does
+  not apply was not satisfied — and now maps it to `not-applicable` (a
+  claim-kind row's only decider is the owner, so this is the owner's call, not
+  a run's). Ratchet: to/from not-applicable is never a failure either
+  direction (a requirement that stops applying was not held and broken) but
+  is reported in a new `changed` list, distinct from `improved`/`failures`.
+  Intake and Maintain gain a "Not applicable" section, listed separately and
+  never counted as met. `yardstick/README.md` and `views/README.md` document
+  all of it; `owner/PACKET.md`'s claim-mapping table is corrected. Goldens
+  untouched.
+- **2026-09-28 — database detection knows Supabase and Drizzle.**
+  `map/fresh-clone.mjs`'s database-signal detection (the evidence
+  `d-schema-versioned`'s not-applicable status now rests on) gains
+  `supabase/migrations/`, `supabase/config.toml`, `@supabase/supabase-js`,
+  `@supabase/ssr`, a bare `drizzle/` migrations folder, `drizzle-kit`, and the
+  common `migrations/*.sql` shape under `db/` or `sql/` (matched by content —
+  actual `.sql` files present — not just the directory's existence). A
+  Supabase project often carries no ORM dependency at all, only the client
+  package and a migrations folder, so it needed its own signals rather than
+  an implied one from the generic ORM list. "Database present, no migrate
+  step declared" already read unmet through `FC_FLOOR_STEPS` (`migrate` was
+  already floor-gated before this change; `build` joined it two commits ago)
+  — Supabase now reaches that same path instead of the no-database branch, so
+  it reads unmet, never met. Verified end to end: a synthetic Supabase-shaped
+  repo (a `@supabase/supabase-js` dependency and
+  `supabase/migrations/0001_init.sql`, no migrate script) reads
+  `d-schema-versioned` unmet; a repo with zero database signals anywhere
+  reads not-applicable. Goldens untouched.
+- **2026-09-28 — dependency-scan: dependencies with no lockfile are not
+  "clean".** A repository with a `package.json` declaring real dependencies
+  and no lockfile at all (npm, pnpm, or yarn) enumerated zero lockfiles, so
+  `d-dependencies-known-clean` read met — zero audited is not the same fact as
+  zero advisories found, but nothing recorded the difference.
+  `map/dependency-scan.mjs` now enumerates every `package.json` in the tree
+  (`findManifests`) and checks each one with real dependencies for a lockfile
+  covering it (`isCoveredByLockfile`, walking up to the scan root the same way
+  `npm ci` resolves): an uncovered manifest lands in the document's new
+  `manifests: [{path, status: "no-lockfile"}]`, and makes the exit 1, same as
+  an unsupported lockfile. Zero `package.json` files anywhere in the tree
+  (`noManifest: true`) is the distinct fact that there is no dependency graph
+  to speak of. `map/ingest.mjs` converts each into a `polarity: fact` row
+  (`no-lockfile` / `no-manifest`, never a gap — this is not itself a known
+  vulnerability); `yardstick/requirements.yaml`'s `d-dependencies-known-clean`
+  reads `not_measured_when: no-lockfile` (not-measured, "no lockfile: nothing
+  to audit") and `not_applicable_when: no-manifest` (not-applicable), through
+  the same evidence-condition mechanism `d-schema-versioned` uses — a real
+  critical advisory always governs over either fact. Test fixtures: a manifest
+  with dependencies and no lockfile anywhere up its own directory tree reads
+  not-measured; a manifest covered by an ancestor's lockfile reads clean; a
+  tree with zero `package.json` anywhere reads not-applicable and exits 0 (not
+  a failure). Goldens untouched.
+- **2026-09-28 — owner-evidence transcripts say who produced them, and their
+  commit is real.** Two gaps in the owner-evidence contract (`owner/evidence/
+  README.md`, `map/repo-census.mjs`): nothing said who could write a
+  transcript (an agent could have, and nothing would have caught it), and
+  nothing checked that the `commit` a transcript names is real — a made-up
+  hex string passed the shape check as readily as a genuine sha. Every
+  transcript now carries `produced_by: ci | person` (required): `ci`
+  additionally requires `run` (the CI run's id or URL); `person`'s
+  requirement is `by`, already mandatory. `repo-census` checks the named
+  `commit` resolves in the checkout's history (`git cat-file -e
+  <sha>^{commit}`); a commit it cannot find, in a real full-history checkout,
+  is a **gap**, naming it. A checkout that cannot say either way — no `.git`
+  at all, or a shallow clone where the commit may simply sit outside the
+  fetched depth — reads **not-measured**, never `pass`: `map/ingest.mjs`
+  converts it to a `polarity: fact` row in its own `<check>-unverifiable`
+  category (never the check's own — that would let an instrument's
+  zero-rows-means-met default silently pass it again), and the six
+  evidence-based requirements in `yardstick/requirements.yaml` each declare
+  `not_measured_when: evidence-<id>-unverifiable`, the same evidence-condition
+  mechanism `d-schema-versioned` and `d-dependencies-known-clean` use.
+  `owner/evidence/README.md` says plainly, in its own section: evidence comes
+  from running the procedure — a person who ran it commits the transcript, or
+  a CI job writes it from the procedure's real output; an agent never writes
+  one. `map/ingest.mjs`'s remedy text for an evidence gap says the same:
+  "Run the procedure; a person or CI writes this file from its real output —
+  an agent must never write it." `map/scanners/CONTRACT.md` §3d documents
+  both changes. The six example transcripts in `owner/evidence/` and the
+  fixture transcripts under `tests/instruments/` gain `produced_by`
+  (`d-deploy-one-command` and `d-smoke-on-deployed` as `ci`, with a `run`;
+  the rest as `person`). Tested end to end against real git repositories: a
+  real, resolvable commit passes; a plausible-but-absent commit gaps, naming
+  it; no `.git` at all and a shallow clone both read not-measured, never a
+  gap, and the requirement they decide reads not-measured, never met.
+  Goldens untouched.
+- **2026-09-28 — the no-regression gate reads the accepted baseline from the
+  base branch, never from the change it gates.** A pull request's own working
+  tree could edit `packet/baseline.yaml` — the very file its gate holds against
+  — and the routine used to read that copy unconditionally. `ratchet` gains
+  `--baseline-ref <git-ref> --repo <dir>`, reading `packet/baseline.yaml` with
+  `git show <ref>:packet/baseline.yaml` in that repository instead of a file on
+  disk (`catGitFile`/`loadBaselineFromRef`, `yardstick/ratchet.mjs`).
+  `routine/run.mjs` gains `--base-ref <ref>`: on a pull request (the workflow
+  template now fetches the base branch and passes `--base-ref
+  origin/${{ github.base_ref }}`) the baseline comes from that ref, never the
+  working tree, and when the working tree's own `packet/baseline.yaml` differs
+  from the base ref's copy at all, the routine says so plainly — "this change
+  edits the accepted baseline; the gate holds against the default branch's
+  copy; a steward accepts a new baseline in its own reviewed change." A
+  schedule or `workflow_dispatch` run (no base ref) reads the working tree's
+  committed copy exactly as before. Goldens untouched.
+- **2026-09-28 — installation makes the gate binding.** A red job nobody is
+  required to look at is not a gate. `routine/README.md`'s install steps now
+  say to make the `routine` job a required status check on the default branch
+  (GitHub runs a pull request's own copy of the workflow regardless of whether
+  its job passes — nothing blocks the merge until a branch rule says this job
+  is required) and to add `CODEOWNERS` entries for `packet/` and
+  `.github/workflows/` naming the steward team, so a change to the baseline or
+  the workflow itself needs a steward's review. The template gains a `push`
+  trigger on the default branch (a pull request only measures the change; this
+  is what measures merged main the same day rather than waiting for the next
+  weekly schedule) and a commented-out, disabled-by-default step that installs
+  `gitleaks` from a pinned release, verified against its published sha256
+  before it is ever executed — copied in and uncommented, never an unpinned
+  `curl | sh`. Goldens untouched.
+- **2026-09-28 — a contradicted claim is visible under stewardship, not just at
+  intake.** Maintain (`views/maintain.mjs`) gains the same "Contradicted
+  claims" section and `contradictions:` list Intake already carried — moved to
+  the shared `joinContradictions` in `views/floor-fleet.mjs` so both read it
+  the same way — because a steward's routines, not just an intake read, are
+  where a repository's own packet claiming `satisfied` against a run-decided
+  `unmet` row must not go unseen. `ratchet` (landed alongside the
+  `--baseline-ref` change above) now fails the run whenever its measurement
+  carries ANY contradiction, checked every time regardless of whether a
+  baseline was given at all — there is no `--allow-contradictions`; a claim the
+  run itself disproves is always a failure under stewardship. Each failure
+  line names the requirement, that the owner claimed it satisfied, and what
+  the run found instead. Documented in `yardstick/README.md` and
+  `views/README.md`. Goldens untouched.
+- **2026-09-28 — Intake gains "What the owner told us."** Most of what a
+  repository's own packet (`owner/manifest.yaml`, `owner/PACKET.md`) says about
+  itself appeared nowhere before this: `views/intake.mjs` now reduces the
+  run's copied packet to a fact-only `owner:` block in `views/intake.yaml` and
+  a "What the owner told us" section in `INTAKE.md` — accounts (counts,
+  personal vs organisational, transferable yes/no/unknown, one line per
+  account), credentials (count, where they live, never-rotated count,
+  readers), people (who can build/deploy/restore, whether restore was ever
+  done), data (personal data held, what it leaves via), money (monthly per
+  provider, alerts), handover, notes, and the answered date/by/via — assay
+  issues no verdict on any of it. A role list the packet never spoke to reads
+  `null` ("unknown"); one the owner explicitly emptied (`[]`, "nobody can" per
+  `owner/PACKET.md`'s own convention) renders "nobody" — every other unknown
+  renders as the literal word "unknown", never dropped. With no packet at all,
+  the section reads "No owner's packet yet: the owner prompt (`assay.mjs
+  ask-owner`) collects these." `custody.credentials` also informs
+  `d-credentials-enumerated`, but only as a trailing note on whichever list the
+  run itself put that row in ("… (the owner listed N credentials)") — it never
+  changes the row's run-decided status. Caught in review before landing: the
+  packet's `handover` field lives under `custody:`, not the top level —
+  reading `packet.handover` silently produced "unknown" for every packet that
+  correctly followed `owner/PACKET.md`; fixed to `custody.handover`, pinned by
+  a test asserting the exact fixture text. Documented in `views/README.md`.
+  Goldens untouched.
+- **2026-09-28 — `validate-packet` accepts a reply still wrapped for chat, and
+  refuses a name where `answered.by` wants a role.** An owner's own AI
+  (`owner/ask-owner.md`'s whole design) often hands a reply back with prose
+  around the actual YAML; `loadPacket` now takes the first ` ```yaml ` or
+  ` ``` ` fenced block's content before parsing when the reply carries one,
+  discarding the chatter, and reads the text as-is when there is no fence —
+  still parsed defensively, nothing in or around the fence ever executed or
+  trusted (`yardstick/packet.mjs unwrapChatReply`). `validatePacket` also
+  refuses `answered.by` written as a person's name rather than a role: two or
+  more Title Case words with no recognizable role word ("Dana Reyes"), or a
+  name followed by a parenthetical role ("Dana Reyes (founder)") — a role
+  PHRASE like "Lead Engineer" still validates, since one of its own words is a
+  role word. One plain line: "answered.by: write a role (for example
+  founder), not a name." Documented in `owner/PACKET.md`. Goldens untouched.

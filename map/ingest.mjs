@@ -244,7 +244,22 @@ const PROFILES = {
           let observation = null;
           if (s.status === 'failed') observation = `Fresh-clone step ${s.name}${ctx.inLabel} failed${cmd}${s.reason ? ': ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel}.`;
           else if (s.status === 'timed-out') observation = `Fresh-clone step ${s.name}${ctx.inLabel} timed out${cmd}${s.reason ? ' — ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel} within the run budget.`;
-          else if (s.status === 'not-declared' && s.name === 'migrate' && !ctx.hasDbSignals) observation = null;   // no database in the tree: nothing to migrate, no gap
+          else if (s.status === 'not-declared' && s.name === 'migrate' && !ctx.hasDbSignals) {
+            // no database anywhere in the tree: never a gap, and never silently met either —
+            // record the fact that was looked for and not found (yardstick/requirements.yaml
+            // d-schema-versioned's not_applicable_when: no-database-signal, decided only from
+            // this record, never a packet claim).
+            rows.push({
+              id: fid(startId + n++),
+              source: 'fresh-clone',
+              native_id: `${ctx.idPrefix}no-database-signal`,
+              native_category: 'no-database-signal',
+              polarity: 'fact',
+              observation: `No database signal (file or dependency) found${ctx.inLabel} — the migrate step is not applicable, not merely undeclared.`,
+              evidence: [ctx.manifest],
+            });
+            observation = null;
+          }
           else if (s.status === 'not-declared' && FC_FLOOR_STEPS.includes(s.name)) observation = `Fresh-clone step ${s.name} is not declared in a runnable form${ctx.inLabel}${s.reason ? ' (' + oneLine(s.reason) + ')' : ''}; nothing in the repository ${FC_DECLARES[s.name]}, so a clean checkout cannot ${FC_VERB[s.name]}${ctx.inLabel}.`;
           if (!observation) continue;
           rows.push({
@@ -360,6 +375,34 @@ const PROFILES = {
           });
         }
       }
+      // manifests: a package.json declaring dependencies with no lockfile covering it
+      // is a FACT, not a gap — zero lockfiles audited is never clean, but it is not the
+      // same claim as a known advisory either. Decides d-dependencies-known-clean
+      // not-measured via decide.not_measured_when: no-lockfile (yardstick/measure.mjs).
+      if (rep.manifests !== undefined) {
+        if (!Array.isArray(rep.manifests)) throw new Error('dependency-scan report manifests must be a list (truncated report?)');
+        for (const m of rep.manifests) {
+          if (!m || typeof m.path !== 'string' || !m.path) throw new Error('dependency-scan manifest row missing path (truncated report?)');
+          if (m.status !== 'no-lockfile') throw new Error(`dependency-scan manifest ${m.path}: status "${m.status}" is not "no-lockfile" (truncated report?)`);
+          rows.push({
+            id: fid(startId + n++), source: 'dependency-scan',
+            native_id: `no-lockfile@${m.path}`, native_category: 'no-lockfile', polarity: 'fact',
+            observation: `${m.path} declares dependencies but no lockfile (npm, pnpm, or yarn) covers it — no lockfile: nothing to audit.`,
+            evidence: [`${m.path}:1`],
+          });
+        }
+      }
+      // noManifest: zero package.json anywhere in the tree — a different fact from "a
+      // manifest with no lockfile": there is no dependency graph at all. Decides
+      // d-dependencies-known-clean not-applicable via decide.not_applicable_when: no-manifest.
+      if (rep.noManifest === true) {
+        rows.push({
+          id: fid(startId + n++), source: 'dependency-scan',
+          native_id: 'no-manifest', native_category: 'no-manifest', polarity: 'fact',
+          observation: 'No package.json anywhere in the tree — there is no dependency graph to audit.',
+          evidence: ['./:1'],
+        });
+      }
       return rows;
     },
   },
@@ -369,8 +412,10 @@ const PROFILES = {
     // Both are successful RUNS. A crash of the runner itself exits 2 and halts here.
     okExits: [0, 1],
     // Rows: one gap row per `gap` check, one strength row per `pass` check (so the
-    // axis sees the evidence, not just the absence of a gap) — a `not-applicable`
-    // check yields nothing. native_id is `<check name>@<location>` (location is the
+    // axis sees the evidence, not just the absence of a gap), one FACT row (its own
+    // `<check>-unverifiable` category) per `not-measured` check (the checkout could
+    // not confirm a transcript's commit either way — never silently "clean") — a
+    // `not-applicable` check yields nothing. native_id is `<check name>@<location>` (location is the
     // check's detail.path, "." for the whole-repo checks); evidence is the check's
     // own evidence, which always carries at least one path:line (the runner falls
     // back to `<location>/:1` when a check has nothing more specific to cite).
@@ -389,7 +434,9 @@ const PROFILES = {
         if (typeof c.observation !== 'string' || !c.observation.trim()) throw new Error(`repo-census check ${c.name}: missing observation (truncated report?)`);
         const location = (c.detail && typeof c.detail.path === 'string' && c.detail.path) || '.';
         const nativeLoc = location === '.' ? 'root' : location;
-        const evidence = Array.isArray(c.evidence) && c.evidence.length ? c.evidence.map(String) : [`${location}/:1`];
+        // a census before assay PR #15 cited the root as ":1" (a line of no file); an archived
+        // raw report from then re-ingests with the root named, "./:1", never an empty path
+        const evidence = Array.isArray(c.evidence) && c.evidence.length ? c.evidence.map((e) => String(e).replace(/^:(\d+)$/, './:$1')) : [`${location}/:1`];
         const failOpen = Array.isArray(c.detail && c.detail.failOpen) ? c.detail.failOpen : [];
         if (c.status === 'gap') {
           rows.push({
@@ -413,6 +460,21 @@ const PROFILES = {
             observation: oneLine(c.observation),
             evidence,
           });
+        } else if (c.status === 'not-measured') {
+          // a FACT row, in its own category (never the check's own — a category the
+          // yardstick decides must carry no rows for its not_measured_when condition
+          // to fire; see yardstick/measure.mjs and yardstick/requirements.yaml's six
+          // evidence-<id> rows): the checkout could not confirm the transcript's
+          // commit either way (no .git, or too shallow), so nothing was decided.
+          rows.push({
+            id: fid(startId + n++),
+            source: 'repo-census',
+            native_id: `${c.name}@${nativeLoc}`,
+            native_category: `${c.name}-unverifiable`,
+            polarity: 'fact',
+            observation: oneLine(c.observation),
+            evidence,
+          });
         }
       }
       return rows;
@@ -421,14 +483,14 @@ const PROFILES = {
 };
 const RC_EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
 const RC_CHECKS = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...RC_EVIDENCE_IDS.map((id) => `evidence-${id}`)];
-const RC_STATUS = ['pass', 'gap', 'not-applicable'];
+const RC_STATUS = ['pass', 'gap', 'not-applicable', 'not-measured'];
 const RC_FIX = {
   'architecture-page': 'Add a page (ARCHITECTURE.md, docs/ARCHITECTURE.md, or a README "Architecture" section) that names every external service and data store the target depends on (database, queue, API, service, store, bucket, provider); a diagram is a bonus, not a substitute. Re-run repo-census and confirm it reads pass.',
   'agent-contract': 'Make the agent contract (AGENTS.md or CLAUDE.md) present-tense: move any Status / History / Changelog / Todo / Backlog section and dated changelog lines to a separate, co-located history file. Re-run repo-census and confirm it reads pass.',
   'runbook': 'Add the missing procedure(s) to the runbook (RUNBOOK.md, docs/RUNBOOK.md, or a README/doc "Runbook"/"Operations" section) — a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup. Re-run repo-census and confirm it reads pass. (This decides presence only; run each procedure once and record that separately.)',
   'ci-gate': 'Add or fix a workflow that triggers on pull_request (or push to the default branch) and runs a test/lint/typecheck/build step with no `continue-on-error: true` on that step or its job. Re-run repo-census and confirm it reads pass.',
   ...Object.fromEntries(RC_EVIDENCE_IDS.map((id) => [`evidence-${id}`,
-    `Commit a fresh, complete, passing transcript at ops/evidence/${id}.md (or docs/evidence/${id}.md) per owner/evidence/README.md — the required frontmatter keys, a body with a fenced code block and at least 5 non-empty lines, and a date inside the freshness window. Re-run repo-census and confirm it reads pass.`])),
+    `Run the procedure; a person or CI writes this file from its real output — an agent must never write it. The resulting transcript at ops/evidence/${id}.md (or docs/evidence/${id}.md) needs the required frontmatter keys (owner/evidence/README.md), a body with a fenced code block and at least 5 non-empty lines, a commit that resolves in the checkout's history, and a date inside the freshness window. Re-run repo-census and confirm it reads pass.`])),
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
 // the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)
@@ -440,9 +502,13 @@ const DS_SEVERITY_MAP = { critical: 'Critical', high: 'High', moderate: 'Medium'
 // fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
-const FC_FLOOR_STEPS = ['lint', 'typecheck', 'test', 'migrate'];   // not declared ⇒ a gap (absence is not clean); migrate only where the tree carries database signals
+// not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
+// already held — undeclared meant met for build alone until this fixed the
+// inconsistency); migrate only where the tree carries database signals (see
+// hasDbSignals below — with none anywhere, it is not-applicable, never a gap).
+const FC_FLOOR_STEPS = ['build', 'lint', 'typecheck', 'test', 'migrate'];
 const FC_VERB = { install: 'install its dependencies', build: 'build', lint: 'lint clean', typecheck: 'typecheck clean', test: 'run its tests', migrate: 'replay its migrations from empty' };
-const FC_DECLARES = { lint: 'declares a lint gate', typecheck: 'declares a typecheck gate', test: 'declares a test command', migrate: 'declares a migration command that can run without a live database' };
+const FC_DECLARES = { build: 'declares a build step', lint: 'declares a lint gate', typecheck: 'declares a typecheck gate', test: 'declares a test command', migrate: 'declares a migration command that can run without a live database' };
 const FC_FIX = {
   install: 'Make the install reproducible from a clean checkout: commit the lockfile, declare the toolchain (engines / .nvmrc / .tool-versions), and remove any dependency on machine-local state; re-run fresh-clone and confirm install passes.',
   build: 'Make the build pass from a clean checkout with the declared toolchain (no uncommitted generated files, no machine-local paths); re-run fresh-clone and confirm build passes.',

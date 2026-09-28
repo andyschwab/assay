@@ -7,9 +7,29 @@ title: "yardstick/ — the requirements, and the measurement of one map against 
 `requirements.yaml` holds the **requirements**: what must be true of a repository
 somebody stands behind, stated without naming a stack, each with the mechanism
 that **decides** it from a map. `measure.mjs` measures one run's map against them
-and writes `yardstick.yaml`: per requirement, `met`, `unmet`, `mixed` or
-`not-measured`, with the finding ids and a note saying how it was decided. Every
-view reads that file and nothing else to decide a requirement.
+and writes `yardstick.yaml`: per requirement, `met`, `unmet`, `mixed`,
+`not-measured` or `not-applicable`, with the finding ids and a note saying how it
+was decided. Every view reads that file and nothing else to decide a requirement.
+
+**`not-applicable`** is decided **only from the map, never from a packet claim**
+— a claim of `not-applicable` on a row the run itself decides (`facet`, `census`,
+`instrument`) is ignored for status, exactly like any other claim on a
+run-decided row (see "Claims and a run, compared" below). A `facet`/`census`/
+`instrument` row declares when it can be not-applicable with
+`decide.not_applicable_when: <fact-category>` (and, symmetrically,
+`decide.not_measured_when: <fact-category>`, for "the evidence to decide this
+was never gathered" rather than "this does not apply"): the name of a
+`polarity: fact` row the same scanner records when it looked for something and
+found none. The condition only fires when the row's own decided category
+carries **no** rows this run — real evidence (a gap, a strength) always governs
+over it, the same "a list is an AND, never overridden by a side fact" rule a
+joint category already holds. `d-schema-versioned` is the one row that uses it
+today: `fresh-clone` records a `no-database-signal` fact when it finds no
+database file or dependency anywhere in the tree, and the row reads
+not-applicable — never met by silence, the way a tree with no database used to
+read. A `claim`-kind row's own state can independently be `not-applicable`
+(the owner is the only decider a claim row ever has, same as `satisfied`): see
+below.
 
 A repository may also state its own **claims** per requirement, in a **packet**
 (`/owner/PACKET.md` is the one home of its format). Claims and a run's
@@ -38,7 +58,7 @@ finding, never silently overwritten.
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`) | met or unmet with the population; not-measured when the map has no effects |
 | `census` | an authored, enumerated population in the run's `map/censuses.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows; met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
-| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`). The claim rows a packet never speaks to are the list of instruments still to build |
+| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). The claim rows a packet never speaks to are the list of instruments still to build |
 
 `decide.category` on an `instrument` row may be a **list**: categories one scanner
 must hold jointly (`d-fresh-clone-runs` needs both `install` and `build`). A
@@ -54,11 +74,17 @@ The instruments that decide rows:
   monorepo, and the README's commands replayed. It decides `d-fresh-clone-runs`
   (`[install, build]`), `d-tests-execute-core` (`test`),
   `d-lint-typecheck-gate` (`[lint, typecheck]`) and `d-schema-versioned`
-  (`migrate`; with no database in the tree there is no migrate row and the
-  requirement reads met).
+  (`migrate`; with no database signal anywhere in the tree the requirement reads
+  **not-applicable**, decided from fresh-clone's own `no-database-signal` fact,
+  never met by silence; a database signal with no migrate step declared reads
+  unmet).
 - `dependency-scan` (`map/dependency-scan.mjs`, contract §3c): `npm audit` over
   every lockfile. `d-dependencies-known-clean` decides on the `critical` category
-  alone, so high and lower advisories do not unmeet it.
+  alone, so high and lower advisories do not unmeet it. A manifest with real
+  dependencies and no lockfile covering it (npm, pnpm, or yarn — zero lockfiles
+  audited is never clean) reads **not-measured**, "no lockfile: nothing to
+  audit"; no `package.json` anywhere in the tree reads **not-applicable** — there
+  is no dependency graph to speak of.
 - `repo-census` (`map/repo-census.mjs`, contract §3d), from the tree alone: an
   architecture page, a present-tense agent contract, a runbook, a CI gate on the
   default branch, and six **owner-evidence transcripts** for what a repository
@@ -100,9 +126,17 @@ current)` over two documents shaped like `yardstick.yaml`
 every requirement id present on either side as `improved`, `regressed`,
 `unchanged`, `newly-measured`, `no-longer-measured`, or `yardstick-only` (present
 on only one side — the yardstick itself changed). The order `met > mixed > unmet`
-is total; `not-measured` is deliberately **off** that scale, so a status leaving
-the measured scale reads `no-longer-measured` — never `improved`, never
-`unchanged`. A yardstick version difference between the two sides is reported on
+is total; `not-measured` and `not-applicable` are both deliberately **off** that
+scale (neither is a better or worse verdict — one is "we don't know yet", the
+other "this was determined not to apply"), so a status leaving the ranked scale
+either way reads `no-longer-measured`, and a status arriving onto it from either
+off-scale status reads `newly-measured` — never `improved`, never `unchanged`. A
+transition **between** the two off-scale statuses themselves (`not-measured` ↔
+`not-applicable`) is the one coarsening this accepts and reads `unchanged`
+(neither side is on the ranked scale for the other to have moved on); the actual
+statuses still render correctly everywhere, since every renderer reads
+`previous.status` / `current.status` off the row, never the classification label
+alone. A yardstick version difference between the two sides is reported on
 the result, never hidden. `compare.mjs` also exports `fingerprintFinding` /
 `compareFindings`, a **finding**-level match across two runs for the `since` view
 below — never by `id` (a finding's id carries no meaning across independent runs,
@@ -128,7 +162,18 @@ with no `--since` writes neither file.
 
 ```sh
 node assay.mjs ratchet <run> --baseline <baseline.yaml> [--write-baseline <file>]
+node assay.mjs ratchet <run> --baseline-ref <git-ref> --repo <dir> [--write-baseline <file>]
 ```
+
+`--baseline` reads the baseline from a file on disk; `--baseline-ref` reads it
+from a git ref instead — `git show <ref>:packet/baseline.yaml` in the
+repository named by `--repo` — never from the working tree. That second form
+is what a pull request is graded against: the change under review could edit
+its own `packet/baseline.yaml` on disk, and a gate that read that copy would be
+a gate the change itself could switch off. `routine/run.mjs` picks the form:
+a pull request (a `--base-ref` was given) always ratchets against the base
+ref's copy; a schedule or manual run ratchets against the working tree's
+committed copy, because that IS the accepted state there (`routine/README.md`).
 
 A **baseline** is a small, reviewed, GENERATED-then-committed file — `ratchet
 --write-baseline` writes it from a run's current measurement; a named steward
@@ -154,8 +199,24 @@ baseline recorded `met` or `mixed` is now worse or `no-longer-measured`, or when
 a baseline requirement is absent from the current measurement entirely (the
 yardstick itself dropped or renamed it — nothing there to hold any more). A
 baseline row recorded `unmet` or `not-measured` never fails the ratchet — there
-is nothing held to lose. Every failure line names the requirement, its title,
-its before → after, and the current finding ids behind it when the row carries
-any. Exit 0 prints a one-line `held N, improved M` summary plus the improved
-rows, and suggests locking them in with `--write-baseline`. Exit 2 — never 0 —
-on a missing or unreadable run or baseline file.
+is nothing held to lose. `not-applicable` is never a failure either direction: a
+baseline row that **was** `not-applicable` never fails regardless of what it
+becomes now (it was never held — not-applicable is not `met`/`mixed`), and a
+held row that **becomes** `not-applicable` (a requirement that stops applying)
+is reported, not a regression — both land in the `changed` list rather than
+`failures`, printed on their own line. Every failure line names the
+requirement, its title, its before → after, and the current finding ids behind
+it when the row carries any. Exit 0 prints a one-line `held N, improved M,
+changed (not-applicable) K` summary plus the improved and changed rows, and
+suggests locking improvements in with `--write-baseline`. Exit 2 — never 0 —
+on a missing or unreadable run, baseline file, or (with `--baseline-ref`) git
+ref/repository.
+
+`ratchet` also fails (exit 1) whenever the run's own measurement carries any
+**contradiction** — a repository's own packet claimed a requirement
+`satisfied` and this run found the mechanism absent (`yardstick.yaml`'s
+`contradictions:` list, `measureRun`'s own output above). This check runs
+**every time**, with or without a baseline: a claim the run itself disproves is
+always a failure under stewardship, never something a flag can wave through —
+there is no `--allow-contradictions`. Each failure line names the requirement,
+that the owner claimed it satisfied, and what this run found instead.

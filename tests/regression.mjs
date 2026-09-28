@@ -18,8 +18,8 @@
 //   node tests/regression.mjs            # assert against golden.json (exit 1 on any drift)
 //   node tests/regression.mjs --bless    # rewrite golden.json from current state (reviewed!)
 
-import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync, readdirSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync, readdirSync, cpSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -32,14 +32,17 @@ import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
 import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
-import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
-import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef } from '../yardstick/packet.mjs';
+import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket, projectRun } from '../yardstick/measure.mjs';
+import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef, unwrapChatReply, looksLikePersonName } from '../yardstick/packet.mjs';
 import { compare, classify, fingerprintFinding, compareFindings } from '../yardstick/compare.mjs';
-import { loadBaseline, loadYardstickDoc, evaluateRatchet } from '../yardstick/ratchet.mjs';
+import { loadBaseline, loadYardstickDoc, evaluateRatchet, catGitFile } from '../yardstick/ratchet.mjs';
 import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath, ownerPagePath as runOwnerPagePath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
+import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../views/intake.mjs';
 import { runRoutine } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
+import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
+import { run as runDependencyScan } from '../map/dependency-scan.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -517,6 +520,56 @@ function adaptersOnce() { return loadAdapters(); }
     if (parseWorkflow(wf(cmd)).steps[0]?.isGateCmd) fail(`"${cmd}" must not count as a gate step`);
 }
 
+// ── repo-census ci-gate: a gate that can fail open through its shell script, not
+// just `continue-on-error: true` — `|| true`, `|| exit 0`, `|| :`, and `set +e`
+// (a multi-line `run: |` script), each cited by the exact offending line.
+{
+  const fail = (m) => negFailures.push('ci-gate-fail-open-shell: ' + m);
+  const wfInline = (cmd) => `on:\n  pull_request:\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: ${cmd}\n`;
+  const wfBlock = (lines) => `on:\n  pull_request:\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: |\n${lines.map((l) => `          ${l}`).join('\n')}\n`;
+  const inlineRunLine = wfInline('x').split('\n').findIndex((l) => /^\s*- run:/.test(l)) + 1;
+  for (const [label, cmd] of [['|| true', 'npm test || true'], ['|| exit 0', 'npm test || exit 0'], ['|| :', 'npm test || :']]) {
+    const steps = parseWorkflow(wfInline(cmd)).steps;
+    if (!steps[0]?.isGateCmd) fail(`${label}: the underlying command must still count as a gate command`);
+    if (!steps[0]?.continueOnError) fail(`${label}: a run command ending in "${label}" must read as failing open`);
+    if (steps[0]?.coeLine !== inlineRunLine) fail(`${label}: must cite the run: line itself (got ${steps[0]?.coeLine}, want ${inlineRunLine})`);
+  }
+  // set +e, as the first line of a multi-line block-scalar script — the actual
+  // gate command sits on a LATER line, and the citation must land on the set +e line
+  const setELines = wfBlock(['set +e', 'npm test']).split('\n');
+  const setELine = setELines.findIndex((l) => /set \+e/.test(l)) + 1;
+  const setE = parseWorkflow(wfBlock(['set +e', 'npm test'])).steps;
+  if (!setE[0]?.isGateCmd) fail('set +e: the script must still be read as a gate command (npm test is in it)');
+  if (!setE[0]?.continueOnError) fail('set +e must read as failing open, even on a line before the gate command');
+  if (setE[0]?.coeLine !== setELine) fail(`set +e must cite its own line, not the run: line (got ${setE[0]?.coeLine}, want ${setELine})`);
+  // a normal multi-line script with neither shape must NOT read as failing open
+  const clean = parseWorkflow(wfBlock(['echo starting', 'npm test'])).steps;
+  if (clean[0]?.continueOnError) fail('a clean multi-line script must not read as failing open');
+  // continue-on-error: true still wins as its own citation (unchanged behavior)
+  const literalWf = `on:\n  pull_request:\njobs:\n  a:\n    runs-on: x\n    steps:\n      - run: npm test\n        continue-on-error: true\n`;
+  const literalLine = literalWf.split('\n').findIndex((l) => /continue-on-error/.test(l)) + 1;
+  const literal = parseWorkflow(literalWf).steps;
+  if (!literal[0]?.continueOnError || literal[0]?.coeLine !== literalLine) fail(`continue-on-error: true must still be read at its own line (got ${literal[0]?.continueOnError}/${literal[0]?.coeLine}, want ${literalLine})`);
+  // end-to-end through repo-census: each shape gaps ci-gate, citing the shape in the observation
+  for (const [label, wfText] of [
+    ['|| true', wfInline('npm test || true')],
+    ['|| exit 0', wfInline('npm test || exit 0')],
+    ['|| :', wfInline('npm test || :')],
+    ['set +e', wfBlock(['set +e', 'npm test'])],
+  ]) {
+    const tmp = join(HERE, 'tmp-ci-gate-shell'); rmSync(tmp, { recursive: true, force: true });
+    mkdirSync(join(tmp, '.github', 'workflows'), { recursive: true });
+    writeFileSync(join(tmp, '.github', 'workflows', 'ci.yml'), wfText);
+    const out = join(tmp, 'repo-census.json');
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), tmp, '--out', out, '--default-branch', 'main', '--as-of', '2026-09-28'], { stdio: 'pipe' }); } catch { /* gaps expected */ }
+    const doc = existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) : null;
+    const ci = doc?.checks.find((c) => c.name === 'ci-gate');
+    if (ci?.status !== 'gap' || !/fails open/.test(ci.observation || '')) fail(`${label}: repo-census must gap ci-gate over this shape (got ${ci?.status}/${ci?.observation})`);
+    if (!ci.evidence[0]?.includes('ci.yml')) fail(`${label}: must cite ci.yml (got ${ci?.evidence})`);
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 // ── fresh-clone instrument (map/fresh-clone.mjs → ingest profile fresh-clone) ──
 // The runner over the public fixture must record what IS: the two declared steps
 // pass, the undeclared floor steps read not-declared (never passed), the planted
@@ -552,11 +605,16 @@ function adaptersOnce() { return loadAdapters(); }
     // (b) convert: rows for the missing claim and the not-declared floor steps, none for the passing steps
     const rows = convert('fresh-clone', raw, 1);
     const cats = rows.map((r) => r.native_category).sort().join(',');
-    if (cats !== 'lint,readme-claim,typecheck') fail(`convert must yield exactly lint, typecheck, readme-claim gap rows — no migrate row for a tree with no database (got ${cats || '(none)'})`);
+    if (cats !== 'lint,no-database-signal,readme-claim,typecheck') fail(`convert must yield lint, typecheck, readme-claim gap rows plus a no-database-signal FACT row — no migrate GAP row for a tree with no database (got ${cats || '(none)'})`);
     if (!Array.isArray(doc.toolchain?.database_signals) || doc.toolchain.database_signals.length) fail('the fixture carries no database signals');
+    const noDbFact = rows.find((r) => r.native_category === 'no-database-signal');
+    if (noDbFact?.polarity !== 'fact' || noDbFact?.source !== 'fresh-clone' || !noDbFact?.evidence?.length) fail(`the no-database-signal row must be a fact (not a gap), from fresh-clone, with evidence (got ${JSON.stringify(noDbFact)})`);
     const dbDoc = { ...doc, toolchain: { ...doc.toolchain, database_signals: ['dep:@prisma/client'] } };
-    if (!convert('fresh-clone', JSON.stringify(dbDoc), 1).some((r) => r.native_category === 'migrate')) fail('with a database in the tree, an undeclared migrate step is a gap');
-    if (rows.some((r) => r.polarity !== 'gap' || !r.fix || !r.severity)) fail('every fresh-clone row is a gap with a severity and a fix');
+    const dbRows = convert('fresh-clone', JSON.stringify(dbDoc), 1);
+    if (!dbRows.some((r) => r.native_category === 'migrate')) fail('with a database in the tree, an undeclared migrate step is a gap');
+    if (dbRows.some((r) => r.native_category === 'no-database-signal')) fail('with a database in the tree, no no-database-signal fact must be emitted');
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every fresh-clone GAP row carries a severity and a fix');
+    if (rows.filter((r) => r.polarity === 'fact').some((r) => r.fix || r.severity)) fail('a fresh-clone FACT row carries neither severity nor fix (it is not a gap)');
     const claimRow = rows.find((r) => r.native_category === 'readme-claim');
     if (claimRow?.evidence[0] !== `README.md:${claims.deploy?.line}`) fail(`a missing claim must cite README.md:<line> (got ${claimRow?.evidence[0]})`);
     if (rows.find((r) => r.native_category === 'lint')?.evidence[0] !== 'package.json:1') fail('a step row must cite the manifest that declares the steps');
@@ -605,6 +663,43 @@ function adaptersOnce() { return loadAdapters(); }
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch { fail('a verified-clean fresh-clone run (empty explicit file, manifest ran) must validate green'); }
   }
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── fresh-clone: an undeclared build reads unmet, the same as lint/typecheck/test ──
+// Before this fix, "build undeclared -> met" was the one floor step that quietly
+// read met on absence while lint/typecheck/test already read unmet on the same
+// absence — inconsistent, and exactly the honesty gap Andy's review found.
+{
+  const fail = (m) => negFailures.push('fresh-clone-build-floor: ' + m);
+  const baseDoc = {
+    tool: 'fresh-clone', version: '0.2.0', started_at: 't1', finished_at: 't2',
+    target: { path: 'x', head: 'abc', cloned: true },
+    toolchain: { family: 'node', manifest: 'package.json', package_manager: 'npm', lockfile: null, declared: {}, other_families: [], database_signals: [] },
+    timeout_seconds: 600,
+    steps: [
+      { name: 'install', status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: 'no dependencies and no lockfile declared in package.json' },
+      { name: 'build', status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: 'no "build" script in package.json' },
+      { name: 'lint', status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: 'no "lint" script in package.json' },
+      { name: 'typecheck', status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: 'no "typecheck" script in package.json' },
+      { name: 'test', status: 'passed', command: 'npm test', exit_code: 0, duration_ms: 5 },
+      { name: 'migrate', status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: 'no migrate / db:migrate script (nor a prisma migrate deploy / knex migrate:latest script) in package.json' },
+    ],
+    readme: 'README.md', readme_claims: [], workspaces: [],
+    exit: 1,
+  };
+  const rows = convert('fresh-clone', JSON.stringify(baseDoc), 1);
+  const build = rows.find((r) => r.native_category === 'build');
+  if (!build) fail('an undeclared build step must now emit a gap row, the same as undeclared lint/typecheck');
+  if (build && (build.polarity !== 'gap' || !/build/i.test(build.observation || ''))) fail(`the build gap row must read as a gap naming the build step (got ${JSON.stringify(build)})`);
+  const cats = rows.map((r) => r.native_category).sort().join(',');
+  if (cats !== 'build,lint,no-database-signal,typecheck') fail(`convert must yield build, lint, typecheck gap rows plus a no-database-signal fact — no migrate GAP row (no database signals) (got ${cats || '(none)'})`);
+  // through the yardstick: d-fresh-clone-runs (category [install, build]) must now read unmet
+  let reg = null;
+  try { reg = loadYardstick(); } catch (e) { fail('yardstick failed to load: ' + e.message.split('\n')[0]); }
+  if (reg) {
+    const measured = measureRun({ findings: rows, manifest: [{ scanner: 'fresh-clone', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-fresh-clone-runs');
+    if (measured?.status !== 'unmet') fail(`an undeclared build must read d-fresh-clone-runs unmet, not met (got ${measured?.status})`);
+  }
 }
 
 // ── dependency-scan instrument (map/dependency-scan.mjs → ingest profile dependency-scan) ─
@@ -683,6 +778,71 @@ function adaptersOnce() { return loadAdapters(); }
     }, reg).find((r) => r.id === 'd-dependencies-known-clean');
     if (skipped?.status !== 'not-measured' || !/no registry reach/.test(skipped.note || '')) fail(`a skipped manifest must read not-measured with the recorded reason (got ${skipped?.status}/${skipped?.note})`);
   }
+  // (f) manifests / noManifest: a manifest with dependencies and no lockfile covering
+  // it is a FACT (not a gap) — zero lockfiles audited is never clean, but it is a
+  // different claim than a known advisory. Decides d-dependencies-known-clean
+  // not-measured; zero manifests anywhere decides not-applicable.
+  const noLockDoc = { tool: 'dependency-scan', version: '0.1.0', started_at: 't1', finished_at: 't2', target: { path: 'x' }, timeout_seconds: 300, lockfiles: [], manifests: [{ path: 'package.json', status: 'no-lockfile' }], noManifest: false, exit: 1 };
+  const noLockRows = convert('dependency-scan', JSON.stringify(noLockDoc), 1);
+  const noLockFact = noLockRows.find((r) => r.native_category === 'no-lockfile');
+  if (noLockFact?.polarity !== 'fact' || !/no lockfile/.test(noLockFact?.observation || '')) fail(`a manifest with no lockfile must convert to a FACT row naming "no lockfile" (got ${JSON.stringify(noLockFact)})`);
+  if (noLockFact?.severity || noLockFact?.fix) fail('the no-lockfile fact row carries neither severity nor fix (it is not a gap)');
+  const noManifestDoc = { ...noLockDoc, manifests: [], noManifest: true, exit: 0 };
+  const noManifestRows = convert('dependency-scan', JSON.stringify(noManifestDoc), 0);
+  const noManifestFact = noManifestRows.find((r) => r.native_category === 'no-manifest');
+  if (noManifestFact?.polarity !== 'fact') fail(`noManifest: true must convert to a no-manifest FACT row (got ${JSON.stringify(noManifestFact)})`);
+  mustThrow('a manifest row with a bad status', () => convert('dependency-scan', JSON.stringify({ ...noLockDoc, manifests: [{ path: 'x', status: 'bogus' }] }), 1));
+  if (reg) {
+    const nmRow = measureRun({ findings: noLockRows, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (nmRow?.status !== 'not-measured' || !/no lockfile/.test(nmRow.note || '')) fail(`a manifest with no lockfile must read d-dependencies-known-clean not-measured (got ${nmRow?.status}/${nmRow?.note})`);
+    const naRow = measureRun({ findings: noManifestRows, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (naRow?.status !== 'not-applicable') fail(`zero manifests anywhere must read d-dependencies-known-clean not-applicable (got ${naRow?.status})`);
+    // a real critical advisory always governs over either fact
+    const bothRow = measureRun({ findings: [...noLockRows, { id: 'F-9', source: 'dependency-scan', native_category: 'critical', polarity: 'gap' }], manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    if (bothRow?.status !== 'unmet') fail(`a real critical advisory must govern over the no-lockfile fact (got ${bothRow?.status})`);
+  }
+  const projNl = projectMulti(noManifestRows.concat(noLockRows), adaptersOnce());
+  if (projNl.unmapped.length) fail(`no-lockfile / no-manifest rows must map (unmapped: ${projNl.unmapped.map((u) => u.cat).join(', ')})`);
+}
+
+// ── dependency-scan: manifest enumeration + lockfile coverage on real directories ──
+// findManifests / isCoveredByLockfile / run() end to end: a manifest with real
+// dependencies and no lockfile anywhere up its own directory tree is uncovered
+// (never silently clean); zero package.json anywhere is the distinct
+// not-applicable fact.
+{
+  const fail = (m) => negFailures.push('dependency-scan-manifests: ' + m);
+  const tmp = join(HERE, 'tmp-dep-manifests'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'covered'), { recursive: true });
+  mkdirSync(join(tmp, 'uncovered'), { recursive: true });
+  writeFileSync(join(tmp, 'covered', 'package.json'), JSON.stringify({ name: 'covered', dependencies: { left: '1.0.0' } }));
+  writeFileSync(join(tmp, 'covered', 'package-lock.json'), JSON.stringify({ name: 'covered', lockfileVersion: 3, packages: {} }));
+  writeFileSync(join(tmp, 'uncovered', 'package.json'), JSON.stringify({ name: 'uncovered', dependencies: { right: '1.0.0' } }));
+  const doc = runDependencyScan({ target: tmp, timeout: 5, log: () => {} });
+  const uncoveredPaths = doc.manifests.map((m) => m.path);
+  if (!uncoveredPaths.includes('uncovered/package.json')) fail(`a manifest with dependencies and no lockfile anywhere up its tree must be recorded uncovered (got ${JSON.stringify(uncoveredPaths)})`);
+  if (uncoveredPaths.includes('covered/package.json')) fail('a manifest whose own directory carries a lockfile must NOT be recorded uncovered');
+  if (doc.noManifest !== false) fail('with real package.json files present, noManifest must be false');
+  if (doc.exit !== 1) fail(`an uncovered manifest must make the document exit 1 (got ${doc.exit})`);
+  rmSync(tmp, { recursive: true, force: true });
+
+  const tmpEmpty = join(HERE, 'tmp-dep-empty'); rmSync(tmpEmpty, { recursive: true, force: true });
+  mkdirSync(tmpEmpty, { recursive: true });
+  writeFileSync(join(tmpEmpty, 'README.md'), '# nothing here\n');
+  const docEmpty = runDependencyScan({ target: tmpEmpty, timeout: 5, log: () => {} });
+  if (docEmpty.noManifest !== true) fail('a tree with zero package.json anywhere must record noManifest: true');
+  if (docEmpty.manifests.length) fail('a tree with zero package.json anywhere must record zero uncovered manifests');
+  if (docEmpty.exit !== 0) fail(`a tree with nothing to audit must exit 0 (not-applicable is not a failure, got ${docEmpty.exit})`);
+  rmSync(tmpEmpty, { recursive: true, force: true });
+
+  // an ancestor lockfile covers a nested manifest with no lockfile of its own
+  const tmpAncestor = join(HERE, 'tmp-dep-ancestor'); rmSync(tmpAncestor, { recursive: true, force: true });
+  mkdirSync(join(tmpAncestor, 'packages', 'sub'), { recursive: true });
+  writeFileSync(join(tmpAncestor, 'package-lock.json'), JSON.stringify({ name: 'root', lockfileVersion: 3, packages: {} }));
+  writeFileSync(join(tmpAncestor, 'packages', 'sub', 'package.json'), JSON.stringify({ name: 'sub', dependencies: { left: '1.0.0' } }));
+  const docAncestor = runDependencyScan({ target: tmpAncestor, timeout: 5, log: () => {} });
+  if (docAncestor.manifests.length) fail(`a manifest covered by an ANCESTOR lockfile must not be recorded uncovered (got ${JSON.stringify(docAncestor.manifests)})`);
+  rmSync(tmpAncestor, { recursive: true, force: true });
 }
 
 // ── fresh-clone workspaces ──────────────
@@ -732,7 +892,7 @@ function adaptersOnce() { return loadAdapters(); }
     if (!badBuild) fail(`convert must emit a row native_id apps/bad:build:failed (got ${rows.map((r) => r.native_id).join(', ')})`);
     if (badBuild && (badBuild.native_category !== 'build' || badBuild.evidence[0] !== 'apps/bad/package.json:1')) fail(`the workspace build row must keep native_category build (for the adapter map) and cite apps/bad/package.json:1 (got ${badBuild.native_category} / ${badBuild.evidence[0]})`);
     if (badBuild && !/workspace apps\/bad/.test(badBuild.observation)) fail('the workspace row observation must name the workspace');
-    if (rows.some((r) => r.native_id.startsWith('apps/good:') && r.native_category !== 'lint' && r.native_category !== 'typecheck')) fail('apps/good must yield gap rows only for its not-declared floor steps (lint, typecheck), never for its passing build/test');
+    if (rows.some((r) => r.native_id.startsWith('apps/good:') && !['lint', 'typecheck', 'no-database-signal'].includes(r.native_category))) fail('apps/good must yield gap rows only for its not-declared floor steps (lint, typecheck) plus its own no-database-signal fact, never for its passing build/test');
     // every category still maps (no rogue category is introduced by the workspace prefix)
     const proj = projectMulti(rows, adaptersOnce());
     if (proj.unmapped.length) fail(`workspace rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
@@ -790,6 +950,146 @@ function adaptersOnce() { return loadAdapters(); }
   if (!validateYardstick({ ...reg, requirements: [emptyList] }).some((e) => /category/.test(e))) fail('validateYardstick must reject an empty category list');
 }
 
+// ── not-applicable / not-measured: decided ONLY from an evidence condition the
+// deciding instrument itself recorded (a `polarity: fact` row), never a packet
+// claim. A row with `decide.not_applicable_when`/`not_measured_when` names a fact
+// row's native_category from the SAME scanner; it fires only when the decided
+// category itself carries no rows — real evidence there always governs.
+{
+  const fail = (m) => negFailures.push('not-applicable: ' + m);
+  const reg = loadYardstick();
+  const naReq = { id: 'd-test-na', title: 'test', tier: 'reproducibility', topic: 'reproducibility', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: 'migrate', not_applicable_when: 'no-database-signal' }, check: 'x', sources: ['x'], status: 'draft', owner: { risk: 'x', fix: 'x' } };
+  const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
+  // a fact row naming the condition, with nothing in the decided category: not-applicable
+  const factOnly = [{ id: 'F-1', source: 'fresh-clone', native_category: 'no-database-signal', polarity: 'fact', observation: 'no database signal found anywhere in the tree', evidence: ['package.json:1'] }];
+  const naRow = measureRun({ findings: factOnly, manifest: ran, inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (naRow?.status !== 'not-applicable' || !/no database signal/.test(naRow.note)) fail(`a fact row naming the condition must decide not-applicable, carrying the fact's own observation (got ${naRow?.status}/${naRow?.note})`);
+  // real evidence in the decided category always wins over the condition
+  const bothPresent = [...factOnly, { id: 'F-2', source: 'fresh-clone', native_category: 'migrate', polarity: 'gap', observation: 'x', evidence: ['a:1'] }];
+  const overridden = measureRun({ findings: bothPresent, manifest: ran, inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (overridden?.status !== 'unmet') fail(`a real gap in the decided category must govern over the not_applicable_when fact, never the other way round (got ${overridden?.status})`);
+  // no fact, no rows in the category: the ordinary instrument verdict (met — ran clean)
+  const noFact = measureRun({ findings: [], manifest: ran, inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (noFact?.status !== 'met') fail(`with neither a gap nor the condition's fact, the ordinary instrument verdict must hold (got ${noFact?.status})`);
+  // the scanner must have RUN this run for the condition to decide anything
+  const skippedNa = measureRun({ findings: factOnly, manifest: [{ scanner: 'fresh-clone', status: 'skipped', reason: 'x' }], inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (skippedNa?.status !== 'not-measured') fail(`a not_applicable_when condition must never decide from a scanner that did not run this run (got ${skippedNa?.status})`);
+  // not_measured_when: the same mechanism, deciding not-measured instead (dependency-scan's
+  // "manifest with no lockfile: nothing to audit" case)
+  const nmReq = { ...naReq, id: 'd-test-nm', decide: { kind: 'instrument', scanner: 'dependency-scan', category: 'critical', not_measured_when: 'no-lockfile' } };
+  const nmFact = [{ id: 'F-3', source: 'dependency-scan', native_category: 'no-lockfile', polarity: 'fact', observation: 'package.json declares dependencies but no lockfile covers it', evidence: ['package.json:1'] }];
+  const nmRow = measureRun({ findings: nmFact, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, { ...reg, requirements: [nmReq] })[0];
+  if (nmRow?.status !== 'not-measured' || !/no lockfile/.test(nmRow.note)) fail(`not_measured_when must decide not-measured with the fact's own note (got ${nmRow?.status}/${nmRow?.note})`);
+  // a claim can never change what a not_applicable_when / not_measured_when row decides —
+  // it is decided only from the map (measureRun never reads packet claims for non-claim rows)
+  const withPacket = measureRun({ findings: factOnly, manifest: ran, inputs: null, coverage: {}, packet: { claims: [{ id: 'd-test-na', state: 'satisfied', by: 'x' }] } }, { ...reg, requirements: [naReq] })[0];
+  if (withPacket?.status !== 'not-applicable' || withPacket?.basis !== 'run') fail(`a packet claim must never override a run-decided not-applicable row (got ${withPacket?.status}/${withPacket?.basis})`);
+  // validateYardstick: accepts the field, rejects an empty string
+  if (validateYardstick({ ...reg, requirements: [naReq] }).length) fail('validateYardstick must accept not_applicable_when');
+  const badField = { ...naReq, decide: { ...naReq.decide, not_applicable_when: '' } };
+  if (!validateYardstick({ ...reg, requirements: [badField] }).some((e) => /not_applicable_when/.test(e))) fail('validateYardstick must reject an empty not_applicable_when');
+
+  // d-schema-versioned itself: a real fresh-clone run with no database signal reads
+  // not-applicable; a Supabase-shaped signal with no migrate step reads unmet, never met
+  const dbNone = [{ id: 'F-10', source: 'fresh-clone', native_category: 'no-database-signal', polarity: 'fact', observation: 'no database signal (file or dependency) found anywhere in the tree — the migrate step is not applicable, not merely undeclared.', evidence: ['package.json:1'] }];
+  const schemaNa = measureRun({ findings: dbNone, manifest: ran, inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+  if (schemaNa?.status !== 'not-applicable') fail(`d-schema-versioned must read not-applicable with no database signal in the tree (got ${schemaNa?.status})`);
+  const dbButNoMigrate = [{ id: 'F-11', source: 'fresh-clone', native_category: 'migrate', polarity: 'gap', observation: 'no migrate step declared', evidence: ['package.json:1'] }];
+  const schemaUnmet = measureRun({ findings: dbButNoMigrate, manifest: ran, inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+  if (schemaUnmet?.status !== 'unmet') fail(`d-schema-versioned must read unmet (never met) when a database signal exists and migrate is not declared (got ${schemaUnmet?.status})`);
+}
+
+// ── database detection: Supabase, Drizzle, and a raw db/sql migrations folder ──
+// A Supabase-shaped repo (a client dependency and a migrations folder, no ORM at
+// all) must be recognized as carrying a database — d-schema-versioned must NEVER
+// read met over it with no migrate step declared; a repo with no database signal
+// anywhere reads not-applicable.
+{
+  const fail = (m) => negFailures.push('database-signals: ' + m);
+  const tmp = join(HERE, 'tmp-db-signals'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'supabase', 'migrations'), { recursive: true });
+  writeFileSync(join(tmp, 'package.json'), JSON.stringify({ name: 'supabase-shaped', version: '0.0.0', private: true, dependencies: { '@supabase/supabase-js': '^2.0.0' } }));
+  writeFileSync(join(tmp, 'supabase', 'migrations', '0001_init.sql'), 'create table t (id int);\n');
+  writeFileSync(join(tmp, 'README.md'), '# supabase-shaped\n');
+  let { toolchain } = detectToolchain(tmp);
+  if (!toolchain.database_signals.includes('dep:@supabase/supabase-js')) fail(`a @supabase/supabase-js dependency must be a database signal (got ${JSON.stringify(toolchain.database_signals)})`);
+  if (!toolchain.database_signals.includes('file:supabase/migrations')) fail(`a supabase/migrations directory must be a database signal (got ${JSON.stringify(toolchain.database_signals)})`);
+  // end to end through the real runner: no migrate step declared -> d-schema-versioned
+  // must read unmet or not-measured, NEVER met
+  let doc = null;
+  try { doc = runFreshClone({ target: tmp, clone: false, timeout: 30 }); } catch (e) { fail(`fresh-clone must run over the Supabase-shaped fixture (${e.message})`); }
+  if (doc) {
+    const rows = convert('fresh-clone', JSON.stringify(doc), doc.exit);
+    if (rows.some((r) => r.native_category === 'no-database-signal')) fail('a Supabase-shaped repo must never emit a no-database-signal fact — it has a database');
+    const migrateGap = rows.find((r) => r.native_category === 'migrate');
+    if (!migrateGap) fail('a Supabase-shaped repo with no migrate script must emit a migrate gap row (undeclared means unmet, not met)');
+    const reg = loadYardstick();
+    const schema = measureRun({ findings: rows, manifest: [{ scanner: 'fresh-clone', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+    if (schema?.status === 'met') fail(`d-schema-versioned must NEVER read met over a Supabase-shaped repo with no migrate step (got ${schema?.status})`);
+    if (schema?.status !== 'unmet') fail(`d-schema-versioned should read unmet over a Supabase-shaped repo with no migrate step (got ${schema?.status})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+
+  // a repo with no database signal at all: not-applicable, never met by silence
+  const tmpNone = join(HERE, 'tmp-db-none'); rmSync(tmpNone, { recursive: true, force: true });
+  mkdirSync(tmpNone, { recursive: true });
+  writeFileSync(join(tmpNone, 'package.json'), JSON.stringify({ name: 'no-db', version: '0.0.0', private: true, scripts: { test: 'node -e "process.exit(0)"' } }));
+  writeFileSync(join(tmpNone, 'README.md'), '# no-db\n');
+  let doc2 = null;
+  try { doc2 = runFreshClone({ target: tmpNone, clone: false, timeout: 30 }); } catch (e) { fail(`fresh-clone must run over the no-database fixture (${e.message})`); }
+  if (doc2) {
+    if (doc2.toolchain.database_signals.length) fail(`the no-database fixture must carry zero database signals (got ${JSON.stringify(doc2.toolchain.database_signals)})`);
+    const rows2 = convert('fresh-clone', JSON.stringify(doc2), doc2.exit);
+    const reg = loadYardstick();
+    const schema2 = measureRun({ findings: rows2, manifest: [{ scanner: 'fresh-clone', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+    if (schema2?.status !== 'not-applicable') fail(`d-schema-versioned must read not-applicable with no database signal anywhere (got ${schema2?.status})`);
+  }
+  rmSync(tmpNone, { recursive: true, force: true });
+}
+
+
+// ── the not-applicable status: compare(), ratchet, and the views ────────────
+{
+  const fail = (m) => negFailures.push('not-applicable-views: ' + m);
+  // compare(): met -> not-applicable classifies off the ranked scale (no-longer-measured,
+  // the existing label for "left the met/mixed/unmet scale") — never "improved", never
+  // silently "unchanged"; the actual current status is what a caller renders.
+  if (classify('met', 'not-applicable') !== 'no-longer-measured') fail(`met -> not-applicable must classify no-longer-measured (got ${classify('met', 'not-applicable')})`);
+  if (classify('not-applicable', 'met') !== 'newly-measured') fail(`not-applicable -> met must classify newly-measured (got ${classify('not-applicable', 'met')})`);
+  if (classify('not-applicable', 'not-applicable') !== 'unchanged') fail('not-applicable -> not-applicable must classify unchanged');
+  // ratchet: met -> not-applicable is reported (changed), never a failure
+  const baseline = { baseline: 1, yardstick: 0, accepted: { date: '2026-01-01', by: 'steward' }, requirements: [{ id: 'd-secrets-out-of-history', status: 'met', basis: 'run' }] };
+  const currentNa = { version: 0, requirements: [{ id: 'd-secrets-out-of-history', status: 'not-applicable', basis: 'run', findings: [] }] };
+  const rNa = evaluateRatchet(baseline, currentNa, (id) => id);
+  if (rNa.failures.length) fail(`met -> not-applicable must never fail the ratchet (got ${JSON.stringify(rNa.failures)})`);
+  if (rNa.changed.length !== 1 || rNa.changed[0].after !== 'not-applicable') fail(`met -> not-applicable must be reported in changed (got ${JSON.stringify(rNa.changed)})`);
+  // a baseline row that WAS not-applicable, now anything else: reported, never a failure
+  const baselineNa = { ...baseline, requirements: [{ id: 'd-secrets-out-of-history', status: 'not-applicable', basis: 'run' }] };
+  const currentUnmet = { version: 0, requirements: [{ id: 'd-secrets-out-of-history', status: 'unmet', basis: 'run', findings: ['F-1'] }] };
+  const rFromNa = evaluateRatchet(baselineNa, currentUnmet, (id) => id);
+  if (rFromNa.failures.length) fail(`a baseline row that was not-applicable must never fail regardless of what it becomes (got ${JSON.stringify(rFromNa.failures)})`);
+  if (rFromNa.changed.length !== 1) fail(`a departure from not-applicable must be reported in changed (got ${JSON.stringify(rFromNa.changed)})`);
+  // views/floor-fleet.mjs: a not-applicable row is listed separately, never counted as met
+  const tmp = join(HERE, 'tmp-not-applicable'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('cleanlib', tmp); copyFixtureScanners('cleanlib', tmp);
+  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'measure', tmp, '--write'], { stdio: 'pipe' }); } catch (e) { fail(`measure --write must succeed over the cleanlib fixture (${e.message})`); }
+  // hand-edit the written yardstick.yaml: flip one met row to not-applicable, so
+  // Intake/Maintain must read it as not_applicable, never as met
+  const yardstickFile = join(tmp, 'yardstick.yaml');
+  let ys = readFileSync(yardstickFile, 'utf8');
+  const before = ys;
+  ys = ys.replace(/(- id: d-secrets-out-of-history\n\s+status: )met/, '$1not-applicable');
+  if (ys === before) fail('the cleanlib fixture must have decided d-secrets-out-of-history met to flip for this test to mean anything');
+  writeFileSync(yardstickFile, ys);
+  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'intake', tmp], { stdio: 'pipe' }); } catch (e) { fail(`intake must render over a not-applicable row (${e.message})`); }
+  const intakeYaml = parseYaml(readFileSync(runViewPath(tmp, 'intake'), 'utf8'));
+  if (!Array.isArray(intakeYaml.not_applicable) || !intakeYaml.not_applicable.some((r) => r.id === 'd-secrets-out-of-history')) fail('Intake must list the not-applicable row under not_applicable');
+  if (intakeYaml.met.some((r) => r.id === 'd-secrets-out-of-history')) fail('Intake must NEVER count a not-applicable row as met');
+  const intakeMd = readFileSync(join(tmp, 'INTAKE.md'), 'utf8');
+  if (!/## Not applicable/.test(intakeMd) || !/d-secrets-out-of-history/.test(intakeMd.split('## Not applicable')[1] || '')) fail('INTAKE.md must render a Not applicable section naming the row');
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── repo-census instrument (map/repo-census.mjs → ingest profile repo-census) ──
 // The runner over the public fixture (a tiny monorepo, root + apps/one, plus
 // ops/evidence/) must record what IS:
@@ -814,11 +1114,24 @@ function adaptersOnce() { return loadAdapters(); }
   const fx = join(HERE, 'instruments', 'repo-census-target');
   const tmp = join(HERE, 'tmp-repo-census'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
   const out = join(tmp, 'repo-census.json');
+  // the fixture is a plain directory (it lives inside assay's OWN checkout, no nested
+  // .git of its own); the commit-existence gate (owner/evidence/README.md) needs a
+  // REAL git history to check the one transcript that must pass against, so this
+  // copies the fixture into a fresh git repo and rewrites that one transcript's
+  // commit to the copy's own real HEAD sha before running repo-census over it.
+  cpSync(fx, tmp, { recursive: true });
+  const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'test', GIT_AUTHOR_EMAIL: 'test@example.com', GIT_COMMITTER_NAME: 'test', GIT_COMMITTER_EMAIL: 'test@example.com' };
+  execFileSync('git', ['init', '-q'], { cwd: tmp, env: gitEnv });
+  execFileSync('git', ['add', '-A'], { cwd: tmp, env: gitEnv });
+  execFileSync('git', ['commit', '-q', '-m', 'fixture commit'], { cwd: tmp, env: gitEnv });
+  const realSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tmp, encoding: 'utf8' }).trim();
+  const backupRestorePath = join(tmp, 'ops', 'evidence', 'd-backup-restore-exercised.md');
+  writeFileSync(backupRestorePath, readFileSync(backupRestorePath, 'utf8').replace(/^commit: [0-9a-f]{7,40}$/m, `commit: ${realSha}`));
   // a fixed --as-of makes the planted staleness (d-smoke-on-deployed, dated 2026-01-01)
   // deterministic regardless of when the harness actually runs
   const AS_OF = '2026-09-24';
   let exit = 0;
-  try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), fx, '--out', out, '--default-branch', 'main', '--as-of', AS_OF], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), tmp, '--out', out, '--default-branch', 'main', '--as-of', AS_OF], { stdio: 'pipe' }); }
   catch (e) { exit = e.status; }
   if (exit !== 1) fail(`the runner over the fixture must exit 1 (planted gaps; got ${exit})`);
   const raw = existsSync(out) ? readFileSync(out, 'utf8') : '';
@@ -834,7 +1147,7 @@ function adaptersOnce() { return loadAdapters(); }
     for (const c of doc.checks) for (const ev of c.evidence || []) {
       const p = ev.replace(/:\d+$/, '');
       if (!p) fail(`${c.name} (${c.detail?.path}) cites ${ev}, which names no path (the root cites ./)`);
-      else if (!existsSync(join(fx, p))) fail(`${c.name} (${c.detail?.path}) cites ${ev}, which is not in the target`);
+      else if (!existsSync(join(tmp, p))) fail(`${c.name} (${c.detail?.path}) cites ${ev}, which is not in the target`);
     }
     const arch = at('architecture-page', '.');
     if (arch?.status !== 'pass') fail(`architecture-page must pass at root (got ${arch?.status})`);
@@ -972,8 +1285,18 @@ function adaptersOnce() { return loadAdapters(); }
   const fx = join(HERE, 'instruments', 'repo-census-pointers-target');
   const tmp = join(HERE, 'tmp-repo-census-pointers'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
   const out = join(tmp, 'repo-census.json');
+  // same real-git treatment as the repo-census fixture above: the commit-existence
+  // gate needs a real history to pass the one transcript the packet's pointer reads.
+  cpSync(fx, tmp, { recursive: true });
+  const gitEnvPointers = { ...process.env, GIT_AUTHOR_NAME: 'test', GIT_AUTHOR_EMAIL: 'test@example.com', GIT_COMMITTER_NAME: 'test', GIT_COMMITTER_EMAIL: 'test@example.com' };
+  execFileSync('git', ['init', '-q'], { cwd: tmp, env: gitEnvPointers });
+  execFileSync('git', ['add', '-A'], { cwd: tmp, env: gitEnvPointers });
+  execFileSync('git', ['commit', '-q', '-m', 'fixture commit'], { cwd: tmp, env: gitEnvPointers });
+  const pointersRealSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tmp, encoding: 'utf8' }).trim();
+  const nonstandardBackupPath = join(tmp, 'ops', 'nonstandard-evidence', 'd-backup-restore-exercised.md');
+  writeFileSync(nonstandardBackupPath, readFileSync(nonstandardBackupPath, 'utf8').replace(/^commit: [0-9a-f]{7,40}$/m, `commit: ${pointersRealSha}`));
   let exit = 0;
-  try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), fx, '--out', out, '--as-of', '2026-09-28'], { stdio: 'pipe' }); }
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), tmp, '--out', out, '--as-of', '2026-09-28'], { stdio: 'pipe' }); }
   catch (e) { exit = e.status; }
   if (exit !== 1) fail(`the runner over the pointers fixture must exit 1 (planted gaps; got ${exit})`);
   let doc = null;
@@ -1063,6 +1386,104 @@ function adaptersOnce() { return loadAdapters(); }
     if (ciGate4?.detail?.defaultBranch !== 'cli-wins') fail(`--default-branch must beat the packet's default_branch pointer (got ${ciGate4?.detail?.defaultBranch})`);
     rmSync(out4, { force: true });
   }
+}
+
+// ── owner-evidence: produced_by, and the commit-existence gate (never pass by
+// silence) — owner/evidence/README.md, map/repo-census.mjs, yardstick/requirements.yaml ─
+// A transcript names who produced it (produced_by: ci needs run, produced_by: person
+// needs by — by is already required unconditionally). Its commit must resolve in the
+// checkout's history to PASS; a commit genuinely absent (a real, non-shallow history)
+// is a GAP; a checkout that cannot say either way (no .git, or too shallow) reads
+// NOT-MEASURED, never pass — and the requirement it decides reads not-measured too,
+// through the same `-unverifiable` fact-row mechanism d-schema-versioned uses.
+{
+  const fail = (m) => negFailures.push('evidence-produced-by: ' + m);
+  const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'test', GIT_AUTHOR_EMAIL: 'test@example.com', GIT_COMMITTER_NAME: 'test', GIT_COMMITTER_EMAIL: 'test@example.com' };
+  const BODY = '\nRan the backup restore procedure.\n\n```\n$ ./ops/restore.sh\ndone\n```\n\nVerified via row counts.\n';
+  function writeTranscript(base, fm) {
+    mkdirSync(join(base, 'ops', 'evidence'), { recursive: true });
+    const lines = ['---'];
+    for (const [k, v] of Object.entries(fm)) if (v !== undefined) lines.push(`${k}: ${v}`);
+    lines.push('---');
+    writeFileSync(join(base, 'ops', 'evidence', 'd-backup-restore-exercised.md'), lines.join('\n') + BODY);
+  }
+  const baseFm = { date: '2026-09-20', by: 'platform-eng', result: 'pass', backup: 'nightly', target: 'scratch', verified: 'row counts match' };
+  const runCensus = (dir) => {
+    const out = join(dir, 'rc.json');
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), dir, '--out', out, '--as-of', '2026-09-28'], { stdio: 'pipe' }); } catch { /* gaps/not-measured expected */ }
+    return JSON.parse(readFileSync(out, 'utf8'));
+  };
+  const evOf = (doc) => doc.checks.find((c) => c.name === 'evidence-d-backup-restore-exercised');
+
+  // (a) a real, non-shallow git history: produced_by validation
+  const tmp = join(HERE, 'tmp-evidence-produced-by'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  execFileSync('git', ['init', '-q'], { cwd: tmp, env: gitEnv });
+  writeFileSync(join(tmp, 'README.md'), '# x\n');
+  execFileSync('git', ['add', '-A'], { cwd: tmp, env: gitEnv });
+  execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: tmp, env: gitEnv });
+  const sha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: tmp, encoding: 'utf8' }).trim();
+
+  writeTranscript(tmp, { descriptor: 'd-backup-restore-exercised', commit: sha, ...baseFm });
+  let ev = evOf(runCensus(tmp));
+  if (ev?.status !== 'gap' || !/produced_by .* is not ci\|person/.test(ev.observation || '')) fail(`no produced_by at all must gap (got ${ev?.status}/${ev?.observation})`);
+
+  writeTranscript(tmp, { descriptor: 'd-backup-restore-exercised', produced_by: 'ci', commit: sha, ...baseFm });
+  ev = evOf(runCensus(tmp));
+  if (ev?.status !== 'gap' || !/produced_by: ci requires run/.test(ev.observation || '')) fail(`produced_by: ci with no run: must gap (got ${ev?.status}/${ev?.observation})`);
+
+  writeTranscript(tmp, { descriptor: 'd-backup-restore-exercised', produced_by: 'ci', run: '"https://ci.example.test/runs/1"', commit: sha, ...baseFm });
+  ev = evOf(runCensus(tmp));
+  if (ev?.status !== 'pass') fail(`produced_by: ci WITH run: over a real, resolvable commit must pass (got ${ev?.status}/${ev?.observation})`);
+
+  writeTranscript(tmp, { descriptor: 'd-backup-restore-exercised', produced_by: 'person', commit: sha, ...baseFm });
+  ev = evOf(runCensus(tmp));
+  if (ev?.status !== 'pass') fail(`produced_by: person (by already present) over a real, resolvable commit must pass (got ${ev?.status}/${ev?.observation})`);
+
+  // (b) a commit that is NOT in this real, non-shallow history: a GAP, naming it
+  writeTranscript(tmp, { descriptor: 'd-backup-restore-exercised', produced_by: 'person', commit: 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef', ...baseFm });
+  ev = evOf(runCensus(tmp));
+  if (ev?.status !== 'gap' || !/is not in the repository's history/.test(ev.observation || '')) fail(`a commit absent from real, full history must gap, naming it (got ${ev?.status}/${ev?.observation})`);
+  rmSync(tmp, { recursive: true, force: true });
+
+  // (c) no .git at all: NOT-MEASURED, never pass, never a gap — an otherwise-complete
+  // transcript whose checkout simply cannot verify the commit either way
+  const tmpNoGit = join(HERE, 'tmp-evidence-no-git'); rmSync(tmpNoGit, { recursive: true, force: true }); mkdirSync(tmpNoGit, { recursive: true });
+  writeTranscript(tmpNoGit, { descriptor: 'd-backup-restore-exercised', produced_by: 'person', commit: 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2', ...baseFm });
+  const docNoGit = runCensus(tmpNoGit);
+  const evNoGit = evOf(docNoGit);
+  if (evNoGit?.status !== 'not-measured' || !/no history here to verify/.test(evNoGit.observation || '')) fail(`no .git at all must read not-measured, naming the reason (got ${evNoGit?.status}/${evNoGit?.observation})`);
+  if (!docNoGit.checks.some((c) => c.status === 'gap')) fail('the fixture setup is wrong: this bare directory should still gap on unrelated checks (architecture-page etc.) for this test to distinguish not-measured from a gap');
+  // through ingest + the yardstick: a FACT row in its own category, never the evidence
+  // category itself, deciding the requirement not-measured, never met
+  const rowsNoGit = convert('repo-census', JSON.stringify(docNoGit), docNoGit.exit);
+  const factRow = rowsNoGit.find((r) => r.native_category === 'evidence-d-backup-restore-exercised-unverifiable');
+  if (factRow?.polarity !== 'fact') fail(`the unverifiable commit must convert to a FACT row in its own category (got ${JSON.stringify(factRow)})`);
+  if (rowsNoGit.some((r) => r.native_category === 'evidence-d-backup-restore-exercised')) fail('the evidence category itself must carry NO row when the commit could not be verified (real evidence there would govern instead)');
+  const reg = loadYardstick();
+  const backupReq = measureRun({ findings: rowsNoGit, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-backup-restore-exercised');
+  if (backupReq?.status !== 'not-measured') fail(`d-backup-restore-exercised must read not-measured when the commit cannot be verified — NEVER met by silence (got ${backupReq?.status})`);
+  const projUnver = projectMulti(rowsNoGit, adaptersOnce());
+  if (projUnver.unmapped.length) fail(`the -unverifiable category must map (unmapped: ${projUnver.unmapped.map((u) => u.cat).join(', ')})`);
+  rmSync(tmpNoGit, { recursive: true, force: true });
+
+  // (d) a shallow clone: also not-measured, never a gap — a commit outside the
+  // fetched depth is not proof the commit does not exist in the real history
+  const shallowSrc = join(HERE, 'tmp-evidence-shallow-src'); rmSync(shallowSrc, { recursive: true, force: true }); mkdirSync(shallowSrc, { recursive: true });
+  execFileSync('git', ['init', '-q'], { cwd: shallowSrc, env: gitEnv });
+  writeFileSync(join(shallowSrc, 'a.txt'), '1\n');
+  execFileSync('git', ['add', '-A'], { cwd: shallowSrc, env: gitEnv });
+  execFileSync('git', ['commit', '-q', '-m', 'first'], { cwd: shallowSrc, env: gitEnv });
+  const oldSha = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: shallowSrc, encoding: 'utf8' }).trim();
+  writeFileSync(join(shallowSrc, 'a.txt'), '2\n');
+  execFileSync('git', ['add', '-A'], { cwd: shallowSrc, env: gitEnv });
+  execFileSync('git', ['commit', '-q', '-m', 'second'], { cwd: shallowSrc, env: gitEnv });
+  const shallowDir = join(HERE, 'tmp-evidence-shallow'); rmSync(shallowDir, { recursive: true, force: true });
+  execFileSync('git', ['clone', '-q', '--depth', '1', `file://${shallowSrc}`, shallowDir], { env: gitEnv });
+  writeTranscript(shallowDir, { descriptor: 'd-backup-restore-exercised', produced_by: 'person', commit: oldSha, ...baseFm });
+  const evShallow = evOf(runCensus(shallowDir));
+  if (evShallow?.status !== 'not-measured' || !/shallow checkout/.test(evShallow.observation || '')) fail(`a shallow checkout must read not-measured for a commit outside its depth, never a gap (got ${evShallow?.status}/${evShallow?.observation})`);
+  rmSync(shallowSrc, { recursive: true, force: true });
+  rmSync(shallowDir, { recursive: true, force: true });
 }
 
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
@@ -1226,6 +1647,39 @@ function adaptersOnce() { return loadAdapters(); }
     else if (/\bat\s+\S+\.mjs:\d+/.test(stderr)) fail('negative/packet-bad-yaml leaked a stack trace — a YAML the parser cannot read must be one error, not a trace');
   }
 
+  // a reply still wrapped for chat: prose before and after, the actual YAML
+  // fenced in a ```yaml code block. loadPacket must parse only the fence's
+  // content, discarding the chatter — never executing or trusting it.
+  if (unwrapChatReply('no fence here at all') !== 'no fence here at all') fail('unwrapChatReply with no fence must return the text unchanged');
+  if (unwrapChatReply('prose\n```yaml\npacket: 1\n```\nmore prose').trim() !== 'packet: 1') fail('unwrapChatReply must take the first fenced block\'s content, discarding the chatter around it');
+  {
+    const tmp = join(HERE, 'tmp-packet-chat'); rmSync(tmp, { recursive: true, force: true });
+    mkdirSync(tmp, { recursive: true });
+    const raw = readFileSync(join(HERE, 'fixtures', 'packet-valid', 'manifest.yaml'), 'utf8');
+    writeFileSync(join(tmp, 'manifest.yaml'), `Sure! Here is the completed packet:\n\n\`\`\`yaml\n${raw}\`\`\`\n\nLet me know if you need anything else.\n`);
+    let chatDoc = null;
+    try { ({ doc: chatDoc } = loadPacket(tmp)); } catch (e) { fail(`loadPacket must accept a reply still wrapped for chat (${e.message})`); }
+    if (chatDoc && validatePacket(chatDoc, { requirementIds: ids }).length) fail('a chat-wrapped reply, once unwrapped, must validate exactly like the raw packet');
+    if (chatDoc && chatDoc.repository !== 'example/notesbox') fail("the unwrapped packet must carry the fenced content's own fields, not the chatter");
+    rmSync(tmp, { recursive: true, force: true });
+  }
+
+  // answered.by must be a role, never a person's name (owner/PACKET.md) — a role
+  // PHRASE is fine (one of its words IS a role word); a bare name, or a name
+  // followed by a parenthetical role, is refused with one plain line.
+  {
+    const roleBase = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } };
+    const wantsRole = (by) => validatePacket({ ...roleBase, answered: { ...roleBase.answered, by } }, { requirementIds: ids }).some((e) => e === 'answered.by: write a role (for example founder), not a name');
+    if (!wantsRole('Dana Reyes')) fail('a bare two-word Title Case name ("Dana Reyes") must be refused as not a role');
+    if (!wantsRole('Dana Reyes (founder)')) fail('a name followed by a parenthesized role ("Dana Reyes (founder)") must be refused as not a role');
+    if (wantsRole('Lead Engineer')) fail('a role PHRASE containing a role word ("Lead Engineer") must still validate clean');
+    if (wantsRole('founder')) fail('a plain role must still validate clean');
+    if (wantsRole('co-founder')) fail('a role word with a hyphen must still validate clean');
+
+    if (!looksLikePersonName('Dana Reyes') || !looksLikePersonName('Dana Reyes (founder)')) fail('looksLikePersonName must flag both name shapes directly');
+    if (looksLikePersonName('Product Manager') || looksLikePersonName('founder') || looksLikePersonName('Jane')) fail('looksLikePersonName must not flag a role phrase, a plain role, or a single capitalized word');
+  }
+
   // secret/email shape unit checks — the false-positive guards this class of
   // check depends on: a commit sha, a UUID, and a kebab-case id must all pass
   // clean, or every packet with one in it would be unusable.
@@ -1233,6 +1687,10 @@ function adaptersOnce() { return loadAdapters(); }
   if (secretShape('550e8400-e29b-41d4-a716-446655440000')) fail('a UUID must not read as a secret (hex-plus-dash exemption)');
   if (secretShape('d-this-requirement-does-not-exist-and-is-long')) fail('a long kebab-case id must not read as a secret (class-diversity gate)');
   if (!secretShape('sk-ThisLooksLikeARealSecretKeyValue123456')) fail('an sk-… value must read as a secret');
+  if (secretShape('apps/web-app/docs/SHARED_LEADS_CONTRACT.md')) fail('a file path must not read as a secret (path-like exemption)');
+  if (secretShape('see packages/Billing/src/InvoiceRenderer for the contract')) fail('a path inside prose must not read as a secret');
+  if (secretShape('src/write-back/pipNotificationPublisher.spec.ts')) fail('a lowerCamelCase file name in a path must not read as a secret');
+  if (!secretShape('Xk9aB2Qw/Lm7Pz3Rt8Vn1Yc5Hd2Jf6Gs4Kb9Wm')) fail('a base64-shaped secret containing a slash must still read as a secret');
   if (!secretShape('AKIAABCDEFGHIJKLMNOP')) fail('an AKIA… value must read as a secret');
   if (!secretShape('https://user:hunter2@example.com/db')) fail('a URL with an embedded password must read as a secret');
   if (!emailShape('alice@example.com')) fail('an email address must be flagged as one');
@@ -1308,11 +1766,13 @@ function adaptersOnce() { return loadAdapters(); }
   const bfMixed = decideBusFactorClaim({ people: { build: ['a', 'b'], deploy: ['a', 'b'], restore: ['a', 'b'], restore_done: 'unknown' } });
   if (bfMixed?.status !== 'mixed') fail(`an unknown restore_done (no unmet condition otherwise) must read mixed (got ${bfMixed?.status})`);
 
-  // generic claim row (any id): satisfied/not-applicable -> met, open -> unmet, unknown -> not-measured (basis owner still), absent -> null
+  // generic claim row (any id): satisfied -> met, not-applicable -> not-applicable
+  // (NEVER met — a requirement that does not apply was not satisfied), open ->
+  // unmet, unknown -> not-measured (basis owner still), absent -> null
   const genId = reg.requirements.find((d) => d.decide.kind === 'claim' && d.id !== 'd-accounts-enumerated' && d.id !== 'd-bus-factor').id;
   if (decideGenericClaim(genId, { claims: [] }) !== null) fail('a claim row absent from claims: must read null (not decided)');
   if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'satisfied', by: 'x' }] })?.status !== 'met') fail('satisfied must read met');
-  if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'not-applicable', reason: 'x' }] })?.status !== 'met') fail('not-applicable must read met');
+  if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'not-applicable', reason: 'x' }] })?.status !== 'not-applicable') fail('not-applicable must read not-applicable, never met');
   if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'open' }] })?.status !== 'unmet') fail('open must read unmet');
   const unk = decideGenericClaim(genId, { claims: [{ id: genId, state: 'unknown' }] });
   if (unk?.status !== 'not-measured') fail('unknown must read not-measured (but still packet-decided — basis owner)');
@@ -1361,6 +1821,78 @@ function adaptersOnce() { return loadAdapters(); }
   // this combination must record no contradiction — loadContradictions reads
   // yardstick.yaml's own list, never recomputing it.
   if (loadContradictions(tmp).length) fail(`notesbox + packet-valid must record no contradictions (got ${JSON.stringify(loadContradictions(tmp))})`);
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── Intake: "What the owner told us" — facts from a repository's own packet,
+// never a verdict (owner/PACKET.md, views/README.md) ─────────────────────────
+{
+  const fail = (m) => negFailures.push('intake-owner: ' + m);
+
+  // no packet at all: owner: null, and the plain "no packet yet" message.
+  if (buildOwnerBlock(null) !== null) fail('buildOwnerBlock(null) must read null');
+  const noneMd = renderOwnerSection(null).join('\n');
+  if (!/No owner's packet yet: the owner prompt \(`assay\.mjs ask-owner`\) collects these\./.test(noneMd)) fail(`renderOwnerSection(null) must print the exact no-packet message (got: ${noneMd})`);
+
+  // the public packet-valid fixture, end to end through the CLI.
+  const tmp = join(HERE, 'tmp-intake-owner'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--packet', join(HERE, 'fixtures', 'packet-valid'), '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --packet must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'intake.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/intake.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+
+  const intakeYaml = existsSync(join(tmp, 'views', 'intake.yaml')) ? parseYaml(readFileSync(join(tmp, 'views', 'intake.yaml'), 'utf8')) : null;
+  const owner = intakeYaml && intakeYaml.owner;
+  if (!owner) fail('views/intake.yaml must carry an owner: block when the run carries a packet');
+  else {
+    if (owner.answered?.date !== '2026-09-01' || owner.answered?.by !== 'founder' || owner.answered?.via !== 'owner-prompt') fail(`owner.answered must come from the packet (got ${JSON.stringify(owner.answered)})`);
+    if (owner.accounts?.count !== 2 || owner.accounts?.personal !== 1 || owner.accounts?.organisational !== 1) fail(`owner.accounts counts must reflect the packet (got ${JSON.stringify(owner.accounts)})`);
+    if (owner.accounts?.transferable?.yes !== 2) fail(`both packet-valid accounts are transferable: yes (got ${JSON.stringify(owner.accounts?.transferable)})`);
+    if ((owner.accounts?.rows || []).length !== 2) fail('owner.accounts.rows must carry one row per account');
+    if (owner.credentials?.count !== 1 || owner.credentials?.never_rotated !== 1) fail(`owner.credentials must reflect the packet's one never-rotated credential (got ${JSON.stringify(owner.credentials)})`);
+    if (JSON.stringify(owner.people?.build) !== JSON.stringify(['founder', 'contractor'])) fail(`owner.people.build must come from the packet (got ${JSON.stringify(owner.people?.build)})`);
+    if (owner.people?.restore_done !== 'no') fail(`owner.people.restore_done must come from the packet (got ${owner.people?.restore_done})`);
+    if (owner.data?.personal !== 'user email addresses, for account login') fail('owner.data.personal must come from the packet');
+    if ((owner.money?.monthly || []).length !== 2) fail('owner.money.monthly must carry one row per provider');
+    if (owner.handover !== 'repo access, hosting account transfer, and the credential list above') fail(`owner.handover must come from custody.handover, not the top level (got ${JSON.stringify(owner.handover)})`);
+    if (owner.notes !== 'First packet filled at intake; bus factor and the backlog-is-issues claim are open follow-ups.') fail('owner.notes must come from the packet');
+  }
+
+  const intakePage = existsSync(join(tmp, 'INTAKE.md')) ? readFileSync(join(tmp, 'INTAKE.md'), 'utf8') : '';
+  if (!/## What the owner told us/.test(intakePage)) fail('INTAKE.md must carry a "What the owner told us" section');
+  if (!/Source repository \(GitHub\)/.test(intakePage) || !/Hosting \(Fly\.io\)/.test(intakePage)) fail('INTAKE.md must name each account, one line each');
+  if (!/founder, contractor/.test(intakePage)) fail('INTAKE.md must name who can build/deploy');
+  if (!/Restore ever done: no/.test(intakePage)) fail('INTAKE.md must say whether restore was ever done');
+  if (!/user email addresses, for account login/.test(intakePage)) fail('INTAKE.md must name the personal data the packet described');
+  if (!/Fly\.io: ~\$25\/month/.test(intakePage) || !/GitHub: \$0/.test(intakePage)) fail('INTAKE.md must name money per provider');
+  if (!/Handover.*repo access, hosting account transfer/.test(intakePage)) fail('INTAKE.md must name the handover (custody.handover, not dropped)');
+  if (!/Answered 2026-09-01 by founder, via owner-prompt/.test(intakePage)) fail('INTAKE.md must name the answered date/by/via');
+
+  // d-credentials-enumerated: the owner's count informs the NOTE only, never the status.
+  const credRow = intakeYaml && [...(intakeYaml.open || []), ...(intakeYaml.met || []), ...(intakeYaml.to_run || [])].find((r) => r.id === 'd-credentials-enumerated');
+  if (!credRow) fail('d-credentials-enumerated must appear in the intake measurement');
+  else if (!/\(the owner listed 1 credential\)$/.test(credRow.note)) fail(`d-credentials-enumerated's note must name the owner's own count, as a trailing note (got: ${credRow.note})`);
+
+  // unknowns render as "unknown", never dropped — a packet silent on custody.people
+  // still produces a full owner block, roles reading "unknown", not omitted.
+  const bare = buildOwnerBlock({ packet: 1, yardstick: 0, answered: { date: '2026-01-01', by: 'founder', via: 'owner-prompt' } });
+  if (bare.people.build !== null || bare.people.restore_done !== 'unknown') fail(`a packet silent on custody.people must read build: null (unknown) and restore_done: unknown (got ${JSON.stringify(bare.people)})`);
+  if (bare.data.personal !== 'unknown') fail(`a packet silent on custody.data must read personal: unknown (got ${bare.data.personal})`);
+  const bareSection = renderOwnerSection(bare).join('\n');
+  if (!/restore: unknown/.test(bareSection) || !/Restore ever done: unknown/.test(bareSection)) fail(`renderOwnerSection must render unknowns as the word "unknown", never drop them (got:\n${bareSection})`);
+  // an owner who explicitly names nobody ([]): rendered "nobody", distinct from "unknown".
+  const nobody = buildOwnerBlock({ packet: 1, yardstick: 0, answered: { date: '2026-01-01', by: 'founder', via: 'owner-prompt' }, custody: { people: { build: ['founder'], deploy: ['founder'], restore: [] } } });
+  if (nobody.people.restore.length !== 0) fail('an explicit [] must stay [], distinct from an absent field (null)');
+  const nobodySection = renderOwnerSection(nobody).join('\n');
+  if (!/restore: nobody/.test(nobodySection)) fail(`an explicit empty role list must render "nobody" (got:\n${nobodySection})`);
+
+  // the written owner: YAML block must itself parse back cleanly (yaml-min).
+  let reparsed = null;
+  try { reparsed = parseYaml(ownerYaml(owner)); } catch (e) { fail(`ownerYaml() output must be valid yaml-min YAML (${e.message})`); }
+  if (reparsed && (!reparsed.owner || !reparsed.owner.credentials || reparsed.owner.credentials.count !== 1)) fail('the owner: YAML block must round-trip through the parser');
+
   rmSync(tmp, { recursive: true, force: true });
 }
 
@@ -1569,6 +2101,48 @@ function adaptersOnce() { return loadAdapters(); }
     const blank = allFloor.filter((r) => !r.risk || !r.fix || !r.check);
     if (blank.length) fail(`every owner.yaml floor row must carry risk, fix and check (blank on ${blank.map((r) => r.id).join(', ')})`);
   }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── contradictions surface in Maintain too, and ratchet always fails on one
+// (yardstick/README.md; views/README.md) — a repository's own packet claimed a
+// run-decided requirement satisfied; this run found it unmet, never silently
+// overridden. Checked with NO --baseline at all: a contradiction is a failure
+// under stewardship every time, never something a flag can wave through.
+{
+  const fail = (m) => negFailures.push('contradictions: ' + m);
+  const tmp = join(HERE, 'tmp-contradictions'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
+  // d-secrets-out-of-history reads unmet in the plain notesbox fixture (gitleaks's
+  // F-700) — a packet claiming it satisfied must record a contradiction.
+  mkdirSync(join(tmp, 'owner'), { recursive: true });
+  writeFileSync(join(tmp, 'owner', 'manifest.yaml'), [
+    'packet: 1', 'yardstick: 0',
+    'answered:', '  date: "2026-09-28"', '  by: founder', '  via: owner-prompt',
+    'claims:', '  - id: d-secrets-out-of-history', '    state: satisfied', '    by: "a ci scan we trust"',
+  ].join('\n') + '\n');
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --write must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  if (loadContradictions(tmp).length !== 1) fail(`test setup: expected exactly one contradiction (got ${JSON.stringify(loadContradictions(tmp))})`);
+
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'maintain.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/maintain.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  const maintainYamlPath = join(tmp, 'views', 'maintain.yaml');
+  const maintainDoc = existsSync(maintainYamlPath) ? parseYaml(readFileSync(maintainYamlPath, 'utf8')) : null;
+  if (!maintainDoc || !(maintainDoc.contradictions || []).some((c) => c.id === 'd-secrets-out-of-history'))
+    fail(`maintain.yaml must carry the contradiction, same shape as Intake (got ${JSON.stringify(maintainDoc && maintainDoc.contradictions)})`);
+  const maintainPage = existsSync(join(tmp, 'MAINTAIN.md')) ? readFileSync(join(tmp, 'MAINTAIN.md'), 'utf8') : '';
+  if (!/## Contradicted claims/.test(maintainPage) || !/d-secrets-out-of-history/.test(maintainPage)) fail('MAINTAIN.md must carry a "Contradicted claims" section naming the contradiction');
+
+  // ratchet: a contradiction is ALWAYS a failure, even with no --baseline given.
+  let out = '', err = '', status = 0;
+  try { out = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), tmp], { stdio: 'pipe' }).toString(); }
+  catch (e) { status = e.status ?? 1; err = String(e.stderr || ''); out = String(e.stdout || ''); }
+  if (status !== 1) fail(`ratchet must exit 1 when the run carries a contradiction, even with no --baseline (got ${status})`);
+  const line = err || out;
+  if (!line.includes('d-secrets-out-of-history')) fail('the contradiction failure line must name the requirement id');
+  if (!/satisfied/.test(line) || !/unmet/.test(line)) fail(`the contradiction failure line must name what the owner claimed and what the run found (got: ${line})`);
 
   rmSync(tmp, { recursive: true, force: true });
 }
@@ -1839,6 +2413,96 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── routine --base-ref: a pull request is graded against the BASE branch's own
+// packet/baseline.yaml, never the working tree it carries (routine/README.md) ──
+// A real git repository: commit 1 carries a complete RUNBOOK.md (d-runbook reads
+// met); a steward accepts that as the baseline (commit 2). The "pull request" then
+// (uncommitted, on top of commit 2) deletes RUNBOOK.md AND loosens the working
+// tree's own packet/baseline.yaml to no longer expect it met — if the routine read
+// that working-tree copy, the loosened baseline would hide the regression; reading
+// the base ref's copy instead must still catch it.
+{
+  const fail = (m) => negFailures.push('routine-pr-baseline: ' + m);
+  const tmp = join(HERE, 'tmp-routine-pr'); rmSync(tmp, { recursive: true, force: true });
+  const repoDir = join(tmp, 'repo');
+  mkdirSync(repoDir, { recursive: true });
+  const git = (gitArgs) => spawnSync('git', gitArgs, { cwd: repoDir, encoding: 'utf8' });
+
+  writeFileSync(join(repoDir, 'package.json'), JSON.stringify({ name: 'pr-baseline-target', version: '0.0.0', private: true, scripts: { test: "node -e \"process.exit(0)\"", build: "node -e \"console.log('built')\"" } }, null, 2) + '\n');
+  writeFileSync(join(repoDir, 'README.md'), '# pr-baseline-target\n\nA regression-only fixture; not a real package.\n');
+  writeFileSync(join(repoDir, 'RUNBOOK.md'), [
+    '# Runbook', '',
+    '## Restart', 'Steps to restart the service.', '',
+    '## Roll back', 'Steps to roll back a deploy.', '',
+    '## Rotate a credential', 'Steps to rotate an API key or secret.', '',
+    '## Restore from backup', 'Steps to restore data from backup.', '',
+  ].join('\n'));
+  git(['init', '-q']);
+  git(['config', 'user.email', 'test@example.com']);
+  git(['config', 'user.name', 'Test']);
+  git(['add', '-A']);
+  let gc = git(['commit', '-q', '-m', 'initial']);
+  if (gc.status !== 0) fail(`test setup: initial commit must succeed (${gc.stderr})`);
+
+  const runDir1 = join(tmp, 'run1');
+  let result1;
+  try { result1 = runRoutine({ repoDir, outDir: runDir1 }, () => {}); }
+  catch (e) { fail(`test setup: the first runRoutine (to seed a baseline) must not throw (${e.message})`); }
+  const yardstick1 = existsSync(join(runDir1, 'yardstick.yaml')) ? parseYaml(readFileSync(join(runDir1, 'yardstick.yaml'), 'utf8')) : null;
+  const runbookRow1 = yardstick1 && (yardstick1.requirements || []).find((r) => r.id === 'd-runbook');
+  if (!runbookRow1 || runbookRow1.status !== 'met') fail(`test setup: d-runbook must read met with a complete RUNBOOK.md in place (got ${JSON.stringify(runbookRow1)})`);
+
+  mkdirSync(join(repoDir, 'packet'), { recursive: true });
+  const baselineFile = join(repoDir, 'packet', 'baseline.yaml');
+  let wb;
+  try { wb = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runDir1, '--write-baseline', baselineFile, '--by', 'steward'], { stdio: 'pipe' }); }
+  catch (e) { fail(`test setup: --write-baseline must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  git(['add', 'packet/baseline.yaml']);
+  gc = git(['commit', '-q', '-m', 'a steward accepts the baseline']);
+  if (gc.status !== 0) fail(`test setup: the baseline-acceptance commit must succeed (${gc.stderr})`);
+  const baseCommit = git(['rev-parse', 'HEAD']).stdout.trim();
+  if (!/^[0-9a-f]{40}$/.test(baseCommit)) fail('test setup: could not resolve the base commit');
+
+  if (result1 && baseCommit) {
+    // the pull request: delete the runbook, and loosen the WORKING TREE's own copy
+    // of the baseline so it no longer expects d-runbook met — a routine that reads
+    // this copy (instead of the base ref's) would see nothing to hold.
+    rmSync(join(repoDir, 'RUNBOOK.md'));
+    const acceptedBaseline = readFileSync(baselineFile, 'utf8');
+    const loosened = acceptedBaseline.replace(/(- id: d-runbook\n\s*status: )met/, '$1unmet');
+    if (loosened === acceptedBaseline) fail('test setup: could not find d-runbook in the written baseline to loosen — the test would be vacuous');
+    writeFileSync(baselineFile, loosened);
+
+    const runDir2 = join(tmp, 'run2');
+    const logs2 = [];
+    let result2;
+    try { result2 = runRoutine({ repoDir, outDir: runDir2, baseRef: baseCommit }, (l) => logs2.push(l)); }
+    catch (e) { fail(`runRoutine with --base-ref must not throw (${e.message})`); }
+    if (result2) {
+      if (result2.ok || result2.exitCode !== 1) fail(`a pull request that regresses d-runbook must fail the routine even though its OWN working-tree baseline was loosened (got ok=${result2.ok} exit=${result2.exitCode}):\n${logs2.join('\n')}`);
+      const joined = logs2.join('\n');
+      if (!/edits the accepted baseline/.test(joined)) fail(`the routine must name the baseline edit plainly when the working tree's packet\/baseline.yaml differs from the base ref's (got:\n${joined})`);
+      if (!/d-runbook/.test(joined)) fail(`the ratchet failure must name d-runbook (got:\n${joined})`);
+      if (!/met\s*→\s*unmet/.test(joined)) fail(`the ratchet failure must show the before → after (got:\n${joined})`);
+    }
+
+    // the base ref's own copy — never the working tree's loosened one — is what
+    // decided the gate: reading it back directly must still show d-runbook met.
+    const baseCopy = catGitFile(repoDir, baseCommit, 'packet/baseline.yaml');
+    if (!baseCopy.ok || !/- id: d-runbook\n\s*status: met/.test(baseCopy.content)) fail('the base ref\'s own packet/baseline.yaml must still read d-runbook: met, untouched by the working-tree edit');
+
+    // a schedule / workflow_dispatch run (no --base-ref) reads the working tree's
+    // own copy, unchanged from before this feature — the loosened baseline here
+    // would hold (exit 0), proving the two paths are genuinely different.
+    const runDir3 = join(tmp, 'run3');
+    let result3;
+    try { result3 = runRoutine({ repoDir, outDir: runDir3 }, () => {}); }
+    catch (e) { fail(`runRoutine with no --base-ref must not throw (${e.message})`); }
+    if (result3 && (!result3.ok || result3.exitCode !== 0)) fail(`with no --base-ref, the routine must read the working tree's own (loosened) baseline and hold (got ok=${result3.ok} exit=${result3.exitCode})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── routine/assay-routine.yml: the workflow template's own invariants ─────────
 // Not run (no GitHub Actions runner here) — parsed as text, since it is a real
 // GitHub Actions YAML file, not the constrained subset lib/yaml-min.mjs reads.
@@ -1891,8 +2555,68 @@ function adaptersOnce() { return loadAdapters(); }
   if (!/never a branch name/i.test(yml)) fail('the template must warn, in words, that ASSAY_REF is a commit SHA and never a branch name');
 
   if (!/schedule:/.test(yml) || !/workflow_dispatch:/.test(yml) || !/pull_request:/.test(yml)) fail('the template must trigger on schedule, workflow_dispatch and pull_request');
+
+  // the pull-request baseline gate: the base branch is fetched, and --base-ref
+  // is passed so the routine grades against it, never the working tree.
+  if (!/git fetch origin/.test(yml)) fail('the template must fetch the base branch before running the routine on a pull request');
+  if (!/--base-ref origin\/\$\{\{\s*github\.base_ref\s*\}\}/.test(yml)) fail('the template must pass --base-ref origin/<base branch> to routine/run.mjs on a pull request');
+
+  // installation (routine/README.md "Installing it"): a push trigger so merged main
+  // is measured the same day, and an optional gitleaks step that is pinned to a
+  // release and checked against its published sha256 — commented out, never enabled
+  // by default.
+  if (!/^\s*push:\s*$/m.test(yml)) fail('the template must also trigger on push to the default branch');
+  const gitleaksBlock = lines.filter((l) => /^\s*#.*gitleaks/i.test(l) || /GITLEAKS_/.test(l)).join('\n');
+  if (!/GITLEAKS_VERSION/.test(gitleaksBlock) || !/GITLEAKS_SHA256/.test(gitleaksBlock)) fail('the optional gitleaks step must pin a version and a sha256 checksum');
+  if (!/[0-9a-f]{64}/.test(gitleaksBlock)) fail('the optional gitleaks step must carry a real-shaped sha256 (64 hex chars)');
+  if (!lines.some((l) => /^\s*#\s*-\s*name:\s*Install gitleaks/.test(l))) fail('the optional gitleaks install step must be commented out (never enabled by default)');
+
+  const readme = readFileSync(join(ROOT, 'routine', 'README.md'), 'utf8');
+  if (!/required status check/i.test(readme)) fail('routine/README.md must say to make the routine job a required status check');
+  if (!/CODEOWNERS/.test(readme) || !/packet\//.test(readme) || !/\.github\/workflows\//.test(readme)) fail('routine/README.md must say to add CODEOWNERS entries for packet/ and .github/workflows/');
 }
 
+
+// ── an all-clean run compiles (measure/compile must never crash on zero findings) ──
+// Every instrument ran, every pass file is the explicit empty list, and a run
+// manifest records it — this is a real, valid measurement (CLAUDE.md rule 3: a
+// clean run with an explicit run record is a valid measurement), not the truly
+// empty "no findings, no manifest" case measure.mjs still refuses.
+{
+  const fail = (m) => negFailures.push('all-clean-run: ' + m);
+  const tmp = join(HERE, 'tmp-all-clean'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), [
+    'engine: test', 'scanners:', '  repo-eval:', '    status: ran',
+    '  deep-code-review:', '    status: skipped', '    reason: "not run for this test"',
+    '  gitleaks:', '    status: ran', '  fresh-clone:', '    status: ran',
+    '  dependency-scan:', '    status: ran',
+    '  repo-census:', '    status: skipped', '    reason: "not run for this test"', '',
+  ].join('\n'));
+  for (const f of ['repo-eval', 'gitleaks', 'fresh-clone', 'dependency-scan']) writeFileSync(join(tmp, 'map', 'findings', `${f}.yaml`), '[]\n');
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`an all-clean run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
+  // measure.mjs: zero findings + a manifest must measure, never throw "no findings"
+  let rows = null;
+  try { rows = measureRun({ findings: [], manifest: loadManifest(tmp), inputs: null, coverage: {} }, loadYardstick()); }
+  catch (e) { fail(`measureRun over zero findings with a manifest must not throw (${e.message})`); }
+  if (rows) {
+    if (rows.find((r) => r.id === 'd-secrets-out-of-history')?.status !== 'met') fail('an instrument that ran clean with zero findings must still read met');
+    if (rows.find((r) => r.id === 'd-accounts-enumerated')?.status !== 'not-measured') fail('a claim row must still read not-measured (zero findings changes nothing about claim rows)');
+  }
+  // the CLI path: `measure --write` and `compile` must not crash on this run either
+  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'measure', tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --write must succeed over an all-clean run (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'compile', tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`compile must succeed over an all-clean run (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
+  if (!existsSync(join(tmp, 'INDEX.md')) || !existsSync(join(tmp, 'INTAKE.md')) || !existsSync(join(tmp, 'MAINTAIN.md'))) fail('compile must write INDEX/INTAKE/MAINTAIN even for an all-clean run');
+  // the truly empty case (no findings AND no manifest) must still refuse — this
+  // guard is narrowed, not removed
+  let threw = false;
+  try { projectRun(join(HERE, 'tmp-does-not-exist')); } catch { threw = true; }
+  if (!threw) fail('projectRun over a run with neither findings nor a manifest must still throw');
+  rmSync(tmp, { recursive: true, force: true });
+}
 
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
@@ -1927,7 +2651,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

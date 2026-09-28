@@ -37,17 +37,31 @@
 import { STATUSES } from './measure.mjs';
 
 // ── requirement-status comparison ───────────────────────────────────────────
-export const STATUS_RANK = { unmet: 1, mixed: 2, met: 3 }; // not-measured: off-scale, see above
+export const STATUS_RANK = { unmet: 1, mixed: 2, met: 3 }; // not-measured, not-applicable: off-scale, see above
 export const CLASSIFICATIONS = ['improved', 'regressed', 'unchanged', 'newly-measured', 'no-longer-measured', 'yardstick-only'];
+// not-applicable sits off the met/mixed/unmet scale the same way not-measured
+// does (SCHEMA's total order excludes both): it is not a worse or better verdict,
+// it is a determination the requirement does not apply. classify() therefore
+// treats the two uniformly for MOVEMENT on/off the scale — "decided, but not on
+// the ranked scale" — while measure.mjs, the views and the ratchet gate keep them
+// distinct STATUSES (a not-applicable row is never rendered or counted as
+// not-measured; ratchet's own not-a-failure rule for not-applicable is in
+// evaluateRatchet, not here). A transition between the two off-scale statuses
+// themselves (not-measured <-> not-applicable) is the one coarsening this
+// accepts: both read `unchanged` here, since neither is on the ranked scale for
+// either side to move on — the ACTUAL statuses still render correctly, since a
+// caller reads `previous.status` / `current.status` off the row, never off the
+// classification label alone.
+const OFFSCALE = new Set(['not-measured', 'not-applicable']);
 
 // classify(previousStatus, currentStatus) — pure, throws on a status outside the
 // yardstick's closed vocabulary (fail loud: a silently-accepted unknown status
 // would misclassify every row that carries it).
 export function classify(prevStatus, currStatus) {
   for (const s of [prevStatus, currStatus]) if (!STATUSES.includes(s)) throw new Error(`compare: unknown status "${s}" (must be one of ${STATUSES.join('|')})`);
-  if (prevStatus === 'not-measured' && currStatus === 'not-measured') return 'unchanged';
-  if (prevStatus === 'not-measured') return 'newly-measured';
-  if (currStatus === 'not-measured') return 'no-longer-measured';
+  if (OFFSCALE.has(prevStatus) && OFFSCALE.has(currStatus)) return 'unchanged';
+  if (OFFSCALE.has(prevStatus)) return 'newly-measured';
+  if (OFFSCALE.has(currStatus)) return 'no-longer-measured';
   const pr = STATUS_RANK[prevStatus], cr = STATUS_RANK[currStatus];
   if (cr > pr) return 'improved';
   if (cr < pr) return 'regressed';

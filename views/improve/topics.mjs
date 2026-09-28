@@ -15,20 +15,22 @@ import { isMain } from '../../map/doctrine.mjs';
 import { viewPath } from '../../lib/run-layout.mjs';
 
 // Group every requirement by topic: { topic, met, unmet, mixed, not_measured,
-// rows: [{id, title, status}] }. Every requirement lands in exactly one topic
-// (its register row's own `topic:`); every topic in TOPICS appears, even with
-// zero rows, so a topic with no requirements today still reads "not measured",
-// never silently absent. Ordering within a topic: tier order, then register order.
+// not_applicable, rows: [{id, title, status}] }. Every requirement lands in
+// exactly one topic (its register row's own `topic:`); every topic in TOPICS
+// appears, even with zero rows, so a topic with no requirements today still
+// reads "not measured", never silently absent. Ordering within a topic: tier
+// order, then register order.
 export function buildTopics(measurementRows, reg) {
   const byId = new Map(measurementRows.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));
-  const byTopic = new Map(TOPICS.map((t) => [t, { topic: t, met: 0, unmet: 0, mixed: 0, not_measured: 0, rows: [] }]));
+  const emptyCounts = () => ({ met: 0, unmet: 0, mixed: 0, not_measured: 0, not_applicable: 0, rows: [] });
+  const byTopic = new Map(TOPICS.map((t) => [t, { topic: t, ...emptyCounts() }]));
   reg.requirements.forEach((d, i) => {
     const m = byId.get(d.id);
     const status = m ? m.status : 'not-measured';
-    if (!byTopic.has(d.topic)) byTopic.set(d.topic, { topic: d.topic, met: 0, unmet: 0, mixed: 0, not_measured: 0, rows: [] });
+    if (!byTopic.has(d.topic)) byTopic.set(d.topic, { topic: d.topic, ...emptyCounts() });
     const g = byTopic.get(d.topic);
-    const key = status === 'not-measured' ? 'not_measured' : status;
+    const key = status === 'not-measured' ? 'not_measured' : status === 'not-applicable' ? 'not_applicable' : status;
     g[key] = (g[key] || 0) + 1;
     g.rows.push({ id: d.id, title: d.title, status, _tier: tierRank[d.tier] ?? 999, _reg: i });
   });
@@ -44,7 +46,7 @@ export function toYaml(topics) {
     '# reproducibility and operability), each exactly once. Fed by yardstick.yaml + yardstick/requirements.yaml.',
     'topics:'];
   for (const t of topics) {
-    L.push(`  - topic: ${t.topic}`, `    met: ${t.met}`, `    unmet: ${t.unmet}`, `    mixed: ${t.mixed}`, `    not_measured: ${t.not_measured}`);
+    L.push(`  - topic: ${t.topic}`, `    met: ${t.met}`, `    unmet: ${t.unmet}`, `    mixed: ${t.mixed}`, `    not_measured: ${t.not_measured}`, `    not_applicable: ${t.not_applicable}`);
     L.push('    rows:');
     for (const r of t.rows) L.push(`      - id: ${r.id}`, `        title: ${q(r.title)}`, `        status: ${r.status}`);
   }
@@ -66,7 +68,7 @@ if (isMain(import.meta.url)) {
   if (!dir) { console.error('usage: node views/improve/topics.mjs <run-dir> [--write]'); process.exit(2); }
   const topics = buildTopicsForRun(dir);
   if (!topics) { console.error(`no yardstick measurement under ${dir} — run: node assay.mjs measure ${dir} --write`); process.exit(2); }
-  for (const t of topics) console.log(`${t.topic.padEnd(20)} met ${t.met} · unmet ${t.unmet} · mixed ${t.mixed} · not measured ${t.not_measured}`);
+  for (const t of topics) console.log(`${t.topic.padEnd(20)} met ${t.met} · unmet ${t.unmet} · mixed ${t.mixed} · not measured ${t.not_measured} · not applicable ${t.not_applicable}`);
   if (args.includes('--write')) {
     const out = viewPath(dir, 'improve');
     mkdirSync(dirname(out), { recursive: true });

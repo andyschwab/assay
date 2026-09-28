@@ -1,4 +1,6 @@
 ---
+produced_by: ci
+run: "https://ci.example.test/anthropic/deploy/runs/48213"
 descriptor: d-deploy-one-command
 date: 2026-09-14
 by: platform-eng

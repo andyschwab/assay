@@ -1,4 +1,5 @@
 ---
+produced_by: person
 descriptor: d-smoke-on-deployed
 date: 2026-01-01
 by: on-call

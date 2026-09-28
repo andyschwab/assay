@@ -185,7 +185,7 @@ ${notMeasured.length ? `\n_Not measured this run: ${notMeasured.map((a) => `\`${
 
 ## The yardstick (glance)
 
-${descSum.decided} of ${descSum.of} requirements decided by this run (met ${descSum.met} · unmet ${descSum.unmet} · mixed ${descSum.mixed}); ${descSum['not-measured']} not measured, of which ${descClaims} are claim-only rows a sidecar decides, never a run.${descUnmet.length ? ` Unmet: ${descUnmet.join(', ')}.` : ''} The full measurement is \`yardstick.yaml\`.
+${descSum.decided} of ${descSum.of} requirements decided by this run (met ${descSum.met} · unmet ${descSum.unmet} · mixed ${descSum.mixed} · not applicable ${descSum['not-applicable']}); ${descSum['not-measured']} not measured, of which ${descClaims} are claim-only rows a sidecar decides, never a run.${descUnmet.length ? ` Unmet: ${descUnmet.join(', ')}.` : ''} The full measurement is \`yardstick.yaml\`.
 
 ## The data files
 

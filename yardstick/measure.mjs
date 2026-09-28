@@ -40,7 +40,7 @@ const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 export const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
 export const KINDS = ['facet', 'census', 'instrument', 'claim'];
 export const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable'];
-export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured'];
+export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured', 'not-applicable'];
 const STRUCTURED = new Set(['structured-event', 'audited']);
 // TOPICS — the roster a requirement's `topic:` must land on: the axis roster
 // (map/project.mjs AXIS_ORDER) plus the three tiers with no axis of their own.
@@ -69,6 +69,14 @@ export function validateYardstick(reg) {
       // hold jointly — e.g. install AND build); an empty list names nothing and is rejected
       const validCategory = typeof cat === 'string' ? cat.length > 0 : Array.isArray(cat) && cat.length > 0 && cat.every((c) => typeof c === 'string' && c.length > 0);
       if (!(d.decide.scanner && validCategory)) errors.push(`${at}: instrument needs scanner + category (a non-empty string, or a non-empty list of strings)`);
+      // optional evidence conditions (§ not-applicable / not-measured, decided only from
+      // the map): the name of a `polarity: fact` row, from the SAME scanner, whose presence
+      // (with the decided category itself carrying no rows) resolves the row instead of the
+      // ordinary category verdict. Never a packet claim — see measureRun.
+      for (const k of ['not_applicable_when', 'not_measured_when']) {
+        const v = d.decide[k];
+        if (v !== undefined && !(typeof v === 'string' && v.length > 0)) errors.push(`${at}: decide.${k} must be a non-empty string (a fact row's native_category)`);
+      }
     }
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
     if (!Array.isArray(d.sources) || !d.sources.length) errors.push(`${at}: sources required (extracted, not designed)`);
@@ -192,6 +200,29 @@ function byInstrument(d, fs, disp, coverage) {
   return row('not-measured', 'instrument', rows.map((f) => f.id), `${scanner} ${unmet.map((p) => `${p.c}: ${p.note}`).join('; ')}`);
 }
 
+// ── evidence conditions: not-applicable / not-measured, decided ONLY from a fact
+// the deciding instrument itself recorded (yardstick/README.md — a row's optional
+// `decide.not_applicable_when` / `decide.not_measured_when`, naming a `polarity:
+// fact` row's native_category from the SAME scanner). Never a packet claim: a
+// claim never reaches an instrument-decided row's status at all (measureRun),
+// so a claim of not-applicable here is ignored for status like any other. Fires
+// only when the row's own decided category carries NO rows this run — real
+// evidence in that category (a gap, a strength) always governs over the
+// condition, the same "list is an AND, never overridden by a side fact" rule
+// byInstrument already holds for a joint category.
+function evidenceCondition(d, fs, disp, key) {
+  const cond = d.decide[key];
+  if (!cond) return null;
+  const { scanner, category } = d.decide;
+  if (disp[scanner]?.status !== 'ran') return null;   // not decidable from a run that did not happen
+  const categories = (Array.isArray(category) ? category : [category]).map(String);
+  const inCategory = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')));
+  if (inCategory.length) return null;
+  const hits = fs.filter((f) => f.source === scanner && f.native_category === cond && f.polarity === 'fact');
+  if (!hits.length) return null;
+  return hits.map((h) => h.observation).filter(Boolean).join(' ') || `${scanner} recorded ${cond}`;
+}
+
 // ── the projection ────────────────────────────────────────────────────────────
 // `packet` (optional): a repository's own VALIDATED claims (yardstick/packet.mjs
 // loadPacket().doc — the caller validates; this function trusts it). Every row
@@ -210,7 +241,14 @@ export function measureRun({ findings, manifest, inputs, coverage, packet }, reg
     let r, basis = 'run';
     if (d.decide.kind === 'facet') r = byFacet(d, findings);
     else if (d.decide.kind === 'census') r = byCensus(d, inputs);
-    else if (d.decide.kind === 'instrument') r = byInstrument(d, findings, disp, coverage || {});
+    else if (d.decide.kind === 'instrument') {
+      const na = evidenceCondition(d, findings, disp, 'not_applicable_when');
+      if (na) r = row('not-applicable', 'instrument', [], na);
+      else {
+        const nm = evidenceCondition(d, findings, disp, 'not_measured_when');
+        r = nm ? row('not-measured', 'instrument', [], nm) : byInstrument(d, findings, disp, coverage || {});
+      }
+    }
     else {
       const pd = decidePacketClaim(d.id, packet);
       if (pd) { r = row(pd.status, 'claim', [], pd.note); basis = 'owner'; }
@@ -233,8 +271,14 @@ export function measureRun({ findings, manifest, inputs, coverage, packet }, reg
 // flag — owner/PACKET.md, yardstick/README.md.
 export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   const findings = loadFindings(runDir);
-  if (!findings.length) throw new Error(`no findings under ${runDir}`);
-  return measureRun({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet }, reg);
+  const manifest = loadManifest(runDir);
+  // Zero findings is a valid measurement when the run carries a manifest recording
+  // what ran (an all-clean run: every instrument ran clean, explicit empty files) —
+  // only a run with NEITHER findings NOR a manifest is the truly empty, unmeasured case
+  // this guards against (CLAUDE.md rule 3: fail loud, never empty; a clean run with an
+  // explicit run record is a valid measurement, not an absent one).
+  if (!findings.length && !manifest) throw new Error(`no findings under ${runDir}`);
+  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what the three views (Intake, Maintain, Improve's topic

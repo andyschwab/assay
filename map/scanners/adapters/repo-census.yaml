@@ -53,6 +53,21 @@ map:
     axis: verification
   evidence-d-cost-alerts:
     axis: artifact-legibility
+  # a FACT row (never a gap or strength): the checkout could not confirm the
+  # transcript's commit either way (no .git, or too shallow) — decides the
+  # matching requirement above not-measured via not_measured_when, same axis.
+  evidence-d-backup-restore-exercised-unverifiable:
+    axis: code-security
+  evidence-d-rollback-exercised-unverifiable:
+    axis: context-economy
+  evidence-d-deploy-one-command-unverifiable:
+    axis: code-security
+  evidence-d-smoke-on-deployed-unverifiable:
+    axis: deterministic-gates
+  evidence-d-monitoring-with-alert-unverifiable:
+    axis: verification
+  evidence-d-cost-alerts-unverifiable:
+    axis: artifact-legibility
 
 default: FAIL
 

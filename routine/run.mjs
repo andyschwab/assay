@@ -18,21 +18,39 @@
 // (assay.mjs), the identical, tested path a human runs from the README — this
 // file only sequences them and writes the run record.
 //
-// Usage: node routine/run.mjs <repo-dir> --out <run-dir> [--baseline <file>] [--since <prev-run-dir>]
+// Usage: node routine/run.mjs <repo-dir> --out <run-dir> [--baseline <file>]
+//                              [--base-ref <git-ref>] [--since <prev-run-dir>]
 //   --baseline   ratchet the compiled run against this file. Omitted, the driver
 //                looks for <repo-dir>/packet/baseline.yaml and uses it if present;
 //                with neither, the gate is skipped and a warning is printed —
-//                never silence (routine/README.md).
+//                never silence (routine/README.md). Ignored when --base-ref is
+//                given (a pull request is never graded against its own working
+//                tree's copy — see --base-ref below).
+//   --base-ref   this run is measuring a PULL REQUEST against this base git ref
+//                (e.g. `origin/main`) in <repo-dir> — the workflow template
+//                passes this on `pull_request`, after fetching the base branch.
+//                With it, the baseline comes from the base ref's own
+//                packet/baseline.yaml (`git show <ref>:packet/baseline.yaml`),
+//                NEVER the working tree: the change under review could
+//                otherwise edit the very file its own gate holds against
+//                (routine/README.md "The baseline: accepted by a named
+//                steward"). When the working tree's packet/baseline.yaml
+//                differs from the base ref's copy, that is printed plainly —
+//                a steward accepts a new baseline in its own reviewed change,
+//                never silently through the pull request it would gate. With
+//                no --base-ref (schedule / workflow_dispatch), the baseline is
+//                read from the working tree, exactly as before.
 //   --since      fold a previous run's SINCE view into the compile (views/README.md).
 //                No default: the workflow decides which prior run, if any, it has.
 // A repository's own packet/manifest.yaml (owner/PACKET.md), when present at
 // <repo-dir>/packet/manifest.yaml, is folded into the measurement automatically.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, rmSync, readFileSync } from 'node:fs';
 import { join, dirname, resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { isMain } from '../map/doctrine.mjs';
+import { catGitFile } from '../yardstick/ratchet.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // routine/
 const ASSAY_ROOT = join(HERE, '..');
@@ -123,7 +141,7 @@ const NOT_RUN_BY_ROUTINE = 'not run by the routine; a steward session runs them'
 // runRoutine — the pure sequencing (spawns child processes; no process.exit of its
 // own), so it is both the CLI's body and the thing tests/regression.mjs calls
 // directly. Returns { ok, exitCode, log: [lines] }.
-export function runRoutine({ repoDir, outDir, baseline, since, packet } = {}, log = () => {}) {
+export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef } = {}, log = () => {}) {
   const lines = [];
   const say = (s) => { lines.push(s); log(s); };
   repoDir = resolve(repoDir);
@@ -161,6 +179,39 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet } = {}, lo
     return { ok: false, exitCode: 1, log: lines };
   }
 
+  // A pull request (a --base-ref was given) is graded against the BASE REF's own
+  // packet/baseline.yaml, never the working tree's copy — the change under
+  // review could otherwise edit the very file its own gate holds against
+  // (routine/README.md "The baseline: accepted by a named steward"). The
+  // git-tracked path is always packet/baseline.yaml, relative to the repo root,
+  // regardless of a --packet override (a packet kept elsewhere is not what git
+  // show reads at a ref).
+  if (baseRef) {
+    const BASELINE_REL_PATH = 'packet/baseline.yaml';
+    const workingFile = join(repoDir, BASELINE_REL_PATH);
+    const workingContent = existsSync(workingFile) ? readFileSync(workingFile, 'utf8') : null;
+    const baseGot = catGitFile(repoDir, baseRef, BASELINE_REL_PATH);
+    const baseContent = baseGot.ok ? baseGot.content : null;
+    if (workingContent !== baseContent) {
+      say('⚠ this change edits the accepted baseline; the gate holds against the default branch\'s copy;');
+      say('  a steward accepts a new baseline in its own reviewed change.');
+    }
+    if (!baseGot.ok) {
+      say(`⚠ no packet/baseline.yaml at ${baseRef} yet — the ratchet gate is skipped. A steward accepts the first`);
+      say('  run and commits one (routine/README.md) to turn this warning into a real no-regression gate.');
+      return { ok: true, exitCode: 0, log: lines };
+    }
+    say(`· ratchet --baseline-ref ${baseRef} --repo ${repoDir} …`);
+    const rat = assay(['ratchet', outDir, '--baseline-ref', baseRef, '--repo', repoDir]);
+    say(rat.stdout || '');
+    if (rat.status !== 0) {
+      say(rat.stderr || '');
+      say('✗ ratchet failed — a held requirement regressed or dropped off the measured scale.');
+      return { ok: false, exitCode: 1, log: lines };
+    }
+    return { ok: true, exitCode: 0, log: lines };
+  }
+
   const baselineFile = baseline || (existsSync(join(packetDir, 'baseline.yaml')) ? join(packetDir, 'baseline.yaml') : null);
   if (!baselineFile) {
     say('⚠ no packet/baseline.yaml committed yet — the ratchet gate is skipped. A steward accepts the first');
@@ -182,13 +233,13 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const flag = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
   const flagIdx = new Set();
-  ['--out', '--baseline', '--since', '--packet'].forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
+  ['--out', '--baseline', '--base-ref', '--since', '--packet'].forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
   const repoDir = args.find((a, i) => !flagIdx.has(i) && !a.startsWith('--'));
   const outDir = flag('--out');
   if (!repoDir || !outDir) {
-    console.error('usage: node routine/run.mjs <repo-dir> --out <run-dir> [--baseline <file>] [--since <prev-run-dir>] [--packet <dir>]');
+    console.error('usage: node routine/run.mjs <repo-dir> --out <run-dir> [--baseline <file>] [--base-ref <git-ref>] [--since <prev-run-dir>] [--packet <dir>]');
     process.exit(2);
   }
-  const { ok, exitCode } = runRoutine({ repoDir, outDir, baseline: flag('--baseline'), since: flag('--since'), packet: flag('--packet') }, (l) => console.log(l));
+  const { ok, exitCode } = runRoutine({ repoDir, outDir, baseline: flag('--baseline'), baseRef: flag('--base-ref'), since: flag('--since'), packet: flag('--packet') }, (l) => console.log(l));
   process.exit(ok ? 0 : exitCode);
 }

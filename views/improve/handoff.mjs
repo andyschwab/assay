@@ -53,7 +53,10 @@ const runDate = (runId.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
 // ── base ───────────────────────────────────────────────────────────────────────
 let findings = loadFindings(runDir);
 for (const b of bases) findings = findings.concat(loadFindings(b));
-if (!findings.length) { console.error(`no findings under ${runDir}`); process.exit(2); }
+// Zero findings is a valid, clean handoff when the run carries a manifest (every
+// instrument ran clean, explicit empty files) — only no findings AND no manifest
+// is the truly empty case (CLAUDE.md rule 3: a clean run with a run record measures).
+if (!findings.length && !loadManifest(runDir)) { console.error(`no findings under ${runDir}`); process.exit(2); }
 const adapters = loadAdapters();
 const { projected, unmapped } = projectMulti(findings, adapters);
 if (unmapped.length) { console.error(`PROJECTION HALTED — ${unmapped.length} unmapped`); for (const u of unmapped) console.error(`  - ${u.id}: ${u.cat}`); process.exit(1); }

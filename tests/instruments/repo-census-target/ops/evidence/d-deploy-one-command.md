@@ -1,4 +1,5 @@
 ---
+produced_by: person
 descriptor: d-deploy-one-command
 date: 2026-09-14
 by: platform-eng
