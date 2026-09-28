@@ -500,13 +500,26 @@ Reconcile the three views into one document (reads only the view artifacts):
  exposure (the most likely, widest-reach open risk — a property, not a verdict). If a dimension measures high
  *and* carries a critical exposure, say both — do not let one average the other.
 2. **Strengths worth stealing** — 3–7, each written so another team could copy it.
-3. **One roadmap** — interleave all three views' items in a shared currency:
- sort by security urgency first (likelihood, then who can trigger it — the
- chain ranking already orders reach × difficulty), then leverage
- (faster/better/reordered) × likelihood × damage, then addressability (cheapest-to-verify
- first — telemetry-blind effects sort behind the telemetry fix). The first item
- should be doable in under a day and visibly pay off. Flag any item whose payoff
- depends on another landing first.
+3. **One roadmap** — interleave all three views' items, **safety first**: order by
+ what cannot be undone and how soon it could happen. What anyone can reach today and
+ what fires unattended on a schedule come first (likelihood and who can trigger it —
+ the chain ranking already orders reach × difficulty); then what is irreversible but
+ waits on a person's act; then leverage (faster/better/reordered) × likelihood ×
+ damage; then addressability (cheapest-to-verify first — telemetry-blind effects sort
+ behind the telemetry fix). Flag any item whose payoff depends on another landing
+ first, and order it after that one.
+ **An item states a cause, not a pile of findings.** When findings from several
+ scanners share one cause (a clean clone that does not install, a lockfile regenerated
+ at deploy, actions on movable tags and a hundred advisories can all be one missing
+ lockfile), write one item for the cause and cite every finding it absorbs: the
+ findings are the evidence under the item, their scanners' fixes are quoted in its
+ card, and the handoff sequences them once, inside it. Say what would prove the
+ reading wrong. Its `done_when` is the proof the team runs with its own tools.
+ **An irreversible fix is prepared, then performed by a person**: a credential
+ rotation, a history rewrite, a production deploy. The item gets it ready; the owner
+ does it. When the repository is changing hands, rotating every credential at the
+ handover makes every value in the history dead in one act, and a history purge
+ becomes a later decision.
 4. **Key questions** — what only the owning team can answer (the `confidence:
  plausible/unverified` findings and the "couldn't determine from the repo"
  list). Real questions, not rhetorical gap-pointing.
@@ -563,16 +576,18 @@ One command assembles the whole deliverable over the projected base:
  twice). An open gap with
  neither is **owner-defined pending**: listed loudly, never dropped, never sequenced.
  Files, designed **self-contained** (the folder ships alone into the target repo):
- `START-HERE.md` (the sequence — uncovered High-and-above scanner items first, then
- roadmap in authored order, then the remaining scanner fixes by severity — and what is
- NOT covered), `REMEDIATION.md` (every remedy with its
- **claim-audit block**: verbatim observation + evidence `file:line` + proof step from
- the scanner's `verify-fix` capability), `FINDINGS.md` (the complete projected base —
- established/open/facts — so any claim can be audited before acting), and `plan/NN-*.md`
- (one session prompt per roadmap item and per uncovered High-and-above scanner item —
- the trailing lower-severity scanner fixes stay in `REMEDIATION.md` — each prompt:
- confirm claims → interview → choose →
- implement → prove). Scanner text is **fenced as data-not-instructions** (untrusted
+ `START-HERE.md` (the one sequence `IMPROVE.md` §6 also numbers — the roadmap in
+ authored order, then a triage item per triage scanner, then the remaining scanner
+ fixes bundled as each adapter declares and worst first; a Critical finding or a
+ triage left outside the roadmap is named with its item number — and what is NOT
+ covered), `REMEDIATION.md` (every remedy with its **claim-audit block**: verbatim
+ observation + evidence `file:line` + two proofs: the one the team runs with its own
+ tools, and the next run's re-check from the scanner's `verify-fix` capability),
+ `FINDINGS.md` (the complete projected base — established/open/facts — so any claim
+ can be audited before acting), and `plan/NN-*.md` (one session prompt per roadmap
+ item, per triage item and per High-and-above remedy — the trailing lower-severity
+ fixes stay in `REMEDIATION.md` — each prompt: confirm claims → interview → choose →
+ implement → prove, never deploying or sending anything on its own). Scanner text is **fenced as data-not-instructions** (untrusted
  target repo); authored prose is the eval agent's own voice, unfenced and labeled.
  Two fail-closed gates: roadmap ids missing from the base halt (drift), and open gaps
  with an empty sequence halt (the machine-side false-green — a handoff must never read
