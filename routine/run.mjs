@@ -46,7 +46,7 @@
 // <repo-dir>/packet/manifest.yaml, is folded into the measurement automatically.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, existsSync, rmSync, readFileSync } from 'node:fs';
-import { join, dirname, resolve, isAbsolute } from 'node:path';
+import { join, dirname, resolve, isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { isMain } from '../map/doctrine.mjs';
@@ -299,7 +299,10 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   const resolvedBaseline = resolve(baselineFile);
   const rat = assay(['ratchet', outDir, '--baseline', resolvedBaseline]);
   say(rat.stdout || '');
-  const baselineInfo = { source: 'file', where: resolvedBaseline };
+  // recorded relative to the repository when it lives inside it: an absolute path would only
+  // describe the machine the routine ran on (a CI runner's workspace), not the repository
+  const relBaseline = relative(repoDir, resolvedBaseline);
+  const baselineInfo = { source: 'file', where: relBaseline && !relBaseline.startsWith('..') && !isAbsolute(relBaseline) ? relBaseline.split(sep).join('/') : resolvedBaseline };
   if (rat.status !== 0) {
     say(rat.stderr || '');
     say('✗ ratchet failed — a held requirement regressed or dropped off the measured scale.');
