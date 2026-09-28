@@ -1,0 +1,16 @@
+# tests/instruments/repo-census-pointers-target/packet/manifest.yaml — invented,
+# for the repo-census pointers fixture only (owner/PACKET.md "Pointers").
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-28"
+  by: founder
+  via: steward
+pointers:
+  default_branch: trunk
+  apps: [apps/web, apps/ghost]
+  architecture: [docs/nonstandard/ARCH.md, apps/web/ARCHITECTURE.md]
+  agent_contract: OPERATOR.md
+  runbook: docs/nonstandard/RUNBOOK-custom.md
+  evidence: ops/nonstandard-evidence
+  workflows: .github/ci-workflows

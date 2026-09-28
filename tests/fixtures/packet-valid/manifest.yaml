@@ -71,4 +71,13 @@ custody:
         seen_by: founder
     alerts: "none configured yet"
   handover: "repo access, hosting account transfer, and the credential list above"
+pointers:
+  default_branch: main
+  architecture: docs/architecture.md
+  agent_contract: CLAUDE.md
+  runbook: RUNBOOK.md
+  workflows: .github/workflows
+  install: "npm ci"
+  build: "npm run build"
+  test: "npm test"
 notes: "First packet filled at intake; bus factor and the backlog-is-issues claim are open follow-ups."

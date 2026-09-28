@@ -1,0 +1,15 @@
+{
+  "tool": "repo-census",
+  "version": "0.3.0",
+  "target": {
+    "path": "/home/steward/very-local-checkout-path-should-never-print",
+    "head": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+    "remote": "https://x-access-token:not-a-real-token@github.com/example/notesbox.git"
+  },
+  "monorepo": { "detected": false, "locations": [] },
+  "evidence": { "asOf": "2026-09-28", "maxAgeDays": 90 },
+  "checks": [
+    { "name": "runbook", "status": "pass", "detail": { "path": "." }, "evidence": ["RUNBOOK.md:1"], "observation": "invented, for the ask-owner-run-remote fixture only." }
+  ],
+  "exit": 0
+}

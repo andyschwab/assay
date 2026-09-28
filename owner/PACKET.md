@@ -89,6 +89,39 @@ custody:
 notes: "<anything the answerer wants us to know>"
 ```
 
+## Pointers
+
+An optional top-level `pointers:` map says where *this* repository keeps what
+the yardstick asks about, so a scanner reads it the way it says it is laid out
+instead of guessing. The first reader is `repo-census` (`map/repo-census.mjs`):
+when a pointer names a path, that check reads exactly that path and never
+falls back to discovery. Every pointer is optional and the whole section is
+optional; paths are always relative to the repo root, never absolute, never
+`..`, never a URL.
+
+```yaml
+pointers:                              # where this repository keeps what the yardstick asks about; paths relative to the repo root
+  default_branch: main
+  apps: [apps/web, services/worker]    # the deployable units, when not just the root
+  architecture: docs/architecture.md   # one path or a list (root and per-app pages)
+  agent_contract: CLAUDE.md            # one path or a list
+  runbook: ops/RUNBOOK.md
+  evidence: ops/evidence               # the directory holding the owner-evidence transcripts (owner/evidence/README.md)
+  workflows: .github/workflows         # where CI is defined
+  install: "npm ci"                    # the commands, as words; assay never executes packet text during validation
+  build: "npm run build"
+  test: "npm test"
+  canon: packet/canon.yaml             # the declared enumeration contract (map/canon/README.md), when the repository carries one
+```
+
+`validate-packet` refuses, one plain line each: an unknown key under
+`pointers`; a path that is absolute, contains `..`, or contains a URL scheme;
+a non-string where a string is expected; `apps`/`architecture`/`agent_contract`
+that is neither a string nor a list of strings; a `default_branch` that is not
+a plausible git ref name. `install`/`build`/`test` are free-text commands, in
+words, never executed and never path-checked — assay never executes packet
+text.
+
 ## Claims and a run, compared — never merged
 
 A packet's `claims:` are the owner's own word on a requirement; a run's

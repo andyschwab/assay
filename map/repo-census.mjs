@@ -56,17 +56,36 @@
 // `pass` or `not-applicable`. A crash of the runner itself exits 2, so ingest.mjs
 // (success set [0, 1]) halts on it.
 //
+// The packet's pointers (owner/PACKET.md "Pointers"): with `--packet <dir |
+// manifest.yaml>`, or with no flag when `<target>/packet/manifest.yaml` exists
+// (the self-describing case — recorded in the output either way), the packet
+// is loaded and validated first (validatePacket) — an invalid packet halts
+// this runner with the validator's lines, same crash rule, exit 2. A pointer
+// is then authoritative, never a hint, for the check(s) it names:
+// `default_branch` beats discovery (a `--default-branch` flag still wins over
+// both); `apps` replaces monorepo detection for the per-location checks
+// (architecture-page, agent-contract) — an app path that does not exist is a
+// gap for that location; `architecture` / `agent_contract` / `runbook` /
+// `evidence` / `workflows` each make their check read exactly the named
+// path(s) instead of searching, and a pointer to a missing path is a gap
+// naming it, never a silent fallback. The output's `packet` field names which
+// pointers were followed; a check that followed one says so in its
+// observation. The format itself is documented once, at `owner/PACKET.md` —
+// this file never restates it.
+//
 // Usage:
 //   node assay.mjs repo-census <target-dir> --out <file.json> [--default-branch <name>]
-//     [--as-of <YYYY-MM-DD>] [--evidence-max-age <days>]
-// Zero dependencies (node: modules only).
+//     [--as-of <YYYY-MM-DD>] [--evidence-max-age <days>] [--packet <dir|manifest.yaml>]
+// Zero dependencies (node: modules only) beyond the packet reader it shares
+// with validate-packet (yardstick/packet.mjs).
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join, resolve, isAbsolute } from 'node:path';
+import { join, resolve, isAbsolute, relative, sep } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
+import { loadPacket, validatePacket, requirementIdsOnDisk } from '../yardstick/packet.mjs';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 export const EVIDENCE_IDS = [
   'd-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command',
   'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts',
@@ -147,14 +166,67 @@ export function detectMonorepo(dir) {
   return { detected: locations.size > 0, locations: [...locations].sort() };
 }
 
+// ── the packet's pointers (owner/PACKET.md "Pointers") ───────────────────────
+// Resolution: an explicit --packet flag names a manifest.yaml or a packet dir;
+// with no flag, <target>/packet/manifest.yaml is picked up automatically when
+// present (the self-describing case) — either way it is loaded and validated
+// the same way validate-packet does, and an invalid packet halts this runner
+// (thrown here, caught by the CLI's own crash handler below: exit 2, same rule
+// as any other runner crash).
+// A pointer to a missing path cannot cite that path (validate refuses evidence the
+// tree does not have), so it cites the packet itself when the packet is in the tree
+// (the claim that is wrong), else the repository root. Set per run().
+let missingPointerCite = './:1';
+export function findPacketSource(dir, packetArg) {
+  if (packetArg) return { source: packetArg, auto: false };
+  if (existsSync(join(dir, 'packet', 'manifest.yaml'))) return { source: join(dir, 'packet'), auto: true };
+  return null;
+}
+export function loadValidatedPacket(source) {
+  const { doc, file } = loadPacket(source);
+  const requirementIds = requirementIdsOnDisk();
+  const errors = validatePacket(doc, { requirementIds });
+  if (errors.length) throw new Error(`invalid packet at ${file}:\n${errors.map((e) => `  • ${e}`).join('\n')}`);
+  return { doc, file };
+}
+// A path-or-list pointer (architecture, agent_contract) applied to one
+// location: a scalar names the root's page; a list is read positionally
+// against `locations` (root first, then apps in the packet's own `apps`
+// order) — every pointer path is relative to the repo root, per owner/PACKET.md.
+export function pointerForLocation(value, locations, loc) {
+  if (value === undefined || value === null) return null;
+  if (Array.isArray(value)) {
+    const idx = locations.indexOf(loc);
+    return idx > -1 && idx < value.length ? value[idx] : null;
+  }
+  return loc === '.' ? value : null;
+}
+const pointerNote = (used) => (used ? " (per the packet's pointer)" : '');
+
 // ── architecture-page ────────────────────────────────────────────────────────
 const EXTERNAL_RE = /\b(database|queue|api|service|store|bucket|provider)\b/i;
 const DIAGRAM_RE = /```\s*mermaid\b|\bdiagram\b/i;
-function checkArchitecturePage(dir, loc) {
+function checkArchitecturePage(dir, loc, pointerPath) {
   const base = loc === '.' ? dir : join(dir, loc);
   const relPath = (p) => (loc === '.' ? p : `${loc}/${p}`);
   const name = 'architecture-page';
   const detail = { path: loc };
+  if (loc !== '.' && !existsSync(base)) {
+    detail.pointer = 'apps';
+    return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${loc} as an app, which does not exist.` };
+  }
+  if (pointerPath) {
+    detail.pointer = 'architecture';
+    const full = join(dir, pointerPath);
+    if (!existsSync(full)) {
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${pointerPath} for the architecture page, which does not exist.` };
+    }
+    const content = safeRead(full) || '';
+    const namesExternal = EXTERNAL_RE.test(content) || DIAGRAM_RE.test(content);
+    const evidence = [`${pointerPath}:1`];
+    if (namesExternal) return { name, status: 'pass', detail, evidence, observation: `${pointerPath}${pointerNote(true)} exists and names at least one external service or data store.` };
+    return { name, status: 'gap', detail, evidence, observation: `${pointerPath}${pointerNote(true)} exists but names no external service or data store — no heading or line mentions database, queue, API, service, store, bucket, or provider, and no diagram block is present.` };
+  }
   let filePath = null, content = null, lineOffset = 1;
 
   const top = ciFindFile(base, ['ARCHITECTURE.md']);
@@ -202,23 +274,38 @@ function checkArchitecturePage(dir, loc) {
 // ── agent-contract ───────────────────────────────────────────────────────────
 const AGENT_HEADING_RE = /^#+\s*(status|history|changelog|todo|backlog)\b/i;
 const DATED_LINE_RE = /^(?:\d{4}-\d{2}-\d{2}\b|-\s*\d{4}-)/;
-function checkAgentContract(dir, loc) {
+function checkAgentContract(dir, loc, pointerPath) {
   const base = loc === '.' ? dir : join(dir, loc);
   const relPath = (p) => (loc === '.' ? p : `${loc}/${p}`);
   const name = 'agent-contract';
   const detail = { path: loc };
-
-  let file = ciFindFile(base, ['AGENTS.md']);
-  if (!file) file = ciFindFile(base, ['CLAUDE.md']);
-  if (!file) {
-    return {
-      name, status: 'gap', detail,
-      evidence: [`${relPath('')}:1`],
-      observation: `No AGENTS.md or CLAUDE.md found${loc !== '.' ? ` for ${loc}` : ''}.`,
-    };
+  if (loc !== '.' && !existsSync(base)) {
+    detail.pointer = 'apps';
+    return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${loc} as an app, which does not exist.` };
   }
-  const filePath = relPath(file);
-  const text = safeRead(join(base, file)) || '';
+
+  let filePath, text;
+  if (pointerPath) {
+    detail.pointer = 'agent_contract';
+    const full = join(dir, pointerPath);
+    if (!existsSync(full)) {
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${pointerPath} for the agent contract, which does not exist.` };
+    }
+    filePath = pointerPath;
+    text = safeRead(full) || '';
+  } else {
+    let file = ciFindFile(base, ['AGENTS.md']);
+    if (!file) file = ciFindFile(base, ['CLAUDE.md']);
+    if (!file) {
+      return {
+        name, status: 'gap', detail,
+        evidence: [`${relPath('')}:1`],
+        observation: `No AGENTS.md or CLAUDE.md found${loc !== '.' ? ` for ${loc}` : ''}.`,
+      };
+    }
+    filePath = relPath(file);
+    text = safeRead(join(base, file)) || '';
+  }
   const lines = text.split('\n');
   let offense = null;
   for (let i = 0; i < lines.length; i++) {
@@ -228,13 +315,13 @@ function checkAgentContract(dir, loc) {
     return {
       name, status: 'gap', detail,
       evidence: [`${filePath}:${offense.line}`],
-      observation: `${filePath}:${offense.line} carries a status/history marker ("${offense.text.slice(0, 80)}") — an agent contract must be present-tense; history and status belong in a separate, co-located history file (canon convention).`,
+      observation: `${filePath}:${offense.line}${pointerNote(!!pointerPath)} carries a status/history marker ("${offense.text.slice(0, 80)}") — an agent contract must be present-tense; history and status belong in a separate, co-located history file (canon convention).`,
     };
   }
   return {
     name, status: 'pass', detail,
     evidence: [`${filePath}:1`],
-    observation: `${filePath} is present and present-tense: no status/history/changelog/todo/backlog heading and no dated changelog line.`,
+    observation: `${filePath}${pointerNote(!!pointerPath)} is present and present-tense: no status/history/changelog/todo/backlog heading and no dated changelog line.`,
   };
 }
 
@@ -258,9 +345,23 @@ function hasProcedure(text, verbRe, nounRe) {
   }
   return false;
 }
-function checkRunbook(dir) {
+function checkRunbook(dir, pointerPath) {
   const name = 'runbook';
   const detail = { path: '.' };
+  if (pointerPath) {
+    detail.pointer = 'runbook';
+    const full = join(dir, pointerPath);
+    if (!existsSync(full)) {
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${pointerPath} for the runbook, which does not exist.` };
+    }
+    const content = safeRead(full) || '';
+    const missing = PROCEDURES.filter(([, verbRe, nounRe]) => !hasProcedure(content, verbRe, nounRe)).map(([label]) => label);
+    const evidence = [`${pointerPath}:1`];
+    if (missing.length) {
+      return { name, status: 'gap', detail, evidence, missing, observation: `${pointerPath}${pointerNote(true)} is missing a heading or paragraph for: ${missing.join(', ')}. Presence of the words is what this decides; whether a procedure was ever actually run is a separate, sidecar claim.` };
+    }
+    return { name, status: 'pass', detail, evidence, observation: `${pointerPath}${pointerNote(true)} carries a heading or paragraph for restart, roll back, rotate, and restore. Presence of the words is what this decides; whether a procedure was ever actually run is a separate, sidecar claim.` };
+  }
   let filePath = null, content = null, lineOffset = 1;
 
   const top = ciFindFile(dir, ['RUNBOOK.md']);
@@ -428,8 +529,9 @@ export function parseWorkflow(text) {
   const lines = toLines(text);
   return { trigger: parseTrigger(lines), steps: parseSteps(lines) };
 }
-function resolveDefaultBranch(dir, given) {
+function resolveDefaultBranch(dir, given, pointerBranch) {
   if (given) return given;
+  if (pointerBranch) return pointerBranch;
   if (existsSync(join(dir, '.git'))) {
     const r = spawnSync('git', ['symbolic-ref', 'refs/remotes/origin/HEAD'], { cwd: dir, encoding: 'utf8' });
     if (r.status === 0 && r.stdout) {
@@ -439,24 +541,26 @@ function resolveDefaultBranch(dir, given) {
   }
   return 'main';
 }
-function checkCiGate(dir, defaultBranchArg) {
+function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
   const name = 'ci-gate';
-  const defaultBranch = resolveDefaultBranch(dir, defaultBranchArg);
-  const wfDir = join(dir, '.github', 'workflows');
+  const defaultBranch = resolveDefaultBranch(dir, defaultBranchArg, pointerBranch);
+  const wfRelBase = workflowsPointer ? workflowsPointer.replace(/\/$/, '') : '.github/workflows';
+  const wfDir = join(dir, wfRelBase);
   const files = safeReaddir(wfDir).filter((f) => /\.ya?ml$/i.test(f)).sort();
   const branchNote = 'Branch protection (whether this check is required to merge) is not visible from the tree; this check decides only what the tree shows.';
   const detail = { path: '.', defaultBranch, workflows: [], failOpen: [] };
+  if (workflowsPointer) detail.pointer = 'workflows';
   if (!files.length) {
     return {
       name, status: 'gap', detail,
-      evidence: ['./:1'],
-      observation: `No .github/workflows/*.yml|.yaml found; nothing runs the gates on the default branch (${defaultBranch}) or on a pull request. ${branchNote}`,
+      evidence: [existsSync(wfDir) ? `${wfRelBase}/:1` : './:1'],   // never cite a path the tree does not have
+      observation: `No ${wfRelBase}/*.yml|.yaml found${pointerNote(!!workflowsPointer)}; nothing runs the gates on the default branch (${defaultBranch}) or on a pull request. ${branchNote}`,
     };
   }
   let anyGate = false;
   const failOpen = [];
   for (const f of files) {
-    const relFile = `.github/workflows/${f}`;
+    const relFile = `${wfRelBase}/${f}`;
     const text = safeRead(join(wfDir, f)) || '';
     const { trigger, steps } = parseWorkflow(text);
     const onPR = trigger.events.includes('pull_request') || trigger.events.includes('pull_request_target');
@@ -479,13 +583,13 @@ function checkCiGate(dir, defaultBranchArg) {
     return {
       name, status: 'gap', detail,
       evidence: detail.workflows.map((w) => `${w.file}:1`),
-      observation: `No workflow both triggers on pull_request (or push to the default branch, ${defaultBranch}) and runs a test/lint/typecheck/build step. ${branchNote}`,
+      observation: `No workflow both triggers on pull_request (or push to the default branch, ${defaultBranch}${pointerNote(!!pointerBranch)}) and runs a test/lint/typecheck/build step${pointerNote(!!workflowsPointer)}. ${branchNote}`,
     };
   }
   return {
     name, status: 'pass', detail,
     evidence: detail.workflows.filter((w) => w.gates).map((w) => `${w.file}:1`),
-    observation: `At least one workflow gates on pull_request or push to the default branch (${defaultBranch}) and runs a test/lint/typecheck/build step, with no gate step failing open. ${branchNote}`,
+    observation: `At least one workflow${pointerNote(!!workflowsPointer)} gates on pull_request or push to the default branch (${defaultBranch}${pointerNote(!!pointerBranch)}) and runs a test/lint/typecheck/build step, with no gate step failing open. ${branchNote}`,
   };
 }
 
@@ -530,7 +634,11 @@ const EVIDENCE_COMMIT_RE = /^[0-9a-f]{7,40}$/i;
 const EVIDENCE_ACCOUNT_RE = /^[^:]+:.+->.+$/; // "<account>: <threshold> -> <recipient>"
 
 // find ops/evidence/<id>.md, else docs/evidence/<id>.md; first found wins
-function findEvidenceFile(dir, id) {
+function findEvidenceFile(dir, id, pointerDir) {
+  if (pointerDir) {
+    const rel = `${pointerDir.replace(/\/$/, '')}/${id}.md`;
+    return statOk(join(dir, rel), (s) => s.isFile()) ? { relPath: rel, source: 'pointer' } : null;
+  }
   for (const base of ['ops', 'docs']) {
     const rel = `${base}/evidence/${id}.md`;
     if (statOk(join(dir, rel), (s) => s.isFile())) return { relPath: rel, source: base };
@@ -555,12 +663,17 @@ function checkEvidenceBody(bodyLines) {
   const fenceCount = bodyLines.filter((l) => /^```/.test(l.trim())).length;
   return { nonEmptyCount, hasFencedBlock: fenceCount >= 2 };
 }
-function checkEvidenceRow(dir, id, asOfDate, maxAgeDays) {
+function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   const name = `evidence-${id}`;
   const rowSpec = EVIDENCE_ROWS[id];
   const detail = { path: '.', descriptor: id, file: null };
-  const found = findEvidenceFile(dir, id);
+  if (evidencePointer) detail.pointer = 'evidence';
+  const found = findEvidenceFile(dir, id, evidencePointer);
   if (!found) {
+    if (evidencePointer) {
+      const rel = `${evidencePointer.replace(/\/$/, '')}/${id}.md`;
+      return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${rel}, which does not exist.` };
+    }
     return {
       name, status: 'gap', detail,
       evidence: ['.:1'],
@@ -643,7 +756,7 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays) {
   return {
     name, status: 'pass', detail,
     evidence: [`${found.relPath}:1`],
-    observation: `${found.relPath} attests, by ${fm.by} at commit ${fm.commit} on ${fm.date} (as of ${asOfDate}), that ${rowSpec.label}. This check verifies the transcript's shape and freshness, not that the procedure actually happened.`,
+    observation: `${found.relPath}${pointerNote(!!evidencePointer)} attests, by ${fm.by} at commit ${fm.commit} on ${fm.date} (as of ${asOfDate}), that ${rowSpec.label}. This check verifies the transcript's shape and freshness, not that the procedure actually happened.`,
   };
 }
 
@@ -653,26 +766,72 @@ function gitHead(dir) {
   const r = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' });
   return r.status === 0 ? String(r.stdout || '').trim() || null : null;
 }
-export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeDays = 90 }) {
+// strip a "user:password@" userinfo from an http(s)-style remote URL; an SSH
+// remote (git@host:owner/repo.git) carries no "://" and is left untouched — the
+// "git@" there is the protocol's normal user, not a leaked credential.
+const USERINFO_RE = /^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)[^/@]+@/;
+export function stripUserinfo(url) { return url.replace(USERINFO_RE, '$1'); }
+function gitRemote(dir) {
+  if (!existsSync(join(dir, '.git'))) return null;
+  const r = spawnSync('git', ['remote', 'get-url', 'origin'], { cwd: dir, encoding: 'utf8' });
+  if (r.status !== 0) return null;
+  const url = String(r.stdout || '').trim();
+  return url ? stripUserinfo(url) : null;
+}
+export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeDays = 90, packet: packetArg = null }) {
   const dir = resolve(target);
   if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new Error(`target is not a directory: ${target}`);
-  const mono = detectMonorepo(dir);
+
+  const packetSource = findPacketSource(dir, packetArg);
+  let packetDoc = null, packetFile = null, packetAuto = false;
+  if (packetSource) {
+    const { doc, file } = loadValidatedPacket(packetSource.source);
+    packetDoc = doc; packetFile = file; packetAuto = packetSource.auto;
+  }
+  const packetRel = packetFile ? relative(dir, resolve(packetFile)) : null;
+  missingPointerCite = packetRel && !packetRel.startsWith('..') && !isAbsolute(packetRel) ? `${packetRel.split(sep).join('/')}:1` : './:1';
+  const pointers = (packetDoc && packetDoc.pointers) || {};
+  const pointersUsed = new Set();
+  const note = (key) => pointersUsed.add(key);
+
+  const mono = Array.isArray(pointers.apps)
+    ? { detected: true, locations: [...pointers.apps] }
+    : (typeof pointers.apps === 'string' ? { detected: true, locations: [pointers.apps] } : detectMonorepo(dir));
+  if (pointers.apps !== undefined) note('apps');
   const locations = mono.detected ? ['.', ...mono.locations] : ['.'];
+
   const checks = [];
-  for (const loc of locations) checks.push(checkArchitecturePage(dir, loc));
-  for (const loc of locations) checks.push(checkAgentContract(dir, loc));
-  checks.push(checkRunbook(dir));
-  checks.push(checkCiGate(dir, defaultBranch));
+  for (const loc of locations) {
+    const p = pointerForLocation(pointers.architecture, locations, loc);
+    if (p) note('architecture');
+    checks.push(checkArchitecturePage(dir, loc, p));
+  }
+  for (const loc of locations) {
+    const p = pointerForLocation(pointers.agent_contract, locations, loc);
+    if (p) note('agent_contract');
+    checks.push(checkAgentContract(dir, loc, p));
+  }
+  if (pointers.runbook) note('runbook');
+  checks.push(checkRunbook(dir, pointers.runbook || null));
+  if (pointers.default_branch) note('default_branch');
+  if (pointers.workflows) note('workflows');
+  checks.push(checkCiGate(dir, defaultBranch, pointers.default_branch || null, pointers.workflows || null));
   const asOfDate = asOf || new Date().toISOString().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) throw new Error(`--as-of must be YYYY-MM-DD (got "${asOfDate}")`);
   if (!(Number(evidenceMaxAgeDays) > 0)) throw new Error(`--evidence-max-age must be a positive number of days (got "${evidenceMaxAgeDays}")`);
-  for (const id of EVIDENCE_IDS) checks.push(checkEvidenceRow(dir, id, asOfDate, Number(evidenceMaxAgeDays)));
+  if (pointers.evidence) note('evidence');
+  for (const id of EVIDENCE_IDS) checks.push(checkEvidenceRow(dir, id, asOfDate, Number(evidenceMaxAgeDays), pointers.evidence || null));
   const exit = checks.some((c) => c.status === 'gap') ? 1 : 0;
-  return {
-    tool: 'repo-census', version: VERSION, target: { path: target, head: gitHead(dir) }, monorepo: mono,
+  const target_ = { path: target, head: gitHead(dir) };
+  const remote = gitRemote(dir);
+  if (remote) target_.remote = remote;
+  const doc = {
+    tool: 'repo-census', version: VERSION, target: target_, monorepo: mono,
     evidence: { asOf: asOfDate, maxAgeDays: Number(evidenceMaxAgeDays) },
     checks, exit,
   };
+  if (packetDoc) doc.packet = { path: packetFile, auto: packetAuto, pointers_used: [...pointersUsed].sort() };
+  return doc;
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
@@ -684,15 +843,17 @@ if (isMain(import.meta.url)) {
   const defaultBranch = opt('--default-branch');
   const asOf = opt('--as-of');
   const evidenceMaxAge = opt('--evidence-max-age');
+  const packetArg = opt('--packet');
   if (!target || !out) {
-    console.error('usage: node assay.mjs repo-census <target-dir> --out <file.json> [--default-branch <name>] [--as-of <YYYY-MM-DD>] [--evidence-max-age <days>]');
+    console.error('usage: node assay.mjs repo-census <target-dir> --out <file.json> [--default-branch <name>] [--as-of <YYYY-MM-DD>] [--evidence-max-age <days>] [--packet <dir|manifest.yaml>]');
     process.exit(2);
   }
   try {
-    const doc = run({ target, defaultBranch, asOf, evidenceMaxAgeDays: evidenceMaxAge != null ? Number(evidenceMaxAge) : undefined });
+    const doc = run({ target, defaultBranch, asOf, evidenceMaxAgeDays: evidenceMaxAge != null ? Number(evidenceMaxAge) : undefined, packet: packetArg });
     writeFileSync(isAbsolute(out) ? out : resolve(out), JSON.stringify(doc, null, 2) + '\n');
     const gaps = doc.checks.filter((c) => c.status === 'gap').map((c) => c.detail?.path && c.detail.path !== '.' ? `${c.name}@${c.detail.path}` : c.name);
-    console.error(`${doc.exit === 0 ? '✓' : '✗'} repo-census: ${doc.checks.filter((c) => c.status === 'pass').length} passed · ${gaps.length} gap${gaps.length === 1 ? '' : 's'}${gaps.length ? ` (${gaps.join(', ')})` : ''} → ${out}`);
+    const packetNote = doc.packet ? ` · packet ${doc.packet.auto ? '(auto-detected) ' : ''}at ${doc.packet.path}${doc.packet.pointers_used.length ? ` (pointers followed: ${doc.packet.pointers_used.join(', ')})` : ''}` : '';
+    console.error(`${doc.exit === 0 ? '✓' : '✗'} repo-census: ${doc.checks.filter((c) => c.status === 'pass').length} passed · ${gaps.length} gap${gaps.length === 1 ? '' : 's'}${gaps.length ? ` (${gaps.join(', ')})` : ''} → ${out}${packetNote}`);
     process.exit(doc.exit);
   } catch (e) {
     console.error(`✗ repo-census crashed: ${e.message}`);

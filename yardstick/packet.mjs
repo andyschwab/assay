@@ -40,7 +40,37 @@ export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
 
 export const PACKET_VERSION = 1;
 const PLACEHOLDER_ROLE = /^(unknown|nobody|none|no one|n\/a|tbd|\?+)$/i;
-export const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answered', 'claims', 'custody', 'notes'];
+export const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answered', 'claims', 'custody', 'pointers', 'notes'];
+// pointers: where a repository keeps what the yardstick asks about (owner/PACKET.md
+// "Pointers"). Each is optional; the whole section is optional. Split by shape:
+//   - a single path or a list of paths (root and per-app pages allowed)
+//   - a single path only
+//   - free-text commands, never executed, never path-checked
+//   - default_branch, checked as a plausible git ref name instead of a path
+export const POINTER_PATH_OR_LIST_KEYS = ['apps', 'architecture', 'agent_contract'];
+export const POINTER_PATH_KEYS = ['runbook', 'evidence', 'workflows', 'canon'];
+export const POINTER_COMMAND_KEYS = ['install', 'build', 'test'];
+export const POINTER_KEYS = ['default_branch', ...POINTER_PATH_OR_LIST_KEYS, ...POINTER_PATH_KEYS, ...POINTER_COMMAND_KEYS];
+// a plausible git ref: no absolute/relative-parent shape, no whitespace or the
+// characters git itself refuses in a ref (~^:?*[\), no leading/trailing/doubled
+// slash, no leading dash, never just "."
+const GIT_REF_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+export function badGitRef(v) {
+  if (typeof v !== 'string' || !v.trim()) return true;
+  if (!GIT_REF_RE.test(v)) return true;
+  if (v.includes('..') || v.includes('//') || v.startsWith('/') || v.endsWith('/') || v.endsWith('.lock')) return true;
+  return false;
+}
+// a pointer path is relative to the repo root, never absolute, never climbing
+// out with "..", and never a URL (a pointer names a file IN the repository).
+const URL_SCHEME_RE = /^[A-Za-z][A-Za-z0-9+.-]*:\/\//;
+export function badPointerPath(v) {
+  if (typeof v !== 'string') return 'must be a string';
+  if (URL_SCHEME_RE.test(v)) return 'must be a path in the repository, not a URL';
+  if (v.startsWith('/')) return 'must be relative to the repo root, not absolute';
+  if (v.split('/').includes('..')) return 'must not contain ".."';
+  return null;
+}
 export const ANSWERED_VIA = ['owner-prompt', 'steward'];
 export const CLAIM_STATES = ['satisfied', 'not-applicable', 'open', 'unknown'];
 export const CERTAINTY = ['sure', 'unsure', 'unknown'];
@@ -178,6 +208,37 @@ export function validatePacket(doc, { requirementIds = [] } = {}) {
     if (cu.money !== undefined && (typeof cu.money !== 'object' || Array.isArray(cu.money))) err('custody.money: must be a mapping');
     if (cu.money && cu.money.monthly !== undefined && !Array.isArray(cu.money.monthly)) err('custody.money.monthly: must be a list');
     if (cu.data !== undefined && (typeof cu.data !== 'object' || Array.isArray(cu.data))) err('custody.data: must be a mapping');
+  }
+
+  // pointers: where this repository keeps what the yardstick asks about
+  // (owner/PACKET.md "Pointers"). Every pointer is optional; the whole
+  // section is optional.
+  const ptr = doc.pointers;
+  if (ptr !== undefined && (typeof ptr !== 'object' || Array.isArray(ptr))) err('pointers: must be a mapping');
+  else if (ptr) {
+    for (const k of Object.keys(ptr)) if (!POINTER_KEYS.includes(k)) err(`pointers.${k}: unknown pointer`);
+    const checkPath = (v, at) => {
+      const problem = badPointerPath(v);
+      if (problem) err(`${at}: ${problem}`);
+    };
+    for (const k of POINTER_PATH_OR_LIST_KEYS) {
+      const v = ptr[k];
+      if (v === undefined) continue;
+      if (typeof v === 'string') checkPath(v, `pointers.${k}`);
+      else if (Array.isArray(v)) v.forEach((item, i) => (typeof item === 'string' ? checkPath(item, `pointers.${k}[${i}]`) : err(`pointers.${k}[${i}]: must be a string`)));
+      else err(`pointers.${k}: must be a path (a string) or a list of paths`);
+    }
+    for (const k of POINTER_PATH_KEYS) {
+      const v = ptr[k];
+      if (v === undefined) continue;
+      if (typeof v !== 'string') err(`pointers.${k}: must be a string`);
+      else checkPath(v, `pointers.${k}`);
+    }
+    for (const k of POINTER_COMMAND_KEYS) {
+      const v = ptr[k];
+      if (v !== undefined && typeof v !== 'string') err(`pointers.${k}: must be a string`);
+    }
+    if (ptr.default_branch !== undefined && badGitRef(ptr.default_branch)) err(`pointers.default_branch: not a plausible git ref name (got ${JSON.stringify(ptr.default_branch)})`);
   }
 
   // secret- and email-shaped values, ANYWHERE in the file (owner/PACKET.md) —

@@ -1,0 +1,10 @@
+# negative/packet-pointer-bad-branch — a default_branch that is not a
+# plausible git ref name; validate-packet must refuse it.
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+pointers:
+  default_branch: "refs/../weird branch"

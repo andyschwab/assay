@@ -33,9 +33,12 @@ import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
 import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
-import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim } from '../yardstick/packet.mjs';
-import { packetManifestPath } from '../lib/run-layout.mjs';
-import { buildWhatWeFound, render, MARKER, NOTHING_YET } from '../owner/ask-owner.mjs';
+import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef } from '../yardstick/packet.mjs';
+import { compare, classify, fingerprintFinding, compareFindings } from '../yardstick/compare.mjs';
+import { loadBaseline, loadYardstickDoc, evaluateRatchet } from '../yardstick/ratchet.mjs';
+import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath } from '../lib/run-layout.mjs';
+import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
+import { runRoutine } from '../routine/run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -773,6 +776,12 @@ function adaptersOnce() { return loadAdapters(); }
     if (!doc.monorepo?.detected || doc.monorepo.locations.join() !== 'apps/one') fail(`the fixture must be detected as a monorepo with apps/one (got ${JSON.stringify(doc.monorepo)})`);
     if (doc.evidence?.asOf !== AS_OF) fail(`the document must record the --as-of date (got ${JSON.stringify(doc.evidence)})`);
     const at = (nm, loc) => doc.checks.find((c) => c.name === nm && c.detail?.path === loc);
+    // every cited path must exist in the target: validate refuses evidence the tree does not have,
+    // so a pointer to a missing path cites the packet (in the tree here), never the missing path
+    for (const c of doc.checks) for (const ev of c.evidence || []) {
+      const p = ev.replace(/:\d+$/, '');
+      if (!existsSync(join(fx, p))) fail(`${c.name} (${c.detail?.path}) cites ${ev}, which is not in the target`);
+    }
     const arch = at('architecture-page', '.');
     if (arch?.status !== 'pass') fail(`architecture-page must pass at root (got ${arch?.status})`);
     const archApp = at('architecture-page', 'apps/one');
@@ -898,6 +907,108 @@ function adaptersOnce() { return loadAdapters(); }
     try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); } catch (e) { fail(`an ingested repo-census run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
   }
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── repo-census reads the packet's pointers (owner/PACKET.md "Pointers") ─────
+// tests/instruments/repo-census-pointers-target's packet/manifest.yaml is
+// auto-picked-up (no --packet flag) and points every check at a non-default
+// location; a decoy sits at each discovered default to prove no fallback.
+{
+  const fail = (m) => negFailures.push('repo-census-pointers: ' + m);
+  const fx = join(HERE, 'instruments', 'repo-census-pointers-target');
+  const tmp = join(HERE, 'tmp-repo-census-pointers'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  const out = join(tmp, 'repo-census.json');
+  let exit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), fx, '--out', out, '--as-of', '2026-09-28'], { stdio: 'pipe' }); }
+  catch (e) { exit = e.status; }
+  if (exit !== 1) fail(`the runner over the pointers fixture must exit 1 (planted gaps; got ${exit})`);
+  let doc = null;
+  try { doc = JSON.parse(readFileSync(out, 'utf8')); } catch { fail('the runner must write a JSON document at --out'); }
+  if (doc) {
+    if (!doc.packet || !doc.packet.auto || !/packet[/\\]manifest\.yaml$/.test(doc.packet.path)) fail(`no --packet flag: the run's own packet/manifest.yaml must be auto-picked-up and recorded (got ${JSON.stringify(doc.packet)})`);
+    const wantPointers = ['agent_contract', 'apps', 'architecture', 'default_branch', 'evidence', 'runbook', 'workflows'];
+    if (JSON.stringify(doc.packet.pointers_used) !== JSON.stringify(wantPointers)) fail(`pointers_used must list every pointer the run followed, sorted (got ${JSON.stringify(doc.packet.pointers_used)})`);
+    if (doc.monorepo.locations.join() !== 'apps/web,apps/ghost') fail(`apps: must replace monorepo detection outright (got ${JSON.stringify(doc.monorepo)})`);
+    const at = (nm, loc) => doc.checks.find((c) => c.name === nm && c.detail?.path === loc);
+
+    // architecture: a list, positional against locations (root, then apps/web)
+    const archRoot = at('architecture-page', '.');
+    if (archRoot?.status !== 'pass' || archRoot.evidence[0] !== 'docs/nonstandard/ARCH.md:1' || !/per the packet's pointer/.test(archRoot.observation)) fail(`architecture pointer must be read at root, exactly, and say so (got ${JSON.stringify(archRoot)})`);
+    const archWeb = at('architecture-page', 'apps/web');
+    if (archWeb?.status !== 'pass' || archWeb.evidence[0] !== 'apps/web/ARCHITECTURE.md:1') fail(`a positional architecture pointer entry must be read for apps/web (got ${JSON.stringify(archWeb)})`);
+    // apps/ghost: named by the apps pointer but does not exist -> a gap naming it, for BOTH per-location checks
+    const archGhost = at('architecture-page', 'apps/ghost');
+    if (archGhost?.status !== 'gap' || !/apps\/ghost as an app, which does not exist/.test(archGhost.observation)) fail(`a missing app path must gap for architecture-page, naming it (got ${JSON.stringify(archGhost)})`);
+    const agentGhost = at('agent-contract', 'apps/ghost');
+    if (agentGhost?.status !== 'gap' || !/apps\/ghost as an app, which does not exist/.test(agentGhost.observation)) fail(`a missing app path must gap for agent-contract, naming it (got ${JSON.stringify(agentGhost)})`);
+
+    // agent_contract: a scalar, root only; apps/web falls back to ordinary discovery (absent there)
+    const agentRoot = at('agent-contract', '.');
+    if (agentRoot?.status !== 'pass' || agentRoot.evidence[0] !== 'OPERATOR.md:1') fail(`agent_contract pointer must be read at root, exactly (got ${JSON.stringify(agentRoot)})`);
+    const agentWeb = at('agent-contract', 'apps/web');
+    if (agentWeb?.status !== 'gap' || !/No AGENTS\.md or CLAUDE\.md found/.test(agentWeb.observation)) fail(`apps/web with no agent_contract pointer entry must fall back to ordinary discovery (got ${JSON.stringify(agentWeb)})`);
+
+    // runbook: authoritative, no fallback to RUNBOOK.md discovery
+    const rb = doc.checks.find((c) => c.name === 'runbook');
+    if (rb?.status !== 'pass' || rb.evidence[0] !== 'docs/nonstandard/RUNBOOK-custom.md:1') fail(`runbook pointer must be read exactly (got ${JSON.stringify(rb)})`);
+
+    // workflows: authoritative — the decoy at .github/workflows (fail-open) must be ignored entirely
+    const ci = doc.checks.find((c) => c.name === 'ci-gate');
+    if (ci?.status !== 'pass' || ci.evidence[0] !== '.github/ci-workflows/ci.yml:1') fail(`workflows pointer must be read exactly, ignoring the decoy at .github/workflows (got ${JSON.stringify(ci)})`);
+    if (JSON.stringify(ci?.detail?.failOpen) !== '[]') fail('the decoy fail-open workflow at the default location must never be read once workflows: points elsewhere');
+
+    // default_branch: the pointer beats discovery (no .git here, so discovery alone would read "main")
+    if (ci?.detail?.defaultBranch !== 'trunk') fail(`default_branch pointer must beat discovery (got ${ci?.detail?.defaultBranch})`);
+
+    // evidence: authoritative directory, no fallback to ops/evidence/ (which carries a decoy pass)
+    const rollback = doc.checks.find((c) => c.name === 'evidence-d-rollback-exercised');
+    if (rollback?.status !== 'gap' || !/packet points at ops\/nonstandard-evidence\/d-rollback-exercised\.md, which does not exist/.test(rollback.observation)) fail(`the evidence pointer must never fall back to ops\/evidence (got ${JSON.stringify(rollback)})`);
+    const backup = doc.checks.find((c) => c.name === 'evidence-d-backup-restore-exercised');
+    if (backup?.status !== 'pass' || backup.evidence[0] !== 'ops/nonstandard-evidence/d-backup-restore-exercised.md:1') fail(`the evidence pointer must be read exactly for the file that IS there (got ${JSON.stringify(backup)})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+
+  // --packet flag: an invalid packet halts the runner with the validator's own
+  // lines, exit 2 (the crash rule) — never silently ignored, never a bare stack trace
+  {
+    let stderr = '', code = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), join(HERE, 'instruments', 'repo-census-target'), '--out', join(HERE, 'tmp-rc-invalid.json'), '--as-of', '2026-09-28', '--packet', join(HERE, 'negative', 'packet-secret-shaped')], { stdio: 'pipe' }); }
+    catch (e) { code = e.status; stderr = String(e.stderr || ''); }
+    if (code !== 2) fail(`an invalid --packet must halt the runner at exit 2 (got ${code})`);
+    else if (!/looks like a secret value/.test(stderr)) fail(`an invalid --packet must report the validator's own lines (got: ${stderr.trim()})`);
+    rmSync(join(HERE, 'tmp-rc-invalid.json'), { force: true });
+  }
+
+  // remote: git remote get-url origin, userinfo stripped; absent when there is no remote
+  {
+    const tmp2 = join(HERE, 'tmp-repo-census-remote'); rmSync(tmp2, { recursive: true, force: true }); mkdirSync(tmp2, { recursive: true });
+    execFileSync('git', ['init', '-q'], { cwd: tmp2 });
+    execFileSync('git', ['remote', 'add', 'origin', 'https://x-access-token:not-a-real-token@example.test/example/notesbox.git'], { cwd: tmp2 });
+    const out2 = join(tmp2, 'repo-census.json');
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), tmp2, '--out', out2, '--as-of', '2026-09-28'], { stdio: 'pipe' }); } catch { /* gaps expected (empty repo); only target.remote matters here */ }
+    const doc2 = JSON.parse(readFileSync(out2, 'utf8'));
+    if (doc2.target.remote !== 'https://example.test/example/notesbox.git') fail(`a remote's userinfo must be stripped (got ${doc2.target.remote})`);
+    if (doc2.target.path !== tmp2) fail('target.path must still record the given target path (unchanged behavior)');
+    rmSync(tmp2, { recursive: true, force: true });
+
+    const tmp3 = join(HERE, 'tmp-repo-census-noremote'); rmSync(tmp3, { recursive: true, force: true }); mkdirSync(tmp3, { recursive: true });
+    execFileSync('git', ['init', '-q'], { cwd: tmp3 });
+    const out3 = join(tmp3, 'repo-census.json');
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), tmp3, '--out', out3, '--as-of', '2026-09-28'], { stdio: 'pipe' }); } catch { /* gaps expected */ }
+    const doc3 = JSON.parse(readFileSync(out3, 'utf8'));
+    if ('remote' in doc3.target) fail(`target.remote must be absent with no remote configured (got ${JSON.stringify(doc3.target)})`);
+    rmSync(tmp3, { recursive: true, force: true });
+  }
+
+  // --default-branch flag still beats a packet's default_branch pointer
+  {
+    const out4 = join(HERE, 'tmp-rc-branch-precedence.json');
+    try { execFileSync(process.execPath, [join(ROOT, 'map', 'repo-census.mjs'), fx, '--out', out4, '--as-of', '2026-09-28', '--default-branch', 'cli-wins'], { stdio: 'pipe' }); } catch { /* gaps expected */ }
+    const doc4 = JSON.parse(readFileSync(out4, 'utf8'));
+    const ciGate4 = doc4.checks.find((c) => c.name === 'ci-gate');
+    if (ciGate4?.detail?.defaultBranch !== 'cli-wins') fail(`--default-branch must beat the packet's default_branch pointer (got ${ciGate4?.detail?.defaultBranch})`);
+    rmSync(out4, { force: true });
+  }
 }
 
 // ── enumerate coverage-gate invariants (self-reference skip + declared-harness exclude) ─
@@ -1039,6 +1150,10 @@ function adaptersOnce() { return loadAdapters(); }
     ['packet-unknown-claim', /is not a requirement in yardstick\/requirements\.yaml/],
     ['packet-claim-no-by', /state satisfied requires by/],
     ['packet-unknown-top-key', /unknown top-level key/],
+    ['packet-pointer-unknown-key', /pointers\.deploy_docs: unknown pointer/],
+    ['packet-pointer-bad-path', /pointers\.runbook: must be relative to the repo root, not absolute/],
+    ['packet-pointer-bad-branch', /pointers\.default_branch: not a plausible git ref name/],
+    ['packet-pointer-wrong-type', /pointers\.apps: must be a path \(a string\) or a list of paths/],
   ];
   for (const [dir, msgRe] of PACKET_NEGATIVE) {
     let stderr = '', code = 0;
@@ -1084,6 +1199,28 @@ function adaptersOnce() { return loadAdapters(); }
   const withPlaceholder = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' }, custody: { people: { build: ['founder'], deploy: ['founder'], restore: ['unknown'] } } };
   if (!validatePacket(withPlaceholder, { requirementIds: ids }).some((e) => /custody\.people\.restore: holds "unknown", which is not a role/.test(e))) fail('a placeholder in a role list must be refused');
   if (validatePacket({ ...withPlaceholder, custody: { people: { build: ['founder'], deploy: ['founder'], restore: [] } } }, { requirementIds: ids }).length) fail('an empty role list ([] when nobody can) must validate');
+
+  // pointers (owner/PACKET.md "Pointers"): optional, and every field optional
+  const base = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } };
+  if (validatePacket({ ...base, pointers: {} }, { requirementIds: ids }).length) fail('an empty pointers: map must validate clean');
+  if (validatePacket({ ...base }, { requirementIds: ids }).length) fail('no pointers: at all must validate clean (the whole section is optional)');
+  const fullPointers = {
+    default_branch: 'main', apps: ['apps/web', 'services/worker'],
+    architecture: ['docs/architecture.md', 'apps/web/docs/architecture.md', 'services/worker/docs/architecture.md'],
+    agent_contract: 'CLAUDE.md', runbook: 'ops/RUNBOOK.md', evidence: 'ops/evidence',
+    workflows: '.github/workflows', install: 'npm ci', build: 'npm run build', test: 'npm test', canon: 'packet/canon.yaml',
+  };
+  if (validatePacket({ ...base, pointers: fullPointers }, { requirementIds: ids }).length) fail('every documented pointer key, filled with a plausible value, must validate clean');
+  if (!validatePacket({ ...base, pointers: { runbook: '../RUNBOOK.md' } }, { requirementIds: ids }).some((e) => /pointers\.runbook: must not contain "\.\."/.test(e))) fail('a pointer path containing ".." must be refused');
+  if (!validatePacket({ ...base, pointers: { runbook: 'https://example.com/RUNBOOK.md' } }, { requirementIds: ids }).some((e) => /must be a path in the repository, not a URL/.test(e))) fail('a pointer path with a URL scheme must be refused');
+  if (!validatePacket({ ...base, pointers: { architecture: [1, 2] } }, { requirementIds: ids }).some((e) => /pointers\.architecture\[0\]: must be a string/.test(e))) fail('a non-string entry in an architecture list must be refused');
+  if (!validatePacket({ ...base, pointers: { install: 42 } }, { requirementIds: ids }).some((e) => /pointers\.install: must be a string/.test(e))) fail('a non-string command pointer must be refused');
+  // commands are words, never path-checked (an npm command is not a repo-relative path)
+  if (validatePacket({ ...base, pointers: { install: 'npm ci && npm run prepare' } }, { requirementIds: ids }).length) fail('a command pointer must never be path-checked');
+  if (badGitRef('main')) fail('"main" must be a plausible git ref');
+  if (badGitRef('release/2026-09')) fail('a slashed branch name must be a plausible git ref');
+  if (!badGitRef('refs/../weird branch')) fail('a ref containing ".." and a space must not be a plausible git ref');
+  if (!badGitRef('')) fail('an empty default_branch must not be a plausible git ref');
 }
 
 // ── packet phase 2: the yardstick reads the packet (owner/PACKET.md) ──────────
@@ -1174,21 +1311,70 @@ function adaptersOnce() { return loadAdapters(); }
 }
 
 // ── ask-owner: the {{WHAT_WE_FOUND}} marker, with and without a run ───────────
+// owner/PACKET.md Phase 3: plain words, never a local filesystem path, and a
+// steward's --found file can replace the whole block.
 {
   const fail = (m) => negFailures.push('ask-owner: ' + m);
   if (buildWhatWeFound(null) !== NOTHING_YET) fail('with no run, the block must read "Nothing yet: ask everything."');
   if (buildWhatWeFound(join(HERE, 'fixtures', 'ask-owner-run')) === NOTHING_YET) fail('the public ask-owner-run fixture carries real signal — the block must not fall back to "ask everything"');
   const found = buildWhatWeFound(join(HERE, 'fixtures', 'ask-owner-run'));
   if (!/example\/notesbox/.test(found) || !/a1b2c3d4/.test(found)) fail('the block must name the repository and commit from the run\'s own packet');
-  if (!/3 of 4/.test(found)) fail('the block must name the credential census count (met of N)');
-  if (!/email-send/.test(found) || /internal-write/.test(found)) fail('the block must name only EXTERNAL effect channels (email-send), never an internal one (internal-write)');
-  if (!/personal data/i.test(found)) fail('the block must name a census-declared personal-data store');
+  if (!/the code uses 4 credentials/.test(found) || !/traced where 3 of them are held/.test(found) || !/confirm the other 1, and where each one lives/.test(found)) fail(`the credential line must be a plain, singular/plural-correct sentence (got: ${found})`);
+  if (!/email send/.test(found) || /email-send/.test(found) || /internal-write/.test(found) || /internal write/.test(found)) fail('the block must turn an external channel slug into words (hyphens to spaces), name only external channels, and never an internal one');
+  if (!/sends, writes or publishes to 1 place outside itself/.test(found)) fail(`the external-systems line must count the places in plain words, singular said right (got: ${found})`);
+  if (!/personal data/i.test(found) || /\d+ of \d+/.test(found.split('\n').find((l) => /personal data/i.test(l)) || '')) fail('the block must name a census-declared personal-data store in plain words, never a "met of N" census count');
 
   const withRun = render(join(HERE, 'fixtures', 'ask-owner-run'));
   if (withRun.includes(MARKER)) fail('render() must replace the marker, never leave it in place');
   if (!/example\/notesbox/.test(withRun)) fail('render() with a run must fold buildWhatWeFound into the template');
   const withoutRun = render(null);
   if (withoutRun.includes(MARKER) || !withoutRun.includes(NOTHING_YET)) fail('render() with no run must replace the marker with "Nothing yet: ask everything."');
+
+  // credentials: met === of reads as "all traced", asking only about an unlisted one;
+  // a single credential reads singular
+  {
+    const allTraced = creditSentence(4, 4);
+    if (!/the code uses 4 credentials/.test(allTraced) || !/all 4 of them are held/.test(allTraced) || !/confirm whether any credential is in use that the code does not show/.test(allTraced)) fail(`met === of must read as fully traced, asking only about an unlisted credential (got: ${allTraced})`);
+    const singular = creditSentence(1, 1);
+    if (!/the code uses 1 credential;/.test(singular)) fail(`a single credential must read singular, not "1 credentials" (got: ${singular})`);
+  }
+
+  // repository: never target.path (a local filesystem path), the remote when present,
+  // and just the commit when only that is known
+  const remoteRunDir = join(HERE, 'fixtures', 'ask-owner-run-remote');
+  const foundRemote = buildWhatWeFound(remoteRunDir);
+  if (/very-local-checkout-path-should-never-print/.test(foundRemote)) fail('target.path must never be printed, even when repo-census.json carries it');
+  if (!/https:\/\/github\.com\/example\/notesbox\.git/.test(foundRemote)) fail(`target.remote must be used (with userinfo stripped) when present (got: ${foundRemote})`);
+  if (/x-access-token|not-a-real-token/.test(foundRemote)) fail('a remote URL\'s embedded userinfo must be stripped before it is shown to an owner');
+
+  const commitOnlyRunDir = join(HERE, 'fixtures', 'ask-owner-run-commit-only');
+  const foundCommitOnly = buildWhatWeFound(commitOnlyRunDir);
+  if (/another-local-checkout-path-should-never-print/.test(foundCommitOnly)) fail('target.path must never be printed for the commit-only case either');
+  if (!/^- The commit we read: c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff\.$/m.test(foundCommitOnly)) fail(`with only a commit known, the line must read exactly "The commit we read: <sha>." (got: ${foundCommitOnly})`);
+
+  // --found <file>: replaces the block wholesale, strips a leading frontmatter
+  // block, and is swept for the same shapes validate-packet refuses
+  if (stripLeadingFrontmatter('no frontmatter here\nsecond line') !== 'no frontmatter here\nsecond line') fail('text with no leading frontmatter block must be returned unchanged');
+  const good = buildFoundOverride(join(HERE, 'fixtures', 'found-steward', 'found-good.md'));
+  if (/^---/.test(good) || /author: steward/.test(good)) fail('a leading YAML frontmatter block on a --found file must be stripped before insertion');
+  if (!/^- Repository: example\/notesbox/.test(good)) fail('a --found file\'s body (after stripping frontmatter and trimming blank edges) must be inserted verbatim, unindented');
+  const renderedFound = render(join(HERE, 'fixtures', 'ask-owner-run'), good);
+  if (!/from the steward's own read/.test(renderedFound) || /Nothing yet: ask everything/.test(renderedFound)) fail('render() with a --found override must use it in place of the auto block entirely');
+
+  let threw = null;
+  try { buildFoundOverride(join(HERE, 'fixtures', 'found-steward', 'found-secret.md')); } catch (e) { threw = e; }
+  if (!threw || !/looks like a secret value/.test(threw.message)) fail(`--found must refuse a secret-shaped string, reusing the packet sweep (got: ${threw && threw.message})`);
+  threw = null;
+  try { buildFoundOverride(join(HERE, 'fixtures', 'found-steward', 'found-braces.md')); } catch (e) { threw = e; }
+  if (!threw || !/contains "\{\{"/.test(threw.message)) fail(`--found must refuse a file containing "{{" (no nested markers) (got: ${threw && threw.message})`);
+
+  // the CLI end to end: --found on the command line
+  const cliOut = execFileSync(process.execPath, [join(ROOT, 'owner', 'ask-owner.mjs'), '--found', join(HERE, 'fixtures', 'found-steward', 'found-good.md')], { encoding: 'utf8' });
+  if (!/from the steward's own read/.test(cliOut)) fail('the ask-owner CLI must honor --found end to end');
+  let cliCode = 0, cliErr = '';
+  try { execFileSync(process.execPath, [join(ROOT, 'owner', 'ask-owner.mjs'), '--found', join(HERE, 'fixtures', 'found-steward', 'found-secret.md')], { stdio: 'pipe' }); }
+  catch (e) { cliCode = e.status; cliErr = String(e.stderr || ''); }
+  if (cliCode !== 1 || !/looks like a secret value/.test(cliErr)) fail(`the ask-owner CLI must refuse a secret-shaped --found file, exit 1, one plain line (got ${cliCode}/${cliErr})`);
 }
 
 // ── Intake, Maintain, Improve: three views of one yardstick measurement ───────
@@ -1259,6 +1445,327 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── compare(): the classification table, incl. no-longer-measured + yardstick-only ──
+// Pure, no fixtures needed. Pins the ordering rule (met > mixed > unmet, not-measured
+// off-scale) so a status leaving the measured scale can never silently read as
+// "improved" or "unchanged" — a loss of information is not progress (yardstick/README.md).
+{
+  const fail = (m) => negFailures.push('compare: ' + m);
+  const TABLE = [
+    ['unmet', 'unmet', 'unchanged'], ['unmet', 'mixed', 'improved'], ['unmet', 'met', 'improved'],
+    ['mixed', 'unmet', 'regressed'], ['mixed', 'mixed', 'unchanged'], ['mixed', 'met', 'improved'],
+    ['met', 'unmet', 'regressed'], ['met', 'mixed', 'regressed'], ['met', 'met', 'unchanged'],
+    ['not-measured', 'not-measured', 'unchanged'],
+    ['not-measured', 'unmet', 'newly-measured'], ['not-measured', 'mixed', 'newly-measured'], ['not-measured', 'met', 'newly-measured'],
+    ['unmet', 'not-measured', 'no-longer-measured'], ['mixed', 'not-measured', 'no-longer-measured'], ['met', 'not-measured', 'no-longer-measured'],
+  ];
+  for (const [p, c, want] of TABLE) {
+    const got = classify(p, c);
+    if (got !== want) fail(`classify(${p} -> ${c}) = "${got}", want "${want}"`);
+  }
+  let threw = false; try { classify('met', 'bogus'); } catch { threw = true; }
+  if (!threw) fail('classify must throw on a status outside the closed vocabulary (fail loud)');
+
+  const prevDoc = { version: 0, requirements: [{ id: 'd-a', status: 'met', basis: 'run' }, { id: 'd-b', status: 'unmet', basis: 'run' }] };
+  const currDoc = { version: 1, requirements: [{ id: 'd-a', status: 'unmet', basis: 'run', findings: ['F-1'] }, { id: 'd-c', status: 'met', basis: 'owner' }] };
+  const result = compare(prevDoc, currDoc);
+  if (!result.versionChanged || result.previousVersion !== 0 || result.currentVersion !== 1) fail('a yardstick version difference must be reported, never hidden');
+  const byId = Object.fromEntries(result.rows.map((r) => [r.id, r]));
+  if (byId['d-a'].classification !== 'regressed' || byId['d-a'].current.findings.join() !== 'F-1') fail('d-a (met -> unmet) must classify regressed and carry the current row\'s findings');
+  if (byId['d-b'].classification !== 'yardstick-only' || byId['d-b'].side !== 'previous') fail('d-b (dropped from the current yardstick) must read yardstick-only/previous');
+  if (byId['d-c'].classification !== 'yardstick-only' || byId['d-c'].side !== 'current' || byId['d-c'].current.basis !== 'owner') fail('d-c (new to the yardstick) must read yardstick-only/current and carry its basis');
+  if (Object.keys(byId).length !== 3) fail(`compare must emit exactly one row per id across both sides (got ${Object.keys(byId).join(', ')})`);
+}
+
+// ── compareFindings(): the fingerprint — never line numbers alone, never id ────
+{
+  const fail = (m) => negFailures.push('compare-findings: ' + m);
+  const prevF = [
+    { id: 'F-1', source: 'gitleaks', native_category: 'secret', evidence: ['a.js:6'] },
+    { id: 'F-2', dimension: 'delegation', evidence: ['lib/x.py:10'] },
+  ];
+  const currF = [
+    { id: 'F-9', source: 'gitleaks', native_category: 'secret', evidence: ['a.js:99'] }, // same file, line moved
+    { id: 'F-2', dimension: 'delegation', evidence: ['lib/x.py:1'] },                    // same file, line moved
+    { id: 'F-3', dimension: 'delegation', evidence: ['lib/y.py:1'] },                    // a genuinely different file
+  ];
+  const delta = compareFindings(prevF, currF);
+  if (delta.new.some((f) => f.id === 'F-9') || delta.no_longer_found.some((f) => f.id === 'F-1')) fail('a finding whose evidence FILE is unchanged (only the line moved) must match across runs, never read as new/no-longer-found');
+  if (delta.new.some((f) => f.id === 'F-2') || delta.no_longer_found.some((f) => f.id === 'F-2')) fail('F-2 (same scanner/category/file both runs) must match across runs');
+  if (!delta.new.some((f) => f.id === 'F-3')) fail('F-3 (a genuinely new evidence file) must read as new');
+  if (fingerprintFinding({ source: 'gitleaks', native_category: 'secret', evidence: ['a.js:6'] }) !== fingerprintFinding({ source: 'gitleaks', native_category: 'secret', evidence: ['a.js:999'] })) fail('the fingerprint must be line-number-independent');
+}
+
+// ── ratchet: exit 0 / 1 / 2, --write-baseline, and the failure/summary lines ──
+{
+  const fail = (m) => negFailures.push('ratchet: ' + m);
+  const tmp = join(HERE, 'tmp-ratchet'); rmSync(tmp, { recursive: true, force: true });
+  const runMet = join(tmp, 'met'), runRegressed = join(tmp, 'regressed'), runUnmet = join(tmp, 'unmet');
+  // runMet: notesbox with gitleaks emptied — d-secrets-out-of-history reads MET.
+  copyFixtureFindings('notesbox', runMet); copyFixtureScanners('notesbox', runMet);
+  writeFileSync(join(runMet, 'map', 'findings', 'gitleaks.yaml'), '[]\n');
+  // runRegressed: the same base, gitleaks restored — d-secrets-out-of-history reads UNMET again.
+  copyFixtureFindings('notesbox', runRegressed); copyFixtureScanners('notesbox', runRegressed);
+  // runUnmet: the plain fixture, unmet from the start (nothing to hold — never fails).
+  copyFixtureFindings('notesbox', runUnmet); copyFixtureScanners('notesbox', runUnmet);
+  for (const r of [runMet, runRegressed, runUnmet]) {
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), r, '--write'], { stdio: 'pipe' }); }
+    catch (e) { fail(`measure --write must succeed on ${r} (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  }
+
+  const baselineFile = join(tmp, 'baseline.yaml');
+  let wbOut = '';
+  try { wbOut = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runMet, '--write-baseline', baselineFile, '--by', 'qa-steward', '--commit', 'abc1234def'], { stdio: 'pipe' }).toString(); }
+  catch (e) { fail(`--write-baseline with no --baseline must exit 0 (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
+  if (!existsSync(baselineFile)) fail('--write-baseline must write the file');
+  let baseline = null;
+  try { baseline = loadBaseline(baselineFile); } catch (e) { fail(`the written baseline must itself validate (${e.message})`); }
+  if (baseline) {
+    if (baseline.baseline !== 1) fail('baseline: format version must be 1');
+    if (baseline.accepted?.by !== 'qa-steward' || baseline.accepted?.date !== new Date().toISOString().slice(0, 10)) fail('baseline: accepted.by/date must come from --by and today');
+    if (baseline.commit !== 'abc1234def') fail('baseline: commit must come from --commit');
+    const row = (baseline.requirements || []).find((r) => r.id === 'd-secrets-out-of-history');
+    const runDoc = loadYardstickDoc(runMet);
+    const runRow = runDoc.requirements.find((r) => r.id === 'd-secrets-out-of-history');
+    if (!row || row.status !== runRow.status || row.basis !== (runRow.basis || 'run')) fail(`--write-baseline round-trip: baseline row for d-secrets-out-of-history must match the run's own yardstick.yaml (got ${JSON.stringify(row)} vs ${JSON.stringify(runRow)})`);
+    if (row.status !== 'met') fail('the fixture setup is wrong: d-secrets-out-of-history must read met in runMet (gitleaks emptied) for this test to mean anything');
+  }
+
+  // exit 0: unchanged (still met) — held counted, no failures, the summary line names it.
+  {
+    let out = '', status = 0;
+    try { out = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runMet, '--baseline', baselineFile], { stdio: 'pipe' }).toString(); }
+    catch (e) { status = e.status ?? 1; out = String(e.stdout || ''); }
+    if (status !== 0) fail(`ratchet against an unchanged met baseline must exit 0 (got ${status})`);
+    if (!/held \d+, improved \d+/.test(out)) fail(`exit-0 output must carry a one-line "held N, improved M" summary (got: ${out.split('\n')[0]})`);
+  }
+
+  // exit 1: d-secrets-out-of-history regresses back to unmet — the failure line names
+  // the requirement, its title, before -> after, and the current finding id.
+  {
+    let out = '', err = '', status = 0;
+    try { out = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runRegressed, '--baseline', baselineFile], { stdio: 'pipe' }).toString(); }
+    catch (e) { status = e.status ?? 1; err = String(e.stderr || ''); out = String(e.stdout || ''); }
+    if (status !== 1) fail(`ratchet must exit 1 when a met/mixed baseline row regresses (got ${status})`);
+    const line = err || out;
+    if (!line.includes('d-secrets-out-of-history')) fail('the failure line must name the requirement id');
+    if (!/No secret lives in the tree/.test(line)) fail('the failure line must name the requirement title');
+    if (!/met\s*→\s*unmet/.test(line)) fail('the failure line must show before → after');
+    if (!line.includes('F-700')) fail('the failure line must name the current finding id(s) behind the regression');
+  }
+
+  // a baseline row recorded unmet never fails, even against a run where it stays unmet.
+  {
+    const wb2 = join(tmp, 'baseline-unmet.yaml');
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runUnmet, '--write-baseline', wb2], { stdio: 'pipe' }); }
+    catch (e) { fail(`--write-baseline on runUnmet must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+    let status = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runUnmet, '--baseline', wb2], { stdio: 'pipe' }); }
+    catch (e) { status = e.status ?? 1; }
+    if (status !== 0) fail(`a baseline row recorded unmet must never fail the ratchet even when nothing changed (got exit ${status})`);
+  }
+
+  // exit 2: a missing/unreadable input is never 0.
+  for (const [args, what] of [
+    [[runMet, '--baseline', join(tmp, 'does-not-exist.yaml')], 'a missing baseline file'],
+    [[join(tmp, 'no-such-run'), '--baseline', baselineFile], 'a missing run (no yardstick.yaml)'],
+  ]) {
+    let status = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), ...args], { stdio: 'pipe' }); }
+    catch (e) { status = e.status ?? 1; }
+    if (status !== 2) fail(`ratchet must exit 2 on ${what}, never 0 (got ${status})`);
+  }
+
+  // the pure core directly, for the "absent from the current measurement" case
+  // (a baseline requirement id the current run's yardstick no longer decides at all).
+  {
+    const bDoc = { baseline: 1, yardstick: 0, accepted: { date: '2026-01-01', by: 'steward' }, requirements: [{ id: 'd-does-not-exist-anymore', status: 'met', basis: 'run' }] };
+    const cDoc = { version: 0, requirements: [{ id: 'd-secrets-out-of-history', status: 'met', basis: 'run', findings: [] }] };
+    const { failures } = evaluateRatchet(bDoc, cDoc, (id) => id);
+    if (!failures.length || !failures[0].includes('absent from this run')) fail('a baseline requirement absent from the current measurement must always fail, regardless of its recorded status');
+  }
+
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── since: two small runs (a fixture copy, one requirement flipped), incl. a
+// finding "no longer found" — never "fixed" (views/README.md) ────────────────
+{
+  const fail = (m) => negFailures.push('since: ' + m);
+  const tmp = join(HERE, 'tmp-since'); rmSync(tmp, { recursive: true, force: true });
+  const prev = join(tmp, 'prev-2026-01-01'), curr = join(tmp, 'curr-2026-02-01');
+  copyFixtureFindings('notesbox', prev); copyFixtureScanners('notesbox', prev);
+  copyFixtureFindings('notesbox', curr); copyFixtureScanners('notesbox', curr);
+  // flip one requirement's deciding findings: gitleaks emptied in `curr` only —
+  // d-secrets-out-of-history: unmet (prev) -> met (curr), and F-700 reads "no longer found".
+  writeFileSync(join(curr, 'map', 'findings', 'gitleaks.yaml'), '[]\n');
+  // a finding "no longer found" that carries no requirement at all (subject_type: control,
+  // decided by no facet/instrument row) — removing it must change since's findings tally
+  // and NOTHING in the yardstick, proving the two are read from independent inputs.
+  const delFile = join(curr, 'map', 'findings', 'repo-eval-delegation.yaml');
+  const delRaw = readFileSync(delFile, 'utf8');
+  const delWithoutF050 = delRaw.replace(/- id: F-050[\s\S]*?(?=\n- id: F-051)/, '');
+  if (delWithoutF050 === delRaw || delWithoutF050.includes('F-050')) fail('test setup: could not remove F-050 from the curr fixture copy — the since "no longer found" case would be vacuous');
+  writeFileSync(delFile, delWithoutF050);
+  for (const r of [prev, curr]) {
+    // triage every open gap so a later compile of `curr` never hits the handoff's
+    // degenerate gate — decisions.yaml never changes what measure.mjs decides (it
+    // reads raw findings only), so this cannot affect the since comparison itself.
+    const gaps = loadFindings(r).filter((f) => f.polarity === 'gap');
+    mkdirSync(dirname(decisionsPath(r)), { recursive: true });
+    writeFileSync(decisionsPath(r), gaps.map((f) => `- finding: ${f.id}\n  action: accept\n  reason: "regression fixture: triaged so the handoff never degenerates"\n  by: test\n  at: "2026-01-01"`).join('\n') + '\n');
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), r, '--write'], { stdio: 'pipe' }); }
+    catch (e) { fail(`measure --write must succeed on ${r} (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  }
+
+  let sinceOut = '';
+  try { sinceOut = execFileSync(process.execPath, [join(ROOT, 'views', 'since.mjs'), curr, '--previous', prev], { stdio: 'pipe' }).toString(); }
+  catch (e) { fail(`views/since.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
+  const sinceYamlPath = runViewPath(curr, 'since');
+  if (!existsSync(sinceYamlPath)) fail('views/since.yaml must be written');
+  if (!existsSync(sincePagePath(curr))) fail('SINCE.md must be written at the run root');
+  const doc = existsSync(sinceYamlPath) ? parseYaml(readFileSync(sinceYamlPath, 'utf8')) : null;
+  if (doc) {
+    if (doc.view !== 'since' || doc.run !== 'curr-2026-02-01' || doc.previous !== 'prev-2026-01-01') fail('since.yaml must name itself, the run and the previous run');
+    const improvedIds = (doc.improved || []).map((r) => r.id);
+    if (!improvedIds.includes('d-secrets-out-of-history')) fail(`d-secrets-out-of-history must read improved (unmet -> met) in since.yaml (got improved: ${improvedIds.join(', ')})`);
+    if ((doc.regressed || []).length) fail('nothing should have regressed in this fixture');
+    const noLongerFound = (doc.findings?.no_longer_found || []).map((f) => f.id);
+    if (!noLongerFound.includes('F-700')) fail(`F-700 (gitleaks, emptied in curr) must read as no-longer-found (got ${noLongerFound.join(', ')})`);
+    if (!noLongerFound.includes('F-050')) fail(`F-050 (removed from curr's repo-eval pass) must read as no-longer-found (got ${noLongerFound.join(', ')})`);
+  }
+  const sincePage = existsSync(sincePagePath(curr)) ? readFileSync(sincePagePath(curr), 'utf8') : '';
+  if (!/no longer found/i.test(sincePage) || /\bfixed\b/i.test(sincePage.replace(/never "fixed"/i, ''))) fail('SINCE.md must say "no longer found", never "fixed", for an unmatched finding');
+  if (!sincePage.includes('regressed') || sincePage.indexOf('Regressed') > sincePage.indexOf('Improved')) fail('SINCE.md must lead with regressions, then improvements (most useful first)');
+
+  // compile --since: writes SINCE.md and INDEX links it; compile without --since writes neither.
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), curr, '--since', prev], { stdio: 'pipe' }); }
+  catch (e) { fail(`compile --since must succeed (${String(e.stderr || e.message).split('\n').slice(-5).join(' | ')})`); }
+  if (!existsSync(sincePagePath(curr))) fail('compile --since must write SINCE.md');
+  const index = existsSync(runIndexPath(curr)) ? readFileSync(runIndexPath(curr), 'utf8') : '';
+  if (!index.includes('SINCE.md')) fail('INDEX.md must link SINCE.md when a since view was compiled');
+
+  const curr2 = join(tmp, 'curr-no-since-2026-03-01');
+  copyFixtureFindings('notesbox', curr2); copyFixtureScanners('notesbox', curr2);
+  const gaps2 = loadFindings(curr2).filter((f) => f.polarity === 'gap');
+  mkdirSync(dirname(decisionsPath(curr2)), { recursive: true });
+  writeFileSync(decisionsPath(curr2), gaps2.map((f) => `- finding: ${f.id}\n  action: accept\n  reason: "regression fixture"\n  by: test\n  at: "2026-01-01"`).join('\n') + '\n');
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), curr2], { stdio: 'pipe' }); }
+  catch (e) { fail(`compile with no --since must still succeed (${String(e.stderr || e.message).split('\n').slice(-5).join(' | ')})`); }
+  if (existsSync(sincePagePath(curr2)) || existsSync(runViewPath(curr2, 'since'))) fail('compile with no --since must write neither SINCE.md nor views/since.yaml');
+  const index2 = existsSync(runIndexPath(curr2)) ? readFileSync(runIndexPath(curr2), 'utf8') : '';
+  if (index2.includes('SINCE.md')) fail('INDEX.md must not link SINCE.md when no since view was compiled');
+
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── routine/run.mjs: the driver a stewarded repository runs, network-free parts ──
+// fresh-clone-target has no dependencies and no lockfile (tests/instruments/
+// fresh-clone-target/package.json), so fresh-clone's install step is
+// not-declared and dependency-scan finds no lockfile to audit — this run needs
+// no network at all, so every part of it must be asserted, never skipped.
+{
+  const fail = (m) => negFailures.push('routine: ' + m);
+  const target = join(HERE, 'instruments', 'fresh-clone-target');
+  const tmp = join(HERE, 'tmp-routine'); rmSync(tmp, { recursive: true, force: true });
+  const runDir = join(tmp, 'run');
+  const logs = [];
+  let result;
+  try { result = runRoutine({ repoDir: target, outDir: runDir }, (l) => logs.push(l)); }
+  catch (e) { fail(`runRoutine must not throw (${e.message})`); }
+  if (result) {
+    if (!result.ok || result.exitCode !== 0) fail(`runRoutine over a clean, network-free fixture with no baseline must succeed (got ok=${result.ok} exit=${result.exitCode}):\n${logs.join('\n')}`);
+    const manifestPath = join(runDir, 'map', 'scanners.yaml');
+    if (!existsSync(manifestPath)) fail('runRoutine must write map/scanners.yaml');
+    else {
+      const manifest = parseYaml(readFileSync(manifestPath, 'utf8'));
+      const rows = manifest.scanners || {};
+      if (rows['repo-eval']?.status !== 'skipped' || !/not run by the routine/.test(rows['repo-eval']?.reason || '')) fail(`repo-eval must always read skipped with the fixed reason (got ${JSON.stringify(rows['repo-eval'])})`);
+      if (rows['deep-code-review']?.status !== 'skipped' || !/not run by the routine/.test(rows['deep-code-review']?.reason || '')) fail(`deep-code-review must always read skipped with the fixed reason (got ${JSON.stringify(rows['deep-code-review'])})`);
+      if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone needs no network against this fixture and must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
+      if (rows['dependency-scan']?.status !== 'ran') fail(`dependency-scan needs no network against this lockfile-free fixture and must read ran (got ${JSON.stringify(rows['dependency-scan'])})`);
+      if (rows['repo-census']?.status !== 'ran') fail(`repo-census is a pure tree read and must read ran (got ${JSON.stringify(rows['repo-census'])})`);
+      // gitleaks depends on whether the binary happens to be on this machine's PATH —
+      // the only row this test does not pin to one outcome — but it must NEVER be
+      // silently absent from the record (CLAUDE.md rule 3: fail loud, never empty).
+      if (!rows['gitleaks'] || !['ran', 'skipped', 'failed'].includes(rows['gitleaks'].status)) fail(`gitleaks must be recorded ran, skipped or failed — never absent (got ${JSON.stringify(rows['gitleaks'])})`);
+      if (rows['gitleaks'] && rows['gitleaks'].status !== 'ran' && !rows['gitleaks'].reason) fail('gitleaks skipped/failed must carry a reason');
+    }
+    if (!existsSync(join(runDir, 'INDEX.md'))) fail('runRoutine must compile the package (INDEX.md missing)');
+    if (!logs.some((l) => /no packet\/baseline\.yaml committed yet/.test(l))) fail('with no baseline, runRoutine must print a visible warning, never silence');
+
+    // --write-baseline from this run, then a second run over the SAME fixture must
+    // hold (exit 0) — nothing changed between the two.
+    const baselineFile = join(tmp, 'baseline.yaml');
+    let wb;
+    try { wb = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runDir, '--write-baseline', baselineFile, '--by', 'steward'], { stdio: 'pipe' }); }
+    catch (e) { fail(`--write-baseline over the routine's own run must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+    if (existsSync(baselineFile)) {
+      const runDir2 = join(tmp, 'run2');
+      let result2;
+      try { result2 = runRoutine({ repoDir: target, outDir: runDir2, baseline: baselineFile }, () => {}); }
+      catch (e) { fail(`a second runRoutine with --baseline must not throw (${e.message})`); }
+      if (result2 && (!result2.ok || result2.exitCode !== 0)) fail(`a second routine run over the SAME unchanged fixture must hold against its own just-written baseline (got ok=${result2.ok} exit=${result2.exitCode})`);
+    }
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── routine/assay-routine.yml: the workflow template's own invariants ─────────
+// Not run (no GitHub Actions runner here) — parsed as text, since it is a real
+// GitHub Actions YAML file, not the constrained subset lib/yaml-min.mjs reads.
+{
+  const fail = (m) => negFailures.push('routine-workflow: ' + m);
+  const yml = readFileSync(join(ROOT, 'routine', 'assay-routine.yml'), 'utf8');
+  const lines = yml.split('\n');
+
+  // every `uses:` pinned to a 40-hex commit SHA (a version tag or branch is refused).
+  const usesLines = lines.filter((l) => /^\s*uses:\s*/.test(l));
+  if (!usesLines.length) fail('the template must use at least one action');
+  for (const l of usesLines) {
+    const m = l.match(/uses:\s*([^\s#]+)/);
+    const ref = m && m[1].split('@')[1];
+    if (!ref || !/^[0-9a-f]{40}$/.test(ref)) fail(`"${l.trim()}" is not pinned to a 40-hex commit SHA`);
+  }
+
+  // permissions: read-only, and nothing broader than contents: read.
+  const permIdx = lines.findIndex((l) => /^permissions:\s*$/.test(l));
+  if (permIdx === -1) fail('the template must declare a top-level permissions: block');
+  else {
+    const block = [];
+    for (let i = permIdx + 1; i < lines.length && /^\s{2}\S/.test(lines[i]); i++) block.push(lines[i].trim().split('#')[0].trim());
+    const nonEmpty = block.filter(Boolean);
+    if (nonEmpty.length !== 1 || nonEmpty[0] !== 'contents: read') fail(`permissions must be exactly "contents: read" and nothing broader (got ${JSON.stringify(nonEmpty)})`);
+  }
+
+  // timeout-minutes on every job.
+  const jobsIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  if (jobsIdx === -1) fail('the template must declare a jobs: block');
+  else {
+    const jobNames = [];
+    for (let i = jobsIdx + 1; i < lines.length; i++) {
+      const m = lines[i].match(/^\s{2}(\S[^:]*):\s*$/);
+      if (m) jobNames.push({ name: m[1], line: i });
+    }
+    if (!jobNames.length) fail('jobs: must declare at least one job');
+    for (let j = 0; j < jobNames.length; j++) {
+      const start = jobNames[j].line, end = j + 1 < jobNames.length ? jobNames[j + 1].line : lines.length;
+      const body = lines.slice(start, end);
+      if (!body.some((l) => /^\s{4}timeout-minutes:\s*\d+/.test(l))) fail(`job "${jobNames[j].name}" has no timeout-minutes`);
+    }
+  }
+
+  // ASSAY_REF is a placeholder / a full SHA in the template, and the comment beside
+  // it warns against a branch name — the steward fills in a real one before use.
+  const refLine = lines.find((l) => /ASSAY_REF:/.test(l));
+  if (!refLine) fail('the template must declare ASSAY_REF');
+  else if (!/[0-9a-f]{40}/.test(refLine)) fail('ASSAY_REF must be a 40-hex placeholder (never a branch name) for the steward to replace');
+  if (!/never a branch name/i.test(yml)) fail('the template must warn, in words, that ASSAY_REF is a commit SHA and never a branch name');
+
+  if (!/schedule:/.test(yml) || !/workflow_dispatch:/.test(yml) || !/pull_request:/.test(yml)) fail('the template must trigger on schedule, workflow_dispatch and pull_request');
+}
+
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -1292,7 +1799,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

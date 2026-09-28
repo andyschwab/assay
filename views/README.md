@@ -4,10 +4,12 @@ title: "views/ — Intake, Maintain and Improve: what each writes"
 ---
 # views/
 
-Three views of one run, written by one command from the same measurement:
+Three views of one run, written by one command from the same measurement, plus a
+fourth — Since — of two runs, when there is a previous one to compare against:
 
 ```sh
-node assay.mjs compile <run>
+node assay.mjs compile <run>                     # Intake, Maintain, Improve
+node assay.mjs compile <run> --since <prev-run>  # + Since
 ```
 
 `compile` validates the map, measures it against the yardstick
@@ -74,6 +76,57 @@ over `views/improve/templates/`). It needs the run's authored
 | `views/improve/maturity-grades.yaml` | maturity coverage per dimension, computed (`node assay.mjs maturity`) |
 | `views/improve/maturity.md`, `views/improve/security.md`, `views/improve/security-gate.yaml`, `views/improve/leverage.md` | the maturity reading, the exposures and attack paths, and where one change moves the most, written by the built-in method's view passes (`map/METHOD.md`) and checked by `validate` |
 | `handoff/` | one fix prompt per gap, for a coding session to act on, each with its evidence and a proof step |
+
+## Since: what changed?
+
+`views/since.mjs` → `views/since.yaml` and `SINCE.md`, written by
+`node assay.mjs since <run> --previous <prev-run>` or `node assay.mjs compile
+<run> --since <prev-run>` — compile with no `--since` writes neither file, and
+`INDEX.md` links `SINCE.md` only when it exists. The pure comparison it reads is
+`yardstick/compare.mjs` (`yardstick/README.md`'s "Comparing two measurements"
+section is its one home); this view only joins title/tier/topic from the
+register and renders.
+
+```yaml
+view: since
+run: <run name>
+previous: <previous run name>
+yardstick: <this run's requirements.yaml version>
+previous_yardstick: <the previous run's version>
+yardstick_version_changed: true | false
+counts: { regressed: N, improved: N, newly_measured: N, no_longer_measured: N, yardstick_only: N, findings_new: N, findings_no_longer_found: N }
+regressed:            # met/mixed -> worse, or dropped to not-measured
+  - { id, tier, topic, title, previous: {status, basis}, current: {status, basis, findings: [F-…]}, note }
+improved:              # rank went up (unmet -> mixed -> met)
+  - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
+newly_measured:        # not-measured -> decided
+  - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
+no_longer_measured:    # decided -> not-measured (NEVER "unchanged", NEVER "improved")
+  - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
+yardstick_only:        # the id exists on only one side — the yardstick itself was edited
+  - { id, side: previous | current, title, status, basis }
+findings:
+  new:                 # matched by fingerprint against the previous run's base; not matched there
+    - { fingerprint, id, source, dimension, native_category, evidence: […], observation }
+  no_longer_found:     # matched in the previous run; not matched in this one
+    - { fingerprint, id, source, dimension, native_category, evidence: […], observation }
+```
+
+A finding is matched across the two runs by a **fingerprint**
+(`yardstick/compare.mjs`'s `fingerprintFinding`), never by its `id` — an id
+carries no meaning across independent runs (`map/SCHEMA.md` §3: "ids are
+renumbered across independent runs anyway"). The fingerprint is `(scanner,
+dimension-or-native_category, polarity, evidence file paths with the `:line`
+suffix stripped)`: a check that passed and now gaps is a new finding; a fact moving to a different line in the same file still matches; a
+fact moving to a different file, or recorded by a different scanner or category,
+does not. A finding in `no_longer_found` reads **"no longer found"**, never
+**"fixed"** — the absence is absence of re-detection this run, not proof the
+underlying fact is gone; `SINCE.md` and every renderer say it that way.
+
+`SINCE.md`'s headline line is **counts only** — no verdict, no severity the
+views do not already compute (`CLAUDE.md` rule 1) — and its sections run most
+useful first: regressed, improved, newly/no-longer measured, then the findings
+delta last.
 
 ## The index
 

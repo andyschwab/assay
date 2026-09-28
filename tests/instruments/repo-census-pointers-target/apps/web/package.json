@@ -1,0 +1,6 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The one app the packet's apps pointer names that actually exists; apps/ghost, also named, does not."
+}
