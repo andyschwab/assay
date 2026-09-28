@@ -23,6 +23,7 @@
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { buildRows } from './floor-fleet.mjs';
+import { loadFindings } from '../map/project.mjs';
 import { loadYardstick } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -41,10 +42,16 @@ export const TIER_GLOSS = {
 };
 
 // ── build: join buildRows()'s three buckets with the register's owner fields ──
-function ownerRow(r, status, byId) {
+// `where` is what the owner can open: each deciding finding's evidence paths
+// (file:line, from the map), never the finding id alone — an id means nothing to
+// a person who did not write the engine. Ids ride beside it in `findings` for
+// anyone technical who wants the map row.
+function ownerRow(r, status, byId, evidenceById) {
   const d = byId.get(r.id);
   const o = (d && d.owner) || {};
-  const out = { id: r.id, tier: r.tier, topic: r.topic, title: r.title, status, risk: o.risk || '', fix: o.fix || '', where: r.findings || [], check: r.check };
+  const findings = r.findings || [];
+  const where = [...new Set(findings.flatMap((id) => evidenceById.get(id) || []))];
+  const out = { id: r.id, tier: r.tier, topic: r.topic, title: r.title, status, risk: o.risk || '', fix: o.fix || '', where, findings, check: r.check };
   if (r.decided_by) out.decided_by = r.decided_by;
   out.reason = r.note;
   return out;
@@ -57,13 +64,14 @@ function ownerRow(r, status, byId) {
 export function buildOwner(runDir) {
   const reg = loadYardstick();
   const byId = new Map(reg.requirements.map((d) => [d.id, d]));
+  const evidenceById = new Map(loadFindings(runDir).map((f) => [f.id, Array.isArray(f.evidence) ? f.evidence.map(String) : []]));
   const floorBuilt = buildRows(runDir, 'floor');
   const beyondBuilt = buildRows(runDir, (d) => !(d.tags || []).includes('floor'));
   if (!floorBuilt || !beyondBuilt) return null;
   const group = (built) => ({
-    open: built.open.map((r) => ownerRow(r, r.status, byId)),
-    not_measured: built.to_run.map((r) => ownerRow(r, 'not-measured', byId)),
-    met: built.met.map((r) => ownerRow(r, 'met', byId)),
+    open: built.open.map((r) => ownerRow(r, r.status, byId, evidenceById)),
+    not_measured: built.to_run.map((r) => ownerRow(r, 'not-measured', byId, evidenceById)),
+    met: built.met.map((r) => ownerRow(r, 'met', byId, evidenceById)),
   });
   return { floor: group(floorBuilt), beyond_floor: group(beyondBuilt), not_looked_at: floorBuilt.not_seen, reg };
 }
@@ -73,7 +81,7 @@ const q = (s) => `"${String(s == null ? '' : s).replace(/"/g, '\\"')}"`;
 function rowYaml(r, pad) {
   const L = [`${pad}- id: ${r.id}`, `${pad}  tier: ${r.tier}`, `${pad}  topic: ${r.topic}`, `${pad}  title: ${q(r.title)}`, `${pad}  status: ${r.status}`];
   L.push(`${pad}  risk: ${q(r.risk)}`, `${pad}  fix: ${q(r.fix)}`);
-  L.push(`${pad}  where: [${(r.where || []).join(', ')}]`, `${pad}  check: ${q(r.check)}`);
+  L.push(`${pad}  where: [${(r.where || []).map(q).join(', ')}]`, `${pad}  findings: [${(r.findings || []).join(', ')}]`, `${pad}  check: ${q(r.check)}`);
   if (r.decided_by) L.push(`${pad}  decided_by: ${r.decided_by}`);
   L.push(`${pad}  reason: ${q(r.reason)}`);
   return L.join('\n');
@@ -98,7 +106,8 @@ export function toYaml(runId, yardstickVersion, built) {
 }
 
 // ── the page ──────────────────────────────────────────────────────────────────
-const whereText = (r) => (r.where && r.where.length ? r.where.join(', ') : r.reason);
+const whereText = (r) => (r.where && r.where.length ? r.where.map((w) => `\`${w}\``).join(', ')
+  : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : r.reason);
 
 export function renderMd(runId, built, { confidential = false, name, date, commit } = {}) {
   const { floor, beyond_floor, not_looked_at } = built;

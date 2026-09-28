@@ -96,7 +96,7 @@ not_looked_at:         # every run-record row that did not run (map/scanners.yam
 ```
 
 `status` is `unmet | mixed | met | not-measured` — the same statuses
-`yardstick.yaml` carries, never a score or a severity word. `where` is the
+`yardstick.yaml` carries, never a score or a severity word. `where` (the deciding findings' evidence, `file:line` in the target, what the owner can open) and `findings` (those findings' ids, for whoever reads the map) is the
 measurement's own finding ids when the deciding mechanism produced any
 (instrument and some facet rows); a census or claim row decides over a named
 population or the owner's own word rather than individual findings, so
