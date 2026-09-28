@@ -87,6 +87,8 @@ export function compare(previous, current) {
 //   category          `dimension` for a repo-eval finding, `native_category` for
 //                      a scanner/instrument row (SCHEMA.md §2a: the two are
 //                      mutually exclusive on a finding)
+//   polarity          a check that was a strength and is now a gap is a new
+//                      fact, not the same finding
 //   evidence paths    every `evidence` entry with its `:line` suffix STRIPPED —
 //                      a file moving by a line is not a new fact; a fact moving
 //                      to a different FILE is (matches map/variance.mjs's own
@@ -101,7 +103,9 @@ export function fingerprintFinding(f) {
   const scanner = f.source || 'repo-eval';
   const category = f.dimension || f.native_category || '';
   const paths = (Array.isArray(f.evidence) ? f.evidence : []).map((e) => String(e).split(':')[0]).sort();
-  return `${scanner}::${category}::${paths.join('|')}`;
+  // polarity is part of the fact: a check that passed last run and gaps now is a new gap
+  // (and a strength no longer found), never the same finding
+  return `${scanner}::${category}::${f.polarity || ''}::${paths.join('|')}`;
 }
 
 // compareFindings(previousFindings, currentFindings) — pure. Returns

@@ -116,8 +116,8 @@ A finding is matched across the two runs by a **fingerprint**
 (`yardstick/compare.mjs`'s `fingerprintFinding`), never by its `id` — an id
 carries no meaning across independent runs (`map/SCHEMA.md` §3: "ids are
 renumbered across independent runs anyway"). The fingerprint is `(scanner,
-dimension-or-native_category, evidence file paths with the `:line` suffix
-stripped)`: a fact moving to a different line in the same file still matches; a
+dimension-or-native_category, polarity, evidence file paths with the `:line`
+suffix stripped)`: a check that passed and now gaps is a new finding; a fact moving to a different line in the same file still matches; a
 fact moving to a different file, or recorded by a different scanner or category,
 does not. A finding in `no_longer_found` reads **"no longer found"**, never
 **"fixed"** — the absence is absence of re-detection this run, not proof the

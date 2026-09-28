@@ -22,7 +22,7 @@
 //   --write-baseline  write (or overwrite) a baseline file from the run's CURRENT
 //                      measurement — every requirement, its status and basis —
 //                      dated today under the given --by role (default "steward")
-//                      and --commit (default "", for the reviewer to fill in).
+//                      and --commit (default: the head repo-census recorded for the run, else "").
 //                      The command only writes the file; committing it is the
 //                      steward's own reviewed act (routine/README.md).
 //
@@ -38,7 +38,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { parseYaml } from '../lib/yaml-min.mjs';
-import { yardstickPath } from '../lib/run-layout.mjs';
+import { yardstickPath, rawPath } from '../lib/run-layout.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { loadYardstick, STATUSES } from './measure.mjs';
 import { compare } from './compare.mjs';
@@ -175,7 +175,10 @@ if (isMain(import.meta.url)) {
   const writeTo = flag('--write-baseline');
   if (writeTo) {
     const by = flag('--by') || 'steward';
-    const commit = flag('--commit') || '';
+    // the commit the run measured (repo-census records the checkout's head), unless named
+    let runHead = '';
+    try { runHead = (JSON.parse(readFileSync(rawPath(dir, 'repo-census.json'), 'utf8')).target || {}).head || ''; } catch { /* no census in this run */ }
+    const commit = flag('--commit') || runHead;
     const date = new Date().toISOString().slice(0, 10);
     const requirements = currentDoc.requirements.map((r) => ({ id: r.id, status: r.status, basis: r.basis || 'run' }));
     mkdirSync(dirname(writeTo) || '.', { recursive: true });
