@@ -423,3 +423,19 @@ what the public engine learned.
   `compile` writes INDEX/INTAKE/MAINTAIN/axes/handoff with zero crashes; the
   genuinely empty case (no findings, no manifest) still throws. Goldens
   untouched — no fixture's recall changed.
+- **2026-09-28 — ci-gate: a gate that can fail open through its own shell
+  script, not only `continue-on-error: true`.** A gate that can fail open is
+  not a gate; `map/repo-census.mjs`'s workflow reader caught the GitHub
+  Actions declaration but not the identical outcome reached in plain shell —
+  a `run:` command ending `|| true`, `|| exit 0` or `|| :`, or a `set +e` line
+  anywhere in a multi-line block-scalar script (disabling errexit for every
+  line after it, including a gate command on a later line). `parseSteps` now
+  captures a block-scalar `run: |` script's full body with real line numbers
+  and checks every line for either shape; a hit is cited at its own line, not
+  the step's first line, so `set +e` on line one of a script whose actual test
+  command is on line two still points at line one. A literal
+  `continue-on-error: true` citation is unchanged. Tested each shape (inline
+  and block) end to end through `repo-census`, plus a clean multi-line script
+  that must not gap. `map/scanners/CONTRACT.md` §3d and
+  `yardstick/requirements.yaml`'s `d-ci-gate-on-default-branch` check text
+  name the shell shapes explicitly. Goldens untouched.

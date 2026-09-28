@@ -475,6 +475,36 @@ function parseTrigger(lines) {
 // `node --test`, and `node <file>` where the file sits in a test/ or tests/ directory or
 // is named *.test.* / *.spec.*: the zero-dependency form of a test step
 const GATE_CMD_RE = /\b(?:npm\s+(?:run\s+)?(?:test|lint|typecheck|build)|pnpm\s+(?:run\s+)?(?:test|lint|typecheck|build)|yarn\s+(?:run\s+)?(?:test|lint|typecheck|build)|tsc\b|jest\b|vitest\b|pytest\b|go\s+test|cargo\s+test|make\s+test|(?:deno|bun)\s+test|node\s+--test|node\s+(?:\S*\/)?(?:tests?|__tests__)\/\S+|node\s+\S+\.(?:test|spec)\.[cm]?[jt]s)\b/i;
+// A gate that can fail open is not a gate: `continue-on-error: true` is the
+// documented GitHub Actions shape, but a `run:` script reaches the identical
+// outcome with plain shell — appending `|| true` / `|| exit 0` / `|| :` to the
+// gate command, or disabling errexit for the rest of the script with `set +e`.
+// Checked per LINE of the step's script (a block-scalar `run: |` script is
+// captured whole, below) so the citation lands on the exact offending line,
+// never the step's first line alone.
+const FAIL_OPEN_SHELL_RE = /\|\|\s*(?:true|exit\s+0|:)\s*(?:#.*)?$/;
+const SET_PLUS_E_RE = /(?:^|[;&]|\bthen\b)\s*set\s+(?:-\w*\s+)*\+e(?:\s|$)/;
+function shellFailOpenLine(text) {
+  const t = String(text || '');
+  if (FAIL_OPEN_SHELL_RE.test(t)) return 'shell';
+  if (SET_PLUS_E_RE.test(t)) return 'set +e';
+  return null;
+}
+// A `run:` value that is a block-scalar indicator (`|`, `|-`, `|+`, `>`, `>-`, `>+`,
+// optionally followed by an explicit indentation indicator) rather than an inline
+// command — the script body is the more-indented lines that follow.
+const BLOCK_SCALAR_RE = /^[|>][+-]?\d*\s*(?:#.*)?$/;
+function captureBlock(lines, startIdx, baseIndent) {
+  const out = []; let idx = startIdx;
+  while (idx < lines.length) {
+    const l = lines[idx];
+    if (l.trimmed === '') { idx++; continue; }
+    if (l.indent <= baseIndent) break;
+    out.push({ n: l.n, text: l.trimmed });
+    idx++;
+  }
+  return { scriptLines: out, nextIdx: idx };
+}
 function parseSteps(lines) {
   const jobsIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l.trimmed));
   if (jobsIdx === -1) return [];
@@ -497,6 +527,26 @@ function parseSteps(lines) {
           const stepsIndent = l2.indent;
           let k = j + 1, itemIndent = null, cur = null;
           const flush = () => { if (cur) steps.push(cur); cur = null; };
+          // handle a `run:` key at line l3 (indent runIndent): inline command, or a
+          // block scalar whose body is captured from the following more-indented
+          // lines. Returns the index to resume the outer loop from.
+          const handleRun = (l3, rest, kNow) => {
+            const m = rest.match(/^run:\s*(.*)$/);
+            if (!m) return kNow;
+            const val = m[1].trim();
+            if (BLOCK_SCALAR_RE.test(val) || val === '') {
+              const { scriptLines, nextIdx } = captureBlock(lines, kNow + 1, l3.indent);
+              if (scriptLines.length) {
+                cur.scriptLines = scriptLines;
+                cur.cmd = scriptLines.map((s) => s.text).join('\n');
+                cur.line = l3.n;
+                return nextIdx - 1;
+              }
+              return kNow;
+            }
+            cur.cmd = val; cur.line = l3.n;
+            return kNow;
+          };
           while (k < lines.length) {
             const l3 = lines[k];
             if (l3.trimmed === '') { k++; continue; }
@@ -507,12 +557,10 @@ function parseSteps(lines) {
               flush();
               cur = { line: l3.n, cmd: null, continueOnError: jobContinueOnError, coeLine: null };
               const rest = l3.trimmed.replace(/^-\s?/, '');
-              const rm = rest.match(/^run:\s*(.+)$/);
-              if (rm) { cur.cmd = rm[1].trim(); cur.line = l3.n; }
+              k = handleRun(l3, rest, k);
               if (/^continue-on-error:\s*true\s*$/.test(rest)) { cur.continueOnError = true; cur.coeLine = l3.n; }
             } else if (cur) {
-              const rm = l3.trimmed.match(/^run:\s*(.+)$/);
-              if (rm) { cur.cmd = rm[1].trim(); cur.line = l3.n; }
+              k = handleRun(l3, l3.trimmed, k);
               if (/^continue-on-error:\s*true\s*$/.test(l3.trimmed)) { cur.continueOnError = true; cur.coeLine = l3.n; }
             }
             k++;
@@ -524,7 +572,18 @@ function parseSteps(lines) {
     }
     i++;
   }
-  for (const s of steps) s.isGateCmd = !!(s.cmd && GATE_CMD_RE.test(s.cmd));
+  for (const s of steps) {
+    s.isGateCmd = !!(s.cmd && GATE_CMD_RE.test(s.cmd));
+    // a gate step can also fail open through its own shell script — never
+    // overrides an already-found `continue-on-error: true` (that citation wins)
+    if (!s.continueOnError) {
+      const candidates = s.scriptLines && s.scriptLines.length ? s.scriptLines : (s.cmd ? [{ n: s.line, text: s.cmd }] : []);
+      for (const c of candidates) {
+        const shape = shellFailOpenLine(c.text);
+        if (shape) { s.continueOnError = true; s.coeLine = c.n; s.failOpenShell = shape; s.failOpenText = c.text; break; }
+      }
+    }
+  }
   return steps;
 }
 export function parseWorkflow(text) {
@@ -570,15 +629,16 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
     const gateSteps = steps.filter((s) => s.isGateCmd);
     const gates = (onPR || onDefaultPush) && gateSteps.length > 0;
     if (gates) anyGate = true;
-    for (const s of gateSteps) if (s.continueOnError) failOpen.push({ file: relFile, line: s.coeLine || s.line, cmd: s.cmd });
+    for (const s of gateSteps) if (s.continueOnError) failOpen.push({ file: relFile, line: s.coeLine || s.line, cmd: s.failOpenText || s.cmd, shape: s.failOpenShell ? 'shell' : 'continue-on-error' });
     detail.workflows.push({ file: relFile, events: trigger.events, pushBranches: trigger.pushBranches, gates, gateCommands: gateSteps.map((s) => s.cmd) });
   }
   detail.failOpen = failOpen;
   if (failOpen.length) {
+    const shapes = [...new Set(failOpen.map((f) => f.shape === 'shell' ? 'a run command that swallows a non-zero exit (`|| true` / `|| exit 0` / `|| :` / `set +e`)' : '`continue-on-error: true`'))];
     return {
       name, status: 'gap', detail,
       evidence: failOpen.map((f) => `${f.file}:${f.line}`),
-      observation: `A gate step fails open (\`continue-on-error: true\`): ${failOpen.map((f) => `${f.file}:${f.line} (\`${f.cmd}\`)`).join('; ')}. A gate that can fail open is not a gate. ${branchNote}`,
+      observation: `A gate step fails open (${shapes.join(', or ')}): ${failOpen.map((f) => `${f.file}:${f.line} (\`${f.cmd}\`)`).join('; ')}. A gate that can fail open is not a gate. ${branchNote}`,
     };
   }
   if (!anyGate) {

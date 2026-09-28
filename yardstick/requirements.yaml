@@ -279,7 +279,7 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: ci-gate
-    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
+    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error, or a run script that swallows its own non-zero exit with `|| true` / `|| exit 0` / `|| :` / `set +e`); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
     sources: [floor/v-ci, foundation/branch-protection]
     status: draft
   - id: d-guards-bite

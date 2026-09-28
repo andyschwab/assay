@@ -331,8 +331,10 @@ tree checks:
   test|lint|typecheck|build, `tsc`, `jest`, `vitest`, `pytest`, `go test`, `cargo
   test`, `make test`, `deno test` / `bun test`, `node --test`, or `node` running a
   file in a `test/` / `tests/` directory or named `*.test.*` / `*.spec.*`). It **fails open** — a gap, cited by file:line — when the
-  gating job or step carries `continue-on-error: true`; a gate that can fail open
-  is not a gate.
+  gating job or step carries `continue-on-error: true`, or the step's own `run:`
+  script swallows a non-zero exit (a command ending `|| true` / `|| exit 0` /
+  `|| :`, or a `set +e` line anywhere in a multi-line block-scalar script,
+  disabling errexit for the rest of it); a gate that can fail open is not a gate.
 
 **Success set.** `exit` is `0` when every check reads `pass` (or `not-applicable`),
 `1` when at least one check is a `gap`; both are successful runs and `ingest.mjs
