@@ -29,7 +29,8 @@ block of YAML at the end.
 1. **Look before you ask.** If you can see the code, read it first: package and lockfiles,
    `.env.example` or any env or config file, CI and deploy files, infrastructure files, the
    README. Propose answers from what you find and ask the owner to confirm or correct them.
-   Only ask outright what the code cannot tell you.
+   Only ask outright what the code cannot tell you. When you can see the code, also fill in
+   the `pointers` section below from what you actually opened.
 2. **One thing at a time**, in plain words: one account, one key, one topic per question,
    with its few details asked together. Aim for about a dozen questions in all. The owner may
    not be an engineer: explain a term the first time you use it, in one short clause.
@@ -142,6 +143,12 @@ custody:
         seen_by: "<role>"
     alerts: "<spend limits or alerts, or none>"
   handover: "<what the owner would need back, in what form>"
+pointers:                            # fill only if you can read the code, only paths you
+                                      # actually opened — leave this whole section out otherwise
+  default_branch: "<the branch you read from, e.g. main>"
+  architecture: "<the architecture page you opened, if any>"
+  agent_contract: "<AGENTS.md or CLAUDE.md, if you opened one>"
+  runbook: "<the runbook you opened, if any>"
 notes: "<anything else the owner wants the team to know>"
 ```
 

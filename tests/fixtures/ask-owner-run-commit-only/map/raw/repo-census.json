@@ -1,0 +1,14 @@
+{
+  "tool": "repo-census",
+  "version": "0.3.0",
+  "target": {
+    "path": "/home/steward/another-local-checkout-path-should-never-print",
+    "head": "c0ffeec0ffeec0ffeec0ffeec0ffeec0ffeec0ff"
+  },
+  "monorepo": { "detected": false, "locations": [] },
+  "evidence": { "asOf": "2026-09-28", "maxAgeDays": 90 },
+  "checks": [
+    { "name": "runbook", "status": "pass", "detail": { "path": "." }, "evidence": ["RUNBOOK.md:1"], "observation": "invented, for the ask-owner-run-commit-only fixture only — no remote configured." }
+  ],
+  "exit": 0
+}

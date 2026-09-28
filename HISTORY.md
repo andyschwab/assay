@@ -318,3 +318,17 @@ what the public engine learned.
   stripped) is now recorded alongside `target.path` and `target.head`.
   `map/scanners/CONTRACT.md` §3d and the module's own header describe the
   pointers; the format itself stays at `owner/PACKET.md`.
+- **2026-09-28 — the owner prompt's pre-fill speaks plainly.** `ask-owner
+  --run`'s `{{WHAT_WE_FOUND}}` block never prints `target.path` (a local
+  filesystem path) any more — it names the run's own packet, then
+  repo-census's recorded `target.remote` (userinfo stripped), then falls back
+  to naming just the commit when that is all that is known. The credential and
+  external-systems lines are now plain sentences (singular/plural said right,
+  internal effect-channel slugs turned into words) instead of census counts
+  and internal slugs; personal-data lines drop the "met of N" census framing.
+  A new `--found <file>` flag lets a steward replace the whole block with
+  their own write-up — a leading YAML frontmatter block is stripped first,
+  since some repositories require one on every markdown file — swept for the
+  same secret/email shapes `validate-packet` refuses and for a stray `{{` of
+  its own. `owner/ask-owner.md`'s template gains an optional `pointers:`
+  section, filled only from paths the AI actually opened.
