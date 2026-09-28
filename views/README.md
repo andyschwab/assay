@@ -112,14 +112,16 @@ joins it to the measurement.
 view: owner
 run: <run name>
 yardstick: <requirements.yaml version>
-counts: { floor_open, floor_not_measured, floor_met, beyond_floor_open, beyond_floor_not_measured, beyond_floor_met }
+counts: { floor_open, floor_not_measured, floor_met, floor_not_applicable, beyond_floor_open, beyond_floor_not_measured, beyond_floor_met, beyond_floor_not_applicable }
 floor:                # the same population Intake reads (tags: [floor])
   open:
-    - { id, tier, topic, title, status, risk, fix, where: [F-…], check, reason }
+    - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], check, reason }
   not_measured:
-    - { id, tier, topic, title, status, risk, fix, where: [], check, decided_by, reason }
+    - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, decided_by, reason }
   met:
-    - { id, tier, topic, title, status, risk, fix, where: [F-…], check, reason }
+    - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], check, reason }
+  not_applicable:    # decided from the map as having nothing to apply to; listed, never counted as met
+    - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, reason }
 beyond_floor:          # every requirement NOT tagged floor — fleet and ai-operating rows together
   open: [...]
   not_measured: [...]

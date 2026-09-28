@@ -2086,10 +2086,12 @@ function adaptersOnce() { return loadAdapters(); }
     for (const r of intakeYamlDoc.open || []) intakeStatus[r.id] = r.status;
     for (const r of intakeYamlDoc.met || []) intakeStatus[r.id] = 'met';
     for (const r of intakeYamlDoc.to_run || []) intakeStatus[r.id] = 'not-measured';
+    for (const r of intakeYamlDoc.not_applicable || []) intakeStatus[r.id] = 'not-applicable';
     const ownerStatus = {};
     for (const r of ownerDoc.floor?.open || []) ownerStatus[r.id] = r.status;
     for (const r of ownerDoc.floor?.met || []) ownerStatus[r.id] = r.status;
     for (const r of ownerDoc.floor?.not_measured || []) ownerStatus[r.id] = r.status;
+    for (const r of ownerDoc.floor?.not_applicable || []) ownerStatus[r.id] = r.status;
     const intakeIds = Object.keys(intakeStatus), ownerIds = Object.keys(ownerStatus);
     const missing = intakeIds.filter((id) => !(id in ownerStatus));
     const mismatched = intakeIds.filter((id) => id in ownerStatus && ownerStatus[id] !== intakeStatus[id]);
