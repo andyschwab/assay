@@ -643,3 +643,16 @@ what the public engine learned.
   PHRASE like "Lead Engineer" still validates, since one of its own words is a
   role word. One plain line: "answered.by: write a role (for example
   founder), not a name." Documented in `owner/PACKET.md`. Goldens untouched.
+- **2026-09-28 — a run says its own outcome: `routine.yaml`.** `routine/run.mjs`
+  now writes `<run>/routine.yaml` — what fired, which commit and engine it ran,
+  where the baseline came from, and whether the gate held — as the last step
+  before every return, including a failed or skipped gate, and (best effort)
+  when validate or compile fails before a measurement even exists (`gate:
+  not-run`). A fleet collector reading only the uploaded run artifact now knows
+  the outcome without the CI logs. `failures` is scraped from the ratchet
+  subprocess's own stderr lines (its `evaluateRatchet` output, verbatim, minus
+  the summary line) rather than re-run in-process. `lib/run-layout.mjs` gains
+  `routinePath`; `map/repo-census.mjs` exports its existing `gitHead`/
+  `gitRemote` so the record reuses the same "is this dir a repo root" check
+  fixtures rely on, rather than letting git's upward discovery resolve to an
+  enclosing repo. Documented in `routine/README.md`. Goldens untouched.

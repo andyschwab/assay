@@ -26,6 +26,52 @@ build artifact (`assay-run-<run id>`, kept per the template's
 reads the checkout, measures it, and hands the result to whoever is watching
 the workflow run.
 
+Every firing also writes `<run>/routine.yaml` (`lib/run-layout.mjs`'s
+`routinePath`) — the run's own record of what the routine did and whether its
+gate held, so a fleet collector reading only the uploaded run artifact knows
+the outcome without going back to the CI logs. It is written as the very last
+step before `run.mjs` returns, on every path: a held or failed gate, a
+skipped one (no baseline yet), and — best effort — `gate: not-run` when
+`validate` or `compile` itself failed (or the routine hit an unexpected error)
+before a measurement even existed to gate on.
+
+```yaml
+# routine.yaml — written by routine/run.mjs; the run's own record of what the routine did
+routine: 1
+date: "<ISO 8601 UTC timestamp>"
+repository: "<the remote with userinfo stripped, if known; else omitted>"
+commit: "<the checkout's HEAD sha>"
+engine: "<assay commit the routine ran>"
+trigger: "<GITHUB_EVENT_NAME when set: schedule | push | pull_request | workflow_dispatch; else local>"
+baseline:
+  source: none | file | ref
+  where: "<the file path or git ref; omitted when none>"
+gate: held | failed | skipped | not-run
+failures:          # the ratchet's failure lines, verbatim, one per entry; [] when none
+  - "<line>"
+contradictions: <count of contradictions in yardstick.yaml>
+exit: <the routine's exit code>
+```
+
+`commit` and `repository` come from the same checkout-identity check
+`repo-census` uses (`map/repo-census.mjs`'s `gitHead`/`gitRemote`): the target
+directory must be a repo root of its own, never resolved through git's own
+upward discovery to an enclosing repository, and `repository` is left out
+entirely when no `origin` remote is configured. `baseline.source` is `ref` on
+a pull request (`--base-ref`, `where` the base ref), `file` on a schedule or
+local run that found a baseline (`where` its path in the repository, or its absolute path
+when it lives outside it), and `none` when
+no baseline was found at all — which is exactly when `gate` reads `skipped`.
+`gate: failed` is a ratchet exit of 1 (`failures` non-empty); `gate: held` is
+exit 0 with a baseline in hand; `gate: not-run` means the gate never ran —
+validation or compile failed, the routine crashed, or the ratchet could not
+evaluate (exit 2: an unreadable baseline, a missing ref) — with the reason in
+`failures`. A reason is recorded on one line, capped at 400 characters (the full
+output stays in the CI log). `failures` is read straight
+from the ratchet subprocess's own stderr — the lines `evaluateRatchet`
+already prints with a `✗ ` prefix, minus its one summary line — rather than
+re-loading the baseline and re-running the comparison a second time.
+
 ## What it runs, and what it never does
 
 The routine runs the instruments assay runs offline on its own — `repo-census`,

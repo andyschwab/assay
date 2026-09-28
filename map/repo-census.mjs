@@ -874,7 +874,11 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
 }
 
 // ── the run ──────────────────────────────────────────────────────────────────
-function gitHead(dir) {
+// exported so other callers reading a checkout's own identity (routine/run.mjs's
+// routine.yaml) reuse this exact "is dir itself a repo root" check, rather than
+// letting git's own upward discovery resolve to an ENCLOSING repo when dir is
+// merely a subdirectory or fixture that isn't a repo of its own.
+export function gitHead(dir) {
   if (!existsSync(join(dir, '.git'))) return null;
   const r = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf8' });
   return r.status === 0 ? String(r.stdout || '').trim() || null : null;
@@ -884,7 +888,7 @@ function gitHead(dir) {
 // "git@" there is the protocol's normal user, not a leaked credential.
 const USERINFO_RE = /^([a-zA-Z][a-zA-Z0-9+.-]*:\/\/)[^/@]+@/;
 export function stripUserinfo(url) { return url.replace(USERINFO_RE, '$1'); }
-function gitRemote(dir) {
+export function gitRemote(dir) {
   if (!existsSync(join(dir, '.git'))) return null;
   const r = spawnSync('git', ['remote', 'get-url', 'origin'], { cwd: dir, encoding: 'utf8' });
   if (r.status !== 0) return null;
