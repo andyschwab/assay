@@ -293,3 +293,13 @@ what the public engine learned.
   recorded, never merged. Tested with simulated owners on an invented app; the
   parser now reads a flow list on the line below its key, and yes/no fields
   accept `unsure`. The custody questions file is retired: the prompt carries them.
+- **2026-09-28 — the packet gains `pointers:`.** An optional top-level
+  `pointers:` map (`owner/PACKET.md` "Pointers") says where a repository keeps
+  what the yardstick asks about — its default branch, its apps, its
+  architecture page(s), agent contract(s), runbook, owner-evidence directory,
+  workflows directory, build/install/test commands, and canon file — so a
+  scanner can read the repository the way it says it is laid out instead of
+  guessing. Every pointer is optional; `validate-packet` refuses an unknown
+  pointer key, an absolute or `..`-bearing path, a URL in place of a path, a
+  wrongly-shaped `apps`/`architecture`/`agent_contract`, and an implausible
+  `default_branch`, one plain line each.

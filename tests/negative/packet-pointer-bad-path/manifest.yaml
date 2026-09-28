@@ -1,0 +1,10 @@
+# negative/packet-pointer-bad-path — an absolute path under `pointers`;
+# validate-packet must refuse it (a pointer names a path in the repository).
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+pointers:
+  runbook: /etc/RUNBOOK.md

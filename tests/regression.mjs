@@ -33,7 +33,7 @@ import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
 import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
-import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim } from '../yardstick/packet.mjs';
+import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef } from '../yardstick/packet.mjs';
 import { packetManifestPath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET } from '../owner/ask-owner.mjs';
 
@@ -1039,6 +1039,10 @@ function adaptersOnce() { return loadAdapters(); }
     ['packet-unknown-claim', /is not a requirement in yardstick\/requirements\.yaml/],
     ['packet-claim-no-by', /state satisfied requires by/],
     ['packet-unknown-top-key', /unknown top-level key/],
+    ['packet-pointer-unknown-key', /pointers\.deploy_docs: unknown pointer/],
+    ['packet-pointer-bad-path', /pointers\.runbook: must be relative to the repo root, not absolute/],
+    ['packet-pointer-bad-branch', /pointers\.default_branch: not a plausible git ref name/],
+    ['packet-pointer-wrong-type', /pointers\.apps: must be a path \(a string\) or a list of paths/],
   ];
   for (const [dir, msgRe] of PACKET_NEGATIVE) {
     let stderr = '', code = 0;
@@ -1084,6 +1088,28 @@ function adaptersOnce() { return loadAdapters(); }
   const withPlaceholder = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' }, custody: { people: { build: ['founder'], deploy: ['founder'], restore: ['unknown'] } } };
   if (!validatePacket(withPlaceholder, { requirementIds: ids }).some((e) => /custody\.people\.restore: holds "unknown", which is not a role/.test(e))) fail('a placeholder in a role list must be refused');
   if (validatePacket({ ...withPlaceholder, custody: { people: { build: ['founder'], deploy: ['founder'], restore: [] } } }, { requirementIds: ids }).length) fail('an empty role list ([] when nobody can) must validate');
+
+  // pointers (owner/PACKET.md "Pointers"): optional, and every field optional
+  const base = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } };
+  if (validatePacket({ ...base, pointers: {} }, { requirementIds: ids }).length) fail('an empty pointers: map must validate clean');
+  if (validatePacket({ ...base }, { requirementIds: ids }).length) fail('no pointers: at all must validate clean (the whole section is optional)');
+  const fullPointers = {
+    default_branch: 'main', apps: ['apps/web', 'services/worker'],
+    architecture: ['docs/architecture.md', 'apps/web/docs/architecture.md', 'services/worker/docs/architecture.md'],
+    agent_contract: 'CLAUDE.md', runbook: 'ops/RUNBOOK.md', evidence: 'ops/evidence',
+    workflows: '.github/workflows', install: 'npm ci', build: 'npm run build', test: 'npm test', canon: 'packet/canon.yaml',
+  };
+  if (validatePacket({ ...base, pointers: fullPointers }, { requirementIds: ids }).length) fail('every documented pointer key, filled with a plausible value, must validate clean');
+  if (!validatePacket({ ...base, pointers: { runbook: '../RUNBOOK.md' } }, { requirementIds: ids }).some((e) => /pointers\.runbook: must not contain "\.\."/.test(e))) fail('a pointer path containing ".." must be refused');
+  if (!validatePacket({ ...base, pointers: { runbook: 'https://example.com/RUNBOOK.md' } }, { requirementIds: ids }).some((e) => /must be a path in the repository, not a URL/.test(e))) fail('a pointer path with a URL scheme must be refused');
+  if (!validatePacket({ ...base, pointers: { architecture: [1, 2] } }, { requirementIds: ids }).some((e) => /pointers\.architecture\[0\]: must be a string/.test(e))) fail('a non-string entry in an architecture list must be refused');
+  if (!validatePacket({ ...base, pointers: { install: 42 } }, { requirementIds: ids }).some((e) => /pointers\.install: must be a string/.test(e))) fail('a non-string command pointer must be refused');
+  // commands are words, never path-checked (an npm command is not a repo-relative path)
+  if (validatePacket({ ...base, pointers: { install: 'npm ci && npm run prepare' } }, { requirementIds: ids }).length) fail('a command pointer must never be path-checked');
+  if (badGitRef('main')) fail('"main" must be a plausible git ref');
+  if (badGitRef('release/2026-09')) fail('a slashed branch name must be a plausible git ref');
+  if (!badGitRef('refs/../weird branch')) fail('a ref containing ".." and a space must not be a plausible git ref');
+  if (!badGitRef('')) fail('an empty default_branch must not be a plausible git ref');
 }
 
 // ── packet phase 2: the yardstick reads the packet (owner/PACKET.md) ──────────

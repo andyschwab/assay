@@ -1,0 +1,11 @@
+# negative/packet-pointer-wrong-type — `apps` given as a mapping instead of a
+# string or a list of strings; validate-packet must refuse it.
+packet: 1
+yardstick: 0
+answered:
+  date: "2026-09-01"
+  by: founder
+  via: owner-prompt
+pointers:
+  apps:
+    web: apps/web
