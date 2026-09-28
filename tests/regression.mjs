@@ -18,7 +18,7 @@
 //   node tests/regression.mjs            # assert against golden.json (exit 1 on any drift)
 //   node tests/regression.mjs --bless    # rewrite golden.json from current state (reviewed!)
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, rmSync, readdirSync, cpSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -33,11 +33,12 @@ import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
 import { loadYardstick, validateYardstick, measureRun, summarize, KINDS, loadContradictions, loadRunPacket, projectRun } from '../yardstick/measure.mjs';
-import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef } from '../yardstick/packet.mjs';
+import { validatePacket, loadPacket, secretShape, emailShape, decideAccountsClaim, decideBusFactorClaim, decideGenericClaim, badGitRef, unwrapChatReply, looksLikePersonName } from '../yardstick/packet.mjs';
 import { compare, classify, fingerprintFinding, compareFindings } from '../yardstick/compare.mjs';
-import { loadBaseline, loadYardstickDoc, evaluateRatchet } from '../yardstick/ratchet.mjs';
+import { loadBaseline, loadYardstickDoc, evaluateRatchet, catGitFile } from '../yardstick/ratchet.mjs';
 import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
+import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../views/intake.mjs';
 import { runRoutine } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
 import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
@@ -1646,6 +1647,39 @@ function adaptersOnce() { return loadAdapters(); }
     else if (/\bat\s+\S+\.mjs:\d+/.test(stderr)) fail('negative/packet-bad-yaml leaked a stack trace — a YAML the parser cannot read must be one error, not a trace');
   }
 
+  // a reply still wrapped for chat: prose before and after, the actual YAML
+  // fenced in a ```yaml code block. loadPacket must parse only the fence's
+  // content, discarding the chatter — never executing or trusting it.
+  if (unwrapChatReply('no fence here at all') !== 'no fence here at all') fail('unwrapChatReply with no fence must return the text unchanged');
+  if (unwrapChatReply('prose\n```yaml\npacket: 1\n```\nmore prose').trim() !== 'packet: 1') fail('unwrapChatReply must take the first fenced block\'s content, discarding the chatter around it');
+  {
+    const tmp = join(HERE, 'tmp-packet-chat'); rmSync(tmp, { recursive: true, force: true });
+    mkdirSync(tmp, { recursive: true });
+    const raw = readFileSync(join(HERE, 'fixtures', 'packet-valid', 'manifest.yaml'), 'utf8');
+    writeFileSync(join(tmp, 'manifest.yaml'), `Sure! Here is the completed packet:\n\n\`\`\`yaml\n${raw}\`\`\`\n\nLet me know if you need anything else.\n`);
+    let chatDoc = null;
+    try { ({ doc: chatDoc } = loadPacket(tmp)); } catch (e) { fail(`loadPacket must accept a reply still wrapped for chat (${e.message})`); }
+    if (chatDoc && validatePacket(chatDoc, { requirementIds: ids }).length) fail('a chat-wrapped reply, once unwrapped, must validate exactly like the raw packet');
+    if (chatDoc && chatDoc.repository !== 'example/notesbox') fail("the unwrapped packet must carry the fenced content's own fields, not the chatter");
+    rmSync(tmp, { recursive: true, force: true });
+  }
+
+  // answered.by must be a role, never a person's name (owner/PACKET.md) — a role
+  // PHRASE is fine (one of its words IS a role word); a bare name, or a name
+  // followed by a parenthetical role, is refused with one plain line.
+  {
+    const roleBase = { packet: 1, yardstick: 0, answered: { date: '2026-09-01', by: 'founder', via: 'owner-prompt' } };
+    const wantsRole = (by) => validatePacket({ ...roleBase, answered: { ...roleBase.answered, by } }, { requirementIds: ids }).some((e) => e === 'answered.by: write a role (for example founder), not a name');
+    if (!wantsRole('Dana Reyes')) fail('a bare two-word Title Case name ("Dana Reyes") must be refused as not a role');
+    if (!wantsRole('Dana Reyes (founder)')) fail('a name followed by a parenthesized role ("Dana Reyes (founder)") must be refused as not a role');
+    if (wantsRole('Lead Engineer')) fail('a role PHRASE containing a role word ("Lead Engineer") must still validate clean');
+    if (wantsRole('founder')) fail('a plain role must still validate clean');
+    if (wantsRole('co-founder')) fail('a role word with a hyphen must still validate clean');
+
+    if (!looksLikePersonName('Dana Reyes') || !looksLikePersonName('Dana Reyes (founder)')) fail('looksLikePersonName must flag both name shapes directly');
+    if (looksLikePersonName('Product Manager') || looksLikePersonName('founder') || looksLikePersonName('Jane')) fail('looksLikePersonName must not flag a role phrase, a plain role, or a single capitalized word');
+  }
+
   // secret/email shape unit checks — the false-positive guards this class of
   // check depends on: a commit sha, a UUID, and a kebab-case id must all pass
   // clean, or every packet with one in it would be unusable.
@@ -1653,6 +1687,10 @@ function adaptersOnce() { return loadAdapters(); }
   if (secretShape('550e8400-e29b-41d4-a716-446655440000')) fail('a UUID must not read as a secret (hex-plus-dash exemption)');
   if (secretShape('d-this-requirement-does-not-exist-and-is-long')) fail('a long kebab-case id must not read as a secret (class-diversity gate)');
   if (!secretShape('sk-ThisLooksLikeARealSecretKeyValue123456')) fail('an sk-… value must read as a secret');
+  if (secretShape('apps/web-app/docs/SHARED_LEADS_CONTRACT.md')) fail('a file path must not read as a secret (path-like exemption)');
+  if (secretShape('see packages/Billing/src/InvoiceRenderer for the contract')) fail('a path inside prose must not read as a secret');
+  if (secretShape('src/write-back/pipNotificationPublisher.spec.ts')) fail('a lowerCamelCase file name in a path must not read as a secret');
+  if (!secretShape('Xk9aB2Qw/Lm7Pz3Rt8Vn1Yc5Hd2Jf6Gs4Kb9Wm')) fail('a base64-shaped secret containing a slash must still read as a secret');
   if (!secretShape('AKIAABCDEFGHIJKLMNOP')) fail('an AKIA… value must read as a secret');
   if (!secretShape('https://user:hunter2@example.com/db')) fail('a URL with an embedded password must read as a secret');
   if (!emailShape('alice@example.com')) fail('an email address must be flagged as one');
@@ -1783,6 +1821,78 @@ function adaptersOnce() { return loadAdapters(); }
   // this combination must record no contradiction — loadContradictions reads
   // yardstick.yaml's own list, never recomputing it.
   if (loadContradictions(tmp).length) fail(`notesbox + packet-valid must record no contradictions (got ${JSON.stringify(loadContradictions(tmp))})`);
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── Intake: "What the owner told us" — facts from a repository's own packet,
+// never a verdict (owner/PACKET.md, views/README.md) ─────────────────────────
+{
+  const fail = (m) => negFailures.push('intake-owner: ' + m);
+
+  // no packet at all: owner: null, and the plain "no packet yet" message.
+  if (buildOwnerBlock(null) !== null) fail('buildOwnerBlock(null) must read null');
+  const noneMd = renderOwnerSection(null).join('\n');
+  if (!/No owner's packet yet: the owner prompt \(`assay\.mjs ask-owner`\) collects these\./.test(noneMd)) fail(`renderOwnerSection(null) must print the exact no-packet message (got: ${noneMd})`);
+
+  // the public packet-valid fixture, end to end through the CLI.
+  const tmp = join(HERE, 'tmp-intake-owner'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--packet', join(HERE, 'fixtures', 'packet-valid'), '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --packet must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'intake.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/intake.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+
+  const intakeYaml = existsSync(join(tmp, 'views', 'intake.yaml')) ? parseYaml(readFileSync(join(tmp, 'views', 'intake.yaml'), 'utf8')) : null;
+  const owner = intakeYaml && intakeYaml.owner;
+  if (!owner) fail('views/intake.yaml must carry an owner: block when the run carries a packet');
+  else {
+    if (owner.answered?.date !== '2026-09-01' || owner.answered?.by !== 'founder' || owner.answered?.via !== 'owner-prompt') fail(`owner.answered must come from the packet (got ${JSON.stringify(owner.answered)})`);
+    if (owner.accounts?.count !== 2 || owner.accounts?.personal !== 1 || owner.accounts?.organisational !== 1) fail(`owner.accounts counts must reflect the packet (got ${JSON.stringify(owner.accounts)})`);
+    if (owner.accounts?.transferable?.yes !== 2) fail(`both packet-valid accounts are transferable: yes (got ${JSON.stringify(owner.accounts?.transferable)})`);
+    if ((owner.accounts?.rows || []).length !== 2) fail('owner.accounts.rows must carry one row per account');
+    if (owner.credentials?.count !== 1 || owner.credentials?.never_rotated !== 1) fail(`owner.credentials must reflect the packet's one never-rotated credential (got ${JSON.stringify(owner.credentials)})`);
+    if (JSON.stringify(owner.people?.build) !== JSON.stringify(['founder', 'contractor'])) fail(`owner.people.build must come from the packet (got ${JSON.stringify(owner.people?.build)})`);
+    if (owner.people?.restore_done !== 'no') fail(`owner.people.restore_done must come from the packet (got ${owner.people?.restore_done})`);
+    if (owner.data?.personal !== 'user email addresses, for account login') fail('owner.data.personal must come from the packet');
+    if ((owner.money?.monthly || []).length !== 2) fail('owner.money.monthly must carry one row per provider');
+    if (owner.handover !== 'repo access, hosting account transfer, and the credential list above') fail(`owner.handover must come from custody.handover, not the top level (got ${JSON.stringify(owner.handover)})`);
+    if (owner.notes !== 'First packet filled at intake; bus factor and the backlog-is-issues claim are open follow-ups.') fail('owner.notes must come from the packet');
+  }
+
+  const intakePage = existsSync(join(tmp, 'INTAKE.md')) ? readFileSync(join(tmp, 'INTAKE.md'), 'utf8') : '';
+  if (!/## What the owner told us/.test(intakePage)) fail('INTAKE.md must carry a "What the owner told us" section');
+  if (!/Source repository \(GitHub\)/.test(intakePage) || !/Hosting \(Fly\.io\)/.test(intakePage)) fail('INTAKE.md must name each account, one line each');
+  if (!/founder, contractor/.test(intakePage)) fail('INTAKE.md must name who can build/deploy');
+  if (!/Restore ever done: no/.test(intakePage)) fail('INTAKE.md must say whether restore was ever done');
+  if (!/user email addresses, for account login/.test(intakePage)) fail('INTAKE.md must name the personal data the packet described');
+  if (!/Fly\.io: ~\$25\/month/.test(intakePage) || !/GitHub: \$0/.test(intakePage)) fail('INTAKE.md must name money per provider');
+  if (!/Handover.*repo access, hosting account transfer/.test(intakePage)) fail('INTAKE.md must name the handover (custody.handover, not dropped)');
+  if (!/Answered 2026-09-01 by founder, via owner-prompt/.test(intakePage)) fail('INTAKE.md must name the answered date/by/via');
+
+  // d-credentials-enumerated: the owner's count informs the NOTE only, never the status.
+  const credRow = intakeYaml && [...(intakeYaml.open || []), ...(intakeYaml.met || []), ...(intakeYaml.to_run || [])].find((r) => r.id === 'd-credentials-enumerated');
+  if (!credRow) fail('d-credentials-enumerated must appear in the intake measurement');
+  else if (!/\(the owner listed 1 credential\)$/.test(credRow.note)) fail(`d-credentials-enumerated's note must name the owner's own count, as a trailing note (got: ${credRow.note})`);
+
+  // unknowns render as "unknown", never dropped — a packet silent on custody.people
+  // still produces a full owner block, roles reading "unknown", not omitted.
+  const bare = buildOwnerBlock({ packet: 1, yardstick: 0, answered: { date: '2026-01-01', by: 'founder', via: 'owner-prompt' } });
+  if (bare.people.build !== null || bare.people.restore_done !== 'unknown') fail(`a packet silent on custody.people must read build: null (unknown) and restore_done: unknown (got ${JSON.stringify(bare.people)})`);
+  if (bare.data.personal !== 'unknown') fail(`a packet silent on custody.data must read personal: unknown (got ${bare.data.personal})`);
+  const bareSection = renderOwnerSection(bare).join('\n');
+  if (!/restore: unknown/.test(bareSection) || !/Restore ever done: unknown/.test(bareSection)) fail(`renderOwnerSection must render unknowns as the word "unknown", never drop them (got:\n${bareSection})`);
+  // an owner who explicitly names nobody ([]): rendered "nobody", distinct from "unknown".
+  const nobody = buildOwnerBlock({ packet: 1, yardstick: 0, answered: { date: '2026-01-01', by: 'founder', via: 'owner-prompt' }, custody: { people: { build: ['founder'], deploy: ['founder'], restore: [] } } });
+  if (nobody.people.restore.length !== 0) fail('an explicit [] must stay [], distinct from an absent field (null)');
+  const nobodySection = renderOwnerSection(nobody).join('\n');
+  if (!/restore: nobody/.test(nobodySection)) fail(`an explicit empty role list must render "nobody" (got:\n${nobodySection})`);
+
+  // the written owner: YAML block must itself parse back cleanly (yaml-min).
+  let reparsed = null;
+  try { reparsed = parseYaml(ownerYaml(owner)); } catch (e) { fail(`ownerYaml() output must be valid yaml-min YAML (${e.message})`); }
+  if (reparsed && (!reparsed.owner || !reparsed.owner.credentials || reparsed.owner.credentials.count !== 1)) fail('the owner: YAML block must round-trip through the parser');
+
   rmSync(tmp, { recursive: true, force: true });
 }
 
@@ -1918,6 +2028,49 @@ function adaptersOnce() { return loadAdapters(); }
     const bad = toRunClaims.filter((r) => r.decided_by !== 'owner');
     if (bad.length) fail(`decided_by must be "owner" for every claim row (got ${bad.map((r) => `${r.id}:${r.decided_by}`).join(', ')})`);
   }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── contradictions surface in Maintain too, and ratchet always fails on one
+// (yardstick/README.md; views/README.md) — a repository's own packet claimed a
+// run-decided requirement satisfied; this run found it unmet, never silently
+// overridden. Checked with NO --baseline at all: a contradiction is a failure
+// under stewardship every time, never something a flag can wave through.
+{
+  const fail = (m) => negFailures.push('contradictions: ' + m);
+  const tmp = join(HERE, 'tmp-contradictions'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
+  // d-secrets-out-of-history reads unmet in the plain notesbox fixture (gitleaks's
+  // F-700) — a packet claiming it satisfied must record a contradiction.
+  mkdirSync(join(tmp, 'owner'), { recursive: true });
+  writeFileSync(join(tmp, 'owner', 'manifest.yaml'), [
+    'packet: 1', 'yardstick: 0',
+    'answered:', '  date: "2026-09-28"', '  by: founder', '  via: owner-prompt',
+    'claims:', '  - id: d-secrets-out-of-history', '    state: satisfied', '    by: "a ci scan we trust"',
+  ].join('\n') + '\n');
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
+  catch (e) { fail(`measure --write must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  if (loadContradictions(tmp).length !== 1) fail(`test setup: expected exactly one contradiction (got ${JSON.stringify(loadContradictions(tmp))})`);
+
+  try { execFileSync(process.execPath, [join(ROOT, 'views', 'maintain.mjs'), tmp], { stdio: 'pipe' }); }
+  catch (e) { fail(`views/maintain.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  const maintainYamlPath = join(tmp, 'views', 'maintain.yaml');
+  const maintainDoc = existsSync(maintainYamlPath) ? parseYaml(readFileSync(maintainYamlPath, 'utf8')) : null;
+  if (!maintainDoc || !(maintainDoc.contradictions || []).some((c) => c.id === 'd-secrets-out-of-history'))
+    fail(`maintain.yaml must carry the contradiction, same shape as Intake (got ${JSON.stringify(maintainDoc && maintainDoc.contradictions)})`);
+  const maintainPage = existsSync(join(tmp, 'MAINTAIN.md')) ? readFileSync(join(tmp, 'MAINTAIN.md'), 'utf8') : '';
+  if (!/## Contradicted claims/.test(maintainPage) || !/d-secrets-out-of-history/.test(maintainPage)) fail('MAINTAIN.md must carry a "Contradicted claims" section naming the contradiction');
+
+  // ratchet: a contradiction is ALWAYS a failure, even with no --baseline given.
+  let out = '', err = '', status = 0;
+  try { out = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), tmp], { stdio: 'pipe' }).toString(); }
+  catch (e) { status = e.status ?? 1; err = String(e.stderr || ''); out = String(e.stdout || ''); }
+  if (status !== 1) fail(`ratchet must exit 1 when the run carries a contradiction, even with no --baseline (got ${status})`);
+  const line = err || out;
+  if (!line.includes('d-secrets-out-of-history')) fail('the contradiction failure line must name the requirement id');
+  if (!/satisfied/.test(line) || !/unmet/.test(line)) fail(`the contradiction failure line must name what the owner claimed and what the run found (got: ${line})`);
+
   rmSync(tmp, { recursive: true, force: true });
 }
 
@@ -2187,6 +2340,96 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── routine --base-ref: a pull request is graded against the BASE branch's own
+// packet/baseline.yaml, never the working tree it carries (routine/README.md) ──
+// A real git repository: commit 1 carries a complete RUNBOOK.md (d-runbook reads
+// met); a steward accepts that as the baseline (commit 2). The "pull request" then
+// (uncommitted, on top of commit 2) deletes RUNBOOK.md AND loosens the working
+// tree's own packet/baseline.yaml to no longer expect it met — if the routine read
+// that working-tree copy, the loosened baseline would hide the regression; reading
+// the base ref's copy instead must still catch it.
+{
+  const fail = (m) => negFailures.push('routine-pr-baseline: ' + m);
+  const tmp = join(HERE, 'tmp-routine-pr'); rmSync(tmp, { recursive: true, force: true });
+  const repoDir = join(tmp, 'repo');
+  mkdirSync(repoDir, { recursive: true });
+  const git = (gitArgs) => spawnSync('git', gitArgs, { cwd: repoDir, encoding: 'utf8' });
+
+  writeFileSync(join(repoDir, 'package.json'), JSON.stringify({ name: 'pr-baseline-target', version: '0.0.0', private: true, scripts: { test: "node -e \"process.exit(0)\"", build: "node -e \"console.log('built')\"" } }, null, 2) + '\n');
+  writeFileSync(join(repoDir, 'README.md'), '# pr-baseline-target\n\nA regression-only fixture; not a real package.\n');
+  writeFileSync(join(repoDir, 'RUNBOOK.md'), [
+    '# Runbook', '',
+    '## Restart', 'Steps to restart the service.', '',
+    '## Roll back', 'Steps to roll back a deploy.', '',
+    '## Rotate a credential', 'Steps to rotate an API key or secret.', '',
+    '## Restore from backup', 'Steps to restore data from backup.', '',
+  ].join('\n'));
+  git(['init', '-q']);
+  git(['config', 'user.email', 'test@example.com']);
+  git(['config', 'user.name', 'Test']);
+  git(['add', '-A']);
+  let gc = git(['commit', '-q', '-m', 'initial']);
+  if (gc.status !== 0) fail(`test setup: initial commit must succeed (${gc.stderr})`);
+
+  const runDir1 = join(tmp, 'run1');
+  let result1;
+  try { result1 = runRoutine({ repoDir, outDir: runDir1 }, () => {}); }
+  catch (e) { fail(`test setup: the first runRoutine (to seed a baseline) must not throw (${e.message})`); }
+  const yardstick1 = existsSync(join(runDir1, 'yardstick.yaml')) ? parseYaml(readFileSync(join(runDir1, 'yardstick.yaml'), 'utf8')) : null;
+  const runbookRow1 = yardstick1 && (yardstick1.requirements || []).find((r) => r.id === 'd-runbook');
+  if (!runbookRow1 || runbookRow1.status !== 'met') fail(`test setup: d-runbook must read met with a complete RUNBOOK.md in place (got ${JSON.stringify(runbookRow1)})`);
+
+  mkdirSync(join(repoDir, 'packet'), { recursive: true });
+  const baselineFile = join(repoDir, 'packet', 'baseline.yaml');
+  let wb;
+  try { wb = execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runDir1, '--write-baseline', baselineFile, '--by', 'steward'], { stdio: 'pipe' }); }
+  catch (e) { fail(`test setup: --write-baseline must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  git(['add', 'packet/baseline.yaml']);
+  gc = git(['commit', '-q', '-m', 'a steward accepts the baseline']);
+  if (gc.status !== 0) fail(`test setup: the baseline-acceptance commit must succeed (${gc.stderr})`);
+  const baseCommit = git(['rev-parse', 'HEAD']).stdout.trim();
+  if (!/^[0-9a-f]{40}$/.test(baseCommit)) fail('test setup: could not resolve the base commit');
+
+  if (result1 && baseCommit) {
+    // the pull request: delete the runbook, and loosen the WORKING TREE's own copy
+    // of the baseline so it no longer expects d-runbook met — a routine that reads
+    // this copy (instead of the base ref's) would see nothing to hold.
+    rmSync(join(repoDir, 'RUNBOOK.md'));
+    const acceptedBaseline = readFileSync(baselineFile, 'utf8');
+    const loosened = acceptedBaseline.replace(/(- id: d-runbook\n\s*status: )met/, '$1unmet');
+    if (loosened === acceptedBaseline) fail('test setup: could not find d-runbook in the written baseline to loosen — the test would be vacuous');
+    writeFileSync(baselineFile, loosened);
+
+    const runDir2 = join(tmp, 'run2');
+    const logs2 = [];
+    let result2;
+    try { result2 = runRoutine({ repoDir, outDir: runDir2, baseRef: baseCommit }, (l) => logs2.push(l)); }
+    catch (e) { fail(`runRoutine with --base-ref must not throw (${e.message})`); }
+    if (result2) {
+      if (result2.ok || result2.exitCode !== 1) fail(`a pull request that regresses d-runbook must fail the routine even though its OWN working-tree baseline was loosened (got ok=${result2.ok} exit=${result2.exitCode}):\n${logs2.join('\n')}`);
+      const joined = logs2.join('\n');
+      if (!/edits the accepted baseline/.test(joined)) fail(`the routine must name the baseline edit plainly when the working tree's packet\/baseline.yaml differs from the base ref's (got:\n${joined})`);
+      if (!/d-runbook/.test(joined)) fail(`the ratchet failure must name d-runbook (got:\n${joined})`);
+      if (!/met\s*→\s*unmet/.test(joined)) fail(`the ratchet failure must show the before → after (got:\n${joined})`);
+    }
+
+    // the base ref's own copy — never the working tree's loosened one — is what
+    // decided the gate: reading it back directly must still show d-runbook met.
+    const baseCopy = catGitFile(repoDir, baseCommit, 'packet/baseline.yaml');
+    if (!baseCopy.ok || !/- id: d-runbook\n\s*status: met/.test(baseCopy.content)) fail('the base ref\'s own packet/baseline.yaml must still read d-runbook: met, untouched by the working-tree edit');
+
+    // a schedule / workflow_dispatch run (no --base-ref) reads the working tree's
+    // own copy, unchanged from before this feature — the loosened baseline here
+    // would hold (exit 0), proving the two paths are genuinely different.
+    const runDir3 = join(tmp, 'run3');
+    let result3;
+    try { result3 = runRoutine({ repoDir, outDir: runDir3 }, () => {}); }
+    catch (e) { fail(`runRoutine with no --base-ref must not throw (${e.message})`); }
+    if (result3 && (!result3.ok || result3.exitCode !== 0)) fail(`with no --base-ref, the routine must read the working tree's own (loosened) baseline and hold (got ok=${result3.ok} exit=${result3.exitCode})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── routine/assay-routine.yml: the workflow template's own invariants ─────────
 // Not run (no GitHub Actions runner here) — parsed as text, since it is a real
 // GitHub Actions YAML file, not the constrained subset lib/yaml-min.mjs reads.
@@ -2239,6 +2482,25 @@ function adaptersOnce() { return loadAdapters(); }
   if (!/never a branch name/i.test(yml)) fail('the template must warn, in words, that ASSAY_REF is a commit SHA and never a branch name');
 
   if (!/schedule:/.test(yml) || !/workflow_dispatch:/.test(yml) || !/pull_request:/.test(yml)) fail('the template must trigger on schedule, workflow_dispatch and pull_request');
+
+  // the pull-request baseline gate: the base branch is fetched, and --base-ref
+  // is passed so the routine grades against it, never the working tree.
+  if (!/git fetch origin/.test(yml)) fail('the template must fetch the base branch before running the routine on a pull request');
+  if (!/--base-ref origin\/\$\{\{\s*github\.base_ref\s*\}\}/.test(yml)) fail('the template must pass --base-ref origin/<base branch> to routine/run.mjs on a pull request');
+
+  // installation (routine/README.md "Installing it"): a push trigger so merged main
+  // is measured the same day, and an optional gitleaks step that is pinned to a
+  // release and checked against its published sha256 — commented out, never enabled
+  // by default.
+  if (!/^\s*push:\s*$/m.test(yml)) fail('the template must also trigger on push to the default branch');
+  const gitleaksBlock = lines.filter((l) => /^\s*#.*gitleaks/i.test(l) || /GITLEAKS_/.test(l)).join('\n');
+  if (!/GITLEAKS_VERSION/.test(gitleaksBlock) || !/GITLEAKS_SHA256/.test(gitleaksBlock)) fail('the optional gitleaks step must pin a version and a sha256 checksum');
+  if (!/[0-9a-f]{64}/.test(gitleaksBlock)) fail('the optional gitleaks step must carry a real-shaped sha256 (64 hex chars)');
+  if (!lines.some((l) => /^\s*#\s*-\s*name:\s*Install gitleaks/.test(l))) fail('the optional gitleaks install step must be commented out (never enabled by default)');
+
+  const readme = readFileSync(join(ROOT, 'routine', 'README.md'), 'utf8');
+  if (!/required status check/i.test(readme)) fail('routine/README.md must say to make the routine job a required status check');
+  if (!/CODEOWNERS/.test(readme) || !/packet\//.test(readme) || !/\.github\/workflows\//.test(readme)) fail('routine/README.md must say to add CODEOWNERS entries for packet/ and .github/workflows/');
 }
 
 

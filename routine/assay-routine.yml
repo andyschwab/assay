@@ -20,6 +20,13 @@ on:
   workflow_dispatch: {}
   pull_request:
     branches: [main]   # the default branch — edit if yours differs (e.g. master)
+  push:
+    branches: [main]   # the default branch — measures merged main the same day,
+                        # rather than waiting for the next weekly schedule (a pull
+                        # request only measures the CHANGE; something can still
+                        # reach the default branch without going through one —
+                        # an admin merge, a direct push, a merge commit that
+                        # changes the diff — and this trigger is what catches that)
 
 permissions:
   contents: read   # least privilege: this workflow never writes anything back
@@ -39,6 +46,17 @@ jobs:
           path: repo
           fetch-depth: 0   # full history — gitleaks (when installed) and repo-census both read it
 
+      - name: Fetch the base branch (pull_request only)
+        # A pull request's own copy of this workflow could edit packet/baseline.yaml —
+        # the file its own gate is supposed to hold against. fetch-depth: 0 above
+        # already pulled the full history reachable from the checked-out ref, but the
+        # base branch needs its OWN local ref (origin/<base>) for `git show` to read
+        # the ACCEPTED baseline from, never whatever this pull request carries
+        # (routine/README.md "The baseline: accepted by a named steward").
+        if: github.event_name == 'pull_request'
+        working-directory: repo
+        run: git fetch origin "${{ github.base_ref }}"
+
       - name: Check out assay at the pinned engine commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -54,16 +72,41 @@ jobs:
 
       # gitleaks is optional (routine/README.md): the routine detects the binary and
       # records it skipped, with the reason, when it is absent — never as clean. To
-      # include it, add a step here that installs `gitleaks` onto PATH before this one.
+      # include it, copy the step below in (before "Run the routine") and uncomment
+      # it: a pinned release, downloaded and checked against its published sha256
+      # before it is ever executed — never an unpinned `curl | sh`. Bump GITLEAKS_
+      # VERSION and GITLEAKS_SHA256 together from that release's own checksums.txt
+      # (https://github.com/gitleaks/gitleaks/releases) when you update it.
+      #
+      # - name: Install gitleaks (optional, pinned + checksummed)
+      #   env:
+      #     GITLEAKS_VERSION: '8.21.2'
+      #     GITLEAKS_SHA256: '5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba'
+      #   run: |
+      #     set -euo pipefail
+      #     cd "$RUNNER_TEMP"
+      #     curl -sSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+      #     echo "${GITLEAKS_SHA256}  gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sha256sum -c -
+      #     tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+      #     sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
 
       - name: Run the routine
         id: routine
         run: |
+          BASE_REF_FLAG=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # On a pull request, the baseline comes from the BASE branch's own
+            # packet/baseline.yaml (git show), never the working tree this pull
+            # request carries — see the "Fetch the base branch" step above and
+            # routine/README.md "The baseline: accepted by a named steward".
+            BASE_REF_FLAG="--base-ref origin/${{ github.base_ref }}"
+          fi
           node "$GITHUB_WORKSPACE/assay/routine/run.mjs" "$GITHUB_WORKSPACE/repo" \
-            --out "$GITHUB_WORKSPACE/run"
-          # --baseline defaults to repo/packet/baseline.yaml when that file is
-          # committed (routine/README.md); with none, the routine prints a warning
-          # and skips the gate rather than failing silently.
+            --out "$GITHUB_WORKSPACE/run" $BASE_REF_FLAG
+          # With no --base-ref (schedule / workflow_dispatch), --baseline defaults to
+          # repo/packet/baseline.yaml when that file is committed (routine/README.md);
+          # with none, the routine prints a warning and skips the gate rather than
+          # failing silently.
           # --since is not wired up here: downloading a PRIOR scheduled run's own
           # artifact needs the Actions API (an `actions: read` permission this
           # template deliberately does not add — routine/README.md explains why)

@@ -44,7 +44,24 @@ Refused, always:
   — those are expected, not secrets;
 - anything, anywhere in the file, shaped like an email address. Role fields
   (`by`, `owner_role`, `login_roles`, `readers`, `seen_by`, the people lists)
-  read as a role or a handle, never a name or an address.
+  read as a role or a handle, never a name or an address;
+- `answered.by` written as a person's name rather than a role: two or more
+  Title Case words with no recognizable role word among them ("Dana Reyes"),
+  or a name followed by a parenthetical role ("Dana Reyes (founder)") — a role
+  PHRASE ("Lead Engineer") is fine, since one of its own words is a role word.
+  One plain line: "answered.by: write a role (for example founder), not a
+  name."
+
+## A reply still wrapped for chat
+
+`validate-packet` (and every reader that calls `loadPacket`) accepts a reply
+still wrapped the way an owner's own AI hands it back: prose before and after,
+the actual YAML fenced in a ` ``` ` or ` ```yaml ` code block. The first fenced
+block's content is what gets parsed — everything outside it, the surrounding
+chatter, is discarded before validation ever runs. With no fence at all, the
+text is read as-is, exactly as before. This is still defensive parsing of
+untrusted data: nothing inside or outside the fence is ever executed or
+treated as an instruction.
 
 ## The format
 

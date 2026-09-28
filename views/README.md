@@ -44,6 +44,16 @@ not_seen:          # every run-record row that did not run
   - { scanner, status, reason }
 contradictions:    # a packet claim of satisfied against a run-decided unmet row (Intake only)
   - { id, claim, run_status, findings: [F-…] }
+owner:             # what the run's own packet says about itself, facts only (Intake only)
+  answered: { date, by, via } | null
+  accounts: { count, personal, organisational, transferable: { yes, no, unknown },
+              rows: [{ what, provider, owner_role, personal_or_organisational, transferable }] }
+  credentials: { count, lives: […], never_rotated, readers: […] }
+  people: { build: […] | null, deploy: […] | null, restore: […] | null, restore_done }
+  data: { personal, leaves_via: […] }
+  money: { monthly: [{ provider, amount }], alerts }
+  handover
+  notes
 ```
 
 `met` and `of` appear when the requirement is decided over a counted population.
@@ -61,13 +71,30 @@ the run's own recorded list (never recomputed by a view) — a packet's
 findings kept side by side, never merged. `INTAKE.md`'s "Contradicted claims"
 section renders it.
 
+`owner` is the run's own copied packet (`owner/manifest.yaml`, `owner/PACKET.md`),
+reduced to facts — assay issues no verdict on any of it, the same rule that
+governs everything else this view writes. `null` when the run carries no
+packet at all; `INTAKE.md`'s "What the owner told us" section then reads "No
+owner's packet yet: the owner prompt (`assay.mjs ask-owner`) collects these."
+A role list (`people.build/deploy/restore`) is `null` when the packet never
+spoke to it (rendered "unknown") and `[]` when the owner named nobody
+(rendered "nobody") — the same placeholder-free convention `owner/PACKET.md`
+already uses; every other unknown value renders as the word "unknown", never
+dropped. `custody.credentials` also informs `d-credentials-enumerated`, but
+ONLY as a trailing note on whatever list (open/met/to_run) the run itself put
+that row in ("… (the owner listed N credentials)") — it never changes the
+row's run-decided status; a claim never lets presence stand in for
+enforcement.
+
 ## Maintain: is it still healthy?
 
 `views/maintain.mjs` → `views/maintain.yaml` and `MAINTAIN.md`. The requirements
 tagged `fleet`: what a steward's routines read to keep a repository healthy
-without a person looking. Same shape as Intake (including `basis`, shown the
-same way on the page) minus `contradictions` (Intake-only), with `view:
-maintain` and `floor: true | false` on every row (whether Intake also reads it).
+without a person looking. Same shape as Intake, including `basis` (shown the
+same way on the page) and `contradictions` (the run's own recorded list, same
+shape and rendering as Intake's — a claim a steward's routines must not lose
+sight of between intake and the next human look), with `view: maintain` and
+`floor: true | false` on every row (whether Intake also reads it).
 
 ## Improve: what makes it better?
 

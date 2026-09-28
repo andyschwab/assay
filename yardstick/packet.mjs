@@ -40,6 +40,24 @@ export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
 
 export const PACKET_VERSION = 1;
 const PLACEHOLDER_ROLE = /^(unknown|nobody|none|no one|n\/a|tbd|\?+)$/i;
+// answered.by (owner/PACKET.md: "a role, never a name") — a name is not a
+// secret, but it is exactly the kind of identifying detail this repository's
+// own capture rules (CLAUDE.md: de-identify people) ask a packet never to
+// carry. Two shapes catch a person's name that isn't obviously a role:
+//   - "Dana Reyes (founder)": a capitalized-word run followed by a parenthetical
+//     role — the role is right there, but the name in front of it is not;
+//   - "Dana Reyes": two or more Title Case words with no recognizable role word
+//     anywhere in the value — a role PHRASE ("Lead Engineer", "Product Manager")
+//     is still fine because one of its words IS a role word.
+const ROLE_WORD_RE = /\b(founder|co-founder|cofounder|contractor|employee|engineer|developer|owner|admin|administrator|manager|steward|maintainer|lead|ceo|cto|coo|cfo|vp|director|consultant|freelancer|volunteer|intern|partner|operator|architect)\b/i;
+export function looksLikePersonName(v) {
+  if (typeof v !== 'string') return false;
+  const s = v.trim();
+  if (!s) return false;
+  if (/^[A-Z][A-Za-z.'-]*(?:\s+[A-Z][A-Za-z.'-]*)+\s*\([^)]+\)$/.test(s)) return true; // "Dana Reyes (founder)"
+  const titleCaseWords = s.split(/\s+/).filter((w) => /^[A-Z][A-Za-z.'-]*$/.test(w));
+  return titleCaseWords.length >= 2 && !ROLE_WORD_RE.test(s); // "Dana Reyes"
+}
 export const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answered', 'claims', 'custody', 'pointers', 'notes'];
 // pointers: where a repository keeps what the yardstick asks about (owner/PACKET.md
 // "Pointers"). Each is optional; the whole section is optional. Split by shape:
@@ -108,13 +126,26 @@ const SECRET_SHAPES = [
   [/-----BEGIN[ A-Z]*PRIVATE KEY-----/, 'a private-key header'],
   [/^[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^/\s@]+@/i, 'a URL with an embedded password'],
 ];
+// A file path is not a secret: `apps/web-app/docs/SHARED_LEADS` has slashes, mixed
+// case and underscores, so it passed the entropy gate and a real packet's pointers
+// were refused (2026-09-28). Exempt a token only when every slash-separated segment
+// reads as a word: all lowercase, ALL CAPS, or CamelCase whose humps start with
+// a capital and two lowercase letters, joined by - or _. A
+// base64 secret that happens to contain '/' mixes case inside its segments
+// ("Xk9aB2") and stays caught.
+const WORD = '(?:[a-z0-9]+|[A-Z0-9]+|[a-z]*(?:[A-Z][a-z]{2,}[a-z0-9]*)+)';   // lower, UPPER, or CamelCase whose humps are words
+const PATH_SEGMENT = new RegExp(`^${WORD}(?:[-_]${WORD})*$`);
+export function isPathLike(token) {
+  const segs = token.split('/').filter(Boolean);
+  return token.includes('/') && segs.length >= 2 && segs.every((s) => s.length <= 48 && PATH_SEGMENT.test(s));
+}
 export function secretShape(value) {
   if (typeof value !== 'string') return null;
   const v = value.trim();
   if (!v) return null;
   for (const [re, label] of SECRET_SHAPES) if (re.test(v)) return label;
   const m = v.match(/[A-Za-z0-9+/_=-]{32,}/);
-  if (m && !isHexy(m[0]) && classDiversity(m[0]) >= 3 && shannonEntropy(m[0]) > 3.5) return `a long high-entropy token ("${m[0].slice(0, 8)}…")`;
+  if (m && !isHexy(m[0]) && !isPathLike(m[0]) && classDiversity(m[0]) >= 3 && shannonEntropy(m[0]) > 3.5) return `a long high-entropy token ("${m[0].slice(0, 8)}…")`;
   return null;
 }
 export function emailShape(value) {
@@ -156,6 +187,7 @@ export function validatePacket(doc, { requirementIds = [] } = {}) {
   else {
     if (!DATE_RE.test(String(a.date))) err(`answered.date: must be YYYY-MM-DD (got ${JSON.stringify(a.date)})`);
     if (!a.by || typeof a.by !== 'string') err('answered.by: required (a role, never a name)');
+    else if (looksLikePersonName(a.by)) err('answered.by: write a role (for example founder), not a name');
     if (!ANSWERED_VIA.includes(a.via)) err(`answered.via: must be one of ${ANSWERED_VIA.join('|')} (got ${JSON.stringify(a.via)})`);
   }
 
@@ -260,11 +292,22 @@ export function packetFilePath(pathOrDir) {
   try { if (statSync(pathOrDir).isDirectory()) return join(pathOrDir, 'manifest.yaml'); } catch { /* not a dir (or doesn't exist yet) — treat as a file path */ }
   return pathOrDir;
 }
+// A reply from an owner's own AI (owner/ask-owner.md's whole point) often comes
+// back still wrapped for chat: prose before and after, the actual YAML fenced in
+// a ``` or ```yaml code block. Take the first fenced block's content when one
+// exists — that is what discards the surrounding chatter — and parse only that;
+// with no fence at all, the text is used as-is, exactly as before this function
+// existed. This never executes or trusts the chatter itself; it only decides
+// which bytes are the packet.
+export function unwrapChatReply(raw) {
+  const m = raw.match(/```(?:ya?ml)?[ \t]*\r?\n([\s\S]*?)```/i);
+  return m ? m[1] : raw;
+}
 export function loadPacket(pathOrDir) {
   const file = packetFilePath(pathOrDir);
   if (!existsSync(file)) throw new Error(`no packet at ${file}`);
   let doc;
-  try { doc = parseYaml(readFileSync(file, 'utf8')); }
+  try { doc = parseYaml(unwrapChatReply(readFileSync(file, 'utf8'))); }
   catch (e) {
     const msg = e instanceof YamlError ? e.message : String(e.message || e);
     // the reply goes back to the owner's AI: say how to fix the one mistake it is most likely to make

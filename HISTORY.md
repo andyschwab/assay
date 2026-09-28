@@ -561,3 +561,85 @@ what the public engine learned.
   it; no `.git` at all and a shallow clone both read not-measured, never a
   gap, and the requirement they decide reads not-measured, never met.
   Goldens untouched.
+- **2026-09-28 — the no-regression gate reads the accepted baseline from the
+  base branch, never from the change it gates.** A pull request's own working
+  tree could edit `packet/baseline.yaml` — the very file its gate holds against
+  — and the routine used to read that copy unconditionally. `ratchet` gains
+  `--baseline-ref <git-ref> --repo <dir>`, reading `packet/baseline.yaml` with
+  `git show <ref>:packet/baseline.yaml` in that repository instead of a file on
+  disk (`catGitFile`/`loadBaselineFromRef`, `yardstick/ratchet.mjs`).
+  `routine/run.mjs` gains `--base-ref <ref>`: on a pull request (the workflow
+  template now fetches the base branch and passes `--base-ref
+  origin/${{ github.base_ref }}`) the baseline comes from that ref, never the
+  working tree, and when the working tree's own `packet/baseline.yaml` differs
+  from the base ref's copy at all, the routine says so plainly — "this change
+  edits the accepted baseline; the gate holds against the default branch's
+  copy; a steward accepts a new baseline in its own reviewed change." A
+  schedule or `workflow_dispatch` run (no base ref) reads the working tree's
+  committed copy exactly as before. Goldens untouched.
+- **2026-09-28 — installation makes the gate binding.** A red job nobody is
+  required to look at is not a gate. `routine/README.md`'s install steps now
+  say to make the `routine` job a required status check on the default branch
+  (GitHub runs a pull request's own copy of the workflow regardless of whether
+  its job passes — nothing blocks the merge until a branch rule says this job
+  is required) and to add `CODEOWNERS` entries for `packet/` and
+  `.github/workflows/` naming the steward team, so a change to the baseline or
+  the workflow itself needs a steward's review. The template gains a `push`
+  trigger on the default branch (a pull request only measures the change; this
+  is what measures merged main the same day rather than waiting for the next
+  weekly schedule) and a commented-out, disabled-by-default step that installs
+  `gitleaks` from a pinned release, verified against its published sha256
+  before it is ever executed — copied in and uncommented, never an unpinned
+  `curl | sh`. Goldens untouched.
+- **2026-09-28 — a contradicted claim is visible under stewardship, not just at
+  intake.** Maintain (`views/maintain.mjs`) gains the same "Contradicted
+  claims" section and `contradictions:` list Intake already carried — moved to
+  the shared `joinContradictions` in `views/floor-fleet.mjs` so both read it
+  the same way — because a steward's routines, not just an intake read, are
+  where a repository's own packet claiming `satisfied` against a run-decided
+  `unmet` row must not go unseen. `ratchet` (landed alongside the
+  `--baseline-ref` change above) now fails the run whenever its measurement
+  carries ANY contradiction, checked every time regardless of whether a
+  baseline was given at all — there is no `--allow-contradictions`; a claim the
+  run itself disproves is always a failure under stewardship. Each failure
+  line names the requirement, that the owner claimed it satisfied, and what
+  the run found instead. Documented in `yardstick/README.md` and
+  `views/README.md`. Goldens untouched.
+- **2026-09-28 — Intake gains "What the owner told us."** Most of what a
+  repository's own packet (`owner/manifest.yaml`, `owner/PACKET.md`) says about
+  itself appeared nowhere before this: `views/intake.mjs` now reduces the
+  run's copied packet to a fact-only `owner:` block in `views/intake.yaml` and
+  a "What the owner told us" section in `INTAKE.md` — accounts (counts,
+  personal vs organisational, transferable yes/no/unknown, one line per
+  account), credentials (count, where they live, never-rotated count,
+  readers), people (who can build/deploy/restore, whether restore was ever
+  done), data (personal data held, what it leaves via), money (monthly per
+  provider, alerts), handover, notes, and the answered date/by/via — assay
+  issues no verdict on any of it. A role list the packet never spoke to reads
+  `null` ("unknown"); one the owner explicitly emptied (`[]`, "nobody can" per
+  `owner/PACKET.md`'s own convention) renders "nobody" — every other unknown
+  renders as the literal word "unknown", never dropped. With no packet at all,
+  the section reads "No owner's packet yet: the owner prompt (`assay.mjs
+  ask-owner`) collects these." `custody.credentials` also informs
+  `d-credentials-enumerated`, but only as a trailing note on whichever list the
+  run itself put that row in ("… (the owner listed N credentials)") — it never
+  changes the row's run-decided status. Caught in review before landing: the
+  packet's `handover` field lives under `custody:`, not the top level —
+  reading `packet.handover` silently produced "unknown" for every packet that
+  correctly followed `owner/PACKET.md`; fixed to `custody.handover`, pinned by
+  a test asserting the exact fixture text. Documented in `views/README.md`.
+  Goldens untouched.
+- **2026-09-28 — `validate-packet` accepts a reply still wrapped for chat, and
+  refuses a name where `answered.by` wants a role.** An owner's own AI
+  (`owner/ask-owner.md`'s whole design) often hands a reply back with prose
+  around the actual YAML; `loadPacket` now takes the first ` ```yaml ` or
+  ` ``` ` fenced block's content before parsing when the reply carries one,
+  discarding the chatter, and reads the text as-is when there is no fence —
+  still parsed defensively, nothing in or around the fence ever executed or
+  trusted (`yardstick/packet.mjs unwrapChatReply`). `validatePacket` also
+  refuses `answered.by` written as a person's name rather than a role: two or
+  more Title Case words with no recognizable role word ("Dana Reyes"), or a
+  name followed by a parenthetical role ("Dana Reyes (founder)") — a role
+  PHRASE like "Lead Engineer" still validates, since one of its own words is a
+  role word. One plain line: "answered.by: write a role (for example
+  founder), not a name." Documented in `owner/PACKET.md`. Goldens untouched.

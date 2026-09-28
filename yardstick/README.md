@@ -161,7 +161,18 @@ with no `--since` writes neither file.
 
 ```sh
 node assay.mjs ratchet <run> --baseline <baseline.yaml> [--write-baseline <file>]
+node assay.mjs ratchet <run> --baseline-ref <git-ref> --repo <dir> [--write-baseline <file>]
 ```
+
+`--baseline` reads the baseline from a file on disk; `--baseline-ref` reads it
+from a git ref instead — `git show <ref>:packet/baseline.yaml` in the
+repository named by `--repo` — never from the working tree. That second form
+is what a pull request is graded against: the change under review could edit
+its own `packet/baseline.yaml` on disk, and a gate that read that copy would be
+a gate the change itself could switch off. `routine/run.mjs` picks the form:
+a pull request (a `--base-ref` was given) always ratchets against the base
+ref's copy; a schedule or manual run ratchets against the working tree's
+committed copy, because that IS the accepted state there (`routine/README.md`).
 
 A **baseline** is a small, reviewed, GENERATED-then-committed file — `ratchet
 --write-baseline` writes it from a run's current measurement; a named steward
@@ -197,4 +208,14 @@ requirement, its title, its before → after, and the current finding ids behind
 it when the row carries any. Exit 0 prints a one-line `held N, improved M,
 changed (not-applicable) K` summary plus the improved and changed rows, and
 suggests locking improvements in with `--write-baseline`. Exit 2 — never 0 —
-on a missing or unreadable run or baseline file.
+on a missing or unreadable run, baseline file, or (with `--baseline-ref`) git
+ref/repository.
+
+`ratchet` also fails (exit 1) whenever the run's own measurement carries any
+**contradiction** — a repository's own packet claimed a requirement
+`satisfied` and this run found the mechanism absent (`yardstick.yaml`'s
+`contradictions:` list, `measureRun`'s own output above). This check runs
+**every time**, with or without a baseline: a claim the run itself disproves is
+always a failure under stewardship, never something a flag can wave through —
+there is no `--allow-contradictions`. Each failure line names the requirement,
+that the owner claimed it satisfied, and what this run found instead.
