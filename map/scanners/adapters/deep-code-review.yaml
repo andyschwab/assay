@@ -72,6 +72,13 @@ map:
 
 default: FAIL
 
+# handoff (map/scanners/CONTRACT.md §3, block style only): the default unit
+# (finding) is enough — most findings are one-off code defects. client_proof
+# points at the repository's own test suite, never at re-running the scanner
+# (that is the engine's OWN re-check, capabilities.verify-fix below).
+handoff:
+  client_proof: "A test in the repository's own suite exercises {paths}; it fails before the change and passes after it."
+
 capabilities:
   - id: standards-imprint
     invoke: "re-run deep-code-review Phase 6 (opt-in, confirmed)"

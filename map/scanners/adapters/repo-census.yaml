@@ -71,6 +71,13 @@ map:
 
 default: FAIL
 
+# handoff (map/scanners/CONTRACT.md §3, block style only): the default unit
+# (finding) is enough — census gaps rarely share an identical fix. client_proof
+# needs nothing this repository's own team does not already have: reading the
+# tree on the default branch, the same read this instrument itself does.
+handoff:
+  client_proof: "On the default branch, {paths} now carries what the finding says is missing (or no longer carries what it says is wrong)."
+
 capabilities:
   - id: verify-fix
     invoke: "re-run map/repo-census.mjs against the target and confirm the check reads pass"

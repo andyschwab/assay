@@ -94,6 +94,10 @@ map:
   J:                   # a category measuring a property another scanner also
     axis: deterministic-gates   # measures maps to that SHARED axis
 default: FAIL          # unmapped native_category => loud error, never a silent axis
+handoff:               # optional — how the handoff bundles and proves this scanner's
+                        #   remedies (§7); block style only, same as everything below
+  unit: finding         # finding (default) | file | scanner — §7
+  client_proof: "…"     # a proof the repo's own team can run, no assay — §7
 capabilities:          # optional — executable specialties the engine routes to (§8)
   - id: verify-fix
     invoke: "re-run the scanner scoped to the finding's evidence path"
@@ -467,6 +471,39 @@ and the session-prompt template. **The engine quotes `fix` verbatim and never
 paraphrases it** — paraphrasing scanner remediation is the "dice it up"
 anti-pattern applied to fixes. Scanner executable specialties (`capabilities`) are
 **invoked through** the handoff, not reimplemented in it.
+
+**The sequence** (one numbering, shared by the handoff's items 1..N and the
+report's §6, `views/improve/sequence.mjs`): the reviewer's own roadmap
+(`views/improve/prose.yaml` `roadmap:`), in authored order, leads; then one
+**triage** item per scanner that declares `handoff.triage: true`, covering every
+open gap from that scanner the roadmap did not absorb; then every remaining
+scanner-fix remedy, grouped per its adapter's declared `handoff.unit`, worst
+severity first. No adapter is named in the engine's sequencing code — every
+scanner is treated the same way by its own declared unit.
+
+**An adapter's optional `handoff:` block** (block style only, same as `map:` and
+`capabilities:` above) tells the engine how to bundle and prove that scanner's
+remedies, never how to classify them:
+
+- `unit:` — how open gaps from this scanner become ONE remedy: `finding`
+  (default — today's dedupe by identical verbatim `fix`), `file` (one remedy per
+  evidence file, every open gap in it — a lockfile with ten advisories is one
+  remedy, not ten), or `scanner` (one remedy for the whole scanner's remaining
+  open gaps).
+- `triage: true` — this scanner's remedy is a read-first bucket (confirm what is
+  live before fixing anything — gitleaks): sequenced right after the roadmap,
+  always gets a session prompt, and implies `unit: scanner`.
+- `client_proof:` — one plain sentence: a proof the repository's OWN team can
+  run, with the repository's OWN tools, no assay. May use `{paths}` (the
+  remedy's evidence files, `:line` stripped, deduped) and `{dirs}` (their parent
+  directories). A scanner with none declared reads "no proof you can run without
+  assay is declared for `<scanner>`" — never silence. This is **Your proof**;
+  the engine's own `capabilities.verify-fix` (re-running the scanner) is **Our
+  re-check** — every remedy carries both.
+
+A finding of Critical severity, or a triage item, sitting outside the roadmap is
+**loud, never silent**: the handoff prints a stderr note naming the ids and
+their sequence numbers, and `START-HERE.md` carries the same fact in one line.
 
 ## 8. Layer summary
 

@@ -62,6 +62,13 @@ map:
 
 default: FAIL
 
+# handoff (map/scanners/CONTRACT.md §3, block style only): the default unit
+# (finding) is enough. client_proof for completeness — scorecard is retired
+# (adopted: false above) so this never surfaces in a run's own handoff, only in
+# a frozen run compiled before the retirement.
+handoff:
+  client_proof: "Run the public `scorecard` CLI against the repository and confirm the check's score moved."
+
 capabilities:
   - id: verify-fix
     invoke: "re-run scorecard --checks <check-name> against the repo and confirm the score moved"

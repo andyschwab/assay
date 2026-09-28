@@ -679,3 +679,31 @@ what the public engine learned.
   (keeping an existing `model:`) so a report landing IS the record updating
   itself. `validate.mjs`'s manifest errors now name the exact `record`/`start`
   command that fixes them. Goldens untouched.
+- **2026-09-28 — one sequence for the handoff and the report; adapter-declared
+  bundling and proofs.** The handoff's items and the report's §6 roadmap used
+  to disagree about what comes first — a run could bury the reviewer's own
+  roadmap behind dozens of uncovered High-and-above scanner items, and fold
+  every gitleaks hit into one unrated item with no session prompt. Extracted
+  the sequencing into `views/improve/sequence.mjs`, imported by both
+  `handoff.mjs` and `report.mjs`: the roadmap now leads (always, items 1..R),
+  then one **triage** item per scanner that declares `handoff.triage: true`
+  (gitleaks — a read-first bucket, confirmed live before anything is rotated
+  or purged), then every remaining scanner-fix remedy grouped per its
+  adapter's declared `handoff.unit` (`finding` — today's dedupe by identical
+  fix — `file`, or `scanner`; dependency-scan now bundles one remedy per
+  lockfile instead of one per advisory). A Critical finding or a triage item
+  outside the roadmap is loud, never silent: a stderr note and a
+  START-HERE.md line name it and its item number. Every remedy now carries
+  two proofs — **Your proof** (the adapter's declared `client_proof`, run
+  with the repository's own tools, no assay) and **Our re-check** (the next
+  assay run, as before); every session prompt also carries a standing guard
+  against reaching outside the checkout. A triage or file-grouped bundle
+  summarizes per evidence file instead of inlining every hit.
+  `map/scanners/CONTRACT.md` §7 documents the `handoff:` block; every adopted
+  adapter (plus repo-eval and the retired scorecard, for completeness) now
+  declares a `client_proof`. Goldens untouched (the recall fixtures carry no
+  roadmap or `handoff:`-bearing findings at the scale this changed); a new
+  synthetic-run test (`tests/regression.mjs`, block `sequence`) pins the
+  ordering, the bundling, the dual proofs, the guard line, and the stderr
+  note, and was proved to fail on the prior code (git-stashed) before being
+  trusted.

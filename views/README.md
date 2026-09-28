@@ -157,7 +157,7 @@ over `views/improve/templates/`). It needs the run's authored
 | `views/improve/axes.md` | the axis walk: per axis, what to preserve, the risks ranked, and the requirements on that topic; custody, reproducibility and operability as their own sections; the axes no scanner measured this run |
 | `views/improve/maturity-grades.yaml` | maturity coverage per dimension, computed (`node assay.mjs maturity`) |
 | `views/improve/maturity.md`, `views/improve/security.md`, `views/improve/security-gate.yaml`, `views/improve/leverage.md` | the maturity reading, the exposures and attack paths, and where one change moves the most, written by the built-in method's view passes (`map/METHOD.md`) and checked by `validate` |
-| `handoff/` | one fix prompt per gap, for a coding session to act on, each with its evidence and a proof step |
+| `handoff/` | the remediation handoff (`START-HERE.md`, `REMEDIATION.md`, `FINDINGS.md`, `plan/`), one sequence shared with `IMPROVE.md` §6 (`views/improve/sequence.mjs`): the reviewer's roadmap first, then one read-first triage item per scanner that declares one, then every remaining scanner-fix remedy grouped per its adapter's declared `handoff.unit` (`map/scanners/CONTRACT.md` §7), worst severity first. Every remedy carries two proofs — what the repository's own tools can check, and what the next assay run checks. |
 
 ## Since: what changed?
 

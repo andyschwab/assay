@@ -39,6 +39,13 @@ map:
 
 default: FAIL
 
+# handoff (map/scanners/CONTRACT.md §3, block style only): the default unit
+# (finding) already groups every step failing the same way under one remedy.
+# client_proof needs nothing this repository's own team does not already have:
+# a plain clone of the branch the run measured.
+handoff:
+  client_proof: "From a fresh clone of the default branch (`git clone <repository> <scratch dir>`), the step the finding names passes."
+
 capabilities:
   - id: verify-fix
     invoke: "re-run map/fresh-clone.mjs against the target and confirm the step reads passed (or the README claim reads present)"

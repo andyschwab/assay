@@ -17,9 +17,11 @@ import { DIM_LABEL, WHO_LABEL, channelLabel } from '../../lib/display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capabilities.mjs';
 import { buildChains } from '../../map/chains.mjs';
 import { buildGlossary } from './glossary.mjs';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
+import { loadDecisions, decideProjected } from '../../map/decisions.mjs';
 import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '../../yardstick/measure.mjs';
 import { buildTopicsForRun } from './topics.mjs';
+import { buildRoadmap, buildSequence, urgentNote } from './sequence.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = join(HERE, 'templates', 'maintainer-report.md');
@@ -319,6 +321,52 @@ function proseList(items, render) {
 }
 const strengths = () => proseList(prose.strengths, (s) => `**${cell(s.title)}.** ${String(s.body).trim()}`);
 const roadmap = () => proseList(prose.roadmap, (r, i) => `${i + 1}. **${cell(r.title)}.** ${String(r.body).trim()}`);
+
+// ── computed: what follows the roadmap in the handoff (views/improve/sequence.mjs) ──
+// The SAME module and the SAME item numbers the handoff uses — this paragraph names
+// them, it never recomputes or renumbers them. Present tense, plain words: the triage
+// item(s) with their hit counts, how many grouped remedies and of what kinds, and any
+// Critical finding the roadmap does not cover, with its item number.
+function sequenceFollowup() {
+  const adapters = loadAdapters();
+  const { projected } = projectMulti(findings, adapters);
+  const sources = [...new Set(projected.map((p) => p.source))].sort();
+  const roster = rosterFor(adapters, sources, projected);
+  const runDate = (runId.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
+  const decided = decideProjected(projected, loadDecisions(runDir), runDate);
+  const byId2 = new Map(decided.map((p) => [p.f.id, p]));
+  const { roadmap: rm, drift } = buildRoadmap(prose.roadmap, byId2);
+  if (drift.length) return '_Roadmap/base drift — see the handoff package (`handoff/START-HERE.md`) for detail._';
+  const { seq, urgentOutside } = buildSequence({ decided, adapters, roadmap: rm, roster });
+  const R = rm.length;
+  const after = seq.filter((s) => s.n > R);
+  if (!after.length) return R
+    ? 'Nothing follows the roadmap in the handoff — every open gap this run found is covered by an authored item above.'
+    : '_No open gaps in this run — the handoff has nothing to sequence._';
+  const triage = after.filter((s) => s.kind === 'triage');
+  const remedies = after.filter((s) => s.kind !== 'triage');
+  const parts = [];
+  if (!R) parts.push('With no authored roadmap, the handoff\'s sequence starts with the items below.');
+  if (triage.length) parts.push(`Then ${triage.map((t) => `the ${t.source} triage (item ${t.n}, ${t.ids.length} hit${t.ids.length === 1 ? '' : 's'})`).join('; then ')}.`);
+  if (remedies.length) {
+    const bySrcUnit = new Map();
+    for (const r of remedies) { const k = `${r.source}|${r.unit}`; if (!bySrcUnit.has(k)) bySrcUnit.set(k, []); bySrcUnit.get(k).push(r); }
+    const bits = [...bySrcUnit.entries()].map(([k, arr]) => {
+      const [src, unit] = k.split('|');
+      if (unit === 'file') return `${arr.length} ${src} update${arr.length === 1 ? '' : 's'} (one per affected file)`;
+      if (unit === 'scanner') return `1 grouped remedy for ${src}'s remaining gaps`;
+      return `${arr.length} further ${src} fix${arr.length === 1 ? '' : 'es'}`;
+    });
+    parts.push(`After that, ${remedies.length} grouped remed${remedies.length === 1 ? 'y' : 'ies'} (items ${after.filter((s) => s.kind !== 'triage')[0]?.n}–${seq[seq.length - 1]?.n}): ${bits.join('; ')}.`);
+  }
+  const criticalOutside = urgentOutside.filter((u) => u.kind === 'critical');
+  if (criticalOutside.length) {
+    const ids = [...new Set(criticalOutside.flatMap((u) => u.ids))];
+    const ns = [...new Set(criticalOutside.map((u) => u.n))].sort((a, b) => a - b);
+    parts.push(`Critical finding(s) outside the roadmap: ${ids.join(', ')} — at item${ns.length === 1 ? '' : 's'} ${ns.join(', ')}.`);
+  }
+  return parts.join(' ');
+}
 function keyQuestions() {
   const authored = Array.isArray(prose.key_questions) ? prose.key_questions.map((q) => `- ${String(q).trim()}`) : [];
   const unknowns = chainUnknowns();
@@ -341,6 +389,7 @@ const repl = {
   '{{PROSE:strengths}}': strengths(),
   '{{PROSE:roadmap_intro}}': String(prose.roadmap_intro || '').trim(),
   '{{PROSE:roadmap}}': roadmap(),
+  '{{COMPILE:sequence_followup}}': sequenceFollowup(),
   '{{PROSE:key_questions}}': keyQuestions(),
   '{{COMPILE:concepts}}': conceptsMd,
   '{{COMPILE:glossary}}': glossary(),
