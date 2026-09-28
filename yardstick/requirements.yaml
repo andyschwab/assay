@@ -193,7 +193,7 @@ requirements:
       kind: instrument
       scanner: fresh-clone
       category: [install, build]
-    check: the fresh-clone install and build steps both read passed from a clean checkout (map/fresh-clone.mjs), root and every workspace
+    check: the fresh-clone install and build steps both read passed from a clean checkout (map/fresh-clone.mjs), root and every workspace; an undeclared build reads unmet, the same as an undeclared lint or test gate — absence is not a pass
     sources: [floor/r-fresh-clone]
     status: draft
   - id: d-config-declared

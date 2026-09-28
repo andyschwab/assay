@@ -440,9 +440,13 @@ const DS_SEVERITY_MAP = { critical: 'Critical', high: 'High', moderate: 'Medium'
 // fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
-const FC_FLOOR_STEPS = ['lint', 'typecheck', 'test', 'migrate'];   // not declared ⇒ a gap (absence is not clean); migrate only where the tree carries database signals
+// not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
+// already held — undeclared meant met for build alone until this fixed the
+// inconsistency); migrate only where the tree carries database signals (see
+// hasDbSignals below — with none anywhere, it is not-applicable, never a gap).
+const FC_FLOOR_STEPS = ['build', 'lint', 'typecheck', 'test', 'migrate'];
 const FC_VERB = { install: 'install its dependencies', build: 'build', lint: 'lint clean', typecheck: 'typecheck clean', test: 'run its tests', migrate: 'replay its migrations from empty' };
-const FC_DECLARES = { lint: 'declares a lint gate', typecheck: 'declares a typecheck gate', test: 'declares a test command', migrate: 'declares a migration command that can run without a live database' };
+const FC_DECLARES = { build: 'declares a build step', lint: 'declares a lint gate', typecheck: 'declares a typecheck gate', test: 'declares a test command', migrate: 'declares a migration command that can run without a live database' };
 const FC_FIX = {
   install: 'Make the install reproducible from a clean checkout: commit the lockfile, declare the toolchain (engines / .nvmrc / .tool-versions), and remove any dependency on machine-local state; re-run fresh-clone and confirm install passes.',
   build: 'Make the build pass from a clean checkout with the declared toolchain (no uncommitted generated files, no machine-local paths); re-run fresh-clone and confirm build passes.',

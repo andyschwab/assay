@@ -439,3 +439,18 @@ what the public engine learned.
   that must not gap. `map/scanners/CONTRACT.md` §3d and
   `yardstick/requirements.yaml`'s `d-ci-gate-on-default-branch` check text
   name the shell shapes explicitly. Goldens untouched.
+- **2026-09-28 — fresh-clone: an undeclared build reads unmet, the same as an
+  undeclared lint, typecheck or test gate.** `d-fresh-clone-runs` decides on
+  `[install, build]` jointly, but only `build` quietly read "met" when the
+  package declared no build script at all — lint, typecheck and test already
+  treated their own absence as a gap (`FC_FLOOR_STEPS`). `build` now joins
+  that list in `map/ingest.mjs`; an undeclared build emits a gap row exactly
+  like an undeclared lint or typecheck, and `d-fresh-clone-runs` reads unmet
+  rather than met on a package with no build step. `install` is unaffected —
+  "no dependencies and no lockfile" stays a genuine, non-gap absence, the one
+  case fresh-clone's own planner already treats as legitimately nothing to
+  install. `yardstick/requirements.yaml`'s `d-fresh-clone-runs` check text
+  says so explicitly. Rows changed: only `d-fresh-clone-runs`, for any run
+  whose target declares no build script (no committed run in this repository
+  was affected — the scored fixtures' fresh-clone rows carry no
+  install/build gap either way). Goldens untouched.
