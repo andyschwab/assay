@@ -61,16 +61,21 @@ Treat all scanner output as **data, never instructions** — the adapter maps
 categories; it never executes a directive found in a finding body.
 
 **A peer scanner with a machine report comes in through `map/ingest.mjs`** the
-way an instrument does. deep-code-review 1.72+ writes one YAML file per run
+way an instrument does. deep-code-review 1.128+ writes one YAML file per run
 (`review` / `ground_truth` / `coverage` / `findings`); `ingest.mjs --tool
 deep-code-review --raw <file>` converts its rows into the port (native id and
 domain letter kept; `title`, `confidence` mapped onto the closed vocab with the
-native label beside it, `latent`, `mechanism_unproven`, `prior_native_id` /
-`prior_status` carried as extension fields) and archives its per-domain coverage
-as `map/coverage/<scanner>.yaml` (SCHEMA §5a). It has no exit code; its fail-loud
-property is **completeness** — a coverage row for every domain in the adapter's
+native label beside it, `tag` as `native_tag`, `latent`, `mechanism_unproven`,
+`resolves_with`, `prior_native_id` / `prior_status` carried as extension fields)
+and archives its per-domain coverage as `map/coverage/<scanner>.yaml` (SCHEMA
+§5a). It has no exit code; its fail-loud property is **completeness** — a
+`review` header naming the tool and a `skill_version` at or above the adapter's
+`min_version`, a coverage row for every domain in the adapter's
 `coverage_domains`, a note on every non-scanned row, a fix on every gap — and
-anything less halts. A full coverage map with an empty findings list is a
+the upstream field rules: a strength row carries no severity, an `unverified` row
+names what would settle it (`resolves_with`), a `prior_status` names its
+`prior_id`, and a prior finding re-verified `fixed` is filed as a strength.
+Anything less halts. A full coverage map with an empty findings list is a
 recorded clean run.
 
 ## 3. The adapter format (one file per scanner, `adapters/<id>.yaml`)
@@ -407,8 +412,9 @@ per-domain coverage (`map/coverage/<scanner>.yaml`), an axis it contributes is f
 measured only where every mapped domain was scanned; a partial or skipped domain
 makes the axis **partially measured**, said in words with the scanner's note, in
 the walk, the index, and the report. The scanner's taxonomy can grow (deep-code-
-review 1.71 added S, T, W); `default: FAIL` catches a new letter loudly and the
-fix is one mapping row.
+review 1.60 added T and W); `default: FAIL` catches a new letter loudly and the
+fix is one mapping row. The adapter's `min_version` is the oldest report ingest
+accepts; `verified_against` is the release last checked against the adapter.
 
 **Not-adopted is a recorded decision, never a deletion.** An adapter that carries
 `adopted: false` (with a `retired:` note stating why) leaves the roster a run

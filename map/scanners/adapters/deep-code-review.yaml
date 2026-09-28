@@ -10,9 +10,16 @@
 scanner: deep-code-review
 targets_taxonomy: 3
 severity_scale: [Blocker, Critical, High, Medium, Low, Nit]
-# The scanner's full domain set (1.71+: A–T and W; U, V unassigned). Its machine
-# report (1.72+) carries one coverage row per domain; ingest and validate use this
-# list to require completeness — a report missing a row for any of these halts.
+# The machine report (references/machine-report.md) arrived in 1.128.0; ingest
+# halts on a report whose review.skill_version is older. verified_against is the
+# release this adapter was last checked against (domain map, report shape, field
+# rules): bump it after re-reading those three upstream, never on faith.
+min_version: "1.128.0"
+verified_against: "1.471.0"
+# The scanner's full domain set (A–T and W since 1.60.0; U, V and X–Z
+# unassigned). Its machine report carries one coverage row per domain; ingest and
+# validate use this list to require completeness — a report missing a row for any
+# of these halts.
 coverage_domains: [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, W]
 
 contributes:
@@ -36,23 +43,23 @@ map:
     axis: code-correctness
   P:                          # Frontend / UI / a11y
     axis: code-correctness
-  B:                          # Application security (OWASP)
+  B:                          # AppSec (OWASP Top 10:2025)
     axis: code-security
   I:                          # API, contracts & integration
     axis: code-security
-  K:                          # Build, CI/CD, supply chain
+  K:                          # Build, CI, supply chain, release
     axis: code-security
-  L:                          # IaC, containers, cloud
+  L:                          # Infra / IaC / containers / cloud / serverless
     axis: code-security
   N:                          # Config, secrets, environments
     axis: code-security
   Q:                          # Privacy, compliance, licensing
     axis: code-security
-  T:                          # Multi-tenancy & isolation (1.71+) — the tenant wall is a code-security property
+  T:                          # Multi-tenancy & isolation (1.60+) — the tenant wall is a code-security property
     axis: code-security
-  W:                          # Workflows, jobs & scheduling (1.71+) — does the scheduled path do the right thing
+  W:                          # Workflows, jobs & scheduling (1.60+) — does the scheduled path do the right thing
     axis: code-correctness
-  S:                          # Branches, merges, open-work triage (1.71+) -> does work land and get triaged
+  S:                          # Branches, merges, open-work triage -> does work land and get triaged
     axis: improvement-loop
   J:                          # Testing & evaluation -> the shared gates axis
     axis: deterministic-gates
@@ -69,4 +76,4 @@ capabilities:
   - id: standards-imprint
     invoke: "re-run deep-code-review Phase 6 (opt-in, confirmed)"
   - id: verify-fix
-    invoke: "re-run deep-code-review scoped to the finding's evidence path"
+    invoke: "re-run deep-code-review with PRIOR <the archived machine report>, FILE <the finding's evidence paths>; it re-verifies every prior finding (fixed / still-open / changed) before hunting"

@@ -19,8 +19,8 @@
 // which `validate.mjs --target` knows to skip (instrument evidence lives in the
 // run, not the target).
 //
-// A PEER SCANNER with a machine report also comes in here: deep-code-review 1.72+
-// writes findings-YYYY-MM-DD.yaml (block YAML: review / ground_truth / coverage /
+// A PEER SCANNER with a machine report also comes in here: deep-code-review 1.128+
+// (references/machine-report.md; the adapter's min_version) writes findings-YYYY-MM-DD.yaml (block YAML: review / ground_truth / coverage /
 // findings). It has no exit code — its fail-loud property is COMPLETENESS: the
 // coverage map must carry a row for every domain the adapter's coverage_domains
 // lists, every gap row a fix, every non-scanned row a note; anything less halts.
@@ -129,10 +129,18 @@ const PROFILES = {
       try { rep = parseYaml(raw); }
       catch (e) { throw new Error(`deep-code-review machine report is not block-style YAML (fail-closed): ${e.message.slice(0, 80)}`); }
       if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('deep-code-review machine report must be a top-level map (review / ground_truth / coverage / findings)');
-      const domains = loadAdapter('deep-code-review').coverage_domains || [];
+      const adapter = loadAdapter('deep-code-review');
+      const domains = adapter.coverage_domains || [];
       if (!domains.length) throw new Error('adapters/deep-code-review.yaml carries no coverage_domains — cannot judge completeness (fail-closed)');
+      // the run header says which scanner and which contract wrote the file; a report
+      // from another tool, or from before the machine-report format existed, halts
+      const head = (rep.review && typeof rep.review === 'object') ? rep.review : null;
+      if (!head) throw new Error('machine report has no review: header — the file does not say which scanner or skill version wrote it');
+      if (head.tool !== 'deep-code-review') throw new Error(`machine report review.tool is "${head.tool}", not deep-code-review`);
+      if (!head.skill_version) throw new Error('machine report review.skill_version is missing — the contract a report follows is read from its version');
+      if (adapter.min_version && versionBelow(String(head.skill_version), String(adapter.min_version))) throw new Error(`machine report skill_version ${head.skill_version} predates the machine-report contract (${adapter.min_version}+)`);
       const cov = rep.coverage;
-      if (!cov || typeof cov !== 'object' || Array.isArray(cov)) throw new Error('machine report has no coverage: map — a report that does not say what it looked at is not a report');
+      if (!cov || typeof cov !== 'object' || Array.isArray(cov)) throw new Error('machine report has no coverage: map — a report that does not say what it looked at is not a report (a public committed copy withholds coverage; ingest the out-of-tree report)');
       const missing = domains.filter((l) => !cov[l] || typeof cov[l] !== 'object');
       if (missing.length) throw new Error(`coverage incomplete: no row for domain(s) ${missing.join(', ')} — absence of a row is not clean`);
       for (const [l, row] of Object.entries(cov)) {
@@ -149,6 +157,11 @@ const PROFILES = {
         if (!Array.isArray(f.evidence) || !f.evidence.length) throw new Error(`${at}: evidence must be a non-empty list of file:line`);
         if (f.polarity === 'gap' && !f.severity) throw new Error(`${at}: a gap row needs a severity`);
         if (f.polarity === 'gap' && !(f.fix && String(f.fix).trim())) throw new Error(`${at}: a gap row needs a fix — a gap without one cannot be acted on`);
+        if (f.polarity === 'strength' && f.severity) throw new Error(`${at}: a strength row carries no severity (never file a strength as a ${f.severity})`);
+        if (String(f.confidence) === 'unverified' && !(f.resolves_with && String(f.resolves_with).trim())) throw new Error(`${at}: an unverified row needs resolves_with — the artifact that would settle it`);
+        if (f.prior_status && !f.prior_id) throw new Error(`${at}: prior_status without prior_id — the row it re-verifies is not named`);
+        if (f.prior_status && !DCR_PRIOR_STATUS.includes(String(f.prior_status))) throw new Error(`${at}: bad prior_status "${f.prior_status}" (${DCR_PRIOR_STATUS.join(' | ')})`);
+        if (f.prior_status === 'fixed' && f.polarity !== 'strength') throw new Error(`${at}: a prior finding re-verified fixed is filed as a strength row, not a ${f.polarity}`);
         const row = {
           id: fid(startId + n++),
           source: 'deep-code-review',
@@ -159,6 +172,7 @@ const PROFILES = {
           evidence: f.evidence.map((e) => String(e)),
         };
         if (f.title) row.title = oneLine(f.title);
+        if (f.tag) row.native_tag = oneLine(f.tag);
         if (f.severity) row.severity = String(f.severity);
         if (f.fix) row.fix = oneLine(f.fix);
         if (f.confidence) {
@@ -168,6 +182,7 @@ const PROFILES = {
         }
         if (f.latent === true) row.latent = true;
         if (f.mechanism_unproven === true) row.mechanism_unproven = true;
+        if (f.resolves_with) row.resolves_with = oneLine(f.resolves_with);
         if (f.prior_id) { row.prior_native_id = String(f.prior_id); if (f.prior_status) row.prior_status = String(f.prior_status); }
         if (Array.isArray(f.compounds) && f.compounds.length) row.compounds_native = f.compounds.map(String);
         rows.push(row);
@@ -439,6 +454,14 @@ const FC_FIX = {
 const FC_CLAIM_NOUN = { 'npm-script': 'package script', 'npx-bin': 'binary (a dependency or own bin)', 'node-file': 'file', 'make-target': 'make target' };
 // the scanner's confidence labels → the port's closed vocab (SCHEMA §2)
 const DCR_CONFIDENCE = { CONFIRMED: 'confirmed', CORROBORATED: 'confirmed', PLAUSIBLE: 'plausible', unverified: 'unverified' };
+const DCR_PRIOR_STATUS = ['fixed', 'still-open', 'changed'];
+// dotted numeric versions ("1.128.0"): true when a sorts before b
+const versionBelow = (a, b) => {
+  const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+  if (pa.some(Number.isNaN)) throw new Error(`machine report skill_version "${a}" is not a dotted version`);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) { const d = (pa[i] || 0) - (pb[i] || 0); if (d) return d < 0; }
+  return false;
+};
 
 const fid = (n) => `F-${String(n).padStart(3, '0')}`;
 const oneLine = (s) => String(s).replace(/\s+/g, ' ').trim();
@@ -529,10 +552,12 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
     if (r.fix) out.push(`  fix: >`, `    ${esc(r.fix)}`);
     // peer-scanner extension fields (the port keeps the scanner's own labels beside the mapped ones)
     if (r.title) out.push(`  title: ${q(r.title)}`);
+    if (r.native_tag) out.push(`  native_tag: ${q(r.native_tag)}`);
     if (r.confidence) out.push(`  confidence: ${r.confidence}`);
     if (r.native_confidence) out.push(`  native_confidence: ${r.native_confidence}`);
     if (r.latent) out.push(`  latent: true`);
     if (r.mechanism_unproven) out.push(`  mechanism_unproven: true`);
+    if (r.resolves_with) out.push(`  resolves_with: ${q(r.resolves_with)}`);
     if (r.prior_native_id) out.push(`  prior_native_id: ${q(r.prior_native_id)}`);
     if (r.prior_status) out.push(`  prior_status: ${r.prior_status}`);
     if (r.compounds_native) out.push(`  compounds_native: [${r.compounds_native.map((x) => esc(x)).join(', ')}]`);

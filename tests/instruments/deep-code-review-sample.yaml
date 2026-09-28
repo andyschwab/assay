@@ -1,7 +1,8 @@
-# deep-code-review 1.72 machine report — a FICTIONAL sample for the regression harness.
+# deep-code-review machine report (references/machine-report.md, 1.128.0+) — a FICTIONAL
+# sample for the regression harness, written against the 1.471.0 spec.
 review:
   tool: deep-code-review
-  skill_version: "1.72.0"
+  skill_version: "1.471.0"
   date: 2026-09-15
   scope: FULL
   base_ref: null
@@ -16,6 +17,7 @@ ground_truth:
   host_ci: unverified
   gate_self_test: not-run
   lint_type_scan: ok
+  parity_coverage: "N/A"
   authz_posture: "4 entry points · anon probed 4 · two-principal 2 · untested: none"
   pipeline_run: not-run
   notes:
@@ -111,4 +113,18 @@ findings:
       - jobs/nightly.ts:72
     fix: >
       Key each batch application on a stable id and skip already-applied rows; prove it with a crash-at-row-N test.
+  - id: F4
+    title: "Export recipient list may be caller-controlled"
+    area: B
+    tag: "A01 broken access control"
+    severity: High
+    polarity: gap
+    confidence: unverified
+    resolves_with: "the recipients table schema (is org_id NOT NULL?)"
+    observation: >
+      The export route reads the recipient list from the request body; whether the org filter below it can be bypassed depends on a column constraint not in the tree.
+    evidence:
+      - src/app/api/export/route.ts:40
+    fix: >
+      Derive recipients from the caller's org server-side and ignore the body list; add a two-principal test.
 prior_not_rechecked: [F7]

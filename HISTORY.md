@@ -373,3 +373,18 @@ what the public engine learned.
   run's artifact needs the Actions API's `actions: read` permission, which the
   template does not add (`routine/README.md` says why) — a steward who wants it
   runs the driver locally against two kept run directories. Goldens untouched.
+- **2026-09-28 — deep-code-review re-checked against 1.471.0.** The machine-report
+  spec (`references/machine-report.md`) has not changed since it landed upstream
+  in 1.128.0, and the domain map is still A–T and W, so the adapter's mapping
+  stands; the "1.71 / 1.72" citations were wrong (T and W arrived in 1.60.0, the
+  machine report in 1.128.0) and are corrected throughout. The adapter records
+  the contract as data: `min_version: "1.128.0"` (ingest halts on an older
+  report, and on a report whose header does not name the tool and a
+  `skill_version`) and `verified_against: "1.471.0"`. Ingest now enforces the
+  spec's field rules it had let through — no severity on a strength row,
+  `resolves_with` on every `unverified` row (carried into the port beside
+  `native_tag`), a `prior_status` only with its `prior_id`, a prior finding
+  re-verified `fixed` filed as a strength — and the `verify-fix` capability
+  names the upstream `PRIOR` re-verification mode. The fictional sample moves to
+  1.471.0 with an `unverified` row; eight negative assertions pin the new halts.
+  Goldens untouched.
