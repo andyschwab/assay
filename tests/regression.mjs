@@ -1267,6 +1267,9 @@ function adaptersOnce() { return loadAdapters(); }
   if (secretShape('550e8400-e29b-41d4-a716-446655440000')) fail('a UUID must not read as a secret (hex-plus-dash exemption)');
   if (secretShape('d-this-requirement-does-not-exist-and-is-long')) fail('a long kebab-case id must not read as a secret (class-diversity gate)');
   if (!secretShape('sk-ThisLooksLikeARealSecretKeyValue123456')) fail('an sk-… value must read as a secret');
+  if (secretShape('apps/web-app/docs/SHARED_LEADS_CONTRACT.md')) fail('a file path must not read as a secret (path-like exemption)');
+  if (secretShape('see packages/Billing/src/InvoiceRenderer for the contract')) fail('a path inside prose must not read as a secret');
+  if (!secretShape('Xk9aB2Qw/Lm7Pz3Rt8Vn1Yc5Hd2Jf6Gs4Kb9Wm')) fail('a base64-shaped secret containing a slash must still read as a secret');
   if (!secretShape('AKIAABCDEFGHIJKLMNOP')) fail('an AKIA… value must read as a secret');
   if (!secretShape('https://user:hunter2@example.com/db')) fail('a URL with an embedded password must read as a secret');
   if (!emailShape('alice@example.com')) fail('an email address must be flagged as one');

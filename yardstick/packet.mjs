@@ -126,13 +126,25 @@ const SECRET_SHAPES = [
   [/-----BEGIN[ A-Z]*PRIVATE KEY-----/, 'a private-key header'],
   [/^[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^/\s@]+@/i, 'a URL with an embedded password'],
 ];
+// A file path is not a secret: `apps/web-app/docs/SHARED_LEADS` has slashes, mixed
+// case and underscores, so it passed the entropy gate and a real packet's pointers
+// were refused (2026-09-28). Exempt a token only when every slash-separated segment
+// reads as a word: all lowercase, ALL CAPS or Capitalised, joined by - or _. A
+// base64 secret that happens to contain '/' mixes case inside its segments
+// ("Xk9aB2") and stays caught.
+const WORD = '(?:[a-z0-9]+|[A-Z0-9]+|[A-Z][a-z0-9]+)';
+const PATH_SEGMENT = new RegExp(`^${WORD}(?:[-_]${WORD})*$`);
+export function isPathLike(token) {
+  const segs = token.split('/').filter(Boolean);
+  return token.includes('/') && segs.length >= 2 && segs.every((s) => s.length <= 48 && PATH_SEGMENT.test(s));
+}
 export function secretShape(value) {
   if (typeof value !== 'string') return null;
   const v = value.trim();
   if (!v) return null;
   for (const [re, label] of SECRET_SHAPES) if (re.test(v)) return label;
   const m = v.match(/[A-Za-z0-9+/_=-]{32,}/);
-  if (m && !isHexy(m[0]) && classDiversity(m[0]) >= 3 && shannonEntropy(m[0]) > 3.5) return `a long high-entropy token ("${m[0].slice(0, 8)}…")`;
+  if (m && !isHexy(m[0]) && !isPathLike(m[0]) && classDiversity(m[0]) >= 3 && shannonEntropy(m[0]) > 3.5) return `a long high-entropy token ("${m[0].slice(0, 8)}…")`;
   return null;
 }
 export function emailShape(value) {
