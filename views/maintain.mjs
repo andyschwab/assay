@@ -7,19 +7,22 @@
 // manifest (what was not seen this run) — never findings directly.
 //
 // Writes views/maintain.yaml (data) + MAINTAIN.md (plain, neutral: no prices,
-// no verdict, no severity words) at the run root.
+// no verdict, no severity words) at the run root. Carries a "Contradicted
+// claims" section, the same shape Intake already carries (views/README.md):
+// a steward's routines are exactly where a claim the run disproves must not
+// go unseen between intake and the next human look.
 //
 // Usage: node assay.mjs maintain <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows, toYaml, basisNote } from './floor-fleet.mjs';
-import { loadYardstick } from '../yardstick/measure.mjs';
+import { buildRows, toYaml, basisNote, joinContradictions } from './floor-fleet.mjs';
+import { loadYardstick, loadContradictions } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { viewPath, maintainPagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
 
-export function renderMd(runId, built, confidential = false) {
-  const { open, met, to_run, not_seen } = built;
+export function renderMd(runId, built, confidential = false, contradictions = []) {
+  const { open, met, to_run, not_applicable = [], not_seen } = built;
   const out = [];
   out.push('---', 'type: doc', ...(confidential ? ['confidential: true'] : []), `title: "Maintain — ${runId}"`, '---', '');
   out.push(`# Maintain — ${runId}`, '');
@@ -27,7 +30,7 @@ export function renderMd(runId, built, confidential = false) {
   out.push('non-floor requirements together, each marked whether it is also a floor requirement.');
   out.push('Plain and neutral — what is open, what is met, what is still to run, what was not seen.');
   out.push('No prices, no verdict._', '');
-  out.push(`**${open.length} open · ${met.length} met · ${to_run.length} to run** of ${open.length + met.length + to_run.length} fleet requirements.`, '');
+  out.push(`**${open.length} open · ${met.length} met · ${to_run.length} to run · ${not_applicable.length} not applicable** of ${open.length + met.length + to_run.length + not_applicable.length} fleet requirements.`, '');
 
   out.push('## Open', '');
   if (open.length) {
@@ -47,6 +50,21 @@ export function renderMd(runId, built, confidential = false) {
   } else out.push('_Nothing left to run._');
   out.push('');
 
+  out.push('## Not applicable', '');
+  out.push('_Decided from the map, never a packet claim — listed separately, never counted as met._', '');
+  if (not_applicable.length) {
+    for (const r of not_applicable) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. ${String(r.note || '').replace(/\.$/, '')}${basisNote(r)}.`);
+  } else out.push('_None._');
+  out.push('');
+
+  out.push('## Contradicted claims', '');
+  out.push("_A repository's own packet said satisfied; this run found the mechanism absent. Never silently");
+  out.push("overwritten — the claim, the run's own status, and its findings all stand, side by side._", '');
+  if (contradictions.length) {
+    for (const c of contradictions) out.push(`- **${c.id}** _(claimed satisfied)_ — ${c.title}. This run: ${c.run_status}${c.findings.length ? ` (${c.findings.join(', ')})` : ''}.`);
+  } else out.push('_None._');
+  out.push('');
+
   out.push('## Not seen this run', '');
   if (not_seen.length) {
     for (const r of not_seen) out.push(`- **${r.scanner}** — ${r.status}: ${r.reason}`);
@@ -64,17 +82,18 @@ if (isMain(import.meta.url)) {
   if (!built) { console.error(`no yardstick measurement under ${runDir} — run: node assay.mjs measure ${runDir} --write`); process.exit(2); }
   const reg = loadYardstick();
   const runId = basename(runDir);
-  const yamlOut = toYaml('maintain', runId, reg.version, built);
+  const contradictions = joinContradictions(loadContradictions(runDir), reg);
+  const yamlOut = toYaml('maintain', runId, reg.version, built, contradictions);
   // run-level confidentiality, the same rule as the Improve writers: the flag or views/improve/prose.yaml
   let proseConfidential = false;
   try { const pp = runProsePath(runDir); if (existsSync(pp)) proseConfidential = parseYaml(readFileSync(pp, 'utf8'))?.confidential === true; } catch {}
-  const mdOut = renderMd(runId, built, process.argv.includes('--confidential') || proseConfidential);
+  const mdOut = renderMd(runId, built, process.argv.includes('--confidential') || proseConfidential, contradictions);
   if (process.argv.includes('--stdout')) { process.stdout.write(mdOut); }
   else {
     const yamlDst = viewPath(runDir, 'maintain');
     mkdirSync(dirname(yamlDst), { recursive: true });
     writeFileSync(yamlDst, yamlOut);
     writeFileSync(maintainPagePath(runDir), mdOut);
-    console.log(`wrote ${yamlDst} + ${maintainPagePath(runDir)} (${built.open.length} open · ${built.met.length} met · ${built.to_run.length} to run)`);
+    console.log(`wrote ${yamlDst} + ${maintainPagePath(runDir)} (${built.open.length} open · ${built.met.length} met · ${built.to_run.length} to run · ${contradictions.length} contradicted)`);
   }
 }

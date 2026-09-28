@@ -41,20 +41,28 @@
 //
 // Plus six evidence checks (root only, one per descriptor id, named
 // `evidence-<descriptor-id>`): each reads ops/evidence/<id>.md (else
-// docs/evidence/<id>.md, first found wins) — YAML frontmatter (descriptor, date,
-// by, commit, result, plus keys named per row) over a body that must carry at
-// least one fenced code block and at least 5 non-empty lines. `pass` only when
+// docs/evidence/<id>.md, first found wins) — YAML frontmatter (produced_by,
+// descriptor, date, by, commit, result, plus keys named per row) over a body
+// that must carry at least one fenced code block and at least 5 non-empty
+// lines. `produced_by: ci | person` says who produced the transcript from the
+// procedure's real output (never an agent — owner/evidence/README.md);
+// `ci` additionally requires `run` (the CI run's id or URL). `pass` only when
 // the file is present, the frontmatter is complete and well-formed, `result:
-// pass`, and `date` is not in the future and no older than the freshness window
-// (`--evidence-max-age`, default 90 days, measured from `--as-of`, default
-// today UTC). The document never reads the body past line counts — a transcript
-// can hold operational detail. Every observation, pass or gap, says this check
-// verifies the transcript's shape and freshness, never the truth of what it
-// describes. Full format: owner/evidence/README.md.
+// pass`, its `commit` resolves in the checkout's history, and `date` is not in
+// the future and no older than the freshness window (`--evidence-max-age`,
+// default 90 days, measured from `--as-of`, default today UTC). A commit
+// genuinely absent from a real, full history is a `gap`, naming it; a checkout
+// that cannot say either way (no `.git`, or too shallow to know) reads
+// `not-measured`, never `pass` or `gap` — the check refuses to guess. The
+// document never reads the body past line counts — a transcript can hold
+// operational detail. Every observation, pass, gap or not-measured, says this
+// check verifies the transcript's shape, freshness and commit, never the truth
+// of what it describes. Full format: owner/evidence/README.md.
 //
 // Fail loud, never empty: `exit` is 1 when any check is `gap`, 0 when every check is
-// `pass` or `not-applicable`. A crash of the runner itself exits 2, so ingest.mjs
-// (success set [0, 1]) halts on it.
+// `pass`, `not-applicable`, or `not-measured` (the checkout could not confirm a
+// commit either way — never itself a failure). A crash of the runner itself
+// exits 2, so ingest.mjs (success set [0, 1]) halts on it.
 //
 // The packet's pointers (owner/PACKET.md "Pointers"): with `--packet <dir |
 // manifest.yaml>`, or with no flag when `<target>/packet/manifest.yaml` exists
@@ -91,7 +99,7 @@ export const EVIDENCE_IDS = [
   'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts',
 ];
 export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...EVIDENCE_IDS.map((id) => `evidence-${id}`)];
-export const CHECK_STATUS = ['pass', 'gap', 'not-applicable'];
+export const CHECK_STATUS = ['pass', 'gap', 'not-applicable', 'not-measured'];
 
 // ── small filesystem helpers (case-insensitive, read-only, never throw) ──────
 function safeReaddir(dir) { try { return readdirSync(dir); } catch { return []; } }
@@ -475,6 +483,36 @@ function parseTrigger(lines) {
 // `node --test`, and `node <file>` where the file sits in a test/ or tests/ directory or
 // is named *.test.* / *.spec.*: the zero-dependency form of a test step
 const GATE_CMD_RE = /\b(?:npm\s+(?:run\s+)?(?:test|lint|typecheck|build)|pnpm\s+(?:run\s+)?(?:test|lint|typecheck|build)|yarn\s+(?:run\s+)?(?:test|lint|typecheck|build)|tsc\b|jest\b|vitest\b|pytest\b|go\s+test|cargo\s+test|make\s+test|(?:deno|bun)\s+test|node\s+--test|node\s+(?:\S*\/)?(?:tests?|__tests__)\/\S+|node\s+\S+\.(?:test|spec)\.[cm]?[jt]s)\b/i;
+// A gate that can fail open is not a gate: `continue-on-error: true` is the
+// documented GitHub Actions shape, but a `run:` script reaches the identical
+// outcome with plain shell — appending `|| true` / `|| exit 0` / `|| :` to the
+// gate command, or disabling errexit for the rest of the script with `set +e`.
+// Checked per LINE of the step's script (a block-scalar `run: |` script is
+// captured whole, below) so the citation lands on the exact offending line,
+// never the step's first line alone.
+const FAIL_OPEN_SHELL_RE = /\|\|\s*(?:true|exit\s+0|:)\s*(?:#.*)?$/;
+const SET_PLUS_E_RE = /(?:^|[;&]|\bthen\b)\s*set\s+(?:-\w*\s+)*\+e(?:\s|$)/;
+function shellFailOpenLine(text) {
+  const t = String(text || '');
+  if (FAIL_OPEN_SHELL_RE.test(t)) return 'shell';
+  if (SET_PLUS_E_RE.test(t)) return 'set +e';
+  return null;
+}
+// A `run:` value that is a block-scalar indicator (`|`, `|-`, `|+`, `>`, `>-`, `>+`,
+// optionally followed by an explicit indentation indicator) rather than an inline
+// command — the script body is the more-indented lines that follow.
+const BLOCK_SCALAR_RE = /^[|>][+-]?\d*\s*(?:#.*)?$/;
+function captureBlock(lines, startIdx, baseIndent) {
+  const out = []; let idx = startIdx;
+  while (idx < lines.length) {
+    const l = lines[idx];
+    if (l.trimmed === '') { idx++; continue; }
+    if (l.indent <= baseIndent) break;
+    out.push({ n: l.n, text: l.trimmed });
+    idx++;
+  }
+  return { scriptLines: out, nextIdx: idx };
+}
 function parseSteps(lines) {
   const jobsIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l.trimmed));
   if (jobsIdx === -1) return [];
@@ -497,6 +535,26 @@ function parseSteps(lines) {
           const stepsIndent = l2.indent;
           let k = j + 1, itemIndent = null, cur = null;
           const flush = () => { if (cur) steps.push(cur); cur = null; };
+          // handle a `run:` key at line l3 (indent runIndent): inline command, or a
+          // block scalar whose body is captured from the following more-indented
+          // lines. Returns the index to resume the outer loop from.
+          const handleRun = (l3, rest, kNow) => {
+            const m = rest.match(/^run:\s*(.*)$/);
+            if (!m) return kNow;
+            const val = m[1].trim();
+            if (BLOCK_SCALAR_RE.test(val) || val === '') {
+              const { scriptLines, nextIdx } = captureBlock(lines, kNow + 1, l3.indent);
+              if (scriptLines.length) {
+                cur.scriptLines = scriptLines;
+                cur.cmd = scriptLines.map((s) => s.text).join('\n');
+                cur.line = l3.n;
+                return nextIdx - 1;
+              }
+              return kNow;
+            }
+            cur.cmd = val; cur.line = l3.n;
+            return kNow;
+          };
           while (k < lines.length) {
             const l3 = lines[k];
             if (l3.trimmed === '') { k++; continue; }
@@ -507,12 +565,10 @@ function parseSteps(lines) {
               flush();
               cur = { line: l3.n, cmd: null, continueOnError: jobContinueOnError, coeLine: null };
               const rest = l3.trimmed.replace(/^-\s?/, '');
-              const rm = rest.match(/^run:\s*(.+)$/);
-              if (rm) { cur.cmd = rm[1].trim(); cur.line = l3.n; }
+              k = handleRun(l3, rest, k);
               if (/^continue-on-error:\s*true\s*$/.test(rest)) { cur.continueOnError = true; cur.coeLine = l3.n; }
             } else if (cur) {
-              const rm = l3.trimmed.match(/^run:\s*(.+)$/);
-              if (rm) { cur.cmd = rm[1].trim(); cur.line = l3.n; }
+              k = handleRun(l3, l3.trimmed, k);
               if (/^continue-on-error:\s*true\s*$/.test(l3.trimmed)) { cur.continueOnError = true; cur.coeLine = l3.n; }
             }
             k++;
@@ -524,7 +580,18 @@ function parseSteps(lines) {
     }
     i++;
   }
-  for (const s of steps) s.isGateCmd = !!(s.cmd && GATE_CMD_RE.test(s.cmd));
+  for (const s of steps) {
+    s.isGateCmd = !!(s.cmd && GATE_CMD_RE.test(s.cmd));
+    // a gate step can also fail open through its own shell script — never
+    // overrides an already-found `continue-on-error: true` (that citation wins)
+    if (!s.continueOnError) {
+      const candidates = s.scriptLines && s.scriptLines.length ? s.scriptLines : (s.cmd ? [{ n: s.line, text: s.cmd }] : []);
+      for (const c of candidates) {
+        const shape = shellFailOpenLine(c.text);
+        if (shape) { s.continueOnError = true; s.coeLine = c.n; s.failOpenShell = shape; s.failOpenText = c.text; break; }
+      }
+    }
+  }
   return steps;
 }
 export function parseWorkflow(text) {
@@ -570,15 +637,16 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
     const gateSteps = steps.filter((s) => s.isGateCmd);
     const gates = (onPR || onDefaultPush) && gateSteps.length > 0;
     if (gates) anyGate = true;
-    for (const s of gateSteps) if (s.continueOnError) failOpen.push({ file: relFile, line: s.coeLine || s.line, cmd: s.cmd });
+    for (const s of gateSteps) if (s.continueOnError) failOpen.push({ file: relFile, line: s.coeLine || s.line, cmd: s.failOpenText || s.cmd, shape: s.failOpenShell ? 'shell' : 'continue-on-error' });
     detail.workflows.push({ file: relFile, events: trigger.events, pushBranches: trigger.pushBranches, gates, gateCommands: gateSteps.map((s) => s.cmd) });
   }
   detail.failOpen = failOpen;
   if (failOpen.length) {
+    const shapes = [...new Set(failOpen.map((f) => f.shape === 'shell' ? 'a run command that swallows a non-zero exit (`|| true` / `|| exit 0` / `|| :` / `set +e`)' : '`continue-on-error: true`'))];
     return {
       name, status: 'gap', detail,
       evidence: failOpen.map((f) => `${f.file}:${f.line}`),
-      observation: `A gate step fails open (\`continue-on-error: true\`): ${failOpen.map((f) => `${f.file}:${f.line} (\`${f.cmd}\`)`).join('; ')}. A gate that can fail open is not a gate. ${branchNote}`,
+      observation: `A gate step fails open (${shapes.join(', or ')}): ${failOpen.map((f) => `${f.file}:${f.line} (\`${f.cmd}\`)`).join('; ')}. A gate that can fail open is not a gate. ${branchNote}`,
     };
   }
   if (!anyGate) {
@@ -634,6 +702,23 @@ const EVIDENCE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EVIDENCE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EVIDENCE_COMMIT_RE = /^[0-9a-f]{7,40}$/i;
 const EVIDENCE_ACCOUNT_RE = /^[^:]+:.+->.+$/; // "<account>: <threshold> -> <recipient>"
+const EVIDENCE_PRODUCED_BY = ['ci', 'person'];
+
+// Does `sha` resolve in this checkout's history? `{ state: 'found' | 'missing' |
+// 'unknown', reason }` — 'unknown' (never a gap) when there is no git history to
+// check against at all, or the checkout is too shallow to say either way (a
+// commit "not found" in a shallow clone may simply be older than the fetch
+// depth, not absent from the real repository).
+function checkCommitInHistory(dir, sha) {
+  if (!existsSync(join(dir, '.git'))) return { state: 'unknown', reason: 'this checkout carries no .git — there is no history here to verify a commit against' };
+  const found = spawnSync('git', ['cat-file', '-e', `${sha}^{commit}`], { cwd: dir, encoding: 'utf8' });
+  if (found.status === 0) return { state: 'found' };
+  const shallow = spawnSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: dir, encoding: 'utf8' });
+  if (shallow.status === 0 && String(shallow.stdout || '').trim() === 'true') {
+    return { state: 'unknown', reason: 'this is a shallow checkout — it cannot confirm a commit is absent from history, only that it is not present within the fetched depth' };
+  }
+  return { state: 'missing' };
+}
 
 // find ops/evidence/<id>.md, else docs/evidence/<id>.md; first found wins
 function findEvidenceFile(dir, id, pointerDir) {
@@ -715,7 +800,13 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   if (!EVIDENCE_DATE_RE.test(dateStr)) problems.push(`date "${dateStr}" is not YYYY-MM-DD`);
   if (typeof fm.by !== 'string' || !fm.by.trim()) problems.push('by is missing');
   else if (EVIDENCE_EMAIL_RE.test(fm.by.trim())) problems.push(`by "${fm.by}" looks like an email address (a role or handle is required)`);
-  if (typeof fm.commit !== 'string' || !EVIDENCE_COMMIT_RE.test(fm.commit)) problems.push(`commit "${fm.commit ?? ''}" is not 7-40 hex characters`);
+  // produced_by says who produced this transcript from the procedure's real output —
+  // never an agent (owner/evidence/README.md): ci additionally requires run (the CI
+  // run's id or URL); person's requirement is the by field already checked above.
+  if (!EVIDENCE_PRODUCED_BY.includes(fm.produced_by)) problems.push(`produced_by "${fm.produced_by ?? ''}" is not ci|person`);
+  else if (fm.produced_by === 'ci' && !(typeof fm.run === 'string' && fm.run.trim())) problems.push('produced_by: ci requires run (the CI run\'s id or URL)');
+  const commitValid = typeof fm.commit === 'string' && EVIDENCE_COMMIT_RE.test(fm.commit);
+  if (!commitValid) problems.push(`commit "${fm.commit ?? ''}" is not 7-40 hex characters`);
   if (fm.result !== 'pass' && fm.result !== 'fail') problems.push(`result "${fm.result ?? ''}" is not pass|fail`);
   else if (fm.result === 'fail') problems.push('result: fail');
   const missingKeys = rowSpec.keys.filter((k) => fm[k] === undefined || fm[k] === null || fm[k] === '');
@@ -747,6 +838,26 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   detail.bodyHasFencedBlock = body.hasFencedBlock;
   if (body.nonEmptyCount < 5 || !body.hasFencedBlock) {
     problems.push(`body is a stub (${body.nonEmptyCount} non-empty line(s), fenced code block ${body.hasFencedBlock ? 'present' : 'absent'} — needs at least 5 non-empty lines and at least one fenced code block)`);
+  }
+  // the commit gate: checked last, only once everything else about the transcript
+  // is otherwise in order — a shape problem is reported before an unresolved commit.
+  // A commit genuinely not in history is a gap (the transcript names a claim the
+  // checkout cannot back); a checkout that cannot say either way (no .git, or too
+  // shallow) reads not-measured, never pass — the whole point of this row.
+  let commitState = null;
+  if (commitValid && !problems.length) {
+    commitState = checkCommitInHistory(dir, fm.commit);
+    if (commitState.state === 'unknown') {
+      detail.commitVerification = commitState;
+      return {
+        name, status: 'not-measured', detail,
+        evidence: [`${found.relPath}:1`],
+        observation: `${found.relPath}${pointerNote(!!evidencePointer)} is otherwise complete, but ${commitState.reason} — commit ${fm.commit} could not be confirmed in or out of this checkout's history.`,
+      };
+    }
+    if (commitState.state === 'missing') {
+      problems.push(`the commit this transcript names (${fm.commit}) is not in the repository's history`);
+    }
   }
   if (problems.length) {
     return {

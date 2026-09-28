@@ -30,7 +30,10 @@ const runDir = arg;
 const need = (p) => { if (!existsSync(p)) { console.error(`missing required input: ${p}`); process.exit(2); } return p; };
 
 const findings = loadFindings(runDir);   // the shared per-pass-first, fail-closed loader
-if (!findings.length) { console.error(`no findings under ${runDir}`); process.exit(2); }
+// Zero findings is a valid, clean report when the run carries a manifest (every
+// instrument ran clean, explicit empty files) — only no findings AND no manifest
+// is the truly empty case (CLAUDE.md rule 3: a clean run with a run record measures).
+if (!findings.length && !loadManifest(runDir)) { console.error(`no findings under ${runDir}`); process.exit(2); }
 const gate = parseYaml(readFileSync(need(securityGatePath(runDir)), 'utf8'));
 const prose = parseYaml(readFileSync(need(runProsePath(runDir)), 'utf8'));
 // Templates carry OKF frontmatter so they pass `npm run check` as bundle files;
@@ -225,7 +228,7 @@ function scannerAxes() {
     const sm = summarizeMeasurement(rows);
     const claims = rows.filter((r) => r.kind === 'claim').length;
     const unmet = rows.filter((r) => r.status === 'unmet');
-    out.push(`\nAgainst the yardstick (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed; ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
+    out.push(`\nAgainst the yardstick (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed, ${sm['not-applicable']} not applicable (decided from the map, never a claim); ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
   } catch { /* the yardstick measurement is optional to the report; validate.mjs is where it fails loud */ }
   return out.join('\n');
 }
@@ -284,7 +287,7 @@ function requirementsByTopic() {
     'still reads as measured — never silently clean.\n'];
   for (const t of topics) {
     if (!t.rows.length) continue;
-    out.push(`### ${capFirst(t.topic)} (${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured)\n`);
+    out.push(`### ${capFirst(t.topic)} (${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured · ${t.not_applicable} not applicable)\n`);
     for (const r of t.rows) out.push(`- **${r.id}** _(${r.status})_ — ${cell(r.title)}`);
     out.push('');
   }

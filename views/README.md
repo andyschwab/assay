@@ -31,17 +31,29 @@ the contract a publisher builds on; each page is its plain rendering.
 view: intake
 run: <run name>
 yardstick: <requirements.yaml version>
-counts: { requirements: N, open: N, met: N, to_run: N }
+counts: { requirements: N, open: N, met: N, to_run: N, not_applicable: N }
 open:              # status unmet or mixed
   - { id, tier, topic, title, status, basis, met, of, findings: [F-…], note, check }
 met:
   - { id, tier, topic, title, basis, note }
 to_run:            # status not-measured
   - { id, tier, topic, title, check, decided_by, basis, note }
+not_applicable:    # status not-applicable — decided from the map, NEVER counted as met
+  - { id, tier, topic, title, basis, note }
 not_seen:          # every run-record row that did not run
   - { scanner, status, reason }
 contradictions:    # a packet claim of satisfied against a run-decided unmet row (Intake only)
   - { id, claim, run_status, findings: [F-…] }
+owner:             # what the run's own packet says about itself, facts only (Intake only)
+  answered: { date, by, via } | null
+  accounts: { count, personal, organisational, transferable: { yes, no, unknown },
+              rows: [{ what, provider, owner_role, personal_or_organisational, transferable }] }
+  credentials: { count, lives: […], never_rotated, readers: […] }
+  people: { build: […] | null, deploy: […] | null, restore: […] | null, restore_done }
+  data: { personal, leaves_via: […] }
+  money: { monthly: [{ provider, amount }], alerts }
+  handover
+  notes
 ```
 
 `met` and `of` appear when the requirement is decided over a counted population.
@@ -50,18 +62,39 @@ contradictions:    # a packet claim of satisfied against a run-decided unmet row
 `owner/PACKET.md`). `basis` (`run | owner`) is who decided the row THIS run —
 `owner` only where a repository's own packet decided it (`yardstick/measure.mjs
 --packet`, `owner/PACKET.md`); the page renders it as "met, by the owner's word".
-`contradictions` is the run's own recorded list (never recomputed by a view) — a
-packet's `satisfied` claim the run itself found unmet, the claim and the run's
-status and findings kept side by side, never merged. `INTAKE.md`'s "Contradicted
-claims" section renders it.
+`not_applicable` rows are listed on their own, separate from `met` — a
+requirement that does not apply was not satisfied, and it is never counted or
+rendered as met (`yardstick/README.md`'s `not-applicable` status: decided only
+from the map, never a packet claim on a run-decided row). `contradictions` is
+the run's own recorded list (never recomputed by a view) — a packet's
+`satisfied` claim the run itself found unmet, the claim and the run's status and
+findings kept side by side, never merged. `INTAKE.md`'s "Contradicted claims"
+section renders it.
+
+`owner` is the run's own copied packet (`owner/manifest.yaml`, `owner/PACKET.md`),
+reduced to facts — assay issues no verdict on any of it, the same rule that
+governs everything else this view writes. `null` when the run carries no
+packet at all; `INTAKE.md`'s "What the owner told us" section then reads "No
+owner's packet yet: the owner prompt (`assay.mjs ask-owner`) collects these."
+A role list (`people.build/deploy/restore`) is `null` when the packet never
+spoke to it (rendered "unknown") and `[]` when the owner named nobody
+(rendered "nobody") — the same placeholder-free convention `owner/PACKET.md`
+already uses; every other unknown value renders as the word "unknown", never
+dropped. `custody.credentials` also informs `d-credentials-enumerated`, but
+ONLY as a trailing note on whatever list (open/met/to_run) the run itself put
+that row in ("… (the owner listed N credentials)") — it never changes the
+row's run-decided status; a claim never lets presence stand in for
+enforcement.
 
 ## Maintain: is it still healthy?
 
 `views/maintain.mjs` → `views/maintain.yaml` and `MAINTAIN.md`. The requirements
 tagged `fleet`: what a steward's routines read to keep a repository healthy
-without a person looking. Same shape as Intake (including `basis`, shown the
-same way on the page) minus `contradictions` (Intake-only), with `view:
-maintain` and `floor: true | false` on every row (whether Intake also reads it).
+without a person looking. Same shape as Intake, including `basis` (shown the
+same way on the page) and `contradictions` (the run's own recorded list, same
+shape and rendering as Intake's — a claim a steward's routines must not lose
+sight of between intake and the next human look), with `view: maintain` and
+`floor: true | false` on every row (whether Intake also reads it).
 
 ## Improve: what makes it better?
 
@@ -71,7 +104,7 @@ over `views/improve/templates/`). It needs the run's authored
 
 | File | What it is |
 |---|---|
-| `views/improve.yaml` | every requirement grouped by topic, each exactly once: `topics: [{ topic, met, unmet, mixed, not_measured, rows: [{ id, title, status }] }]` |
+| `views/improve.yaml` | every requirement grouped by topic, each exactly once: `topics: [{ topic, met, unmet, mixed, not_measured, not_applicable, rows: [{ id, title, status }] }]` |
 | `views/improve/axes.md` | the axis walk: per axis, what to preserve, the risks ranked, and the requirements on that topic; custody, reproducibility and operability as their own sections; the axes no scanner measured this run |
 | `views/improve/maturity-grades.yaml` | maturity coverage per dimension, computed (`node assay.mjs maturity`) |
 | `views/improve/maturity.md`, `views/improve/security.md`, `views/improve/security-gate.yaml`, `views/improve/leverage.md` | the maturity reading, the exposures and attack paths, and where one change moves the most, written by the built-in method's view passes (`map/METHOD.md`) and checked by `validate` |
@@ -95,13 +128,16 @@ yardstick: <this run's requirements.yaml version>
 previous_yardstick: <the previous run's version>
 yardstick_version_changed: true | false
 counts: { regressed: N, improved: N, newly_measured: N, no_longer_measured: N, yardstick_only: N, findings_new: N, findings_no_longer_found: N }
-regressed:            # met/mixed -> worse, or dropped to not-measured
+regressed:            # met/mixed -> worse, or dropped to not-measured/not-applicable
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis, findings: [F-…]}, note }
 improved:              # rank went up (unmet -> mixed -> met)
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
-newly_measured:        # not-measured -> decided
+newly_measured:        # not-measured/not-applicable -> decided
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
-no_longer_measured:    # decided -> not-measured (NEVER "unchanged", NEVER "improved")
+no_longer_measured:    # decided -> not-measured OR not-applicable (NEVER "unchanged", NEVER
+                        # "improved"); current.status names which — read it, never assume
+                        # not-measured (a requirement that stopped applying is not the same
+                        # as one nobody measured)
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
 yardstick_only:        # the id exists on only one side — the yardstick itself was edited
   - { id, side: previous | current, title, status, basis }

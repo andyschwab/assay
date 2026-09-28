@@ -26,6 +26,8 @@ map:
     axis: context-economy
   migrate:                      # reproducibility: migrations replay from empty
     axis: context-economy
+  no-database-signal:           # a fact row: no database signal anywhere in the tree — decides
+    axis: context-economy       # d-schema-versioned not-applicable (yardstick/requirements.yaml)
   lint:                         # a verification gate exists and is green
     axis: deterministic-gates
   typecheck:

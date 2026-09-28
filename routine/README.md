@@ -5,10 +5,16 @@ title: "routine/ — the routine a stewarded repository runs on its own schedule
 # routine/
 
 Once a steward takes a repository on, the repository itself keeps producing
-assay's own measurement of it — on a schedule, on every pull request, and on
-demand — without a person re-running the engine by hand. `assay-routine.yml` is
-a GitHub Actions workflow template; `run.mjs` is the driver it calls, and the
-one a steward calls locally too, so CI and a terminal run the identical path.
+assay's own measurement of it — on a schedule, on every pull request, on every
+push to the default branch, and on demand — without a person re-running the
+engine by hand. The push trigger exists because a pull request only measures
+the change; without it, a way for something to reach the default branch
+without going through that gate (an admin merge, a direct push, a merge
+commit that changes the diff) would go unmeasured until the next weekly
+schedule — the push trigger means merged main is measured the same day.
+`assay-routine.yml` is a GitHub Actions workflow template; `run.mjs` is the
+driver it calls, and the one a steward calls locally too, so CI and a terminal
+run the identical path.
 
 ## What it produces, and where
 
@@ -55,6 +61,22 @@ Until a baseline is committed, the routine still runs and still compiles the
 package; it prints a visible warning that no baseline exists yet rather than
 skipping the ratchet in silence.
 
+**On a pull request, the baseline is read from the base branch, never from the
+change under review.** The pull request's own working tree is whatever the
+change proposes — including, potentially, an edited `packet/baseline.yaml` —
+so grading it against its own copy would let a change switch off the very gate
+meant to hold it. The workflow template detects a pull request (it passes
+`--base-ref origin/${{ github.base_ref }}` after fetching that branch) and
+`routine/run.mjs` then reads the baseline with `git show
+<base-ref>:packet/baseline.yaml` in the checkout (`yardstick/ratchet.mjs`'s
+`--baseline-ref --repo`), never the file on disk. When the working tree's
+`packet/baseline.yaml` differs from the base ref's copy at all, the routine
+prints that plainly — a steward accepts a new baseline in its own reviewed
+change, never silently through the pull request it would otherwise gate. On a
+schedule or `workflow_dispatch` run (no base ref — there is no "pull request"
+to distinguish from the accepted state), the working tree's committed copy is
+read directly, exactly as before.
+
 ## Installing it
 
 1. Copy `routine/assay-routine.yml` into the stewarded repository as
@@ -71,10 +93,29 @@ skipping the ratchet in silence.
    review the result, and commit `packet/baseline.yaml` from it
    (`node assay.mjs ratchet <run-dir> --write-baseline packet/baseline.yaml`)
    — a reviewed change, same as any other.
+5. **Make the `routine` job a required status check** on the default branch
+   (repository Settings → Branches → a branch protection rule, or the newer
+   rulesets UI — either names the job by its `jobs.routine` id). Skip this and
+   the gate is a red mark someone can ignore, never a block: GitHub runs a
+   pull request's own copy of the workflow regardless of whether its job
+   passes, and nothing stops the merge unless the branch rule says this job is
+   required.
+6. **Add `CODEOWNERS` entries for `packet/` and `.github/workflows/`**, naming
+   the steward team, e.g.:
+   ```
+   /packet/                    @your-org/stewards
+   /.github/workflows/         @your-org/stewards
+   ```
+   Without this, anyone who can open a pull request can also edit the baseline
+   it is graded against or the workflow that grades it — a steward's review is
+   what makes either change accountable, and `CODEOWNERS` is what makes that
+   review required rather than optional.
 
 Optional: to include `gitleaks`, add a workflow step that installs the
 `gitleaks` binary onto `PATH` before the routine step; the routine detects it
-automatically and needs no flag.
+automatically and needs no flag. The template carries this step commented out,
+pinned to one release and verified against its published checksum — copy it in
+and uncomment it rather than adding an unpinned `curl | sh` of your own.
 
 ## `--since` is not wired into the template
 
