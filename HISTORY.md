@@ -454,3 +454,35 @@ what the public engine learned.
   whose target declares no build script (no committed run in this repository
   was affected — the scored fixtures' fresh-clone rows carry no
   install/build gap either way). Goldens untouched.
+- **2026-09-28 — a `not-applicable` status, decided only by evidence, never a
+  packet claim.** A product review found assay reporting `met` where nothing
+  was measured — a tree with no database read `d-schema-versioned` met by
+  silence, and a packet claim of `not-applicable` on a claim-only row read
+  `met` too, the identical laundering in a different place. `not-applicable`
+  joins `met | unmet | mixed | not-measured` in `yardstick/measure.mjs`'s
+  `STATUSES`, and everywhere a status is defined, validated, counted or
+  rendered follows: `validateYardstick`, `compare.mjs`'s `classify` (off the
+  ranked scale, the same way `not-measured` is), `ratchet.mjs`'s gate,
+  `since.mjs`, `views/floor-fleet.mjs` (Intake/Maintain's shared row builder),
+  `views/improve/topics.mjs`, the axis walk and report summary lines, and
+  `views/compile.mjs`'s glance line. A `facet`/`census`/`instrument` row can
+  now declare `decide.not_applicable_when: <fact-category>` (and
+  symmetrically `not_measured_when`, for dependency-scan's "nothing to audit"
+  case): the name of a `polarity: fact` row the same scanner records when it
+  looked for something and found none, which decides the status only when the
+  row's own category carries no rows this run — real evidence always governs
+  over the condition. `d-schema-versioned` is wired to it:
+  `map/ingest.mjs`'s fresh-clone converter now emits a `no-database-signal`
+  fact row instead of silently skipping the migrate check, and the
+  requirement reads not-applicable, never met, with no database signal
+  anywhere. Separately, `yardstick/packet.mjs`'s `decideGenericClaim` stops
+  mapping a packet's `not-applicable` claim to `met` — a requirement that does
+  not apply was not satisfied — and now maps it to `not-applicable` (a
+  claim-kind row's only decider is the owner, so this is the owner's call, not
+  a run's). Ratchet: to/from not-applicable is never a failure either
+  direction (a requirement that stops applying was not held and broken) but
+  is reported in a new `changed` list, distinct from `improved`/`failures`.
+  Intake and Maintain gain a "Not applicable" section, listed separately and
+  never counted as met. `yardstick/README.md` and `views/README.md` document
+  all of it; `owner/PACKET.md`'s claim-mapping table is corrected. Goldens
+  untouched.

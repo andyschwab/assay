@@ -313,14 +313,19 @@ export function decideBusFactorClaim(custody) {
     return { status: 'mixed', note: 'role coverage or restore_done unknown for at least one of build/deploy/restore' };
   return { status: 'met', note: 'build, deploy and restore each name 2+ roles, and restore_done: yes' };
 }
-// every other claim row: satisfied|not-applicable -> met, open -> unmet, unknown -> not-measured
-// (still `basis: owner` — the owner did answer); absent -> null (basis stays `run`).
+// every other claim row: satisfied -> met, not-applicable -> not-applicable (never
+// met — a requirement that does not apply was not satisfied, it was never in play;
+// a claim-kind row has no run mechanism of its own, so the owner is the only one
+// who can say a requirement does not apply, the same way the owner is the only
+// one who can say it is met), open -> unmet, unknown -> not-measured (still
+// `basis: owner` — the owner did answer); absent -> null (basis stays `run`).
 export function decideGenericClaim(id, packet) {
   const claims = Array.isArray(packet && packet.claims) ? packet.claims : [];
   const c = claims.find((x) => x && x.id === id);
   if (!c) return null;
   const note = noteOf(c);
-  if (c.state === 'satisfied' || c.state === 'not-applicable') return { status: 'met', note };
+  if (c.state === 'satisfied') return { status: 'met', note };
+  if (c.state === 'not-applicable') return { status: 'not-applicable', note };
   if (c.state === 'open') return { status: 'unmet', note };
   return { status: 'not-measured', note }; // unknown
 }

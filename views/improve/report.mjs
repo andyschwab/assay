@@ -228,7 +228,7 @@ function scannerAxes() {
     const sm = summarizeMeasurement(rows);
     const claims = rows.filter((r) => r.kind === 'claim').length;
     const unmet = rows.filter((r) => r.status === 'unmet');
-    out.push(`\nAgainst the yardstick (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed; ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
+    out.push(`\nAgainst the yardstick (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed, ${sm['not-applicable']} not applicable (decided from the map, never a claim); ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
   } catch { /* the yardstick measurement is optional to the report; validate.mjs is where it fails loud */ }
   return out.join('\n');
 }
@@ -287,7 +287,7 @@ function requirementsByTopic() {
     'still reads as measured — never silently clean.\n'];
   for (const t of topics) {
     if (!t.rows.length) continue;
-    out.push(`### ${capFirst(t.topic)} (${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured)\n`);
+    out.push(`### ${capFirst(t.topic)} (${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured · ${t.not_applicable} not applicable)\n`);
     for (const r of t.rows) out.push(`- **${r.id}** _(${r.status})_ — ${cell(r.title)}`);
     out.push('');
   }

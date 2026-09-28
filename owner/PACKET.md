@@ -130,8 +130,9 @@ number. `node assay.mjs measure <run> --packet <dir>` (and `compile <run>
 --packet <dir>`) reads the packet in, and:
 
 - a `claim`-kind requirement (nothing in any run can decide it — the register's
-  own instrument backlog) reads from the packet: `satisfied` or
-  `not-applicable` → met, `open` → unmet, `unknown` or absent → not-measured.
+  own instrument backlog) reads from the packet: `satisfied` → met,
+  `not-applicable` → not-applicable (never met — a requirement that does not
+  apply was not satisfied), `open` → unmet, `unknown` or absent → not-measured.
   Two of those rows are extracted rather than read verbatim, because a run
   already carries the raw material: `d-accounts-enumerated` from
   `custody.accounts` (met when every account has an `owner_role` and

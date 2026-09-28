@@ -82,15 +82,25 @@ export function loadYardstickDoc(dir) {
 }
 
 // ── the pure gate over an already-loaded baseline + current doc ────────────
-// Returns { failures: [line...], held, improved: [{id,title,before,after}] }.
-// `titleOf` maps an id to its register title (a plain fallback to the id when the
-// requirement no longer exists in the register at all — a yardstick-only row).
+// Returns { failures: [line...], held, improved: [{id,title,before,after}],
+// changed: [{id,title,before,after}] }. `titleOf` maps an id to its register
+// title (a plain fallback to the id when the requirement no longer exists in
+// the register at all — a yardstick-only row).
+//
+// not-applicable is decided only from the map (yardstick/measure.mjs), never a
+// failure either direction: a requirement that stops applying was not held and
+// then broken, it simply no longer applies (met -> not-applicable reports, it
+// never fails); and a baseline row that WAS not-applicable never reaches the
+// held-status check below (it is not met/mixed), so it can never fail regardless
+// of what it becomes now. Both directions land in `changed` — a real transition,
+// surfaced, not silently folded into "held" or "regressed".
 export function evaluateRatchet(baselineDoc, currentDoc, titleOf) {
   const previous = { version: baselineDoc.yardstick, requirements: baselineDoc.requirements };
   const { rows } = compare(previous, currentDoc);
   const failures = [];
   let held = 0;
   const improved = [];
+  const changed = [];
   for (const r of rows) {
     if (r.classification === 'yardstick-only') {
       if (r.side === 'previous') {
@@ -101,18 +111,25 @@ export function evaluateRatchet(baselineDoc, currentDoc, titleOf) {
       }
       continue; // side === 'current': a requirement ADDED since the baseline — nothing to hold yet
     }
+    if (r.current.status === 'not-applicable' && r.previous.status !== 'not-applicable') {
+      changed.push({ id: r.id, title: titleOf(r.id), before: r.previous.status, after: r.current.status });
+      continue;
+    }
+    if (r.previous.status === 'not-applicable' && r.current.status !== 'not-applicable') {
+      changed.push({ id: r.id, title: titleOf(r.id), before: r.previous.status, after: r.current.status });
+      continue;
+    }
     const heldStatus = r.previous.status === 'met' || r.previous.status === 'mixed';
     if (r.classification === 'improved') improved.push({ id: r.id, title: titleOf(r.id), before: r.previous.status, after: r.current.status });
     if (heldStatus) {
       if (r.classification === 'regressed' || r.classification === 'no-longer-measured') {
         const findings = r.current.findings.length ? ` (${r.current.findings.join(', ')})` : '';
-        const after = r.classification === 'no-longer-measured' ? 'not-measured' : r.current.status;
-        failures.push(`${r.id} — ${titleOf(r.id)}: ${r.previous.status} → ${after}${findings}`);
+        failures.push(`${r.id} — ${titleOf(r.id)}: ${r.previous.status} → ${r.current.status}${findings}`);
       } else if (r.classification === 'unchanged') held++;
       // 'improved' held-status rows are reported as improved, not held (they moved, not stayed).
     }
   }
-  return { failures, held, improved };
+  return { failures, held, improved, changed };
 }
 
 // ── writing a baseline FROM a run's current measurement ─────────────────────
@@ -158,14 +175,17 @@ if (isMain(import.meta.url)) {
     let baselineDoc;
     try { baselineDoc = loadBaseline(baselineFile); }
     catch (e) { console.error(`✗ ratchet: ${baselineFile} is not a valid baseline (fails closed):\n${e.message}`); process.exit(2); }
-    const { failures, held, improved } = evaluateRatchet(baselineDoc, currentDoc, titleOf);
+    const { failures, held, improved, changed } = evaluateRatchet(baselineDoc, currentDoc, titleOf);
     if (failures.length) {
       console.error(`✗ ratchet: ${failures.length} requirement(s) the baseline held are now worse:\n`);
       for (const f of failures) console.error(`  ✗ ${f}`);
       exitCode = 1;
     } else {
-      console.log(`✓ ratchet held: held ${held}, improved ${improved.length}`);
+      console.log(`✓ ratchet held: held ${held}, improved ${improved.length}, changed (not-applicable) ${changed.length}`);
       for (const r of improved) console.log(`  ↑ ${r.id} — ${r.title}: ${r.before} → ${r.after}`);
+      // to/from not-applicable is never a failure — decided only from the map — but it IS a
+      // change, so it is reported here rather than folded silently into "held".
+      for (const r of changed) console.log(`  · ${r.id} — ${r.title}: ${r.before} → ${r.after} (reported, not a failure)`);
       if (improved.length) console.log(`\nLock these in: node assay.mjs ratchet ${dir} --write-baseline ${baselineFile}`);
     }
   } else {

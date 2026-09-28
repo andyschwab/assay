@@ -25,14 +25,14 @@ export function joinContradictions(raw, reg) {
 }
 
 export function renderMd(runId, built, confidential = false, contradictions = []) {
-  const { open, met, to_run, not_seen } = built;
+  const { open, met, to_run, not_applicable = [], not_seen } = built;
   const out = [];
   out.push('---', 'type: doc', ...(confidential ? ['confidential: true'] : []), `title: "Intake — ${runId}"`, '---', '');
   out.push(`# Intake — ${runId}`, '');
   out.push('_Can this map be carried? The floor: the requirements a repository must clear to be taken');
   out.push('on at all. Plain and neutral — what is open, what is met, what is still to run, what was not');
   out.push('seen. No prices, no verdict._', '');
-  out.push(`**${open.length} open · ${met.length} met · ${to_run.length} to run** of ${open.length + met.length + to_run.length} floor requirements.`, '');
+  out.push(`**${open.length} open · ${met.length} met · ${to_run.length} to run · ${not_applicable.length} not applicable** of ${open.length + met.length + to_run.length + not_applicable.length} floor requirements.`, '');
 
   out.push('## Open', '');
   if (open.length) {
@@ -50,6 +50,13 @@ export function renderMd(runId, built, confidential = false, contradictions = []
   if (to_run.length) {
     for (const r of to_run) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. Decided by ${r.decided_by}. Proving check: ${r.check}. ${r.note}`);
   } else out.push('_Nothing left to run._');
+  out.push('');
+
+  out.push('## Not applicable', '');
+  out.push('_Decided from the map, never a packet claim — listed separately, never counted as met._', '');
+  if (not_applicable.length) {
+    for (const r of not_applicable) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${r.note}${basisNote(r)}.`);
+  } else out.push('_None._');
   out.push('');
 
   out.push('## Contradicted claims', '');

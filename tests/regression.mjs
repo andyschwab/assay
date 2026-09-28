@@ -602,11 +602,16 @@ function adaptersOnce() { return loadAdapters(); }
     // (b) convert: rows for the missing claim and the not-declared floor steps, none for the passing steps
     const rows = convert('fresh-clone', raw, 1);
     const cats = rows.map((r) => r.native_category).sort().join(',');
-    if (cats !== 'lint,readme-claim,typecheck') fail(`convert must yield exactly lint, typecheck, readme-claim gap rows — no migrate row for a tree with no database (got ${cats || '(none)'})`);
+    if (cats !== 'lint,no-database-signal,readme-claim,typecheck') fail(`convert must yield lint, typecheck, readme-claim gap rows plus a no-database-signal FACT row — no migrate GAP row for a tree with no database (got ${cats || '(none)'})`);
     if (!Array.isArray(doc.toolchain?.database_signals) || doc.toolchain.database_signals.length) fail('the fixture carries no database signals');
+    const noDbFact = rows.find((r) => r.native_category === 'no-database-signal');
+    if (noDbFact?.polarity !== 'fact' || noDbFact?.source !== 'fresh-clone' || !noDbFact?.evidence?.length) fail(`the no-database-signal row must be a fact (not a gap), from fresh-clone, with evidence (got ${JSON.stringify(noDbFact)})`);
     const dbDoc = { ...doc, toolchain: { ...doc.toolchain, database_signals: ['dep:@prisma/client'] } };
-    if (!convert('fresh-clone', JSON.stringify(dbDoc), 1).some((r) => r.native_category === 'migrate')) fail('with a database in the tree, an undeclared migrate step is a gap');
-    if (rows.some((r) => r.polarity !== 'gap' || !r.fix || !r.severity)) fail('every fresh-clone row is a gap with a severity and a fix');
+    const dbRows = convert('fresh-clone', JSON.stringify(dbDoc), 1);
+    if (!dbRows.some((r) => r.native_category === 'migrate')) fail('with a database in the tree, an undeclared migrate step is a gap');
+    if (dbRows.some((r) => r.native_category === 'no-database-signal')) fail('with a database in the tree, no no-database-signal fact must be emitted');
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every fresh-clone GAP row carries a severity and a fix');
+    if (rows.filter((r) => r.polarity === 'fact').some((r) => r.fix || r.severity)) fail('a fresh-clone FACT row carries neither severity nor fix (it is not a gap)');
     const claimRow = rows.find((r) => r.native_category === 'readme-claim');
     if (claimRow?.evidence[0] !== `README.md:${claims.deploy?.line}`) fail(`a missing claim must cite README.md:<line> (got ${claimRow?.evidence[0]})`);
     if (rows.find((r) => r.native_category === 'lint')?.evidence[0] !== 'package.json:1') fail('a step row must cite the manifest that declares the steps');
@@ -684,7 +689,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (!build) fail('an undeclared build step must now emit a gap row, the same as undeclared lint/typecheck');
   if (build && (build.polarity !== 'gap' || !/build/i.test(build.observation || ''))) fail(`the build gap row must read as a gap naming the build step (got ${JSON.stringify(build)})`);
   const cats = rows.map((r) => r.native_category).sort().join(',');
-  if (cats !== 'build,lint,typecheck') fail(`convert must yield build, lint, typecheck gap rows for this document — no migrate row (no database signals) (got ${cats || '(none)'})`);
+  if (cats !== 'build,lint,no-database-signal,typecheck') fail(`convert must yield build, lint, typecheck gap rows plus a no-database-signal fact — no migrate GAP row (no database signals) (got ${cats || '(none)'})`);
   // through the yardstick: d-fresh-clone-runs (category [install, build]) must now read unmet
   let reg = null;
   try { reg = loadYardstick(); } catch (e) { fail('yardstick failed to load: ' + e.message.split('\n')[0]); }
@@ -819,7 +824,7 @@ function adaptersOnce() { return loadAdapters(); }
     if (!badBuild) fail(`convert must emit a row native_id apps/bad:build:failed (got ${rows.map((r) => r.native_id).join(', ')})`);
     if (badBuild && (badBuild.native_category !== 'build' || badBuild.evidence[0] !== 'apps/bad/package.json:1')) fail(`the workspace build row must keep native_category build (for the adapter map) and cite apps/bad/package.json:1 (got ${badBuild.native_category} / ${badBuild.evidence[0]})`);
     if (badBuild && !/workspace apps\/bad/.test(badBuild.observation)) fail('the workspace row observation must name the workspace');
-    if (rows.some((r) => r.native_id.startsWith('apps/good:') && r.native_category !== 'lint' && r.native_category !== 'typecheck')) fail('apps/good must yield gap rows only for its not-declared floor steps (lint, typecheck), never for its passing build/test');
+    if (rows.some((r) => r.native_id.startsWith('apps/good:') && !['lint', 'typecheck', 'no-database-signal'].includes(r.native_category))) fail('apps/good must yield gap rows only for its not-declared floor steps (lint, typecheck) plus its own no-database-signal fact, never for its passing build/test');
     // every category still maps (no rogue category is introduced by the workspace prefix)
     const proj = projectMulti(rows, adaptersOnce());
     if (proj.unmapped.length) fail(`workspace rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
@@ -875,6 +880,97 @@ function adaptersOnce() { return loadAdapters(); }
   if (validateYardstick({ ...reg, requirements: [listRequirement] }).length) fail('validateYardstick must accept a non-empty list category');
   const emptyList = { ...listRequirement, decide: { kind: 'instrument', scanner: 'fresh-clone', category: [] } };
   if (!validateYardstick({ ...reg, requirements: [emptyList] }).some((e) => /category/.test(e))) fail('validateYardstick must reject an empty category list');
+}
+
+// ── not-applicable / not-measured: decided ONLY from an evidence condition the
+// deciding instrument itself recorded (a `polarity: fact` row), never a packet
+// claim. A row with `decide.not_applicable_when`/`not_measured_when` names a fact
+// row's native_category from the SAME scanner; it fires only when the decided
+// category itself carries no rows — real evidence there always governs.
+{
+  const fail = (m) => negFailures.push('not-applicable: ' + m);
+  const reg = loadYardstick();
+  const naReq = { id: 'd-test-na', title: 'test', tier: 'reproducibility', topic: 'reproducibility', tags: [], decide: { kind: 'instrument', scanner: 'fresh-clone', category: 'migrate', not_applicable_when: 'no-database-signal' }, check: 'x', sources: ['x'], status: 'draft' };
+  const ran = [{ scanner: 'fresh-clone', status: 'ran' }];
+  // a fact row naming the condition, with nothing in the decided category: not-applicable
+  const factOnly = [{ id: 'F-1', source: 'fresh-clone', native_category: 'no-database-signal', polarity: 'fact', observation: 'no database signal found anywhere in the tree', evidence: ['package.json:1'] }];
+  const naRow = measureRun({ findings: factOnly, manifest: ran, inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (naRow?.status !== 'not-applicable' || !/no database signal/.test(naRow.note)) fail(`a fact row naming the condition must decide not-applicable, carrying the fact's own observation (got ${naRow?.status}/${naRow?.note})`);
+  // real evidence in the decided category always wins over the condition
+  const bothPresent = [...factOnly, { id: 'F-2', source: 'fresh-clone', native_category: 'migrate', polarity: 'gap', observation: 'x', evidence: ['a:1'] }];
+  const overridden = measureRun({ findings: bothPresent, manifest: ran, inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (overridden?.status !== 'unmet') fail(`a real gap in the decided category must govern over the not_applicable_when fact, never the other way round (got ${overridden?.status})`);
+  // no fact, no rows in the category: the ordinary instrument verdict (met — ran clean)
+  const noFact = measureRun({ findings: [], manifest: ran, inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (noFact?.status !== 'met') fail(`with neither a gap nor the condition's fact, the ordinary instrument verdict must hold (got ${noFact?.status})`);
+  // the scanner must have RUN this run for the condition to decide anything
+  const skippedNa = measureRun({ findings: factOnly, manifest: [{ scanner: 'fresh-clone', status: 'skipped', reason: 'x' }], inputs: null, coverage: {} }, { ...reg, requirements: [naReq] })[0];
+  if (skippedNa?.status !== 'not-measured') fail(`a not_applicable_when condition must never decide from a scanner that did not run this run (got ${skippedNa?.status})`);
+  // not_measured_when: the same mechanism, deciding not-measured instead (dependency-scan's
+  // "manifest with no lockfile: nothing to audit" case)
+  const nmReq = { ...naReq, id: 'd-test-nm', decide: { kind: 'instrument', scanner: 'dependency-scan', category: 'critical', not_measured_when: 'no-lockfile' } };
+  const nmFact = [{ id: 'F-3', source: 'dependency-scan', native_category: 'no-lockfile', polarity: 'fact', observation: 'package.json declares dependencies but no lockfile covers it', evidence: ['package.json:1'] }];
+  const nmRow = measureRun({ findings: nmFact, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, { ...reg, requirements: [nmReq] })[0];
+  if (nmRow?.status !== 'not-measured' || !/no lockfile/.test(nmRow.note)) fail(`not_measured_when must decide not-measured with the fact's own note (got ${nmRow?.status}/${nmRow?.note})`);
+  // a claim can never change what a not_applicable_when / not_measured_when row decides —
+  // it is decided only from the map (measureRun never reads packet claims for non-claim rows)
+  const withPacket = measureRun({ findings: factOnly, manifest: ran, inputs: null, coverage: {}, packet: { claims: [{ id: 'd-test-na', state: 'satisfied', by: 'x' }] } }, { ...reg, requirements: [naReq] })[0];
+  if (withPacket?.status !== 'not-applicable' || withPacket?.basis !== 'run') fail(`a packet claim must never override a run-decided not-applicable row (got ${withPacket?.status}/${withPacket?.basis})`);
+  // validateYardstick: accepts the field, rejects an empty string
+  if (validateYardstick({ ...reg, requirements: [naReq] }).length) fail('validateYardstick must accept not_applicable_when');
+  const badField = { ...naReq, decide: { ...naReq.decide, not_applicable_when: '' } };
+  if (!validateYardstick({ ...reg, requirements: [badField] }).some((e) => /not_applicable_when/.test(e))) fail('validateYardstick must reject an empty not_applicable_when');
+
+  // d-schema-versioned itself: a real fresh-clone run with no database signal reads
+  // not-applicable; a Supabase-shaped signal with no migrate step reads unmet, never met
+  const dbNone = [{ id: 'F-10', source: 'fresh-clone', native_category: 'no-database-signal', polarity: 'fact', observation: 'no database signal (file or dependency) found anywhere in the tree — the migrate step is not applicable, not merely undeclared.', evidence: ['package.json:1'] }];
+  const schemaNa = measureRun({ findings: dbNone, manifest: ran, inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+  if (schemaNa?.status !== 'not-applicable') fail(`d-schema-versioned must read not-applicable with no database signal in the tree (got ${schemaNa?.status})`);
+  const dbButNoMigrate = [{ id: 'F-11', source: 'fresh-clone', native_category: 'migrate', polarity: 'gap', observation: 'no migrate step declared', evidence: ['package.json:1'] }];
+  const schemaUnmet = measureRun({ findings: dbButNoMigrate, manifest: ran, inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-schema-versioned');
+  if (schemaUnmet?.status !== 'unmet') fail(`d-schema-versioned must read unmet (never met) when a database signal exists and migrate is not declared (got ${schemaUnmet?.status})`);
+}
+
+// ── the not-applicable status: compare(), ratchet, and the views ────────────
+{
+  const fail = (m) => negFailures.push('not-applicable-views: ' + m);
+  // compare(): met -> not-applicable classifies off the ranked scale (no-longer-measured,
+  // the existing label for "left the met/mixed/unmet scale") — never "improved", never
+  // silently "unchanged"; the actual current status is what a caller renders.
+  if (classify('met', 'not-applicable') !== 'no-longer-measured') fail(`met -> not-applicable must classify no-longer-measured (got ${classify('met', 'not-applicable')})`);
+  if (classify('not-applicable', 'met') !== 'newly-measured') fail(`not-applicable -> met must classify newly-measured (got ${classify('not-applicable', 'met')})`);
+  if (classify('not-applicable', 'not-applicable') !== 'unchanged') fail('not-applicable -> not-applicable must classify unchanged');
+  // ratchet: met -> not-applicable is reported (changed), never a failure
+  const baseline = { baseline: 1, yardstick: 0, accepted: { date: '2026-01-01', by: 'steward' }, requirements: [{ id: 'd-secrets-out-of-history', status: 'met', basis: 'run' }] };
+  const currentNa = { version: 0, requirements: [{ id: 'd-secrets-out-of-history', status: 'not-applicable', basis: 'run', findings: [] }] };
+  const rNa = evaluateRatchet(baseline, currentNa, (id) => id);
+  if (rNa.failures.length) fail(`met -> not-applicable must never fail the ratchet (got ${JSON.stringify(rNa.failures)})`);
+  if (rNa.changed.length !== 1 || rNa.changed[0].after !== 'not-applicable') fail(`met -> not-applicable must be reported in changed (got ${JSON.stringify(rNa.changed)})`);
+  // a baseline row that WAS not-applicable, now anything else: reported, never a failure
+  const baselineNa = { ...baseline, requirements: [{ id: 'd-secrets-out-of-history', status: 'not-applicable', basis: 'run' }] };
+  const currentUnmet = { version: 0, requirements: [{ id: 'd-secrets-out-of-history', status: 'unmet', basis: 'run', findings: ['F-1'] }] };
+  const rFromNa = evaluateRatchet(baselineNa, currentUnmet, (id) => id);
+  if (rFromNa.failures.length) fail(`a baseline row that was not-applicable must never fail regardless of what it becomes (got ${JSON.stringify(rFromNa.failures)})`);
+  if (rFromNa.changed.length !== 1) fail(`a departure from not-applicable must be reported in changed (got ${JSON.stringify(rFromNa.changed)})`);
+  // views/floor-fleet.mjs: a not-applicable row is listed separately, never counted as met
+  const tmp = join(HERE, 'tmp-not-applicable'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('cleanlib', tmp); copyFixtureScanners('cleanlib', tmp);
+  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'measure', tmp, '--write'], { stdio: 'pipe' }); } catch (e) { fail(`measure --write must succeed over the cleanlib fixture (${e.message})`); }
+  // hand-edit the written yardstick.yaml: flip one met row to not-applicable, so
+  // Intake/Maintain must read it as not_applicable, never as met
+  const yardstickFile = join(tmp, 'yardstick.yaml');
+  let ys = readFileSync(yardstickFile, 'utf8');
+  const before = ys;
+  ys = ys.replace(/(- id: d-secrets-out-of-history\n\s+status: )met/, '$1not-applicable');
+  if (ys === before) fail('the cleanlib fixture must have decided d-secrets-out-of-history met to flip for this test to mean anything');
+  writeFileSync(yardstickFile, ys);
+  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'intake', tmp], { stdio: 'pipe' }); } catch (e) { fail(`intake must render over a not-applicable row (${e.message})`); }
+  const intakeYaml = parseYaml(readFileSync(runViewPath(tmp, 'intake'), 'utf8'));
+  if (!Array.isArray(intakeYaml.not_applicable) || !intakeYaml.not_applicable.some((r) => r.id === 'd-secrets-out-of-history')) fail('Intake must list the not-applicable row under not_applicable');
+  if (intakeYaml.met.some((r) => r.id === 'd-secrets-out-of-history')) fail('Intake must NEVER count a not-applicable row as met');
+  const intakeMd = readFileSync(join(tmp, 'INTAKE.md'), 'utf8');
+  if (!/## Not applicable/.test(intakeMd) || !/d-secrets-out-of-history/.test(intakeMd.split('## Not applicable')[1] || '')) fail('INTAKE.md must render a Not applicable section naming the row');
+  rmSync(tmp, { recursive: true, force: true });
 }
 
 // ── repo-census instrument (map/repo-census.mjs → ingest profile repo-census) ──
@@ -1395,11 +1491,13 @@ function adaptersOnce() { return loadAdapters(); }
   const bfMixed = decideBusFactorClaim({ people: { build: ['a', 'b'], deploy: ['a', 'b'], restore: ['a', 'b'], restore_done: 'unknown' } });
   if (bfMixed?.status !== 'mixed') fail(`an unknown restore_done (no unmet condition otherwise) must read mixed (got ${bfMixed?.status})`);
 
-  // generic claim row (any id): satisfied/not-applicable -> met, open -> unmet, unknown -> not-measured (basis owner still), absent -> null
+  // generic claim row (any id): satisfied -> met, not-applicable -> not-applicable
+  // (NEVER met — a requirement that does not apply was not satisfied), open ->
+  // unmet, unknown -> not-measured (basis owner still), absent -> null
   const genId = reg.requirements.find((d) => d.decide.kind === 'claim' && d.id !== 'd-accounts-enumerated' && d.id !== 'd-bus-factor').id;
   if (decideGenericClaim(genId, { claims: [] }) !== null) fail('a claim row absent from claims: must read null (not decided)');
   if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'satisfied', by: 'x' }] })?.status !== 'met') fail('satisfied must read met');
-  if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'not-applicable', reason: 'x' }] })?.status !== 'met') fail('not-applicable must read met');
+  if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'not-applicable', reason: 'x' }] })?.status !== 'not-applicable') fail('not-applicable must read not-applicable, never met');
   if (decideGenericClaim(genId, { claims: [{ id: genId, state: 'open' }] })?.status !== 'unmet') fail('open must read unmet');
   const unk = decideGenericClaim(genId, { claims: [{ id: genId, state: 'unknown' }] });
   if (unk?.status !== 'not-measured') fail('unknown must read not-measured (but still packet-decided — basis owner)');
@@ -1981,7 +2079,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, compare, compare-findings, ratchet, since, routine, routine-workflow, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, not-applicable, not-applicable-views, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

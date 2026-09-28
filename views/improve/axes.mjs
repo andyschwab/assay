@@ -114,7 +114,7 @@ try {
 function requirementsBlock(topic) {
   const t = topicsByName && topicsByName[topic];
   if (!t) return [];
-  const out = [`**Requirements on this topic** _(${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured)_:`];
+  const out = [`**Requirements on this topic** _(${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured · ${t.not_applicable} not applicable)_:`];
   if (t.rows.length) for (const r of t.rows) out.push(`- ${r.id} _(${r.status})_ — ${r.title}`);
   else out.push('_None on this topic in the yardstick._');
   out.push('');

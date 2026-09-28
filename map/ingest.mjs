@@ -244,7 +244,22 @@ const PROFILES = {
           let observation = null;
           if (s.status === 'failed') observation = `Fresh-clone step ${s.name}${ctx.inLabel} failed${cmd}${s.reason ? ': ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel}.`;
           else if (s.status === 'timed-out') observation = `Fresh-clone step ${s.name}${ctx.inLabel} timed out${cmd}${s.reason ? ' — ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel} within the run budget.`;
-          else if (s.status === 'not-declared' && s.name === 'migrate' && !ctx.hasDbSignals) observation = null;   // no database in the tree: nothing to migrate, no gap
+          else if (s.status === 'not-declared' && s.name === 'migrate' && !ctx.hasDbSignals) {
+            // no database anywhere in the tree: never a gap, and never silently met either —
+            // record the fact that was looked for and not found (yardstick/requirements.yaml
+            // d-schema-versioned's not_applicable_when: no-database-signal, decided only from
+            // this record, never a packet claim).
+            rows.push({
+              id: fid(startId + n++),
+              source: 'fresh-clone',
+              native_id: `${ctx.idPrefix}no-database-signal`,
+              native_category: 'no-database-signal',
+              polarity: 'fact',
+              observation: `No database signal (file or dependency) found${ctx.inLabel} — the migrate step is not applicable, not merely undeclared.`,
+              evidence: [ctx.manifest],
+            });
+            observation = null;
+          }
           else if (s.status === 'not-declared' && FC_FLOOR_STEPS.includes(s.name)) observation = `Fresh-clone step ${s.name} is not declared in a runnable form${ctx.inLabel}${s.reason ? ' (' + oneLine(s.reason) + ')' : ''}; nothing in the repository ${FC_DECLARES[s.name]}, so a clean checkout cannot ${FC_VERB[s.name]}${ctx.inLabel}.`;
           if (!observation) continue;
           rows.push({

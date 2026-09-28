@@ -253,7 +253,8 @@ requirements:
       kind: instrument
       scanner: fresh-clone
       category: migrate
-    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signals anywhere in the tree the runner emits no migrate row, so it reads met — nothing to migrate
+      not_applicable_when: no-database-signal
+    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signal (file or dependency — Prisma, Knex, TypeORM, Supabase, Drizzle, a raw db/sql migrations folder, …) anywhere in the tree, fresh-clone records that it looked and found none, and the requirement reads not-applicable — never met, nothing was measured; a database signal with no migrate step declared reads unmet, never met
     sources: [floor/r-migrations, foundation/never-hand-apply-a-migration]
     status: draft
 
