@@ -22,8 +22,8 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { viewPath, intakePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
 
 // ── "What the owner told us" — facts from the run's own packet, never a verdict ──
-const yn3 = (v) => (v === 'yes' || v === 'no' ? v : 'unknown');
-const orgLabel = (v) => (v === 'yes' ? 'organisational' : v === 'no' ? 'personal' : 'unknown');
+const yn3 = (v) => (v === 'yes' || v === 'no' || v === 'unsure' ? v : 'unknown');   // the packet's four answers; 'unsure' is the owner's partial knowledge, never folded into unknown
+const orgLabel = (v) => (v === 'yes' ? 'organisational' : v === 'no' ? 'personal' : v === 'unsure' ? 'personal or organisational: unsure' : 'personal or organisational: unknown');
 // a role list: undefined/absent -> null ("unknown" — the packet never spoke to
 // it); [] -> [] ("nobody can", owner/PACKET.md's own placeholder-free convention);
 // a filled list -> itself.
@@ -37,12 +37,13 @@ export function buildOwnerBlock(packet) {
   if (!packet) return null;
   const custody = packet.custody || {};
   const accounts = Array.isArray(custody.accounts) ? custody.accounts.filter(Boolean) : [];
-  const transferable = { yes: 0, no: 0, unknown: 0 };
+  const transferable = { yes: 0, no: 0, unsure: 0, unknown: 0 };
   for (const a of accounts) transferable[yn3(a.transferable)]++;
   const credentials = Array.isArray(custody.credentials) ? custody.credentials.filter(Boolean) : [];
   const lives = [...new Set(credentials.map((c) => c.lives).filter(Boolean))];
   const readers = [...new Set(credentials.flatMap((c) => (Array.isArray(c.readers) ? c.readers : [])))];
-  const neverRotated = credentials.filter((c) => /^\s*never\s*$/i.test(String(c.rotated || ''))).length;
+  const neverRotated = credentials.filter((c) => /^\s*never\b/i.test(String(c.rotated || ''))).length;
+  const rotationUnknown = credentials.filter((c) => !c.rotated || /^\s*unknown\b/i.test(String(c.rotated))).length;
   const people = custody.people || {};
   const data = custody.data || {};
   const money = custody.money || {};
@@ -58,7 +59,10 @@ export function buildOwnerBlock(packet) {
         personal_or_organisational: orgLabel(a.organisational), transferable: yn3(a.transferable),
       })),
     },
-    credentials: { count: credentials.length, lives, never_rotated: neverRotated, readers },
+    credentials: {
+      count: credentials.length, lives, never_rotated: neverRotated, rotation_unknown: rotationUnknown, readers,
+      rows: credentials.map((c) => ({ name: c.name ?? 'unknown', lives: c.lives ?? 'unknown', readers: Array.isArray(c.readers) ? c.readers : null, rotated: c.rotated ?? 'unknown' })),
+    },
     people: { build: roleList(people.build), deploy: roleList(people.deploy), restore: roleList(people.restore), restore_done: yn3(people.restore_done) },
     data: { personal: data.personal ?? 'unknown', leaves_via: Array.isArray(data.leaves_via) ? data.leaves_via : [] },
     money: { monthly: Array.isArray(money.monthly) ? money.monthly.map((m) => ({ provider: m.provider ?? 'unknown', amount: m.amount ?? 'unknown' })) : [], alerts: money.alerts ?? 'unknown' },
@@ -89,12 +93,16 @@ export function ownerYaml(owner) {
   const L = ['owner:'];
   L.push(...(owner.answered ? ['  answered:', `    date: ${oq(owner.answered.date)}`, `    by: ${oq(owner.answered.by)}`, `    via: ${oq(owner.answered.via)}`] : ['  answered: null']));
   L.push('  accounts:', `    count: ${owner.accounts.count}`, `    personal: ${owner.accounts.personal}`, `    organisational: ${owner.accounts.organisational}`);
-  L.push('    transferable:', `      yes: ${owner.accounts.transferable.yes}`, `      no: ${owner.accounts.transferable.no}`, `      unknown: ${owner.accounts.transferable.unknown}`);
+  L.push('    transferable:', `      yes: ${owner.accounts.transferable.yes}`, `      no: ${owner.accounts.transferable.no}`, `      unsure: ${owner.accounts.transferable.unsure}`, `      unknown: ${owner.accounts.transferable.unknown}`);
   if (owner.accounts.rows.length) {
     L.push('    rows:');
     for (const r of owner.accounts.rows) L.push(`      - what: ${oq(r.what)}`, `        provider: ${oq(r.provider)}`, `        owner_role: ${oq(r.owner_role)}`, `        personal_or_organisational: ${r.personal_or_organisational}`, `        transferable: ${r.transferable}`);
   } else L.push('    rows: []');
-  L.push('  credentials:', `    count: ${owner.credentials.count}`, `    lives: ${flow(owner.credentials.lives)}`, `    never_rotated: ${owner.credentials.never_rotated}`, `    readers: ${flow(owner.credentials.readers)}`);
+  L.push('  credentials:', `    count: ${owner.credentials.count}`, `    lives: ${flow(owner.credentials.lives)}`, `    never_rotated: ${owner.credentials.never_rotated}`, `    rotation_unknown: ${owner.credentials.rotation_unknown}`, `    readers: ${flow(owner.credentials.readers)}`);
+  if (owner.credentials.rows.length) {
+    L.push('    rows:');
+    for (const r of owner.credentials.rows) L.push(`      - name: ${oq(r.name)}`, `        lives: ${oq(r.lives)}`, `        readers: ${r.readers === null ? 'null' : flow(r.readers)}`, `        rotated: ${oq(r.rotated)}`);
+  } else L.push('    rows: []');
   L.push('  people:');
   L.push(`    build: ${owner.people.build === null ? 'null' : flow(owner.people.build)}`);
   L.push(`    deploy: ${owner.people.deploy === null ? 'null' : flow(owner.people.deploy)}`);
@@ -121,10 +129,11 @@ export function renderOwnerSection(owner) {
   }
   const roleLine = (v) => (v === null ? 'unknown' : v.length ? v.join(', ') : 'nobody');
   const a = owner.accounts;
-  out.push(`- **Accounts** — ${a.count} total: ${a.personal} personal, ${a.organisational} organisational. Transferable: ${a.transferable.yes} yes, ${a.transferable.no} no, ${a.transferable.unknown} unknown.`);
+  out.push(`- **Accounts** — ${a.count} total: ${a.personal} personal, ${a.organisational} organisational. Transferable: ${a.transferable.yes} yes, ${a.transferable.no} no, ${a.transferable.unsure} unsure, ${a.transferable.unknown} unknown.`);
   for (const r of a.rows) out.push(`  - ${r.what} (${r.provider}) — owner: ${r.owner_role}, ${r.personal_or_organisational}, transferable: ${r.transferable}.`);
   const c = owner.credentials;
-  out.push(`- **Credentials** — ${c.count} total. Lives: ${c.lives.length ? c.lives.join(', ') : 'unknown'}. Never rotated: ${c.never_rotated}. Readers: ${c.readers.length ? c.readers.join(', ') : 'unknown'}.`);
+  out.push(`- **Credentials** — ${c.count} total. Never rotated: ${c.never_rotated}; rotation unknown: ${c.rotation_unknown}.`);
+  for (const r of c.rows) out.push(`  - ${r.name} — lives: ${r.lives}; readers: ${r.readers === null ? 'unknown' : r.readers.length ? r.readers.join(', ') : 'nobody'}; rotated: ${r.rotated}.`);
   const p = owner.people;
   out.push(`- **People** — build: ${roleLine(p.build)}. deploy: ${roleLine(p.deploy)}. restore: ${roleLine(p.restore)}. Restore ever done: ${p.restore_done}.`);
   const d = owner.data;

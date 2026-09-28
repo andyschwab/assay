@@ -389,7 +389,9 @@ const PROFILES = {
         if (typeof c.observation !== 'string' || !c.observation.trim()) throw new Error(`repo-census check ${c.name}: missing observation (truncated report?)`);
         const location = (c.detail && typeof c.detail.path === 'string' && c.detail.path) || '.';
         const nativeLoc = location === '.' ? 'root' : location;
-        const evidence = Array.isArray(c.evidence) && c.evidence.length ? c.evidence.map(String) : [`${location}/:1`];
+        // a census before assay PR #15 cited the root as ":1" (a line of no file); an archived
+        // raw report from then re-ingests with the root named, "./:1", never an empty path
+        const evidence = Array.isArray(c.evidence) && c.evidence.length ? c.evidence.map((e) => String(e).replace(/^:(\d+)$/, './:$1')) : [`${location}/:1`];
         const failOpen = Array.isArray(c.detail && c.detail.failOpen) ? c.detail.failOpen : [];
         if (c.status === 'gap') {
           rows.push({
