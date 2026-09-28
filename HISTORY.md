@@ -407,3 +407,19 @@ what the public engine learned.
   (repo-census over the fixture repository, 10/10 in scope; Scorecard-only
   branch protection and dcr-only action pinning read out of scope). Goldens
   re-blessed for exactly those additions.
+- **2026-09-28 — an all-clean run measures and compiles.** A product review
+  found a check that looked at nothing never reads "met" — and, sharpening
+  that same honesty rule, found the inverse defect: a run where every
+  instrument ran clean (every `map/findings/*.yaml` the explicit empty list,
+  a complete run manifest) crashed `measure` with "no findings", so the one
+  case that most deserves a clean bill of health could not even compile one.
+  `yardstick/measure.mjs`'s `projectRun` now refuses only the truly empty case
+  — no findings **and** no manifest; zero findings **with** a manifest is a
+  real, valid measurement (CLAUDE.md rule 3: a clean run with an explicit run
+  record measures). `views/improve/axes.mjs`, `views/improve/handoff.mjs` and
+  `views/improve/report.mjs` carried the identical guard (each is invoked
+  unconditionally, or near it, by `compile`) and are fixed the same way.
+  Verified end to end: a synthetic all-clean run now validates green and
+  `compile` writes INDEX/INTAKE/MAINTAIN/axes/handoff with zero crashes; the
+  genuinely empty case (no findings, no manifest) still throws. Goldens
+  untouched — no fixture's recall changed.

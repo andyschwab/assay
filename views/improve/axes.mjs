@@ -40,7 +40,10 @@ for (const f of raw) {
   byId.set(f.id, f);
 }
 const findings = [...byId.values()];
-if (!findings.length) { console.error(`no findings under ${arg}`); process.exit(2); }
+// Zero findings is a valid, clean walk when the run carries a manifest (every
+// instrument ran clean, explicit empty files) — only no findings AND no manifest
+// is the truly empty case (CLAUDE.md rule 3: a clean run with a run record measures).
+if (!findings.length && !loadManifest(arg)) { console.error(`no findings under ${arg}`); process.exit(2); }
 
 // channel labels are authored per run (the prose's channel_notes); a raw base
 // without prose renders humanized slugs.

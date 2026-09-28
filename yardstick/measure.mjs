@@ -229,8 +229,14 @@ export function measureRun({ findings, manifest, inputs, coverage, packet }, reg
 // flag — owner/PACKET.md, yardstick/README.md.
 export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   const findings = loadFindings(runDir);
-  if (!findings.length) throw new Error(`no findings under ${runDir}`);
-  return measureRun({ findings, manifest: loadManifest(runDir), inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet }, reg);
+  const manifest = loadManifest(runDir);
+  // Zero findings is a valid measurement when the run carries a manifest recording
+  // what ran (an all-clean run: every instrument ran clean, explicit empty files) —
+  // only a run with NEITHER findings NOR a manifest is the truly empty, unmeasured case
+  // this guards against (CLAUDE.md rule 3: fail loud, never empty; a clean run with an
+  // explicit run record is a valid measurement, not an absent one).
+  if (!findings.length && !manifest) throw new Error(`no findings under ${runDir}`);
+  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what the three views (Intake, Maintain, Improve's topic

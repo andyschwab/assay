@@ -30,7 +30,10 @@ const runDir = arg;
 const need = (p) => { if (!existsSync(p)) { console.error(`missing required input: ${p}`); process.exit(2); } return p; };
 
 const findings = loadFindings(runDir);   // the shared per-pass-first, fail-closed loader
-if (!findings.length) { console.error(`no findings under ${runDir}`); process.exit(2); }
+// Zero findings is a valid, clean report when the run carries a manifest (every
+// instrument ran clean, explicit empty files) — only no findings AND no manifest
+// is the truly empty case (CLAUDE.md rule 3: a clean run with a run record measures).
+if (!findings.length && !loadManifest(runDir)) { console.error(`no findings under ${runDir}`); process.exit(2); }
 const gate = parseYaml(readFileSync(need(securityGatePath(runDir)), 'utf8'));
 const prose = parseYaml(readFileSync(need(runProsePath(runDir)), 'utf8'));
 // Templates carry OKF frontmatter so they pass `npm run check` as bundle files;
