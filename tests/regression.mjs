@@ -77,6 +77,8 @@ const NEGATIVE = [
   // the yardstick measurement (yardstick/README.md): a status the base does not recompute is drift, and a
   // claim-only row reading met is the exact laundering the two-file rule exists to prevent
   ['descriptors-drift', 'a yardstick.yaml whose statuses the base does not recompute (a claim row reads met)'],
+  // no claim without evidence: `:1` names a line of no file (repo-census cited it at the root)
+  ['evidence-no-path', 'an instrument finding whose evidence is ":1" — a line number with no path'],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -790,7 +792,8 @@ function adaptersOnce() { return loadAdapters(); }
     // so a pointer to a missing path cites the packet (in the tree here), never the missing path
     for (const c of doc.checks) for (const ev of c.evidence || []) {
       const p = ev.replace(/:\d+$/, '');
-      if (!existsSync(join(fx, p))) fail(`${c.name} (${c.detail?.path}) cites ${ev}, which is not in the target`);
+      if (!p) fail(`${c.name} (${c.detail?.path}) cites ${ev}, which names no path (the root cites ./)`);
+      else if (!existsSync(join(fx, p))) fail(`${c.name} (${c.detail?.path}) cites ${ev}, which is not in the target`);
     }
     const arch = at('architecture-page', '.');
     if (arch?.status !== 'pass') fail(`architecture-page must pass at root (got ${arch?.status})`);

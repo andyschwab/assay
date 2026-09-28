@@ -65,6 +65,11 @@ const errors = [];
 const err = (where, msg) => errors.push(`${where}: ${msg}`);
 const warnings = [];   // non-fatal: surfaced but do not fail the build (extension point; currently unused)
 const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
+// every evidence entry names a path: `:12` alone cites no file (no claim without evidence)
+function emptyCites(f, at) {
+  if (!Array.isArray(f.evidence)) return;
+  for (const ev of f.evidence) if (!String(ev).trim().replace(/:\d+(?:-\d+)?$/, '')) err(at, `evidence "${ev}" cites no path`);
+}
 
 // ── load findings ───────────────────────────────────────────────────────────
 const arg = process.argv[2];
@@ -101,6 +106,7 @@ function checkFinding(f, fileLabel, expectDim) {
     }
     if (f.polarity && !POLARITY.has(f.polarity)) err(at, `bad polarity "${f.polarity}"`);
     if (f.evidence !== undefined && (!Array.isArray(f.evidence) || f.evidence.length === 0)) err(at, `evidence must be a non-empty list`);
+    emptyCites(f, at);
     if (f.axis !== undefined && !AXES.has(f.axis)) err(at, `bad axis "${f.axis}"`);
     // fix is required on a PEER scanner's gaps (drives the handoff); an INSTRUMENT's
     // gap may omit it — it then lands owner-defined pending, listed loudly, never dropped.
@@ -116,6 +122,7 @@ function checkFinding(f, fileLabel, expectDim) {
   if (f.subject_type && !SUBJECT.has(f.subject_type)) err(at, `bad subject_type "${f.subject_type}"`);
   if (f.confidence && !CONFIDENCE.has(f.confidence)) err(at, `bad confidence "${f.confidence}"`);
   if (f.evidence !== undefined && (!Array.isArray(f.evidence) || f.evidence.length === 0)) err(at, `evidence must be a non-empty list`);
+  emptyCites(f, at);
   // overlay layer (optional; validated only when present — SCHEMA.md §2a)
   if (f.axis !== undefined && !AXES.has(f.axis)) err(at, `bad axis "${f.axis}"`);
   // (no id-band check — ids are unique F-### with no dimension meaning; the field is the truth)
@@ -258,7 +265,7 @@ if (target) {
     if (!Array.isArray(f.evidence)) continue;
     for (const ev of f.evidence) {
       const p = String(ev).trim().replace(/:\d+(?:-\d+)?$/, '');   // strip :line or :a-b
-      if (!p) continue;
+      if (!p) continue;   // an empty path is already a schema error (emptyCites)
       // an instrument's repo-level claim cites its archived raw report (run-relative
       // map/raw/…), which lives in the run, not the target — skip, don't fail.
       if (isInstrument(f.source) && p.startsWith('map/')) continue;

@@ -256,7 +256,7 @@ function checkArchitecturePage(dir, loc, pointerPath) {
   if (!content) {
     return {
       name, status: 'gap', detail,
-      evidence: [`${relPath('')}:1`],
+      evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
       observation: `No architecture page found${loc !== '.' ? ` for ${loc}` : ''} (checked ARCHITECTURE.md, docs/ARCHITECTURE.md, docs/architecture.md, docs/architecture/*.md, and a README "Architecture" section) — nothing shows the parts, the data flow, and the external services.`,
     };
   }
@@ -299,7 +299,7 @@ function checkAgentContract(dir, loc, pointerPath) {
     if (!file) {
       return {
         name, status: 'gap', detail,
-        evidence: [`${relPath('')}:1`],
+        evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
         observation: `No AGENTS.md or CLAUDE.md found${loc !== '.' ? ` for ${loc}` : ''}.`,
       };
     }

@@ -1,0 +1,8 @@
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README states the one-command setup and it matches the package script.
+  evidence: [README.md:12]
+  confidence: confirmed
