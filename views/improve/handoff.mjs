@@ -401,7 +401,7 @@ function triageRows(ps) {
     byFile.get(file).push(p);
   }
   return [...byFile.entries()].map(([file, group]) => {
-    const ruleIds = [...new Set(group.map((p) => p.f.native_id).filter(Boolean))];
+    const ruleIds = [...new Set(group.map((p) => String(p.f.native_id || '').split('@')[0]).filter(Boolean))];   // the rule, not the rule@path:line native id
     const ids = group.map((p) => p.f.id).sort();
     const idRange = ids.length > 1 ? `${ids[0]}..${ids[ids.length - 1]}` : ids[0];
     return `- ${file} — ${group.length} hit${group.length === 1 ? '' : 's'}; rule(s): ${ruleIds.join(', ') || '(none recorded)'}; finding(s) ${idRange}`;
