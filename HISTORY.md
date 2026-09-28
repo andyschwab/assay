@@ -303,3 +303,18 @@ what the public engine learned.
   pointer key, an absolute or `..`-bearing path, a URL in place of a path, a
   wrongly-shaped `apps`/`architecture`/`agent_contract`, and an implausible
   `default_branch`, one plain line each.
+- **2026-09-28 — repo-census reads the packet's pointers.** With `--packet
+  <dir|manifest.yaml>`, or automatically when `<target>/packet/manifest.yaml`
+  exists, `map/repo-census.mjs` (now 0.3.0) loads and validates the packet first
+  — an invalid one halts the runner with the validator's own lines, exit 2 —
+  then treats each pointer as authoritative, never a hint: `apps` replaces
+  monorepo detection outright (a named app that does not exist is a gap naming
+  it); `architecture` / `agent_contract` / `runbook` / `evidence` /
+  `workflows` make their check read exactly the named path(s), never falling
+  back to discovery; `default_branch` beats discovery (a `--default-branch`
+  flag still wins over both). The output records `packet: { path, auto,
+  pointers_used }`, and a check that followed a pointer says so in its
+  observation. `target.remote` (`git remote get-url origin`, userinfo
+  stripped) is now recorded alongside `target.path` and `target.head`.
+  `map/scanners/CONTRACT.md` §3d and the module's own header describe the
+  pointers; the format itself stays at `owner/PACKET.md`.

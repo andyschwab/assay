@@ -346,6 +346,21 @@ owner's evidence. Whether a CI check is **required** by branch protection is not
 visible from a checked-out tree at all; every ci-gate observation says so. Neither
 is inferred, guessed, or defaulted to met.
 
+**The packet's pointers.** With `--packet <dir | manifest.yaml>`, or with no flag
+when `<target>/packet/manifest.yaml` exists (the self-describing case — recorded
+in the output either way as `packet: { path, auto, pointers_used }`), the
+repository's own packet (`owner/PACKET.md` "Pointers" is the one home of the
+format) is loaded and validated first; an invalid packet halts this runner with
+the validator's own lines, same crash rule, exit `2`. A pointer is then
+authoritative, never a hint, for the check(s) it names: `default_branch` beats
+discovery (a `--default-branch` flag still beats both); `apps` replaces monorepo
+detection for the per-location checks (architecture-page, agent-contract) — an
+app path that does not exist is a `gap` for that location, naming it;
+`architecture` / `agent_contract` / `runbook` / `evidence` / `workflows` each make
+their check read exactly the named path(s) instead of searching, and a pointer to
+a missing path is a `gap` naming it, never a silent fallback to discovery. A check
+that followed a pointer says so in its observation.
+
 **The six owner-evidence checks**.
 Six more floor rows describe things a repository cannot show by itself — a
 backup was restored, a rollback ran, a deploy came up as the committed sha, a
@@ -361,7 +376,7 @@ window — is documented once, at `owner/evidence/README.md`; this is the
 one home of it.
 
 ```sh
-node assay.mjs repo-census <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90]
+node assay.mjs repo-census <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90] [--packet <dir|manifest.yaml>]
 node assay.mjs ingest <run-dir> --tool repo-census --raw repo-census.json --exit <its exit code>
 ```
 
