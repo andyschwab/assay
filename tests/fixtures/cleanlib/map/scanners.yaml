@@ -9,11 +9,9 @@ scanners:
   gitleaks:
     status: ran
   fresh-clone:
-    status: skipped
-    reason: "fixture: the fresh-clone run was not executed over this base"
+    status: ran
   dependency-scan:
-    status: skipped
-    reason: "fixture: the dependency-scan run was not executed over this base"
+    status: ran
   repo-census:
     status: skipped
-    reason: "fixture: the repo census was not executed over this base"
+    reason: "repo-scoped: run at the fixture repository root and scored there (tests/fixtures/fixtures-root)"

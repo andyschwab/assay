@@ -88,6 +88,7 @@ const NEGATIVE = [
 const SCORED = [
   ['notesbox', join(HERE, 'fixtures', 'notesbox')],
   ['cleanlib', join(HERE, 'fixtures', 'cleanlib')],
+  ['fixtures-root', join(HERE, 'fixtures', 'fixtures-root')],   // the repo-scoped instruments (repo-census)
 ];
 
 const negFailures = [];
@@ -368,7 +369,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (score([], adaptersOnce(), secret, ranClean).results[0].status !== 'missed') fail('an instrument recorded as ran with no rows must read missed, not out of scope');
   if (score([], adaptersOnce(), secret, { scanners: { gitleaks: { status: 'skipped', reason: 'x' } } }).results[0].status !== 'out-of-scope') fail('an instrument recorded as skipped must leave its items out of scope');
   const row = (id, cat, pol, sev) => ({ id, source: 'repo-census', native_id: `${cat}@root`, native_category: cat, polarity: pol, ...(sev ? { severity: sev } : {}), observation: 'x', evidence: ['./:1'], ...(pol === 'gap' ? { fix: 'y' } : {}) });
-  const control = { target: 'c', planted: [], max_gaps_above: { severity: 'Low', count: 0 }, strengths: [
+  const control = { target: 'c', planted: [], max_gaps_above: { severity: 'Low', count: 0 }, instruments: [
     { id: 'I-1', polarity: 'gap', axis: 'artifact-legibility', check: 'runbook', detectable_by: ['repo-census'] },
     { id: 'I-2', polarity: 'strength', axis: 'deterministic-gates', check: 'ci-gate', detectable_by: ['repo-census'] },
   ] };
@@ -377,6 +378,7 @@ function adaptersOnce() { return loadAdapters(); }
   const by = Object.fromEntries(r.results.map((x) => [x.id, x.status]));
   if (by['I-1'] !== 'recovered') fail(`a census gap on the answered check must recover (I-1 got ${by['I-1']})`);
   if (by['I-2'] !== 'missed') fail(`a census gap where a pass was expected must read missed — polarity is part of the answer (I-2 got ${by['I-2']})`);
+  if (!r.isControl) fail('instrument answers must not turn a control (planted: []) into a planted target');
   if (r.falsePositives.map((x) => x.id).sort().join() !== 'F-2,F-3') fail(`on a control, only instrument gaps no answer accounts for are false positives (got ${r.falsePositives.map((x) => x.id).join()})`);
 }
 
@@ -485,7 +487,7 @@ function adaptersOnce() { return loadAdapters(); }
   // the sidecar: written block-style, loadable, and it turns a contributed axis "partially measured"
   const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('notesbox', tmp);
-  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: skipped\n    reason: "fixture: not executed"\n  dependency-scan:\n    status: skipped\n    reason: "fixture: not executed"\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: ran\n  dependency-scan:\n    status: ran\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }

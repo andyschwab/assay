@@ -1,0 +1,92 @@
+{
+  "tool": "fresh-clone",
+  "version": "0.2.0",
+  "started_at": "2026-09-28T09:54:59.607Z",
+  "finished_at": "2026-09-28T09:54:59.917Z",
+  "target": {
+    "path": "targets/clean-lib",
+    "head": "4f96bf22a930b1b5fb52a8d610e764c599ac83bd",
+    "cloned": false
+  },
+  "toolchain": {
+    "family": "node",
+    "manifest": "package.json",
+    "package_manager": "npm",
+    "lockfile": null,
+    "declared": {},
+    "other_families": [],
+    "has_dependencies": false,
+    "scripts": [
+      "test"
+    ],
+    "database_signals": []
+  },
+  "timeout_seconds": 120,
+  "steps": [
+    {
+      "name": "install",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no dependencies and no lockfile declared in package.json"
+    },
+    {
+      "name": "build",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no \"build\" script in package.json"
+    },
+    {
+      "name": "lint",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no \"lint\" script in package.json"
+    },
+    {
+      "name": "typecheck",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no \"typecheck\" script in package.json"
+    },
+    {
+      "name": "test",
+      "status": "passed",
+      "command": "npm test",
+      "exit_code": 0,
+      "duration_ms": 298,
+      "output_tail": "\n> slugify@1.2.0 test\n> node test/slugify.test.mjs\n\nslugify: all assertions passed\n"
+    },
+    {
+      "name": "migrate",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no migrate / db:migrate script (nor a prisma migrate deploy / knex migrate:latest script) in package.json"
+    }
+  ],
+  "readme": "README.md",
+  "readme_claims": [
+    {
+      "line": 22,
+      "command": "npm test",
+      "kind": "npm-script",
+      "name": "test",
+      "status": "present"
+    }
+  ],
+  "workspaces": [],
+  "exit": 0
+}

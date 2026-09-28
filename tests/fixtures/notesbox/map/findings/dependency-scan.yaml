@@ -1,0 +1,5 @@
+# map/findings/dependency-scan.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: dependency-scan · exit code 0 (verified in its success set) · 0 row(s).
+# Ids start at F-1000: the next hundred above the base's highest id F-903 (in fresh-clone.yaml, gitleaks.yaml, repo-eval-context.yaml, repo-eval-delegation.yaml, repo-eval-legibility.yaml, repo-eval-verification.yaml); the profile floor is F-950.
+# Raw report archived at map/raw/dependency-scan.json. Regenerate with ingest.mjs; never hand-edit.
+

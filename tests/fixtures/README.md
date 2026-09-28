@@ -9,10 +9,19 @@ targets, kept here so the regression harness can pin the engine's **recall** wit
 reaching outside the repo — self-contained immutable copies, kept separate from any confidential run data.
 
 - `notesbox/` — a run over the `flawed-webapp` target (repo-eval delegation-focused
-  passes + a live gitleaks instrument row). Scored against `notesbox/ANSWERS.yaml`,
+  passes, a live gitleaks instrument row, and the fresh-clone and dependency-scan
+  instruments' own output over the target). Scored against `notesbox/ANSWERS.yaml`,
   a frozen snapshot of the target's answer sheet.
-- `cleanlib/` — a run over the `clean-lib` control target. Scored against
-  `cleanlib/ANSWERS.yaml`; the assertion is 0 false positives.
+- `cleanlib/` — a run over the `clean-lib` control target (the same methods).
+  Scored against `cleanlib/ANSWERS.yaml`; the assertion is 0 false positives, with
+  the instruments' known absences answered on the sheet rather than counted.
+- `fixtures-root/` — repo-census over the fixture repository's root, scored against
+  the repo-root sheet (`fixtures-root/ANSWERS.yaml`). Repo-scoped instruments are
+  answered only there, so the per-target runs record repo-census skipped.
+
+The instrument rows are the instruments' real output over the public fixtures
+(`map/raw/` keeps each report), regenerated with `node assay.mjs <instrument>`
+and `node assay.mjs ingest`, never hand-written.
 
 `ANSWERS.yaml` here is a **frozen copy**; the source of truth is the answer sheet in
 the assay-fixtures repo. `tests/regression.mjs` re-derives the score every run and

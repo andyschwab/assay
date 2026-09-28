@@ -19,10 +19,12 @@
 //     that ran clean and missed an item reads MISSED, not out of scope; without a
 //     record, a method ran if it left rows. An item no method that ran could find is
 //     reported as OUT-OF-SCOPE, never a miss.
-//   • an item with a `check:` is an INSTRUMENT answer: it has no single file to
-//     point at (a missing runbook is an absence), so it matches a row by method +
-//     native category (the instrument's check name) + polarity, and the axis
-//     tie-break applies as above.
+//   • an item with a `check:` is an INSTRUMENT answer (a sheet's `instruments:`
+//     list, or a repo-level check): it has no single file to point at (a missing
+//     runbook is an absence), so it matches a row by method + native category (the
+//     instrument's check name) + polarity, and the axis tie-break applies as above.
+//     Instrument answers are standing facts, not planted defects: a sheet with
+//     `planted: []` stays a control whatever its `instruments:` list says.
 //
 // A control target (planted: []) is scored inversely: any run gap at or above its
 // `max_gaps_above.severity` that matches no known answer (a planted or strength
@@ -66,7 +68,7 @@ export function score(findings, adapters, answers, manifest = null) {
     }
   }
 
-  const items = [...(answers.planted || []), ...(answers.strengths || [])];
+  const items = [...(answers.planted || []), ...(answers.strengths || []), ...(answers.instruments || [])];
   const results = [];
   const answeredIds = new Set();   // run rows an instrument answer accounts for
   for (const it of items) {

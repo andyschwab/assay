@@ -1,0 +1,100 @@
+{
+  "tool": "fresh-clone",
+  "version": "0.2.0",
+  "started_at": "2026-09-28T09:54:58.822Z",
+  "finished_at": "2026-09-28T09:54:58.832Z",
+  "target": {
+    "path": "targets/flawed-webapp",
+    "head": "4f96bf22a930b1b5fb52a8d610e764c599ac83bd",
+    "cloned": false
+  },
+  "toolchain": {
+    "family": "node",
+    "manifest": "package.json",
+    "package_manager": "npm",
+    "lockfile": null,
+    "declared": {},
+    "other_families": [],
+    "has_dependencies": false,
+    "scripts": [
+      "start"
+    ],
+    "database_signals": []
+  },
+  "timeout_seconds": 120,
+  "steps": [
+    {
+      "name": "install",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no dependencies and no lockfile declared in package.json"
+    },
+    {
+      "name": "build",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no \"build\" script in package.json"
+    },
+    {
+      "name": "lint",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no \"lint\" script in package.json"
+    },
+    {
+      "name": "typecheck",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no \"typecheck\" script in package.json"
+    },
+    {
+      "name": "test",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no \"test\" script in package.json"
+    },
+    {
+      "name": "migrate",
+      "status": "not-declared",
+      "command": null,
+      "exit_code": null,
+      "duration_ms": 0,
+      "output_tail": "",
+      "reason": "no migrate / db:migrate script (nor a prisma migrate deploy / knex migrate:latest script) in package.json"
+    }
+  ],
+  "readme": "README.md",
+  "readme_claims": [
+    {
+      "line": 24,
+      "command": "node server.mjs",
+      "kind": "node-file",
+      "name": "server.mjs",
+      "status": "present"
+    },
+    {
+      "line": 32,
+      "command": "npm run test:all",
+      "kind": "npm-script",
+      "name": "test:all",
+      "status": "missing"
+    }
+  ],
+  "workspaces": [],
+  "exit": 1
+}

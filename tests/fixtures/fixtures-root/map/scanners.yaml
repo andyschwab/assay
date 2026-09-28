@@ -1,0 +1,21 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
+# The assay-fixtures repository root, measured by its one repo-scoped instrument.
+engine: fixture
+scanners:
+  repo-eval:
+    status: skipped
+    reason: "fixture: the root sheet carries no method-pass item; the targets' runs cover repo-eval"
+  deep-code-review:
+    status: skipped
+    reason: "fixture run: the code scanner was not executed over this public target"
+  gitleaks:
+    status: skipped
+    reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib)"
+  fresh-clone:
+    status: skipped
+    reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib)"
+  dependency-scan:
+    status: skipped
+    reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib)"
+  repo-census:
+    status: ran

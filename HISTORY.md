@@ -388,3 +388,22 @@ what the public engine learned.
   names the upstream `PRIOR` re-verification mode. The fictional sample moves to
   1.471.0 with an `unverified` row; eight negative assertions pin the new halts.
   Goldens untouched.
+- **2026-09-28 — the known-answer fixtures measure the offline instruments.**
+  Running fresh-clone, dependency-scan and repo-census over
+  [assay-fixtures](https://github.com/andyschwab/assay-fixtures) showed the
+  fixtures had fallen behind the engine: the clean-lib control read twelve
+  false positives the moment the instruments ran (real absences — no lint
+  script, no runbook — that its contract predated), P-05 was recoverable by
+  fresh-clone's README replay but not credited to it, and the repo-root sheet
+  depended only on the retired Scorecard. It also surfaced three engine
+  defects, fixed separately: repo-census cited `:1` (no path) at the root and
+  validate let it through; the census did not count `node test/…` as a CI
+  gate; and `score` decided which methods ran from rows present, so an
+  instrument that ran clean and missed read out of scope. The answer sheets
+  gain an `instruments:` list (matched by check name + polarity, standing
+  facts that keep a control a control), `score` reads the run record and
+  grades them, and the vendored runs carry the instruments' real output: notesbox
+  12/12, cleanlib 5/5 with 0 false positives, and a new `fixtures-root` run
+  (repo-census over the fixture repository, 10/10 in scope; Scorecard-only
+  branch protection and dcr-only action pinning read out of scope). Goldens
+  re-blessed for exactly those additions.
