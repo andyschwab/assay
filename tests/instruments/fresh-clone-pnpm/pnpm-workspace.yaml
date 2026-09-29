@@ -1,0 +1,5 @@
+# the workspace list pnpm reads (package.json has no workspaces field, as in a real pnpm repo)
+packages:
+  - 'apps/*'
+  - "packages/*"
+  - '!packages/scratch'   # an excluded package: never a workspace

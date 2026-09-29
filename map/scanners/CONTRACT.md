@@ -211,7 +211,23 @@ step handled specially: when the root carries a lockfile, a workspace installs v
 tree); when it does not, the workspace's own plan runs in its own directory — which
 reproduces the real `EUSAGE` failure npm gives a workspace whose own lockfile
 disagrees with a root that has none, and that failure is the honest result,
-recorded like any other step failure. The document carries this as `workspaces:
+recorded like any other step failure. **pnpm and yarn roots:** the workspace list
+comes from `pnpm-workspace.yaml` when it exists (its `packages:` globs, `!`
+exclusions honored; pnpm ignores the package.json field), and the root's own
+install already installs every workspace, so a workspace's install reads `covered`
+by it (or `skipped` when the root install did not pass). No npm command is ever run
+against a pnpm or yarn lockfile, and a workspace with no lockfile of its own runs its
+scripts with the root's package manager. **Covered by the root:** a step a workspace
+does not declare reads `covered` (with `covered_by: { path, step, command, via }`)
+when a root step that **passed** demonstrably reaches it — a recursive root command
+(`pnpm -r`, `npm … --workspaces`, `yarn workspaces foreach`, `turbo run`, `nx
+run-many`, `lerna run`), a root linter pointed at `.` (lint), or a root test runner
+given no path argument (test). Migrate belongs to the package that declares it (the
+root, else the first workspace that does). A covered step yields no row; a workspace
+script that exists and fails is still its own gap; a root step that failed or does
+not reach the tree covers nothing. The root's "no database signal" fact is read
+across the whole tree, so a database dependency in any workspace counts.
+The document carries this as `workspaces:
 [{ path, toolchain, steps, readme, readme_claims }]` beside the root's existing
 fields, unchanged; `exit` is `1` when the root **or any workspace** has a failed or
 timed-out step or a missing claim. A workspace-free repo emits `workspaces: []`

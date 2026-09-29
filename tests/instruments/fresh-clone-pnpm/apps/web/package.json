@@ -1,0 +1,1 @@
+{ "name": "web", "private": true, "dependencies": { "@prisma/client": "5.0.0" }, "scripts": { "build": "node -e \"process.exit(0)\"" } }

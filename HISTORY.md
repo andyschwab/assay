@@ -723,3 +723,23 @@ what the public engine learned.
   10/10, aggregate re-pooled) validated clean. It no longer does; `bad-aggregate`
   gains the census its sampled row names. Every new check was confirmed red with
   its rule disabled.
+- **2026-09-29 — fresh-clone on a pnpm monorepo (#25, #26).** On a pnpm
+  workspace whose gates run once at the root, fresh-clone filed seven High
+  `install:failed` rows (it installed each workspace with `npm ci --workspace`,
+  which npm cannot do against a pnpm tree) and a Medium gap for every step a
+  workspace did not declare itself, though the root's passing `eslint .`,
+  `vitest run` and `pnpm -r typecheck` reached them. The workspace list now comes
+  from `pnpm-workspace.yaml` (with `!` exclusions) when it exists; a pnpm or yarn
+  root's install covers its workspaces; a workspace runs its scripts with the
+  root's package manager; and a step a workspace does not declare reads `covered`
+  when a root step that passed demonstrably reaches it (a recursive command, a
+  root linter pointed at `.`, a root test runner with no path argument), with the
+  covering command recorded and no row filed. Migrate belongs to the package that
+  declares it. A root step that failed, or does not reach the tree, covers
+  nothing, and a workspace's own failing script stays its gap. The same fixture
+  surfaced a false fact: the root's "no database signal" read only the root
+  manifest, so a monorepo whose database dependency sits in a workspace recorded
+  migrate as not applicable; it is now read across the tree. Pinned by a
+  `fresh-clone-pnpm` block over a pnpm-workspace fixture run through offline
+  shims (CI has neither pnpm nor a registry), each assertion confirmed red with
+  its rule reverted. Goldens untouched.

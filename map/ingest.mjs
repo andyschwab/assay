@@ -209,6 +209,8 @@ const PROFILES = {
     // typecheck, test, migrate (the floor descriptors are worded so absence is a gap,
     // never clean: no lint script is not a green lint); one gap per MISSING README
     // claim. A passing step yields no row — a clean run is the explicit empty file.
+    // A workspace step COVERED by a passing root step (fresh-clone's covered_by names
+    // it) yields no row either: the root's own row already carries that step.
     // NEVER copy step output: the last-40-lines tail (which may echo environment
     // values) stays in the raw archive; rows carry the command and exit code only.
     //
@@ -241,6 +243,14 @@ const PROFILES = {
           if (!FC_STEP_STATUS.includes(s.status)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: status "${s.status}" is not one of ${FC_STEP_STATUS.join(' | ')}`);
           if (seen.has(s.name)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name} appears twice`);
           seen.add(s.name);
+          // covered: a step this workspace does not declare, reached by a PASSING root step
+          // (or, for migrate, owned by the package that declares it) — no row, but only with
+          // the covering command recorded; a bare "covered" is unprovable and halts
+          if (s.status === 'covered') {
+            const by = s.covered_by;
+            if (!by || typeof by.path !== 'string' || !by.path || typeof by.command !== 'string' || !by.command) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: covered with no covered_by path + command — coverage that names no covering step is not evidence (truncated report?)`);
+            continue;
+          }
           const cmd = s.command ? ` (\`${oneLine(s.command)}\`` + (Number.isInteger(s.exit_code) ? `, exit ${s.exit_code})` : ')') : '';
           let observation = null;
           if (s.status === 'failed') observation = `Fresh-clone step ${s.name}${ctx.inLabel} failed${cmd}${s.reason ? ': ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel}.`;
@@ -293,7 +303,11 @@ const PROFILES = {
         }
       };
 
-      const rootDbSignals = Array.isArray(rep.toolchain && rep.toolchain.database_signals) && rep.toolchain.database_signals.length > 0;
+      // the root's "no database signal" is a claim about the whole tree: a monorepo whose
+      // database dependency sits in a workspace (apps/web → @prisma/client) has one, and
+      // reading only the root manifest would record a false not-applicable fact
+      const hasSignals = (tc) => Array.isArray(tc && tc.database_signals) && tc.database_signals.length > 0;
+      const rootDbSignals = hasSignals(rep.toolchain) || (Array.isArray(rep.workspaces) && rep.workspaces.some((w) => w && hasSignals(w.toolchain)));
       emitEntry(rep.steps, rep.readme_claims, {
         idPrefix: '', inLabel: '', errLabel: '',
         manifest: (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
@@ -502,7 +516,7 @@ const DS_SEVERITIES = ['critical', 'high', 'moderate', 'low', 'info'];
 const DS_SEVERITY_MAP = { critical: 'Critical', high: 'High', moderate: 'Medium', low: 'Low', info: 'Low' };
 // fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
-const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
+const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 // not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
 // already held — undeclared meant met for build alone until this fixed the
 // inconsistency); migrate only where the tree carries database signals (see

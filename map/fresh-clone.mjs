@@ -22,9 +22,11 @@
 //      is a claim; it is `present` when the script / binary / file / target exists
 //      in the tree, else `missing`. Presence is what this pass decides — the runner
 //      never executes an arbitrary README command beyond the declared steps above.
-//   5. WORKSPACES: an npm-workspaces root (`workspaces` in package.json, an
-//      array or `{packages: [...]}`, globs `dir/*` and `dir/**` resolved with zero
-//      deps) is not one repository, it is several — a root shell with no scripts, no
+//   5. WORKSPACES: a workspaces root (`pnpm-workspace.yaml`'s `packages:` list, with
+//      `!` exclusions, when that file exists — pnpm ignores the package.json field;
+//      else `workspaces` in package.json, an array or `{packages: [...]}`; globs
+//      `dir/*` and `dir/**` resolved with zero deps) is not one repository, it is
+//      several — a root shell with no scripts, no
 //      dependencies and no lockfile of its own reads "six steps not declared, exit
 //      0" while the apps underneath it fail `npm ci` from a clean clone. When the
 //      root declares no workspaces but `apps/*` or `packages/*` exist with their own
@@ -37,7 +39,23 @@
 //      workspace's own plan runs in its own directory — which reproduces the real
 //      `EUSAGE` failure npm gives when a workspace's own lockfile disagrees with a
 //      root that has none, and that failure is the honest result, recorded like any
-//      other. A workspace-free repo emits `workspaces: []` and nothing else changes.
+//      other. A pnpm or yarn root's own install already installs every workspace, so
+//      there a workspace's install is `covered` by the root's (or `skipped`, with the
+//      reason, when the root's install did not pass) — never an npm command against a
+//      pnpm or yarn lockfile. A workspace with no lockfile of its own runs its scripts
+//      with the root's package manager for the same reason.
+//      COVERED BY THE ROOT: a step a workspace does not declare itself is `covered`,
+//      not a gap, when a root step that PASSED demonstrably reaches it — a recursive
+//      root command (`pnpm -r`, `npm … --workspaces`, `yarn workspaces foreach`,
+//      `turbo run`, `nx run-many`, `lerna run`) for any step; a root linter pointed
+//      at `.` for lint; a root test runner (vitest / jest / node --test) given no
+//      path arguments, which discovers tests across the tree, for test. Migrate
+//      belongs to whichever package declares it (the root, else the first workspace
+//      that does), not to every workspace importing the ORM. The covering command is
+//      recorded on the step (`covered_by`) and yields no finding row; a workspace
+//      script that exists and fails stays a gap. Anything the rules cannot show stays
+//      not-declared: the reach is read from the command, never assumed.
+//      A workspace-free repo emits `workspaces: []` and nothing else changes.
 //
 // Fail loud, never empty: the JSON's `exit` is 1 when any step failed or timed out
 // or any claim is missing — at the root OR in any workspace — 0 only when every
@@ -58,9 +76,9 @@ import { join, resolve, isAbsolute } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 
-export const VERSION = '0.2.0';   // 0.2.0: workspaces[] — additive, older readers ignore it
+export const VERSION = '0.3.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
-export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
+export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 export const CLAIM_STATUS = ['present', 'missing'];
 const TAIL_LINES = 40;
 const MAX_BUFFER = 64 * 1024 * 1024;
@@ -175,9 +193,50 @@ function expandWorkspaceGlob(rootDir, pattern) {
   return out;
 }
 
+// pnpm-workspace.yaml's `packages:` list — a block list or an inline flow list of
+// strings, `!` marking an exclusion. That is the shape pnpm's own file takes; anything
+// else reads as no list, and the package.json / convention fallback applies.
+export function readPnpmWorkspace(dir) {
+  const text = readText(join(dir, 'pnpm-workspace.yaml'));
+  if (text === null) return null;
+  const lines = text.split('\n');
+  const at = lines.findIndex((l) => /^packages\s*:/.test(l));
+  const raw = [];
+  if (at > -1) {
+    const inline = lines[at].match(/^packages\s*:\s*\[(.*)\]\s*(?:#.*)?$/);
+    if (inline) raw.push(...inline[1].split(','));
+    else for (let j = at + 1; j < lines.length; j++) {
+      if (/^\s*(?:#.*)?$/.test(lines[j])) continue;
+      const m = lines[j].match(/^\s+-\s*(.+?)\s*(?:#.*)?$/);
+      if (!m) break;
+      raw.push(m[1]);
+    }
+  }
+  const items = raw.map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter((x) => x && x !== '.');
+  return { include: items.filter((x) => !x.startsWith('!')), exclude: items.filter((x) => x.startsWith('!')).map((x) => x.slice(1)) };
+}
+// a workspace glob as a whole-path matcher (`**` any depth, `*` one segment) — used for
+// pnpm's `!` exclusions, which name paths to drop rather than directories to walk
+export function workspaceGlobRe(pattern) {
+  const esc = String(pattern).replace(/^\.\//, '').replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const body = esc.replace(/\*\*\//g, '\u0000').replace(/\/\*\*/g, '\u0001').replace(/\*\*/g, '\u0002').replace(/\*/g, '[^/]*')
+    .replace(/\u0000/g, '(?:.*/)?').replace(/\u0001/g, '(?:/.*)?').replace(/\u0002/g, '.*');
+  return new RegExp(`^${body}$`);
+}
+
+// where the workspace list came from — recorded so a reader can check it
+export function workspaceSource(dir, pkg) {
+  const pw = readPnpmWorkspace(dir);
+  if (pw && pw.include.length) return 'pnpm-workspace.yaml';
+  if (pkg && pkg.workspaces && (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces.packages))) return 'package.json';
+  return 'convention (apps/*, packages/*)';
+}
+
 export function resolveWorkspaces(dir, pkg) {
-  let patterns = [];
-  if (pkg && pkg.workspaces) {
+  let patterns = [], exclude = [];
+  const pw = readPnpmWorkspace(dir);
+  if (pw && pw.include.length) { patterns = pw.include; exclude = pw.exclude.map(workspaceGlobRe); }
+  else if (pkg && pkg.workspaces) {
     if (Array.isArray(pkg.workspaces)) patterns = pkg.workspaces;
     else if (pkg.workspaces && typeof pkg.workspaces === 'object' && Array.isArray(pkg.workspaces.packages)) patterns = pkg.workspaces.packages;
   }
@@ -189,7 +248,7 @@ export function resolveWorkspaces(dir, pkg) {
     }
   }
   const seen = new Set();
-  for (const pattern of patterns) for (const p of expandWorkspaceGlob(dir, String(pattern))) seen.add(p);
+  for (const pattern of patterns) for (const p of expandWorkspaceGlob(dir, String(pattern).replace(/^\.\//, ''))) if (!exclude.some((re) => re.test(p))) seen.add(p);
   return [...seen].sort();
 }
 
@@ -265,6 +324,11 @@ export function runSteps(plan, cwd, timeoutSec, log = () => {}) {
   for (const name of STEPS) {
     const p = plan[name];
     if (p.status === 'not-declared') { out.push({ name, status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason }); continue; }
+    if (p.status === 'covered') { out.push({ name, status: 'covered', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason, covered_by: p.covered_by }); continue; }
+    if (p.status === 'root-install-broken') {   // the root's install covers this one and did not pass
+      out.push({ name, status: 'skipped', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason });
+      installBroken = 'skipped (the root install did not pass)'; continue;
+    }
     if (p.needs_install && installBroken) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `install ${installBroken}; ${name} not attempted` }); continue; }
     const stepCwd = p.cwd || cwd;   // a workspace's install may run from the root (npm ci --workspace)
     log(`  → ${name}: ${p.command}`);
@@ -279,20 +343,91 @@ export function runSteps(plan, cwd, timeoutSec, log = () => {}) {
 
 // ── one workspace's run: its own step plan, its own README, install possibly
 //    rebased onto the root (see the module doc's WORKSPACES section) ───────────
-export function planWorkspace(rootToolchain, wsToolchain, wsPkg, wsRelPath) {
-  const plan = planSteps(wsToolchain, wsPkg);
+// root: { pkg, steps, migrateOwner } — the root's manifest, its step rows (run first),
+// and which package declares migrations. Absent (older callers), nothing is covered.
+export function planWorkspace(rootToolchain, wsToolchain, wsPkg, wsRelPath, root = null) {
+  // a workspace with no lockfile of its own is driven by the root's package manager —
+  // never an npm command against a pnpm or yarn tree
+  const tc = (wsToolchain.family === 'node' && !wsToolchain.lockfile && rootToolchain.lockfile)
+    ? { ...wsToolchain, package_manager: rootToolchain.package_manager } : wsToolchain;
+  const plan = planSteps(tc, wsPkg);
   if (rootToolchain.lockfile && plan.install.status === 'declared') {
-    // the root's lockfile covers the whole tree: install this workspace from the root,
-    // scoped to it, rather than re-deriving a package-manager guess in its own directory
-    plan.install = { status: 'declared', command: `npm ci --workspace ${wsRelPath}`, needs_install: false, cwd: 'ROOT' };
+    if (rootToolchain.package_manager === 'npm') {
+      // the root's lockfile covers the whole tree: install this workspace from the root,
+      // scoped to it, rather than re-deriving a package-manager guess in its own directory
+      plan.install = { status: 'declared', command: `npm ci --workspace ${wsRelPath}`, needs_install: false, cwd: 'ROOT' };
+    } else {
+      // pnpm / yarn: the root install already installed every workspace
+      const ri = root && Array.isArray(root.steps) ? root.steps.find((x) => x.name === 'install') : null;
+      if (ri && ri.status === 'passed') plan.install = { status: 'covered', reason: `the root's ${rootToolchain.package_manager} install installs every workspace`, covered_by: { path: '.', step: 'install', command: ri.command } };
+      else plan.install = { status: 'root-install-broken', reason: `covered by the root's ${rootToolchain.package_manager} install, which ${ri ? ri.status : 'was not run'}; not attempted separately` };
+    }
+  }
+  if (root) {
+    for (const step of ['build', 'lint', 'typecheck', 'test']) {
+      if (plan[step].status !== 'not-declared') continue;
+      const by = rootCovers(root, step, rootToolchain, wsRelPath);
+      if (by) plan[step] = { status: 'covered', reason: by.why, covered_by: { path: '.', step, command: by.command, via: by.via } };
+    }
+    if (plan.migrate.status === 'not-declared' && !declaresMigrate(wsPkg) && root.migrateOwner && root.migrateOwner.path !== wsRelPath) {
+      plan.migrate = { status: 'covered', reason: `migrations belong to ${root.migrateOwner.path === '.' ? 'the root' : root.migrateOwner.path}, which declares "${root.migrateOwner.script}"`, covered_by: { path: root.migrateOwner.path, step: 'migrate', command: root.migrateOwner.script } };
+    }
   }
   return plan;
 }
 
-export function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = () => {}) {
+// ── does a passing root step reach a workspace? Read from the command, never assumed ──
+const RECURSE_RES = [
+  /\bpnpm\b[^&|;]*\s(?:-r|--recursive)\b/,
+  /\bnpm\b[^&|;]*\s(?:--workspaces|-ws)\b/,
+  /\byarn\s+workspaces\s+(?:foreach|run)\b/,
+  /\blerna\s+(?:run|exec)\b/,
+  /\bturbo\s+(?:run\s+)?[\w:-]+/,
+  /\bnx\s+(?:run-many|affected)\b/,
+];
+const LINT_AT_ROOT_RE = /\b(?:eslint|oxlint|biome\s+(?:check|lint|ci)|prettier\s+(?:--check|-c))\b[^&|;]*\s\.(?:\s|$)/;
+const TEST_RUNNER_RE = /\b(vitest|jest|node\s+--test)\b(.*)$/;
+// a test runner given no path argument discovers tests across the tree from the root;
+// a token containing `/` names a location, and then it does not cover by discovery
+const discoversTree = (cmd) => {
+  const m = cmd.match(TEST_RUNNER_RE);
+  if (!m) return false;
+  const toks = m[2].trim().split(/\s+/).filter(Boolean).filter((t) => !['run', 'watch'].includes(t));
+  return !toks.some((t) => !t.startsWith('-') && t.includes('/'));
+};
+const SCRIPT_REF_RE = /^(?:npm|pnpm|yarn)\s+(?:run\s+)?([\w:.-]+)\s*$/;
+export function rootCovers(root, step, rootToolchain, wsRelPath) {
+  const st = Array.isArray(root.steps) ? root.steps.find((x) => x.name === step) : null;
+  if (!st || st.status !== 'passed') return null;       // only a root step that ran and passed covers anything
+  const scripts = (root.pkg && root.pkg.scripts) || {};
+  const seen = new Set();
+  const reach = (name, depth) => {
+    if (depth > 3 || seen.has(name) || typeof scripts[name] !== 'string') return null;
+    seen.add(name);
+    for (const part of scripts[name].split(/&&|\|\||;/).map((x) => x.trim()).filter(Boolean)) {
+      if (RECURSE_RES.some((re) => re.test(part))) return { via: 'recursive', part };
+      if (step === 'lint' && LINT_AT_ROOT_RE.test(part)) return { via: 'lint-root', part };
+      if (step === 'test' && discoversTree(part)) return { via: 'test-discovery', part };
+      const ref = part.match(SCRIPT_REF_RE);
+      if (ref && !['install', 'ci'].includes(ref[1])) { const r = reach(ref[1], depth + 1); if (r) return r; }
+    }
+    return null;
+  };
+  const r = reach(step, 0);
+  if (!r) return null;
+  const why = { recursive: 'runs in every workspace', 'lint-root': 'lints the whole tree from the root', 'test-discovery': 'discovers tests across the tree from the root' }[r.via];
+  return { command: st.command, via: r.via, why: `the root's passing \`${st.command}\` (\`${r.part}\`) ${why}, ${wsRelPath} included` };
+}
+const MIGRATE_SCRIPT_RE = /prisma\s+migrate\s+deploy|knex\s+migrate:latest/;
+export function declaresMigrate(pkg) {
+  const scripts = (pkg && pkg.scripts) || {};
+  return MIGRATE_NAMES.find((n) => scripts[n] !== undefined) || Object.keys(scripts).find((n) => MIGRATE_SCRIPT_RE.test(String(scripts[n]))) || null;
+}
+
+export function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = () => {}, root = null) {
   const wsDir = join(workDir, wsRelPath);
   const { toolchain, pkg } = detectToolchain(wsDir);
-  const plan = planWorkspace(rootToolchain, toolchain, pkg, wsRelPath);
+  const plan = planWorkspace(rootToolchain, toolchain, pkg, wsRelPath, root);
   if (plan.install.cwd === 'ROOT') plan.install.cwd = workDir;   // resolve the sentinel to the real clone root
   const steps = runSteps(plan, wsDir, timeoutSec, (m) => log(`  [${wsRelPath}]${m}`));
   const { readme, claims } = replayReadme(wsDir, pkg);
@@ -404,11 +539,22 @@ export function run({ target, timeout = 600, clone = true, log = () => {} }) {
     const claimBad = claims.some((c) => c.status === 'missing');
     const wsPaths = pkg ? resolveWorkspaces(workDir, pkg) : [];
     if (wsPaths.length) log(`→ workspaces: ${wsPaths.join(', ')}`);
-    const workspaces = wsPaths.map((p) => runWorkspace(p, workDir, toolchain, timeout, log));
+    // the root's context for coverage: its manifest, its step rows (already run), and
+    // which package owns migrations (the root, else the first workspace declaring one)
+    let migrateOwner = null;
+    const rootMig = declaresMigrate(pkg);
+    if (rootMig) migrateOwner = { path: '.', script: rootMig };
+    else for (const p of wsPaths) {
+      const wm = declaresMigrate(detectToolchain(join(workDir, p)).pkg);
+      if (wm) { migrateOwner = { path: p, script: wm }; break; }
+    }
+    const rootCtx = { pkg, steps, migrateOwner };
+    const workspaces = wsPaths.map((p) => runWorkspace(p, workDir, toolchain, timeout, log, rootCtx));
     const wsBad = workspaces.some((w) => w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing'));
     return {
       tool: 'fresh-clone', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
-      target: t, toolchain, timeout_seconds: timeout, steps, readme, readme_claims: claims, workspaces,
+      target: t, toolchain, timeout_seconds: timeout, steps, readme, readme_claims: claims,
+      ...(wsPaths.length ? { workspaces_from: workspaceSource(workDir, pkg) } : {}), workspaces,
       exit: stepBad || claimBad || wsBad ? 1 : 0,
     };
   } finally {
