@@ -42,6 +42,7 @@ import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../views/intake.
 import { runRoutine, toRoutineYaml } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
 import { planWorkspace } from '../map/fresh-clone.mjs';
+import { parsePnpmAudit, parseYarnClassicAudit } from '../map/dependency-scan.mjs';
 import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
 import { run as runDependencyScan } from '../map/dependency-scan.mjs';
 import { scannersPath as runScannersPath } from '../lib/run-layout.mjs';
@@ -725,8 +726,9 @@ function adaptersOnce() { return loadAdapters(); }
 // ── dependency-scan instrument (map/dependency-scan.mjs → ingest profile dependency-scan) ─
 // The converter turns a synthetic dependency-scan document into exactly: one gap row
 // per advisory (category = its own severity), one lockfile-failed gap per failed
-// lockfile, one lockfile-unsupported gap per not-supported (pnpm/yarn) lockfile, and
-// nothing for a clean audited lockfile. A runner crash (exit 2) halts it; a document
+// lockfile, one lockfile-not-audited FACT per lockfile nothing audited (failed, or
+// not-run because its package manager is unavailable — the instrument's limit, never
+// a gap against the target), and nothing for a clean audited lockfile. A runner crash (exit 2) halts it; a document
 // whose exit disagrees with the runner exit halts; a truncated document halts. Every
 // category maps onto the shared code-security axis and the instrument contributes
 // none. The yardstick decides d-dependencies-known-clean on the `critical`
@@ -744,19 +746,24 @@ function adaptersOnce() { return loadAdapters(); }
         advisories: [{ id: 'GHSA-aaaa-bbbb-cccc', package: 'left-pad', installed: '1.0.0', range: '<1.0.1', severity: 'high', fix_available: true, url: 'https://github.com/advisories/GHSA-aaaa-bbbb-cccc' }],
       },
       { path: 'packages/foo/package-lock.json', status: 'failed', method: 'scratch-copy', npm_exit_code: null, reason: 'npm audit did not produce parseable JSON (registry unreachable, or npm printed a non-JSON error)' },
-      { path: 'packages/bar/pnpm-lock.yaml', status: 'not-supported', manager: 'pnpm', reason: 'dependency-scan audits npm lockfiles only; pnpm lockfiles are not covered' },
+      { path: 'packages/bar/pnpm-lock.yaml', status: 'not-run', manager: 'pnpm', reason: 'pnpm is not available on the runner; run `pnpm audit` where it is, or re-run dependency-scan there' },
     ],
     exit: 1,
   };
   const raw = JSON.stringify(doc);
-  // (a) convert: one row per advisory, one per failed lockfile, one per unsupported lockfile
+  // (a) convert: one gap per advisory, one gap per failed lockfile, one fact per unaudited lockfile
   const rows = convert('dependency-scan', raw, 1);
   const cats = rows.map((r) => r.native_category).sort().join(',');
-  if (cats !== 'high,lockfile-failed,lockfile-unsupported') fail(`convert must yield exactly high, lockfile-failed, lockfile-unsupported gap rows (got ${cats || '(none)'})`);
-  if (rows.some((r) => r.polarity !== 'gap' || !r.fix || !r.severity)) fail('every dependency-scan row is a gap with a severity and a fix');
-  const by = Object.fromEntries(rows.map((r) => [r.native_category, r]));
+  if (cats !== 'high,lockfile-failed,lockfile-not-audited,lockfile-not-audited') fail(`convert must yield high + lockfile-failed gaps and a lockfile-not-audited fact for each of the failed and not-run lockfiles (got ${cats || '(none)'})`);
+  if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every dependency-scan gap carries a severity and a fix');
+  if (rows.filter((r) => r.native_category === 'lockfile-not-audited').some((r) => r.polarity !== 'fact' || r.severity || r.fix)) fail('a lockfile-not-audited row is a fact: no severity, no fix');
+  if (rows.some((r) => r.polarity === 'gap' && r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')) fail('a lockfile the instrument could not run on (its package manager unavailable) is the instrument\'s limit, never a gap against the target');
+  if (!/pnpm is not available/.test(rows.find((r) => r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')?.observation || '')) fail('the not-run fact must carry the instrument\'s reason');
+  const by = Object.fromEntries(rows.filter((r) => r.polarity === 'gap').map((r) => [r.native_category, r]));
   if (by.high?.severity !== 'High') fail(`a high advisory must map severity High (got ${by.high?.severity})`);
-  if (by['lockfile-failed']?.severity !== 'Medium' || by['lockfile-unsupported']?.severity !== 'Medium') fail('a failed or unsupported lockfile reads severity Medium');
+  if (by['lockfile-failed']?.severity !== 'Medium') fail('a failed lockfile reads severity Medium');
+  const legacy = convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [{ path: 'yarn.lock', status: 'not-supported', manager: 'yarn', reason: 'old document' }] }), 1);
+  if (legacy.map((r) => `${r.native_category}/${r.polarity}`).join() !== 'lockfile-not-audited/fact') fail(`a document from before 0.2.0 (status not-supported) converts to the not-audited fact, not a gap (got ${legacy.map((r) => r.native_category + '/' + r.polarity).join()})`);
   if (by.high?.evidence[0] !== 'package-lock.json:1') fail(`an advisory row must cite its lockfile at :1 (got ${by.high?.evidence[0]})`);
   if (by['lockfile-failed']?.evidence[0] !== 'packages/foo/package-lock.json:1') fail('a failed-lockfile row must cite its own lockfile path');
   if (!/left-pad/.test(by.high?.fix || '') || !/GHSA-aaaa-bbbb-cccc/.test(by.high?.observation || '')) fail('an advisory row must name the package (fix) and the advisory id (observation)');
@@ -775,7 +782,7 @@ function adaptersOnce() { return loadAdapters(); }
   const proj = projectMulti(rows, adaptersOnce());
   if (proj.unmapped.length) fail(`dependency-scan rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   const axisOf = (cat) => proj.projected.find((p) => p.f.native_category === cat)?.axis;
-  if (axisOf('high') !== 'code-security' || axisOf('lockfile-failed') !== 'code-security' || axisOf('lockfile-unsupported') !== 'code-security') fail('every dependency-scan category must land on code-security');
+  if (axisOf('high') !== 'code-security' || axisOf('lockfile-failed') !== 'code-security' || axisOf('lockfile-not-audited') !== 'code-security') fail('every dependency-scan category must land on code-security');
   if (contributedBySources(adaptersOnce(), ['dependency-scan']).size !== 0) fail('dependency-scan is an instrument and must contribute no axis');
   const rogue = projectMulti([{ ...rows[0], native_category: 'severe' }], adaptersOnce());
   if (!rogue.unmapped.length) fail('an unknown dependency-scan category must halt at projection (default: FAIL)');
@@ -797,7 +804,48 @@ function adaptersOnce() { return loadAdapters(); }
       findings: [], manifest: [{ scanner: 'dependency-scan', status: 'skipped', reason: 'no registry reach' }], inputs: null, coverage: {},
     }, reg).find((r) => r.id === 'd-dependencies-known-clean');
     if (skipped?.status !== 'not-measured' || !/no registry reach/.test(skipped.note || '')) fail(`a skipped manifest must read not-measured with the recorded reason (got ${skipped?.status}/${skipped?.note})`);
+    // an unaudited lockfile is not a clean one: before the fact existed, a run whose only
+    // lockfile went unaudited (pnpm not on the runner, or npm audit erroring) read MET
+    const dRow = (findings) => measureRun({ findings, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    const notRunOnly = convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [doc.lockfiles[2]] }), 1);
+    const nr = dRow(notRunOnly);
+    if (nr?.status !== 'not-measured' || !/pnpm is not available/.test(nr.note || '')) fail(`a run whose only lockfile was not audited must read not-measured, never met (got ${nr?.status}/${nr?.note})`);
+    const failedOnly = dRow(convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [doc.lockfiles[1]] }), 1));
+    if (failedOnly?.status !== 'not-measured') fail(`a run whose only lockfile failed its audit must read not-measured, never met (got ${failedOnly?.status})`);
+    const withCritical = dRow([...notRunOnly, { id: 'F-9', source: 'dependency-scan', native_category: 'critical', polarity: 'gap' }]);
+    if (withCritical?.status !== 'unmet') fail(`a real critical advisory elsewhere governs over an unaudited lockfile (got ${withCritical?.status})`);
   }
+  // (g) pnpm / yarn classic audits, parsed from real reports (tests/instruments/*-audit-sample.*):
+  // the same six advisories through both, the critical one kept; anything that is not an
+  // audit (another exit code, no report, an error line, no summary) is a failure, never clean
+  const pnpmOut = readFileSync(join(HERE, 'instruments', 'pnpm-audit-sample.json'), 'utf8');
+  const yarnOut = readFileSync(join(HERE, 'instruments', 'yarn-audit-sample.ndjson'), 'utf8');
+  const pp = parsePnpmAudit(pnpmOut, 1), yp = parseYarnClassicAudit(yarnOut, 28);
+  const sig = (r) => (r.advisories || []).map((a) => `${a.id}@${a.package}:${a.severity}`).sort().join(',');
+  if (!pp.ok || pp.advisories.length !== 6 || pp.counts.critical !== 1 || !pp.advisories.some((a) => a.id === 'GHSA-xvch-5gv4-984h' && a.package === 'minimist' && a.severity === 'critical' && a.installed === '1.2.5')) fail(`pnpm audit: six advisories, minimist's critical GHSA-xvch-5gv4-984h at 1.2.5 among them (got ${JSON.stringify(pp).slice(0, 200)})`);
+  if (!yp.ok || sig(yp) !== sig(pp)) fail('yarn classic audit of the same dependencies must yield the same advisories as pnpm');
+  if (parsePnpmAudit(pnpmOut, 2).ok) fail('pnpm audit exiting 2 is not an audit');
+  if (parsePnpmAudit('ERR_PNPM_AUDIT_BAD_RESPONSE', 1).ok) fail('a non-JSON pnpm audit is not an audit');
+  if (parseYarnClassicAudit(yarnOut.split('\n').filter((l) => !l.includes('auditSummary')).join('\n'), 28).ok) fail('a yarn audit with no auditSummary is not an audit');
+  if (parseYarnClassicAudit('{"type":"error","data":"registry unreachable"}\n', 1).ok) fail('a yarn audit error line is not an audit');
+  if (parseYarnClassicAudit(yarnOut, 32).ok) fail('a yarn exit outside the 0-31 severity bitmask is not an audit');
+  // (h) end to end: a pnpm lockfile audited through the offline pnpm shim; with no pnpm on
+  // the runner the same lockfile reads not-run with the reason (never failed, never clean)
+  const tmpP = join(HERE, 'tmp-dep-pnpm'); rmSync(tmpP, { recursive: true, force: true }); mkdirSync(tmpP, { recursive: true });
+  writeFileSync(join(tmpP, 'package.json'), JSON.stringify({ name: 'p', dependencies: { lodash: '4.17.20', minimist: '1.2.5' } }));
+  writeFileSync(join(tmpP, 'pnpm-lock.yaml'), "lockfileVersion: '9.0'\n");
+  const savedPath = process.env.PATH;
+  try {
+    process.env.PATH = `${join(HERE, 'instruments', 'shims')}:${savedPath}`;
+    const withPnpm = runDependencyScan({ target: tmpP, timeout: 30, log: () => {} });
+    const lf = withPnpm.lockfiles[0] || {};
+    if (lf.status !== 'audited' || lf.manager !== 'pnpm' || (lf.advisories || []).length !== 6 || withPnpm.exit !== 1) fail(`a pnpm lockfile with pnpm on the runner is audited (got ${lf.status}/${lf.manager}/${(lf.advisories || []).length}/${withPnpm.exit})`);
+    process.env.PATH = join(tmpP, 'no-such-bin');
+    const noPnpm = runDependencyScan({ target: tmpP, timeout: 30, log: () => {} });
+    const nlf = noPnpm.lockfiles[0] || {};
+    if (nlf.status !== 'not-run' || !/pnpm is not available/.test(nlf.reason || '') || noPnpm.exit !== 1) fail(`with no pnpm on the runner the lockfile reads not-run with the reason, and the run is not clean (got ${nlf.status}/${nlf.reason}/${noPnpm.exit})`);
+  } finally { process.env.PATH = savedPath; }
+  rmSync(tmpP, { recursive: true, force: true });
   // (f) manifests / noManifest: a manifest with dependencies and no lockfile covering
   // it is a FACT (not a gap) — zero lockfiles audited is never clean, but it is a
   // different claim than a known advisory. Decides d-dependencies-known-clean

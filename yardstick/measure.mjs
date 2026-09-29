@@ -75,7 +75,8 @@ export function validateYardstick(reg) {
       // ordinary category verdict. Never a packet claim — see measureRun.
       for (const k of ['not_applicable_when', 'not_measured_when']) {
         const v = d.decide[k];
-        if (v !== undefined && !(typeof v === 'string' && v.length > 0)) errors.push(`${at}: decide.${k} must be a non-empty string (a fact row's native_category)`);
+        const okName = (x) => typeof x === 'string' && x.length > 0;
+        if (v !== undefined && !(okName(v) || (Array.isArray(v) && v.length > 0 && v.every(okName)))) errors.push(`${at}: decide.${k} must be a non-empty string, or a non-empty list of them (a fact row's native_category)`);
       }
     }
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
@@ -218,9 +219,10 @@ function evidenceCondition(d, fs, disp, key) {
   const categories = (Array.isArray(category) ? category : [category]).map(String);
   const inCategory = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')));
   if (inCategory.length) return null;
-  const hits = fs.filter((f) => f.source === scanner && f.native_category === cond && f.polarity === 'fact');
+  const conds = (Array.isArray(cond) ? cond : [cond]).map(String);   // any one of the named facts fires it
+  const hits = fs.filter((f) => f.source === scanner && conds.includes(String(f.native_category)) && f.polarity === 'fact');
   if (!hits.length) return null;
-  return hits.map((h) => h.observation).filter(Boolean).join(' ') || `${scanner} recorded ${cond}`;
+  return hits.map((h) => h.observation).filter(Boolean).join(' ') || `${scanner} recorded ${conds.join(' / ')}`;
 }
 
 // ── the projection ────────────────────────────────────────────────────────────

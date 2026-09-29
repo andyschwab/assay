@@ -20,14 +20,18 @@ run-decided row (see "Claims and a run, compared" below). A `facet`/`census`/
 `decide.not_measured_when: <fact-category>`, for "the evidence to decide this
 was never gathered" rather than "this does not apply"): the name of a
 `polarity: fact` row the same scanner records when it looked for something and
-found none. The condition only fires when the row's own decided category
+found none, or a list of such names (any one fires it). The condition only fires when the row's own decided category
 carries **no** rows this run — real evidence (a gap, a strength) always governs
 over it, the same "a list is an AND, never overridden by a side fact" rule a
 joint category already holds. `d-schema-versioned` is the one row that uses it
 today: `fresh-clone` records a `no-database-signal` fact when it finds no
 database file or dependency anywhere in the tree, and the row reads
 not-applicable — never met by silence, the way a tree with no database used to
-read. A `claim`-kind row's own state can independently be `not-applicable`
+read. `d-dependencies-known-clean` reads not-measured on `no-lockfile` (a manifest
+with dependencies that no lockfile covers) or `lockfile-not-audited` (a lockfile
+whose audit failed, or whose package manager was not on the runner): a lockfile
+nothing audited is not a clean one, and before that fact existed a run whose only
+lockfile went unaudited read met. A `claim`-kind row's own state can independently be `not-applicable`
 (the owner is the only decider a claim row ever has, same as `satisfied`): see
 below.
 

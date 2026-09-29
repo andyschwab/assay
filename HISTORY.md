@@ -743,3 +743,21 @@ what the public engine learned.
   `fresh-clone-pnpm` block over a pnpm-workspace fixture run through offline
   shims (CI has neither pnpm nor a registry), each assertion confirmed red with
   its rule reverted. Goldens untouched.
+- **2026-09-29 — dependency-scan audits pnpm and yarn; an unaudited lockfile is
+  not a clean one (#29).** dependency-scan audited npm lockfiles only and filed
+  every `pnpm-lock.yaml` / `yarn.lock` as a Medium gap whose fix told the target
+  to change package managers. Worse, verifying the issue showed that
+  `d-dependencies-known-clean` decides on the `critical` category alone, so a
+  run whose only lockfile went unaudited — a pnpm repository, or an npm audit
+  that errored — read **met**. pnpm lockfiles are now audited with `pnpm audit
+  --json` and yarn classic lockfiles with `yarn audit --json` (both report npm's
+  v6 advisory objects; parsers pinned against real reports captured for the
+  harness); a lockfile whose package manager is not on the runner, or a yarn
+  berry lockfile, is `not-run` with the reason. Ingest records every lockfile
+  nothing audited as a `lockfile-not-audited` fact rather than a gap charged to
+  the target, and the requirement's `not_measured_when` (now a list) names it,
+  so such a run reads not-measured; a real critical advisory elsewhere still
+  decides unmet. The old dependency-scan unit assertions pinned the npm-only
+  contract (a not-supported lockfile as a Medium gap) and are rewritten to the
+  new one, which also pins "unaudited never reads met"; every new assertion was
+  confirmed red with its rule reverted. Goldens untouched.

@@ -117,11 +117,11 @@ requirements:
       scanner: dependency-scan
       category: critical
       not_applicable_when: no-manifest
-      not_measured_when: no-lockfile
+      not_measured_when: [no-lockfile, lockfile-not-audited]
     # the descriptor is worded on critical only (its category), so a run with high
     # (or moderate/low/info) advisories and zero critical rows still reads met —
     # narrower than the title; widen the category only with a reviewed change.
-    check: dependency-scan (npm audit over every lockfile in the tree) reports no critical advisory; a manifest with dependencies and no lockfile covering it reads not-measured ("no lockfile: nothing to audit"), never clean; no package.json anywhere in the tree reads not-applicable
+    check: dependency-scan (npm, pnpm or yarn audit over every lockfile in the tree) reports no critical advisory; a manifest with dependencies and no lockfile covering it, or a lockfile nothing audited (the audit failed, or its package manager was not on the runner), reads not-measured, never clean; no package.json anywhere in the tree reads not-applicable
     sources: [floor/s-deps, scanner-candidates/core]
     status: draft
     owner:
