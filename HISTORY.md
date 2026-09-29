@@ -707,3 +707,19 @@ what the public engine learned.
   ordering, the bundling, the dual proofs, the guard line, and the stderr
   note, and was proved to fail on the prior code (git-stashed) before being
   trusted.
+- **2026-09-29 — negative fixtures prove their own check (#39).** The harness
+  asserted only that a negative fixture failed, never which check failed it, and
+  `descriptors-drift` had drifted into failing sixteen ways (fifteen stale
+  mechanism rows from before the register moved those requirements to
+  instruments), so removing the check it was built for would have left it red.
+  Each `NEGATIVE` entry now names the violation it must produce, and the harness
+  fails when that violation is missing or when anything else fires beside it;
+  `descriptors-drift` is regenerated so the claim row is its only drift. Four
+  checks that had no fixture gain one: `evidence-not-in-target` (the loop can now
+  pass `--target`), `solution-coverage-gap`, `counted-drift`, and
+  `sampled-drift`. The last exposed a real hole: validate re-derived counted
+  maturity rows from the base but never re-derived sampled rows from
+  `map/censuses.yaml`, so a sample hand-inflated in the generated file (7/10 →
+  10/10, aggregate re-pooled) validated clean. It no longer does; `bad-aggregate`
+  gains the census its sampled row names. Every new check was confirmed red with
+  its rule disabled.

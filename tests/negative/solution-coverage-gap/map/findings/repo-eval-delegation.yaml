@@ -1,0 +1,67 @@
+# Delegation pass over the notesbox fixture target (the security-critical dimension).
+- id: F-050
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    authenticate() returns a default identity with role 'admin' for any unknown or missing
+    token, so every unauthenticated request is treated as an admin — the auth control fails
+    open, and open to the most privileged role.
+  evidence: [lib/auth.mjs:12]
+  confidence: confirmed
+  preconditions: [network-position]
+
+- id: F-051
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  observation: >
+    The assistant builds one prompt from untrusted note content and private workspace notes
+    together, then acts on the model's reply, so a single context co-holds untrusted input,
+    private data, and an external effect (email) — the full trifecta.
+  evidence: [lib/agent.mjs:19]
+  confidence: confirmed
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: true
+  preconditions: [prompt-injection]
+  reaches: [F-052]
+
+- id: F-052
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    The assistant parses the model's reply for a TOOL:send_email directive and sends to the
+    named recipient with no draft or confirm step, so injected note content drives a real
+    outbound email to an attacker-chosen address.
+  evidence: [lib/agent.mjs:39]
+  confidence: confirmed
+  effect:
+    channel: assistant-email
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: tenant
+  preconditions: [prompt-injection]
+
+- id: F-053
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /sync requires no authorization and pushes every user's notes to an external backup
+    service, so any caller can trigger a cross-tenant read that leaves the trust boundary with
+    no authority check and no halt.
+  evidence: [lib/sync.mjs:8]
+  confidence: confirmed
+  effect:
+    channel: backup-sync
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [network-position]

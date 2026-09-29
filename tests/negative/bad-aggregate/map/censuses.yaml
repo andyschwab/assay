@@ -1,0 +1,13 @@
+# map/censuses.yaml (authored) — the source of bad-aggregate's one sampled row, so the only
+# defect in the fixture is the hand-inflated aggregate (91/100 over a 62/100 row).
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      A sampled row whose 62/100 the hand-edited 91/100 aggregate contradicts.
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions reconstructable from files alone"
+        met: 62
+        of: 100
+        method: "one sampled row; the aggregate above is inflated relative to it"
+        primary: true

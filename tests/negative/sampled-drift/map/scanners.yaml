@@ -1,0 +1,20 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a). Negative fixture: only the base passes ran.
+engine: fixture
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped
+    reason: "fixture: not executed"
+  gitleaks:
+    status: skipped
+    reason: "fixture: not executed"
+  fresh-clone:
+    status: skipped
+    reason: "fixture: not executed"
+  dependency-scan:
+    status: skipped
+    reason: "fixture: not executed"
+  repo-census:
+    status: skipped
+    reason: "fixture: not executed"

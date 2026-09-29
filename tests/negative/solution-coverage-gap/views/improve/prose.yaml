@@ -1,0 +1,8 @@
+# NEGATIVE FIXTURE: the base has two unsupervised kinds (assistant-email, backup-sync). The
+# roadmap covers backup-sync only, and assistant-email has no disposition — solution coverage
+# must fail closed on exactly that one kind.
+roadmap:
+  - slug: gate-the-backup-push
+    title: "Require an admin and a confirm step before /sync pushes notes out"
+    findings: [F-053]
+    covers_channels: [backup-sync]

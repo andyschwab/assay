@@ -514,6 +514,8 @@ dimensions:
 Validator-checked: `schema: coverage` present (any other file is rejected with a
 regenerate hint); dimensions valid (§2); `pct` equals `met/of`; sampled
 coverage states its `method`; counted numbers match recomputation from the base;
+sampled numbers (primary or secondary) match the `map/censuses.yaml` row they name, so a
+sample cannot be hand-inflated in the generated file with the aggregate re-pooled to hide it;
 every dimension carries a `depth`; flags are `false` or evidenced claims.
 
 ### 6c. `views/improve/prose.yaml` — the authored narrative + decision structure
@@ -678,8 +680,9 @@ a pass (the run's own CI-1 lesson, applied to the checker):
 7. Every `F-###` cited in a view (`views/improve/*.md`), the gate sidecar, and
    `IMPROVE.md` resolves to a base finding — the citation-integrity check.
 8. If `views/improve/security-gate.yaml` exists: its vocab (§6a) is valid and its `findings`
-   resolve. If `views/improve/maturity-grades.yaml` exists: coverage schema valid (§6b) and the
-   counted numbers match recomputation from the base (drift fails closed).
+   resolve. If `views/improve/maturity-grades.yaml` exists: coverage schema valid (§6b), the
+   counted numbers match recomputation from the base, and every sampled number matches its
+   authored census in `map/censuses.yaml` (drift fails closed either way).
 9. If `views/improve/prose.yaml` exists: the **solution-coverage rule** (§6c) — every
    unsupervised kind (an unguarded halt) traces to a roadmap fix (its `findings` or
    `covers_channels`) or a `dispositions` entry, and each disposition has a valid
