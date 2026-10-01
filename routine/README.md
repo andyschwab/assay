@@ -85,8 +85,10 @@ re-loading the baseline and re-running the comparison a second time.
 
 The routine runs the instruments assay runs offline on its own — `repo-census`,
 `fresh-clone`, `dependency-scan` — plus `gitleaks` when that binary happens to
-be on the runner's `PATH`; when it is not, the run record carries it
-`skipped`, with that reason, never silently as clean
+be on the runner's `PATH` and the checkout is the repository's own top level
+(never a subdirectory of a larger checkout, whose history is not this
+repository's); when either fails, the run record carries it `skipped`, with
+that reason, never silently as clean
 (`map/scanners/CONTRACT.md` §3a). `fresh-clone` executes the repository's own
 install and scripts; the routine runs it in place because its checkout is a
 fresh, disposable CI job, and with the allow-listed environment of

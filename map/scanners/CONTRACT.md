@@ -170,7 +170,12 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
+credential census; git mode reads the history of the repository that
+CONTAINS its source, so `assay start` and the routine scan only a
+repository's own top level — a subdirectory of a larger checkout is recorded
+skipped with that reason, a directory in no repository is scanned in
+directory mode, and every reported path is relative to the target),
+**fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
 **dependency-scan** (`adapters/dependency-scan.yaml`, §3c), and **repo-census**
 (`adapters/repo-census.yaml`, §3d). **OpenSSF Scorecard**
 (`adapters/scorecard.yaml`) is integrated but not part of the adopted roster:
