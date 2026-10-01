@@ -135,7 +135,7 @@ export function toRoutineYaml(rec) {
 // runRoutine — the pure sequencing (spawns child processes; no process.exit of its
 // own), so it is both the CLI's body and the thing tests/regression.mjs calls
 // directly. Returns { ok, exitCode, log: [lines] }.
-export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef } = {}, log = () => {}) {
+export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const lines = [];
   const say = (s) => { lines.push(s); log(s); };
   repoDir = resolve(repoDir);

@@ -45,7 +45,7 @@ function renderRow(id, status, reason, model) {
 // after it, and outside the scanners: map (the header comment, `engine:`) is
 // carried through byte-for-byte. A row this scanner has none of yet is
 // appended after the last existing row.
-export function setScannerRow(text, scanner, status, { reason, model } = {}) {
+export function setScannerRow(text, scanner, status, { reason, model } = /** @type {any} */ ({})) {
   if (!STATUSES.includes(status)) throw new Error(`bad status "${status}" (${STATUSES.join(' | ')})`);
   const hadTrailingNL = text.endsWith('\n');
   const lines = (hadTrailingNL ? text.slice(0, -1) : text).split('\n');
