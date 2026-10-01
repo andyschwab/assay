@@ -140,8 +140,8 @@ if (isMain(import.meta.url)) {
     console.error(`✗ record: ${status} needs a reason — pass --reason "<text>" (a skip/failure with no reason is indistinguishable from an omission)`);
     process.exit(2);
   }
-  let result;
-  try { updateRunRecord(mPath, (text) => (result = setScannerRow(text, scanner, status, { reason, model })).text); }
+  let row = /** @type {string[]} */ ([]);
+  try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model }); row = r.row; return r.text; }); }
   catch (e) { console.error(`✗ record: ${e.message}`); process.exit(2); }
-  console.log(result.row.join('\n'));
+  console.log(row.join('\n'));
 }
