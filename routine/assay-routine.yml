@@ -6,7 +6,8 @@
 #      engine a steward reviewed);
 #   2. if the branch below isn't your default branch, change it;
 #   3. if you run assay from a private fork, point ASSAY_REPO at it, uncomment the
-#      token line in the "assay" checkout step and add a secret that can read it.
+#      token line in BOTH "assay" checkout steps and add a secret that can read it
+#      (persist-credentials: false keeps it out of .git/config in either job).
 #
 # The routine never writes to the repository and needs no write token — read the
 # checked-out tree, measure it, and upload the result as an artifact.
@@ -36,7 +37,52 @@ env:
   ASSAY_REF: '0000000000000000000000000000000000000000'           # a full commit SHA — NEVER a branch name
 
 jobs:
+  # Two jobs (routine/README.md "Two jobs"): `target` is the ONLY job that executes
+  # this repository's own code (fresh-clone runs its install, lifecycle scripts and
+  # tests in place), and it hands forward only fresh-clone's raw report. `routine` —
+  # the required status check — validates, compiles and ratchets from its own fresh
+  # checkouts of this repository and the pinned engine, which never executed the
+  # change, so nothing the change runs can rewrite the engine, the run or the base ref
+  # the gate reads.
+  target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: repo
+          persist-credentials: false   # the change's own scripts run in this job: no token in .git/config
+
+      - name: Check out assay at the pinned engine commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ${{ env.ASSAY_REPO }}
+          ref: ${{ env.ASSAY_REF }}
+          path: assay
+          persist-credentials: false   # never leave a read token where the change's scripts run
+          # token: ${{ secrets.ASSAY_READ_TOKEN }}   # uncomment if the assay repo above is private
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Run the change's own install and tests (fresh-clone, in place)
+        run: |
+          node "$GITHUB_WORKSPACE/assay/routine/run.mjs" "$GITHUB_WORKSPACE/repo" \
+            --target-steps --handoff "$RUNNER_TEMP/handoff"
+
+      - name: Hand fresh-clone's report to the gate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: assay-handoff-${{ github.run_id }}
+          path: ${{ runner.temp }}/handoff
+          retention-days: 1
+
   routine:
+    needs: target
+    if: ${{ !cancelled() }}   # a failed target job is recorded (fresh-clone failed), never skipped
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -45,6 +91,7 @@ jobs:
         with:
           path: repo
           fetch-depth: 0   # full history — gitleaks (when installed) and repo-census both read it
+          persist-credentials: false
 
       - name: Fetch the base branch (pull_request only)
         # A pull request's own copy of this workflow could edit packet/baseline.yaml —
@@ -53,9 +100,18 @@ jobs:
         # base branch needs its OWN local ref (origin/<base>) for `git show` to read
         # the ACCEPTED baseline from, never whatever this pull request carries
         # (routine/README.md "The baseline: accepted by a named steward").
+        # persist-credentials is off, so the token reaches this one git call through
+        # the environment only, never .git/config; this job never runs the change's code.
         if: github.event_name == 'pull_request'
         working-directory: repo
-        run: git fetch origin "${{ github.base_ref }}"
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          FETCH_TOKEN: ${{ github.token }}
+        run: |
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0="http.${GITHUB_SERVER_URL}/.extraheader"
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$FETCH_TOKEN" | base64 -w0)"
+          git fetch origin "$BASE_REF"
 
       - name: Check out assay at the pinned engine commit
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -63,6 +119,7 @@ jobs:
           repository: ${{ env.ASSAY_REPO }}
           ref: ${{ env.ASSAY_REF }}
           path: assay
+          persist-credentials: false
           # token: ${{ secrets.ASSAY_READ_TOKEN }}   # uncomment if the assay repo above is private
 
       - name: Set up Node
@@ -90,19 +147,32 @@ jobs:
       #     tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
       #     sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
 
+      - name: Take the target job's handoff
+        # data, never code: only fresh-clone's raw report and exit, which the gate
+        # ingests and validates like any other report. A missing handoff is recorded
+        # fresh-clone failed with the reason, so this step never fails the job itself.
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: assay-handoff-${{ github.run_id }}
+          path: ${{ runner.temp }}/handoff
+
       - name: Run the routine
         id: routine
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          BASE_REF_FLAG=""
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            # On a pull request, the baseline comes from the BASE branch's own
-            # packet/baseline.yaml (git show), never the working tree this pull
+          BASE_REF_FLAG=()
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            # On a pull request, the baseline and the packet come from the BASE
+            # branch's own packet/ (git show), never the working tree this pull
             # request carries — see the "Fetch the base branch" step above and
             # routine/README.md "The baseline: accepted by a named steward".
-            BASE_REF_FLAG="--base-ref origin/${{ github.base_ref }}"
+            BASE_REF_FLAG=(--base-ref "origin/$BASE_REF")
           fi
           node "$GITHUB_WORKSPACE/assay/routine/run.mjs" "$GITHUB_WORKSPACE/repo" \
-            --out "$GITHUB_WORKSPACE/run" $BASE_REF_FLAG
+            --out "$GITHUB_WORKSPACE/run" --handoff "$RUNNER_TEMP/handoff" "${BASE_REF_FLAG[@]}"
           # With no --base-ref (schedule / workflow_dispatch), --baseline defaults to
           # repo/packet/baseline.yaml when that file is committed (routine/README.md);
           # with none, the routine prints a warning and skips the gate rather than

@@ -40,7 +40,7 @@ import { loadBaseline, loadYardstickDoc, evaluateRatchet, catGitFile } from '../
 import { packetManifestPath, decisionsPath, sincePagePath, viewPath as runViewPath, indexPath as runIndexPath, routinePath, ownerPagePath as runOwnerPagePath } from '../lib/run-layout.mjs';
 import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFoundOverride, stripLeadingFrontmatter } from '../owner/ask-owner.mjs';
 import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../views/intake.mjs';
-import { runRoutine, toRoutineYaml } from '../routine/run.mjs';
+import { runRoutine, runTargetSteps, toRoutineYaml } from '../routine/run.mjs';
 import { parseWorkflow, run as runCensus } from '../map/repo-census.mjs';
 import { planWorkspace } from '../map/fresh-clone.mjs';
 import { parsePnpmAudit, parseYarnClassicAudit } from '../map/dependency-scan.mjs';
@@ -1260,6 +1260,15 @@ function adaptersOnce() { return loadAdapters(); }
   const currentUnmet = { version: 0, requirements: [{ id: 'd-secrets-out-of-history', status: 'unmet', basis: 'run', findings: ['F-1'] }] };
   const rFromNa = evaluateRatchet(baselineNa, currentUnmet, (id) => id);
   if (rFromNa.failures.length) fail(`a baseline row that was not-applicable must never fail regardless of what it becomes (got ${JSON.stringify(rFromNa.failures)})`);
+  // ...except an owner-decided row (#48, F-1204): the packet, not the map, can make a row
+  // not-applicable, so a held owner claim moved to not-applicable is a regression, never a change.
+  for (const held of ['met', 'mixed']) {
+    const bOwner = { ...baseline, requirements: [{ id: 'd-contract-test-per-vendor', status: held, basis: 'owner' }] };
+    const cOwnerNa = { version: 0, requirements: [{ id: 'd-contract-test-per-vendor', status: 'not-applicable', basis: 'owner', findings: [] }] };
+    const rOwner = evaluateRatchet(bOwner, cOwnerNa, (id) => id);
+    if (rOwner.failures.length !== 1 || !/d-contract-test-per-vendor/.test(rOwner.failures[0]) || !new RegExp(`${held}\\s*→\\s*not-applicable`).test(rOwner.failures[0])) fail(`a held owner claim (${held}) moved to not-applicable must fail the ratchet, naming before → after (got ${JSON.stringify(rOwner.failures)})`);
+    if (rOwner.changed.length) fail(`a held owner claim moved to not-applicable is a failure, never only a reported change (got ${JSON.stringify(rOwner.changed)})`);
+  }
   if (rFromNa.changed.length !== 1) fail(`a departure from not-applicable must be reported in changed (got ${JSON.stringify(rFromNa.changed)})`);
   // views/floor-fleet.mjs: a not-applicable row is listed separately, never counted as met
   const tmp = join(HERE, 'tmp-not-applicable'); rmSync(tmp, { recursive: true, force: true });
@@ -2472,6 +2481,38 @@ function adaptersOnce() { return loadAdapters(); }
     if (status !== 2) fail(`ratchet must exit 2 on ${what}, never 0 (got ${status})`);
   }
 
+  // #48 (F-1224): a gate flag with no value is a bad input (exit 2), never "no baseline".
+  for (const [args, what] of [
+    [[runMet, '--baseline'], '--baseline with no value'],
+    [[runMet, '--baseline-ref'], '--baseline-ref with no value'],
+    [[runMet, '--baseline-ref', '--repo', ROOT], '--baseline-ref followed by another flag'],
+    [[runMet, '--baseline', baselineFile, '--write-baseline'], '--write-baseline with no value'],
+  ]) {
+    let status = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), ...args], { stdio: 'pipe' }); }
+    catch (e) { status = e.status ?? 1; }
+    if (status !== 2) fail(`ratchet must exit 2 on ${what}, never read it as no baseline (got ${status})`);
+  }
+  // #48 (F-1224): --write-baseline never accepts a run that failed its own gate.
+  {
+    const wbRegressed = join(tmp, 'baseline-from-regressed.yaml');
+    let status = 0;
+    try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runRegressed, '--baseline', baselineFile, '--write-baseline', wbRegressed], { stdio: 'pipe' }); }
+    catch (e) { status = e.status ?? 1; }
+    if (status !== 1) fail(`a regressed run with --write-baseline must still exit 1 (got ${status})`);
+    if (existsSync(wbRegressed)) fail('--write-baseline must refuse to write a baseline from a run that failed the ratchet');
+  }
+  // #48 (F-1223): a ref that reads as a git option is refused, never handed to git show.
+  {
+    // git show --output=<x>:packet/baseline.yaml writes <x>:packet/baseline.yaml when its folder exists
+    const planted = join(tmp, 'written-by-git-option');
+    const plantedFile = `${planted}:packet/baseline.yaml`;
+    if (process.platform !== 'win32') mkdirSync(`${planted}:packet`, { recursive: true });
+    const got = catGitFile(ROOT, `--output=${planted}`, 'packet/baseline.yaml');
+    if (got.ok) fail('catGitFile must refuse a ref beginning with "-" (got ok)');
+    if (existsSync(plantedFile)) fail('catGitFile must never let a ref beginning with "-" reach git as an option (a file was written)');
+  }
+
   // the pure core directly, for the "absent from the current measurement" case
   // (a baseline requirement id the current run's yardstick no longer decides at all).
   {
@@ -2754,6 +2795,31 @@ function adaptersOnce() { return loadAdapters(); }
   const baseCommit = git(['rev-parse', 'HEAD']).stdout.trim();
   if (!/^[0-9a-f]{40}$/.test(baseCommit)) fail('test setup: could not resolve the base commit');
 
+  // #48 (F-1205): a base ref that does not resolve (mistyped, never fetched) is a gate that
+  // could not run — exit 1 with the reason — never "no baseline yet" and a green skip.
+  {
+    const runDirBadRef = join(tmp, 'run-bad-ref');
+    const logsBad = [];
+    let r;
+    try { r = runRoutine({ repoDir, outDir: runDirBadRef, baseRef: 'origin/mian' }, (l) => logsBad.push(l)); }
+    catch (e) { fail(`runRoutine with an unresolvable --base-ref must not throw (${e.message})`); }
+    if (r && (r.ok || r.exitCode !== 1)) fail(`an unresolvable --base-ref must exit 1, never pass (got ok=${r.ok} exit=${r.exitCode}):\n${logsBad.join('\n')}`);
+    const rec = existsSync(routinePath(runDirBadRef)) ? parseYaml(readFileSync(routinePath(runDirBadRef), 'utf8')) : null;
+    if (!rec) fail('an unresolvable --base-ref must still write routine.yaml');
+    else {
+      if (rec.gate !== 'not-run') fail(`an unresolvable --base-ref must read gate: not-run, never skipped (got ${JSON.stringify(rec.gate)})`);
+      if (!Array.isArray(rec.failures) || !rec.failures.some((f) => /origin\/mian/.test(f))) fail(`the reason must name the base ref that did not resolve (got ${JSON.stringify(rec.failures)})`);
+    }
+    if (logsBad.some((l) => /edits the accepted baseline/.test(l))) fail('an unresolvable --base-ref must not claim the change edits the accepted baseline');
+    // a ref that resolves but carries no packet/baseline.yaml yet is the one skip
+    const runDirNoBaseline = join(tmp, 'run-no-baseline-at-ref');
+    let r2;
+    try { r2 = runRoutine({ repoDir, outDir: runDirNoBaseline, baseRef: headCommit1 }, () => {}); }
+    catch (e) { fail(`runRoutine with a --base-ref that has no baseline must not throw (${e.message})`); }
+    const rec2 = existsSync(routinePath(runDirNoBaseline)) ? parseYaml(readFileSync(routinePath(runDirNoBaseline), 'utf8')) : null;
+    if (r2 && (!r2.ok || r2.exitCode !== 0 || rec2?.gate !== 'skipped')) fail(`a resolvable --base-ref with no packet/baseline.yaml must skip the gate, exit 0 (got ok=${r2.ok} exit=${r2.exitCode} gate=${rec2?.gate})`);
+  }
+
   if (result1 && baseCommit) {
     // the pull request: delete the runbook, and loosen the WORKING TREE's own copy
     // of the baseline so it no longer expects d-runbook met — a routine that reads
@@ -2814,6 +2880,116 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── routine --base-ref reads the packet from the base ref too, and a held owner claim
+// moved to not-applicable is a regression (#48, F-1204) ──
+// The base commit carries a packet claiming d-contract-test-per-vendor satisfied (an owner
+// row, met) and a baseline holding it. The "pull request" edits only the working tree's
+// packet to not-applicable. Graded on a pull request, the base ref's packet decides the row
+// (the edit cannot move the measurement, and it is named); read from the working tree (a
+// schedule run over a tree carrying that edit), the move reads as a ratchet failure.
+{
+  const fail = (m) => negFailures.push('routine-pr-packet: ' + m);
+  const tmp = join(HERE, 'tmp-routine-pr-packet'); rmSync(tmp, { recursive: true, force: true });
+  const repoDir = join(tmp, 'repo');
+  mkdirSync(join(repoDir, 'packet'), { recursive: true });
+  const git = (gitArgs) => spawnSync('git', gitArgs, { cwd: repoDir, encoding: 'utf8' });
+  writeFileSync(join(repoDir, 'package.json'), JSON.stringify({ name: 'pr-packet-target', version: '0.0.0', private: true, scripts: { test: "node -e \"process.exit(0)\"" } }, null, 2) + '\n');
+  writeFileSync(join(repoDir, 'README.md'), '# pr-packet-target\n\nA regression-only fixture; not a real package.\n');
+  const manifest = (claim) => [
+    '# an invented packet for a regression fixture (CLAUDE.md rule 6)',
+    'packet: 1', 'yardstick: 0',
+    'answered:', '  date: "2026-09-01"', '  by: founder', '  via: owner-prompt',
+    'claims:', '  - id: d-contract-test-per-vendor', ...claim, '',
+  ].join('\n');
+  const manifestFile = join(repoDir, 'packet', 'manifest.yaml');
+  writeFileSync(manifestFile, manifest(['    state: satisfied', '    certainty: sure', '    by: "a contract test per vendor under tests/contract/"']));
+  git(['init', '-q']); git(['config', 'user.email', 'test@example.com']); git(['config', 'user.name', 'Test']);
+  git(['add', '-A']);
+  if (git(['commit', '-q', '-m', 'initial']).status !== 0) fail('test setup: initial commit must succeed');
+  const rowOf = (runDir) => {
+    const y = existsSync(join(runDir, 'yardstick.yaml')) ? parseYaml(readFileSync(join(runDir, 'yardstick.yaml'), 'utf8')) : null;
+    return y && (y.requirements || []).find((r) => r.id === 'd-contract-test-per-vendor');
+  };
+  const runDir1 = join(tmp, 'run1');
+  try { runRoutine({ repoDir, outDir: runDir1 }, () => {}); } catch (e) { fail(`test setup: the seeding run must not throw (${e.message})`); }
+  const row1 = rowOf(runDir1);
+  if (!row1 || row1.status !== 'met' || row1.basis !== 'owner') fail(`test setup: the packet's satisfied claim must read met, basis owner (got ${JSON.stringify(row1)})`);
+  try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'ratchet.mjs'), runDir1, '--write-baseline', join(repoDir, 'packet', 'baseline.yaml')], { stdio: 'pipe' }); }
+  catch (e) { fail(`test setup: --write-baseline must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  git(['add', '-A']);
+  if (git(['commit', '-q', '-m', 'a steward accepts the baseline']).status !== 0) fail('test setup: the baseline commit must succeed');
+  const baseCommit = git(['rev-parse', 'HEAD']).stdout.trim();
+
+  // the pull request: the held claim, edited to not-applicable in the change's own tree
+  writeFileSync(manifestFile, manifest(['    state: not-applicable', '    reason: "no vendor is called any more"']));
+
+  const runDirPr = join(tmp, 'run-pr');
+  const logsPr = [];
+  let rPr;
+  try { rPr = runRoutine({ repoDir, outDir: runDirPr, baseRef: baseCommit }, (l) => logsPr.push(l)); }
+  catch (e) { fail(`runRoutine --base-ref must not throw (${e.message})`); }
+  const rowPr = rowOf(runDirPr);
+  if (!rowPr || rowPr.status !== 'met') fail(`on a pull request the base ref's packet decides the owner row — the change's own edit must not move it (got ${JSON.stringify(rowPr)}):\n${logsPr.join('\n')}`);
+  if (!logsPr.some((l) => /edits the packet/.test(l))) fail(`the routine must name a change that edits packet/manifest.yaml plainly (got:\n${logsPr.join('\n')})`);
+  if (rPr && (!rPr.ok || rPr.exitCode !== 0)) fail(`with the base ref's packet, nothing held moved, so the gate holds (got ok=${rPr.ok} exit=${rPr.exitCode}):\n${logsPr.join('\n')}`);
+
+  const runDirTree = join(tmp, 'run-tree');
+  const logsTree = [];
+  let rTree;
+  try { rTree = runRoutine({ repoDir, outDir: runDirTree }, (l) => logsTree.push(l)); }
+  catch (e) { fail(`runRoutine with no --base-ref must not throw (${e.message})`); }
+  const rowTree = rowOf(runDirTree);
+  if (!rowTree || rowTree.status !== 'not-applicable') fail(`test setup: read from the working tree, the edited claim must read not-applicable (got ${JSON.stringify(rowTree)})`);
+  if (rTree && (rTree.ok || rTree.exitCode !== 1)) fail(`a held owner claim edited to not-applicable must fail the gate, never read held (got ok=${rTree.ok} exit=${rTree.exitCode}):\n${logsTree.join('\n')}`);
+  const recTree = existsSync(routinePath(runDirTree)) ? parseYaml(readFileSync(routinePath(runDirTree), 'utf8')) : null;
+  if (!recTree || recTree.gate !== 'failed' || !(recTree.failures || []).some((f) => /d-contract-test-per-vendor/.test(f) && /met\s*→\s*not-applicable/.test(f))) fail(`routine.yaml must read gate: failed with the d-contract-test-per-vendor met → not-applicable line (got ${JSON.stringify(recTree)})`);
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── routine: the change's own code runs in one step, the gate in another (#48) ──
+// runTargetSteps runs fresh-clone (the only instrument that executes the target's
+// own install and scripts) and writes only its raw report and exit to a handoff
+// directory; runRoutine with `handoff` ingests that report and never executes the
+// target. The target's test script below leaves a marker: it must appear after the
+// target step and never after the gate.
+{
+  const fail = (m) => negFailures.push('routine-handoff: ' + m);
+  const tmp = join(HERE, 'tmp-routine-handoff'); rmSync(tmp, { recursive: true, force: true });
+  const target = join(tmp, 'target');
+  mkdirSync(target, { recursive: true });
+  const marker = join(tmp, 'target-code-ran');
+  writeFileSync(join(target, 'package.json'), JSON.stringify({ name: 'handoff-target', version: '0.0.0', private: true, scripts: { test: `node -e "require('fs').writeFileSync('${marker.replace(/\\/g, '/')}', 'x')"` } }, null, 2) + '\n');
+  writeFileSync(join(target, 'README.md'), '# handoff-target\n\nA regression-only fixture; not a real package.\n');
+  const handoff = join(tmp, 'handoff');
+  let t;
+  try { t = runTargetSteps({ repoDir: target, handoffDir: handoff }, () => {}); }
+  catch (e) { fail(`runTargetSteps must not throw (${e.message})`); }
+  if (!existsSync(marker)) fail('test setup: the target step must run the target\'s own test script (no marker written)');
+  if (t && (!t.ok || t.exitCode !== 0)) fail(`runTargetSteps must exit 0 once the report is handed forward (got ok=${t.ok} exit=${t.exitCode})`);
+  if (!existsSync(join(handoff, 'fresh-clone.json'))) fail('runTargetSteps must hand fresh-clone\'s raw report forward');
+  rmSync(marker, { force: true });
+
+  const runDir = join(tmp, 'run');
+  const logs = [];
+  let r;
+  try { r = runRoutine({ repoDir: target, outDir: runDir, handoff }, (l) => logs.push(l)); }
+  catch (e) { fail(`runRoutine with a handoff must not throw (${e.message})`); }
+  if (existsSync(marker)) fail('the gate step must never execute the target\'s own code (the marker was written again)');
+  if (r && (!r.ok || r.exitCode !== 0)) fail(`runRoutine with a handoff must succeed (got ok=${r.ok} exit=${r.exitCode}):\n${logs.join('\n')}`);
+  const rows = existsSync(runScannersPath(runDir)) ? (parseYaml(readFileSync(runScannersPath(runDir), 'utf8')).scanners || {}) : {};
+  if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone handed forward must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
+
+  // no handoff at all (the target step never finished): fresh-clone is recorded failed with
+  // the reason, never run in place by the gate and never silently clean
+  const runDirMissing = join(tmp, 'run-missing');
+  try { runRoutine({ repoDir: target, outDir: runDirMissing, handoff: join(tmp, 'no-such-handoff') }, () => {}); }
+  catch (e) { fail(`runRoutine with a missing handoff must not throw (${e.message})`); }
+  if (existsSync(marker)) fail('a missing handoff must never make the gate run the target itself');
+  const rowsMissing = existsSync(runScannersPath(runDirMissing)) ? (parseYaml(readFileSync(runScannersPath(runDirMissing), 'utf8')).scanners || {}) : {};
+  if (rowsMissing['fresh-clone']?.status !== 'failed' || !/handoff|target step/i.test(rowsMissing['fresh-clone']?.reason || '')) fail(`a missing handoff must record fresh-clone failed with the reason (got ${JSON.stringify(rowsMissing['fresh-clone'])})`);
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── routine/assay-routine.yml: the workflow template's own invariants ─────────
 // Not run (no GitHub Actions runner here) — parsed as text, since it is a real
 // GitHub Actions YAML file, not the constrained subset lib/yaml-min.mjs reads.
@@ -2870,7 +3046,48 @@ function adaptersOnce() { return loadAdapters(); }
   // the pull-request baseline gate: the base branch is fetched, and --base-ref
   // is passed so the routine grades against it, never the working tree.
   if (!/git fetch origin/.test(yml)) fail('the template must fetch the base branch before running the routine on a pull request');
-  if (!/--base-ref origin\/\$\{\{\s*github\.base_ref\s*\}\}/.test(yml)) fail('the template must pass --base-ref origin/<base branch> to routine/run.mjs on a pull request');
+  if (!/--base-ref\s+"?origin\/\$\{?BASE_REF\}?"?/.test(yml)) fail('the template must pass --base-ref origin/<base branch> to routine/run.mjs on a pull request');
+
+  // #48 (F-1203, F-418, F-419): the change's own code runs in one job, the gate in another.
+  // The `target` job is the only one that runs the target's steps, and it hands forward only
+  // fresh-clone's raw report; the `routine` job (the required check) needs it, runs from its
+  // own fresh checkouts, ingests the handoff, and never runs the target's steps itself.
+  {
+    const jobBodies = new Map();
+    const jIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+    const heads = [];
+    if (jIdx !== -1) for (let i = jIdx + 1; i < lines.length; i++) { const m = lines[i].match(/^\s{2}([\w-]+):\s*$/); if (m) heads.push({ name: m[1], line: i }); }
+    for (let j = 0; j < heads.length; j++) jobBodies.set(heads[j].name, lines.slice(heads[j].line, j + 1 < heads.length ? heads[j + 1].line : lines.length).filter((l) => !/^\s*#/.test(l)).join('\n'));
+    const targetJob = jobBodies.get('target'), gateJob = jobBodies.get('routine');
+    if (!targetJob || !gateJob) fail(`the template must declare a "target" job and a "routine" (gate) job (got ${JSON.stringify([...jobBodies.keys()])})`);
+    else {
+      if (!/routine\/run\.mjs"?[^\n]*(?:\\\n[^\n]*)?--target-steps/.test(targetJob)) fail('the target job must run the target\'s steps (routine/run.mjs --target-steps)');
+      if (/--base-ref|ratchet|--out\b/.test(targetJob)) fail('the target job must never validate, compile or ratchet — the gate runs in the routine job');
+      if (!/upload-artifact/.test(targetJob)) fail('the target job must hand its raw report forward as an artifact');
+      if (!/^\s{4}needs:\s*\[?\s*target\s*\]?\s*$/m.test(gateJob)) fail('the routine job must need the target job');
+      if (/--target-steps/.test(gateJob)) fail('the routine (gate) job must never run the target\'s steps');
+      if (!/download-artifact/.test(gateJob) || !/--handoff/.test(gateJob)) fail('the routine job must ingest the target job\'s handoff (download-artifact, --handoff)');
+    }
+  }
+  // #48 (F-1222, F-428, F-429): no checkout leaves the job token (or a read token) in .git/config.
+  {
+    const checkoutAt = lines.map((l, i) => (/^\s*uses:\s*actions\/checkout@/.test(l) ? i : -1)).filter((i) => i > -1);
+    if (checkoutAt.length < 2) fail(`expected the template's checkout steps (got ${checkoutAt.length})`);
+    for (const i of checkoutAt) {
+      const step = [];
+      for (let k = i + 1; k < lines.length && !/^\s*-\s/.test(lines[k]); k++) step.push(lines[k]);
+      if (!step.some((l) => /^\s*persist-credentials:\s*false\s*(#.*)?$/.test(l))) fail(`the checkout step at line ${i + 1} must set persist-credentials: false`);
+    }
+    // base_ref reaches a script through env, quoted — never expanded into the script text
+    let inRun = false, runIndent = 0;
+    lines.forEach((l, i) => {
+      if (/^\s*#/.test(l)) return;
+      const m = l.match(/^(\s*)(?:-\s*)?run:\s*(.*)$/);
+      if (m) { inRun = true; runIndent = m[1].length; if (/\$\{\{\s*github\.base_ref/.test(m[2])) fail(`line ${i + 1} expands github.base_ref into a run script`); return; }
+      if (inRun && l.trim() && (l.match(/^\s*/)[0].length <= runIndent)) inRun = false;
+      if (inRun && /\$\{\{\s*github\.base_ref/.test(l)) fail(`line ${i + 1} expands github.base_ref into a run script; pass it through env and quote it`);
+    });
+  }
 
   // installation (routine/README.md "Installing it"): a push trigger so merged main
   // is measured the same day, and an optional gitleaks step that is pinned to a
