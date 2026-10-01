@@ -1112,7 +1112,9 @@ what the public engine learned.
   add a block, and doc-consistency holds it to the exports the runner reads.
   The split exposed `coverageYaml` as an export only a dead import in the old
   file named, so it is now private to `map/ingest.mjs` (the shared-helpers
-  rule); `npm run lint` now checks `tests/blocks/`. The new `block-runner` block
+  rule); `npm run lint` now checks `tests/blocks/`; the packet block's planted
+  `AKIA…` value is assembled at runtime, and `.gitleaksignore` pins the one
+  commit that carried it at its new path. The new `block-runner` block
   and the doc-consistency check were confirmed red against the one-file harness
   (five failures) and against each runner rule reverted in turn. Goldens
   untouched.
