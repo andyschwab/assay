@@ -577,12 +577,12 @@ if (existsSync(gradesPath)) {
 {
   const baseIds = new Set(allById.keys());
   const dataFiles = [
-    [chainsDataPath(runDir), 'views/improve/chains.json', 'json', (d) => checkChains(d, baseIds)],
-    [handoffSequencePath(runDir), 'handoff/sequence.json', 'json', (d) => checkSequence(d, baseIds)],
-    [backlogPath(runDir), 'map/backlog.yaml', 'yaml', checkBacklog],
-    [backlogAuthoredPath(runDir), 'map/backlog-authored.yaml', 'yaml', checkAuthoredBacklog],
+    { path: chainsDataPath(runDir), label: 'views/improve/chains.json', kind: 'json', check: (d) => checkChains(d, baseIds) },
+    { path: handoffSequencePath(runDir), label: 'handoff/sequence.json', kind: 'json', check: (d) => checkSequence(d, baseIds) },
+    { path: backlogPath(runDir), label: 'map/backlog.yaml', kind: 'yaml', check: checkBacklog },
+    { path: backlogAuthoredPath(runDir), label: 'map/backlog-authored.yaml', kind: 'yaml', check: checkAuthoredBacklog },
   ];
-  for (const [path, label, kind, check] of dataFiles) {
+  for (const { path, label, kind, check } of dataFiles) {
     if (!existsSync(path)) continue;
     let doc;
     try { const src = readFileSync(path, 'utf8'); doc = kind === 'json' ? JSON.parse(src) : parseYaml(src); }
