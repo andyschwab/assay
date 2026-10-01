@@ -9,7 +9,8 @@
 # owner/evidence/README.md) for what a repository cannot show by itself.
 # map/ingest.mjs (profile repo-census) turns each `gap` check into one gap row
 # and each `pass` check into one strength row (so the axis sees the evidence, not
-# just the absence of a gap); a `not-applicable` check yields nothing. Instruments
+# just the absence of a gap); a `not-applicable` check (an evidence check over a
+# tree with no deployment signal) yields one fact row in `<check>-not-applicable`. Instruments
 # never contribute an axis; these rows feed the axes the yardstick
 # already homes the floor rows on (yardstick/requirements.yaml): architecture-page /
 # agent-contract / runbook feed the docs-legibility axis these floor rows already
@@ -67,6 +68,21 @@ map:
   evidence-d-monitoring-with-alert-unverifiable:
     axis: verification
   evidence-d-cost-alerts-unverifiable:
+    axis: artifact-legibility
+  # a FACT row (never a gap or strength): no deployment signal anywhere in the tree
+  # (map/scanners/CONTRACT.md §3d) — decides the matching requirement above
+  # not-applicable via not_applicable_when, same axis.
+  evidence-d-backup-restore-exercised-not-applicable:
+    axis: code-security
+  evidence-d-rollback-exercised-not-applicable:
+    axis: context-economy
+  evidence-d-deploy-one-command-not-applicable:
+    axis: code-security
+  evidence-d-smoke-on-deployed-not-applicable:
+    axis: deterministic-gates
+  evidence-d-monitoring-with-alert-not-applicable:
+    axis: verification
+  evidence-d-cost-alerts-not-applicable:
     axis: artifact-legibility
 
 default: FAIL
