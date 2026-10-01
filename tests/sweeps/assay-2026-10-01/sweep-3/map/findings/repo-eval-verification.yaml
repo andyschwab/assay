@@ -1,0 +1,161 @@
+# map/findings/repo-eval-verification.yaml — Pass 4, verification, over assay at c30912c
+# (blind sweep 3). Census-augmented: one effect-provability finding per terrain channel
+# (subject_type control), then the harness, calibration and decay facts.
+
+- id: F-037
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    fresh-clone-exec proves its effect beyond a return code: a test step records the runner's
+    own pass/skip/fail counts or `unparsed`, an undeclared step reads not-declared, and a
+    runner crash exits 2 so ingest halts rather than reading clean.
+  evidence: [map/fresh-clone.mjs:17-20, map/fresh-clone.mjs:69-72, map/fresh-clone.mjs:388-398]
+  confidence: confirmed
+
+- id: F-038
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    dependency-audit records a lockfile failed, never clean, when the audit report lacks the
+    expected shape, times out or cannot spawn; in this sweep's own start all four lockfiles
+    came back failed (registry error or timeout) and none read clean.
+  evidence: [map/dependency-scan.mjs:35-57, map/dependency-scan.mjs:238-246]
+  confidence: confirmed
+
+- id: F-039
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    gitleaks-scan accepts only exit 0 or 1, records any other exit failed with its stderr,
+    and refuses a target that is not its repository's top level with a recorded reason.
+  evidence: [map/start.mjs:115-136]
+  confidence: confirmed
+
+- id: F-040
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    repo-census-scan's CI-gate check reads whether a gate can fail open through its shell
+    script (`|| true`, `|| exit 0`, `set +e`), not only through continue-on-error, and cites
+    the offending line.
+  evidence: [tests/regression.mjs:663-670]
+  confidence: confirmed
+
+- id: F-041
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    run-start validates the run it just drew and exits non-zero when validation fails, after
+    printing what ran, what was skipped and why.
+  evidence: [map/start.mjs:290-308]
+  confidence: confirmed
+
+- id: F-042
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    scanner-ingest requires the tool's own exit code, checks that exit code and report agree,
+    halts on an exit outside the success set or malformed input, and records a verified-clean
+    run explicitly.
+  evidence: [map/ingest.mjs:9-14, map/ingest.mjs:81]
+  confidence: confirmed
+
+- id: F-043
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    scanner-record writes under an exclusive lock file and fails loud naming the lock when it
+    cannot take it, never writing unlocked.
+  evidence: [map/record.mjs:116-130]
+  confidence: confirmed
+
+- id: F-044
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    package-compile runs the validator first and refuses to compile over an unvalidated base.
+  evidence: [views/compile.mjs:68-72]
+  confidence: confirmed
+
+- id: F-045
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    baseline-write writes the baseline from a run's current state and leaves committing it to
+    the steward's own reviewed act; the write itself reports only by its console line.
+  evidence: [yardstick/ratchet.mjs:9, yardstick/ratchet.mjs:205, yardstick/ratchet.mjs:290]
+  confidence: confirmed
+
+- id: F-046
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    routine-target-exec hands forward a status file with the real exit code; a missing or
+    unreadable handoff records fresh-clone failed with the reason, never clean.
+  evidence: [map/start.mjs:205-235, routine/assay-routine.yml:150-158]
+  confidence: confirmed
+
+- id: F-047
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    run-artifact-upload runs even when the routine step fails, and the run carries a
+    routine.yaml written on every path (held, failed, skipped or not-run gate), so the
+    uploaded artifact states its own outcome.
+  evidence: [routine/assay-routine.yml:188-195, routine/README.md:37-45]
+  confidence: confirmed
+
+- id: F-048
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine is scored against public known-answer fixtures and the harness pins recall
+    (and the control's false-positive count) in golden.json, so a change that misfiles a
+    finding turns the suite red.
+  evidence: [tests/regression.mjs:135-141, tests/regression.mjs:4772-4780, README.md:152-159]
+  confidence: confirmed
+
+- id: F-049
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    A calibration harness exists for the judgment method: variance measures fact presence and
+    descriptor agreement across blind runs, and the harness gates every committed sweep set
+    at its own threshold, with a fixture set that proves the gate can go red.
+  evidence: [README.md:161-166, map/METHOD.md:752-758, tests/regression.mjs:4588-4600]
+  confidence: confirmed
+
+- id: F-050
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The citation check confirms a cited file exists and the line is inside it, but nothing
+    checks that the cited line says what the observation claims, so a fluent observation over
+    a real but unrelated line validates green.
+  evidence: [map/SCHEMA.md:774-781]
+  confidence: confirmed
+
+- id: F-051
+  dimension: verification
+  polarity: fact
+  subject_type: process
+  observation: >
+    The method states that a scored run authored by the agent that wrote the answers proves
+    the pipeline and the recall floor, not blind determinism, and assigns blindness to sweep
+    sets instead.
+  evidence: [map/METHOD.md:752-758]
+  confidence: confirmed

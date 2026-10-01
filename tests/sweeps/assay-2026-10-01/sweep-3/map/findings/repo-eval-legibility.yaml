@@ -1,0 +1,111 @@
+# map/findings/repo-eval-legibility.yaml — Pass 1, artifact legibility, over assay at
+# c30912c (blind sweep 3). Facts with file:line evidence; no severity, no priority.
+# Census-augmented: one finding per sampled non-obvious decision (decision-legibility
+# population, subject_type artifact), then the whole-repo facts.
+
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision that finding ids carry no dimension meaning is stated with its rationale
+    (a per-dimension range is an arbitrary budget a dense repo overflows, and would only
+    duplicate the dimension field) in the schema it governs.
+  evidence: [map/SCHEMA.md:186-205]
+  confidence: confirmed
+
+- id: F-002
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision that `assay start` runs fresh-clone only under --allow-exec is explained
+    beside the code (it runs the target's install, lifecycle scripts and tests on the
+    evaluator's machine) and again in the scanner contract.
+  evidence: [map/start.mjs:16-27, map/scanners/CONTRACT.md:153-172]
+  confidence: confirmed
+
+- id: F-003
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision to integrate but not adopt OpenSSF Scorecard is recorded with its reason
+    (its checks need a hosting platform's API at run time, which an offline run lacks).
+  evidence: [map/scanners/CONTRACT.md:138-151, map/scanners/CONTRACT.md:184-188]
+  confidence: confirmed
+
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine's split into a `target` job that executes the change and a `routine` gate
+    job that never does is explained in the workflow template beside the jobs it governs.
+  evidence: [routine/assay-routine.yml:40-46]
+  confidence: confirmed
+
+- id: F-005
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision that a pull request is graded against the base branch's baseline and packet,
+    never its own working tree's copy, is explained in both the workflow step and the driver's
+    usage block.
+  evidence: [routine/assay-routine.yml:96-104, routine/run.mjs:28-44]
+  confidence: confirmed
+
+- id: F-006
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision to pin ASSAY_REF to a full commit SHA rather than a branch, and to leave
+    --since unwired in the template, are each stated with their reason in the template.
+  evidence: [routine/assay-routine.yml:4-6, routine/assay-routine.yml:180-186]
+  confidence: confirmed
+
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision that the YAML reader accepts only a constrained subset and throws on
+    anything else is stated with its rationale in the reader and in the adapter contract.
+  evidence: [lib/yaml-min.mjs:1-6, map/scanners/CONTRACT.md:106-108]
+  confidence: confirmed
+
+- id: F-008
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Code and test comments cite finding ids from evaluation runs (for example F-1213, F-1230,
+    F-1217) as the origin of a rule, while the repository's own rule keeps run history out
+    of the tree, so those citations resolve to nothing a reader of the files can open.
+  evidence: [tests/regression.mjs:176, views/severity.mjs:2, views/owner.mjs:129, CLAUDE.md:34-37]
+  confidence: confirmed
+
+- id: F-009
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The repository keeps no ADR directory; decision rationale lives in the contracts
+    (METHOD, SCHEMA, CONTRACT), in code comments, in issue numbers cited in comments, and in
+    HISTORY.md, which CLAUDE.md requires every change to add an entry to (HISTORY.md was
+    not read in this blind sweep).
+  evidence: [README.md:179-180, CLAUDE.md:47-58, map/start.mjs:24]
+  confidence: confirmed
+
+- id: F-010
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md names the authoritative document for each contract (SCHEMA for findings,
+    METHOD for the scanner, yardstick/README for requirements, views/README for view data)
+    so a reader knows which file wins on a conflict.
+  evidence: [CLAUDE.md:3-7, map/METHOD.md:267-273]
+  confidence: confirmed

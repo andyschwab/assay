@@ -1,0 +1,214 @@
+# map/findings/repo-eval-delegation.yaml — neutral evidence base for assay at
+# c30912c (blind sweep 1). Pass 5: delegation surface. One effect finding per
+# channel slug fixed in map/terrain.md; capabilities are the LLM-driven surfaces
+# the method and the handoff put an agent in; controls follow.
+
+# ── effect channels ───────────────────────────────────────────────────────────
+
+- id: F-052
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: "fresh-clone runs the target's own install (lifecycle scripts included), build, lint, typecheck, test and migrate-dry scripts in a shell on the evaluator's machine; assay start runs it only under --allow-exec and otherwise records it skipped."
+  evidence: [map/fresh-clone.mjs:62-67, map/fresh-clone.mjs:390, map/start.mjs:278, map/start.mjs:245, assay.mjs:25]
+  confidence: confirmed
+  label: "run the target's own code"
+  effect:
+    channel: fresh-clone-exec
+    reversibility: irreversible
+    external: true
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+  preconditions: [malicious-dependency]
+
+- id: F-053
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: "dependency-scan runs npm, pnpm or yarn audit against the registry from a scratch directory holding only one lockfile and its package.json, with the allow-listed child environment, and runs by default under assay start."
+  evidence: [map/dependency-scan.mjs:80-91, map/dependency-scan.mjs:231-235, map/dependency-scan.mjs:355, map/start.mjs:200]
+  confidence: confirmed
+  label: "audit dependencies against the registry"
+  effect:
+    channel: dependency-audit
+    reversibility: irreversible
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+  preconditions: [malicious-dependency]
+
+- id: F-054
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: "The routine's target job runs a pull request's own install, lifecycle scripts and tests in place on the CI runner, in a job holding no persisted token and only contents read, and hands forward only fresh-clone's report."
+  evidence: [routine/assay-routine.yml:32-33, routine/assay-routine.yml:47-81, routine/README.md:111-125]
+  confidence: confirmed
+  label: "run a pull request's code in CI"
+  effect:
+    channel: routine-target-exec
+    reversibility: irreversible
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+  preconditions: [malicious-dependency]
+
+- id: F-055
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: "The routine uploads the handoff (kept 1 day) and the whole run directory (kept 90 days, uploaded even when the routine step failed) as workflow artifacts readable by anyone who can read the repository's workflow runs."
+  evidence: [routine/assay-routine.yml:76-81, routine/assay-routine.yml:188-195, routine/README.md:29-36]
+  confidence: confirmed
+  label: "publish the run as a workflow artifact"
+  effect:
+    channel: routine-artifact-upload
+    reversibility: irreversible
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-056
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: "ratchet --write-baseline only writes the baseline file to disk; committing it is a named steward's reviewed change, never automatic."
+  evidence: [yardstick/ratchet.mjs:9, yardstick/ratchet.mjs:35, yardstick/ratchet.mjs:205, routine/README.md:148-151]
+  confidence: confirmed
+  effect:
+    channel: baseline-write
+    reversibility: reversible
+    external: false
+    gate_type: staged-reversible
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: tenant
+
+- id: F-057
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: "Writes to a run directory refuse to redraw an existing run, and every edit of the run record goes through an exclusive lock file that fails loud rather than writing unlocked."
+  evidence: [map/start.mjs:262-265, map/record.mjs:116-122]
+  confidence: confirmed
+  effect:
+    channel: run-write
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+
+# ── capabilities (LLM-driven surfaces) ───────────────────────────────────────
+
+- id: F-058
+  dimension: delegation
+  polarity: fact
+  subject_type: capability
+  observation: "The repo-eval scanner is a coding-agent session opened with METHOD.md over the target repository: it reads untrusted target text, holds the target's code and findings, and its tool surface is whatever the operator's session grants, with sending left to a human by instruction only."
+  evidence: [README.md:131-132, map/METHOD.md:49-53, map/METHOD.md:741]
+  confidence: plausible
+  label: "the repo-eval agent session"
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: true
+  preconditions: [prompt-injection]
+  reaches: [F-052]
+
+- id: F-059
+  dimension: delegation
+  polarity: fact
+  subject_type: capability
+  observation: "Each handoff plan prompt puts a coding-agent session over the target repository with scanner text from that repository fenced as data, instructing it to implement a fix and not to deploy, publish or send."
+  evidence: [views/improve/handoff.mjs:149-155, views/improve/handoff.mjs:348, map/METHOD.md:595-601]
+  confidence: plausible
+  label: "the handoff agent session"
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: true
+  preconditions: [prompt-injection]
+
+# ── controls ──────────────────────────────────────────────────────────────────
+
+- id: F-060
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: "The --allow-exec halt is a command-line flag the invoking process sets, the direct fresh-clone command has no flag at all, and METHOD.md, which an agent session executes, carries no rule against running the target's code, so in an agent-driven run the halt is held by the agent rather than a person."
+  evidence: [map/start.mjs:278, assay.mjs:25, assay.mjs:53-54, map/METHOD.md:33-59, README.md:129-132]
+  confidence: confirmed
+
+- id: F-061
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: "Every child the instruments spawn gets an environment built from an allow-list (PATH, HOME, CI and the caller's npm_config_* values), so the evaluator's tokens, cloud keys, agent sockets and DATABASE_URL never reach the target's scripts or package manager."
+  evidence: [map/child-env.mjs:1-21, map/fresh-clone.mjs:316, map/dependency-scan.mjs:80, tests/regression.mjs:3721]
+  confidence: confirmed
+
+- id: F-062
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: "dependency-scan copies the target's package.json, including any packageManager field, into the scratch directory; in this run the pnpm audit of a fixture naming pnpm@10.33.0 spawned a pnpm self-install of that version, which outlived the audit's timeout."
+  evidence: [map/dependency-scan.mjs:85-89, map/dependency-scan.mjs:337, map/dependency-scan.mjs:355, tests/instruments/fresh-clone-pnpm/package.json:4]
+  confidence: plausible
+
+- id: F-063
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: "No network egress control bounds the code fresh-clone runs; the engine states it is not a sandbox and relies on the operator choosing a disposable container or VM."
+  evidence: [README.md:53-61, map/fresh-clone.mjs:62-67, map/scanners/CONTRACT.md:163-166]
+  confidence: confirmed
+
+- id: F-064
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: "The routine needs no write token: both jobs check out with persist-credentials false, the job token reaches only the gate job's one base-branch fetch through its step environment, and the optional ASSAY_READ_TOKEN is read-only to one repository with a rotation procedure."
+  evidence: [routine/assay-routine.yml:32-33, routine/assay-routine.yml:55, routine/assay-routine.yml:63, routine/assay-routine.yml:105-114, RUNBOOK.md:58-71]
+  confidence: confirmed
+
+- id: F-065
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: "The gate reasons over where its inputs come from: on a pull request the baseline and the packet are read from the base ref with git show, and the engine, run and baseline it reads are fresh checkouts in a job that never executed the change."
+  evidence: [routine/run.mjs:236-253, routine/run.mjs:275-289, routine/README.md:126-141]
+  confidence: confirmed
+
+- id: F-066
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: "The routine's ratchet blocks a merge only if the stewarded repository makes the routine job a required check and puts packet/ and .github/workflows/ under CODEOWNERS, settings the template cannot set or verify."
+  evidence: [routine/README.md:200-217]
+  confidence: confirmed
+
+- id: F-067
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: "A secret value never enters a run: gitleaks runs with --redact and ingest keeps rule id and location only, never the Secret, Match, Line or author fields."
+  evidence: [map/start.mjs:129, map/ingest.mjs:72-73, map/ingest.mjs:89, map/ingest.mjs:592]
+  confidence: confirmed
+
+- id: F-068
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: "The report's colophon discloses that findings were drafted by model-driven scanners and names the models of record from the run record."
+  evidence: [views/improve/report.mjs:301-311]
+  confidence: confirmed

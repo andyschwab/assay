@@ -1,0 +1,133 @@
+# Pass 2 — context economy. Module census (terrain.md, 8 load-bearing directories): one
+# finding per module, subject_type artifact, met = loadable standalone from its own docs.
+- id: F-013
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The front door routes a stranger in one screen: a table of the four views and their data files,
+    the one rule, the architecture, a quickstart and a directory layout, and the agent contract
+    names which document owns which contract.
+  evidence: [README.md:1-28, README.md:168-181, CLAUDE.md:3-7]
+  confidence: confirmed
+- id: F-014
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The map/ module has no README of its own; it is loaded through map/METHOD.md (787 lines) and
+    map/SCHEMA.md (878 lines), and the method names SCHEMA.md authoritative, so a repo-eval session
+    loads both, about 1,665 lines, before reading the target.
+  evidence: [map/METHOD.md:265-273, map/SCHEMA.md:5-12, README.md:131-132]
+  confidence: confirmed
+- id: F-015
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/scanners/ is loadable standalone: CONTRACT.md is the one home of the axis model, the port,
+    the adapter format and the fail-closed rule, and CANDIDATES.md holds the roster of candidates.
+  evidence: [map/scanners/CONTRACT.md:7-15, map/scanners/CANDIDATES.md:5]
+  confidence: confirmed
+- id: F-016
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/ is loadable standalone: its README states the row fields, the four deciding kinds,
+    the instruments that decide rows and how to run measure, since and ratchet.
+  evidence: [yardstick/README.md:1-12, yardstick/README.md:51-73, yardstick/README.md:122-133]
+  confidence: confirmed
+- id: F-017
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    views/ is loadable standalone: its README gives each view's command, data file and schema, and
+    states that a view decides no requirement on its own.
+  evidence: [views/README.md:1-20]
+  confidence: confirmed
+- id: F-018
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    owner/ has no index file but each of its three documents opens with frontmatter naming what it
+    is, and the front door routes to all three.
+  evidence: [owner/PACKET.md:1-8, owner/evidence/README.md:5, README.md:86-96]
+  confidence: confirmed
+- id: F-019
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    routine/ is loadable standalone: its README is the contract for what the routine produces, what
+    it runs and never does, its two jobs, the baseline, installation and local runs.
+  evidence: [routine/README.md:1-18, routine/README.md:84-110, routine/README.md:183-218]
+  confidence: confirmed
+- id: F-020
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/ is five small modules (15 to 153 lines) each opening with a header comment stating its one
+    job, and run-layout.mjs is declared the only module that builds a run path.
+  evidence: [lib/run-layout.mjs:1-6, lib/run-data.mjs:1-8, lib/yaml-min.mjs:1-6, lib/check-syntax.mjs:1-4]
+  confidence: confirmed
+- id: F-021
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    tests/ holds the whole regression harness in one 5,034-line file of about 80 sections, so a
+    task touching one invariant loads or searches the single file rather than a bounded test module.
+  evidence: [tests/regression.mjs:1-19, tests/regression.mjs:146, tests/regression.mjs:5032]
+  confidence: confirmed
+- id: F-022
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The authoritative run layout in SCHEMA.md section 5 lists INDEX, INTAKE, MAINTAIN and IMPROVE
+    pages and intake/maintain/improve data files but omits OWNER.md, SINCE.md, views/owner.yaml,
+    views/since.yaml and routine.yaml, all of which lib/run-layout.mjs places.
+  evidence: [map/SCHEMA.md:274-296, lib/run-layout.mjs:8-12, lib/run-layout.mjs:27, lib/run-layout.mjs:41]
+  confidence: confirmed
+- id: F-023
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/run-data.mjs cites "SCHEMA.md §5c" as the home of the run-data schemas, but SCHEMA.md has
+    sections 5a and 5b only.
+  evidence: [lib/run-data.mjs:1-3, map/SCHEMA.md:323, map/SCHEMA.md:435]
+  confidence: confirmed
+- id: F-024
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    The front door's and contracts' statements are pinned to the code by a doc-consistency block in
+    the harness that reads each claim off the code (the view count from run-layout, ground rules
+    from CLAUDE.md), so drift in those statements turns the suite red.
+  evidence: [tests/regression.mjs:4482-4500]
+  confidence: confirmed
+- id: F-025
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    The run record can carry the model and the spend of each judgment scanner and of each repo-eval
+    pass, renderers name them, and variance reports fact agreement per model pair.
+  evidence: [map/SCHEMA.md:359-385, README.md:135-136]
+  confidence: confirmed
+- id: F-026
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    No file records which model tier the repo-eval method should run on, why, or a re-qualification
+    step when a model ships; the model and spend fields are optional per run, and spend is never
+    required.
+  evidence: [map/SCHEMA.md:359-381, README.md:131-136, map/METHOD.md:155-159]
+  confidence: confirmed

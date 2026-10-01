@@ -1,0 +1,139 @@
+# map/findings/repo-eval-gates.yaml — Pass 3, deterministic gates, over assay at c30912c
+# (blind sweep 3). Census-augmented: one finding per interface contract (gates-coverage
+# population, subject_type contract), then the CI and harness facts.
+
+- id: F-024
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    CI runs on every push to main and every pull request, on Node 20 and 22, executing
+    npm ci, lint, typecheck, build and the regression harness, with a read-only token, a
+    timeout, and actions pinned to commit SHAs.
+  evidence: [.github/workflows/ci.yml:8-31, .github/workflows/ci.yml:47]
+  confidence: confirmed
+
+- id: F-025
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: control
+  observation: >
+    The `lint` and `build` scripts are the same syntax check (node --check over every tracked
+    engine module); no linter with style or correctness rules runs.
+  evidence: [package.json:10-12, lib/check-syntax.mjs:1-15]
+  confidence: confirmed
+
+- id: F-026
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The typecheck runs tsc with checkJs over every engine module directory (root, lib, map,
+    owner, routine, views, yardstick); the tests directory is outside its include list.
+  evidence: [tsconfig.json:1-12, package.json:11]
+  confidence: confirmed
+
+- id: F-027
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    Each validator rule has a negative fixture that must validate red for its own named
+    violation and for no other, so removing a rule or breaking a fixture turns the harness red.
+  evidence: [tests/regression.mjs:72-133, tests/regression.mjs:146-158]
+  confidence: confirmed
+
+- id: F-028
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    `--bless` of golden.json refuses to write while any unit or negative assertion fails, so
+    only pinned scores can be re-blessed, never a failing invariant.
+  evidence: [tests/regression.mjs:4988-5005, CLAUDE.md:47-50]
+  confidence: confirmed
+
+- id: F-029
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The finding schema is enforced by a zero-dependency validator that fails closed on any
+    input it cannot parse, on closed-vocabulary violations, missing facets, unresolved links,
+    and (with --target) citations to missing files or lines past a file's end.
+  evidence: [map/validate.mjs:1-12, map/SCHEMA.md:747-790]
+  confidence: confirmed
+
+- id: F-030
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The scanner adapter projection fails closed: a native category with no mapping row halts,
+    and a harness assertion pins that halt.
+  evidence: [map/project.mjs:13, map/scanners/CONTRACT.md:520-528, tests/regression.mjs:166-169]
+  confidence: confirmed
+
+- id: F-031
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A repository's packet is validated strictly and defensively as data from outside the
+    engine, with one negative fixture per packet rule.
+  evidence: [yardstick/packet.mjs:1-14, tests/regression.mjs:2208]
+  confidence: confirmed
+
+- id: F-032
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run's data files (chains.json, sequence.json, the backlog halves) have schema checks
+    the writer applies before writing and the validator reads back, fail-closed, including
+    ids that drifted from the base.
+  evidence: [lib/run-data.mjs:1-8, tests/regression.mjs:4647]
+  confidence: confirmed
+
+- id: F-033
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run manifest is a validator-enforced contract: a run with no record, a skip with no
+    reason, a ran with no rows, or rows from a scanner recorded as not run all fail.
+  evidence: [map/SCHEMA.md:323-346, tests/regression.mjs:91-97]
+  confidence: confirmed
+
+- id: F-034
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The harness holds the engine's own CI workflow to the same invariants as the shipped
+    routine template (SHA pins, read-only contents, timeouts, every declared Node major),
+    so the workflow cannot drift from what the engine demands of others.
+  evidence: [tests/regression.mjs:3505-3515, .github/workflows/ci.yml:1-6]
+  confidence: confirmed
+
+- id: F-035
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: control
+  observation: >
+    No pre-commit hook configuration is in the tree, and whether the CI check is required
+    before merge on main is a repository setting the tree does not show; the documented gate
+    is running npm test before a pull request.
+  evidence: [CONTRIBUTING.md:4-5, .github/workflows/ci.yml:8-14]
+  confidence: unverified
+
+- id: F-036
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: control
+  observation: >
+    The CI test step runs the harness, which shells out to the instruments over the in-repo
+    fixtures (fresh-clone and dependency-scan included), so the gate itself exercises the
+    package-manager and install paths on the runner.
+  evidence: [.github/workflows/ci.yml:47, tests/regression.mjs:713, tests/regression.mjs:1019, tests/regression.mjs:3721]
+  confidence: plausible

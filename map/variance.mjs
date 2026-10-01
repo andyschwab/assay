@@ -38,7 +38,9 @@
 //      not repeatable even though the base looks like it is. Measured in the field,
 //      off-repo, before tests/sweeps/ existed, on a cross-run pair (both canon-pinned,
 //      so channel identity was solved): 26 shared channels, descriptors identical on 8
-//      (31%). The figure the tree reproduces is a committed sweep set's (THE GATE below).
+//      (31%). The figure the tree reproduces is a committed sweep set's (THE GATE below):
+//      the first blind set over this repository (tests/sweeps/assay-2026-10-01, three
+//      fresh contexts at c30912c) read 38% fact presence and 20% descriptor agreement.
 //
 // The DIRECTION of divergence separates the two explanations. If every divergence moves
 // the same way, that is consistent with the TARGET having changed between runs. If they

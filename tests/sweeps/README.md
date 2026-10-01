@@ -48,9 +48,15 @@ threshold change is a reviewed change to `SWEEP.yaml`, never a silent drift.
   fixture's repo-eval passes with one finding dropped and one descriptor re-judged.
   It proves the gate reads the number and can go red; it says nothing about the
   method's repeatability.
-- A blind set over this repository is the measurement that earns the figures
-  `map/METHOD.md` and `map/SCHEMA.md` cite. It needs model time: N (at least three)
-  fresh-context `repo-eval` runs over one pinned commit, each recorded with its model,
-  committed here as `assay-<date>/` with `blind: true` and a threshold set at or below
-  what it measured. Until it lands, those figures are field measurements taken
-  off-repo before this gate existed.
+- `assay-2026-10-01/`: **blind**, over this repository at `c30912c` (method at the same
+  commit): three fresh-context `repo-eval` runs, each a child session that never saw an
+  answer sheet, the other sweeps, or this directory, all recorded with their model
+  (`claude-opus-5-5` on every pass). Measured: 24 union facts, 9 caught by all three
+  (fact presence 38%); 17 effect channels, 5 shared by two or more sweeps, 1 identical
+  on all six descriptors (descriptor agreement 20%), with divergences in both directions.
+  The threshold is set at the measurement. This is the figure `map/METHOD.md` and
+  `map/SCHEMA.md` cite for the method's repeatability; the field figures they also
+  quote were taken off-repo before this gate existed and are history. A new blind set
+  is `assay-<date>/`, run the same way (at least three fresh contexts over one pinned
+  commit, `blind: true`, threshold at or below what it measured) when `METHOD.md` or
+  `SCHEMA.md` moves.
