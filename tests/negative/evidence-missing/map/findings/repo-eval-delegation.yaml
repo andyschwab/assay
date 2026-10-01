@@ -1,0 +1,7 @@
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    A claim that cites nothing.
+  confidence: confirmed

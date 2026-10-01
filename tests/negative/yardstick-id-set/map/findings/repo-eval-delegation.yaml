@@ -1,0 +1,11 @@
+# Minimal valid base for the yardstick id-set negative fixture.
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    An exposure exists for the sidecar fixture to reference.
+  evidence: [a.py:1]
+  confidence: confirmed
+  fix: >
+    Close it.

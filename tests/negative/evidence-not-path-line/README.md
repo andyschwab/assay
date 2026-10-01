@@ -1,0 +1,1 @@
+Negative fixture: evidence items that are not path:line citations — one names a file with no line, one is a map, not a string (SCHEMA.md §1: evidence is a list of path:line). validate must reject both.

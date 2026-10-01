@@ -1,0 +1,20 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
+engine: fixture
+scanners:
+  repo-eval:
+    status: ran
+  deep-code-review:
+    status: skipped
+    reason: "fixture run: the code scanner was not executed over this public target"
+  gitleaks:
+    status: skipped
+    reason: "fixture: no instrument run over this synthetic base"
+  fresh-clone:
+    status: skipped
+    reason: "fixture: the fresh-clone run was not executed over this base"
+  dependency-scan:
+    status: skipped
+    reason: "fixture: the dependency-scan run was not executed over this base"
+  repo-census:
+    status: skipped
+    reason: "fixture: the repo census was not executed over this base"

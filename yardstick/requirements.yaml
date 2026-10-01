@@ -238,6 +238,7 @@ requirements:
       kind: instrument
       scanner: fresh-clone
       category: [install, build]
+      not_measured_when: [install-not-run, build-not-run]
     check: the fresh-clone install and build steps both read passed from a clean checkout (map/fresh-clone.mjs), root and every workspace; an undeclared build reads unmet, the same as an undeclared lint or test gate — absence is not a pass
     sources: [floor/r-fresh-clone]
     status: draft
@@ -316,6 +317,7 @@ requirements:
       scanner: fresh-clone
       category: migrate
       not_applicable_when: no-database-signal
+      not_measured_when: migrate-not-run
     check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signal (file or dependency — Prisma, Knex, TypeORM, Supabase, Drizzle, a raw db/sql migrations folder, …) anywhere in the tree, fresh-clone records that it looked and found none, and the requirement reads not-applicable — never met, nothing was measured; a database signal with no migrate step declared reads unmet, never met
     sources: [floor/r-migrations, foundation/never-hand-apply-a-migration]
     status: draft
@@ -333,6 +335,7 @@ requirements:
       kind: instrument
       scanner: fresh-clone
       category: test
+      not_measured_when: test-not-run
     check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout; a suite that skips its core when a variable is unset is unmet
     sources: [floor/v-tests, manifest/d3-gates-live, foundation/pnpm-check]
     status: draft
@@ -376,6 +379,7 @@ requirements:
       kind: instrument
       scanner: fresh-clone
       category: [lint, typecheck]
+      not_measured_when: [lint-not-run, typecheck-not-run]
     check: the fresh-clone lint and typecheck steps both read passed from a clean checkout; never the raw output
     sources: [floor/v-lint, scanner-candidates/inverted-mode]
     status: draft

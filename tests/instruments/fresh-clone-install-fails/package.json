@@ -1,0 +1,19 @@
+{
+  "name": "fresh-clone-install-fails",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public known-answer fixture for map/fresh-clone.mjs (issue #30, F-1202): the install fails in a clean checkout (its own preinstall script exits 1, so no network is reached), and every later declared step (build, lint, typecheck, test, migrate) is skipped, never run.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "fresh-clone-absent": "file:./absent"
+  },
+  "scripts": {
+    "preinstall": "node -e \"process.exit(1)\"",
+    "build": "node -e \"process.exit(0)\"",
+    "lint": "node -e \"process.exit(0)\"",
+    "typecheck": "node -e \"process.exit(0)\"",
+    "test": "node -e \"process.exit(0)\"",
+    "migrate": "node -e \"process.exit(0)\"",
+    "migrate:dry": "node -e \"process.exit(0)\""
+  }
+}

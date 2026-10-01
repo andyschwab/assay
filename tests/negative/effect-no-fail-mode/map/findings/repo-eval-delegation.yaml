@@ -1,0 +1,15 @@
+- id: F-001
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    A gated, reversible, internal effect that never says whether its gate fails open or closed.
+  evidence: [a.py:1]
+  confidence: confirmed
+  effect:
+    channel: cache-write
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    telemetry: structured-event
+    blast_scope: user

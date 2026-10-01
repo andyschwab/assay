@@ -486,8 +486,9 @@ Re-run it after the views and after Pass 9 (it then also checks the gate sidecar
 the report's citations).
 
 When the target repo is available in-session (it usually is), run it with
-`--target <target-repo>` too: it verifies **every evidence path resolves to a real
-file** in the target, failing closed on a cited path that does not exist — the
+`--target <target-repo>` too (and pass the same flag to `compile`): it verifies **every
+evidence path resolves to a real file** in the target and every cited line is inside
+it, failing closed on a cited path that does not exist or a line past its end — the
 "agent cited a plausible path it never opened" class. A confirmed-*absence* finding
 ("no CI") must cite what it *did* inspect (the human-run gate that exists instead),
 not the missing path, and state the absence in the observation.

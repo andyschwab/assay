@@ -136,7 +136,7 @@ node assay.mjs record <run> repo-eval ran                          # or record o
 node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed
 
 # measure and write every view from the same map
-node assay.mjs compile <run>
+node assay.mjs compile <run> [--target <target>]
 
 # what changed since a previous run, and holding the line on it
 node assay.mjs compile <run> --since <prev-run>              # + SINCE.md

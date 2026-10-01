@@ -252,7 +252,7 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, 
     if (baseContent !== null) writeFileSync(join(packetDir, 'manifest.yaml'), baseContent);
   }
   const hasPacket = existsSync(join(packetDir, 'manifest.yaml'));
-  const compileArgs = [outDir];
+  const compileArgs = [outDir, '--target', repoDir];
   if (hasPacket) compileArgs.push('--packet', packetDir);
   if (since) compileArgs.push('--since', resolve(since));
   say(`· compile ${hasPacket ? '(with packet) ' : ''}${since ? '(with since) ' : ''}…`);

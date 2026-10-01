@@ -1,0 +1,8 @@
+- id: F-001
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    An effect finding that never says what the effect is.
+  evidence: [a.py:1]
+  confidence: confirmed

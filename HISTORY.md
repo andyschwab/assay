@@ -878,3 +878,64 @@ what the public engine learned.
   and the `ci-workflow` install check were confirmed red against the old code
   (4 failures without gitleaks, 14 with it) before the change. Goldens
   untouched.
+- **2026-10-01 — the harness goes red when one of its own rules is removed, and
+  bless never reads green over red** (issue #52). Of eight validator rules
+  disabled one at a time, the harness had caught only filename-dimension
+  agreement; the evidence key, the `d-gates-fail-closed` decider (its
+  assertion sat behind a condition that was always false) and the canon check
+  were unpinned too; `--bless` rewrote `golden.json` and exited 0 before the
+  unit and negative failures were read; and `--target` checked only that a
+  cited file existed, never the line, while compile's gate never passed it.
+  Now every validator rule has a negative fixture red for its own reason
+  (`bad-polarity`, `effect-no-facet`, `effect-no-fail-mode`,
+  `halt-no-preconditions`, `capability-not-boolean`, `link-unknown`,
+  `unprompted-gap-no-axis`, `evidence-missing`, `external-evidence-missing`);
+  evidence entries must be `path:line` strings (`evidence-not-path-line`;
+  three older fixtures that cited a map were corrected); `--target` refuses a
+  cited line past the end of its file (`evidence-line-past-end`; the
+  `evidence-not-in-target` stubs are padded so only their missing file is
+  red); the yardstick drift check compares the id set, not only the count
+  (`yardstick-id-set`); `compile --target` forwards the target to its validate
+  gate and the routine passes it; validate's unheld-halt rule is
+  `map/doctrine.mjs`'s `isHalt`, not a restatement; and `--bless` refuses,
+  writing nothing and exiting 1, while any unit, negative or scorer failure
+  stands. New harness blocks `canon`, `run-layout` (the run's paths pinned
+  as literals), `compile-target` and `bless-guard`, and the
+  `d-gates-fail-closed` assertion made unconditional. Each was confirmed red
+  by disabling the rule or property it pins in a scratch copy (twenty
+  mutations, each red for its own reason; the environment scrub was already
+  pinned by the `isolation` block). Goldens untouched.
+- **2026-10-01 — a test step that passed with tests skipped says so** (issue
+  #30). A clean checkout with no database read `test: passed` while the runner's
+  own summary said 330 of 551 tests skipped themselves: `runSteps` judged the
+  step by exit code alone. The fresh-clone runner (0.4.0) now reads the common
+  runners' summaries (vitest, jest, node:test tap and spec, pytest, go test -v)
+  from the test step's whole output into `tests: {passed, skipped, failed,
+  total}`, or records `tests: unparsed`, plus `test_config` when a config file
+  sits beside it. The step status stays `passed`; ingest adds one `test:skipped`
+  gap row stating the share, citing the test config (else the manifest), whose
+  fix names a database where the tree carries a database signal; malformed
+  counts halt the converter. Any skip at all emits the row (the share is in the
+  observation for a view to weigh), rather than a threshold the method does not
+  yet have. A new public fixture (`tests/instruments/fresh-clone-skips`, 2
+  passing and 3 skipped behind `DATABASE_URL`) and the `test-skips` block were
+  confirmed red against the old code (12 failures, with `parseTestCounts`
+  stubbed to null) before the change. Goldens untouched.
+- **2026-10-01 — a step that did not run reads not measured, never met** (issue
+  #30, the rest of the roadmap plan on it). When the install failed, fresh-clone
+  marked every later step `skipped`, ingest wrote no row for a skipped step, and
+  a category with no rows reads met: a repository whose install failed read met
+  on tests, lint, typecheck and migrations. Ingest now writes one
+  `<step>-not-run` fact row per skipped step, mapped beside its step, and the
+  four fresh-clone requirements name those facts in `decide.not_measured_when`
+  (the existing evidence-condition mechanism; a real gap in the category still
+  governs). The same pass closes three more ways a run that did not look read
+  clean: `--exit` must be digits (`Number('')` is 0, so an unset `$code` filed
+  an empty report as verified clean); the gitleaks profile refuses an exit code
+  that disagrees with its leak count, as the other instruments already did; and
+  the Owner view's lead reassures about custody, safety or the floor only when
+  no row there was could-not-tell, saying instead that who controls the app
+  could not be told. A new public fixture
+  (`tests/instruments/fresh-clone-install-fails`, a preinstall that exits 1)
+  and the `step-not-run` block were confirmed red against the old code (15
+  failures) before the change. Goldens untouched.

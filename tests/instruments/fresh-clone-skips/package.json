@@ -1,0 +1,10 @@
+{
+  "name": "fresh-clone-skips",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public known-answer fixture for map/fresh-clone.mjs (issue #30): a dependency-free package whose test step exits 0 with 2 tests passing and 3 skipped because DATABASE_URL is unset in a clean checkout.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test"
+  }
+}

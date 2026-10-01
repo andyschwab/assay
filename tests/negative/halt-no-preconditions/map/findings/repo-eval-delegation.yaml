@@ -1,0 +1,15 @@
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    An outbound send with no stop, whose chain difficulty is left to default.
+  evidence: [a.py:1]
+  confidence: confirmed
+  effect:
+    channel: outbound-send
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
