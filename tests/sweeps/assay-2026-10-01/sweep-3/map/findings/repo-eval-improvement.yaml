@@ -1,0 +1,134 @@
+# map/findings/repo-eval-improvement.yaml — Pass 6, improvement loop, over assay at
+# c30912c (blind sweep 3). Census-augmented: one finding per incident/lesson the tree
+# records as having become a mechanism (subject_type process), then the spec, review,
+# impact and instrumentation facts.
+
+- id: F-075
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md is an agent spec that accumulates the repository's rules (six ground rules, the
+    checks, how a change lands) and states that taste the code relies on is written there or
+    in the owning contract, never only in a code comment.
+  evidence: [CLAUDE.md:9-37, CLAUDE.md:47-58]
+  confidence: confirmed
+
+- id: F-076
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Engine learnings have a stated durable home (an issue on the tracker, landed as a reviewed
+    change that cites it with a HISTORY.md entry), and the mechanism is in use: engine code and
+    harness blocks cite the issues that produced them (#30, #47, #49, #50, #51, #53, #57).
+  evidence: [CLAUDE.md:51-58, CONTRIBUTING.md:11-12, map/child-env.mjs:1-2, tests/regression.mjs:808, tests/regression.mjs:4392-4393, tests/regression.mjs:4588]
+  confidence: confirmed
+
+- id: F-077
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson of a package that shipped with a queued code scanner never invoked became the
+    run manifest and three negative fixtures that pin it.
+  evidence: [map/SCHEMA.md:327-331, tests/regression.mjs:91-97]
+  confidence: confirmed
+
+- id: F-078
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson of a run that certified "no docker-socket mount" after inspecting only one
+    container class became the method's no-strength-over-an-unenumerated-population rule and
+    the enumerate tool's container-class listing.
+  evidence: [map/METHOD.md:42-48, map/METHOD.md:106-115, map/enumerate.mjs:75-80]
+  confidence: confirmed
+
+- id: F-079
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson of a test step that read passed while 330 of 551 tests skipped became the
+    parsed test counts on fresh-clone's test step and a harness block that pins them.
+  evidence: [tests/regression.mjs:808-812, map/fresh-clone.mjs:17-20]
+  confidence: confirmed
+
+- id: F-080
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson of a negative fixture that was red sixteen ways, fifteen for stale reasons,
+    became the harness rule that each negative fixture must be red for its own named violation
+    and no other.
+  evidence: [tests/regression.mjs:79-86, tests/regression.mjs:154-157]
+  confidence: confirmed
+
+- id: F-081
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The pull request template asks for concrete verification evidence (harness output, a new
+    invariant confirmed red with its rule reverted, a re-blessed golden.json with the reason)
+    rather than intent.
+  evidence: [.github/PULL_REQUEST_TEMPLATE.md:1-11]
+  confidence: confirmed
+
+- id: F-082
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Every run has a defined second output for the engine itself: a computed backlog of
+    coverage and evidence gaps (backlog.mjs) and an authored half with surprise notes, both
+    schema-checked by the validator.
+  evidence: [map/backlog.mjs:1-24, map/METHOD.md:760-787]
+  confidence: confirmed
+
+- id: F-083
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The red-then-green rule (revert the pinned rule, see the assertion fail for its own reason,
+    restore) is a written process whose evidence of use is a HISTORY.md entry per change; no
+    tool re-performs it, and HISTORY.md was not read in this blind sweep.
+  evidence: [CLAUDE.md:47-50, CONTRIBUTING.md:6-7]
+  confidence: unverified
+
+- id: F-084
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine measures its own worth on known answers: recall per scored fixture and the
+    control's false-positive count are pinned, and repeatability is reported as fact presence
+    and descriptor agreement with the direction of each divergence.
+  evidence: [tests/regression.mjs:135-141, README.md:152-166]
+  confidence: confirmed
+
+- id: F-085
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The artifact emits structured outcome records by design: the run record names each
+    scanner's status, reason, model and spend, and the routine writes routine.yaml on every
+    path so a fleet collector reads the outcome from the artifact alone.
+  evidence: [map/SCHEMA.md:323-385, routine/README.md:37-45]
+  confidence: confirmed
+
+- id: F-086
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The engine emits no usage telemetry of its own (it runs no service and keeps no store
+    beyond the run directory); per-run spend is recorded only when the operator passes
+    --spend to record.
+  evidence: [README.md:98-101, map/SCHEMA.md:376-382]
+  confidence: confirmed
