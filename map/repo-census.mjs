@@ -57,7 +57,11 @@
 // document never reads the body past line counts — a transcript can hold
 // operational detail. Every observation, pass, gap or not-measured, says this
 // check verifies the transcript's shape, freshness and commit, never the truth
-// of what it describes. Full format: owner/evidence/README.md.
+// of what it describes. Full format: owner/evidence/README.md. The six apply only
+// where the tree shows a deployment: with no deployment signal anywhere in the
+// tree (findDeploymentSignals below; the list is map/scanners/CONTRACT.md §3d's),
+// each reads `not-applicable`, citing the root, never `pass`; the document's
+// `deployment` field records every signal found.
 //
 // Fail loud, never empty: `exit` is 1 when any check is `gap`, 0 when every check is
 // `pass`, `not-applicable`, or `not-measured` (the checkout could not confirm a
@@ -873,6 +877,87 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   };
 }
 
+// ── the deployment signal (the six evidence checks' applicability) ──────────
+// The six owner-evidence checks ask for proof about a DEPLOYED application: a
+// backup restored, a deploy, a rollback, a smoke check, an alert, a cost alert.
+// A tree with nothing deployed (a library, a command-line tool) has none of these
+// to prove, so each check reads `not-applicable` — never `pass` — when the walk
+// below finds no deployment signal ANYWHERE in the tree (the database-signal
+// shape: a root-only read once filed a false fact over a monorepo). Conservative,
+// any doubt keeps the checks measured: one signal of any kind is enough, a walk
+// cut short counts as a signal, and the signal list is the contract's
+// (map/scanners/CONTRACT.md §3d), never widened silently.
+const DEPLOY_WALK_SKIP = new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__']);
+const DEPLOY_WALK_LIMIT = 20000;   // entries; a tree past this is not ruled out — it reads as a signal
+const CONTAINER_RE = /^(dockerfile(\..+)?|.+\.dockerfile|containerfile|(docker-)?compose(\..+)?\.ya?ml)$/i;
+const HOSTING_FILES = new Set(['vercel.json', 'now.json', 'netlify.toml', 'fly.toml', 'render.yaml', 'railway.json', 'railway.toml',
+  'procfile', 'app.yaml', 'app.yml', 'app.json', 'heroku.yml', 'firebase.json', 'wrangler.toml', 'wrangler.json', 'wrangler.jsonc',
+  'amplify.yml', 'apprunner.yaml', 'dockerrun.aws.json', '.platform.app.yaml', 'cloudbuild.yaml', 'cloudbuild.yml', 'appspec.yml', 'samconfig.toml']);
+const IAC_FILES = new Set(['pulumi.yaml', 'pulumi.yml', 'serverless.yml', 'serverless.yaml', 'cdk.json', 'chart.yaml', 'kustomization.yaml', 'kustomization.yml', 'skaffold.yaml']);
+const IAC_RE = /\.(tf|tfvars|bicep)$/i;
+const CI_FILES = new Set(['.gitlab-ci.yml', 'azure-pipelines.yml', 'bitbucket-pipelines.yml', 'jenkinsfile']);
+const SERVER_ENTRY_RE = /^(server\.(m?[jt]s|cjs|py|go|rb)|manage\.py|wsgi\.py|asgi\.py)$/i;
+const SERVER_DEPS = new Set(['express', 'fastify', 'koa', 'hapi', '@hapi/hapi', 'restify', 'hono', 'next', 'nuxt', '@nestjs/core',
+  '@remix-run/node', '@remix-run/serve', '@sveltejs/kit', 'sails', '@adonisjs/core']);
+const SERVER_SCRIPT_RE = /^(start|serve|deploy)(:|$)/;
+const PY_MANIFEST_RE = /^(requirements.*\.txt|pyproject\.toml|pipfile)$/i;
+const PY_SERVER_RE = /^\s*["']?(flask|django|fastapi|starlette|uvicorn|gunicorn|aiohttp|tornado|sanic)\b/im;
+const DEPLOY_WORD_RE = /\bdeploy/i;
+function packageJsonSignal(text) {
+  let pkg; try { pkg = JSON.parse(text); } catch { return null; }
+  if (!pkg || typeof pkg !== 'object') return null;
+  const script = Object.keys(pkg.scripts || {}).find((k) => SERVER_SCRIPT_RE.test(k));
+  if (script) return `a "${script}" script`;
+  for (const sec of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+    const dep = Object.keys(pkg[sec] || {}).find((d) => SERVER_DEPS.has(d));
+    if (dep) return `a ${dep} dependency`;
+  }
+  return null;
+}
+export function findDeploymentSignals(dir, { evidencePointer = null } = {}) {
+  const signals = [];
+  const add = (kind, path, what) => signals.push({ kind, path, what });
+  // the owner already keeps (or points at) an evidence directory: they treat this as deployed
+  if (evidencePointer) add('evidence', evidencePointer.replace(/\/$/, ''), "the packet's evidence pointer");
+  for (const base of ['ops', 'docs']) if (statOk(join(dir, base, 'evidence'), (s) => s.isDirectory())) add('evidence', `${base}/evidence`, 'an owner evidence directory');
+  let seen = 0, truncated = false;
+  const walk = (rel) => {
+    for (const e of safeReaddir(rel ? join(dir, rel) : dir).sort()) {
+      if (++seen > DEPLOY_WALK_LIMIT) { truncated = true; return; }
+      const p = rel ? `${rel}/${e}` : e;
+      const abs = join(dir, p);
+      if (statOk(abs, (s) => s.isDirectory())) {
+        if (!DEPLOY_WALK_SKIP.has(e)) walk(p);
+        if (truncated) return;
+        continue;
+      }
+      if (!statOk(abs, (s) => s.isFile())) continue;
+      const lower = e.toLowerCase();
+      if (CONTAINER_RE.test(e)) add('container', p, 'a container file');
+      else if (HOSTING_FILES.has(lower)) add('hosting', p, 'a hosting config');
+      else if (IAC_FILES.has(lower) || IAC_RE.test(e)) add('infrastructure', p, 'infrastructure-as-code or a service manifest');
+      else if (SERVER_ENTRY_RE.test(e)) add('server', p, 'a server entry point');
+      else if (lower === 'package.json') { const w = packageJsonSignal(safeRead(abs) || ''); if (w) add('server', p, w); }
+      else if (PY_MANIFEST_RE.test(e)) { if (PY_SERVER_RE.test(safeRead(abs) || '')) add('server', p, 'a Python web framework dependency'); }
+      if ((/^\.github\/workflows\/[^/]+\.ya?ml$/i.test(p) || CI_FILES.has(lower) || /^\.circleci\/config\.ya?ml$/i.test(p)) && DEPLOY_WORD_RE.test(safeRead(abs) || '')) {
+        add('deploy-workflow', p, 'a CI workflow that deploys');
+      }
+    }
+  };
+  walk('');
+  if (truncated) add('unwalked', '.', `a tree past ${DEPLOY_WALK_LIMIT} entries, not walked to the end (not ruled out)`);
+  return { signals, walked: Math.min(seen, DEPLOY_WALK_LIMIT), truncated };
+}
+const DEPLOYMENT_LOOKED_FOR = 'a container file, a hosting config, infrastructure-as-code or a service manifest, a CI workflow that deploys, a server entry point, start script or web-framework dependency, or an owner evidence directory';
+function evidenceNotApplicable(id) {
+  return {
+    name: `evidence-${id}`, status: 'not-applicable',
+    detail: { path: '.', descriptor: id, file: null },
+    evidence: ['./:1'],
+    observation: `No deployment signal found anywhere in the tree (looked for ${DEPLOYMENT_LOOKED_FOR}) — nothing here is deployed, so ${id} is not applicable, not merely unevidenced.`,
+  };
+}
+
 // ── the run ──────────────────────────────────────────────────────────────────
 // exported so other callers reading a checkout's own identity (routine/run.mjs's
 // routine.yaml) reuse this exact "is dir itself a repo root" check, rather than
@@ -937,7 +1022,10 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) throw new Error(`--as-of must be YYYY-MM-DD (got "${asOfDate}")`);
   if (!(Number(evidenceMaxAgeDays) > 0)) throw new Error(`--evidence-max-age must be a positive number of days (got "${evidenceMaxAgeDays}")`);
   if (pointers.evidence) note('evidence');
-  for (const id of EVIDENCE_IDS) checks.push(checkEvidenceRow(dir, id, asOfDate, Number(evidenceMaxAgeDays), pointers.evidence || null));
+  const deployment = findDeploymentSignals(dir, { evidencePointer: pointers.evidence || null });
+  for (const id of EVIDENCE_IDS) {
+    checks.push(deployment.signals.length ? checkEvidenceRow(dir, id, asOfDate, Number(evidenceMaxAgeDays), pointers.evidence || null) : evidenceNotApplicable(id));
+  }
   const exit = checks.some((c) => c.status === 'gap') ? 1 : 0;
   const target_ = { path: target, head: gitHead(dir) };
   const remote = gitRemote(dir);
@@ -945,6 +1033,7 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   const doc = {
     tool: 'repo-census', version: VERSION, target: target_, monorepo: mono,
     evidence: { asOf: asOfDate, maxAgeDays: Number(evidenceMaxAgeDays) },
+    deployment,
     checks, exit,
   };
   if (packetDoc) doc.packet = { path: packetFile, auto: packetAuto, pointers_used: [...pointersUsed].sort() };

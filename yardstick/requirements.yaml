@@ -207,8 +207,9 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-backup-restore-exercised
+      not_applicable_when: evidence-d-backup-restore-exercised-not-applicable
       not_measured_when: evidence-d-backup-restore-exercised-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-backup-restore-exercised.md naming the backup, the scratch instance restored into, and the data check that verified it; whether the restore truly happened rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
     sources: [floor/s-backup, foundation/nightly-restore]
     status: draft
     owner:
@@ -284,8 +285,9 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-deploy-one-command
+      not_applicable_when: evidence-d-deploy-one-command-not-applicable
       not_measured_when: evidence-d-deploy-one-command-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-deploy-one-command.md naming the one deploy command and the deployed build's reported sha, which must equal the transcript's own commit (else a gap); whether the deploy truly ran rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
     sources: [floor/r-deploy, foundation/deploy-and-promote]
     status: draft
     owner:
@@ -300,8 +302,9 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-rollback-exercised
+      not_applicable_when: evidence-d-rollback-exercised-not-applicable
       not_measured_when: evidence-d-rollback-exercised-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-rollback-exercised.md naming the from/to versions and the check run afterward; whether the rollback truly happened rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
     sources: [floor/r-rollback, foundation/promote]
     status: draft
     owner:
@@ -395,8 +398,9 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-smoke-on-deployed
+      not_applicable_when: evidence-d-smoke-on-deployed-not-applicable
       not_measured_when: evidence-d-smoke-on-deployed-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-smoke-on-deployed.md naming the environment and the check run against it; whether the smoke check truly ran rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
     sources: [floor/v-smoke, foundation/doctor]
     status: draft
     owner:
@@ -568,8 +572,9 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-monitoring-with-alert
+      not_applicable_when: evidence-d-monitoring-with-alert-not-applicable
       not_measured_when: evidence-d-monitoring-with-alert-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
     sources: [floor/o-monitoring]
     status: draft
     owner:
@@ -584,8 +589,9 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: evidence-d-cost-alerts
+      not_applicable_when: evidence-d-cost-alerts-not-applicable
       not_measured_when: evidence-d-cost-alerts-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass
+    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
     sources: [floor/o-cost, foundation/budgets]
     status: draft
     owner:
