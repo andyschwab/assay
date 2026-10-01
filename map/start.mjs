@@ -21,7 +21,9 @@
 //                      in-place caller) ONLY under --allow-exec, because it
 //                      runs the target's own install, lifecycle scripts and
 //                      tests on this machine — without the flag it is recorded
-//                      skipped with that reason (#47); every OTHER adopted scanner (every adapter under
+//                      skipped with that reason (#47), and over a target that is
+//                      not a git repository's top level (an exported tree) it is
+//                      recorded skipped with that reason (#88); every OTHER adopted scanner (every adapter under
 //                      map/scanners/adapters/ without `adopted: false`) is
 //                      recorded skipped, plainly saying it has not run yet and
 //                      how to record it.
@@ -243,6 +245,15 @@ const pendingReasonFor = (_outArg) => (id) =>
 const GITLEAKS_ABSENT_HERE = 'gitleaks binary not on PATH where this run was drawn';
 const NO_TARGET_REASON = 'not yet run: ingesting its report records it ran';
 const NO_EXEC_REASON = "not run: fresh-clone runs the target's own install, lifecycle scripts and tests on this machine; re-run start with --allow-exec in a disposable container or VM, or ingest a fresh-clone report drawn there";
+// fresh-clone clones the target's committed head, so under --allow-exec a target
+// that is not its own repository's top level (an exported tree, or a subdirectory
+// of another checkout — `git clone` refuses both) is recorded skipped with this
+// reason before anything runs, never failed with git's own clone error (#88).
+const NOT_A_REPO_REASON = "not run: target is not a git repository; fresh-clone needs one (it clones the target's committed head) — run start against the repository's own checkout, or ingest a fresh-clone report drawn from one";
+function isRepoTopLevel(dir) {
+  const top = spawnSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  return top.status === 0 && realpathSync(String(top.stdout).trim()) === realpathSync(dir);
+}
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) runCli();
@@ -275,7 +286,7 @@ function runCli() {
   let rows = {};
   if (target) {
     const repoDir = resolve(target);
-    const freshCloneSkipReason = args.includes('--allow-exec') ? null : NO_EXEC_REASON;
+    const freshCloneSkipReason = !args.includes('--allow-exec') ? NO_EXEC_REASON : isRepoTopLevel(repoDir) ? null : NOT_A_REPO_REASON;
     rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), gitleaksAbsentReason: GITLEAKS_ABSENT_HERE, freshCloneSkipReason }, log);
   }
   // Every OTHER adopted scanner (today: none beyond the six drawOfflineMap

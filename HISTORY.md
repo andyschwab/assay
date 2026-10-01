@@ -1081,3 +1081,18 @@ what the public engine learned.
   was confirmed red against the old code (17 vocabulary failures, 80 unreferenced
   exports), against a planted second env builder, and against a producer
   status ingest has no case for. Goldens untouched.
+- **2026-10-01 — fresh-clone over a tree, not a repository** (#88, roadmap
+  item 17). `assay start <target> --allow-exec` over an exported tree (a
+  `git archive` unpacked into a directory) recorded fresh-clone failed with
+  git's own "repository does not exist", while every other instrument accepted
+  the tree. fresh-clone clones the target's committed head, so `start` now
+  checks, under `--allow-exec`, that the target is its own git repository's top
+  level (the same test gitleaks already makes) and otherwise records fresh-clone
+  skipped with "target is not a git repository; fresh-clone needs one" before
+  anything runs; `d-fresh-clone-runs` reads not measured over a tree, never
+  failed. The smaller of the issue's two fixes: copying the tree to measure it
+  was not taken. `assay help`'s start line, README and SCHEMA §5a say so. The
+  routine is untouched (its checkout is always a repository). The new
+  `start-tree` block (a tree in no repository, and one inside this checkout)
+  was confirmed red against the old code (three failures: both rows failed with
+  git's error, and the help line). Goldens untouched.

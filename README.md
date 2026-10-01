@@ -125,7 +125,8 @@ node assay.mjs help                                   # every command, grouped m
 # draw the map — one command makes the run, runs every offline instrument, and
 # records every other adopted scanner skipped, with how to record it once it runs.
 # fresh-clone executes the target's code, so it runs only under --allow-exec:
-# pass it in a disposable container or VM
+# pass it in a disposable container or VM. It clones the target, so it needs a
+# git repository: over a plain tree (an exported snapshot) it is recorded skipped
 node assay.mjs start --out <run> <target> [--allow-exec]
 
 #   repo-eval: open map/METHOD.md as the opening context of a coding-agent session
