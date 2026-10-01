@@ -28,7 +28,7 @@ import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterF
 import { isHalt } from '../map/doctrine.mjs';
 import { buildSupervision } from '../map/supervision.mjs';
 import { computeVariance } from '../map/variance.mjs';
-import { decideProjected } from '../map/decisions.mjs';
+import { decideProjected, loadDecisions } from '../map/decisions.mjs';
 import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
 import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
@@ -115,6 +115,12 @@ const NEGATIVE = [
   ['evidence-not-path-line', 'evidence that is not a path:line string (a bare file, a map)', /: evidence (?:"lib\/agent\.mjs"|\{"path":"lib\/agent\.mjs","lines":"1"\}) is not a path:line citation/],
   ['evidence-line-past-end', 'a citation to a line the cited file does not have', /evidence line (?:9|2-7) is past the end of lib\/agent\.mjs \(3 lines\)/, { target: 'target' }],
   ['yardstick-id-set', 'a yardstick.yaml with one row duplicated and one missing (the count still matches)', /^yardstick\.yaml: carries no row for d-credentials-enumerated/],
+  // the owner's triage overlay (owner/decisions.yaml) is validated, not trusted (#53, F-1231, F-617)
+  ['decisions-not-a-list', 'an owner/decisions.yaml whose top level is a map', /^owner\/decisions\.yaml: expected a top-level list of decisions/],
+  ['decisions-bad-action', 'a decision whose action is outside the closed set', /^owner\/decisions\.yaml\[0\]: bad action "waive"/],
+  ['decisions-accept-no-reason', 'an accept with no reason', /^owner\/decisions\.yaml\[0\]: accept needs a reason/],
+  ['decisions-by-email', 'a decision whose by is an email address', /^owner\/decisions\.yaml\[0\]: by must be a role or a handle/],
+  ['decisions-bad-snooze', 'a snooze_until that is not a YYYY-MM-DD date', /^owner\/decisions\.yaml\[0\]: snooze_until must be a YYYY-MM-DD date/],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -267,6 +273,16 @@ for (const [dir, what, expect, opts = {}] of NEGATIVE) {
   const snz = [{ finding: 'F-A', action: 'snooze', snooze_until: '2099-01-01' }];
   if (decideProjected(base, snz, '2026-01-01')[0].state !== 'snoozed') fail('an active snooze must read snoozed');
   if (decideProjected(base, snz, '2099-06-01')[0].state !== 'open') fail('an expired snooze must revert to open');
+  // (#53, F-1231) a map-shaped overlay is not "no decisions"; a well-formed one validates green
+  let threw = false; try { loadDecisions(join(HERE, 'negative', 'decisions-not-a-list')); } catch { threw = true; }
+  if (!threw) fail('loadDecisions over a map-shaped owner/decisions.yaml must throw, never read as no decisions');
+  const okRun = join(HERE, 'tmp-decisions-ok'); rmSync(okRun, { recursive: true, force: true });
+  cpSync(join(HERE, 'negative', 'decisions-bad-action'), okRun, { recursive: true });
+  writeFileSync(join(okRun, 'owner', 'decisions.yaml'), '- finding: F-001\n  action: snooze\n  reason: "waiting on the vendor fix"\n  snooze_until: 2026-11-14\n  by: platform-eng\n  at: 2026-08-14\n');
+  const okV = spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), okRun], { encoding: 'utf8' });
+  if (okV.status !== 0) fail(`a well-formed owner/decisions.yaml must validate green (got exit ${okV.status}: ${String(okV.stdout + okV.stderr).split('\n').filter((l) => l.includes('•')).join(' | ')})`);
+  if (loadDecisions(okRun).length !== 1) fail('a well-formed owner/decisions.yaml must load its one decision');
+  rmSync(okRun, { recursive: true, force: true });
 }
 
 // ── maturity-ladder invariants: every native dimension is scorable ────────────

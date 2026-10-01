@@ -1,0 +1,5 @@
+- finding: F-001
+  action: waive
+  reason: "the contractor owns this until the handover"
+  by: platform-eng
+  at: 2026-08-14

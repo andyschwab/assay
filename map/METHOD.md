@@ -620,7 +620,10 @@ base always compiles the full package. If — and only if — an owner triages, 
 `owner/decisions.yaml` (accept/fix/investigate/snooze + reason + who/when, root's own
 decision model) and every compiler folds it in: an accepted gap leaves the open count
 and reads **accepted** (waived), distinct from **held** (earned); a snooze reappears
-at expiry. The interview may never happen, and the package never waits for it.
+at expiry. The interview may never happen, and the package never waits for it. When
+the file is present `validate` checks it, fail-closed: a list, one item per finding the
+run carries, an action from the closed set, a reason on every accept and snooze,
+`YYYY-MM-DD` dates, and `by` as a role or a handle, never an email address or a name.
 
 ### The report (the lead human deliverable)
 
