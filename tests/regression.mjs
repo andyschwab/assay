@@ -1161,7 +1161,7 @@ function adaptersOnce() { return loadAdapters(); }
 
 // ── dependency-scan: manifest enumeration + lockfile coverage on real directories ──
 // findManifests / isCoveredByLockfile / run() end to end: a manifest with real
-// dependencies and no lockfile anywhere up its own directory tree is uncovered
+// dependencies and no lockfile in its own directory, nor in an ancestor whose workspaces include it, is uncovered
 // (never silently clean); zero package.json anywhere is the distinct
 // not-applicable fact.
 {
@@ -1189,14 +1189,38 @@ function adaptersOnce() { return loadAdapters(); }
   if (docEmpty.exit !== 0) fail(`a tree with nothing to audit must exit 0 (not-applicable is not a failure, got ${docEmpty.exit})`);
   rmSync(tmpEmpty, { recursive: true, force: true });
 
-  // an ancestor lockfile covers a nested manifest with no lockfile of its own
+  // (#53, F-1212) an ancestor lockfile covers a nested manifest only when that ancestor's
+  // declared workspaces include it: npm never audits a manifest outside its workspaces, so a
+  // root lockfile with no root package.json covers nothing below it, and examples/demo under
+  // a root whose workspaces name packages/* is unaudited. Decided on #53, 2026-10-01; this
+  // rewrites the earlier assertion that any ancestor lockfile covered any nested manifest.
   const tmpAncestor = join(HERE, 'tmp-dep-ancestor'); rmSync(tmpAncestor, { recursive: true, force: true });
   mkdirSync(join(tmpAncestor, 'packages', 'sub'), { recursive: true });
   writeFileSync(join(tmpAncestor, 'package-lock.json'), JSON.stringify({ name: 'root', lockfileVersion: 3, packages: {} }));
   writeFileSync(join(tmpAncestor, 'packages', 'sub', 'package.json'), JSON.stringify({ name: 'sub', dependencies: { left: '1.0.0' } }));
   const docAncestor = runDependencyScan({ target: tmpAncestor, timeout: 5, log: () => {} });
-  if (docAncestor.manifests.length) fail(`a manifest covered by an ANCESTOR lockfile must not be recorded uncovered (got ${JSON.stringify(docAncestor.manifests)})`);
+  if (!docAncestor.manifests.some((m) => m.path === 'packages/sub/package.json')) fail(`a root lockfile with no root package.json declares no workspaces, so packages/sub must read unaudited (got ${JSON.stringify(docAncestor.manifests)})`);
   rmSync(tmpAncestor, { recursive: true, force: true });
+
+  const tmpWs = join(HERE, 'tmp-dep-workspaces'); rmSync(tmpWs, { recursive: true, force: true });
+  mkdirSync(join(tmpWs, 'packages', 'sub'), { recursive: true });
+  mkdirSync(join(tmpWs, 'examples', 'demo'), { recursive: true });
+  writeFileSync(join(tmpWs, 'package.json'), JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+  writeFileSync(join(tmpWs, 'package-lock.json'), JSON.stringify({ name: 'root', lockfileVersion: 3, packages: {} }));
+  writeFileSync(join(tmpWs, 'packages', 'sub', 'package.json'), JSON.stringify({ name: 'sub', dependencies: { left: '1.0.0' } }));
+  writeFileSync(join(tmpWs, 'examples', 'demo', 'package.json'), JSON.stringify({ name: 'demo', dependencies: { right: '1.0.0' } }));
+  const docWs = runDependencyScan({ target: tmpWs, timeout: 5, log: () => {} });
+  const wsPaths = docWs.manifests.map((m) => m.path);
+  if (wsPaths.includes('packages/sub/package.json')) fail(`a manifest inside the root's workspaces globs is covered by the root lockfile (got ${JSON.stringify(wsPaths)})`);
+  if (!wsPaths.includes('examples/demo/package.json')) fail(`examples/demo/package.json under a root lockfile, outside its workspaces, must read unaudited (got ${JSON.stringify(wsPaths)})`);
+  // pnpm: the workspace list is pnpm-workspace.yaml's, `!` exclusions honoured
+  rmSync(join(tmpWs, 'package-lock.json')); writeFileSync(join(tmpWs, 'package.json'), JSON.stringify({ name: 'root' }));
+  writeFileSync(join(tmpWs, 'pnpm-lock.yaml'), 'lockfileVersion: 9.0\n');
+  writeFileSync(join(tmpWs, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n  - 'examples/*'\n  - '!examples/demo'\n");
+  const pnpmPaths = runDependencyScan({ target: tmpWs, timeout: 5, log: () => {} }).manifests.map((m) => m.path);
+  if (pnpmPaths.includes('packages/sub/package.json')) fail(`a manifest pnpm-workspace.yaml includes is covered by the root pnpm-lock.yaml (got ${JSON.stringify(pnpmPaths)})`);
+  if (!pnpmPaths.includes('examples/demo/package.json')) fail(`a manifest pnpm-workspace.yaml excludes with ! is not covered (got ${JSON.stringify(pnpmPaths)})`);
+  rmSync(tmpWs, { recursive: true, force: true });
 
   // (#53, F-1212) a package.json that JSON.parse refuses was skipped, so a tree whose only
   // manifest carried a BOM or a trailing comma read no-manifest → not-applicable. A BOM is
