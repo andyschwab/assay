@@ -126,9 +126,13 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
   const custodyOrSafetyOpen = floor.open.some((r) => r.tier === 'custody' || r.tier === 'safety');
   const lead = [];
   lead.push(`${floor.open.length} open, ${floor.met.length} met, ${floor.not_measured.length} could-not-tell floor requirement${floorTotal === 1 ? '' : 's'} of ${floorTotal}.`);
-  if (!custodyOrSafetyOpen) lead.push("Nothing about who controls this app, or about something destructive happening unnoticed, is open right now.");
+  // reassure only about what was decided (F-1217): without a packet the custody rows are
+  // claim-only and always could-not-tell, and "nothing is open" would read as "all is well"
+  const untold = ['custody', 'safety'].filter((t) => floor.not_measured.some((r) => r.tier === t));
+  if (!custodyOrSafetyOpen && !untold.length) lead.push("Nothing about who controls this app, or about something destructive happening unnoticed, is open right now.");
+  else if (!custodyOrSafetyOpen) lead.push(`${untold.map((t) => TIER_GLOSS[t]).join(', and ').replace(/^./, (c) => c.toUpperCase())} could not be told this run, so nothing here says ${untold.length > 1 ? 'they are' : 'it is'} in order.`);
   if (worstTier) lead.push(`The most pressing open group is about ${TIER_GLOSS[worstTier]} (${worstTier}).`);
-  else if (floor.open.length === 0) lead.push('Nothing on the floor is open.');
+  else if (floor.open.length === 0 && floor.not_measured.length === 0) lead.push('Nothing on the floor is open.');
   out.push(lead.join(' '), '');
 
   out.push('## Fix in this order', '');
