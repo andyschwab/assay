@@ -14,7 +14,7 @@
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { isMain } from '../map/doctrine.mjs';
-import { parseYaml } from '../lib/yaml-min.mjs';
+import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
 import { loadFindings } from '../map/project.mjs';
 import { loadYardstick } from '../yardstick/measure.mjs';
 import { loadYardstickDoc } from '../yardstick/ratchet.mjs';
@@ -50,7 +50,7 @@ export function buildSince(previousDoc, currentDoc, reg) {
 }
 
 // ── YAML emission (yaml-min's block-only subset: no inline flow maps) ───────
-const q = (s) => `"${String(s == null ? '' : s).replace(/"/g, '\\"')}"`;
+const q = (s) => yq(s == null ? '' : s);
 function statusBlock(indent, label, s) {
   const L = [`${indent}${label}:`, `${indent}  status: ${s.status}`, `${indent}  basis: ${s.basis || 'run'}`];
   if (s.findings) L.push(`${indent}  findings: [${(s.findings || []).join(', ')}]`);
@@ -113,7 +113,7 @@ export function renderMd(runId, previousId, since, findingsDelta, confidential =
   out.push('');
 
   out.push('## Newly measured', '');
-  if (since.newly_measured.length) for (const r of since.newly_measured) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. not-measured → ${r.current.status}. ${r.note}`);
+  if (since.newly_measured.length) for (const r of since.newly_measured) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${r.previous ? r.previous.status : 'not-measured'} → ${r.current.status}. ${r.note}`);
   else out.push('_Nothing newly measured._');
   out.push('');
 

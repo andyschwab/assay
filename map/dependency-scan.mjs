@@ -121,8 +121,12 @@ export function findManifests(root) {
       if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name)); continue; }
       if (e.name !== 'package.json') continue;
       const p = join(dir, e.name);
+      // a leading BOM is stripped; a manifest that still does not parse is counted as
+      // one that may declare dependencies — never skipped, or a tree whose only
+      // manifest is malformed would read no-manifest (not applicable)
       let pkg = null;
-      try { pkg = JSON.parse(readFileSync(p, 'utf8')); } catch { /* unreadable manifest: not counted either way */ continue; }
+      try { pkg = JSON.parse(readFileSync(p, 'utf8').replace(/^\uFEFF/, '')); }
+      catch { manifests.push({ dir, path: p, hasDependencies: true, unparseable: true }); continue; }
       manifests.push({ dir, path: p, hasDependencies: nonEmptyDeps(pkg) });
     }
   })(root);
@@ -358,9 +362,9 @@ export function run({ target, timeout = 300, log = /** @type {(msg: string) => v
   const lockDirs = new Set([...npm.map((p) => dirname(p)), ...other.map((o) => dirname(o.path))]);
   const allManifests = findManifests(root);
   const uncovered = allManifests.filter((m) => m.hasDependencies && !isCoveredByLockfile(m.dir, root, lockDirs));
-  const manifests = uncovered.map((m) => ({ path: relative(root, m.path).split('\\').join('/'), status: 'no-lockfile' }));
+  const manifests = uncovered.map((m) => ({ path: relative(root, m.path).split('\\').join('/'), status: 'no-lockfile', ...(m.unparseable ? { unparseable: true } : {}) }));
   const noManifest = allManifests.length === 0;
-  if (manifests.length) for (const m of manifests) log(`  → ${m.path}: no-lockfile (declares dependencies, no lockfile covers it — nothing to audit)`);
+  if (manifests.length) for (const m of manifests) log(`  → ${m.path}: no-lockfile (${m.unparseable ? 'not valid JSON, so it may declare dependencies' : 'declares dependencies'}, no lockfile covers it — nothing to audit)`);
   else if (noManifest) log('  → no package.json anywhere in the tree — not applicable, nothing to audit');
 
   const anyAdvisory = lockfiles.some((l) => l.status === 'audited' && l.advisories.length);

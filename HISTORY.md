@@ -939,6 +939,37 @@ what the public engine learned.
   (`tests/instruments/fresh-clone-install-fails`, a preinstall that exits 1)
   and the `step-not-run` block were confirmed red against the old code (15
   failures) before the change. Goldens untouched.
+- **2026-10-01 — nothing reads met, clean or zero from data that is missing or
+  malformed** (issue #53, item 8 of the take-on roadmap). A sweep of the
+  readers that broke rule 3. `lib/yaml-min.mjs` throws on a duplicate key, a
+  `__proto__` key, and a flow list that is unclosed (an unquoted ` #` ate its
+  tail), unbalanced or nested; it splits a flow list on commas outside quotes,
+  and one `q()` there (backslash, then quote, line breaks collapsed) replaces
+  eleven private quote helpers and ingest's quote-to-apostrophe writer, which
+  now quotes every evidence element. The shared findings loader throws on a
+  map-shaped file and on a run with no `map/findings/`. `enumerate` exits 2 on
+  a target it cannot walk, and a citation covers by exact path or a directory
+  on a segment boundary (`d:1` no longer covers `deploy/`, `.:1` no longer
+  covers every dot-directory member). `dependency-scan` strips a BOM and
+  counts an unparseable `package.json` as a manifest nothing audited, never as
+  no manifest. `help` lists only commands with a command-line body (chains,
+  capabilities, supervision and decisions are libraries and left it). `score
+  --json` exits with its verdict; `backlog` records a class whose sub-tool
+  crashed as `null # not computed` with the reason, and exits 1. `validate`
+  checks `owner/decisions.yaml` when present (list shape, a finding the run
+  carries, the closed action set, a reason on every accept and snooze, ISO
+  dates, `by` a role or a handle). INDEX and IMPROVE count only the claim rows
+  still not measured, SINCE prints a row's previous status, and capabilities
+  ranks `user` and throws on an unknown blast scope. Each change and its
+  fixture landed in one commit and was confirmed red first: yaml-strict (10
+  failures), findings-loader (4), enumerate-gate (5), dependency-scan-manifests
+  (6), cli-commands (4), score-backlog-exit (6), the five `decisions-*`
+  negative fixtures and the engine-pipeline addition (6), counts-read-
+  measurement (3), capabilities-blast (2). Left open: a nested manifest under
+  an ancestor lockfile still reads covered (the harness pins that a root
+  lockfile covers `packages/sub`), the run record's unlocked read-modify-write,
+  the instrument profiles' severity bands, and the duplicated helpers and
+  unreferenced exports. Goldens untouched.
 - **2026-10-01 — nothing deployed reads the operating rows not applicable**
   (issue #19, roadmap item 10). The six owner-evidence checks (a restore, a
   rollback, a one-command deploy, a smoke check, an alert, cost alerts) read a

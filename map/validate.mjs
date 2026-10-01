@@ -14,8 +14,10 @@ import {
   findingsDir, coverageDir, scannersPath, yardstickPath as runYardstickPath,
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
-  nativeReportPath, isRepoEvalPassFile,
+  nativeReportPath, isRepoEvalPassFile, decisionsPath,
 } from '../lib/run-layout.mjs';
+import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
+import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -296,6 +298,38 @@ for (const [id, { f, file }] of allById) {
     if (v === undefined || v === null) continue;
     if (!Array.isArray(v)) { err(`${file}:${id}`, `${linkKey} must be a list`); continue; }
     for (const ref of v) if (!allById.has(ref)) err(`${file}:${id}`, `${linkKey} → unknown finding ${ref}`);
+  }
+}
+
+// the owner's triage overlay (owner/decisions.yaml, map/decisions.mjs): optional, but
+// when present it moves gaps off the open count, so it is validated, never trusted —
+// a map-shaped file once read as no decisions, an unknown action as open, an accept
+// with no reason as waived, and `by` took an email address the packet refuses.
+const decPath = decisionsPath(runDir);
+if (existsSync(decPath)) {
+  const label = 'owner/decisions.yaml';
+  const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+  let decs;
+  try { decs = parseYaml(readFileSync(decPath, 'utf8')); } catch (e) { err(label, `YAML parse failed (fail-closed): ${e.message}`); decs = undefined; }
+  if (decs !== undefined && !Array.isArray(decs)) err(label, `expected a top-level list of decisions, one item per decided finding (map/decisions.mjs)`);
+  else if (decs) {
+    const seen = new Set();
+    decs.forEach((x, i) => {
+      const at = `${label}[${i}]`;
+      if (!x || typeof x !== 'object' || Array.isArray(x)) { err(at, `a decision must be a map (finding, action, reason, by, at)`); return; }
+      for (const k of Object.keys(x)) if (!DECISION_KEYS.includes(k)) err(at, `unknown key "${k}" (${DECISION_KEYS.join(', ')})`);
+      if (!x.finding) err(at, `missing finding`);
+      else if (!allById.has(x.finding)) err(at, `finding ${x.finding} is not in this run`);
+      else if (seen.has(x.finding)) err(at, `a second decision for ${x.finding} (one item per decided finding)`);
+      seen.add(x.finding);
+      if (!DECISION_ACTIONS.includes(x.action)) err(at, `bad action "${x.action}" (${DECISION_ACTIONS.join(' | ')})`);
+      if ((x.action === 'accept' || x.action === 'snooze') && !(typeof x.reason === 'string' && x.reason.trim())) err(at, `${x.action} needs a reason — a waiver with no why cannot be reviewed`);
+      if (x.snooze_until != null && x.action !== 'snooze') err(at, `snooze_until is for a snooze only`);
+      if (x.snooze_until != null && !ISO_DATE.test(String(x.snooze_until))) err(at, `snooze_until must be a YYYY-MM-DD date (got "${x.snooze_until}")`);
+      if (x.at != null && !ISO_DATE.test(String(x.at))) err(at, `at must be a YYYY-MM-DD date (got "${x.at}")`);
+      if (!(typeof x.by === 'string' && x.by.trim())) err(at, `missing by — who decided, as a role or a handle`);
+      else if (emailShape(x.by) || looksLikePersonName(x.by)) err(at, `by must be a role or a handle (platform-eng, @handle), never an email address or a person's name`);
+    });
   }
 }
 

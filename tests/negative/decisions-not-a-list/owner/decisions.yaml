@@ -1,0 +1,7 @@
+# the decisions nested under a key: a map, not the list map/decisions.mjs reads
+decisions:
+  - finding: F-001
+    action: accept
+    reason: "the contractor owns this until the handover"
+    by: platform-eng
+    at: 2026-08-14

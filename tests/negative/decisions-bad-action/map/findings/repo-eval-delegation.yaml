@@ -1,0 +1,8 @@
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    A finding the owner triaged.
+  evidence: [a.py:1]
+  confidence: confirmed

@@ -15,21 +15,25 @@
 //   - finding: F-601            # the finding id
 //     action: accept            # accept | fix | investigate | snooze
 //     reason: "contractor …"    # free text — why (required for accept/snooze)
-//     by: reviewer@example.com  # who decided
-//     at: 2026-08-14            # when
-//     snooze_until: 2026-11-14  # snooze only — reappears after this date
+//     by: platform-eng          # who decided: a role or a handle, never an email or a name
+//     at: 2026-08-14            # when (YYYY-MM-DD)
+//     snooze_until: 2026-11-14  # snooze only (YYYY-MM-DD) — reappears after this date
+// map/validate.mjs enforces this schema whenever the file is present.
 import { readFileSync, existsSync } from 'node:fs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { decisionsPath } from '../lib/run-layout.mjs';
 
 export const DECISION_ACTIONS = ['accept', 'fix', 'investigate', 'snooze'];
+export const DECISION_KEYS = ['finding', 'action', 'reason', 'by', 'at', 'snooze_until'];
 
-// Load the overlay for a run. Missing file is the norm, not an error.
+// Load the overlay for a run. Missing file is the norm, not an error; a file that is
+// not a list (or empty) throws — it is never read as "no decisions".
 export function loadDecisions(dir) {
   const p = decisionsPath(dir);
   if (!existsSync(p)) return [];
   const d = parseYaml(readFileSync(p, 'utf8'));
-  return Array.isArray(d) ? d : [];
+  if (!Array.isArray(d)) throw new Error(`${p}: expected a top-level list of decisions (fail-closed; validate names the fix)`);
+  return d;
 }
 
 // Is a snooze still active on the run date? A run has no wall clock (determinism),

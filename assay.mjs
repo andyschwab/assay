@@ -12,7 +12,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-// command → [script, what it does], grouped for `help` in the order listed.
+// command → [script, what it does], grouped for `help` in the order listed. Only a
+// script with a command-line body is a command: map/chains, capabilities,
+// supervision and decisions are libraries the views compute from, not commands.
 const GROUPS = [
   ['Map: drawing the map', {
     'start': ['map/start.mjs', 'make a run, draw it with every offline instrument, and record the rest (fresh-clone only with --allow-exec)'],
@@ -23,10 +25,6 @@ const GROUPS = [
     'fresh-clone': ['map/fresh-clone.mjs', "EXECUTES THE TARGET'S CODE: install, build, lint, typecheck, test, migrate from a clean checkout"],
     'dependency-scan': ['map/dependency-scan.mjs', "RUNS THE TARGET'S PACKAGE MANAGER: npm, pnpm and yarn audit over every lockfile, from scratch copies"],
     'repo-census': ['map/repo-census.mjs', 'architecture page, agent contract, runbook, CI gate, owner evidence'],
-    'chains': ['map/chains.mjs', 'the attack paths through the map'],
-    'capabilities': ['map/capabilities.mjs', 'one row per effect channel'],
-    'supervision': ['map/supervision.mjs', 'which irreversible or outward actions a person supervises'],
-    'decisions': ['map/decisions.mjs', "the owner's triage of findings, overlaid on a run"],
     'variance': ['map/variance.mjs', 'repeatability across runs of one target'],
     'score': ['map/score.mjs', "grade a run against a fixture's known answers"],
     'backlog': ['map/backlog.mjs', "the determinism and coverage gaps a run exposed in the method"],

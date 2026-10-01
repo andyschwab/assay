@@ -18,7 +18,7 @@ import { basename, dirname } from 'node:path';
 import { buildRows, toYaml, basisNote, joinContradictions } from './floor-fleet.mjs';
 import { loadYardstick, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
-import { parseYaml } from '../lib/yaml-min.mjs';
+import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
 import { viewPath, intakePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
 import { mdText as t } from '../lib/display.mjs';
 
@@ -87,7 +87,7 @@ export function annotateCredentialsRow(built, owner) {
   return built;
 }
 
-const oq = (s) => `"${String(s == null ? '' : s).replace(/"/g, '\\"')}"`;
+const oq = (s) => yq(s == null ? '' : s);
 // a free-text list as a block sequence at `indent`: a flow list's commas split an item on read-back
 const seq = (arr, indent) => ((arr || []).length ? (arr || []).map((s) => `\n${indent}- ${oq(s)}`).join('') : ' []');
 export function ownerYaml(owner) {

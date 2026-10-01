@@ -1,0 +1,12 @@
+# A findings file whose top level is a map, not a list (the rows are nested under
+# a key). The shared loader must THROW on this — it once read as zero findings,
+# so variance reported 0 % and score graded an empty base.
+findings:
+  - id: F-001
+    dimension: artifact-legibility
+    polarity: fact
+    subject_type: artifact
+    observation: >
+      A README exists.
+    evidence: [README.md:1]
+    confidence: confirmed
