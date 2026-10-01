@@ -4,7 +4,8 @@
 // `record <run> repo-eval ran`, a decision not to run something as `record
 // <run> <scanner> skipped --reason "<why>"`. `assay start` (map/start.mjs)
 // writes the file; `ingest` and `record` are the only things that touch it
-// after that, and both go through setScannerRow below — a line-level edit of
+// after that, and both go through setScannerRow below, under updateRunRecord's
+// lock (map/scanners.yaml.lock) — a line-level edit of
 // the ONE row's own block, leaving every other row, the file's comments, and
 // its `engine:` line exactly as they were. Never a reformat.
 //
@@ -21,7 +22,7 @@
 // adapter), or skipped/failed with no --reason. It does NOT check that the
 // scanner's rows exist in the base — `validate` does that, fail-closed, and
 // names this command in its own message.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, openSync, closeSync, unlinkSync } from 'node:fs';
 import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapters } from './project.mjs';
@@ -84,6 +85,33 @@ export function setScannerRow(text, scanner, status, { reason, model } = /** @ty
   return { text: result, row };
 }
 
+// updateRunRecord — the run record's one read-modify-write: reads the file, applies
+// edit(text) → new text, writes it back, all under a lock file beside it
+// (<scanners.yaml>.lock, created exclusively), so two writers — `record`, `ingest`,
+// another agent's — never interleave and lose a row (#53, F-613). A writer waits
+// for a held lock up to LOCK_WAIT_MS, then fails loud naming the lock file (a
+// writer that crashed holding it leaves it behind; remove it by hand), never
+// writing unlocked.
+export const LOCK_WAIT_MS = 30000;
+export function updateRunRecord(path, edit) {
+  const lock = `${path}.lock`;
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  let fd;
+  for (;;) {
+    try { fd = openSync(lock, 'wx'); break; }
+    catch (e) {
+      if (/** @type {NodeJS.ErrnoException} */ (e).code !== 'EEXIST') throw e;
+      if (Date.now() > deadline) throw new Error(`${lock} has been held for ${LOCK_WAIT_MS / 1000}s — another writer is updating the run record, or one crashed holding it (remove the file if no writer is running)`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+  try {
+    const text = edit(readFileSync(path, 'utf8'));
+    writeFileSync(path, text);
+    return text;
+  } finally { closeSync(fd); unlinkSync(lock); }
+}
+
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
   const [runDir, scanner, status, ...rest] = process.argv.slice(2);
@@ -112,10 +140,8 @@ if (isMain(import.meta.url)) {
     console.error(`✗ record: ${status} needs a reason — pass --reason "<text>" (a skip/failure with no reason is indistinguishable from an omission)`);
     process.exit(2);
   }
-  const text = readFileSync(mPath, 'utf8');
   let result;
-  try { result = setScannerRow(text, scanner, status, { reason, model }); }
+  try { updateRunRecord(mPath, (text) => (result = setScannerRow(text, scanner, status, { reason, model })).text); }
   catch (e) { console.error(`✗ record: ${e.message}`); process.exit(2); }
-  writeFileSync(mPath, result.text);
   console.log(result.row.join('\n'));
 }

@@ -53,7 +53,7 @@ import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
-import { setScannerRow } from './record.mjs';
+import { setScannerRow, updateRunRecord } from './record.mjs';
 import { stripUserinfo } from './repo-census.mjs';
 
 // The routine uploads the whole run, map/raw/ included, as a workflow artifact
@@ -804,9 +804,7 @@ if (isMain(import.meta.url)) {
   // exactly today's behavior.
   const mPath = scannersPath(runDir);
   if (existsSync(mPath)) {
-    const before = readFileSync(mPath, 'utf8');
-    const { text: after } = setScannerRow(before, tool, 'ran', { model: model ?? undefined });
-    writeFileSync(mPath, after);
+    updateRunRecord(mPath, (before) => setScannerRow(before, tool, 'ran', { model: model ?? undefined }).text);
     console.log(`✓ recorded ${tool} ran in map/scanners.yaml`);
   }
 }
