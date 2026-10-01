@@ -1,0 +1,52 @@
+{
+  "tool": "dependency-scan",
+  "version": "0.2.0",
+  "started_at": "2026-10-01T20:30:42.424Z",
+  "finished_at": "2026-10-01T20:35:44.718Z",
+  "target": {
+    "path": "/home/user/assay/.sweep-target"
+  },
+  "timeout_seconds": 300,
+  "lockfiles": [
+    {
+      "manager": "npm",
+      "path": "package-lock.json",
+      "status": "failed",
+      "method": "scratch-copy",
+      "npm_exit_code": 1,
+      "reason": "npm audit error : no summary"
+    },
+    {
+      "manager": "npm",
+      "path": "tests/instruments/exec-planted/package-lock.json",
+      "status": "failed",
+      "method": "scratch-copy",
+      "npm_exit_code": 1,
+      "reason": "npm audit error : no summary"
+    },
+    {
+      "path": "tests/instruments/exec-planted/yarn.lock",
+      "status": "failed",
+      "manager": "yarn",
+      "method": "scratch-copy",
+      "exit_code": 1,
+      "reason": "yarn audit produced no auditSummary (a truncated or failed audit)"
+    },
+    {
+      "path": "tests/instruments/fresh-clone-pnpm/pnpm-lock.yaml",
+      "status": "failed",
+      "manager": "pnpm",
+      "method": "scratch-copy",
+      "exit_code": null,
+      "reason": "pnpm audit --json timed out"
+    }
+  ],
+  "manifests": [
+    {
+      "path": "tests/instruments/fresh-clone-install-fails/package.json",
+      "status": "no-lockfile"
+    }
+  ],
+  "noManifest": false,
+  "exit": 1
+}

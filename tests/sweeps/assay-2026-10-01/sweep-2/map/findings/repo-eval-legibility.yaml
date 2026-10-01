@@ -1,0 +1,121 @@
+# Pass 1 — artifact legibility. Decision census (terrain.md, 10 items): one finding per
+# non-obvious decision, subject_type artifact, met = the rationale reconstructs from files alone.
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The choice of a zero-dependency YAML subset reader that throws on anything outside the subset
+    is explained in files: it lets the validator copy into any target repository and makes an
+    unparseable input an error rather than a pass.
+  evidence: [lib/yaml-min.mjs:1-6, map/SCHEMA.md:796-797, map/scanners/CONTRACT.md:106-108]
+  confidence: confirmed
+- id: F-002
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision that finding ids carry no dimension meaning is stated with its reason (a fixed
+    per-dimension range is an arbitrary budget a dense repository overflows, and it would duplicate
+    the dimension field).
+  evidence: [map/SCHEMA.md:186-201]
+  confidence: confirmed
+- id: F-003
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The definition of "offline" (no repo-hosting platform API, a package registry may be reached)
+    is written with its reason: a tool that needs a hosting platform's configuration API is a
+    forever-fail in an environment without that reach.
+  evidence: [map/scanners/CONTRACT.md:141-152, README.md:109-112]
+  confidence: confirmed
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Why fresh-clone runs only under --allow-exec is recorded beside the code and in the front door:
+    it runs the target's own install, lifecycle scripts and tests on the evaluator's machine, and
+    the environment allow-list is not a sandbox.
+  evidence: [map/start.mjs:38-46, README.md:53-61, map/scanners/CONTRACT.md:163-169]
+  confidence: confirmed
+- id: F-005
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The split of the routine into a target job and a gate job is explained by the attack it stops:
+    a change whose test script rewrote the ratchet or the run's measurement could make its own gate
+    read held.
+  evidence: [routine/README.md:111-141, routine/assay-routine.yml:40-46]
+  confidence: confirmed
+- id: F-006
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The rule that ASSAY_REF is a full commit SHA and never a branch or tag is stated with its
+    reason (a branch or tag can move; a scheduled run must run the engine a steward reviewed).
+  evidence: [routine/assay-routine.yml:4-6, RUNBOOK.md:16-19, routine/README.md:187-189]
+  confidence: confirmed
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Why a pull request is ratcheted against the base branch's baseline and packet, not its own
+    copy, is reconstructable: grading a change against a baseline it can edit would let it switch
+    off its own gate.
+  evidence: [routine/README.md:160-182, routine/assay-routine.yml:96-104]
+  confidence: confirmed
+- id: F-008
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The rule that gitleaks scans only a repository's own top level is explained at the code: git
+    mode reads the history of whatever repository contains the source, so a subdirectory would be
+    scanned against the enclosing repository's history.
+  evidence: [map/start.mjs:131-137, map/scanners/CONTRACT.md:173-181]
+  confidence: confirmed
+- id: F-009
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision to issue no deploy verdict and no alpha/beta/prod stage scale is written with its
+    reason: a stage per exposure is a risk-tolerance decision that belongs to the reader, and the
+    exposures file already carries the properties a stage would composite.
+  evidence: [map/SCHEMA.md:501-506, map/METHOD.md:448-452]
+  confidence: confirmed
+- id: F-010
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The canon decision (a declared, ratified enumeration contract per target, instead of reusing a
+    prior run's findings) is explained, including why copy-forward would make a determinism claim
+    tautological.
+  evidence: [map/SCHEMA.md:801-820, map/canon/README.md:8-14]
+  confidence: confirmed
+- id: F-011
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Code comments justify invariants by citing issue numbers and finding ids from runs the
+    repository does not carry (for example "#53, F-1213", "#53, F-613"), so the incident behind such
+    an invariant is not readable from the tree's code and contracts alone.
+  evidence: [tests/regression.mjs:176, tests/regression.mjs:195, map/record.mjs:118, CLAUDE.md:30-33]
+  confidence: plausible
+- id: F-012
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README carries an architecture section that names the three layers and every place the tool
+    reaches outside the checkout (the package registry, instrument binaries on PATH, GitHub Actions
+    for the routine), and states that it runs no service and keeps no database.
+  evidence: [README.md:30-41, README.md:98-114]
+  confidence: confirmed
