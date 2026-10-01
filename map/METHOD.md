@@ -515,6 +515,11 @@ Reconcile the three views into one document (reads only the view artifacts):
  findings are the evidence under the item, their scanners' fixes are quoted in its
  card, and the handoff sequences them once, inside it. Say what would prove the
  reading wrong. Its `done_when` is the proof the team runs with its own tools.
+ **An unknown is a variable with a stated default.** A roadmap item lists what it
+ assumes (`assumptions`) and does so unless the owner says otherwise; it asks at most one
+ `question`, always with a `recommended` answer, and marks it `blocking: true` only when no
+ safe default exists. Of several approaches, mark the one it proceeds with
+ `recommended: true`. An item never gates on a question the owner might not answer.
  **An irreversible fix is prepared, then performed by a person**: a credential
  rotation, a history rewrite, a production deploy. The item gets it ready; the owner
  does it. When the repository is changing hands, rotating every credential at the
@@ -523,6 +528,9 @@ Reconcile the three views into one document (reads only the view artifacts):
 4. **Key questions** — what only the owning team can answer (the `confidence:
  plausible/unverified` findings and the "couldn't determine from the repo"
  list). Real questions, not rhetorical gap-pointing.
+ Ask only what no stated default can stand in for: where the repo leaves a value
+ unknown, write the assumption and its safe default into the roadmap item instead, and
+ keep here the few questions with no safe default, each with a recommended answer.
 
 Ordering note: for a **security-purpose** engagement, lead the whole document
 with the security posture + gate verdict, *then* strengths. For a **self-eval /
@@ -570,7 +578,7 @@ One command assembles the whole deliverable over the projected base:
  computed-structure + authored-narrative split applied to the machine side. Two
  provenance-labeled voices populate the remediation spine: **scanner-verbatim** fixes
  (quoted exactly, never rewritten — scanner contract §7) and **eval-authored** remedies
- (the `views/improve/prose.yaml` roadmap — title/body/questions/options/done_when — joined to
+ (the `views/improve/prose.yaml` roadmap — title/body/assumptions/question/options/done_when — joined to
  its findings and spliced with their verbatim observations + evidence; a scanner item
  whose findings a roadmap item fully covers is absorbed into that card, never sequenced
  twice). An open gap with
@@ -691,8 +699,11 @@ authored**:
  ai}` sorts the *What it can do* section.
  - `roadmap[]` — each item carries the authored **decision structure** the plan prompts
  compile from: `slug` (the plan filename), `title`, `body`, `findings[]` (base ids the
- prompt splices verbatim with evidence paths), `questions[]` (context the eval couldn't
- see), `options[]` (`{name, tradeoff}` — the agent asks, never chooses), `done_when[]`
+ prompt splices verbatim with evidence paths), `assumptions[]` (what the fix does unless the
+ owner says otherwise), at most one `question` (`{text, recommended, blocking}` — the agent
+ proceeds with the recommended answer; only `blocking: true` waits), `options[]`
+ (`{name, tradeoff, recommended?}` — the agent proceeds with the recommended one, else
+ presents and does not choose), `done_when[]`
  (closure tied to finding ids the next run re-checks).
  - Every gate-view exposure needs a human `title:` alongside its slug `name:` — validator
  rejects a missing one; `lib/display.mjs` translates the remaining machine vocab.

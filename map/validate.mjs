@@ -63,7 +63,7 @@ const FILE_DIM = {
 
 const errors = [];
 const err = (where, msg) => errors.push(`${where}: ${msg}`);
-const warnings = [];   // non-fatal: surfaced but do not fail the build (extension point; currently unused)
+const warnings = [];   // non-fatal: surfaced but do not fail the build (legacy roadmap `questions:`, stale dispositions, …)
 const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
 // every evidence entry names a path: `:12` alone cites no file (no claim without evidence)
 function emptyCites(f, at) {
@@ -345,6 +345,37 @@ if (existsSync(prosePath)) {
   try { prose = parseYaml(readFileSync(prosePath, 'utf8')); }
   catch (e) { err('views/improve/prose.yaml', `YAML parse failed (fail-closed): ${e.message}`); prose = null; }
   if (prose && Array.isArray(prose.roadmap)) {
+    // roadmap decision structure (SCHEMA.md prose block): an unknown is a variable with a stated
+    // default. Fail-closed on the new fields; the legacy `questions:` list stays accepted, with a warning.
+    const nonEmptyStr = (v) => typeof v === 'string' && v.trim() !== '';
+    prose.roadmap.forEach((r, i) => {
+      if (!r || typeof r !== 'object' || Array.isArray(r)) return;
+      const at = 'views/improve/prose.yaml:roadmap';
+      const slug = r.slug || `item-${i + 1}`;
+      if (r.assumptions !== undefined) {
+        if (!Array.isArray(r.assumptions) || r.assumptions.some((a) => !nonEmptyStr(a))) err(at, `roadmap item "${slug}": assumptions must be a list of non-empty strings`);
+      }
+      if (r.question !== undefined) {
+        const q = r.question;
+        if (!q || typeof q !== 'object' || Array.isArray(q)) err(at, `roadmap item "${slug}": question must be an object {text, recommended, blocking?}`);
+        else {
+          if (!nonEmptyStr(q.text)) err(at, `roadmap item "${slug}": question.text must be a non-empty string`);
+          if (!nonEmptyStr(q.recommended)) err(at, `roadmap item "${slug}": question.recommended must be a non-empty string (the answer we proceed with)`);
+          if (q.blocking !== undefined && typeof q.blocking !== 'boolean') err(at, `roadmap item "${slug}": question.blocking must be boolean`);
+        }
+      }
+      if (Array.isArray(r.options)) {
+        const recs = r.options.filter((o) => o && typeof o === 'object' && o.recommended !== undefined);
+        for (const o of recs) if (typeof o.recommended !== 'boolean') err(at, `roadmap item "${slug}": option "${o.name}" recommended must be boolean`);
+        if (recs.filter((o) => o.recommended === true).length > 1) err(at, `roadmap item "${slug}": at most one option may be recommended: true`);
+      }
+      if (r.questions !== undefined) {
+        const n = Array.isArray(r.questions) ? r.questions.length : 0;
+        const newShape = (Array.isArray(r.assumptions) && r.assumptions.length) || r.question !== undefined || (Array.isArray(r.options) && r.options.some((o) => o && o.recommended === true));
+        const ignored = newShape ? ' (the plan prompt ignores `questions:` once assumptions, question or a recommended option is present)' : '';
+        warn(at, `roadmap item "${slug}" uses questions:${n > 1 ? ` with ${n} entries` : ''} — prefer assumptions plus at most one question with a recommended answer${ignored}`);
+      }
+    });
     const { buildSupervision } = await import('./supervision.mjs');
     const sup = buildSupervision([...allById.values()].map((v) => v.f), prose.roadmap, prose.channel_notes || {});
     const DISPO_REASON = new Set(['accepted', 'deferred', 'out-of-scope']);
