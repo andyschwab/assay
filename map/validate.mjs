@@ -352,6 +352,8 @@ if (existsSync(prosePath)) {
       if (!r || typeof r !== 'object' || Array.isArray(r)) return;
       const at = 'views/improve/prose.yaml:roadmap';
       const slug = r.slug || `item-${i + 1}`;
+      if (!/^[a-z0-9-]+$/.test(String(slug)))   // the same rule as views/improve/sequence.mjs SLUG_RE
+        err(at, `roadmap item ${JSON.stringify(String(slug))}: slug must match ^[a-z0-9-]+$ (it names the plan file; a path segment would write outside handoff/)`);
       if (r.assumptions !== undefined) {
         if (!Array.isArray(r.assumptions) || r.assumptions.some((a) => !nonEmptyStr(a))) err(at, `roadmap item "${slug}": assumptions must be a list of non-empty strings`);
       }
