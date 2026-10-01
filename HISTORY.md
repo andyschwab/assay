@@ -761,3 +761,23 @@ what the public engine learned.
   contract (a not-supported lockfile as a Medium gap) and are rewritten to the
   new one, which also pins "unaudited never reads met"; every new assertion was
   confirmed red with its rule reverted. Goldens untouched.
+- **2026-10-01 — the front door and the contracts say what the code does
+  (#55).** The engine shipped as 0.3.0 with the 2026-09-24 restructure above
+  (three views); Owner and Since landed after it, so the code writes four views
+  of one run plus Since, while `CLAUDE.md`, `package.json` and the command
+  line's help still said three. They now agree, and `map/METHOD.md`'s
+  leverage, maturity and security views are named as views inside Improve. The
+  cross-run fingerprint in `yardstick/README.md` gains the polarity
+  `compare.mjs` already keys on; the dependency-scan contract no longer says
+  pnpm and yarn lockfiles are never audited; "offline" is defined once (no
+  hosting platform's API; a package registry may be reached). Pointers to
+  files, rules and phases that do not exist are corrected, and three run paths
+  built by hand now go through `lib/run-layout.mjs`. README's layers section is
+  headed "Architecture" and names the external services the engine reaches,
+  `RUNBOOK.md` covers release, re-bless, restarting and rolling back a routine,
+  the optional read token and restoring a baseline, and `CLAUDE.md` states the
+  red-then-green rule and that engine learnings go to the issue tracker. A
+  `doc-consistency` harness block holds the view count, the fingerprint, every
+  `CLAUDE.md` citation, the corrected pointers and repo-census's own reading of
+  this repository to the code; it was confirmed red against the old documents
+  and with each rule reverted. Goldens untouched.
