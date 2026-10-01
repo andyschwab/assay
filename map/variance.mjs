@@ -123,7 +123,7 @@ export function varianceFromSweeps(sweeps, names) {
 export const DESCRIPTOR_FIELDS = ['reversibility', 'external', 'gate_type', 'fail_mode', 'telemetry', 'blast_scope'];
 
 // Safety ordering per field, low = riskier. Used ONLY to give a divergence a direction;
-// it never scores anything. gate_type's order follows maturity.mjs's REAL_GATES split
+// it never scores anything. gate_type's order follows doctrine.mjs's REAL_GATES split
 // (none/disclosure-only do not hold) with the halts ranked above the bounds. A field with
 // no defensible total order (none here today) would be left out and counted `unordered`.
 const RANK = {

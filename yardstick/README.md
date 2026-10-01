@@ -144,8 +144,9 @@ alone. A yardstick version difference between the two sides is reported on
 the result, never hidden. `compare.mjs` also exports `fingerprintFinding` /
 `compareFindings`, a **finding**-level match across two runs for the `since` view
 below — never by `id` (a finding's id carries no meaning across independent runs,
-`map/SCHEMA.md` §3), but by `(scanner, dimension-or-native-category, evidence file
-paths with the line stripped)`. A collision on that key is a known, accepted
+`map/SCHEMA.md` §3), but by `(scanner, dimension-or-native-category, polarity, evidence
+file paths with the line stripped)` — a check that passed last run and gaps now
+is a new finding. A collision on that key is a known, accepted
 coarsening (the same one `map/variance.mjs`'s own identity tokens accept); it
 fails toward under-reporting "new", never toward inventing one.
 

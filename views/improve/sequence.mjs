@@ -2,8 +2,8 @@
 // maintainer report (report.mjs), so a maintainer reading both never finds two
 // different orders for the same run.
 //
-// Order (CLAUDE.md "you propose as diffs; a named human accepts" applied to the
-// machine side — the reviewer's own priority leads, then the engine's honesty
+// Order (a person's judgment outranks the machine's — the reviewer's own
+// priority leads, then the engine's honesty
 // registers, worst first):
 //   1. The reviewer's roadmap items (views/improve/prose.yaml `roadmap:`), in
 //      authored order — the maintainer's first list, so the report's §6 and the

@@ -1,7 +1,7 @@
 # map/scanners.yaml — the RUN MANIFEST (SCHEMA.md §5a). One row per ADOPTED scanner,
 # every run, no exceptions: an integration that can be omitted without a recorded
 # decision reads as coverage. validate.mjs fails closed without this file, and
-# compile-package.mjs validates before it compiles anything.
+# views/compile.mjs validates before it compiles anything.
 #
 # This file is normally WRITTEN, not hand-authored: `node assay.mjs start --out
 # <run> [<target>]` draws a run and writes it; `node assay.mjs ingest` flips a

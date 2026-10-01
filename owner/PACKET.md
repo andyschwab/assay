@@ -10,9 +10,9 @@ is true of the repository in the yardstick's terms
 lives beside it (a deployment keeps it in its own folder); after, it lives in the
 repository itself. Assay reads it the same way from either place.
 
-At intake the owner fills it by running one prompt (`owner/ask-owner.md`,
-written separately by the orchestrator; `node assay.mjs ask-owner` only fills
-its `{{WHAT_WE_FOUND}}` marker). "Owner" means whoever is responsible for the
+At intake the owner fills it by running one prompt (`owner/ask-owner.md`, a
+hand-written page in this repository, not generated; `node assay.mjs ask-owner`
+only fills its `{{WHAT_WE_FOUND}}` marker). "Owner" means whoever is responsible for the
 repository — a founder, a contractor, a steward filling it on their behalf.
 
 This file is the one home of the packet's format. `yardstick/README.md` links

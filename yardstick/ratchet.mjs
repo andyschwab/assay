@@ -247,7 +247,7 @@ if (isMain(import.meta.url)) {
   // Contradictions: checked ALWAYS, independent of any baseline — a repository's
   // own packet claiming satisfied against a run-decided unmet row is a failure
   // under stewardship every time, never something an --allow flag can wave
-  // through (yardstick/README.md, CLAUDE.md rule 1: no claim without evidence).
+  // through (yardstick/README.md, CLAUDE.md rule 2: no claim without evidence).
   const contradictions = loadContradictions(dir);
   if (contradictions.length) {
     console.error(`\n✗ ratchet: ${contradictions.length} contradiction(s) — a repository's own packet claimed satisfied; this run found otherwise:\n`);
