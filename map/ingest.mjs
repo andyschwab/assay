@@ -50,7 +50,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMain } from './doctrine.mjs';
-import { parseYaml } from '../lib/yaml-min.mjs';
+import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow } from './record.mjs';
@@ -686,7 +686,6 @@ export function nextStart(runDir, tool) {
 // ── YAML emit (the schema's constrained subset: block style, folded scalars) ─
 function toYaml(rows, tool, exitCode, skipped, startNote) {
   const esc = (s) => oneLine(s);
-  const q = (s) => `"${esc(s).replace(/"/g, "'")}"`;
   const p = PROFILES[tool];
   const file = `map/findings/${tool}.yaml`;
   const out = p.exitless
@@ -700,32 +699,31 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
   for (const r of rows) {
     out.push(`- id: ${r.id}`);
     out.push(`  source: ${r.source}`);
-    out.push(`  native_id: "${esc(r.native_id).replace(/"/g, "'")}"`);
-    out.push(`  native_category: "${esc(r.native_category).replace(/"/g, "'")}"`);
+    out.push(`  native_id: ${q(esc(r.native_id))}`);
+    out.push(`  native_category: ${q(esc(r.native_category))}`);
     out.push(`  polarity: ${r.polarity}`);
     if (r.severity) out.push(`  severity: ${r.severity}`);
     out.push(`  observation: >`, `    ${esc(r.observation)}`);
-    out.push(`  evidence: [${r.evidence.join(', ')}]`);
+    out.push(`  evidence: [${r.evidence.map((e) => q(esc(e))).join(', ')}]`);   // quoted: a path may hold a comma or a ` #`
     if (r.fix) out.push(`  fix: >`, `    ${esc(r.fix)}`);
     // peer-scanner extension fields (the port keeps the scanner's own labels beside the mapped ones)
-    if (r.title) out.push(`  title: ${q(r.title)}`);
-    if (r.native_tag) out.push(`  native_tag: ${q(r.native_tag)}`);
+    if (r.title) out.push(`  title: ${q(esc(r.title))}`);
+    if (r.native_tag) out.push(`  native_tag: ${q(esc(r.native_tag))}`);
     if (r.confidence) out.push(`  confidence: ${r.confidence}`);
     if (r.native_confidence) out.push(`  native_confidence: ${r.native_confidence}`);
     if (r.latent) out.push(`  latent: true`);
     if (r.mechanism_unproven) out.push(`  mechanism_unproven: true`);
-    if (r.resolves_with) out.push(`  resolves_with: ${q(r.resolves_with)}`);
-    if (r.prior_native_id) out.push(`  prior_native_id: ${q(r.prior_native_id)}`);
+    if (r.resolves_with) out.push(`  resolves_with: ${q(esc(r.resolves_with))}`);
+    if (r.prior_native_id) out.push(`  prior_native_id: ${q(esc(r.prior_native_id))}`);
     if (r.prior_status) out.push(`  prior_status: ${r.prior_status}`);
-    if (r.compounds_native) out.push(`  compounds_native: [${r.compounds_native.map((x) => esc(x)).join(', ')}]`);
+    if (r.compounds_native) out.push(`  compounds_native: [${r.compounds_native.map((x) => q(esc(x))).join(', ')}]`);
   }
   return out.join('\n') + '\n';
 }
 
 // ── the coverage sidecar (block YAML; the scanner's own account of what it looked at) ─
 export function coverageYaml(c) {
-  const esc = (s) => oneLine(s).replace(/"/g, "'");
-  const scalar = (v) => (typeof v === 'number' || typeof v === 'boolean') ? String(v) : (v === null || v === undefined) ? 'null' : `"${esc(v)}"`;
+  const scalar = (v) => (typeof v === 'number' || typeof v === 'boolean') ? String(v) : (v === null || v === undefined) ? 'null' : q(oneLine(v));
   const out = [
     `# map/coverage/${c.scanner}.yaml — the scanner's OWN coverage account, archived by assay.mjs ingest.`,
     `# One row per domain in the scanner's taxonomy: scanned | partial | not-scanned | not-applicable.`,
@@ -745,7 +743,7 @@ export function coverageYaml(c) {
   emitMap('review', c.review || {}, 0);
   emitMap('ground_truth', c.ground_truth || {}, 0);
   emitMap('coverage', c.coverage || {}, 0);
-  out.push(`prior_not_rechecked: [${(c.prior_not_rechecked || []).map(esc).join(', ')}]`);
+  out.push(`prior_not_rechecked: [${(c.prior_not_rechecked || []).map((x) => q(oneLine(x))).join(', ')}]`);
   return out.join('\n') + '\n';
 }
 

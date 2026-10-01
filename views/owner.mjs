@@ -26,7 +26,7 @@ import { buildRows } from './floor-fleet.mjs';
 import { loadFindings } from '../map/project.mjs';
 import { loadYardstick } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
-import { parseYaml } from '../lib/yaml-min.mjs';
+import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
 import { viewPath, ownerPagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
 import { mdText, mdCode } from '../lib/display.mjs';
 
@@ -82,7 +82,7 @@ export function buildOwner(runDir) {
 }
 
 // ── YAML (yaml-min's constrained block-only subset — decide: is the load-bearing precedent for a nested map inside a list item) ──
-const q = (s) => `"${String(s == null ? '' : s).replace(/"/g, '\\"')}"`;
+const q = (s) => yq(s == null ? '' : s);
 function rowYaml(r, pad) {
   const L = [`${pad}- id: ${r.id}`, `${pad}  tier: ${r.tier}`, `${pad}  topic: ${r.topic}`, `${pad}  title: ${q(r.title)}`, `${pad}  status: ${r.status}`];
   L.push(`${pad}  risk: ${q(r.risk)}`, `${pad}  fix: ${q(r.fix)}`);

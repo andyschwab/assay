@@ -30,7 +30,7 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseYaml } from '../lib/yaml-min.mjs';
+import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { censusesPath, yardstickPath, ownerDir, packetManifestPath } from '../lib/run-layout.mjs';
 import { isHalt, isHaltClass, gateHolds, isMain } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
@@ -307,7 +307,6 @@ export function summarize(rows) {
   for (const r of rows) c[r.status]++;
   return /** @type {Record<string, number>} */ ({ ...c, decided: rows.length - c['not-measured'], of: rows.length });
 }
-const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 // yardstick.yaml — the run's measurement of the map against the yardstick.
 // Per row: what THIS RUN decided, how, and its basis (run | owner — owner/PACKET.md);
 // a title/tier/topic/check is the register's, joined by id, never duplicated here.

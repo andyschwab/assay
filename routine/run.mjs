@@ -70,6 +70,7 @@ import { gitHead, gitRemote } from '../map/repo-census.mjs';
 import { loadContradictions } from '../yardstick/measure.mjs';
 import { routinePath, scannersPath, mapDir } from '../lib/run-layout.mjs';
 import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit, writeFreshCloneHandoff } from '../map/start.mjs';
+import { q } from '../lib/yaml-min.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // routine/
 const ASSAY_ROOT = join(HERE, '..');
@@ -78,7 +79,6 @@ const ASSAY_CLI = join(ASSAY_ROOT, 'assay.mjs');
 function assay(args) {
   return spawnSync(process.execPath, [ASSAY_CLI, ...args], { encoding: 'utf8' });
 }
-const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;   // used by toRoutineYaml below
 
 // The instrument sequencing itself (runAssayInstrument, runGitleaks,
 // drawOfflineMap) and the run-record writer (toScannersYaml) now live in

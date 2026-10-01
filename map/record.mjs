@@ -23,12 +23,11 @@
 // names this command in its own message.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { isMain } from './doctrine.mjs';
-import { parseYaml } from '../lib/yaml-min.mjs';
+import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapters } from './project.mjs';
 import { scannersPath } from '../lib/run-layout.mjs';
 
 export const STATUSES = ['ran', 'skipped', 'failed'];
-const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 
 function renderRow(id, status, reason, model) {
   const lines = [`  ${id}:`, `    status: ${status}`];
