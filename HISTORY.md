@@ -1023,3 +1023,20 @@ what the public engine learned.
   `model-of-record` block was confirmed red against the old code (20
   failures), and again with only the repo-eval exemption restored (its two
   assertions).
+- **2026-10-01 — the feedback hook and the repeatability claim are data**
+  (#57). `variance --set <set>` measures a committed sweep set
+  (`tests/sweeps/<set>/SWEEP.yaml`: target, commits, date, `blind`, threshold,
+  sweeps) and exits 1 when fact presence or descriptor agreement falls below
+  the set's own threshold, 2 when the set is malformed; `npm test` gates every
+  set. The one committed set, `fixture-notesbox`, is fixture-sized and not
+  blind (88% facts, 50% descriptors): it proves the gate, not the method. The
+  figures `METHOD.md`, `SCHEMA.md` and the variance header cite are now marked
+  as off-repo field measurements until a blind set over this repository lands.
+  `report.mjs` writes `views/improve/chains.json` and `handoff.mjs` writes
+  `handoff/sequence.json`; the backlog's authored half has a path,
+  `map/backlog-authored.yaml` (curated items and the 1–5 surprise notes, which
+  replace `candidate-insights.md`); the four schemas are `lib/run-data.mjs` and
+  `validate` reads every one back, fail-closed. Goldens untouched. The
+  `sweep-gate`, `run-data` and `backlog` blocks were confirmed red against the
+  old code, again with only the variance exit reverted (its two
+  breach assertions), and with only validate's read-back reverted (five).

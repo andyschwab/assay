@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // assay maintainer-report compiler.
 // Usage: node views/improve/report.mjs <run-dir>
-// Assembles <run-dir>/IMPROVE.md from:
+// Assembles <run-dir>/IMPROVE.md, and the ranked chains as data in
+// <run-dir>/views/improve/chains.json (lib/run-data.mjs checkChains), from:
 //   views/improve/templates/maintainer-report.md            (fixed structure + markers)
 //   <run-dir>/map/findings/                      (computed tables)
 //   <run-dir>/views/improve/security-gate.yaml   (the security exposures)
@@ -12,7 +13,8 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { prosePath as runProsePath, securityGatePath, maturityGradesPath, improvePagePath } from '../../lib/run-layout.mjs';
+import { prosePath as runProsePath, securityGatePath, maturityGradesPath, improvePagePath, chainsDataPath } from '../../lib/run-layout.mjs';
+import { CHAINS_SCHEMA, checkChains } from '../../lib/run-data.mjs';
 import { DIM_LABEL, WHO_LABEL, channelLabel } from '../../lib/display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capabilities.mjs';
 import { buildChains } from '../../map/chains.mjs';
@@ -428,4 +430,22 @@ const fmTitle = String(prose.target || app).replace(/"/g, "'");
 const frontmatter = `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "AI-Native Readiness Report — ${fmTitle}"\n---\n\n`;
 const outPath = improvePagePath(runDir);
 writeFileSync(outPath, frontmatter + body);
+
+// the same chains as data, for an agent that needs the ranking without parsing the page
+const built = buildChains(findings, prose.channel_notes || {});
+const chainsDoc = {
+  schema: CHAINS_SCHEMA, run: runId,
+  live: built.live.map((c, i) => ({
+    rank: i + 1, entry: c.entry, headline: { id: c.headline.id, label: c.headline.label },
+    sinks: c.sinks.map((s) => ({ id: s.id, label: s.label, blast: s.blast })),
+    blast: c.blast, difficulty_rank: c.difficultyRank, difficulty_why: c.difficultyWhy,
+    path: c.path, tentative: c.tentative,
+  })),
+  held: built.held.map((h) => ({ entry: h.entry, holds: h.holds.map((x) => ({ id: x.id, label: x.label, by: x.by })) })),
+  contained: built.contained,
+  unresolved: built.unresolved.map((u) => ({ kind: u.kind, id: u.id, label: u.label, why: u.why })),
+};
+const chainsErrors = checkChains(chainsDoc, new Set(findings.map((f) => f.id)));
+if (chainsErrors.length) { console.error(`chains.json would not hold its schema:\n  ${chainsErrors.join('\n  ')}`); process.exit(1); }
+writeFileSync(chainsDataPath(runDir), JSON.stringify(chainsDoc, null, 2) + '\n');
 console.log(`✓ compiled ${outPath} (${findings.length} findings, ${(gate.exposures || []).length} security exposures)`);
