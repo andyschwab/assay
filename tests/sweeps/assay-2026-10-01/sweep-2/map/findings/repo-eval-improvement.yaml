@@ -1,0 +1,98 @@
+# Pass 6 — improvement loop. Lesson-mechanism census: one finding per durable home a correction
+# can land in, subject_type process, met = the mechanism exists and the tree shows it used.
+- id: F-068
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    CLAUDE.md is a present-tense agent contract holding six numbered ground rules, the checks, and how
+    a change lands, and it says taste the code relies on is written there or in the owning contract,
+    never only in a code comment.
+  evidence: [CLAUDE.md:9-33, CLAUDE.md:47-58]
+  confidence: confirmed
+- id: F-069
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    A new assertion must be confirmed red with the rule it pins reverted before it is trusted, and
+    the contributing guide and pull request template repeat the requirement.
+  evidence: [CLAUDE.md:49-52, CONTRIBUTING.md:6-7, .github/PULL_REQUEST_TEMPLATE.md:5-11]
+  confidence: confirmed
+- id: F-070
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Gaps a run exposes in the method, a scanner, the yardstick or a contract are routed to the issue
+    tracker and land as a reviewed change citing the issue, and the harness sections show the rail in
+    use: invariants are headed by the issue that produced them.
+  evidence: [CLAUDE.md:53-58, CONTRIBUTING.md:11-12, tests/regression.mjs:922, tests/regression.mjs:3721, tests/regression.mjs:4588]
+  confidence: confirmed
+- id: F-071
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The issue tracker that holds the method's lessons is outside the tree; inside it, the lesson
+    survives as the invariant and its one-line header, and as a change log entry the method requires.
+  evidence: [CLAUDE.md:53-56, README.md:180, tests/regression.mjs:176]
+  confidence: confirmed
+- id: F-072
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Every run has a second output for the engine itself: a computed backlog of determinism and
+    coverage gaps plus an authored half with 1-5 surprise notes and items that carry an issue link
+    once filed, both schema-checked by the validator.
+  evidence: [map/METHOD.md:760-787, map/backlog.mjs:1-29, map/SCHEMA.md:435-460]
+  confidence: confirmed
+- id: F-073
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    A moved pinned score is a reviewed re-bless in the same commit with the reason, and a failing unit
+    or negative assertion is never re-blessed.
+  evidence: [CLAUDE.md:43-45, RUNBOOK.md:21-33, CONTRIBUTING.md:8-10]
+  confidence: confirmed
+- id: F-074
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine's disposition of its own planted test value against gitleaks is a tracked file with
+    one commit-pinned fingerprint per hit under its reason, and a rule that no hit is added without
+    one.
+  evidence: [.gitleaksignore:1-9]
+  confidence: confirmed
+- id: F-075
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine measures its own worth: recall against known-answer fixtures is pinned, and
+    repeatability across blind sweeps is reported as two numbers with a direction per divergence.
+  evidence: [README.md:152-166, tests/golden.json:1-27]
+  confidence: confirmed
+- id: F-076
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Each routine firing writes a structured routine.yaml (trigger, commit, engine, baseline source,
+    gate outcome, failure lines, exit) inside the uploaded run, so an outcome is readable without the
+    CI logs.
+  evidence: [routine/README.md:38-63]
+  confidence: confirmed
+- id: F-077
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The engine emits no usage or outcome record across runs of its own; outcomes live per run (the
+    run record, routine.yaml), and aggregation is left to a fleet collector the repository does not
+    contain.
+  evidence: [routine/README.md:38-42, README.md:98-101]
+  confidence: plausible

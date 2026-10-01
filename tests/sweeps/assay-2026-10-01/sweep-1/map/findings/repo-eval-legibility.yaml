@@ -1,0 +1,108 @@
+# map/findings/repo-eval-legibility.yaml — neutral evidence base for assay at
+# c30912c (blind sweep 1). Facts + descriptors + file:line evidence; no severity.
+# Pass 1: artifact legibility. Decision-reconstruction items are subject_type
+# artifact (SCHEMA.md §2 canonical census subject_type).
+
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The central design rule (the map states what is; views compute severity) is stated with its reason in the README, the agent contract and the method, so its rationale reconstructs from files alone."
+  evidence: [README.md:24-28, CLAUDE.md:11-15, map/METHOD.md:25-31]
+  confidence: confirmed
+
+- id: F-002
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The decision to split the routine into a target job that executes the change and a gate job that never does is written beside the workflow with the attack it prevents (a change rewriting its own gate)."
+  evidence: [routine/README.md:111-141, routine/assay-routine.yml:40-46]
+  confidence: confirmed
+
+- id: F-003
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The non-obvious choice that finding ids carry no dimension meaning is recorded with its rationale (a per-dimension range is a budget dense repos overflow and would duplicate the dimension field)."
+  evidence: [map/SCHEMA.md:186-201]
+  confidence: confirmed
+
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The decision to run gitleaks only at a repository's own top level is explained in the code beside the check, naming the failure (a git-mode scan reading an enclosing repository's history)."
+  evidence: [map/start.mjs:105-121]
+  confidence: confirmed
+
+- id: F-005
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The decision not to adopt OpenSSF Scorecard is recorded as a retired adapter with a dated reason and restated in the candidates roster and the contract's definition of offline."
+  evidence: [map/scanners/adapters/scorecard.yaml:18-19, map/scanners/CANDIDATES.md:46, map/scanners/CONTRACT.md:141-152]
+  confidence: confirmed
+
+- id: F-006
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The rule that a pull request is ratcheted against the base branch's baseline and packet, never its own copy, is documented with the bypass it closes, in both the routine contract and the driver's header."
+  evidence: [routine/README.md:160-181, routine/run.mjs:29-48]
+  confidence: confirmed
+
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The choice to pin ASSAY_REF to a full commit SHA rather than a branch or tag is explained where it is set and in the release runbook."
+  evidence: [routine/assay-routine.yml:4-6, RUNBOOK.md:14-19]
+  confidence: confirmed
+
+- id: F-008
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The canon's purpose (a declared enumeration contract versus copying a prior run's findings) is explained in its own directory README and in SCHEMA §8."
+  evidence: [map/canon/README.md:8-14, map/SCHEMA.md:801-821]
+  confidence: confirmed
+
+- id: F-009
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The yardstick contract explains why not-applicable is decided only from the map and gives the historical misreading each not_applicable_when / not_measured_when fact was added to stop."
+  evidence: [yardstick/README.md:14-45]
+  confidence: confirmed
+
+- id: F-010
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "There is no decision-record directory; design rationale lives in the contract documents (SCHEMA, CONTRACT, routine and yardstick READMEs), in long code-header comments, and in a change log the agent contract requires for every change."
+  evidence: [CLAUDE.md:3-7, CLAUDE.md:47-58, README.md:168-181]
+  confidence: confirmed
+
+- id: F-011
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: "Harness and engine comments cite issue numbers and prior-run finding ids (for example #53, F-1213, F-613) whose source runs are, by the repository's own rule, not in the tree, so the finding a fix answers cannot be read from files."
+  evidence: [tests/regression.mjs:176, map/record.mjs:116-120, map/dependency-scan.mjs:143, CLAUDE.md:30-33]
+  confidence: confirmed
+
+- id: F-012
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The agent contract requires that taste the code relies on be written in CLAUDE.md or the owning contract, never only in a code comment."
+  evidence: [CLAUDE.md:53-58]
+  confidence: confirmed
+
+- id: F-013
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "The README names every place the engine reaches outside the checkout (package registry, instrument binaries, GitHub Actions for the routine) and defines offline once, pointing to the contract that owns the definition."
+  evidence: [README.md:98-114]
+  confidence: confirmed

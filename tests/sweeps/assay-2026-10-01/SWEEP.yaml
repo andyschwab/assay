@@ -1,0 +1,9 @@
+target: "andyschwab/assay, this repository (public), read as a git archive of its default branch"
+target_commit: "c30912c762fc20649fec8225c0d5d2544fdc7fa8"
+method_commit: "c30912c762fc20649fec8225c0d5d2544fdc7fa8"
+date: "2026-10-01"
+blind: true
+threshold:
+  fact_presence: 38          # measured 9 of 24 union facts caught by all three (38%); set at the measurement
+  descriptor_agreement: 20   # measured 1 of 5 shared effect channels identical on all six descriptors (20%)
+sweeps: [sweep-1, sweep-2, sweep-3]

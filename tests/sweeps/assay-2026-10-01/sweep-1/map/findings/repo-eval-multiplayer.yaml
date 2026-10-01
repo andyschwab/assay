@@ -1,0 +1,91 @@
+# map/findings/repo-eval-multiplayer.yaml — neutral evidence base for assay at
+# c30912c (blind sweep 1). Pass 7: multiplayer (agent access surface, shared
+# substrate, authority domains, consent semantics).
+
+- id: F-082
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "Every view writes a schema'd data file beside its plain page, and the views contract names each data file as the contract a publisher or agent builds on."
+  evidence: [README.md:17-22, views/README.md:22-24]
+  confidence: confirmed
+
+- id: F-083
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The ranked attack chains and the handoff sequence are written as data files with schemas that validate reads back, so an agent reads them without parsing a page."
+  evidence: [map/SCHEMA.md:735-737, lib/run-data.mjs:1-8]
+  confidence: confirmed
+
+- id: F-084
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The handoff folder is built to ship alone into the target repository as agent-ready session prompts, and every piece of scanner text in it carries an origin label (fenced as data from the scanned repository) distinct from the eval's own authored voice."
+  evidence: [map/METHOD.md:589-606, views/improve/handoff.mjs:149-155]
+  confidence: confirmed
+
+- id: F-085
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "A repository's own claims live in a committed packet that the measurement folds in and compares with the run, never merges, so owner, steward and agents share one versioned substrate."
+  evidence: [README.md:86-96, yardstick/README.md:47-50]
+  confidence: confirmed
+
+- id: F-086
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: "The owner's triage overlay records who decided as a role or handle, and validate rejects an email address or a person's name in that field."
+  evidence: [map/validate.mjs:343-344, map/METHOD.md:619-627]
+  confidence: confirmed
+
+- id: F-087
+  dimension: multiplayer
+  polarity: fact
+  subject_type: process
+  observation: "Questions only the owner can answer go out as one prompt the owner pastes into their own AI; the reply is treated as data, must carry no secret value, and is checked by the packet validator before it is used."
+  evidence: [owner/ask-owner.md:4-10, owner/ask-owner.md:39-40, yardstick/packet.mjs:141, yardstick/packet.mjs:150]
+  confidence: confirmed
+
+- id: F-088
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: "Who can read the routine's uploaded run is disclosed in its contract (anyone who can read the workflow runs, everyone on a public repository) together with what is stripped before upload."
+  evidence: [routine/README.md:29-36]
+  confidence: confirmed
+
+- id: F-089
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: "A run record row names a judgment scanner's status, reason, model and spend but not who or which session ran it, so acting-as for a repo-eval or deep-code-review review is not recorded in the run."
+  evidence: [map/SCHEMA.md:345-357, map/SCHEMA.md:365-374, map/record.mjs:12]
+  confidence: confirmed
+
+- id: F-090
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "The Owner view renders the same measurement in plain non-engineer language for the person who built the app with an AI, so a non-engineer reads the same facts the engineering views read."
+  evidence: [README.md:17-22, views/README.md:100-103]
+  confidence: confirmed
+
+- id: F-091
+  dimension: multiplayer
+  polarity: fact
+  subject_type: process
+  observation: "The routine produces a measurement and a pass or fail only; triage, fixes and issues stay human acts, and the owner's decisions file is never written by the routine."
+  evidence: [routine/README.md:106-109]
+  confidence: confirmed
+
+- id: F-092
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: "A run is a directory on disk with no shared service or database; sharing between people happens through git (the committed packet and baseline) and through workflow artifacts."
+  evidence: [README.md:98-101, RUNBOOK.md:73-87]
+  confidence: confirmed

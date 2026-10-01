@@ -1040,3 +1040,14 @@ what the public engine learned.
   `sweep-gate`, `run-data` and `backlog` blocks were confirmed red against the
   old code, again with only the variance exit reverted (its two
   breach assertions), and with only validate's read-back reverted (five).
+- 2026-10-01: **The first blind sweep set over this repository** (`tests/sweeps/assay-2026-10-01/`):
+  three fresh-context `repo-eval` runs over `main` at `c30912c`, each a child session that
+  saw no answer sheet, no other sweep and no sweep directory, all passes on one model of
+  record. Measured 24 union facts with 9 caught by all three (fact presence 38%) and 5
+  shared effect channels with 1 identical on all six descriptors (descriptor agreement
+  20%), divergences in both directions. The threshold is set at the measurement, so the
+  gate now holds the tree's own figure; `METHOD.md`, `SCHEMA.md` and `variance.mjs` cite it
+  beside the off-repo field pair (78% / 31%), which was higher and is history. One sweep
+  committed two `map/raw/` dumps, removed before the set was merged: only the repo-eval
+  findings and the run record are a sweep. The children cost $16.14 of model spend across
+  the three; the review and the set's assembly were the orchestrator's.

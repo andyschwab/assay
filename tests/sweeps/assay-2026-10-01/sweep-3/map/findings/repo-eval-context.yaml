@@ -1,0 +1,159 @@
+# map/findings/repo-eval-context.yaml — Pass 2, context economy, over assay at c30912c
+# (blind sweep 3). Census-augmented: one finding per bounded context (module population,
+# subject_type artifact), then the entry-point, size, freshness and spend facts.
+
+- id: F-011
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The map/ context loads from its own contracts: METHOD.md (the scanner), SCHEMA.md (the
+    finding format, declared authoritative) and scanners/CONTRACT.md (the adapter port).
+  evidence: [map/SCHEMA.md:1-20, map/METHOD.md:1-35, map/scanners/CONTRACT.md:1-12]
+  confidence: confirmed
+
+- id: F-012
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The yardstick/ context carries its own front-matter README stating the requirements
+    contract a task in that module needs.
+  evidence: [yardstick/README.md:1-5]
+  confidence: confirmed
+
+- id: F-013
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The views/ context carries its own README giving each view's data format.
+  evidence: [views/README.md:1-5, CLAUDE.md:6-7]
+  confidence: confirmed
+
+- id: F-014
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The owner/ context carries its own format document (PACKET.md) for what a repository
+    says about itself.
+  evidence: [owner/PACKET.md:1-5]
+  confidence: confirmed
+
+- id: F-015
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine/ context carries its own contract README beside the workflow template and
+    the driver that implement it.
+  evidence: [routine/README.md:20-36, routine/run.mjs:1-5]
+  confidence: confirmed
+
+- id: F-016
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The lib/ context has no README; each helper is documented by its header comment, and
+    lib/run-layout.mjs declares itself the one module that knows every run artifact's path.
+  evidence: [lib/run-layout.mjs:1-6, lib/yaml-min.mjs:1-6]
+  confidence: confirmed
+
+- id: F-017
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The tests/ context is one 5,034-line harness file holding every block (negative
+    fixtures, unit invariants, instruments, views, routine, doc consistency, scored
+    recall), so a change to any one engine area loads or edits the same monolith.
+  evidence: [tests/regression.mjs:1-19, tests/regression.mjs:146, tests/regression.mjs:4772, package.json:9]
+  confidence: confirmed
+
+- id: F-018
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md is a 58-line agent contract that routes a new session to the front door and
+    the authoritative contract for each layer, and lists the three checks to run.
+  evidence: [CLAUDE.md:1-7, CLAUDE.md:39-45]
+  confidence: confirmed
+
+- id: F-019
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The command line is one dispatcher whose grouped table names every command with its
+    script and purpose, and each command runs as its own script in a child process.
+  evidence: [assay.mjs:15-46, assay.mjs:72]
+  confidence: confirmed
+
+- id: F-020
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    METHOD.md, the opening context of a repo-eval session, is a single 787-line document in
+    which the base passes (Passes 0-7) share the context with the view, report, handoff and
+    scoring detail (Pass 8 onward) that a base pass does not use.
+  evidence: [map/METHOD.md:61, map/METHOD.md:141, map/METHOD.md:352, map/METHOD.md:497-569, README.md:131-132]
+  confidence: confirmed
+
+- id: F-021
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    A doc-consistency block in the harness checks statements in the front door and contracts
+    against values read off the code (the view count from lib/run-layout.mjs, the fingerprint
+    parts, the cited ground rules), so stated counts cannot silently go stale.
+  evidence: [tests/regression.mjs:4482-4500]
+  confidence: confirmed
+
+- id: F-022
+  dimension: context-economy
+  polarity: fact
+  subject_type: process
+  observation: >
+    The run record can carry the model and spend of each judgment scanner and each repo-eval
+    pass, and variance reports agreement per model pair, but no file records a rationale
+    for which model tier runs which pass or a re-qualification step when models change.
+  evidence: [map/SCHEMA.md:358-385, map/variance.mjs:93-97, map/METHOD.md:152-159]
+  confidence: confirmed
+
+- id: F-023
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Spot-checked doc claims match the code: the Node floor (README) matches package.json
+    engines and the CI matrix, and METHOD's deep-code-review 1.128+ matches the adapter's
+    min_version.
+  evidence: [README.md:118, package.json:17, .github/workflows/ci.yml:22, map/METHOD.md:551, map/scanners/adapters/deep-code-review.yaml:17]
+  confidence: confirmed
+
+- id: F-087
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The method and the backlog tool disagree on the surprise-note count a run writes:
+    METHOD.md asks for 2-5 notes while backlog.mjs describes the authored half as the run's
+    1-5 surprise notes.
+  evidence: [map/METHOD.md:783, map/backlog.mjs:21-22]
+  confidence: confirmed
+
+- id: F-088
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    SCHEMA.md's run-layout section says handoff.mjs writes every handoff file with
+    `confidential: true`, while the code writes it only under --confidential or a prose
+    `confidential: true`, which SCHEMA's own prose section describes as never an engine default.
+  evidence: [map/SCHEMA.md:311-313, map/SCHEMA.md:590-592, views/improve/handoff.mjs:87-88, views/improve/handoff.mjs:595]
+  confidence: confirmed

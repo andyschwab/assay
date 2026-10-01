@@ -1,0 +1,107 @@
+# map/findings/repo-eval-context.yaml — neutral evidence base for assay at
+# c30912c (blind sweep 1). Pass 2: context economy (docs routing, module
+# boundaries, doc freshness, and the spend side: model tier and inference spend).
+
+- id: F-014
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "The 58-line agent contract routes a stranger to the four authoritative documents (README front door, SCHEMA format, METHOD scanner, yardstick and views contracts) before stating the ground rules."
+  evidence: [CLAUDE.md:3-7]
+  confidence: confirmed
+
+- id: F-015
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "The README's layout section maps each top-level directory to one responsibility (map, yardstick, views, owner, routine, lib, tests), matching the three-layer architecture it draws."
+  evidence: [README.md:30-41, README.md:168-181]
+  confidence: confirmed
+
+- id: F-016
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "Every run artifact path is owned by one module (lib/run-layout.mjs), so a task touching the run layout loads one file rather than tracing path construction across the engine."
+  evidence: [lib/run-layout.mjs:1-6]
+  confidence: confirmed
+
+- id: F-017
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "The command dispatcher lists every command with its script and a one-line purpose, grouped by layer, so the CLI surface loads from one 73-line file."
+  evidence: [assay.mjs:18-46]
+  confidence: confirmed
+
+- id: F-018
+  dimension: context-economy
+  polarity: strength
+  subject_type: contract
+  observation: "Views are bounded to one input: each reads the yardstick measurement and never decides a requirement itself, which lets a view change load without the measurement code."
+  evidence: [CLAUDE.md:23-26, views/README.md:14-19]
+  confidence: confirmed
+
+- id: F-019
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "The whole regression harness is one 5,034-line file, so an agent adding or reading one invariant block navigates a single file holding every block rather than loading one subsystem's tests."
+  evidence: [tests/regression.mjs:1-13, tests/regression.mjs:5034]
+  confidence: confirmed
+
+- id: F-020
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: "A repo-eval session's opening context is METHOD.md (787 lines) with SCHEMA.md (878 lines) as the authoritative format it defers to, about 1,665 lines before any target file is read."
+  evidence: [README.md:131-132, map/METHOD.md:267-273, map/SCHEMA.md:7-12]
+  confidence: confirmed
+
+- id: F-021
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "SCHEMA.md states the handoff writer stamps every handoff file confidential: true, but views/improve/handoff.mjs adds that key only when the run sets confidential or --confidential is passed."
+  evidence: [map/SCHEMA.md:311-316, views/improve/handoff.mjs:88, views/improve/handoff.mjs:595]
+  confidence: confirmed
+
+- id: F-022
+  dimension: context-economy
+  polarity: strength
+  subject_type: contract
+  observation: "The run record carries the model and spend of each judgment scanner and of each repo-eval pass, and validate warns when a judgment scanner records no model because a repeat could not separate model drift from method drift."
+  evidence: [map/SCHEMA.md:359-385, map/validate.mjs:223-243]
+  confidence: confirmed
+
+- id: F-023
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: "Repeatability is reported per model pair, so a model change reads as its own row in variance rather than blended into the whole."
+  evidence: [map/variance.mjs:131-133, map/SCHEMA.md:383-385]
+  confidence: confirmed
+
+- id: F-024
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: "No model tier is recommended or justified for repo-eval or deep-code-review, and the sweep re-run trigger is a METHOD or SCHEMA change, not a model release; spend is an optional free-text field with no per-work-class meter."
+  evidence: [README.md:131-136, map/METHOD.md:155-159, map/METHOD.md:756-758, map/validate.mjs:223-224]
+  confidence: confirmed
+
+- id: F-025
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "Long contracts are split by owner and cross-referenced as the one home of a format (packet format in owner/PACKET.md, baseline format in yardstick/README.md, evidence transcript format in owner/evidence/README.md) rather than restated."
+  evidence: [routine/README.md:100-102, routine/README.md:148-149, map/scanners/CONTRACT.md:472-474]
+  confidence: confirmed
+
+- id: F-093
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "lib/run-data.mjs points readers to SCHEMA.md §5c for its data-file schemas, but SCHEMA.md has no §5c (its section 5 stops at §5b)."
+  evidence: [lib/run-data.mjs:1-3, map/SCHEMA.md:435]
+  confidence: confirmed

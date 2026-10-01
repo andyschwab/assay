@@ -1,0 +1,101 @@
+# map/findings/repo-eval-multiplayer.yaml — Pass 7, multiplayer, over assay at c30912c
+# (blind sweep 3). Agent access surface, shared substrate, authority domains, consent.
+
+- id: F-089
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every engine capability is reachable from the command line, and each view writes a data
+    file with a documented schema beside its page (intake, maintain, improve, owner, since
+    YAML; chains.json and handoff/sequence.json with versioned schema ids), so an agent can
+    consume the results without parsing the human pages.
+  evidence: [assay.mjs:18-46, README.md:7-22, views/README.md:161-162]
+  confidence: confirmed
+
+- id: F-090
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The handoff is designed to ship alone into the target repository as a self-contained
+    folder an agent session works from, with one session prompt per sequenced item.
+  evidence: [views/improve/handoff.mjs:32-34, map/METHOD.md:589-602]
+  confidence: confirmed
+
+- id: F-091
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A repository's owner contributes context through a validated packet (claims, pointers,
+    evidence transcripts) that the measurement folds in and keeps distinct from what the run
+    itself decided.
+  evidence: [README.md:86-96, owner/PACKET.md:1-5, yardstick/packet.mjs:1-14]
+  confidence: confirmed
+
+- id: F-092
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    The owner's triage overlay records who decided each accept, fix, investigate or snooze as
+    a role or handle, never an email or a name, with a reason required on every accept and
+    snooze, and the validator enforces it.
+  evidence: [map/decisions.mjs:18, map/decisions.mjs:27, map/METHOD.md:619-627, tests/regression.mjs:127-132]
+  confidence: confirmed
+
+- id: F-093
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Findings and remedies carry their provenance: each finding names its source scanner, and
+    the handoff labels every remedy as scanner-verbatim or eval-authored, quoting scanner
+    fixes exactly.
+  evidence: [map/SCHEMA.md:78-82, map/METHOD.md:580-588]
+  confidence: confirmed
+
+- id: F-094
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    The run record is safe for several writers at once (record, ingest, another agent's
+    session): every read-modify-write holds an exclusive lock file and fails loud rather than
+    writing unlocked.
+  evidence: [map/record.mjs:116-121, map/SCHEMA.md:338-344]
+  confidence: confirmed
+
+- id: F-095
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The only shared substrate is the run directory on disk, which by the three-home rule lives
+    with its subject repository; the engine keeps no shared store, and sharing a run is a file
+    copy or a CI artifact.
+  evidence: [README.md:98-101, map/SCHEMA.md:243-247]
+  confidence: confirmed
+
+- id: F-096
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Who can read a routine's uploaded run is disclosed structurally in the routine contract
+    (anyone who can read workflow runs, anyone on a public repository, for the retention
+    period), together with what is stripped before upload.
+  evidence: [routine/README.md:28-35]
+  confidence: confirmed
+
+- id: F-097
+  dimension: multiplayer
+  polarity: fact
+  subject_type: process
+  observation: >
+    The routine compiles the whole package, handoff included, into the run it uploads, and
+    the handoff's confidential marking is off unless the operator turns it on, so a public
+    stewarded repository's routine publishes its handoff with no confidentiality label.
+  evidence: [routine/run.mjs:7-12, views/compile.mjs:80, views/improve/handoff.mjs:87-88, routine/assay-routine.yml:188-195]
+  confidence: plausible

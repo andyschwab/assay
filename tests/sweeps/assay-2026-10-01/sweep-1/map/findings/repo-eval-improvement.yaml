@@ -1,0 +1,108 @@
+# map/findings/repo-eval-improvement.yaml — neutral evidence base for assay at
+# c30912c (blind sweep 1). Pass 6: improvement loop (corrections compounding,
+# impact self-measurement, instrumentation-readiness). Lesson items are
+# subject_type process (SCHEMA.md §2 canonical census subject_type).
+
+- id: F-069
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "An agent spec (CLAUDE.md) holds the repository's standing rules (six ground rules, the checks, how a change lands) and the contributing guide and pull request template point back to it."
+  evidence: [CLAUDE.md:9-58, CONTRIBUTING.md:3, .github/PULL_REQUEST_TEMPLATE.md:5-11]
+  confidence: confirmed
+
+- id: F-070
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Corrections land as permanent harness invariants that name the issue they close (for example #30 skipped tests, #49 archived output tails, #53 fail-closed reads, #57 the sweep gate and the feedback hook), so a fixed lesson cannot silently regress."
+  evidence: [tests/regression.mjs:808, tests/regression.mjs:922, tests/regression.mjs:195, tests/regression.mjs:4588, tests/regression.mjs:4707]
+  confidence: confirmed
+
+- id: F-071
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "A new assertion must be confirmed red with the rule it pins reverted before it is trusted, and the change's log entry must say so; the rule is restated in the contributing guide and the pull request template."
+  evidence: [CLAUDE.md:49-52, CONTRIBUTING.md:6-7, .github/PULL_REQUEST_TEMPLATE.md:5-11]
+  confidence: confirmed
+
+- id: F-072
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "A gap a run exposes in the method, a scanner, the yardstick or a contract has a named home: an issue on the repository's tracker stated with public evidence, landing as a reviewed change that cites it."
+  evidence: [CLAUDE.md:53-58, CONTRIBUTING.md:11-12]
+  confidence: confirmed
+
+- id: F-073
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Every run is designed to emit a second output, a method backlog for the engine (a computed half from enumerate, validate and a prior diff, plus an authored half with surprise notes), with schemas validate reads back."
+  evidence: [map/METHOD.md:760-787, map/backlog.mjs:1-12, map/SCHEMA.md:435-460, tests/regression.mjs:4707-4708]
+  confidence: confirmed
+
+- id: F-074
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Decisions carry dates in the tree where they are enforced (the Scorecard adapter retired 2026-09-15; the custody run layout reorganized 2026-08-11), evidence the decision mechanism is used rather than aspirational."
+  evidence: [map/scanners/adapters/scorecard.yaml:18-19, map/validate.mjs:466-469]
+  confidence: confirmed
+
+- id: F-075
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: "The change log every landing change must update (HISTORY.md, 1,042 lines) was not read in this blind sweep, so whether its entries record the red-then-green confirmation the agent contract requires is not verified here."
+  evidence: [CLAUDE.md:49-52, README.md:180]
+  confidence: unverified
+
+- id: F-076
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "The engine measures its own worth on known answers (pinned recall per fixture) and on repeatability (two measures per sweep set), and the README frames both as measured, not asserted."
+  evidence: [README.md:152-166, tests/golden.json:1-27]
+  confidence: confirmed
+
+- id: F-077
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "A target's delta is legible without a study: the Since view and the ratchet compare two runs' measurements and findings, and a committed baseline fails the routine when a held requirement regresses."
+  evidence: [README.md:14-15, README.md:142-145, views/README.md:164-166, routine/README.md:146-154]
+  confidence: confirmed
+
+- id: F-078
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Each routine firing emits a structured outcome record (routine.yaml: commit, engine, trigger, baseline source, gate outcome, failures, exit) designed for a fleet collector reading only the uploaded artifact."
+  evidence: [routine/README.md:38-63, routine/run.mjs:120-149]
+  confidence: confirmed
+
+- id: F-079
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: "The CLI emits no usage record of its own beyond what a run directory carries (the run record, the measurement, routine.yaml), so how often each command runs or fails across operators is not recorded by design."
+  evidence: [README.md:98-101, map/start.mjs:288, routine/run.mjs:183-190]
+  confidence: plausible
+
+- id: F-080
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Canon maintenance is a separate reviewed function: drift between a run and its canon is surfaced as advisory warnings for a human to fold into the next canon revision, never negotiated mid-run."
+  evidence: [map/SCHEMA.md:868-872, map/validate.mjs:460-464]
+  confidence: confirmed
+
+- id: F-081
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: "The canon directory ships empty, so no declared enumeration contract exists yet, including for assay itself."
+  evidence: [map/canon/README.md:21-22]
+  confidence: confirmed
