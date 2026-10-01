@@ -10,8 +10,8 @@ export { isHalt };
 
 const REV_RANK = { reversible: 0, 'reversible-with-window': 1, irreversible: 2 };
 const TEL_RANK = { none: 0, unstructured: 1, 'structured-event': 2 };
-const BLAST_RANK = { tenant: 0, fleet: 1, 'cross-tenant': 2 };
-const worst = (a, b, rank) => (rank[b] > rank[a] ? b : a);
+const BLAST_RANK = { user: 0, tenant: 1, fleet: 2, 'cross-tenant': 3 };   // every blast_scope SCHEMA.md allows
+const worst = (a, b, rank) => (a === undefined ? b : rank[b] > rank[a] ? b : a);
 
 // returns [{ group, groupLabel, channels: [{ channel, label, what, findings, external,
 //   reversibility, telemetry, blast, gates, halt }] }], only non-empty groups, in order
@@ -28,7 +28,7 @@ export function buildCapabilities(findings, channelNotes = {}) {
         what: (channelNotes[key] && channelNotes[key].what) || '',
         group: (channelNotes[key] && channelNotes[key].group) || 'data',
         findings: [], external: false,
-        reversibility: 'reversible', telemetry: 'structured-event', blast: 'tenant',
+        reversibility: 'reversible', telemetry: 'structured-event', blast: undefined,   // the first finding's scope, then the worst
         gates: new Set(), halt: false,
       });
     }
@@ -38,7 +38,8 @@ export function buildCapabilities(findings, channelNotes = {}) {
     row.reversibility = worst(row.reversibility, e.reversibility, REV_RANK);
     // telemetry: report the WEAKEST trace across the channel's findings (min rank)
     row.telemetry = (TEL_RANK[e.telemetry] < TEL_RANK[row.telemetry]) ? e.telemetry : row.telemetry;
-    row.blast = worst(row.blast, e.blast_scope, BLAST_RANK);
+    if (e.blast_scope !== undefined && !(e.blast_scope in BLAST_RANK)) throw new Error(`${f.id}: unknown effect.blast_scope "${e.blast_scope}" (${Object.keys(BLAST_RANK).join(' | ')})`);
+    if (e.blast_scope !== undefined) row.blast = worst(row.blast, e.blast_scope, BLAST_RANK);
     if (e.gate_type) row.gates.add(e.gate_type);
     if (isHalt(e)) row.halt = true;
   }

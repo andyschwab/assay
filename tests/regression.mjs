@@ -27,6 +27,7 @@ import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase, loadManifest } from '../map/project.mjs';
 import { isHalt } from '../map/doctrine.mjs';
 import { buildSupervision } from '../map/supervision.mjs';
+import { buildCapabilities } from '../map/capabilities.mjs';
 import { computeVariance } from '../map/variance.mjs';
 import { decideProjected, loadDecisions } from '../map/decisions.mjs';
 import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
@@ -253,6 +254,20 @@ for (const [dir, what, expect, opts = {}] of NEGATIVE) {
     fail(`maturity halts-gated (${gates.coverage.met}/${gates.coverage.of}) must equal the supervision split (${sup.supervised}/${sup.total}) — one gate rule`);
   const flagged = base.filter((f) => isHalt(f.effect)).map((f) => f.id);
   if (flagged.join(',') !== 'F-1,F-3,F-4') fail(`unheld-halt flags must be F-1,F-3,F-4 (got ${flagged.join(',')})`);
+}
+
+// ── capabilities reads every blast_scope the schema allows, and refuses another (#53, F-1236) ──
+// BLAST_RANK had no `user`, so a user-scoped channel reported tenant (rank undefined never
+// wins), and an unknown value passed silently.
+{
+  const fail = (m) => negFailures.push('capabilities-blast: ' + m);
+  const eff = (id, blast) => ({ id, subject_type: 'effect', effect: { channel: 'ch', reversibility: 'reversible', external: false, gate_type: 'none', telemetry: 'none', blast_scope: blast } });
+  const blastOf = (fs) => buildCapabilities(fs).flatMap((g) => g.channels)[0]?.blast;
+  if (blastOf([eff('F-1', 'user')]) !== 'user') fail(`a user-scoped channel must report user (got ${blastOf([eff('F-1', 'user')])})`);
+  if (blastOf([eff('F-1', 'user'), eff('F-2', 'tenant')]) !== 'tenant') fail('the worst scope across a channel\'s findings wins (user + tenant → tenant)');
+  if (blastOf([eff('F-1', 'cross-tenant'), eff('F-2', 'fleet')]) !== 'cross-tenant') fail('cross-tenant outranks fleet');
+  let threw = false; try { buildCapabilities([eff('F-1', 'galaxy')]); } catch { threw = true; }
+  if (!threw) fail('an unknown blast_scope must throw, never rank as nothing');
 }
 
 // ── engine-pipeline invariants: roster honesty + explicit-axis rail + decision overlay ─
@@ -4530,6 +4545,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
 }
 process.exit(v.exit);
