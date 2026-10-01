@@ -43,7 +43,7 @@ import { runRoutine, toRoutineYaml } from '../routine/run.mjs';
 import { parseWorkflow, run as runCensus } from '../map/repo-census.mjs';
 import { planWorkspace } from '../map/fresh-clone.mjs';
 import { parsePnpmAudit, parseYarnClassicAudit } from '../map/dependency-scan.mjs';
-import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
+import { detectToolchain, run as runFreshClone, runStep as runFreshCloneStep, resolveWorkspaces as resolveFreshCloneWorkspaces, claimPresent as freshCloneClaimPresent } from '../map/fresh-clone.mjs';
 import { run as runDependencyScan } from '../map/dependency-scan.mjs';
 import { scannersPath as runScannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow } from '../map/record.mjs';
@@ -2896,7 +2896,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (committed.status !== 0) fail(`could not git-init the scratch target (${committed.stderr})`);
 
   const runDir = join(tmp, 'run');
-  const start = execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDir, target], { encoding: 'utf8' });
+  const start = execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDir, target, '--allow-exec'], { encoding: 'utf8' });
   const manifestPath = runScannersPath(runDir);
   if (!existsSync(manifestPath)) fail('start must write map/scanners.yaml');
   else {
@@ -2907,7 +2907,7 @@ function adaptersOnce() { return loadAdapters(); }
     for (const id of Object.keys(adopted)) if (!rows[id]) fail(`start must record a row for every adopted scanner (missing ${id})`);
     if (rows['repo-census']?.status !== 'ran') fail(`repo-census needs no network and must read ran (got ${JSON.stringify(rows['repo-census'])})`);
     if (rows['dependency-scan']?.status !== 'ran') fail(`dependency-scan needs no network against this lockfile-free fixture and must read ran (got ${JSON.stringify(rows['dependency-scan'])})`);
-    if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone (default clone mode, a real local git target) must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
+    if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone (--allow-exec, default clone mode, a real local git target) must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
     for (const id of ['repo-eval', 'deep-code-review']) {
       const r = rows[id];
       if (r?.status !== 'skipped') fail(`${id} must be recorded skipped by start (got ${JSON.stringify(r)})`);
@@ -2945,6 +2945,99 @@ function adaptersOnce() { return loadAdapters(); }
   }
   if (!/✓ assay validate/.test(startNT)) fail(`start with no target must still validate green (got:\n${startNT})`);
 
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── isolation (#47): the target's code never runs with the evaluator's environment ──
+// fresh-clone and dependency-scan spawn the target's package manager. Pinned: (a) a child
+// of either instrument sees only the allow-listed environment names — PATH, HOME, CI and
+// the npm_config_* values the runner sets — never a credential the evaluator's shell holds;
+// (b) every audit runs in a scratch directory holding only the manifest and the lockfile,
+// so a planted .yarnrc (yarn-path → the target's own script) never runs and cannot forge
+// a clean audit; (c) `assay start <target>` runs fresh-clone (the target's install,
+// lifecycle scripts and test) only under --allow-exec, recording it skipped with the
+// reason otherwise; (d) a workspace path never leaves the tree or reaches the shell
+// unquoted, and the README claim check refuses a sibling sharing the tree's prefix.
+// tests/instruments/exec-planted carries the planted doors; tests/instruments/isolation-shims
+// stands in for npm and yarn offline, recording every call (cwd, files, env names).
+{
+  const fail = (m) => negFailures.push('isolation: ' + m);
+  const ALLOWED = new Set(['PATH', 'HOME', 'CI', 'npm_config_fund', 'npm_config_audit', 'npm_config_update_notifier']);
+  const SHELL_SET = new Set(['PWD', 'OLDPWD', 'SHLVL', '_']);   // names a POSIX shell sets itself
+  const PLANTED = 'ASSAY_PLANTED_TOKEN';                         // an inert planted name, never a real credential
+  const tmp = join(HERE, 'tmp-isolation'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  const recordsPath = join(tmp, 'records.ndjson');
+  const records = () => existsSync(recordsPath) ? readFileSync(recordsPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
+  const markers = (dir) => existsSync(dir) ? readdirSync(dir).filter((f) => f.startsWith('planted-ran-')) : [];
+  const savedPath = process.env.PATH, savedPlanted = process.env[PLANTED], savedDb = process.env.DATABASE_URL;
+  try {
+    process.env[PLANTED] = 'inert-planted-value';
+    process.env.DATABASE_URL = 'postgres://inert-planted-value@127.0.0.1:1/none';
+
+    // (a) fresh-clone: a step's own process sees the allow-list and nothing else
+    const step = runFreshCloneStep('test', `node -e "process.stdout.write('ENV:' + Object.keys(process.env).sort().join(','))"`, tmp, 30);
+    const seen = ((step.output_tail || '').match(/ENV:(\S*)/) || [])[1];
+    if (step.status !== 'passed' || seen === undefined) fail(`the env probe step must run (got ${step.status}: ${step.output_tail})`);
+    else {
+      const extra = seen.split(',').filter((n) => n && !ALLOWED.has(n) && !SHELL_SET.has(n));
+      if (extra.length) fail(`a fresh-clone step must see only the allow-listed environment names (also saw ${extra.join(', ')})`);
+    }
+
+    // (b) dependency-scan over the planted target: audits in scratch, nothing planted runs
+    const target = join(tmp, 'target');
+    cpSync(join(HERE, 'instruments', 'exec-planted'), target, { recursive: true });
+    process.env.PATH = `${join(HERE, 'instruments', 'isolation-shims')}:${savedPath}`;
+    const doc = runDependencyScan({ target, timeout: 30, log: () => {} });
+    if (markers(target).length) fail(`dependency-scan ran the target's own code (${markers(target).join(', ')}): the audit read the target's .yarnrc`);
+    const audits = records().filter((r) => r.args[0] === 'audit');
+    if (audits.length !== 2) fail(`dependency-scan must audit both lockfiles through the package manager itself (got ${audits.length} audit call(s): ${audits.map((r) => r.tool).join(', ')})`);
+    for (const r of audits) {
+      if (r.cwd === target || r.cwd.startsWith(target + '/')) fail(`${r.tool} audit must run in a scratch directory, never inside the target (ran in ${r.cwd})`);
+      const lock = r.tool === 'yarn' ? 'yarn.lock' : 'package-lock.json';
+      if (r.files.join() !== ['package.json', lock].sort().join()) fail(`${r.tool} audit's directory must hold only package.json and ${lock} (held ${r.files.join(', ')})`);
+      const extra = r.env.filter((n) => !ALLOWED.has(n));
+      if (extra.length) fail(`${r.tool} audit must see only the allow-listed environment names (also saw ${extra.join(', ')})`);
+    }
+    if (doc.lockfiles.some((l) => l.status !== 'audited')) fail(`both planted lockfiles audit through the shims (got ${JSON.stringify(doc.lockfiles.map((l) => [l.path, l.status, l.reason]))})`);
+
+    // (c) start without --allow-exec: fresh-clone recorded skipped, no install or script runs
+    const git = (args) => spawnSync('git', args, { cwd: target, encoding: 'utf8' });
+    git(['init', '-q']); git(['config', 'user.email', 'test@example.com']); git(['config', 'user.name', 'assay regression']);
+    git(['add', '-A']);
+    if (git(['commit', '-q', '-m', 'init']).status !== 0) fail('could not git-init the planted target');
+    rmSync(recordsPath, { force: true });
+    const runDir = join(tmp, 'run');
+    let startOut = '';
+    try { startOut = execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDir, target], { encoding: 'utf8', stdio: 'pipe' }); }
+    catch (e) { startOut = String(e.stdout || '') + String(e.stderr || ''); }
+    const rows = existsSync(runScannersPath(runDir)) ? (parseYaml(readFileSync(runScannersPath(runDir), 'utf8')).scanners || {}) : {};
+    const fc = rows['fresh-clone'];
+    if (fc?.status !== 'skipped' || !/--allow-exec/.test(fc.reason || '') || !/target's own/.test(fc.reason || '')) fail(`without --allow-exec, start must record fresh-clone skipped, saying it runs the target's own code and naming --allow-exec (got ${JSON.stringify(fc)})`);
+    if (rows['dependency-scan']?.status !== 'ran') fail(`start still runs dependency-scan (scratch-only, no target code) without --allow-exec (got ${JSON.stringify(rows['dependency-scan'])})`);
+    const ranTarget = records().filter((r) => r.args[0] !== 'audit' && r.args[0] !== '--version');
+    if (ranTarget.length) fail(`start without --allow-exec ran the target's own install or scripts (${ranTarget.map((r) => `${r.tool} ${r.args.join(' ')}`).join(' | ')})`);
+    if (markers(target).length) fail(`start without --allow-exec ran planted code (${markers(target).join(', ')})`);
+    if (!/✓ assay validate/.test(startOut)) fail(`a start that skipped fresh-clone must still validate green (got:\n${startOut})`);
+  } finally {
+    process.env.PATH = savedPath;
+    if (savedPlanted === undefined) delete process.env[PLANTED]; else process.env[PLANTED] = savedPlanted;
+    if (savedDb === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = savedDb;
+  }
+
+  // (d) workspace paths and README claims stay inside the tree
+  const ws = join(tmp, 'ws');
+  mkdirSync(join(ws, 'apps', 'my app'), { recursive: true });
+  mkdirSync(join(tmp, 'outside'), { recursive: true });
+  writeFileSync(join(ws, 'apps', 'my app', 'package.json'), '{"name":"spaced"}');
+  writeFileSync(join(tmp, 'outside', 'package.json'), '{"name":"outside"}');
+  const wsPaths = resolveFreshCloneWorkspaces(ws, { workspaces: ['apps/*', '../outside'] });
+  if (wsPaths.join() !== 'apps/my app') fail(`a workspace pattern with a ".." segment must never resolve outside the tree (got ${JSON.stringify(wsPaths)})`);
+  const lockTc = { family: 'node', package_manager: 'npm', lockfile: 'package-lock.json' };
+  const wsPlan = planWorkspace(lockTc, { family: 'node', package_manager: 'npm', lockfile: null, has_dependencies: true }, { name: 'spaced', dependencies: { x: '1' } }, 'apps/my app');
+  if (wsPlan.install.command !== "npm ci --workspace 'apps/my app'") fail(`a workspace path must reach the shell quoted (got ${wsPlan.install.command})`);
+  mkdirSync(join(tmp, 'ws-sibling'), { recursive: true });
+  writeFileSync(join(tmp, 'ws-sibling', 'x.js'), '');
+  if (freshCloneClaimPresent({ kind: 'node-file', name: '../ws-sibling/x.js' }, ws, {})) fail('a README node-file claim resolving to a sibling directory that shares the tree\'s prefix must read missing, never present');
   rmSync(tmp, { recursive: true, force: true });
 }
 
