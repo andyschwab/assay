@@ -395,8 +395,11 @@ is no binning.
  (`SCHEMA.md` §2 — decide it once, never re-choose per run). Measured on
  calibration pairs (a repeated run over one frozen target), this roughly doubled
  fact-level repeatability (48% to 78% in one pair measured in the field, off-repo, before
- the committed sweep sets; `tests/sweeps/README.md` is where the tree's own figure lives). A base sweep stays
- fine for a one-off client read.
+ the committed sweep sets). The tree's own figure is the committed blind set's
+ (`tests/sweeps/assay-2026-10-01/`, three fresh contexts over this repository at one
+ commit): 38% of union facts caught by all three, 20% of shared effect channels judged
+ identically on all six descriptors — lower than the field pair, and the number the gate
+ holds (`tests/sweeps/README.md`). A base sweep stays fine for a one-off client read.
 - **Author depth separately**: one judged sentence per dimension on how good the
  *best instance* is, with finding ids. High depth over low coverage is a finding
  in itself ("the team knows how; the work is doing it everywhere").

@@ -179,7 +179,11 @@ off-repo, before the committed sweep sets existed: a canon-pinned cross-run pair
 fact-presence read 78% on a blind pair of the same target. Those runs are not in this
 tree, so the figures are history, not a check; the number the tree reproduces is a
 committed sweep set's (`tests/sweeps/README.md`), which `node assay.mjs variance --set`
-measures and gates at the set's own threshold.
+measures and gates at the set's own threshold. The first blind set over this repository
+(`tests/sweeps/assay-2026-10-01/`, three fresh contexts at one commit) measured fact
+presence at 38% and descriptor agreement at 20%, with divergences in both directions:
+the judgment layer is where the method is least repeatable, and the shipped numbers
+computed from it carry that.
 
 ---
 
