@@ -215,7 +215,9 @@ const PROFILES = {
     // Rows: one gap per step that failed / timed out; one gap per NOT-DECLARED lint,
     // typecheck, test, migrate (the floor descriptors are worded so absence is a gap,
     // never clean: no lint script is not a green lint); one gap per MISSING README
-    // claim. A passing step yields no row — a clean run is the explicit empty file.
+    // claim. A passing step yields no row — a clean run is the explicit empty file —
+    // except a test step that passed with tests skipped (its `tests` counts, #30): it
+    // keeps its status and yields one `test:skipped` gap stating the skipped share.
     // A workspace step COVERED by a passing root step (fresh-clone's covered_by names
     // it) yields no row either: the root's own row already carries that step.
     // NEVER copy step output: the last-40-lines tail (which may echo environment
@@ -263,6 +265,26 @@ const PROFILES = {
             const by = s.covered_by;
             if (!by || typeof by.path !== 'string' || !by.path || typeof by.command !== 'string' || !by.command) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: covered with no covered_by path + command — coverage that names no covering step is not evidence (truncated report?)`);
             continue;
+          }
+          // test counts (#30): the runner's own summary, or `unparsed`; a passed step that
+          // skipped tests keeps its status (the exit code is honest) and gets one row of its own
+          if (s.name === 'test' && s.tests !== undefined && s.tests !== 'unparsed') {
+            const t = s.tests;
+            if (!t || typeof t !== 'object' || !['passed', 'skipped', 'failed', 'total'].every((k) => Number.isInteger(t[k]) && t[k] >= 0)) throw new Error(`fresh-clone${ctx.errLabel} step test: tests must be 'unparsed' or {passed, skipped, failed, total} counts (truncated report?)`);
+            if (s.status === 'passed' && t.skipped > 0) {
+              const total = Math.max(t.total, t.passed + t.skipped + t.failed);
+              rows.push({
+                id: fid(startId + n++),
+                source: 'fresh-clone',
+                native_id: `${ctx.idPrefix}test:skipped`,
+                native_category: 'test',
+                polarity: 'gap',
+                severity: 'Medium',
+                observation: `Fresh-clone step test${ctx.inLabel} passed, but ${t.skipped} of ${total} tests (${Math.round(100 * t.skipped / total)}%) were skipped in a clean checkout (\`${oneLine(s.command || 'test')}\`); the pass covers the ${t.passed + t.failed} that ran, not the suite.`,
+                evidence: [s.test_config ? `${ctx.dir}${s.test_config}:1` : ctx.manifest],
+                fix: ctx.hasDbSignals ? FC_FIX_SKIPPED_DB : FC_FIX_SKIPPED,
+              });
+            }
           }
           const cmd = s.command ? ` (\`${oneLine(s.command)}\`` + (Number.isInteger(s.exit_code) ? `, exit ${s.exit_code})` : ')') : '';
           let observation = null;
@@ -322,7 +344,7 @@ const PROFILES = {
       const hasSignals = (tc) => Array.isArray(tc && tc.database_signals) && tc.database_signals.length > 0;
       const rootDbSignals = hasSignals(rep.toolchain) || (Array.isArray(rep.workspaces) && rep.workspaces.some((w) => w && hasSignals(w.toolchain)));
       emitEntry(rep.steps, rep.readme_claims, {
-        idPrefix: '', inLabel: '', errLabel: '',
+        idPrefix: '', inLabel: '', errLabel: '', dir: '',
         manifest: (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
         readme: rep.readme || 'README.md',
         hasDbSignals: rootDbSignals,
@@ -334,7 +356,7 @@ const PROFILES = {
         if (!Array.isArray(w.readme_claims)) throw new Error(`fresh-clone workspace ${w.path} has no readme_claims[] (truncated report?)`);
         const wDbSignals = Array.isArray(w.toolchain && w.toolchain.database_signals) && w.toolchain.database_signals.length > 0;
         emitEntry(w.steps, w.readme_claims, {
-          idPrefix: `${w.path}:`, inLabel: ` in workspace ${w.path}`, errLabel: ` workspace ${w.path}`,
+          idPrefix: `${w.path}:`, inLabel: ` in workspace ${w.path}`, errLabel: ` workspace ${w.path}`, dir: `${w.path}/`,
           manifest: (w.toolchain && w.toolchain.manifest) ? `${w.path}/${w.toolchain.manifest}:1` : `${w.path}/package.json:1`,
           readme: `${w.path}/${w.readme || 'README.md'}`,
           hasDbSignals: wDbSignals,
@@ -559,6 +581,8 @@ const FC_FIX = {
   test: 'Declare a test script that executes the suite\'s core on a clean machine without an unset variable silently skipping it, and make it pass; re-run fresh-clone and confirm test passes.',
   migrate: 'Declare a migration command that replays from an empty database, with a DATABASE_URL-free dry form (migrate:dry / migrate:check / --dry-run) the fresh-clone run can exercise; re-run fresh-clone and confirm migrate passes.',
 };
+const FC_FIX_SKIPPED = 'Make the skipped tests run from a clean checkout: give them what they skip without (a service, a variable, a fixture) through a declared script the clean clone can run, or CI\'s service container, and stop gating them on an unset variable; re-run fresh-clone and confirm the test step reports no skipped tests.';
+const FC_FIX_SKIPPED_DB = 'Make the skipped tests run from a clean checkout: they need a database, so declare a test:db script that starts one (a container or an embedded database) and points the suite at it, or give CI a database service container; re-run fresh-clone and confirm the test step reports no skipped tests.';
 const FC_CLAIM_NOUN = { 'npm-script': 'package script', 'npx-bin': 'binary (a dependency or own bin)', 'node-file': 'file', 'make-target': 'make target' };
 // the scanner's confidence labels → the port's closed vocab (SCHEMA §2)
 const DCR_CONFIDENCE = { CONFIRMED: 'confirmed', CORROBORATED: 'confirmed', PLAUSIBLE: 'plausible', unverified: 'unverified' };
