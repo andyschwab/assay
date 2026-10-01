@@ -164,7 +164,9 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   scripts still run as the evaluator's user, with their filesystem and network
   — so fresh-clone belongs in a disposable container or VM: `assay start` runs
   it only under `--allow-exec` and otherwise records it `skipped` with that
-  reason; the routine, whose checkout is a fresh CI job, always runs it.
+  reason; the routine, whose checkout is a fresh CI job, always runs it, in a
+  job of its own that hands the gate only fresh-clone's raw report
+  (`routine/README.md` "Two jobs").
   `tests/instruments/exec-planted` (a planted `.yarnrc` and lifecycle scripts)
   and the harness's `isolation` block pin all of this.
 

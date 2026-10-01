@@ -834,3 +834,26 @@ what the public engine learned.
   through a URL with planted userinfo; a dependency-scan stderr tail; a
   symlink planted at the old guessable name) was confirmed red against the
   old code for each of its six reasons before the change. Goldens untouched.
+- **2026-10-01 — a pull request cannot touch the engine, the run or the
+  baseline before the gate reads them (#48).** The routine template ran the
+  change's own install and tests (fresh-clone, in place) in the same job,
+  workspace and user as the engine checkout, the run directory and the job
+  token, and only then spawned validate, compile and ratchet, which re-read
+  all of them from that writable workspace. It is now two jobs: `target` runs
+  `routine/run.mjs --target-steps` and hands forward only fresh-clone's raw
+  report and exit; `routine` (the required check, `needs: target`) checks
+  both repositories out afresh, ingests the handoff (`--handoff`) and gates,
+  never executing the change. Every checkout sets `persist-credentials:
+  false`; the base fetch takes the token from its step's environment; the
+  base branch reaches scripts through `env:`, quoted. On a pull request the
+  packet, like the baseline, is read from the base ref, and the ratchet fails
+  a held owner claim moved to `not-applicable` (a packet, not the map, can say
+  it). A base ref that does not resolve to a commit exits 1 with `gate:
+  not-run` and the reason, never "no baseline yet"; `catGitFile` refuses a ref
+  beginning with `-`; `ratchet` exits 2 on a value flag with no value and
+  `--write-baseline` refuses a run that fails its gate. New harness blocks
+  (`routine-pr-packet`, `routine-handoff`) and assertions in `routine-workflow`,
+  `routine-pr-baseline`, `ratchet` and `not-applicable-views` were each
+  confirmed red against the old code for their own reason before the change.
+  The template assertion on `--base-ref origin/${{ github.base_ref }}` now
+  reads the env form. Goldens untouched.
