@@ -1165,6 +1165,27 @@ function adaptersOnce() { return loadAdapters(); }
   const docAncestor = runDependencyScan({ target: tmpAncestor, timeout: 5, log: () => {} });
   if (docAncestor.manifests.length) fail(`a manifest covered by an ANCESTOR lockfile must not be recorded uncovered (got ${JSON.stringify(docAncestor.manifests)})`);
   rmSync(tmpAncestor, { recursive: true, force: true });
+
+  // (#53, F-1212) a package.json that JSON.parse refuses was skipped, so a tree whose only
+  // manifest carried a BOM or a trailing comma read no-manifest → not-applicable. A BOM is
+  // stripped; a manifest that still does not parse is one nothing audited, never no manifest.
+  const tmpBad = join(HERE, 'tmp-dep-unparseable'); rmSync(tmpBad, { recursive: true, force: true });
+  mkdirSync(join(tmpBad, 'bom'), { recursive: true });
+  mkdirSync(join(tmpBad, 'comma'), { recursive: true });
+  writeFileSync(join(tmpBad, 'bom', 'package.json'), '﻿' + JSON.stringify({ name: 'bom', dependencies: { left: '1.0.0' } }));
+  writeFileSync(join(tmpBad, 'comma', 'package.json'), '{ "name": "comma", "dependencies": { "right": "1.0.0", } }\n');
+  const docBad = runDependencyScan({ target: tmpBad, timeout: 5, log: () => {} });
+  const badPaths = docBad.manifests.map((m) => m.path);
+  if (docBad.noManifest !== false) fail('a tree whose manifests carry a BOM or a trailing comma must not read noManifest');
+  if (!badPaths.includes('bom/package.json')) fail(`a BOM-prefixed manifest with dependencies and no lockfile must be recorded uncovered (got ${JSON.stringify(badPaths)})`);
+  const commaRow = docBad.manifests.find((m) => m.path === 'comma/package.json');
+  if (!commaRow || commaRow.unparseable !== true) fail(`an unparseable manifest with no lockfile must be recorded as one nothing audited, marked unparseable (got ${JSON.stringify(commaRow)})`);
+  if (docBad.exit !== 1) fail(`unaudited manifests must make the document exit 1 (got ${docBad.exit})`);
+  const badRows = convert('dependency-scan', JSON.stringify(docBad), docBad.exit);
+  const commaFact = badRows.find((r) => r.native_id === 'no-lockfile@comma/package.json');
+  if (!commaFact || !/could not be parsed/.test(commaFact.observation)) fail(`ingest must say the unparseable manifest could not be parsed (got ${JSON.stringify(commaFact?.observation)})`);
+  if (badRows.some((r) => r.native_category === 'no-manifest')) fail('ingest must write no no-manifest row for a tree that has manifests');
+  rmSync(tmpBad, { recursive: true, force: true });
 }
 
 // ── fresh-clone on a pnpm monorepo (#25, #26): the root's gates cover the tree ──

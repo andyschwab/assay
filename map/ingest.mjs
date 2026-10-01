@@ -473,7 +473,9 @@ const PROFILES = {
           rows.push({
             id: fid(startId + n++), source: 'dependency-scan',
             native_id: `no-lockfile@${m.path}`, native_category: 'no-lockfile', polarity: 'fact',
-            observation: `${m.path} declares dependencies but no lockfile (npm, pnpm, or yarn) covers it — no lockfile: nothing to audit.`,
+            observation: m.unparseable === true
+              ? `${m.path} could not be parsed as JSON, so it may declare dependencies, and no lockfile (npm, pnpm, or yarn) covers it — no lockfile: nothing audited it.`
+              : `${m.path} declares dependencies but no lockfile (npm, pnpm, or yarn) covers it — no lockfile: nothing to audit.`,
             evidence: [`${m.path}:1`],
           });
         }
