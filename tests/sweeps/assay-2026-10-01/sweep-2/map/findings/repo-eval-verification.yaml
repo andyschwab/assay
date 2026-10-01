@@ -1,0 +1,119 @@
+# Pass 4 — verification. Effect-provability census: one finding per effect channel in the
+# terrain inventory (9), subject_type control, met = the effect proves it happened (not a report).
+- id: F-037
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    fresh-clone-exec records each step's command, exit code, duration and status, reads the test
+    count from the runner's own summary (or says unparsed), and states that an exit code of 0 is not
+    the suite having run.
+  evidence: [map/fresh-clone.mjs:388-396, map/scanners/CONTRACT.md:207-215]
+  confidence: confirmed
+- id: F-038
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    routine-target-exec hands its exit and report forward as a status file, and the gate job records
+    fresh-clone failed with the reason when the handoff is missing or unreadable, never as clean.
+  evidence: [map/start.mjs:237-257, routine/README.md:126-132, routine/assay-routine.yml:150-158]
+  confidence: confirmed
+- id: F-039
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    dependency-audit checks each audit's output against the package manager's report shape and
+    records a timeout, a spawn failure or an error document as a failed lockfile plus a
+    lockfile-not-audited fact, never as clean.
+  evidence: [map/dependency-scan.mjs:237-240, map/scanners/CONTRACT.md:335-351]
+  confidence: confirmed
+- id: F-040
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    For routine-artifact-upload, what the uploaded run may contain is pinned by a harness block (no
+    step output tail, no stderr tail, no credential, a URL target's userinfo stripped); the upload
+    itself is trusted to the upload action's own result.
+  evidence: [tests/regression.mjs:922, routine/README.md:29-36, routine/assay-routine.yml:188-195]
+  confidence: confirmed
+- id: F-041
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    ci-gitleaks-install verifies the downloaded archive against a pinned sha256 under set -euo
+    pipefail before the binary is installed or run.
+  evidence: [.github/workflows/ci.yml:36-46]
+  confidence: confirmed
+- id: F-042
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    run-record-write is checked back by the validator: a scanner recorded ran must have rows or an
+    explicit empty findings file, rows from a scanner recorded skipped or failed are rejected, and a
+    source with no manifest row is an error.
+  evidence: [map/SCHEMA.md:387-404]
+  confidence: confirmed
+- id: F-043
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    views-compile-write is read back by the validator: it recomputes the counted maturity numbers and
+    fails on drift, resolves every cited finding id, and checks the chains and sequence data files
+    against their schemas.
+  evidence: [map/SCHEMA.md:765-795, lib/run-data.mjs:1-8]
+  confidence: confirmed
+- id: F-044
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    baseline-write only writes the file; the proof that the baseline is right is a named steward's
+    review in a commit, and the ratchet then distinguishes held, failed and could-not-evaluate by
+    exit 0, 1 and 2.
+  evidence: [yardstick/ratchet.mjs:9, routine/README.md:146-154, routine/README.md:74-78]
+  confidence: confirmed
+- id: F-045
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    golden-bless refuses to rewrite tests/golden.json over a red tree, and the runbook requires
+    reviewing every moved number in the diff.
+  evidence: [tests/regression.mjs:4941, RUNBOOK.md:21-33]
+  confidence: confirmed
+- id: F-046
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    The repository hardens its own judgment method by measurement: variance.mjs reports fact
+    presence and descriptor agreement across blind sweeps of one target with a direction per
+    divergence, and the harness gates every committed sweep set at its own threshold and proves the
+    gate can go red.
+  evidence: [map/variance.mjs:1-40, tests/regression.mjs:4588-4600, README.md:161-166]
+  confidence: confirmed
+- id: F-047
+  dimension: verification
+  polarity: fact
+  subject_type: process
+  observation: >
+    The pinned recall scores are graded against fixtures whose answers were written by the same
+    author as the runs, which the method itself says proves the pipeline and the recall floor, not
+    blind determinism.
+  evidence: [map/METHOD.md:743-758, tests/golden.json:1-27]
+  confidence: confirmed
+- id: F-048
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The evidence check verifies that a cited path exists and the line is inside the file, but nothing
+    checks that the cited line says what the observation claims.
+  evidence: [map/SCHEMA.md:775-782]
+  confidence: confirmed

@@ -1,0 +1,93 @@
+# Pass 3 — deterministic gates. Gates census: one finding per gate, subject_type contract.
+- id: F-027
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CI runs on every push to main and every pull request, on Node 20 and 22, with lint, typecheck,
+    build and the regression harness as steps, actions pinned to commit SHAs, a read-only token and
+    a 15-minute timeout.
+  evidence: [.github/workflows/ci.yml:7-31, .github/workflows/ci.yml:47]
+  confidence: confirmed
+- id: F-028
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The regression harness pins 43 negative fixtures the validator must reject, each required to go
+    red for its own named violation and no other.
+  evidence: [tests/regression.mjs:80-90, tests/regression.mjs:146-147]
+  confidence: confirmed
+- id: F-029
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Recall on three known-answer fixtures is pinned in tests/golden.json, a drift fails the suite,
+    and a re-bless is a reviewed rewrite that the harness refuses on a red tree; a failing unit or
+    negative assertion is never re-blessed.
+  evidence: [tests/golden.json:1-27, tests/regression.mjs:4941, tests/regression.mjs:5004-5024, CLAUDE.md:43-45]
+  confidence: confirmed
+- id: F-030
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A typecheck runs tsc with checkJs over every engine module directory, as a CI step.
+  evidence: [tsconfig.json:3-12, package.json:11, .github/workflows/ci.yml:30]
+  confidence: confirmed
+- id: F-031
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The lint script is a syntax check only (node --check over every tracked module) with no
+    rule-based linter, and the build script runs the same command.
+  evidence: [package.json:10-12, lib/check-syntax.mjs:1-4, lib/check-syntax.mjs:13]
+  confidence: confirmed
+- id: F-032
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The validator fails closed on any violation, including input it cannot parse, and compile runs
+    it first and writes no package over an unvalidated base.
+  evidence: [map/validate.mjs:1-7, views/compile.mjs:68-72, map/SCHEMA.md:747-751]
+  confidence: confirmed
+- id: F-033
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every adopted scanner adapter declares default FAIL, so a finding whose native category maps to
+    no axis halts the projection instead of landing silently.
+  evidence: [map/scanners/adapters/repo-eval.yaml:41, map/scanners/adapters/gitleaks.yaml:22, map/scanners/adapters/deep-code-review.yaml:73, map/scanners/CONTRACT.md:520-527]
+  confidence: confirmed
+- id: F-034
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The requirements file is validated on load (closed kinds, tiers, topics, tags, facet rules,
+    every row sourced) and the harness pins each decider on a synthetic map.
+  evidence: [yardstick/README.md:131-133, yardstick/measure.mjs:92, tests/regression.mjs:2138]
+  confidence: confirmed
+- id: F-035
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The engine's own CI is held by the harness to the same invariants as the routine template it
+    ships (SHA-pinned actions, read-only token, timeout, every declared Node major), and the gitleaks
+    release pin is held equal across the two files.
+  evidence: [.github/workflows/ci.yml:1-6, .github/workflows/ci.yml:32-35, tests/regression.mjs:3505]
+  confidence: confirmed
+- id: F-036
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    No pre-commit hook is declared; the harness runs by hand before a pull request and in CI, and
+    whether the ci check is required by branch protection on main is not visible from the tree.
+  evidence: [package.json:8-16, CONTRIBUTING.md:4-5, RUNBOOK.md:11-12]
+  confidence: unverified

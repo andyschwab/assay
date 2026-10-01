@@ -1,0 +1,96 @@
+# Pass 7 — multiplayer: the agent access surface, the shared substrate, authority domains, consent.
+- id: F-078
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every view writes a data file with a documented schema beside its page, and the handoff sequence
+    and the ranked chains are JSON files with named schema versions that the writer checks before
+    writing and the validator reads back, so an agent consumes the results without parsing pages.
+  evidence: [README.md:17-22, views/README.md:161-162, lib/run-data.mjs:12-13]
+  confidence: confirmed
+- id: F-079
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The handoff folder is built to ship alone into the target repository and be pasted into an agent
+    session: a start file with one sequence, every remedy with its claim-audit block, the complete
+    findings base, and one session prompt per roadmap item.
+  evidence: [map/METHOD.md:589-601]
+  confidence: confirmed
+- id: F-080
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The only interface is the command line over files on disk: assay runs no service, exposes no API,
+    and its only data store is the run directory plus the packet a stewarded repository commits.
+  evidence: [README.md:98-101, assay.mjs:1-8]
+  confidence: confirmed
+- id: F-081
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Several writers can share one run: record and ingest take an exclusive lock on the run record and
+    fail loud naming the lock rather than writing unlocked, so two agents never lose each other's row.
+  evidence: [map/record.mjs:115-131, map/SCHEMA.md:340-343]
+  confidence: confirmed
+- id: F-082
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A repository's own claims and a run's measurement are compared, never merged: each row says
+    whether the run or the owner decided it, and a claim the run contradicts is listed as a
+    contradiction rather than overwritten.
+  evidence: [yardstick/README.md:46-49, yardstick/README.md:112-120, owner/PACKET.md:142]
+  confidence: confirmed
+- id: F-083
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Who acted is recorded by role or handle, never a name or email: the owner's decision overlay and
+    the packet are validated for it, and the owner prompt asks for roles instead of names.
+  evidence: [map/METHOD.md:625-627, map/validate.mjs:21, owner/ask-owner.md:43-44]
+  confidence: confirmed
+- id: F-084
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Owner-evidence transcripts name who produced them (ci or person) and an agent never writes one;
+    findings carry their scanner as source and the run record names the model per scanner and pass,
+    so each entry's origin is labeled.
+  evidence: [owner/evidence/README.md:54, map/scanners/CONTRACT.md:465-467, map/SCHEMA.md:80-83, map/SCHEMA.md:359-363]
+  confidence: confirmed
+- id: F-085
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The reader asymmetry of the routine's output is disclosed where an installer reads it: the
+    uploaded run is downloadable by anyone who can read the repository's workflow runs, and the
+    README says what is dropped from it for that reason.
+  evidence: [routine/README.md:29-36]
+  confidence: confirmed
+- id: F-086
+  dimension: multiplayer
+  polarity: fact
+  subject_type: control
+  observation: >
+    Confidentiality is a run-level switch (a prose key or a --confidential flag), never an engine
+    default, while every handoff file is always written confidential true.
+  evidence: [map/SCHEMA.md:590-593, map/SCHEMA.md:311-314, views/improve/handoff.mjs:87-89]
+  confidence: confirmed
+- id: F-087
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: >
+    A stewarded repository shares one measurement with its team on a schedule, on every pull request
+    and push to main, and on demand, through the routine, without a person re-running the engine.
+  evidence: [routine/README.md:7-17, routine/assay-routine.yml:16-30]
+  confidence: confirmed
