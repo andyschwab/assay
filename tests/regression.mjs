@@ -4506,6 +4506,190 @@ function adaptersOnce() { return loadAdapters(); }
   }
 }
 
+// ── the repeatability gate: a committed sweep set, a threshold variance enforces (#57, F-324, F-517) ──
+// variance printed its measures and exited 0 at any agreement level, and no sweep set was
+// committed, so the agreement figures the docs cite could not be reproduced from the tree.
+// Every set under tests/sweeps/ is gated here at its own SWEEP.yaml threshold; the fixture
+// set proves the gate can go red.
+{
+  const fail = (m) => negFailures.push('sweep-gate: ' + m);
+  const V = await import('../map/variance.mjs');
+  if (typeof V.loadSweepSet !== 'function' || typeof V.sweepGate !== 'function') fail('map/variance.mjs must export loadSweepSet and sweepGate');
+  const SWEEPS = join(HERE, 'sweeps');
+  const sets = existsSync(SWEEPS) ? readdirSync(SWEEPS).filter((d) => existsSync(join(SWEEPS, d, 'SWEEP.yaml'))) : [];
+  if (!sets.includes('fixture-notesbox')) fail('tests/sweeps/fixture-notesbox/ (the fixture-sized sweep set that exercises the gate) must be committed');
+  const varianceCli = (args) => spawnSync(process.execPath, [join(ROOT, 'map', 'variance.mjs'), ...args], { encoding: 'utf8' });
+  // every committed set passes at its own threshold, and every one of its sweeps is a valid map
+  for (const s of sets) {
+    const r = varianceCli(['--set', join(SWEEPS, s)]);
+    if (r.status !== 0) fail(`tests/sweeps/${s} must pass its own threshold (exit ${r.status}): ${(r.stdout + r.stderr).split('\n').filter((l) => /below|threshold|✗/.test(l)).join(' | ')}`);
+    let set = null;
+    try { set = V.loadSweepSet(join(SWEEPS, s)); } catch (e) { fail(`tests/sweeps/${s}/SWEEP.yaml must load (${e.message})`); }
+    for (const d of (set ? set.runDirs : [])) {
+      const v = spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), d], { encoding: 'utf8' });
+      if (v.status !== 0) fail(`tests/sweeps/${s}: sweep ${d.slice(SWEEPS.length + 1)} must validate (${String(v.stderr).split('\n').slice(0, 3).join(' | ')})`);
+    }
+  }
+  const fx = join(SWEEPS, 'fixture-notesbox');
+  if (existsSync(join(fx, 'SWEEP.yaml'))) {
+    const j = varianceCli(['--set', fx, '--json']);
+    let out = null; try { out = JSON.parse(j.stdout); } catch { fail(`variance --set --json must print JSON (got ${j.stdout.slice(0, 120)})`); }
+    if (out) {
+      if (!out.gate || !out.gate.threshold || !Array.isArray(out.gate.breaches)) fail(`variance --set --json must carry gate.threshold and gate.breaches (got ${JSON.stringify(out.gate)})`);
+      if (out.pct === 100 || out.descriptors?.pct === 100) fail('the fixture set must carry real variance on both measures (a 100% set cannot show the gate reading the number)');
+      // one point above the measured value on either measure turns the same set red
+      const facts = varianceCli(['--set', fx, '--min-facts', String(out.pct + 1)]);
+      if (facts.status !== 1) fail(`variance must exit 1 when fact presence (${out.pct}%) is below the threshold (got ${facts.status})`);
+      if (!/fact presence/i.test(facts.stdout + facts.stderr)) fail('a fact-presence breach must name the measure it failed');
+      const desc = varianceCli(['--set', fx, '--min-descriptors', String((out.descriptors?.pct ?? 0) + 1)]);
+      if (desc.status !== 1) fail(`variance must exit 1 when descriptor agreement is below the threshold (got ${desc.status})`);
+      if (!/descriptor agreement/i.test(desc.stdout + desc.stderr)) fail('a descriptor-agreement breach must name the measure it failed');
+    }
+    // a set with no threshold is malformed: fail loud (exit 2), never an ungated pass
+    const tmp = join(HERE, 'tmp-sweep-gate'); rmSync(tmp, { recursive: true, force: true });
+    cpSync(fx, tmp, { recursive: true });
+    writeFileSync(join(tmp, 'SWEEP.yaml'), readFileSync(join(fx, 'SWEEP.yaml'), 'utf8').replace(/^threshold:[\s\S]*?(?=^\S)/m, ''));
+    const noThr = varianceCli(['--set', tmp]);
+    if (noThr.status !== 2) fail(`a sweep set with no threshold must exit 2 (got ${noThr.status})`);
+    rmSync(tmp, { recursive: true, force: true });
+  }
+  // the pure gate: a measure below its threshold is a breach naming it; no shared channel is not a pass
+  if (typeof V.sweepGate === 'function') {
+    const thr = { fact_presence: 80, descriptor_agreement: 50 };
+    const ok = V.sweepGate({ pct: 80 }, { allFields: { pct: 50 }, channels: { shared: 2 } }, thr);
+    if (ok.length) fail(`at the threshold must pass (got ${JSON.stringify(ok)})`);
+    const lo = V.sweepGate({ pct: 79 }, { allFields: { pct: 49 }, channels: { shared: 2 } }, thr);
+    if (lo.length !== 2) fail(`below both thresholds must give two breaches (got ${JSON.stringify(lo)})`);
+    const none = V.sweepGate({ pct: 90 }, { allFields: { pct: 0 }, channels: { shared: 0 } }, thr);
+    if (none.length !== 1 || !/no shared/.test(none[0])) fail(`no shared channel under a descriptor threshold must be a breach saying so (got ${JSON.stringify(none)})`);
+  }
+}
+
+// ── the chains and the handoff sequence are data files with a schema validate checks (#57, F-604, F-605) ──
+// The ranked chains reached a consumer only as IMPROVE.md prose and the handoff only as
+// markdown, so an agent iterating the work had to parse the human report.
+{
+  const fail = (m) => negFailures.push('run-data: ' + m);
+  let D = null;
+  try { D = await import('../lib/run-data.mjs'); } catch (e) { fail(`lib/run-data.mjs must exist and export the data-file schemas (${e.message.split('\n')[0]})`); }
+  const L = await import('../lib/run-layout.mjs');
+  if (typeof L.chainsDataPath !== 'function' || typeof L.handoffSequencePath !== 'function') fail('lib/run-layout.mjs must place chains.json and the handoff sequence');
+  const tmp = join(HERE, 'tmp-run-data'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp); copyFixtureScanners('notesbox', tmp);
+  mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });
+  writeFileSync(join(tmp, 'views', 'improve', 'prose.yaml'), [
+    'target: "notesbox"', 'maintainer: "the test maintainers"', 'exec_summary: "test"',
+    'roadmap:', '  - slug: close-admin-default', '    title: "Fail authentication closed"',
+    '    body: "authenticate() defaults to admin; refuse unknown tokens and gate the two outbound effects."', '    findings: [F-050, F-052, F-053]', '',
+  ].join('\n'));
+  writeFileSync(join(tmp, 'views', 'improve', 'security-gate.yaml'), 'exposures: []\n');
+  const h = spawnSync(process.execPath, [join(ROOT, 'views', 'improve', 'handoff.mjs'), tmp], { encoding: 'utf8' });
+  if (h.status !== 0) fail(`handoff.mjs must compile notesbox (stderr: ${h.stderr})`);
+  const rp = spawnSync(process.execPath, [join(ROOT, 'views', 'improve', 'report.mjs'), tmp], { encoding: 'utf8' });
+  if (rp.status !== 0) fail(`report.mjs must compile notesbox (stderr: ${rp.stderr})`);
+  const seqPath = L.handoffSequencePath ? L.handoffSequencePath(tmp) : join(tmp, 'handoff', 'sequence.json');
+  const chPath = L.chainsDataPath ? L.chainsDataPath(tmp) : join(tmp, 'views', 'improve', 'chains.json');
+  const readJson = (p, what) => { if (!existsSync(p)) { fail(`${what} must be written at ${p.slice(tmp.length + 1)}`); return null; } try { return JSON.parse(readFileSync(p, 'utf8')); } catch (e) { fail(`${what} must parse as JSON (${e.message})`); return null; } };
+  const seq = readJson(seqPath, 'the handoff sequence');
+  const ch = readJson(chPath, 'the chains data file');
+  if (seq && D) {
+    const errs = D.checkSequence(seq);
+    if (errs.length) fail(`the handoff's own sequence must pass its schema (got ${errs.join('; ')})`);
+    const first = (seq.sequence || [])[0];
+    if (!first || first.kind !== 'authored' || first.voice !== 'eval-authored' || !(first.findings || []).includes('F-050') || first.plan !== 'plan/01-close-admin-default.md')
+      fail(`sequence[0] must be the roadmap item with its voice, finding ids and plan file (got ${JSON.stringify(first)})`);
+    for (const s of seq.sequence || []) if (s.plan && !existsSync(join(tmp, 'handoff', s.plan))) fail(`sequence item ${s.n} names ${s.plan}, which the handoff did not write`);
+    if (!Array.isArray(seq.pending)) fail('the sequence must carry the pending (owner-defined) ids, even when empty');
+  }
+  if (ch && D) {
+    const errs = D.checkChains(ch);
+    if (errs.length) fail(`the report's own chains file must pass its schema (got ${errs.join('; ')})`);
+    const top = (ch.live || [])[0];
+    if (!top || top.rank !== 1 || !Array.isArray(top.path) || !top.entry?.id || !top.headline?.id || !top.blast) fail(`chains.live[0] must carry rank, entry, headline, blast and path (got ${JSON.stringify(top)})`);
+  }
+  // validate reads both files back and fails closed on a malformed one, naming it
+  const val = () => spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { encoding: 'utf8' });
+  const v0 = val();
+  if (v0.status !== 0) fail(`validate must pass over the compiled run (stderr: ${String(v0.stderr).split('\n').slice(0, 4).join(' | ')})`);
+  if (seq) {
+    writeFileSync(seqPath, JSON.stringify({ ...seq, sequence: [{ ...seq.sequence[0], findings: ['F-999999'] }] }));
+    const v = val();
+    if (v.status === 0 || !/sequence\.json/.test(v.stderr) || !/F-999999/.test(v.stderr)) fail(`validate must fail closed on a sequence citing an id not in the base, naming the file (got ${v.status}: ${String(v.stderr).slice(0, 200)})`);
+    writeFileSync(seqPath, JSON.stringify(seq));
+  }
+  if (ch) {
+    writeFileSync(chPath, JSON.stringify({ ...ch, live: [{ ...ch.live[0], blast: 'galaxy' }] }));
+    const v = val();
+    if (v.status === 0 || !/chains\.json/.test(v.stderr)) fail(`validate must fail closed on a malformed chains file, naming it (got ${v.status}: ${String(v.stderr).slice(0, 200)})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── the feedback hook: backlog.mjs exercised, its authored half has a path and a schema (#57, F-520, F-522) ──
+// backlog.mjs had no block of its own; the authored half (curated classes, the surprise
+// notes) had no path in lib/run-layout.mjs, no schema and no validator check, and nothing
+// read map/backlog.yaml back.
+{
+  const fail = (m) => negFailures.push('backlog: ' + m);
+  let D = null;
+  try { D = await import('../lib/run-data.mjs'); } catch { /* the run-data block reports it */ }
+  const L = await import('../lib/run-layout.mjs');
+  if (typeof L.backlogAuthoredPath !== 'function') fail('lib/run-layout.mjs must place the authored half of the backlog');
+  const src = readFileSync(join(ROOT, 'map', 'backlog.mjs'), 'utf8');
+  const head = src.split('\nimport ')[0];
+  for (const f of ['map/backlog.yaml', 'map/backlog-authored.yaml']) if (!head.includes(f)) fail(`backlog.mjs's header must name ${f}`);
+  // the header names only files the run layout places or the repository has
+  for (const m of head.matchAll(/\b((?:map|views|lib)\/[\w./-]+\.(?:mjs|yaml|md))\b/g)) {
+    const p = m[1];
+    const placed = ['map/backlog.yaml', 'map/backlog-authored.yaml', 'views/improve/maturity-grades.yaml'].includes(p);
+    if (!placed && !existsSync(join(ROOT, p))) fail(`backlog.mjs's header names ${p}, which does not exist`);
+  }
+  const tmp = join(HERE, 'tmp-backlog'); rmSync(tmp, { recursive: true, force: true });
+  const run = join(tmp, 'run'), prior = join(tmp, 'prior');
+  for (const d of [run, prior]) { copyFixtureFindings('notesbox', d); copyFixtureScanners('notesbox', d); }
+  // the prior judged one channel's telemetry differently: one descriptor-divergence item
+  const dPath = join(prior, 'map', 'findings', 'repo-eval-delegation.yaml');
+  const before = readFileSync(dPath, 'utf8');
+  writeFileSync(dPath, before.replace('    telemetry: unstructured\n', '    telemetry: none\n'));
+  if (readFileSync(dPath, 'utf8') === before) fail('test setup: the prior must change one telemetry descriptor');
+  const w = spawnSync(process.execPath, [join(ROOT, 'map', 'backlog.mjs'), run, '--prior', prior, '--write'], { encoding: 'utf8' });
+  if (w.status !== 0) fail(`backlog --prior --write must exit 0 (got ${w.status}: ${w.stderr})`);
+  const out = L.backlogPath(run);
+  if (!existsSync(out)) fail('backlog --write must write map/backlog.yaml');
+  else {
+    const txt = readFileSync(out, 'utf8');
+    if (!/^# map\/backlog\.yaml — GENERATED by map\/backlog\.mjs/.test(txt)) fail('the written file must open naming itself and its writer');
+    let doc = null; try { doc = parseYaml(txt); } catch (e) { fail(`map/backlog.yaml must parse (${e.message})`); }
+    if (doc && D) { const e = D.checkBacklog(doc); if (e.length) fail(`the written backlog must pass its schema (got ${e.join('; ')})`); }
+    const dd = (doc?.items || []).filter((i) => i.class === 'descriptor-divergence');
+    if (dd.length !== 1 || !/telemetry/.test(dd[0].observation)) fail(`one descriptor-divergence item naming telemetry expected (got ${JSON.stringify(dd)})`);
+    if (doc?.counts?.['un-enumerated-population'] !== null || !/no --target/.test(doc?.not_computed?.['un-enumerated-population'] || '')) fail('a class not requested must read not computed with its reason, never 0');
+  }
+  // validate reads the backlog back, the authored half included, and fails closed on a malformed one
+  const val = () => spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), run], { encoding: 'utf8' });
+  const authored = L.backlogAuthoredPath ? L.backlogAuthoredPath(run) : join(run, 'map', 'backlog-authored.yaml');
+  writeFileSync(authored, [
+    '# map/backlog-authored.yaml — the authored half of the backlog (SCHEMA.md §5c)',
+    'items:', '  - id: OB-A01', '    class: tooling-gap', '    status: proposed',
+    '    observation: "enumerate matched no Node child_process call site."', '    evidence: ["map/enumerate.mjs:105"]',
+    '    mechanism: "Teach the effect-site detector the Node shapes."',
+    'notes:', '  - "A strength shape the dimensions did not anticipate."', '',
+  ].join('\n'));
+  const v1 = val();
+  if (v1.status !== 0) fail(`validate must pass a well-formed backlog and authored half (stderr: ${String(v1.stderr).split('\n').slice(0, 4).join(' | ')})`);
+  writeFileSync(authored, readFileSync(authored, 'utf8').replace('class: tooling-gap', 'class: vibes'));
+  const v2 = val();
+  if (v2.status === 0 || !/backlog-authored\.yaml/.test(v2.stderr) || !/vibes/.test(v2.stderr)) fail(`validate must fail closed on an authored item outside the closed classes, naming the file (got ${v2.status})`);
+  writeFileSync(authored, 'items: []\nnotes: []\n');
+  const v3 = val();
+  if (v3.status === 0 || !/notes/.test(v3.stderr)) fail('validate must refuse an authored half with no note (one saying nothing surprised counts)');
+  rmSync(authored);
+  writeFileSync(out, readFileSync(out, 'utf8').replace(/class: descriptor-divergence/, 'class: made-up'));
+  const v4 = val();
+  if (v4.status === 0 || !/backlog\.yaml/.test(v4.stderr)) fail(`validate must fail closed on a computed backlog item outside the closed classes (got ${v4.status})`);
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -4650,6 +4834,7 @@ for (const [key, dir] of SCORED) {
     ['maturityPath', [], 'views/improve/maturity.md'], ['maturityGradesPath', [], 'views/improve/maturity-grades.yaml'],
     ['securityPath', [], 'views/improve/security.md'], ['securityGatePath', [], 'views/improve/security-gate.yaml'],
     ['synthesisPath', [], 'views/improve/synthesis.md'], ['decisionsPath', [], 'owner/decisions.yaml'], ['packetManifestPath', [], 'owner/manifest.yaml'],
+    ['backlogAuthoredPath', [], 'map/backlog-authored.yaml'], ['chainsDataPath', [], 'views/improve/chains.json'], ['handoffSequencePath', [], 'handoff/sequence.json'],
   ];
   for (const [fn, args, path] of want) {
     if (typeof L[fn] !== 'function') { fail(`lib/run-layout.mjs no longer exports ${fn}`); continue; }
@@ -4741,6 +4926,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, model-of-record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, model-of-record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, sweep-gate, run-data, backlog, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
 }
 process.exit(v.exit);
