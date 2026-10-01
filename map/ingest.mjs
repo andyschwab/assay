@@ -40,8 +40,7 @@
 // or not run) is also a lockfile-not-audited fact — never silence, never clean.
 //
 // Usage:
-//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx]
-//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx]
+//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan|repo-census> --raw <file> --exit <code> [--start F-7xx]
 //   node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
 // <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
@@ -97,7 +96,7 @@ const PROFILES = {
     convert(raw, startId) {
       const rep = parseJson(raw, 'scorecard');
       if (!rep || !Array.isArray(rep.checks)) throw new Error('scorecard report has no checks[] (truncated report?)');
-      const rows = []; const skipped = [];
+      const rows = /** @type {any} */ ([]); const skipped = [];
       let n = 0;
       for (const c of rep.checks) {
         if (!c || !c.name || typeof c.score !== 'number') throw new Error('scorecard check missing name/score (truncated report?)');
@@ -150,7 +149,7 @@ const PROFILES = {
         if (row.status !== 'scanned' && !(row.note && String(row.note).trim())) throw new Error(`coverage.${l}: ${row.status} needs a note — a skip without one is indistinguishable from an omission`);
       }
       if (!Array.isArray(rep.findings)) throw new Error('machine report findings: must be a list (an empty list with full coverage is a recorded clean run)');
-      const rows = []; let n = 0;
+      const rows = /** @type {any} */ ([]); let n = 0;
       for (const f of rep.findings) {
         const at = `finding ${(f && f.id) || '#' + (n + 1)}`;
         if (!f || typeof f !== 'object') throw new Error(`${at}: not a map`);
@@ -596,7 +595,7 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
 
 // ── id allocation: above the base's highest id, never inside another block ──
 // Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
-// 800, fresh-clone 900, dependency-scan 950). A real history scan can run past the next floor (a real
+// 800, fresh-clone 900, dependency-scan 950, repo-census 960). A real history scan can run past the next floor (a real
 // history scan's gitleaks block ran F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same

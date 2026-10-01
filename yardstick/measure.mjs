@@ -283,8 +283,8 @@ export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
-// recomputed. This is what the three views (Intake, Maintain, Improve's topic
-// grouping) read: only this measurement plus the yardstick (for
+// recomputed. This is what the four views (Intake, Maintain, Improve's topic
+// grouping, Owner) read: only this measurement plus the yardstick (for
 // title/tier/topic/check), never findings directly. Returns null when the run
 // has not been measured yet.
 export function loadMeasurement(dir) {
@@ -305,7 +305,7 @@ export function loadContradictions(dir) {
 export function summarize(rows) {
   const c = Object.fromEntries(STATUSES.map((s) => [s, 0]));
   for (const r of rows) c[r.status]++;
-  return { ...c, decided: rows.length - c['not-measured'], of: rows.length };
+  return /** @type {Record<string, number>} */ ({ ...c, decided: rows.length - c['not-measured'], of: rows.length });
 }
 const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 // yardstick.yaml — the run's measurement of the map against the yardstick.

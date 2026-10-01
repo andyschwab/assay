@@ -15,7 +15,7 @@
 //     (basis `owner`).
 //
 // No import of yardstick/measure.mjs here, not even a dynamic one: measure.mjs
-// imports THIS module for Phase 2, and a module with a top-level await (the CLI
+// imports THIS module for its claim decisions, and a module with a top-level await (the CLI
 // below used to reach for one) genuinely deadlocks in a cycle — the two settling
 // promises wait on each other (this is a real ECMAScript module-graph hazard,
 // not just style). The CLI reads requirements.yaml directly instead.
@@ -41,9 +41,8 @@ export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
 export const PACKET_VERSION = 1;
 const PLACEHOLDER_ROLE = /^(unknown|nobody|none|no one|n\/a|tbd|\?+)$/i;
 // answered.by (owner/PACKET.md: "a role, never a name") — a name is not a
-// secret, but it is exactly the kind of identifying detail this repository's
-// own capture rules (CLAUDE.md: de-identify people) ask a packet never to
-// carry. Two shapes catch a person's name that isn't obviously a role:
+// secret, but it is exactly the kind of identifying detail owner/PACKET.md asks
+// a packet never to carry. Two shapes catch a person's name that isn't obviously a role:
 //   - "Dana Reyes (founder)": a capitalized-word run followed by a parenthetical
 //     role — the role is right there, but the name in front of it is not;
 //   - "Dana Reyes": two or more Title Case words with no recognizable role word
@@ -143,7 +142,7 @@ export function secretShape(value) {
   if (typeof value !== 'string') return null;
   const v = value.trim();
   if (!v) return null;
-  for (const [re, label] of SECRET_SHAPES) if (re.test(v)) return label;
+  for (const [re, label] of SECRET_SHAPES) if (/** @type {RegExp} */ (re).test(v)) return label;
   const m = v.match(/[A-Za-z0-9+/_=-]{32,}/);
   if (m && !isHexy(m[0]) && !isPathLike(m[0]) && classDiversity(m[0]) >= 3 && shannonEntropy(m[0]) > 3.5) return `a long high-entropy token ("${m[0].slice(0, 8)}…")`;
   return null;

@@ -1,6 +1,6 @@
 // capabilities.mjs — build the "What the app can do" inventory from the effect findings.
 // One row per distinct effect channel, aggregated across its findings, joined to the
-// authored channel_notes (mechanism sentence + group). Used by compile-report.mjs
+// authored channel_notes (mechanism sentence + group). Used by views/improve/report.mjs
 // (the appendix's human "What the app can do" section).
 import { GROUP_ORDER, GROUP_LABEL, channelLabel } from '../lib/display.mjs';
 import { isHalt } from './doctrine.mjs';

@@ -224,5 +224,5 @@ Deterministic and re-runnable. Drop \`owner/decisions.yaml\` to fold in owner tr
 _assay evaluation engine. Run \`${runId}\`.${CONFIDENTIAL ? ' Confidential.' : ''}_
 `;
 
-writeFileSync(join(runDir, 'INDEX.md'), index);
+writeFileSync(indexPath(runDir), index);
 console.log(`\n✓ package assembled — INDEX.md + INTAKE.md + MAINTAIN.md + OWNER.md${reportOk ? ' + IMPROVE.md' : ''}${sinceOk ? ' + SINCE.md' : ''} + views/improve/axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);

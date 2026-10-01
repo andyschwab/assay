@@ -146,7 +146,7 @@ export function detectToolchain(dir) {
   if (py.length) tc.other_families.push({ family: 'python', files: py, support: 'not-supported', reason: 'this runner exercises the node family only; python steps are not attempted and are not counted as passed' });
   const others = [['go', ['go.mod']], ['rust', ['Cargo.toml']], ['ruby', ['Gemfile']], ['jvm', ['pom.xml', 'build.gradle', 'build.gradle.kts']]];
   for (const [family, files] of others) {
-    const present = files.filter((f) => existsSync(join(dir, f)));
+    const present = /** @type {string[]} */ (files).filter((f) => existsSync(join(dir, f)));
     if (present.length) tc.other_families.push({ family, files: present, support: 'not-supported', reason: `this runner exercises the node family only; ${family} steps are not attempted and are not counted as passed` });
   }
   if (tc.family === 'none' && tc.other_families.length) tc.family = tc.other_families[0].family;
@@ -258,7 +258,7 @@ const MIGRATE_NAMES = ['migrate', 'db:migrate'];
 const MIGRATE_DRY_NAMES = ['migrate:dry', 'migrate:dry-run', 'migrate:check', 'migrate:status', 'db:migrate:dry', 'db:migrate:dry-run', 'db:migrate:check', 'db:migrate:status'];
 
 export function planSteps(toolchain, pkg) {
-  const plan = {};
+  const plan = /** @type {Record<string, any>} */ ({});
   if (toolchain.family !== 'node' || !pkg) {
     const why = toolchain.package_json_error || (toolchain.family === 'none' ? 'no package.json in the tree' : `${toolchain.family} family: not supported by this runner`);
     for (const s of STEPS) plan[s] = NOT_DECLARED(why);
@@ -312,13 +312,13 @@ export function runStep(name, command, cwd, timeoutSec) {
   const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: scrubbedEnv(), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
   const duration_ms = Date.now() - started;
   const output_tail = tail(r.stdout);
-  if (r.error && r.error.code === 'ETIMEDOUT') return { name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` };
+  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return { name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` };
   if (r.error) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `could not spawn: ${r.error.message}` };
   if (r.signal) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `killed by ${r.signal}` };
   return { name, status: r.status === 0 ? 'passed' : 'failed', command, exit_code: r.status, duration_ms, output_tail };
 }
 
-export function runSteps(plan, cwd, timeoutSec, log = () => {}) {
+export function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
   const out = [];
   let installBroken = null;
   for (const name of STEPS) {
@@ -424,7 +424,7 @@ export function declaresMigrate(pkg) {
   return MIGRATE_NAMES.find((n) => scripts[n] !== undefined) || Object.keys(scripts).find((n) => MIGRATE_SCRIPT_RE.test(String(scripts[n]))) || null;
 }
 
-export function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = () => {}, root = null) {
+export function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {}), root = null) {
   const wsDir = join(workDir, wsRelPath);
   const { toolchain, pkg } = detectToolchain(wsDir);
   const plan = planWorkspace(rootToolchain, toolchain, pkg, wsRelPath, root);
@@ -442,7 +442,7 @@ export function findReadme(dir) {
 // the claim grammar — one line, one claim; a leading shell prompt is not part of it
 const CLAIM_RE = /^(?:\$\s+|>\s+)?(npm run (\S+)|npm test\b|npx (\S+)|node (\S+)|make (\S+))/;
 export function parseReadmeClaims(text) {
-  const claims = [];
+  const claims = /** @type {any[]} */ ([]);
   let inFence = null;
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -511,7 +511,7 @@ function git(args, cwd) {
   return { ok: r.status === 0, out: String(r.stdout || '').trim(), err: String(r.stderr || '').trim() };
 }
 
-export function run({ target, timeout = 600, clone = true, log = () => {} }) {
+export function run({ target, timeout = 600, clone = true, log = /** @type {(msg: string) => void} */ (() => {}) }) {
   const startedAt = new Date().toISOString();
   let workDir, scratch = null;
   const t = { path: target, head: null, cloned: false };

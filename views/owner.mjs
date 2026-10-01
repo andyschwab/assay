@@ -31,7 +31,7 @@ import { viewPath, ownerPagePath, prosePath as runProsePath } from '../lib/run-l
 
 // Plain-language gloss for each tier, used only in the lead paragraph — never
 // a substitute for the tier id, which still rides at the end (yardstick/README.md
-// tiers; CLAUDE.md's discussion register: meaning first, id last).
+// tiers; meaning first, id last, so the owner reads the plain words first).
 export const TIER_GLOSS = {
   custody: 'who controls this app and its accounts',
   safety: 'whether something destructive could happen unnoticed',
@@ -113,7 +113,7 @@ export function toYaml(runId, yardstickVersion, built) {
 const whereText = (r) => (r.where && r.where.length ? r.where.map((w) => `\`${w}\``).join(', ')
   : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : r.reason);
 
-export function renderMd(runId, built, { confidential = false, name, date, commit } = {}) {
+export function renderMd(runId, built, { confidential = false, name, date, commit } = /** @type {any} */ ({})) {
   const { floor, beyond_floor, not_looked_at } = built;
   const out = [];
   out.push('---', 'type: doc', ...(confidential ? ['confidential: true'] : []), `title: "What is true of ${name}, ${date}"`, '---', '');

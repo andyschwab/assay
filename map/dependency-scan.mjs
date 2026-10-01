@@ -324,7 +324,7 @@ function isYarnBerry(lockPath) {
 
 // one pnpm-lock.yaml / yarn.lock: audited with its own package manager, or not-run
 // with the reason when the instrument cannot (its limit, not the target's gap)
-export function auditOtherLockfile(o, root, timeoutSec, log = () => {}) {
+export function auditOtherLockfile(o, root, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
   const relPath = relative(root, o.path).split('\\').join('/');
   const notRun = (reason) => { log(`  → ${relPath}: not-run (${reason})`); return { path: relPath, status: 'not-run', manager: o.manager, reason }; };
   if (o.manager === 'yarn' && isYarnBerry(o.path)) return notRun('a yarn berry (2+) lockfile: this instrument drives yarn classic\'s `yarn audit` only; run `yarn npm audit --all --recursive` on it');
@@ -333,7 +333,7 @@ export function auditOtherLockfile(o, root, timeoutSec, log = () => {}) {
   const cmd = `${o.manager} audit --json`;
   const r = spawnSync(o.manager, ['audit', '--json'], { cwd: dirname(o.path), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: scrubbedEnv() });
   let res;
-  if (r.error && r.error.code === 'ETIMEDOUT') res = { ok: false, reason: `${cmd} timed out` };
+  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') res = { ok: false, reason: `${cmd} timed out` };
   else if (r.error) res = { ok: false, reason: `could not spawn ${o.manager}: ${r.error.message}` };
   else if (r.signal) res = { ok: false, reason: `${cmd} was killed by ${r.signal}` };
   else res = o.manager === 'pnpm' ? parsePnpmAudit(r.stdout, r.status) : parseYarnClassicAudit(r.stdout, r.status);
@@ -344,12 +344,12 @@ export function auditOtherLockfile(o, root, timeoutSec, log = () => {}) {
 }
 
 // ── the run ──────────────────────────────────────────────────────────────────
-export function run({ target, timeout = 300, log = () => {} }) {
+export function run({ target, timeout = 300, log = /** @type {(msg: string) => void} */ (() => {}) }) {
   const startedAt = new Date().toISOString();
   if (!existsSync(target) || !statSync(target).isDirectory()) throw new Error(`target is not a directory: ${target}`);
   const root = resolve(target);
   const { npm, other } = findLockfiles(root);
-  const lockfiles = [];
+  const lockfiles = /** @type {any[]} */ ([]);
   for (const lp of npm) lockfiles.push({ manager: 'npm', ...auditLockfile(lp, root, timeout, log) });
   for (const o of other) lockfiles.push(auditOtherLockfile(o, root, timeout, log));
   lockfiles.sort((a, b) => a.path < b.path ? -1 : 1);

@@ -1,8 +1,8 @@
 # CLAUDE.md — working in the assay repo
 
 This repository is **assay**. It draws a map of a repository, measures the map
-against a yardstick of requirements, and writes three views (Intake, Maintain,
-Improve). `README.md` is the front door. `map/SCHEMA.md` is the authoritative
+against a yardstick of requirements, and writes four views of one run (Intake,
+Maintain, Improve, Owner) plus Since, of two. `README.md` is the front door. `map/SCHEMA.md` is the authoritative
 finding format, `map/METHOD.md` the built-in scanner, `yardstick/README.md` the
 requirements contract, and `views/README.md` the views' data formats.
 
@@ -43,3 +43,16 @@ node assay.mjs score <run> --answers <target>/ANSWERS.yaml   # grade recall
 A change that moves a pinned score is a **reviewed** re-bless of
 `tests/golden.json` in the same commit, never a silent drift. A unit or negative
 assertion that fails is always a real regression, never re-blessed.
+
+## How a change lands
+
+- **Red, then green.** Before trusting a new assertion, revert the rule it pins
+  and confirm it red for its own reason, then restore the rule and confirm the
+  suite green. An assertion never seen failing proves nothing. The change's
+  `HISTORY.md` entry says it was confirmed red.
+- **Engine learnings go to the issue tracker.** A gap a run exposes in the
+  method, a scanner, the yardstick or a contract becomes an issue on this
+  repository's issue tracker, stated with public evidence only (rule 6), and
+  lands as a reviewed change that cites it and adds a `HISTORY.md` entry.
+  Taste the code relies on is written here or in the contract that owns it,
+  never only in a code comment.
