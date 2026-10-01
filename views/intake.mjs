@@ -76,7 +76,7 @@ export function buildOwnerBlock(packet) {
 // NOTE only, on whichever list (open/met/to_run) the run itself put the row —
 // it never changes the row's run-decided status (yardstick/README.md: a claim
 // never lets presence stand in for enforcement).
-export function annotateCredentialsRow(built, owner) {
+function annotateCredentialsRow(built, owner) {
   if (!owner || !owner.credentials || !owner.credentials.count) return built;
   const n = owner.credentials.count;
   const suffix = ` (the owner listed ${n} credential${n === 1 ? '' : 's'})`;

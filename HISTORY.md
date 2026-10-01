@@ -1051,3 +1051,33 @@ what the public engine learned.
   committed two `map/raw/` dumps, removed before the set was merged: only the repo-eval
   findings and the run record are a sweep. The children cost $16.14 of model spend across
   the three; the review and the set's assembly were the orchestrator's.
+- **2026-10-01 — the proxy and CA plumbing reaches the target's package
+  manager (#65).** Behind a TLS-intercepting proxy every `npm audit` was
+  recorded `failed` and fresh-clone's install timed out, because the #47
+  allow-list dropped the proxy settings. `map/child-env.mjs` now passes
+  `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, `NODE_EXTRA_CA_CERTS` and
+  `SSL_CERT_FILE` through; a proxy URL carrying userinfo is a credential, so
+  it is dropped (the rest of the plumbing still passes) and every fresh-clone
+  step row and dependency-scan lockfile row run without it carries `env_note`
+  naming the variable and why. No flag. The `database-signals` fixture
+  installs a local stand-in for its Supabase dependency, so its install no
+  longer times out, SIGKILLs its shell and leaves npm orphaned writing
+  `tests/tmp-db-signals/` back after the cleanup. The `isolation` block pins
+  both branches (pass-through and drop) and was confirmed red against the old
+  code (six failures), the `database-signals` install assertion likewise; each
+  rule (the drop, the row note) was reverted alone and went red for its own
+  assertions. Goldens untouched.
+- **2026-10-01 — shared helpers live once** (#80, roadmap item 15, F-1232).
+  The child environment was already built once (`map/child-env.mjs`, #47; the
+  `scrubbedEnv` copies the finding cited are gone), and the harness now pins it
+  there. Ingest restated the fresh-clone, dependency-scan and repo-census
+  vocabularies (steps, step and claim statuses, lockfile statuses, severities,
+  census checks and statuses); it now imports each from its producer, keeping
+  only dependency-scan's pre-0.2.0 `not-supported` as its own, and a status ingest
+  had no explicit case for (an `audited` lockfile, a README claim that is neither
+  present nor missing) halts instead of falling through. Eighty exports nothing
+  else named are gone: six dead declarations deleted, the rest made private to
+  the module that uses them. The new `shared-helpers` block pins all three and
+  was confirmed red against the old code (17 vocabulary failures, 80 unreferenced
+  exports), against a planted second env builder, and against a producer
+  status ingest has no case for. Goldens untouched.

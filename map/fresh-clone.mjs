@@ -86,7 +86,7 @@ import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
-import { childEnv } from './child-env.mjs';
+import { childEnv, proxyDropNote } from './child-env.mjs';
 import { stripUserinfo } from './repo-census.mjs';
 
 export const VERSION = '0.4.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30)
@@ -239,7 +239,7 @@ export function workspaceGlobRe(pattern) {
 }
 
 // where the workspace list came from — recorded so a reader can check it
-export function workspaceSource(dir, pkg) {
+function workspaceSource(dir, pkg) {
   const pw = readPnpmWorkspace(dir);
   if (pw && pw.include.length) return 'pnpm-workspace.yaml';
   if (pkg && pkg.workspaces && (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces.packages))) return 'package.json';
@@ -271,7 +271,7 @@ const NOT_DECLARED = (reason) => ({ status: 'not-declared', command: null, reaso
 const MIGRATE_NAMES = ['migrate', 'db:migrate'];
 const MIGRATE_DRY_NAMES = ['migrate:dry', 'migrate:dry-run', 'migrate:check', 'migrate:status', 'db:migrate:dry', 'db:migrate:dry-run', 'db:migrate:check', 'db:migrate:status'];
 
-export function planSteps(toolchain, pkg) {
+function planSteps(toolchain, pkg) {
   const plan = /** @type {Record<string, any>} */ ({});
   if (toolchain.family !== 'node' || !pkg) {
     const why = toolchain.package_json_error || (toolchain.family === 'none' ? 'no package.json in the tree' : `${toolchain.family} family: not supported by this runner`);
@@ -390,10 +390,12 @@ export function runStep(name, command, cwd, timeoutSec) {
   const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: stepEnv(), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
   const duration_ms = Date.now() - started;
   const output_tail = tail(r.stdout);
-  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return { name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` };
-  if (r.error) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `could not spawn: ${r.error.message}` };
-  if (r.signal) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `killed by ${r.signal}` };
-  const row = { name, status: r.status === 0 ? 'passed' : 'failed', command, exit_code: r.status, duration_ms, output_tail };
+  const envNote = proxyDropNote();   // #65: a proxy URL kept from the step is said on its row
+  const noted = (row) => envNote ? { ...row, env_note: envNote } : row;
+  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return noted({ name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` });
+  if (r.error) return noted({ name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `could not spawn: ${r.error.message}` });
+  if (r.signal) return noted({ name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `killed by ${r.signal}` });
+  const row = noted({ name, status: r.status === 0 ? 'passed' : 'failed', command, exit_code: r.status, duration_ms, output_tail });
   if (name === 'test') {
     row.tests = parseTestCounts(r.stdout) || 'unparsed';
     const config = TEST_CONFIGS.find((f) => existsSync(join(cwd, f)));
@@ -402,7 +404,7 @@ export function runStep(name, command, cwd, timeoutSec) {
   return row;
 }
 
-export function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
+function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
   const out = [];
   let installBroken = null;
   for (const name of STEPS) {
@@ -480,7 +482,7 @@ const discoversTree = (cmd) => {
   return !toks.some((t) => !t.startsWith('-') && t.includes('/'));
 };
 const SCRIPT_REF_RE = /^(?:npm|pnpm|yarn)\s+(?:run\s+)?([\w:.-]+)\s*$/;
-export function rootCovers(root, step, rootToolchain, wsRelPath) {
+function rootCovers(root, step, rootToolchain, wsRelPath) {
   const st = Array.isArray(root.steps) ? root.steps.find((x) => x.name === step) : null;
   if (!st || st.status !== 'passed') return null;       // only a root step that ran and passed covers anything
   const scripts = (root.pkg && root.pkg.scripts) || {};
@@ -503,12 +505,12 @@ export function rootCovers(root, step, rootToolchain, wsRelPath) {
   return { command: st.command, via: r.via, why: `the root's passing \`${st.command}\` (\`${r.part}\`) ${why}, ${wsRelPath} included` };
 }
 const MIGRATE_SCRIPT_RE = /prisma\s+migrate\s+deploy|knex\s+migrate:latest/;
-export function declaresMigrate(pkg) {
+function declaresMigrate(pkg) {
   const scripts = (pkg && pkg.scripts) || {};
   return MIGRATE_NAMES.find((n) => scripts[n] !== undefined) || Object.keys(scripts).find((n) => MIGRATE_SCRIPT_RE.test(String(scripts[n]))) || null;
 }
 
-export function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {}), root = null) {
+function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {}), root = null) {
   const wsDir = join(workDir, wsRelPath);
   const { toolchain, pkg } = detectToolchain(wsDir);
   const plan = planWorkspace(rootToolchain, toolchain, pkg, wsRelPath, root);
@@ -525,7 +527,7 @@ export function findReadme(dir) {
 }
 // the claim grammar — one line, one claim; a leading shell prompt is not part of it
 const CLAIM_RE = /^(?:\$\s+|>\s+)?(npm run (\S+)|npm test\b|npx (\S+)|node (\S+)|make (\S+))/;
-export function parseReadmeClaims(text) {
+function parseReadmeClaims(text) {
   const claims = /** @type {any[]} */ ([]);
   let inFence = null;
   const lines = text.split('\n');
@@ -580,7 +582,7 @@ export function claimPresent(claim, dir, pkg) {
   return false;
 }
 
-export function replayReadme(dir, pkg) {
+function replayReadme(dir, pkg) {
   const readme = findReadme(dir);
   if (!readme) return { readme: null, claims: [] };
   const claims = parseReadmeClaims(readFileSync(join(dir, readme), 'utf8'));

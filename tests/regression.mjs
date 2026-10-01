@@ -1476,7 +1476,10 @@ function adaptersOnce() { return loadAdapters(); }
   const fail = (m) => negFailures.push('database-signals: ' + m);
   const tmp = join(HERE, 'tmp-db-signals'); rmSync(tmp, { recursive: true, force: true });
   mkdirSync(join(tmp, 'supabase', 'migrations'), { recursive: true });
-  writeFileSync(join(tmp, 'package.json'), JSON.stringify({ name: 'supabase-shaped', version: '0.0.0', private: true, dependencies: { '@supabase/supabase-js': '^2.0.0' } }));
+  // the dependency is a local stand-in so the install never reaches a registry (#65)
+  mkdirSync(join(tmp, 'vendor', 'supabase-js'), { recursive: true });
+  writeFileSync(join(tmp, 'vendor', 'supabase-js', 'package.json'), JSON.stringify({ name: '@supabase/supabase-js', version: '2.0.0' }));
+  writeFileSync(join(tmp, 'package.json'), JSON.stringify({ name: 'supabase-shaped', version: '0.0.0', private: true, dependencies: { '@supabase/supabase-js': 'file:vendor/supabase-js' } }));
   writeFileSync(join(tmp, 'supabase', 'migrations', '0001_init.sql'), 'create table t (id int);\n');
   writeFileSync(join(tmp, 'README.md'), '# supabase-shaped\n');
   let { toolchain } = detectToolchain(tmp);
@@ -1487,6 +1490,10 @@ function adaptersOnce() { return loadAdapters(); }
   let doc = null;
   try { doc = runFreshClone({ target: tmp, clone: false, timeout: 30 }); } catch (e) { fail(`fresh-clone must run over the Supabase-shaped fixture (${e.message})`); }
   if (doc) {
+    // the install must finish inside its budget: a timed-out install is SIGKILLed through its
+    // shell and leaves npm orphaned, writing tests/tmp-db-signals/ back after the cleanup (#65)
+    const install = doc.steps.find((s) => s.name === 'install');
+    if (install?.status !== 'passed') fail(`the Supabase-shaped fixture's install must pass offline, never time out and orphan npm (got ${install?.status}: ${install?.reason || ''})`);
     const rows = convert('fresh-clone', JSON.stringify(doc), doc.exit);
     if (rows.some((r) => r.native_category === 'no-database-signal')) fail('a Supabase-shaped repo must never emit a no-database-signal fact — it has a database');
     const migrateGap = rows.find((r) => r.native_category === 'migrate');
@@ -3720,8 +3727,9 @@ function adaptersOnce() { return loadAdapters(); }
 
 // ── isolation (#47): the target's code never runs with the evaluator's environment ──
 // fresh-clone and dependency-scan spawn the target's package manager. Pinned: (a) a child
-// of either instrument sees only the allow-listed environment names — PATH, HOME, CI and
-// the npm_config_* values the runner sets — never a credential the evaluator's shell holds;
+// of either instrument sees only the allow-listed environment names — PATH, HOME, CI, the
+// npm_config_* values the runner sets and the proxy/CA plumbing (#65), a proxy URL carrying
+// userinfo dropped with the reason on the row — never a credential the evaluator's shell holds;
 // (b) every audit runs in a scratch directory holding only the manifest and the lockfile,
 // so a planted .yarnrc (yarn-path → the target's own script) never runs and cannot forge
 // a clean audit; (c) `assay start <target>` runs fresh-clone (the target's install,
@@ -3732,7 +3740,9 @@ function adaptersOnce() { return loadAdapters(); }
 // stands in for npm and yarn offline, recording every call (cwd, files, env names).
 {
   const fail = (m) => negFailures.push('isolation: ' + m);
-  const ALLOWED = new Set(['PATH', 'HOME', 'CI', 'npm_config_fund', 'npm_config_audit', 'npm_config_update_notifier']);
+  // the network plumbing (#65): passed through only while the proxy URL carries no userinfo
+  const PLUMBING = ['HTTPS_PROXY', 'HTTP_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE'];
+  const ALLOWED = new Set(['PATH', 'HOME', 'CI', 'npm_config_fund', 'npm_config_audit', 'npm_config_update_notifier', ...PLUMBING]);
   const SHELL_SET = new Set(['PWD', 'OLDPWD', 'SHLVL', '_']);   // names a POSIX shell sets itself
   const PLANTED = 'ASSAY_PLANTED_TOKEN';                         // an inert planted name, never a real credential
   const tmp = join(HERE, 'tmp-isolation'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
@@ -3740,9 +3750,13 @@ function adaptersOnce() { return loadAdapters(); }
   const records = () => existsSync(recordsPath) ? readFileSync(recordsPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const markers = (dir) => existsSync(dir) ? readdirSync(dir).filter((f) => f.startsWith('planted-ran-')) : [];
   const savedPath = process.env.PATH, savedPlanted = process.env[PLANTED], savedDb = process.env.DATABASE_URL;
+  const savedPlumbing = Object.fromEntries(PLUMBING.map((n) => [n, process.env[n]]));
+  const CLEAN_PROXY = 'http://127.0.0.1:1', USERINFO_PROXY = 'http://planted-user:inert-planted-value@127.0.0.1:1';
   try {
     process.env[PLANTED] = 'inert-planted-value';
     process.env.DATABASE_URL = 'postgres://inert-planted-value@127.0.0.1:1/none';
+    process.env.HTTPS_PROXY = CLEAN_PROXY; process.env.HTTP_PROXY = CLEAN_PROXY; process.env.NO_PROXY = 'localhost';
+    process.env.NODE_EXTRA_CA_CERTS = join(tmp, 'planted-ca.pem'); process.env.SSL_CERT_FILE = join(tmp, 'planted-ca.pem');
 
     // (a) fresh-clone: a step's own process sees the allow-list and nothing else
     const step = runFreshCloneStep('test', `node -e "process.stdout.write('ENV:' + Object.keys(process.env).sort().join(','))"`, tmp, 30);
@@ -3751,7 +3765,21 @@ function adaptersOnce() { return loadAdapters(); }
     else {
       const extra = seen.split(',').filter((n) => n && !ALLOWED.has(n) && !SHELL_SET.has(n));
       if (extra.length) fail(`a fresh-clone step must see only the allow-listed environment names (also saw ${extra.join(', ')})`);
+      const missing = PLUMBING.filter((n) => !seen.split(',').includes(n));
+      if (missing.length) fail(`a fresh-clone step must receive the network plumbing while the proxy URL carries no userinfo (#65; missing ${missing.join(', ')})`);
+      if (step.env_note) fail(`a step whose plumbing all passed through must carry no env_note (got ${step.env_note})`);
     }
+
+    // (a2) a proxy URL carrying user:pass@ is dropped, the rest of the plumbing still passes,
+    // and the step's own row records why (#65)
+    process.env.HTTPS_PROXY = USERINFO_PROXY;
+    const dropStep = runFreshCloneStep('test', `node -e "process.stdout.write('ENV:' + Object.keys(process.env).sort().join(','))"`, tmp, 30);
+    const dropSeen = (((dropStep.output_tail || '').match(/ENV:(\S*)/) || [])[1] || '').split(',');
+    if (dropSeen.includes('HTTPS_PROXY')) fail('a proxy URL carrying userinfo must never reach a fresh-clone step');
+    if (!dropSeen.includes('HTTP_PROXY') || !dropSeen.includes('NODE_EXTRA_CA_CERTS')) fail(`dropping a userinfo proxy URL must not drop the rest of the plumbing (saw ${dropSeen.join(', ')})`);
+    if (!/HTTPS_PROXY/.test(dropStep.env_note || '') || !/userinfo/.test(dropStep.env_note || '')) fail(`a step run with a userinfo proxy URL dropped must record why on its row, naming the variable (got env_note ${JSON.stringify(dropStep.env_note)})`);
+    if (/inert-planted-value|planted-user/.test(JSON.stringify(dropStep))) fail('the row recording a dropped proxy URL must never carry the URL\'s userinfo');
+    process.env.HTTPS_PROXY = CLEAN_PROXY;
 
     // (b) dependency-scan over the planted target: audits in scratch, nothing planted runs
     const target = join(tmp, 'target');
@@ -3767,7 +3795,18 @@ function adaptersOnce() { return loadAdapters(); }
       if (r.files.join() !== ['package.json', lock].sort().join()) fail(`${r.tool} audit's directory must hold only package.json and ${lock} (held ${r.files.join(', ')})`);
       const extra = r.env.filter((n) => !ALLOWED.has(n));
       if (extra.length) fail(`${r.tool} audit must see only the allow-listed environment names (also saw ${extra.join(', ')})`);
+      const missing = PLUMBING.filter((n) => !r.env.includes(n));
+      if (missing.length) fail(`${r.tool} audit must receive the network plumbing while the proxy URL carries no userinfo (#65; missing ${missing.join(', ')})`);
     }
+    if (doc.lockfiles.some((l) => l.env_note)) fail(`a lockfile audited with all its plumbing passed through must carry no env_note (got ${JSON.stringify(doc.lockfiles.map((l) => l.env_note))})`);
+    process.env.HTTPS_PROXY = USERINFO_PROXY;
+    const before = records().length;
+    const dropDoc = runDependencyScan({ target, timeout: 30, log: () => {} });
+    if (!dropDoc.lockfiles.length || dropDoc.lockfiles.some((l) => !/HTTPS_PROXY/.test(l.env_note || ''))) fail(`every dependency-scan lockfile row run with a userinfo proxy URL dropped must record why (got ${JSON.stringify(dropDoc.lockfiles.map((l) => [l.path, l.env_note]))})`);
+    if (/inert-planted-value|planted-user/.test(JSON.stringify(dropDoc))) fail('a dependency-scan report must never carry a dropped proxy URL\'s userinfo');
+    const dropAudits = records().slice(before).filter((r) => r.args[0] === 'audit');
+    if (dropAudits.length !== 2 || dropAudits.some((r) => r.env.includes('HTTPS_PROXY') || !r.env.includes('NODE_EXTRA_CA_CERTS'))) fail(`a proxy URL carrying userinfo must never reach a package manager's audit, and the rest of the plumbing still must (got ${JSON.stringify(dropAudits.map((r) => [r.tool, r.env.filter((n) => PLUMBING.includes(n))]))})`);
+    process.env.HTTPS_PROXY = CLEAN_PROXY;
     if (doc.lockfiles.some((l) => l.status !== 'audited')) fail(`both planted lockfiles audit through the shims (got ${JSON.stringify(doc.lockfiles.map((l) => [l.path, l.status, l.reason]))})`);
 
     // (c) start without --allow-exec: fresh-clone recorded skipped, no install or script runs
@@ -3792,6 +3831,7 @@ function adaptersOnce() { return loadAdapters(); }
     process.env.PATH = savedPath;
     if (savedPlanted === undefined) delete process.env[PLANTED]; else process.env[PLANTED] = savedPlanted;
     if (savedDb === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = savedDb;
+    for (const [n, v] of Object.entries(savedPlumbing)) if (v === undefined) delete process.env[n]; else process.env[n] = v;
   }
 
   // (d) workspace paths and README claims stay inside the tree
@@ -3813,6 +3853,75 @@ function adaptersOnce() { return loadAdapters(); }
   const helpOut = execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'help'], { encoding: 'utf8' });
   if (!/fresh-clone and dependency-scan execute the target's code/.test(helpOut) || !/--allow-exec/.test(helpOut)) fail('`assay help` must say fresh-clone and dependency-scan execute the target\'s code, and name --allow-exec');
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── shared helpers live once (#80, F-1232): the child environment's allow-list is built in
+// one place (map/child-env.mjs); ingest imports each instrument's closed vocabularies from
+// the producer that emits them (fresh-clone, dependency-scan, repo-census), so a status
+// cannot be added on one side only; and no export is left that nothing else names. Pinned:
+// (a) exactly one module declares the allow-list and builds the child's environment, and
+// no `scrubbedEnv` copy survives; (b) ingest imports the producers' vocabularies, restates
+// none as its own literal, and the statuses its converters compare against are exactly
+// the producer's vocabulary (plus dependency-scan's documented pre-0.2.0 `not-supported`);
+// (c) every export outside tests/ is named by some other module (a test naming it is its reference).
+{
+  const fail = (m) => negFailures.push('shared-helpers: ' + m);
+  const srcFiles = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name.startsWith('.') || e.name.startsWith('tmp-')) continue;
+      const p = join(d, e.name);
+      if (e.isDirectory()) walk(p); else if (e.name.endsWith('.mjs')) srcFiles.push(p);
+    }
+  };
+  walk(ROOT);
+  const rel = (p) => p.slice(ROOT.length + 1).split('\\').join('/');
+  const SRC = Object.fromEntries(srcFiles.map((p) => [rel(p), readFileSync(p, 'utf8')]));
+  const engine = Object.keys(SRC).filter((f) => !f.startsWith('tests/'));
+  // (a) one allow-list, one builder
+  const envDecl = engine.filter((f) => /\b(?:CHILD_ENV_NAMES|scrubbedEnv)\s*=|function\s+(?:childEnv|scrubbedEnv)\b/.test(SRC[f]));
+  if (envDecl.join() !== 'map/child-env.mjs') fail(`the child environment's allow-list must be declared once, in map/child-env.mjs (declared in: ${envDecl.join(', ') || 'none'})`);
+  for (const f of engine) if (/\bscrubbedEnv\b/.test(SRC[f])) fail(`${f} still names scrubbedEnv; the one builder is map/child-env.mjs childEnv()`);
+  for (const f of ['map/fresh-clone.mjs', 'map/dependency-scan.mjs']) if (!/import \{[^}]*\bchildEnv\b[^}]*\} from '\.\/child-env\.mjs'/.test(SRC[f])) fail(`${f} must build its child's environment with childEnv() from map/child-env.mjs`);
+  // (b) ingest imports the producers' vocabularies and its converters' cases match them
+  const FC = await import('../map/fresh-clone.mjs');
+  const DS = await import('../map/dependency-scan.mjs');
+  const RC = await import('../map/repo-census.mjs');
+  const ing = SRC['map/ingest.mjs'];
+  const IMPORTS = { './fresh-clone.mjs': ['STEPS', 'STEP_STATUS', 'CLAIM_STATUS'], './dependency-scan.mjs': ['LOCK_STATUS', 'SEVERITIES'], './repo-census.mjs': ['EVIDENCE_IDS', 'CHECK_NAMES', 'CHECK_STATUS'] };
+  for (const [mod, names] of Object.entries(IMPORTS)) {
+    const line = [...ing.matchAll(/^import \{([^}]*)\} from '([^']+)';$/gm)].find((m) => m[2] === mod);
+    const got = line ? line[1].split(',').map((s) => s.trim().split(/\s+as\s+/)[0]) : [];
+    for (const n of names) if (!got.includes(n)) fail(`map/ingest.mjs must import ${n} from ${mod} — the producer owns that vocabulary`);
+  }
+  const VOCABS = { 'fresh-clone STEPS': FC.STEPS, 'fresh-clone STEP_STATUS': FC.STEP_STATUS, 'fresh-clone CLAIM_STATUS': FC.CLAIM_STATUS, 'dependency-scan LOCK_STATUS': DS.LOCK_STATUS, 'dependency-scan SEVERITIES': DS.SEVERITIES, 'repo-census EVIDENCE_IDS': RC.EVIDENCE_IDS, 'repo-census CHECK_NAMES': RC.CHECK_NAMES, 'repo-census CHECK_STATUS': RC.CHECK_STATUS };
+  for (const [what, vocab] of Object.entries(VOCABS)) if (!Array.isArray(vocab) || !vocab.length) fail(`${what} must be exported by its producer`);
+  // a string-array literal in ingest that holds a whole producer vocabulary is a restatement
+  for (const m of ing.matchAll(/\[\s*('[\w-]+'(?:\s*,\s*'[\w-]+')+)\s*,?\s*\]/g)) {
+    const items = new Set(m[1].split(',').map((s) => s.trim().slice(1, -1)));
+    for (const [what, vocab] of Object.entries(VOCABS)) if (Array.isArray(vocab) && vocab.length > 1 && vocab.every((v) => items.has(v))) fail(`map/ingest.mjs restates ${what} as a literal ([${m[1]}]); import it from the producer`);
+  }
+  const section = (from, to) => { const a = ing.indexOf(`\n  '${from}': {`), b = to ? ing.indexOf(`\n  '${to}': {`, a) : ing.indexOf('\n};\n', a); return a < 0 || b < 0 ? '' : ing.slice(a, b); };
+  // the statuses a converter compares one row's status against (`s.status === 'failed'`)
+  const cases = (text, row) => new Set([...text.matchAll(new RegExp(`\\b${row}\\.status\\s*[!=]==\\s*'([\\w-]+)'`, 'g'))].map((m) => m[1]));
+  const sameSet = (what, text, row, vocab, legacy = []) => {
+    if (!text) { fail(`map/ingest.mjs has no converter to read for ${what}`); return; }
+    const want = new Set([...(vocab || []), ...legacy]), got = cases(text, row);
+    const extra = [...got].filter((s) => !want.has(s)), missing = [...want].filter((s) => !got.has(s));
+    if (extra.length || missing.length) fail(`ingest's cases for ${what} and the producer's vocabulary disagree: ${extra.length ? `ingest has a case for ${extra.join(', ')}, which the producer never emits` : ''}${extra.length && missing.length ? '; ' : ''}${missing.length ? `no case in ingest for ${missing.join(', ')}` : ''}`);
+  };
+  const fcText = section('fresh-clone', 'dependency-scan');
+  sameSet('fresh-clone STEP_STATUS', fcText, 's', FC.STEP_STATUS);
+  sameSet('fresh-clone CLAIM_STATUS', fcText, 'c', FC.CLAIM_STATUS);
+  sameSet('dependency-scan LOCK_STATUS', section('dependency-scan', 'repo-census'), 'lf', DS.LOCK_STATUS, ['not-supported']);   // not-supported: documents from before dependency-scan 0.2.0
+  sameSet('repo-census CHECK_STATUS', section('repo-census', null), 'c', RC.CHECK_STATUS);
+  // (c) no export nothing else names
+  for (const f of engine) {
+    for (const m of SRC[f].matchAll(/^export\s+(?:async\s+)?(?:const|let|var|class|function\*?)\s+([A-Za-z_$][\w$]*)/gm)) {
+      const re = new RegExp(`(?<![\\w$])${m[1].replace(/\$/g, '\\$')}(?![\\w$])`);
+      if (!Object.keys(SRC).some((g) => g !== f && re.test(SRC[g]))) fail(`${f} exports ${m[1]}, which no other module names; delete it, or drop the export when only ${f} uses it`);
+    }
+  }
 }
 
 // ── map/record.mjs: set one scanner's disposition, keeping every other row
@@ -5029,6 +5138,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, model-of-record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, sweep-gate, run-data, backlog, cli-commands, canon, run-layout, compile-target, bless-guard, run-record-lock, instrument-severity, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, model-of-record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, shared-helpers, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, sweep-gate, run-data, backlog, cli-commands, canon, run-layout, compile-target, bless-guard, run-record-lock, instrument-severity, fixture-recall).`);
 }
 process.exit(v.exit);

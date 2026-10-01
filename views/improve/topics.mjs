@@ -21,7 +21,7 @@ import { q } from '../../lib/yaml-min.mjs';
 // appears, even with zero rows, so a topic with no requirements today still
 // reads "not measured", never silently absent. Ordering within a topic: tier
 // order, then register order.
-export function buildTopics(measurementRows, reg) {
+function buildTopics(measurementRows, reg) {
   const byId = new Map(measurementRows.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));
   const emptyCounts = () => ({ met: 0, unmet: 0, mixed: 0, not_measured: 0, not_applicable: 0, rows: [] });

@@ -18,7 +18,7 @@ export function joinContradictions(raw, reg) {
 
 // decided_by: the instrument name from the row's decide, or "owner" for claim
 // rows; a census/facet row is decided by that mechanism's own name.
-export function decidedBy(d) {
+function decidedBy(d) {
   if (d.decide.kind === 'instrument') return d.decide.scanner;
   if (d.decide.kind === 'claim') return 'owner';
   return d.decide.kind;

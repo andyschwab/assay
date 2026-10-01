@@ -26,7 +26,7 @@ import { mdText, mdCode } from '../lib/display.mjs';
 // documents plus the loaded register (for title/tier/topic, tier-ordered — the same
 // ordering every other view uses). Requirement rows in tier order; the yardstick-only
 // list (the yardstick itself changed) kept separate, in id order.
-export function buildSince(previousDoc, currentDoc, reg) {
+function buildSince(previousDoc, currentDoc, reg) {
   const { rows, previousVersion, currentVersion, versionChanged } = compare(previousDoc, currentDoc);
   const byId = new Map(rows.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));

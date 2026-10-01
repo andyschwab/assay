@@ -26,7 +26,7 @@
 import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
 
-export const nn = (i) => String(i + 1).padStart(2, '0');
+const nn = (i) => String(i + 1).padStart(2, '0');
 export const SLUG_RE = /^[a-z0-9-]+$/;
 export const stripLine = (e) => String(e).replace(/:\d+$/, '');
 const cleanStr = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();

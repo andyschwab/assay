@@ -66,7 +66,7 @@ import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, dirname, relative, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
-import { childEnv } from './child-env.mjs';
+import { childEnv, proxyDropNote } from './child-env.mjs';
 import { readPnpmWorkspace, workspaceGlobRe } from './fresh-clone.mjs';
 
 export const VERSION = '0.2.0';   // 0.2.0: pnpm + yarn classic audited; `not-supported` became `not-run`
@@ -92,7 +92,7 @@ function inScratch(lockPath, fn) {
 }
 
 // ── enumerate lockfiles ──────────────────────────────────────────────────────
-export function findLockfiles(root) {
+function findLockfiles(root) {
   const npm = [], other = [];
   (function walk(dir) {
     let entries;
@@ -172,7 +172,7 @@ function workspacesInclude(dir, rel) {
 // (npm audit's report gives node_modules PATHS, never versions; the lockfile is
 // the one artifact both formats — lockfileVersion 1 `dependencies`, 2/3 `packages`
 // — already carry the answer, so nothing here touches the network.)
-export function installedVersions(lockJson, pkgName) {
+function installedVersions(lockJson, pkgName) {
   const versions = new Set();
   if (lockJson && lockJson.packages && typeof lockJson.packages === 'object' && !Array.isArray(lockJson.packages)) {
     for (const [p, info] of Object.entries(lockJson.packages)) {
@@ -199,7 +199,7 @@ export function installedVersions(lockJson, pkgName) {
 // only reachable transitively — those name the package that carries the real
 // object elsewhere in the same report, so they are skipped here (never turned
 // into a phantom advisory on the dependent).
-export function advisoriesFor(vulnerabilities, lockJson) {
+function advisoriesFor(vulnerabilities, lockJson) {
   const rows = []; const seen = new Set();
   for (const [pkg, v] of Object.entries(vulnerabilities || {})) {
     if (!v || !Array.isArray(v.via)) continue;
@@ -246,7 +246,7 @@ function failureReason(r, doc) {
 }
 const oneLine = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
-export function auditLockfile(lockPath, root, timeoutSec, log) {
+function auditLockfile(lockPath, root, timeoutSec, log) {
   const relPath = relative(root, lockPath).split('\\').join('/');
   const r = inScratch(lockPath, (scratch) => runAudit(scratch, timeoutSec));
   const doc = parseAudit(r.stdout);
@@ -274,7 +274,7 @@ export function auditLockfile(lockPath, root, timeoutSec, log) {
 // Both `pnpm audit --json` and yarn classic's `auditAdvisory` lines carry the same
 // advisory object: module_name, severity, vulnerable_versions, patched_versions,
 // github_advisory_id, url, title, findings[].version. One row per (id, package).
-export function advisoriesFromV6(list) {
+function advisoriesFromV6(list) {
   const rows = []; const seen = new Set();
   for (const a of list) {
     if (!a || typeof a !== 'object' || !a.module_name) continue;
@@ -345,7 +345,7 @@ function isYarnBerry(lockPath) {
 
 // one pnpm-lock.yaml / yarn.lock: audited with its own package manager, or not-run
 // with the reason when the instrument cannot (its limit, not the target's gap)
-export function auditOtherLockfile(o, root, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
+function auditOtherLockfile(o, root, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
   const relPath = relative(root, o.path).split('\\').join('/');
   const notRun = (reason) => { log(`  → ${relPath}: not-run (${reason})`); return { path: relPath, status: 'not-run', manager: o.manager, reason }; };
   if (o.manager === 'yarn' && isYarnBerry(o.path)) return notRun('a yarn berry (2+) lockfile: this instrument drives yarn classic\'s `yarn audit` only; run `yarn npm audit --all --recursive` on it');
@@ -374,6 +374,8 @@ export function run({ target, timeout = 300, log = /** @type {(msg: string) => v
   for (const lp of npm) lockfiles.push({ manager: 'npm', ...auditLockfile(lp, root, timeout, log) });
   for (const o of other) lockfiles.push(auditOtherLockfile(o, root, timeout, log));
   lockfiles.sort((a, b) => a.path < b.path ? -1 : 1);
+  const envNote = proxyDropNote();   // #65: a proxy URL kept from the audits is said on each row
+  if (envNote) for (const l of lockfiles) l.env_note = envNote;
 
   // manifests: a package.json with real dependencies and NO lockfile (npm or
   // otherwise) covering it has nothing audited it — never read as clean (a zero

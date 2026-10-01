@@ -68,8 +68,3 @@ export function decideProjected(projected, decisions, runDate = null) {
     return { ...p, decision: dec, state };
   });
 }
-
-// Convenience for compilers: the decided base for a run in one call.
-export function loadAndDecide(dir, projected, runDate = null) {
-  return decideProjected(projected, loadDecisions(dir), runDate);
-}

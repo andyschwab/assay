@@ -54,7 +54,9 @@ import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow, updateRunRecord } from './record.mjs';
-import { stripUserinfo } from './repo-census.mjs';
+import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
+import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS } from './fresh-clone.mjs';
+import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs';
 
 // The routine uploads the whole run, map/raw/ included, as a workflow artifact
 // (routine/README.md), so a raw archive is minimised like gitleaks': a tail of a
@@ -341,8 +343,9 @@ const PROFILES = {
         }
         for (const s of FC_STEPS) if (!seen.has(s)) throw new Error(`fresh-clone${ctx.errLabel} has no row for step ${s} — a step the runner did not record is not a pass (truncated report?)`);
         for (const c of readmeClaims) {
-          if (!c || !Number.isInteger(c.line) || !c.command || !['present', 'missing'].includes(c.status)) throw new Error(`fresh-clone${ctx.errLabel} README claim missing line / command / status (truncated report?)`);
-          if (c.status !== 'missing') continue;
+          if (!c || !Number.isInteger(c.line) || !c.command || !FC_CLAIM_STATUS.includes(c.status)) throw new Error(`fresh-clone${ctx.errLabel} README claim missing line / command / status (truncated report?)`);
+          if (c.status === 'present') continue;
+          if (c.status !== 'missing') throw new Error(`fresh-clone${ctx.errLabel} README claim: ingest has no case for status "${c.status}"`);
           rows.push({
             id: fid(startId + n++),
             source: 'fresh-clone',
@@ -442,7 +445,7 @@ const PROFILES = {
           notAudited(lf.reason ? oneLine(lf.reason) : `dependency-scan did not run ${mgr} audit on it`);
           continue;
         }
-        // status === 'audited'
+        if (lf.status !== 'audited') throw new Error(`dependency-scan lockfile ${lf.path}: ingest has no case for status "${lf.status}"`);
         if (!Array.isArray(lf.advisories)) throw new Error(`dependency-scan lockfile ${lf.path}: audited status but no advisories[] (truncated report?)`);
         for (const a of lf.advisories) {
           for (const k of ['id', 'package', 'severity']) if (!a || !a[k]) throw new Error(`dependency-scan advisory in ${lf.path} missing ${k} (truncated report?)`);
@@ -577,9 +580,6 @@ const PROFILES = {
     },
   },
 };
-const RC_EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
-const RC_CHECKS = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...RC_EVIDENCE_IDS.map((id) => `evidence-${id}`)];
-const RC_STATUS = ['pass', 'gap', 'not-applicable', 'not-measured'];
 const RC_FIX = {
   'architecture-page': 'Add a page (ARCHITECTURE.md, docs/ARCHITECTURE.md, or a README "Architecture" section) that names every external service and data store the target depends on (database, queue, API, service, store, bucket, provider); a diagram is a bonus, not a substitute. Re-run repo-census and confirm it reads pass.',
   'agent-contract': 'Make the agent contract (AGENTS.md or CLAUDE.md) present-tense: move any Status / History / Changelog / Todo / Backlog section and dated changelog lines to a separate, co-located history file. Re-run repo-census and confirm it reads pass.',
@@ -591,12 +591,9 @@ const RC_FIX = {
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
 // the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)
 const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'EndLine', 'StartColumn', 'EndColumn', 'Commit', 'Date', 'Fingerprint', 'Entropy', 'Tags'];
-// dependency-scan vocab (the runner's closed sets; a report outside them is truncated or foreign)
-const DS_STATUS = ['audited', 'failed', 'not-run', 'not-supported'];   // not-supported: documents from before 0.2.0
-const DS_SEVERITIES = ['critical', 'high', 'moderate', 'low', 'info'];
-// fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
-const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
-const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
+// the instruments' closed vocabularies are imported from the producers above (#80); a report
+// outside them is truncated or foreign. not-supported: dependency-scan documents from before 0.2.0
+const DS_STATUS = [...LOCK_STATUS, 'not-supported'];
 // not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
 // already held — undeclared meant met for build alone until this fixed the
 // inconsistency); migrate only where the tree carries database signals (see

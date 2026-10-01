@@ -86,7 +86,7 @@ export function runAssayInstrument({ tool, cmd, cliArgs, okExits, outDir, log })
 // The second half of runAssayInstrument: given an instrument's exit and the raw
 // report it wrote, ingest it or record it failed. The routine's gate step calls it
 // directly on the report its target step handed forward (routine/README.md).
-export function ingestInstrumentRaw({ tool, exit, output, rawFile, okExits, outDir, log }) {
+function ingestInstrumentRaw({ tool, exit, output, rawFile, okExits, outDir, log }) {
   if (exit == null || !okExits.includes(exit)) {
     const reason = `${tool} exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(output || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
     log(`  ✗ ${tool} failed: ${reason}`);
@@ -112,7 +112,7 @@ export function ingestInstrumentRaw({ tool, exit, output, rawFile, okExits, outD
 // is the same on every machine), and a directory in no repository is scanned in
 // directory mode. gitleaks runs from inside the target with --source . so every
 // File it reports is relative to the target (#51).
-export const GITLEAKS_NOT_TOP_LEVEL = "gitleaks not run: the target is not its git repository's top level, so a git-mode scan would read the enclosing repository's history — scan the repository's own checkout, or a copy outside any repository";
+const GITLEAKS_NOT_TOP_LEVEL = "gitleaks not run: the target is not its git repository's top level, so a git-mode scan would read the enclosing repository's history — scan the repository's own checkout, or a copy outside any repository";
 export function runGitleaks(repoDir, outDir, log, absentReason) {
   const top = spawnSync('git', ['-C', repoDir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
   const inRepo = top.status === 0;
@@ -209,8 +209,8 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentR
 // ingests them. The handoff is the target job's output, read as data: ingest
 // validates the report like any other, and a missing or unreadable handoff
 // records fresh-clone failed with the reason — never run here, never clean.
-export const HANDOFF_REPORT = 'fresh-clone.json';
-export const HANDOFF_STATUS = 'fresh-clone.status.json';
+const HANDOFF_REPORT = 'fresh-clone.json';
+const HANDOFF_STATUS = 'fresh-clone.status.json';
 const FRESH_CLONE_OK_EXITS = [0, 1];
 export function writeFreshCloneHandoff({ repoDir, handoffDir }, log = /** @type {(msg: string) => void} */ (() => {})) {
   mkdirSync(handoffDir, { recursive: true });

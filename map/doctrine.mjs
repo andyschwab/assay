@@ -31,7 +31,7 @@ export const isHalt = (e) => isHaltClass(e) && !gateHolds(e);
 // ── severity ─────────────────────────────────────────────────────────────────
 // Severity is a carried property (a scanner's own label, never asserted by the
 // engine); this is only its display/sort order. Unrated sorts last.
-export const SEV = { Blocker: 0, Critical: 1, High: 2, Medium: 3, Low: 4, Nit: 5 };
+const SEV = { Blocker: 0, Critical: 1, High: 2, Medium: 3, Low: 4, Nit: 5 };
 export const sevRank = (s) => (SEV[s] ?? 9);
 
 // ── CLI detection (one idiom for every tool that is both library and CLI) ────

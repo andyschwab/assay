@@ -67,7 +67,7 @@ import { isMain } from './doctrine.mjs';
 
 // identity tokens: the specific thing a finding is about — full evidence PATH (not basename)
 // plus any explicit item key (effect channel, label, slug). subject_type is NOT included.
-export const idTokens = (f) => {
+const idTokens = (f) => {
   const t = new Set();
   for (const e of (Array.isArray(f.evidence) ? f.evidence : [])) t.add('p:' + String(e).split(':')[0]);
   const chan = (f.effect && f.effect.channel) || f.channel;
@@ -96,7 +96,7 @@ export function computeVariance(runDirs) {
 // its repo-eval pass's model (else the row's), a `source:<id>` bucket that scanner's.
 // null where the run record names none — reported as such, never guessed.
 const PASS_OF_DIMENSION = Object.fromEntries(Object.entries(REPO_EVAL_PASSES).map(([p, d]) => [d, p]));
-export function modelResolver(manifest) {
+function modelResolver(manifest) {
   return (g) => (String(g).startsWith('source:') ? modelOf(manifest, g.slice('source:'.length)) : modelOf(manifest, 'repo-eval', PASS_OF_DIMENSION[g]));
 }
 
@@ -157,7 +157,7 @@ export function varianceFromSweeps(sweeps, names, models) {
 // ── measure 2: descriptor agreement ──────────────────────────────────────────
 // The effect facet fields the views compute from. `external` is included: it is a
 // descriptor a run judges (does this leave the trust boundary), and it feeds the halt flag.
-export const DESCRIPTOR_FIELDS = ['reversibility', 'external', 'gate_type', 'fail_mode', 'telemetry', 'blast_scope'];
+const DESCRIPTOR_FIELDS = ['reversibility', 'external', 'gate_type', 'fail_mode', 'telemetry', 'blast_scope'];
 
 // Safety ordering per field, low = riskier. Used ONLY to give a divergence a direction;
 // it never scores anything. gate_type's order follows doctrine.mjs's REAL_GATES split
