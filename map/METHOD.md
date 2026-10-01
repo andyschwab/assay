@@ -133,7 +133,7 @@ not id) and re-verify any prior-only fact — a cheap, deterministic completenes
 check that recovers real misses.
 
 **Every `.md` file you author in a run** (`map/terrain.md`, `views/improve/*.md`,
-`views/improve/synthesis.md`, `map/censuses.md`, `candidate-insights.md`) opens with OKF
+`views/improve/synthesis.md`, `map/censuses.md`) opens with OKF
 frontmatter — `type: doc` plus a `title:` — so the file is well-formed wherever an
 OKF bundle guardrail reads it. The generated docs (report + handoff) get theirs
 from the tools; see `SCHEMA.md` §5.
@@ -393,8 +393,9 @@ is no binning.
  (one per ADR / bounded context / effect-provability channel / knowledge doc), each
  with the item's own file as evidence and the census's **canonical `subject_type`**
  (`SCHEMA.md` §2 — decide it once, never re-choose per run). Measured on
- calibration pairs (a repeated run over one frozen target), this roughly doubles
- fact-level repeatability (48% to 78% in one measured pair). A base sweep stays
+ calibration pairs (a repeated run over one frozen target), this roughly doubled
+ fact-level repeatability (48% to 78% in one pair measured in the field, off-repo, before
+ the committed sweep sets; `tests/sweeps/README.md` is where the tree's own figure lives). A base sweep stays
  fine for a one-off client read.
 - **Author depth separately**: one judged sentence per dimension on how good the
  *best instance* is, with finding ids. High depth over low coverage is a finding
@@ -752,7 +753,9 @@ misfiles a finding shows as a *mis-homed* item and drops recall, caught by the p
 `tests/regression.mjs` recall floor. A scored run authored by the same agent that wrote
 the answers proves the pipeline and the recall floor, not blind determinism — a blind
 run (fresh context, answers unseen) is the separate measurement that earns the
-repeatability claim.
+repeatability claim. Blind sweeps are committed as a sweep set under `tests/sweeps/`
+and gated at their own threshold (`node assay.mjs variance --set <set>`); re-run the set
+when `METHOD.md` or `SCHEMA.md` changes what a pass records.
 
 ## Feedback hook — the run's second output
 
@@ -774,9 +777,10 @@ starves is the failure mode this sort exists to catch.
  coverage-divergence items, composed from `enumerate.mjs --run` and
  `validate.mjs --target` and the prior diff). Curate it with the authored classes a
  tool cannot compute (a sampled false strength, a mis-sized severity band, a
- granularity drift, a tooling gap).
+ granularity drift, a tooling gap) in `map/backlog-authored.yaml` (`SCHEMA.md` §5b);
+ `validate` reads both halves back.
 
-Also write 2–5 notes — one idea each — for anything that surprised you: a strength
+In the same file's `notes:`, write 2–5 notes — one idea each — for anything that surprised you: a strength
 shape the dimensions didn't anticipate, a dimension that failed to discriminate, a
 descriptor the schema lacked, a repo behavior that contradicts the method's
 expectations. If nothing surprised you, say so — that too is a data point about the

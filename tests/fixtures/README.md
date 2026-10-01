@@ -27,4 +27,5 @@ and `node assay.mjs ingest`, never hand-written.
 the assay-fixtures repo. `tests/regression.mjs` re-derives the score every run and
 fails on drift. These runs are NOT blind (the same agent authored the answers and the
 findings), so they prove the harness + pipeline + recall floor, not blind
-determinism — that is a separate, later measurement.
+determinism — that is a separate measurement: a blind sweep set under
+`tests/sweeps/` (its README says what one holds and what the gate checks).

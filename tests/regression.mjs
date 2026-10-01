@@ -4669,7 +4669,7 @@ function adaptersOnce() { return loadAdapters(); }
   const val = () => spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), run], { encoding: 'utf8' });
   const authored = L.backlogAuthoredPath ? L.backlogAuthoredPath(run) : join(run, 'map', 'backlog-authored.yaml');
   writeFileSync(authored, [
-    '# map/backlog-authored.yaml — the authored half of the backlog (SCHEMA.md §5c)',
+    '# map/backlog-authored.yaml — the authored half of the backlog (SCHEMA.md §5b)',
     'items:', '  - id: OB-A01', '    class: tooling-gap', '    status: proposed',
     '    observation: "enumerate matched no Node child_process call site."', '    evidence: ["map/enumerate.mjs:105"]',
     '    mechanism: "Teach the effect-site detector the Node shapes."',

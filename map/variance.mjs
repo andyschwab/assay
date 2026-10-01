@@ -35,9 +35,10 @@
 //      (reversibility/external/gate_type), the chain ranking (blast_scope/preconditions)
 //      and the gate. Measure 1 can read high while measure 2 reads low — two sweeps
 //      agreeing on WHAT exists and disagreeing on what it MEANS — and then the verdict is
-//      not repeatable even though the base looks like it is. Measured on a field
-//      cross-run pair (both canon-pinned, so channel identity was solved): 26 shared
-//      channels, descriptors identical on 8 (31%).
+//      not repeatable even though the base looks like it is. Measured in the field,
+//      off-repo, before tests/sweeps/ existed, on a cross-run pair (both canon-pinned,
+//      so channel identity was solved): 26 shared channels, descriptors identical on 8
+//      (31%). The figure the tree reproduces is a committed sweep set's (THE GATE below).
 //
 // The DIRECTION of divergence separates the two explanations. If every divergence moves
 // the same way, that is consistent with the TARGET having changed between runs. If they
