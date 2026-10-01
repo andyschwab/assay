@@ -16,7 +16,9 @@
 //      requirements) is RECORDED as not-supported, never guessed at.
 //   3. RUN the declared steps — install, build, lint, typecheck, test, migrate —
 //      where each is declared. A step that is not declared is `not-declared`,
-//      never `passed`: absence of a lint script is not a green lint.
+//      never `passed`: absence of a lint script is not a green lint. The test step
+//      also records the runner's own pass / skip / fail counts (`tests`, or
+//      `unparsed`): an exit code of 0 is not the suite having run (#30).
 //   4. REPLAY the README's command claims: every line in a fenced block that starts
 //      `npm run <script>`, `npm test`, `npx <bin>`, `node <file>` or `make <target>`
 //      is a claim; it is `present` when the script / binary / file / target exists
@@ -87,7 +89,7 @@ import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
 import { stripUserinfo } from './repo-census.mjs';
 
-export const VERSION = '0.3.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by)
+export const VERSION = '0.4.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 export const CLAIM_STATUS = ['present', 'missing'];
@@ -316,6 +318,73 @@ const stepEnv = () => childEnv({ npm_config_fund: 'false', npm_config_audit: 'fa
 const shellQuote = (s) => /^[\w@%+=:,./-]+$/.test(s) ? s : `'${String(s).replace(/'/g, `'\\''`)}'`;
 const tail = (s) => String(s || '').split('\n').slice(-TAIL_LINES).join('\n');
 
+// ── test counts: an exit code of 0 is not the suite having run (#30) ─────────
+// The runner's own summary line is the only place the skipped share shows: a suite
+// whose database tests skip themselves when DATABASE_URL is unset exits 0 having run
+// 40% of itself. Read from the step's whole output (never only the tail, which a long
+// go -v listing outruns), colour codes stripped; every summary a run prints is summed
+// (a script running two suites prints two). Not-run-but-listed tests (todo) count as
+// skipped. Null when no known summary appears: the caller records `unparsed`.
+const TEST_CONFIGS = ['vitest.config.ts', 'vitest.config.mts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.config.cjs',
+  'jest.config.ts', 'jest.config.js', 'jest.config.mjs', 'jest.config.cjs', 'jest.config.json', 'pytest.ini', 'conftest.py'];
+const ANSI_RE = /\u001b\[[0-9;]*m/g;
+const TEST_COUNT_PARSERS = [
+  // vitest: `Tests  221 passed | 330 skipped (551)` (not `Test Files`)
+  (lines) => lines.map((l) => l.match(/^\s*Tests\s+(.+?)\s*\((\d+)\)\s*$/)).filter(Boolean)
+    .map((m) => ({ ...countWords(m[1].split('|')), total: Number(m[2]) })),
+  // jest: `Tests:       1 failed, 3 skipped, 2 passed, 6 total`
+  (lines) => lines.map((l) => l.match(/^\s*Tests:\s+(.+?),?\s*(\d+) total\s*$/)).filter(Boolean)
+    .map((m) => ({ ...countWords(m[1].split(',')), total: Number(m[2]) })),
+  // node:test, tap (`# pass 2`) or spec (`ℹ pass 2`) reporter; one block per run, starting at `tests N`
+  (lines) => {
+    const out = [];
+    for (const l of lines) {
+      const m = l.match(/^\s*(?:#|\u2139)\s+(tests|pass|fail|skipped|todo|cancelled)\s+(\d+)\s*$/);
+      if (!m) continue;
+      if (m[1] === 'tests') { out.push({ passed: 0, skipped: 0, failed: 0, total: Number(m[2]) }); continue; }
+      const cur = out[out.length - 1];
+      if (!cur) continue;
+      if (m[1] === 'pass') cur.passed += Number(m[2]);
+      else if (m[1] === 'fail' || m[1] === 'cancelled') cur.failed += Number(m[2]);
+      else cur.skipped += Number(m[2]);
+    }
+    return out;
+  },
+  // pytest: `==== 2 passed, 3 skipped in 0.12s ====`
+  (lines) => lines.map((l) => l.match(/^=+ (.*\d+ (?:passed|failed|skipped|errors?)\b.*?) in [\d.]+s\b.*=+\s*$/)).filter(Boolean)
+    .map((m) => { const c = countWords(m[1].split(',')); return { ...c, total: c.passed + c.skipped + c.failed }; }),
+  // go test -v: one `--- PASS|SKIP|FAIL: Name` line per test (subtests indented)
+  (lines) => {
+    const c = { passed: 0, skipped: 0, failed: 0, total: 0 };
+    for (const l of lines) {
+      const m = l.match(/^\s*--- (PASS|SKIP|FAIL): /);
+      if (!m) continue;
+      c[{ PASS: 'passed', SKIP: 'skipped', FAIL: 'failed' }[m[1]]]++; c.total++;
+    }
+    return c.total ? [c] : [];
+  },
+];
+function countWords(parts) {
+  const c = { passed: 0, skipped: 0, failed: 0 };
+  for (const p of parts) {
+    const m = p.trim().match(/^(\d+)\s+(passed|failed|skipped|todo|pending|errors?|xfailed|xpassed|deselected)\b/);
+    if (!m) continue;
+    const n = Number(m[1]);
+    if (m[2] === 'passed' || m[2] === 'xpassed') c.passed += n;
+    else if (m[2] === 'failed' || m[2].startsWith('error')) c.failed += n;
+    else if (m[2] !== 'deselected') c.skipped += n;
+  }
+  return c;
+}
+export function parseTestCounts(output) {
+  const lines = String(output || '').replace(ANSI_RE, '').split(/\r?\n/);
+  for (const parse of TEST_COUNT_PARSERS) {
+    const found = parse(lines);
+    if (found.length) return found.reduce((a, b) => ({ passed: a.passed + b.passed, skipped: a.skipped + b.skipped, failed: a.failed + b.failed, total: a.total + b.total }));
+  }
+  return null;
+}
+
 export function runStep(name, command, cwd, timeoutSec) {
   const started = Date.now();
   const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: stepEnv(), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
@@ -324,7 +393,13 @@ export function runStep(name, command, cwd, timeoutSec) {
   if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return { name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` };
   if (r.error) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `could not spawn: ${r.error.message}` };
   if (r.signal) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `killed by ${r.signal}` };
-  return { name, status: r.status === 0 ? 'passed' : 'failed', command, exit_code: r.status, duration_ms, output_tail };
+  const row = { name, status: r.status === 0 ? 'passed' : 'failed', command, exit_code: r.status, duration_ms, output_tail };
+  if (name === 'test') {
+    row.tests = parseTestCounts(r.stdout) || 'unparsed';
+    const config = TEST_CONFIGS.find((f) => existsSync(join(cwd, f)));
+    if (config) row.test_config = config;   // where a skipped share's evidence points
+  }
+  return row;
 }
 
 export function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
