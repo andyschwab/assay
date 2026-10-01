@@ -561,11 +561,16 @@ roadmap:                    # each item ALSO carries the decision structure the 
     body: >                 # the item summary (report §6 + plan "The item")
       …
     findings: [F-160, F-146]  # base ids the plan splices verbatim, with evidence paths
-    questions:              # context the read-only eval couldn't see; the agent asks first
+    assumptions:            # what the fix assumes and does unless the owner says otherwise
       - "…"
-    options:                # the "how" decision — the agent presents, never chooses
+    question:               # optional, at most one; an unknown is a variable with a stated default
+      text: "…"
+      recommended: "…"      # the answer the agent proceeds with
+      blocking: false       # true only when no safe default exists: the agent asks and waits
+    options:                # the "how" decision; list of {name, tradeoff}
       - name: "…"
         tradeoff: "…"
+        recommended: true   # optional, on at most one option: the agent proceeds with it
     done_when:              # verifiable closure, tied to finding ids the next run re-checks
       - "…"
 roadmap_intro: >
@@ -575,7 +580,20 @@ key_questions:              # [ "…" ] — folded into body §3 (the questions 
     …
 ```
 
-Not validator-enforced (authored prose), but the compilers depend on the shape: `roadmap[]`
+**Unknowns are variables with stated defaults.** A roadmap item states what it assumes
+(`assumptions`), and asks at most one `question`, always with the `recommended` answer it
+proceeds with; only `blocking: true` makes the plan prompt wait for an answer, and only when
+no safe default exists. A plan prompt proceeds with the one `recommended: true` option
+unless the owner chose another, and presents the rest with their trade-offs; with none
+recommended it presents the options and lets the owner choose. The legacy `questions:` list
+(context the agent asks first, then waits) stays accepted and compiles as it always did when
+the item carries no `assumptions`, `question` or recommended option; `validate.mjs` warns
+(non-fatally) on any `questions:` use. `validate.mjs` fails closed on a malformed new field,
+naming the item's slug: `assumptions` a list of non-empty strings; `question` an object with
+non-empty string `text` and `recommended` and a boolean `blocking` when present; `recommended`
+a boolean on at most one option.
+
+Otherwise not validator-enforced (authored prose), but the compilers depend on the shape: `roadmap[]`
 items need `slug` + `findings` for the plan files, and every `channel_notes` key must be an
 effect `channel` value used in the run. `exec_summary` is the five-part map above (a flat
 list or a string still renders, as a fallback).

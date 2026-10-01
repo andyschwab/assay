@@ -73,6 +73,13 @@ export function buildRoadmap(roadmapRaw, byId) {
     title: r.title || r.slug || `Roadmap item ${i + 1}`,
     body: String(r.body || '').trim(),
     questions: Array.isArray(r.questions) ? r.questions : [],
+    // the unknown-as-a-variable shape (SCHEMA.md prose block): what the fix assumes, and at most
+    // one question carrying the answer we proceed with. Shape errors are validate.mjs's; this
+    // only normalizes, so a malformed item never crashes a compile.
+    assumptions: (Array.isArray(r.assumptions) ? r.assumptions : []).map((a) => String(a == null ? '' : a).trim()).filter(Boolean),
+    question: r.question && typeof r.question === 'object' && !Array.isArray(r.question) && String(r.question.text || '').trim()
+      ? { text: String(r.question.text).trim(), recommended: String(r.question.recommended == null ? '' : r.question.recommended).trim(), blocking: r.question.blocking === true }
+      : null,
     options: Array.isArray(r.options) ? r.options : [],
     done_when: Array.isArray(r.done_when) ? r.done_when : [],
     ps: (Array.isArray(r.findings) ? r.findings : []).map((id) => byId.get(id)).filter(Boolean),
