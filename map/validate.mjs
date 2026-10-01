@@ -5,10 +5,11 @@
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
 // is an error, not a pass — a checker that silently accepts unparseable input hides the very thing it exists to catch.
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
+import { isHalt } from './doctrine.mjs';
 import {
   findingsDir, coverageDir, scannersPath, yardstickPath as runYardstickPath,
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
@@ -65,10 +66,16 @@ const errors = [];
 const err = (where, msg) => errors.push(`${where}: ${msg}`);
 const warnings = [];   // non-fatal: surfaced but do not fail the build (legacy roadmap `questions:`, stale dispositions, …)
 const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
-// every evidence entry names a path: `:12` alone cites no file (no claim without evidence)
+// every evidence entry is a path:line string (SCHEMA §1): `:12` alone cites no file, and a
+// bare path or a map cites no line (no claim without evidence)
+const CITE = /^(.*):(\d+)(?:-(\d+))?$/;
 function emptyCites(f, at) {
   if (!Array.isArray(f.evidence)) return;
-  for (const ev of f.evidence) if (!String(ev).trim().replace(/:\d+(?:-\d+)?$/, '')) err(at, `evidence "${ev}" cites no path`);
+  for (const ev of f.evidence) {
+    const m = typeof ev === 'string' ? ev.trim().match(CITE) : null;
+    if (m && !m[1]) err(at, `evidence "${ev}" cites no path`);
+    else if (!m) err(at, `evidence ${JSON.stringify(ev)} is not a path:line citation`);
+  }
 }
 
 // ── load findings ───────────────────────────────────────────────────────────
@@ -78,7 +85,9 @@ if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <t
 // Off by default so the validator stays portable (a run may be checked without the
 // target present); when --target is given it fails closed on a cited path that does
 // not exist — the "agent cited a plausible path it never opened" class (e.g. a
-// container mount alias instead of the repo path). Enable in-session; skip in CI.
+// container mount alias instead of the repo path) — and on a cited line the file does
+// not have. Pass it wherever the target is present: `assay start`, the routine, and
+// `compile --target` all do.
 const tIdx = process.argv.indexOf('--target');
 const target = tIdx > -1 ? process.argv[tIdx + 1] : null;
 const runDir = arg;
@@ -147,9 +156,8 @@ function checkFinding(f, fileLabel, expectDim) {
       }
       // fail-closed discovery: an unheld halt is a chain sink, and its difficulty is
       // chain-critical, so its preconditions must be determined, never left to default.
-      const gateOpen = e.gate_type === 'none' || e.gate_type === 'disclosure-only' || e.fail_mode === 'open';
-      const isSink = (e.reversibility === 'irreversible' || e.external === true) && gateOpen;
-      if (isSink && (!Array.isArray(f.preconditions) || !f.preconditions.length))
+      // The unheld-halt rule is map/doctrine.mjs's isHalt, never restated here.
+      if (isHalt(e) && (!Array.isArray(f.preconditions) || !f.preconditions.length))
         err(at, `unheld-halt effect must state preconditions (chain difficulty is chain-critical; do not leave it to default)`);
     }
   }
@@ -256,20 +264,27 @@ for (const file of passFiles) {
   }
 }
 
-// optional: evidence-path existence against the target repo (fail-closed on a
-// cited path that does not exist — verifies the analyst actually opened the file)
+// optional: evidence against the target repo (fail-closed on a cited path that does not
+// exist, and on a cited line past the end of the file it names). A path that resolves
+// and a line inside the file is what --target can check; it cannot check that the line
+// says what the observation claims.
 const evidencePathErrors = [];   // structured, for --json / map/backlog.mjs
 if (target) {
   if (!existsSync(target)) { err('--target', `target repo not found: ${target}`); }
   else for (const [id, { f, file }] of allById) {
     if (!Array.isArray(f.evidence)) continue;
     for (const ev of f.evidence) {
-      const p = String(ev).trim().replace(/:\d+(?:-\d+)?$/, '');   // strip :line or :a-b
-      if (!p) continue;   // an empty path is already a schema error (emptyCites)
+      const m = typeof ev === 'string' ? ev.trim().match(CITE) : null;
+      if (!m || !m[1]) continue;   // not path:line is already a schema error (emptyCites)
+      const p = m[1], end = Number(m[3] || m[2]);
       // an instrument's repo-level claim cites its archived raw report (run-relative
       // map/raw/…), which lives in the run, not the target — skip, don't fail.
       if (isInstrument(f.source) && p.startsWith('map/')) continue;
-      if (!existsSync(join(target, p))) { err(`${file}:${id}`, `evidence path not found in target: ${p}`); evidencePathErrors.push({ finding: id, file, path: p }); }
+      if (!existsSync(join(target, p))) { err(`${file}:${id}`, `evidence path not found in target: ${p}`); evidencePathErrors.push({ finding: id, file, path: p }); continue; }
+      if (!statSync(join(target, p)).isFile()) continue;   // a directory (a repo-level `./:1`) has no lines to count
+      const txt = readFileSync(join(target, p), 'utf8');
+      const lines = txt === '' ? 0 : txt.split('\n').length - (txt.endsWith('\n') ? 1 : 0);
+      if (end > lines) { err(`${file}:${id}`, `evidence line ${m[3] ? `${m[2]}-${m[3]}` : m[2]} is past the end of ${p} (${lines} lines)`); evidencePathErrors.push({ finding: id, file, path: p, line: end }); }
     }
   }
 }
@@ -531,6 +546,10 @@ if (existsSync(yardstickResultPath)) {
       const reById = Object.fromEntries(re.map((r) => [r.id, r]));
       const rows = Array.isArray(view.requirements) ? view.requirements : [];
       if (rows.length !== re.length) err(yardstickLabel, `carries ${rows.length} requirements, the yardstick has ${re.length} — regenerate`);
+      // the id SET, not only the count: a duplicated row keeps the count only by dropping
+      // another, and with the count equal a dropped row is the tell
+      const ids = new Set(rows.map((r) => r && r.id));
+      for (const x of re) if (!ids.has(x.id)) err(yardstickLabel, `carries no row for ${x.id} — regenerate: node assay.mjs measure <run-dir> --write`);
       for (const r of rows) {
         const at = `${yardstickLabel}:${r && r.id || '??'}`;
         const x = r && reById[r.id];
