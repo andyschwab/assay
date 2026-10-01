@@ -57,6 +57,13 @@
 //      not-declared: the reach is read from the command, never assumed.
 //      A workspace-free repo emits `workspaces: []` and nothing else changes.
 //
+// The target's own code runs here — its install (lifecycle scripts included), build,
+// lint, typecheck, test and migrate-dry scripts — so every child gets the allow-listed
+// environment of map/child-env.mjs (PATH, HOME, CI, the npm_config_* values below),
+// never the evaluator's, and DATABASE_URL never reaches a migrate step. It is not a
+// sandbox: run it in a disposable container or VM, and `assay start` runs it only
+// under --allow-exec (map/scanners/CONTRACT.md §3a).
+//
 // Fail loud, never empty: the JSON's `exit` is 1 when any step failed or timed out
 // or any claim is missing — at the root OR in any workspace — 0 only when every
 // DECLARED step (root and every workspace) passed and every claim is present; the
@@ -72,9 +79,10 @@
 // Zero dependencies (node: modules only).
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join, resolve, isAbsolute } from 'node:path';
+import { join, resolve, isAbsolute, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
+import { childEnv } from './child-env.mjs';
 
 export const VERSION = '0.3.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
@@ -170,6 +178,7 @@ function expandWorkspaceGlob(rootDir, pattern) {
       return;
     }
     const seg = segs[segIdx];
+    if (seg === '..' || seg === '.') return;      // a workspace never leaves the tree (packet.mjs refuses `..` too)
     const curAbs = join(rootDir, ...relParts);
     if (seg === '**') {
       walk(relParts, segIdx + 1);                 // ** may consume zero levels
@@ -298,18 +307,15 @@ export function planSteps(toolchain, pkg) {
 }
 
 // ── running one step ─────────────────────────────────────────────────────────
-function scrubbedEnv() {
-  const env = { ...process.env };
-  delete env.DATABASE_URL;                 // never let a real database reach a migrate step
-  env.CI = env.CI || '1';
-  env.npm_config_fund = 'false'; env.npm_config_audit = 'false'; env.npm_config_update_notifier = 'false';
-  return env;
-}
+// the allow-list (map/child-env.mjs): no credential, and no DATABASE_URL for a migrate step
+const stepEnv = () => childEnv({ npm_config_fund: 'false', npm_config_audit: 'false', npm_config_update_notifier: 'false' });
+// one path as one shell word (the step commands run through a shell)
+const shellQuote = (s) => /^[\w@%+=:,./-]+$/.test(s) ? s : `'${String(s).replace(/'/g, `'\\''`)}'`;
 const tail = (s) => String(s || '').split('\n').slice(-TAIL_LINES).join('\n');
 
 export function runStep(name, command, cwd, timeoutSec) {
   const started = Date.now();
-  const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: scrubbedEnv(), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
+  const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: stepEnv(), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
   const duration_ms = Date.now() - started;
   const output_tail = tail(r.stdout);
   if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return { name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` };
@@ -355,7 +361,7 @@ export function planWorkspace(rootToolchain, wsToolchain, wsPkg, wsRelPath, root
     if (rootToolchain.package_manager === 'npm') {
       // the root's lockfile covers the whole tree: install this workspace from the root,
       // scoped to it, rather than re-deriving a package-manager guess in its own directory
-      plan.install = { status: 'declared', command: `npm ci --workspace ${wsRelPath}`, needs_install: false, cwd: 'ROOT' };
+      plan.install = { status: 'declared', command: `npm ci --workspace ${shellQuote(wsRelPath)}`, needs_install: false, cwd: 'ROOT' };
     } else {
       // pnpm / yarn: the root install already installed every workspace
       const ri = root && Array.isArray(root.steps) ? root.steps.find((x) => x.name === 'install') : null;
@@ -471,7 +477,7 @@ export function claimPresent(claim, dir, pkg) {
   if (claim.kind === 'npm-script') return scripts[claim.name] !== undefined;
   if (claim.kind === 'node-file') {
     const p = resolve(dir, claim.name);
-    if (!p.startsWith(resolve(dir))) return false;                    // never resolve outside the tree
+    if (p !== resolve(dir) && !p.startsWith(resolve(dir) + sep)) return false;   // never resolve outside the tree
     return existsSync(p) || existsSync(p + '.js') || existsSync(p + '.mjs') || existsSync(p + '.cjs');
   }
   if (claim.kind === 'npx-bin') {
@@ -507,7 +513,7 @@ export function replayReadme(dir, pkg) {
 // ── the run ──────────────────────────────────────────────────────────────────
 const isUrl = (s) => /^(https?|ssh|git|file):\/\//.test(s) || /^[\w.-]+@[\w.-]+:/.test(s);
 function git(args, cwd) {
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8', env: scrubbedEnv(), maxBuffer: MAX_BUFFER });
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8', env: stepEnv(), maxBuffer: MAX_BUFFER });
   return { ok: r.status === 0, out: String(r.stdout || '').trim(), err: String(r.stderr || '').trim() };
 }
 

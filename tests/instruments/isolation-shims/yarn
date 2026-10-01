@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// Offline yarn classic stand-in for the isolation block (#47). Faithful to the one
+// behaviour under test: yarn classic reads .yarnrc from its working directory and every
+// ancestor, and when one sets `yarn-path` it hands the whole command to that file with
+// node — the target's own code. Every call is recorded first; without a yarn-path,
+// `audit --json` answers a clean audit summary.
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { record } from './record.mjs';
+const args = process.argv.slice(2);
+if (args[0] === '--version') { console.log('1.22.22'); process.exit(0); }
+record('yarn', args);
+for (let d = process.cwd(); ; d = dirname(d)) {
+  let rc = null;
+  try { rc = readFileSync(join(d, '.yarnrc'), 'utf8'); } catch { /* none here */ }
+  const m = rc && rc.match(/^yarn-path\s+"?([^"\n]+)"?\s*$/m);
+  if (m) {
+    const r = spawnSync(process.execPath, [resolve(d, m[1]), ...args], { stdio: 'inherit' });
+    process.exit(r.status === null ? 1 : r.status);
+  }
+  if (dirname(d) === d) break;
+}
+if (args[0] === 'audit') {
+  console.log(JSON.stringify({ type: 'auditSummary', data: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0 }, dependencies: 1, totalDependencies: 1 } }));
+  process.exit(0);
+}
+process.exit(1);

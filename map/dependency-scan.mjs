@@ -11,18 +11,20 @@
 //      and yarn.lock in the tree (node_modules/ and .git/ excluded).
 //   1a. AUDIT each pnpm-lock.yaml with `pnpm audit --json` and each yarn
 //      classic yarn.lock with `yarn audit --json`, both read from the lockfile
-//      alone (no install). Both report npm's v6 advisory objects, recorded in
-//      the same rows as the npm path. When the package manager is not on the
+//      alone (no install), from a scratch copy (step 2). Both report npm's v6
+//      advisory objects, recorded in the same rows as the npm path. When the package manager is not on the
 //      runner (or the lockfile is yarn berry, whose `yarn npm audit` this
 //      instrument does not drive yet), the lockfile is `not-run` with the reason:
 //      the instrument's limit, recorded as such — never charged to the target
 //      as a gap, never read as clean.
 //   2. AUDIT each npm lockfile with `npm audit --json` (no install; the
-//      lockfile is read as-is, against the live registry). A directory that
-//      is a workspace member whose effective root carries no lockfile of its
-//      own makes npm audit fail ENOLOCK; that member's package.json + its own
-//      lockfile are copied into a scratch dir and audited there instead
-//      (`method: scratch-copy`, vs `in-place`).
+//      lockfile is read as-is, against the live registry). Every audit runs in
+//      a scratch directory holding only that lockfile and its package.json
+//      (`method: scratch-copy`), never in the target's tree: the package
+//      manager then reads none of the target's own configuration (an .npmrc
+//      naming a registry, a .yarnrc whose yarn-path runs a file from the tree,
+//      a .pnpmfile.cjs), and its environment is the allow-list of
+//      map/child-env.mjs, never the evaluator's (#47).
 //   3. RECORD one row per lockfile — path, method, npm's own exit code,
 //      severity counts, dependencies audited — and one advisory row per
 //      (advisory id, package): id (GHSA, else the npm source id), package,
@@ -64,6 +66,7 @@ import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, dirname, relative, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
+import { childEnv } from './child-env.mjs';
 
 export const VERSION = '0.2.0';   // 0.2.0: pnpm + yarn classic audited; `not-supported` became `not-run`
 export const LOCK_STATUS = ['audited', 'failed', 'not-run'];
@@ -73,11 +76,18 @@ const TAIL_LINES = 40;
 const SKIP_DIRS = new Set(['node_modules', '.git']);
 
 const tail = (s) => String(s || '').split('\n').slice(-TAIL_LINES).join('\n');
-function scrubbedEnv() {
-  const env = { ...process.env };
-  env.CI = env.CI || '1';
-  env.npm_config_fund = 'false'; env.npm_config_update_notifier = 'false';
-  return env;
+// the allow-list (map/child-env.mjs): no credential reaches the package manager
+const auditEnv = () => childEnv({ npm_config_fund: 'false', npm_config_update_notifier: 'false' });
+// run fn(dir) in a scratch directory holding only the lockfile and its package.json —
+// none of the target's own package-manager configuration comes along
+function inScratch(lockPath, fn) {
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-dependency-scan-'));
+  try {
+    const pkgJson = join(dirname(lockPath), 'package.json');
+    if (existsSync(pkgJson)) copyFileSync(pkgJson, join(scratch, 'package.json'));
+    copyFileSync(lockPath, join(scratch, basename(lockPath)));
+    return fn(scratch);
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 }
 
 // ── enumerate lockfiles ──────────────────────────────────────────────────────
@@ -192,11 +202,11 @@ export function advisoriesFor(vulnerabilities, lockJson) {
   return rows;
 }
 
-// ── running one npm audit, with the ENOLOCK scratch-copy fallback ────────────
+// ── running one npm audit, from a scratch copy ───────────────────────────────
 function runAudit(cwd, timeoutSec) {
   return spawnSync('npm', ['audit', '--json'], {
     cwd, encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL',
-    maxBuffer: MAX_BUFFER, env: scrubbedEnv(),
+    maxBuffer: MAX_BUFFER, env: auditEnv(),
   });
 }
 function parseAudit(stdout) { try { return JSON.parse(stdout); } catch { return null; } }
@@ -213,23 +223,9 @@ const oneLine = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
 export function auditLockfile(lockPath, root, timeoutSec, log) {
   const relPath = relative(root, lockPath).split('\\').join('/');
-  const dir = dirname(lockPath);
-  let r = runAudit(dir, timeoutSec);
-  let doc = parseAudit(r.stdout);
-  let method = 'in-place';
-  const enolock = (doc && doc.error && doc.error.code === 'ENOLOCK') ||
-    (!doc && /ENOLOCK/.test(String(r.stdout || '') + String(r.stderr || '')));
-  if (enolock) {
-    method = 'scratch-copy';
-    const scratch = mkdtempSync(join(tmpdir(), 'assay-dependency-scan-'));
-    try {
-      const pkgJson = join(dir, 'package.json');
-      if (existsSync(pkgJson)) copyFileSync(pkgJson, join(scratch, 'package.json'));
-      copyFileSync(lockPath, join(scratch, basename(lockPath)));
-      r = runAudit(scratch, timeoutSec);
-      doc = parseAudit(r.stdout);
-    } finally { rmSync(scratch, { recursive: true, force: true }); }
-  }
+  const r = inScratch(lockPath, (scratch) => runAudit(scratch, timeoutSec));
+  const doc = parseAudit(r.stdout);
+  const method = 'scratch-copy';
   const ok = (r.status === 0 || r.status === 1) && isValidReport(doc);
   log(`  → npm audit ${relPath} (${method}): ${ok ? `exit ${r.status}` : 'failed'}`);
   if (!ok) {
@@ -313,7 +309,7 @@ export function parseYarnClassicAudit(stdout, status) {
 }
 
 function toolVersion(bin) {
-  const r = spawnSync(bin, ['--version'], { encoding: 'utf8', env: scrubbedEnv(), timeout: 30000 });
+  const r = spawnSync(bin, ['--version'], { encoding: 'utf8', env: auditEnv(), timeout: 30000 });
   return (!r.error && r.status === 0) ? String(r.stdout || '').trim() : null;
 }
 // yarn berry (2+): a .yarnrc.yml beside the lockfile, or the berry lockfile header
@@ -331,15 +327,15 @@ export function auditOtherLockfile(o, root, timeoutSec, log = /** @type {(msg: s
   const version = toolVersion(o.manager);
   if (!version) return notRun(`${o.manager} is not available on the runner; run \`${o.manager} audit\` where it is, or re-run dependency-scan there`);
   const cmd = `${o.manager} audit --json`;
-  const r = spawnSync(o.manager, ['audit', '--json'], { cwd: dirname(o.path), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: scrubbedEnv() });
+  const r = inScratch(o.path, (scratch) => spawnSync(o.manager, ['audit', '--json'], { cwd: scratch, encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: auditEnv() }));
   let res;
   if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') res = { ok: false, reason: `${cmd} timed out` };
   else if (r.error) res = { ok: false, reason: `could not spawn ${o.manager}: ${r.error.message}` };
   else if (r.signal) res = { ok: false, reason: `${cmd} was killed by ${r.signal}` };
   else res = o.manager === 'pnpm' ? parsePnpmAudit(r.stdout, r.status) : parseYarnClassicAudit(r.stdout, r.status);
   log(`  → ${cmd} ${relPath} (${o.manager} ${version}): ${res.ok ? `exit ${r.status}` : 'failed'}`);
-  if (!res.ok) return { path: relPath, status: 'failed', manager: o.manager, method: 'in-place', exit_code: r.status ?? null, reason: res.reason, stderr_tail: tail(r.stderr) };
-  return { path: relPath, status: 'audited', manager: o.manager, tool_version: version, method: 'in-place', exit_code: r.status,
+  if (!res.ok) return { path: relPath, status: 'failed', manager: o.manager, method: 'scratch-copy', exit_code: r.status ?? null, reason: res.reason, stderr_tail: tail(r.stderr) };
+  return { path: relPath, status: 'audited', manager: o.manager, tool_version: version, method: 'scratch-copy', exit_code: r.status,
     counts: res.counts, dependencies_audited: res.dependencies_audited, advisories: res.advisories };
 }
 
