@@ -52,17 +52,20 @@ const explicitAlso = (f) => Array.isArray(f.also_axes) ? f.also_axes : [];
 //   • every file under map/findings/ — one per scanner, or one per repo-eval
 //     pass — read and concatenated; no merged-file fallback;
 //   • FAIL CLOSED on an unparseable file (parseYaml throws; never caught here);
-//   • a missing directory reads as an empty base (callers decide whether empty
-//     is an error — most exit loudly on zero findings).
+//   • FAIL CLOSED on a file whose top level is neither a list nor empty (a map
+//     with the rows nested under a key once read as zero findings) and on a run
+//     with no map/findings/ directory: no map is never an empty map. An all-clean
+//     run carries the directory with explicit empty lists.
 // The one deliberate non-consumer is validate.mjs, which re-implements the walk
 // because it needs per-file error attribution (which file broke, at which key).
 export function loadFindings(dir) {
   const fd = findingsDir(dir);
-  if (!existsSync(fd)) return []; // clean empty rather than an ENOENT stack
+  if (!existsSync(fd)) throw new Error(`no findings directory: ${fd} (a run with no map is not a run with no findings)`);
   const files = readdirSync(fd).filter((f) => f.endsWith('.yaml')).sort();
   let all = [];
   for (const f of files) {
     const p = parseYaml(readFileSync(join(fd, f), 'utf8'));
+    if (p !== null && !Array.isArray(p)) throw new Error(`${join(fd, f)}: expected a top-level list of findings (got a ${typeof p === 'object' ? 'map' : typeof p})`);
     if (Array.isArray(p)) all = all.concat(p);
   }
   return all;
