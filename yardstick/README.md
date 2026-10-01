@@ -209,13 +209,20 @@ baseline row that **was** `not-applicable` never fails regardless of what it
 becomes now (it was never held — not-applicable is not `met`/`mixed`), and a
 held row that **becomes** `not-applicable` (a requirement that stops applying)
 is reported, not a regression — both land in the `changed` list rather than
-`failures`, printed on their own line. Every failure line names the
+`failures`, printed on their own line. The one exception is an **owner** row
+(`basis: owner` in the baseline or now): a packet claim, not the map, can say
+`not-applicable`, so a held owner claim that becomes `not-applicable` fails
+like `no-longer-measured` — otherwise a change could release its own claim by
+editing one line of its packet. Every failure line names the
 requirement, its title, its before → after, and the current finding ids behind
 it when the row carries any. Exit 0 prints a one-line `held N, improved M,
 changed (not-applicable) K` summary plus the improved and changed rows, and
 suggests locking improvements in with `--write-baseline`. Exit 2 — never 0 —
 on a missing or unreadable run, baseline file, or (with `--baseline-ref`) git
-ref/repository.
+ref/repository, on a value flag given no value, and on a ref beginning with
+`-` (never handed to git, which would read it as an option).
+`--write-baseline` refuses to write from a run that fails its own gate
+(exit 1): a regressed or contradicted measurement is never accepted.
 
 `ratchet` also fails (exit 1) whenever the run's own measurement carries any
 **contradiction** — a repository's own packet claimed a requirement
