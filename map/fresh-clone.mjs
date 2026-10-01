@@ -69,9 +69,11 @@
 // DECLARED step (root and every workspace) passed and every claim is present; the
 // process exit code equals it. A crash of the runner itself exits 2, so ingest.mjs
 // (success set [0, 1]) halts on it. The last 40 lines of each step's combined
-// output stay in this raw document only — ingest copies the command and exit code
-// into rows, never the output, so an environment value that a build prints cannot
-// leak into a findings base.
+// output stay in this document only — ingest copies the command and exit code
+// into rows, never the output, and drops the tails before archiving the document
+// into map/raw/ (the routine uploads the run), so an environment value that a build
+// prints cannot leak into a findings base or a run. A URL target is recorded and
+// logged with its userinfo stripped (repo-census's stripUserinfo); only git sees it.
 //
 // Usage:
 //   node assay.mjs fresh-clone <target-dir | git URL> --out <file.json>
@@ -83,6 +85,7 @@ import { join, resolve, isAbsolute, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
+import { stripUserinfo } from './repo-census.mjs';
 
 export const VERSION = '0.3.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
@@ -520,15 +523,15 @@ function git(args, cwd) {
 export function run({ target, timeout = 600, clone = true, log = /** @type {(msg: string) => void} */ (() => {}) }) {
   const startedAt = new Date().toISOString();
   let workDir, scratch = null;
-  const t = { path: target, head: null, cloned: false };
+  const t = { path: isUrl(target) ? stripUserinfo(target) : target, head: null, cloned: false };
   if (clone) {
     const src = isUrl(target) ? target : `file://${resolve(target)}`;
     if (!isUrl(target) && !existsSync(target)) throw new Error(`target does not exist: ${target}`);
     scratch = mkdtempSync(join(tmpdir(), 'assay-fresh-clone-'));
     workDir = join(scratch, 'checkout');
-    log(`→ git clone --depth 1 ${src}`);
+    log(`→ git clone --depth 1 ${stripUserinfo(src)}`);
     const c = git(['clone', '--depth', '1', '--quiet', src, workDir], scratch);
-    if (!c.ok) { rmSync(scratch, { recursive: true, force: true }); throw new Error(`git clone failed: ${c.err || c.out}`); }
+    if (!c.ok) { rmSync(scratch, { recursive: true, force: true }); throw new Error(`git clone failed: ${(c.err || c.out).split(src).join(stripUserinfo(src))}`); }
     t.cloned = true;
   } else {
     if (!existsSync(target) || !statSync(target).isDirectory()) throw new Error(`target is not a directory: ${target}`);
