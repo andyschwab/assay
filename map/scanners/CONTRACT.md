@@ -205,7 +205,12 @@ command claims: every fenced-block line starting `npm run <script>`, `npm test`,
 script / binary / file / target exists in the tree, else `missing`. Each step
 records its command, exit code, duration, the last 40 lines of output and one of
 the closed statuses `passed | failed | not-declared | timed-out | skipped`. **A
-step that is not declared is `not-declared`, never `passed`.**
+step that is not declared is `not-declared`, never `passed`.** The test step also
+records `tests: {passed, skipped, failed, total}`, read from the runner's own
+summary (vitest, jest, node:test, pytest, go test -v) in the step's whole output,
+or `tests: unparsed` when no known summary appears, so a reader knows the skipped
+share was not checked; and `test_config` when a vitest / jest / pytest config file
+sits beside it. **An exit code of 0 is not the suite having run.**
 
 **Success set.** The runner's exit is `0` when every declared step passed and
 every claim is present, `1` when at least one step failed or timed out or a claim
@@ -213,7 +218,12 @@ is missing; both are successful runs and `ingest.mjs --tool fresh-clone` accepts
 both. A crash of the runner itself exits `2` and halts the intake. The converter
 writes one gap row per failed / timed-out step, one per **not-declared** lint,
 typecheck, test or migrate (the floor is worded so absence is a gap, not clean),
-and one per missing README claim (`readme-claim`, evidence `README.md:<line>`);
+one per missing README claim (`readme-claim`, evidence `README.md:<line>`),
+and one `test` gap (`test:skipped`) when the test step **passed with tests
+skipped** — the step stays `passed` (its exit code is honest) and the row states
+the share ("passed, but 3 of 5 tests (60%) were skipped in a clean checkout"),
+cites the test config (else the manifest) and names what the skipped tests need
+(a database, where the tree carries a database signal);
 `High` for a failed or timed-out install / build / test, `Medium` otherwise. A
 clean run is the explicit empty `map/findings/fresh-clone.yaml`. Rows carry the
 command and exit code only, and the archived `map/raw/fresh-clone.json` drops every
