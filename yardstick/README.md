@@ -23,8 +23,7 @@ was never gathered" rather than "this does not apply"): the name of a
 found none, or a list of such names (any one fires it). The condition only fires when the row's own decided category
 carries **no** rows this run — real evidence (a gap, a strength) always governs
 over it, the same "a list is an AND, never overridden by a side fact" rule a
-joint category already holds. `d-schema-versioned` is the one row that uses it
-today: `fresh-clone` records a `no-database-signal` fact when it finds no
+joint category already holds. `d-schema-versioned` was the first row to use it: `fresh-clone` records a `no-database-signal` fact when it finds no
 database file or dependency anywhere in the tree, and the row reads
 not-applicable — never met by silence, the way a tree with no database used to
 read. `d-dependencies-known-clean` reads not-measured on `no-lockfile` (a manifest
@@ -35,7 +34,12 @@ lockfile went unaudited read met. The four fresh-clone rows read not-measured on
 their steps' `<step>-not-run` facts (`test-not-run`, `lint-not-run`, …), which
 fresh-clone records for a step it skipped because the install did not pass: a
 step that never ran is not a clean one, and before that fact existed a
-repository whose install failed read met on tests, lint and typecheck. A `claim`-kind row's own state can independently be `not-applicable`
+repository whose install failed read met on tests, lint and typecheck. The six
+`repo-census` owner-evidence rows read not-applicable on their
+`evidence-<id>-not-applicable` facts, which the census records when it finds no
+deployment signal anywhere in the tree: before that fact existed a library or a
+command-line tool read six unmet rows asking it to prove a restore, a rollback
+and an alert for something it never deploys. A `claim`-kind row's own state can independently be `not-applicable`
 (the owner is the only decider a claim row ever has, same as `satisfied`): see
 below.
 
@@ -98,7 +102,9 @@ The instruments that decide rows:
   default branch, and six **owner-evidence transcripts** for what a repository
   cannot show by itself (a restore, a rollback, a one-command deploy, a smoke
   check on the deployed app, a monitor that alerted a person, cost alerts). The
-  transcript format is `owner/evidence/README.md`.
+  transcript format is `owner/evidence/README.md`. A tree with no deployment
+  signal anywhere (contract §3d) reads the six transcript rows
+  **not-applicable** — nothing is deployed to prove — never met.
 
 Prose is never read. An observation that mentions a topic is not a measurement.
 Census names are accepted as a list per requirement; a new run uses the first.

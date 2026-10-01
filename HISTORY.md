@@ -939,3 +939,24 @@ what the public engine learned.
   (`tests/instruments/fresh-clone-install-fails`, a preinstall that exits 1)
   and the `step-not-run` block were confirmed red against the old code (15
   failures) before the change. Goldens untouched.
+- **2026-10-01 — nothing deployed reads the operating rows not applicable**
+  (issue #19, roadmap item 10). The six owner-evidence checks (a restore, a
+  rollback, a one-command deploy, a smoke check, an alert, cost alerts) read a
+  Medium gap on any tree without a transcript, including a library or a
+  command-line tool with nothing deployed; assay's own intake read six such
+  gaps. The census now walks the whole tree for a deployment signal (a
+  container file, a hosting config, infrastructure-as-code or a service
+  manifest, a CI workflow that deploys, a server entry point, start script or
+  web-framework dependency, an owner evidence directory or pointer; the list
+  lives in `map/scanners/CONTRACT.md` §3d and is deliberately conservative:
+  one signal keeps all six measured, a walk cut short counts as one). With
+  none, each check reads `not-applicable`, ingest files an
+  `evidence-<id>-not-applicable` fact row (before, a not-applicable census
+  check left no row, and a category with no rows reads met), and the six
+  requirements name it in `decide.not_applicable_when`, the
+  `d-schema-versioned` shape. The fixture repository's root keeps its six
+  gaps (its `flawed-webapp` target is a server), so `R-I4`..`R-I9` stand and
+  the goldens are untouched. The `repo-census-no-deployment` block was
+  confirmed red against the old code (37 failures), and again with only the
+  yardstick rows reverted (6, reading met) and only the ingest change reverted
+  (12).

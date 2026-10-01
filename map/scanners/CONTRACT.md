@@ -417,10 +417,12 @@ confirm a transcript's commit either way — never a failure of the tool itself)
 --tool repo-census` accepts both. A crash of the runner itself exits `2` and halts
 the intake. The converter writes one gap row per `gap` check and one strength row
 per `pass` check (so the axis sees the evidence, not just the absence of a gap); a
-`not-applicable` check yields nothing, and a `not-measured` check (the six
-owner-evidence checks only — below) yields a FACT row in its own
-`<check>-unverifiable` category, never the check's own category, so the
-requirement it decides reads not-measured rather than a silent met. `Medium`
+`not-measured` check (the six owner-evidence checks only — below) yields a FACT
+row in its own `<check>-unverifiable` category, never the check's own category, so
+the requirement it decides reads not-measured rather than a silent met; a
+`not-applicable` check (the same six, over a tree with no deployment signal —
+below) likewise yields a FACT row in its own `<check>-not-applicable` category,
+so the requirement reads not-applicable, never met by silence. `Medium`
 severity throughout, except a
 ci-gate gap from a fail-open step, which reads `High` — a gate that can be turned
 off from inside the workflow is worse than no gate recorded. Rows carry the
@@ -468,6 +470,45 @@ full history is a `gap`, naming it; a checkout that cannot say either way (no
 refuses to guess. The format — path, header keys, per-row keys, body minimum,
 freshness window — is documented once, at `owner/evidence/README.md`; this is
 the one home of it.
+
+**The deployment signal.** The six rows ask for proof about a deployed
+application, so they apply only where the tree shows one. Before reading any
+transcript, the census walks the whole tree (skipping `.git`, `node_modules`,
+`.venv`, `venv`, `__pycache__`) and records every **deployment signal** in the
+document's `deployment.signals` (`kind`, `path`, what it is):
+
+- `container` — a `Dockerfile` / `*.dockerfile` / `Containerfile`, or a
+  `docker-compose*.yml` / `compose*.yml`;
+- `hosting` — a hosting config: `vercel.json`, `now.json`, `netlify.toml`,
+  `fly.toml`, `render.yaml`, `railway.json|toml`, `Procfile`, `app.yaml|yml`,
+  `app.json`, `heroku.yml`, `firebase.json`, `wrangler.toml|json|jsonc`,
+  `amplify.yml`, `apprunner.yaml`, `Dockerrun.aws.json`, `.platform.app.yaml`,
+  `cloudbuild.yaml|yml`, `appspec.yml`, `samconfig.toml`;
+- `infrastructure` — infrastructure-as-code or a service manifest: `*.tf`,
+  `*.tfvars`, `*.bicep`, `Pulumi.yaml|yml`, `serverless.yml|yaml`, `cdk.json`,
+  `Chart.yaml`, `kustomization.yaml|yml`, `skaffold.yaml`;
+- `deploy-workflow` — a CI config (`.github/workflows/*.yml|yaml`,
+  `.gitlab-ci.yml`, `.circleci/config.yml`, `azure-pipelines.yml`,
+  `bitbucket-pipelines.yml`, `Jenkinsfile`) whose text says `deploy`;
+- `server` — a server entry point (`server.{js,mjs,cjs,ts,mts,py,go,rb}`,
+  `manage.py`, `wsgi.py`, `asgi.py`); a `package.json` with a `start`, `serve`
+  or `deploy` script or a web-framework dependency (express, fastify, koa, hapi,
+  restify, hono, next, nuxt, NestJS, Remix, SvelteKit, sails, AdonisJS); a
+  Python manifest (`requirements*.txt`, `pyproject.toml`, `Pipfile`) naming a web
+  framework or server (flask, django, fastapi, starlette, uvicorn, gunicorn,
+  aiohttp, tornado, sanic);
+- `evidence` — an owner evidence directory (`ops/evidence/` or `docs/evidence/`,
+  root) or the packet's `evidence` pointer: the owner already keeps transcripts;
+- `unwalked` — a tree past 20000 entries the walk did not finish: not ruled out.
+
+With **no** signal, each of the six checks reads `not-applicable`, citing the
+root, its observation naming what was looked for — never `pass`, and the
+requirement reads not-applicable, never met. With **any one** signal, every
+check is read exactly as above and a missing transcript is a `gap`. The list is
+deliberately conservative: any doubt keeps the rows measured. A real service
+that deploys from somewhere the tree does not show (a console, another
+repository) still reads not-applicable; the signal states what the tree shows,
+and widening it is a reviewed change here, never a silent one.
 
 ```sh
 node assay.mjs repo-census <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90] [--packet <dir|manifest.yaml>]
