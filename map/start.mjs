@@ -40,7 +40,7 @@
 // Library: drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml,
 // engineCommit — routine/run.mjs imports all five.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -105,14 +105,27 @@ export function ingestInstrumentRaw({ tool, exit, output, rawFile, okExits, outD
 // when present; when it is not, skip it with the CALLER's own absent-reason
 // (CONTRACT.md §3a: an adopted instrument may be absent from an environment,
 // and its absence must be RECORDED, never silently read as clean).
+// Git mode reads the history of whatever repository CONTAINS --source, so the
+// target must be its repository's top level: a subdirectory of a larger
+// checkout is refused with a reason (checked before the binary, so the record
+// is the same on every machine), and a directory in no repository is scanned in
+// directory mode. gitleaks runs from inside the target with --source . so every
+// File it reports is relative to the target (#51).
+export const GITLEAKS_NOT_TOP_LEVEL = "gitleaks not run: the target is not its git repository's top level, so a git-mode scan would read the enclosing repository's history — scan the repository's own checkout, or a copy outside any repository";
 export function runGitleaks(repoDir, outDir, log, absentReason) {
+  const top = spawnSync('git', ['-C', repoDir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  const inRepo = top.status === 0;
+  if (inRepo && realpathSync(String(top.stdout).trim()) !== realpathSync(repoDir)) {
+    log('· gitleaks — target is not its repository\'s top level, skipped');
+    return { status: 'skipped', reason: GITLEAKS_NOT_TOP_LEVEL };
+  }
   if (!which('gitleaks')) {
     log('· gitleaks — binary not found on PATH, skipped');
     return { status: 'skipped', reason: absentReason };
   }
   const { dir: rawDir, file: rawFile } = rawScratch('gitleaks');
-  log('· gitleaks …');
-  const r = spawnSync('gitleaks', ['detect', '--source', repoDir, '--report-format', 'json', '--report-path', rawFile, '--redact'], { encoding: 'utf8' });
+  log(`· gitleaks (${inRepo ? 'git history' : 'directory, no repository'}) …`);
+  const r = spawnSync('gitleaks', ['detect', '--source', '.', ...(inRepo ? [] : ['--no-git']), '--report-format', 'json', '--report-path', rawFile, '--redact'], { cwd: repoDir, encoding: 'utf8' });
   const exit = r.status;
   if (exit == null || (exit !== 0 && exit !== 1)) {
     const reason = `gitleaks exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;

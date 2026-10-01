@@ -1,0 +1,9 @@
+# .gitleaksignore — the engine's disposition of its own planted test values,
+# tracked where gitleaks reads it (CLAUDE.md rule 6: anything shaped like a
+# secret in tests/ is an inert planted string). One commit-pinned fingerprint
+# per historical hit, each under the reason it is inert; a new hit is never
+# added here without one.
+
+# The positive-case input to the packet validator's secretShape test (an
+# AKIA-prefixed made-up value, never a credential), as first committed.
+884eb529a5e282cbb24594001fb2939b8fac3083:tests/regression.mjs:aws-access-token:1065

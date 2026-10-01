@@ -857,3 +857,24 @@ what the public engine learned.
   confirmed red against the old code for their own reason before the change.
   The template assertion on `--base-ref origin/${{ github.base_ref }}` now
   reads the env form. Goldens untouched.
+- **2026-10-01 — the secret scan reads the target's own history, and the
+  harness gives one answer whatever is installed** (issue #51). `runGitleaks`
+  handed the target to `gitleaks detect` in git mode, which reads the history
+  of whatever repository contains the source: the routine test's fixture, a
+  subdirectory of the engine's own checkout, received a hit from the engine's
+  history that `validate --target` then refused, so with gitleaks on `PATH`
+  the harness exited 1 (seven routine failures) while CI, which installed no
+  gitleaks, only ever saw the passing branch; and a directory in no repository
+  silently read clean. Now a target that is not its repository's top level is
+  recorded skipped with that reason (checked before the binary, so the record
+  is the same on every machine), a directory in no repository is scanned with
+  `--no-git`, and gitleaks runs from inside the target so every path is
+  target-relative. CI installs the release the routine template pins, checked
+  against the same sha256 (the harness holds the two equal). A tracked
+  `.gitleaksignore` records the planted `secretShape` test value's one
+  historical hit with its reason, so a full-history scan of this repository
+  reads clean. The option taken refuses rather than attributing the enclosing
+  repository's hits to it. A new `gitleaks-target` block, the routine row pin
+  and the `ci-workflow` install check were confirmed red against the old code
+  (4 failures without gitleaks, 14 with it) before the change. Goldens
+  untouched.
