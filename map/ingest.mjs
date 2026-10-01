@@ -53,6 +53,13 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow } from './record.mjs';
+import { stripUserinfo } from './repo-census.mjs';
+
+// The routine uploads the whole run, map/raw/ included, as a workflow artifact
+// (routine/README.md), so a raw archive is minimised like gitleaks': a tail of a
+// tool's own output, which may echo an environment value, is dropped (every key
+// named in `keys`, at any depth), and the rest of the document is kept as is.
+const dropKeys = (raw, keys) => JSON.parse(raw, (k, v) => (keys.includes(k) ? undefined : v));
 
 // ── tool profiles ────────────────────────────────────────────────────────────
 // okExits: the tool's documented success exits (anything else = tool error, halt).
@@ -212,7 +219,13 @@ const PROFILES = {
     // A workspace step COVERED by a passing root step (fresh-clone's covered_by names
     // it) yields no row either: the root's own row already carries that step.
     // NEVER copy step output: the last-40-lines tail (which may echo environment
-    // values) stays in the raw archive; rows carry the command and exit code only.
+    // values) stays in the runner's own document; rows carry the command and exit
+    // code only, and the archive drops the tails and a URL target's userinfo.
+    archive(raw) {
+      const rep = dropKeys(raw, ['output_tail']);
+      if (rep.target && typeof rep.target.path === 'string') rep.target.path = stripUserinfo(rep.target.path);
+      return JSON.stringify(rep, null, 2) + '\n';
+    },
     //
     // WORKSPACES: the same rows, once for the
     // root and once per entry in `rep.workspaces` — an npm-workspaces root is not one
@@ -333,6 +346,8 @@ const PROFILES = {
   },
   'dependency-scan': {
     startId: 950,
+    // a failed audit's stderr tail (which may echo environment values) stays out of map/raw/
+    archive: (raw) => JSON.stringify(dropKeys(raw, ['stderr_tail']), null, 2) + '\n',
     // 0 = every lockfile in the tree audited with zero advisories; 1 = any advisory,
     // any failed lockfile, or any lockfile not run. Both are
     // successful RUNS. A crash of the runner itself exits 2 and halts.

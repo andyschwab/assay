@@ -817,6 +817,23 @@ what the public engine learned.
   scripts, offline npm/yarn shims that record cwd, files and environment
   names) was confirmed red against the old code for each of its reasons
   (14 failures) before the change. Goldens untouched.
+- **2026-10-01 — a run's raw archive carries no output tail or credential**
+  (issue #49). The routine uploads the whole run, `map/raw/` included, as a
+  workflow artifact readable by anyone who can read the repository's workflow
+  runs, and ingest copied fresh-clone's and dependency-scan's raw reports
+  verbatim, last-40-line output tails and stderr tails included. Both profiles
+  now `archive()` like gitleaks': the tails are dropped, every other key kept.
+  fresh-clone records and logs a URL target with its userinfo stripped (the
+  clone itself still uses the URL as given), and the archive strips it again
+  for an older document. `assay start` and the routine write each raw report
+  inside a private mkdtemp directory, never at the guessable
+  `assay-start-<tool>-<pid>.json` in the shared temp directory. The option
+  taken minimises at archive time and uploads the run as before; the tail that
+  made a failure readable is now read from the workflow log. A new
+  `raw-minimised` block (a target whose build prints a planted value, cloned
+  through a URL with planted userinfo; a dependency-scan stderr tail; a
+  symlink planted at the old guessable name) was confirmed red against the
+  old code for each of its six reasons before the change. Goldens untouched.
 - **2026-10-01 — a pull request cannot touch the engine, the run or the
   baseline before the gate reads them (#48).** The routine template ran the
   change's own install and tests (fresh-clone, in place) in the same job,
