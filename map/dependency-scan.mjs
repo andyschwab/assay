@@ -66,7 +66,7 @@ import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, dirname, relative, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
-import { childEnv } from './child-env.mjs';
+import { childEnv, proxyDropNote } from './child-env.mjs';
 import { readPnpmWorkspace, workspaceGlobRe } from './fresh-clone.mjs';
 
 export const VERSION = '0.2.0';   // 0.2.0: pnpm + yarn classic audited; `not-supported` became `not-run`
@@ -374,6 +374,8 @@ export function run({ target, timeout = 300, log = /** @type {(msg: string) => v
   for (const lp of npm) lockfiles.push({ manager: 'npm', ...auditLockfile(lp, root, timeout, log) });
   for (const o of other) lockfiles.push(auditOtherLockfile(o, root, timeout, log));
   lockfiles.sort((a, b) => a.path < b.path ? -1 : 1);
+  const envNote = proxyDropNote();   // #65: a proxy URL kept from the audits is said on each row
+  if (envNote) for (const l of lockfiles) l.env_note = envNote;
 
   // manifests: a package.json with real dependencies and NO lockfile (npm or
   // otherwise) covering it has nothing audited it — never read as clean (a zero

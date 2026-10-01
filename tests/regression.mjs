@@ -1476,7 +1476,10 @@ function adaptersOnce() { return loadAdapters(); }
   const fail = (m) => negFailures.push('database-signals: ' + m);
   const tmp = join(HERE, 'tmp-db-signals'); rmSync(tmp, { recursive: true, force: true });
   mkdirSync(join(tmp, 'supabase', 'migrations'), { recursive: true });
-  writeFileSync(join(tmp, 'package.json'), JSON.stringify({ name: 'supabase-shaped', version: '0.0.0', private: true, dependencies: { '@supabase/supabase-js': '^2.0.0' } }));
+  // the dependency is a local stand-in so the install never reaches a registry (#65)
+  mkdirSync(join(tmp, 'vendor', 'supabase-js'), { recursive: true });
+  writeFileSync(join(tmp, 'vendor', 'supabase-js', 'package.json'), JSON.stringify({ name: '@supabase/supabase-js', version: '2.0.0' }));
+  writeFileSync(join(tmp, 'package.json'), JSON.stringify({ name: 'supabase-shaped', version: '0.0.0', private: true, dependencies: { '@supabase/supabase-js': 'file:vendor/supabase-js' } }));
   writeFileSync(join(tmp, 'supabase', 'migrations', '0001_init.sql'), 'create table t (id int);\n');
   writeFileSync(join(tmp, 'README.md'), '# supabase-shaped\n');
   let { toolchain } = detectToolchain(tmp);
@@ -1487,6 +1490,10 @@ function adaptersOnce() { return loadAdapters(); }
   let doc = null;
   try { doc = runFreshClone({ target: tmp, clone: false, timeout: 30 }); } catch (e) { fail(`fresh-clone must run over the Supabase-shaped fixture (${e.message})`); }
   if (doc) {
+    // the install must finish inside its budget: a timed-out install is SIGKILLed through its
+    // shell and leaves npm orphaned, writing tests/tmp-db-signals/ back after the cleanup (#65)
+    const install = doc.steps.find((s) => s.name === 'install');
+    if (install?.status !== 'passed') fail(`the Supabase-shaped fixture's install must pass offline, never time out and orphan npm (got ${install?.status}: ${install?.reason || ''})`);
     const rows = convert('fresh-clone', JSON.stringify(doc), doc.exit);
     if (rows.some((r) => r.native_category === 'no-database-signal')) fail('a Supabase-shaped repo must never emit a no-database-signal fact — it has a database');
     const migrateGap = rows.find((r) => r.native_category === 'migrate');
@@ -3732,7 +3739,9 @@ function adaptersOnce() { return loadAdapters(); }
 // stands in for npm and yarn offline, recording every call (cwd, files, env names).
 {
   const fail = (m) => negFailures.push('isolation: ' + m);
-  const ALLOWED = new Set(['PATH', 'HOME', 'CI', 'npm_config_fund', 'npm_config_audit', 'npm_config_update_notifier']);
+  // the network plumbing (#65): passed through only while the proxy URL carries no userinfo
+  const PLUMBING = ['HTTPS_PROXY', 'HTTP_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE'];
+  const ALLOWED = new Set(['PATH', 'HOME', 'CI', 'npm_config_fund', 'npm_config_audit', 'npm_config_update_notifier', ...PLUMBING]);
   const SHELL_SET = new Set(['PWD', 'OLDPWD', 'SHLVL', '_']);   // names a POSIX shell sets itself
   const PLANTED = 'ASSAY_PLANTED_TOKEN';                         // an inert planted name, never a real credential
   const tmp = join(HERE, 'tmp-isolation'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
@@ -3740,9 +3749,13 @@ function adaptersOnce() { return loadAdapters(); }
   const records = () => existsSync(recordsPath) ? readFileSync(recordsPath, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const markers = (dir) => existsSync(dir) ? readdirSync(dir).filter((f) => f.startsWith('planted-ran-')) : [];
   const savedPath = process.env.PATH, savedPlanted = process.env[PLANTED], savedDb = process.env.DATABASE_URL;
+  const savedPlumbing = Object.fromEntries(PLUMBING.map((n) => [n, process.env[n]]));
+  const CLEAN_PROXY = 'http://127.0.0.1:1', USERINFO_PROXY = 'http://planted-user:inert-planted-value@127.0.0.1:1';
   try {
     process.env[PLANTED] = 'inert-planted-value';
     process.env.DATABASE_URL = 'postgres://inert-planted-value@127.0.0.1:1/none';
+    process.env.HTTPS_PROXY = CLEAN_PROXY; process.env.HTTP_PROXY = CLEAN_PROXY; process.env.NO_PROXY = 'localhost';
+    process.env.NODE_EXTRA_CA_CERTS = join(tmp, 'planted-ca.pem'); process.env.SSL_CERT_FILE = join(tmp, 'planted-ca.pem');
 
     // (a) fresh-clone: a step's own process sees the allow-list and nothing else
     const step = runFreshCloneStep('test', `node -e "process.stdout.write('ENV:' + Object.keys(process.env).sort().join(','))"`, tmp, 30);
@@ -3751,7 +3764,21 @@ function adaptersOnce() { return loadAdapters(); }
     else {
       const extra = seen.split(',').filter((n) => n && !ALLOWED.has(n) && !SHELL_SET.has(n));
       if (extra.length) fail(`a fresh-clone step must see only the allow-listed environment names (also saw ${extra.join(', ')})`);
+      const missing = PLUMBING.filter((n) => !seen.split(',').includes(n));
+      if (missing.length) fail(`a fresh-clone step must receive the network plumbing while the proxy URL carries no userinfo (#65; missing ${missing.join(', ')})`);
+      if (step.env_note) fail(`a step whose plumbing all passed through must carry no env_note (got ${step.env_note})`);
     }
+
+    // (a2) a proxy URL carrying user:pass@ is dropped, the rest of the plumbing still passes,
+    // and the step's own row records why (#65)
+    process.env.HTTPS_PROXY = USERINFO_PROXY;
+    const dropStep = runFreshCloneStep('test', `node -e "process.stdout.write('ENV:' + Object.keys(process.env).sort().join(','))"`, tmp, 30);
+    const dropSeen = (((dropStep.output_tail || '').match(/ENV:(\S*)/) || [])[1] || '').split(',');
+    if (dropSeen.includes('HTTPS_PROXY')) fail('a proxy URL carrying userinfo must never reach a fresh-clone step');
+    if (!dropSeen.includes('HTTP_PROXY') || !dropSeen.includes('NODE_EXTRA_CA_CERTS')) fail(`dropping a userinfo proxy URL must not drop the rest of the plumbing (saw ${dropSeen.join(', ')})`);
+    if (!/HTTPS_PROXY/.test(dropStep.env_note || '') || !/userinfo/.test(dropStep.env_note || '')) fail(`a step run with a userinfo proxy URL dropped must record why on its row, naming the variable (got env_note ${JSON.stringify(dropStep.env_note)})`);
+    if (/inert-planted-value|planted-user/.test(JSON.stringify(dropStep))) fail('the row recording a dropped proxy URL must never carry the URL\'s userinfo');
+    process.env.HTTPS_PROXY = CLEAN_PROXY;
 
     // (b) dependency-scan over the planted target: audits in scratch, nothing planted runs
     const target = join(tmp, 'target');
@@ -3767,7 +3794,18 @@ function adaptersOnce() { return loadAdapters(); }
       if (r.files.join() !== ['package.json', lock].sort().join()) fail(`${r.tool} audit's directory must hold only package.json and ${lock} (held ${r.files.join(', ')})`);
       const extra = r.env.filter((n) => !ALLOWED.has(n));
       if (extra.length) fail(`${r.tool} audit must see only the allow-listed environment names (also saw ${extra.join(', ')})`);
+      const missing = PLUMBING.filter((n) => !r.env.includes(n));
+      if (missing.length) fail(`${r.tool} audit must receive the network plumbing while the proxy URL carries no userinfo (#65; missing ${missing.join(', ')})`);
     }
+    if (doc.lockfiles.some((l) => l.env_note)) fail(`a lockfile audited with all its plumbing passed through must carry no env_note (got ${JSON.stringify(doc.lockfiles.map((l) => l.env_note))})`);
+    process.env.HTTPS_PROXY = USERINFO_PROXY;
+    const before = records().length;
+    const dropDoc = runDependencyScan({ target, timeout: 30, log: () => {} });
+    if (!dropDoc.lockfiles.length || dropDoc.lockfiles.some((l) => !/HTTPS_PROXY/.test(l.env_note || ''))) fail(`every dependency-scan lockfile row run with a userinfo proxy URL dropped must record why (got ${JSON.stringify(dropDoc.lockfiles.map((l) => [l.path, l.env_note]))})`);
+    if (/inert-planted-value|planted-user/.test(JSON.stringify(dropDoc))) fail('a dependency-scan report must never carry a dropped proxy URL\'s userinfo');
+    const dropAudits = records().slice(before).filter((r) => r.args[0] === 'audit');
+    if (dropAudits.length !== 2 || dropAudits.some((r) => r.env.includes('HTTPS_PROXY') || !r.env.includes('NODE_EXTRA_CA_CERTS'))) fail(`a proxy URL carrying userinfo must never reach a package manager's audit, and the rest of the plumbing still must (got ${JSON.stringify(dropAudits.map((r) => [r.tool, r.env.filter((n) => PLUMBING.includes(n))]))})`);
+    process.env.HTTPS_PROXY = CLEAN_PROXY;
     if (doc.lockfiles.some((l) => l.status !== 'audited')) fail(`both planted lockfiles audit through the shims (got ${JSON.stringify(doc.lockfiles.map((l) => [l.path, l.status, l.reason]))})`);
 
     // (c) start without --allow-exec: fresh-clone recorded skipped, no install or script runs
@@ -3792,6 +3830,7 @@ function adaptersOnce() { return loadAdapters(); }
     process.env.PATH = savedPath;
     if (savedPlanted === undefined) delete process.env[PLANTED]; else process.env[PLANTED] = savedPlanted;
     if (savedDb === undefined) delete process.env.DATABASE_URL; else process.env.DATABASE_URL = savedDb;
+    for (const [n, v] of Object.entries(savedPlumbing)) if (v === undefined) delete process.env[n]; else process.env[n] = v;
   }
 
   // (d) workspace paths and README claims stay inside the tree
