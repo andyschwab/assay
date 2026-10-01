@@ -4291,6 +4291,30 @@ for (const [key, dir] of SCORED) {
   } catch (e) { current._score[key] = { error: e.message.split('\n')[0] }; }
 }
 
+// ── every command help advertises has a command-line body (#53, F-103, F-603) ──
+// chains, capabilities, supervision and decisions dispatched to library modules with no
+// argv read and no isMain block, so `node assay.mjs supervision <run>` printed nothing and
+// exited 0 — indistinguishable from an empty, clean result. A command help lists must run
+// something; a library module is not a command.
+{
+  const fail = (m) => negFailures.push('cli-commands: ' + m);
+  const src = readFileSync(join(ROOT, 'assay.mjs'), 'utf8');
+  const helpOut = execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'help'], { encoding: 'utf8' });
+  const listed = [...helpOut.matchAll(/^  ([a-z][a-z-]*) {2,}/gm)].map((m) => m[1]);
+  if (listed.length < 10) fail(`help must list the commands (parsed ${listed.length})`);
+  for (const cmd of listed) {
+    const script = src.match(new RegExp(`'${cmd}': \\['([^']+)'`))?.[1];
+    if (!script) { fail(`help lists "${cmd}" but assay.mjs dispatches it to no script`); continue; }
+    const body = readFileSync(join(ROOT, script), 'utf8');
+    if (!/isMain\(import\.meta\.url\)|process\.argv/.test(body)) fail(`help lists "${cmd}", but ${script} has no command-line body (no isMain block, no argv read): it would print nothing and exit 0`);
+  }
+  for (const cmd of ['chains', 'capabilities', 'supervision', 'decisions']) {
+    if (listed.includes(cmd)) continue;
+    const r = spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), cmd, join(HERE, 'fixtures', 'notesbox')], { encoding: 'utf8' });
+    if (r.status === 0) fail(`\`assay ${cmd}\` is not a command, so it must exit non-zero (got 0)`);
+  }
+}
+
 // ── the canon check (SCHEMA.md §8, #52): a named-but-missing canon is an error,
 // channel drift against a present one is a warning, never an error ──
 {
@@ -4434,6 +4458,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
 }
 process.exit(v.exit);
