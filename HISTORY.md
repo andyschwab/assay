@@ -991,3 +991,22 @@ what the public engine learned.
   confirmed red against the old code (37 failures), and again with only the
   yardstick rows reverted (6, reading met) and only the ingest change reverted
   (12).
+- **2026-10-01 — the rest of #53: workspace-scoped lockfile coverage, a locked
+  run record, and no severity in the map** (issue #53, roadmap item 8, the
+  owner's three decisions of 2026-10-01). dependency-scan: an ancestor
+  lockfile covers a nested manifest only when that ancestor's declared
+  workspaces (`workspaces` in its package.json, else pnpm-workspace.yaml with
+  its `!` exclusions) include it, else only the manifest's own lockfile does
+  (F-1212); the `dependency-scan-manifests` assertion that pinned the opposite
+  was rewritten to the new rule, and `examples/demo` under a root lockfile whose
+  workspaces name `packages/*` reads unaudited (confirmed red, 3 failures).
+  `record` and `ingest` hold `map/scanners.yaml.lock` across the run record's
+  read-modify-write (F-613); `run-record-lock` pins four writers adding fifty
+  rows each keep all 200 (confirmed red with the lock bypassed: 61 and 69
+  kept). The instrument profiles write no severity; the bands moved unchanged
+  into `views/severity.mjs`, which the projection applies for every view, and
+  a fail-open CI gate is recorded as the fact `fail_open: true` (F-1230); the
+  convert-level severity assertions now read the band through the view layer,
+  and `instrument-severity` sweeps every converted row (confirmed red, 18
+  failures; that commit's message says 19 in error). Goldens untouched. The
+  duplicated helpers and unreferenced exports (F-1232) become their own item.
