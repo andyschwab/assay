@@ -324,10 +324,11 @@ indistinguishable from one that ran clean, and the package reads as coverage tha
 never happened — which is exactly how a full package once shipped with its queued
 code scanner never run and nothing saying so.
 
-`node assay.mjs start --out <run> [<target>]` (`map/start.mjs`) writes this file:
-it draws a run with every instrument assay can run offline on its own and records
-every other adopted scanner skipped, plainly, with how to record it once it has
-run. From there, `ingest` flips a scanner's row to `ran` as it lands that
+`node assay.mjs start --out <run> [<target>] [--allow-exec]` (`map/start.mjs`)
+writes this file: it draws a run with every instrument assay can run offline on
+its own and records every other adopted scanner skipped, plainly, with how to
+record it once it has run. fresh-clone executes the target's code, so it runs
+only under `--allow-exec`; without it, its row reads skipped with that reason. From there, `ingest` flips a scanner's row to `ran` as it lands that
 scanner's report, and `node assay.mjs record <run> <scanner> ran|skipped|failed
 [--reason "<text>"] [--model <id>]` (`map/record.mjs`) sets one row directly — a
 judgment scanner's own review, a skip decision — leaving every other row and the
@@ -556,7 +557,7 @@ strengths:                  # [{title, body}]
     body: >
       …
 roadmap:                    # each item ALSO carries the decision structure the plan prompts use
-  - slug: audit-logs        # the plan filename (handoff/plan/NN-slug.md)
+  - slug: audit-logs        # the plan filename (handoff/plan/NN-slug.md); ^[a-z0-9-]+$
     title: "…"
     body: >                 # the item summary (report §6 + plan "The item")
       …
@@ -591,7 +592,9 @@ the item carries no `assumptions`, `question` or recommended option; `validate.m
 (non-fatally) on any `questions:` use. `validate.mjs` fails closed on a malformed new field,
 naming the item's slug: `assumptions` a list of non-empty strings; `question` an object with
 non-empty string `text` and `recommended` and a boolean `blocking` when present; `recommended`
-a boolean on at most one option.
+a boolean on at most one option. A `slug` (or the `item-N` default) must match `^[a-z0-9-]+$`:
+it names the plan file, and a path segment would write outside `handoff/`; `validate.mjs`
+and the handoff both fail closed on any other.
 
 Otherwise not validator-enforced (authored prose), but the compilers depend on the shape: `roadmap[]`
 items need `slug` + `findings` for the plan files, and every `channel_notes` key must be an

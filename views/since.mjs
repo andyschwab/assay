@@ -20,6 +20,7 @@ import { loadYardstick } from '../yardstick/measure.mjs';
 import { loadYardstickDoc } from '../yardstick/ratchet.mjs';
 import { compare, compareFindings } from '../yardstick/compare.mjs';
 import { viewPath, sincePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
+import { mdText, mdCode } from '../lib/display.mjs';
 
 // buildSince(previousDoc, currentDoc, reg) — pure over two { version, requirements }
 // documents plus the loaded register (for title/tier/topic, tier-ordered — the same
@@ -129,14 +130,14 @@ export function renderMd(runId, previousId, since, findingsDelta, confidential =
   }
 
   out.push('## Findings new since the previous run', '');
-  if (findingsDelta.new.length) for (const f of findingsDelta.new) out.push(`- **${f.id}** _(${f.source})_ — ${f.observation} — ${(f.evidence || []).join(', ')}`);
+  if (findingsDelta.new.length) for (const f of findingsDelta.new) out.push(`- **${f.id}** _(${f.source})_ — ${mdText(f.observation)} — ${(f.evidence || []).map(mdCode).join(', ')}`);
   else out.push('_None._');
   out.push('');
 
   out.push('## Findings no longer found', '');
   out.push('_Not matched in this run by fingerprint (yardstick/compare.mjs). "No longer found" — never "fixed":');
   out.push('absence of a finding is absence of re-detection, not proof the underlying fact is gone._', '');
-  if (findingsDelta.no_longer_found.length) for (const f of findingsDelta.no_longer_found) out.push(`- **${f.id}** _(${f.source})_ — ${f.observation} — ${(f.evidence || []).join(', ')}`);
+  if (findingsDelta.no_longer_found.length) for (const f of findingsDelta.no_longer_found) out.push(`- **${f.id}** _(${f.source})_ — ${mdText(f.observation)} — ${(f.evidence || []).map(mdCode).join(', ')}`);
   else out.push('_None._');
   out.push('');
 

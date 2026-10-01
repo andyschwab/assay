@@ -78,7 +78,10 @@ The routine runs the instruments assay runs offline on its own — `repo-census`
 `fresh-clone`, `dependency-scan` — plus `gitleaks` when that binary happens to
 be on the runner's `PATH`; when it is not, the run record carries it
 `skipped`, with that reason, never silently as clean
-(`map/scanners/CONTRACT.md` §3a). `repo-eval` and `deep-code-review` are
+(`map/scanners/CONTRACT.md` §3a). `fresh-clone` executes the repository's own
+install and scripts; the routine runs it in place because its checkout is a
+fresh, disposable CI job, and with the allow-listed environment of
+`map/child-env.mjs` only (§3a, "What runs, and with what"). `repo-eval` and `deep-code-review` are
 judgment-bearing, LLM-driven scanners; the routine never runs them — every
 run's record carries both `skipped: "not run by the routine; a steward
 session runs them"`, so a repository's own scheduled runs never masquerade as

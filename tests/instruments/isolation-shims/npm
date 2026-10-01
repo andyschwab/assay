@@ -1,0 +1,13 @@
+#!/usr/bin/env node
+// Offline npm stand-in for the isolation block (#47). Records every call (record.mjs);
+// `audit --json` answers a clean npm audit report; anything else (npm ci, npm test, npm run)
+// is the target's own code about to run, recorded so the harness can go red on it, and exits 1.
+import { record } from './record.mjs';
+const args = process.argv.slice(2);
+record('npm', args);
+if (args[0] === '--version') { console.log('10.0.0-shim'); process.exit(0); }
+if (args[0] === 'audit') {
+  console.log(JSON.stringify({ auditReportVersion: 2, vulnerabilities: {}, metadata: { vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 0, total: 0 }, dependencies: { total: 1 } } }));
+  process.exit(0);
+}
+process.exit(1);

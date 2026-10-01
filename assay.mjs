@@ -15,13 +15,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // command → [script, what it does], grouped for `help` in the order listed.
 const GROUPS = [
   ['Map: drawing the map', {
-    'start': ['map/start.mjs', 'make a run, draw it with every offline instrument, and record the rest'],
+    'start': ['map/start.mjs', 'make a run, draw it with every offline instrument, and record the rest (fresh-clone only with --allow-exec)'],
     'validate': ['map/validate.mjs', 'check a run: schema, ids, citations, the run record; fails closed'],
     'ingest': ['map/ingest.mjs', "turn a scanner's output into findings in a run"],
     'record': ['map/record.mjs', "set one scanner's disposition in the run record"],
     'enumerate': ['map/enumerate.mjs', 'list the populations a run must cover, and gate on coverage'],
-    'fresh-clone': ['map/fresh-clone.mjs', 'install, build, lint, typecheck, test and migrate from a clean checkout'],
-    'dependency-scan': ['map/dependency-scan.mjs', 'npm, pnpm and yarn audit over every lockfile'],
+    'fresh-clone': ['map/fresh-clone.mjs', "EXECUTES THE TARGET'S CODE: install, build, lint, typecheck, test, migrate from a clean checkout"],
+    'dependency-scan': ['map/dependency-scan.mjs', "RUNS THE TARGET'S PACKAGE MANAGER: npm, pnpm and yarn audit over every lockfile, from scratch copies"],
     'repo-census': ['map/repo-census.mjs', 'architecture page, agent contract, runbook, CI gate, owner evidence'],
     'chains': ['map/chains.mjs', 'the attack paths through the map'],
     'capabilities': ['map/capabilities.mjs', 'one row per effect channel'],
@@ -52,6 +52,8 @@ const COMMANDS = Object.fromEntries(GROUPS.flatMap(([, cmds]) => Object.entries(
 function help() {
   console.log('assay: a map, a yardstick, four views (plus Since).\n');
   console.log('Usage: node assay.mjs <command> [args]\n');
+  console.log("fresh-clone and dependency-scan execute the target's code (install, scripts, its package manager)");
+  console.log('with an allow-listed environment only; run them in a disposable container or VM.\n');
   for (const [label, cmds] of GROUPS) {
     console.log(label);
     for (const [name, [, what]] of Object.entries(cmds)) console.log(`  ${name.padEnd(16)} ${what}`);
