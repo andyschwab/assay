@@ -878,3 +878,19 @@ what the public engine learned.
   and the `ci-workflow` install check were confirmed red against the old code
   (4 failures without gitleaks, 14 with it) before the change. Goldens
   untouched.
+- **2026-10-01 — a test step that passed with tests skipped says so** (issue
+  #30). A clean checkout with no database read `test: passed` while the runner's
+  own summary said 330 of 551 tests skipped themselves: `runSteps` judged the
+  step by exit code alone. The fresh-clone runner (0.4.0) now reads the common
+  runners' summaries (vitest, jest, node:test tap and spec, pytest, go test -v)
+  from the test step's whole output into `tests: {passed, skipped, failed,
+  total}`, or records `tests: unparsed`, plus `test_config` when a config file
+  sits beside it. The step status stays `passed`; ingest adds one `test:skipped`
+  gap row stating the share, citing the test config (else the manifest), whose
+  fix names a database where the tree carries a database signal; malformed
+  counts halt the converter. Any skip at all emits the row (the share is in the
+  observation for a view to weigh), rather than a threshold the method does not
+  yet have. A new public fixture (`tests/instruments/fresh-clone-skips`, 2
+  passing and 3 skipped behind `DATABASE_URL`) and the `test-skips` block were
+  confirmed red against the old code (12 failures, with `parseTestCounts`
+  stubbed to null) before the change. Goldens untouched.
