@@ -35,22 +35,32 @@
 //      (reversibility/external/gate_type), the chain ranking (blast_scope/preconditions)
 //      and the gate. Measure 1 can read high while measure 2 reads low — two sweeps
 //      agreeing on WHAT exists and disagreeing on what it MEANS — and then the verdict is
-//      not repeatable even though the base looks like it is. Measured on a field
-//      cross-run pair (both canon-pinned, so channel identity was solved): 26 shared
-//      channels, descriptors identical on 8 (31%).
+//      not repeatable even though the base looks like it is. Measured in the field,
+//      off-repo, before tests/sweeps/ existed, on a cross-run pair (both canon-pinned,
+//      so channel identity was solved): 26 shared channels, descriptors identical on 8
+//      (31%). The figure the tree reproduces is a committed sweep set's (THE GATE below).
 //
 // The DIRECTION of divergence separates the two explanations. If every divergence moves
 // the same way, that is consistent with the TARGET having changed between runs. If they
 // move both ways at once, that is the signature of JUDGMENT drift, and a cross-run
 // coverage delta computed over them is not a trend. `bothWays` computes it.
 //
+// THE GATE. A committed SWEEP SET (tests/sweeps/<set>/SWEEP.yaml, tests/sweeps/README.md)
+// names its sweeps and the threshold each measure must reach; `--set` measures the set and
+// exits 1 when either measure is below its threshold (2 when the set is malformed), so a
+// repeatability claim is a number the tree reproduces and the harness checks, not prose.
+// `--min-facts N` / `--min-descriptors N` gate an ad-hoc set of run dirs the same way.
+//
 // Zero-dep. Usage: node assay.mjs variance <run-dir> <run-dir> [<run-dir> ...]
+//                  node assay.mjs variance --set <sweep-set-dir> [--json]
 
-import { basename } from 'node:path';
+import { basename, join } from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
+import { parseYaml } from '../lib/yaml-min.mjs';
 // The shared fail-closed loader: a sweep file this reader cannot parse HALTS the
 // measurement instead of being skipped — a silently dropped file would be
 // mis-read as variance, corrupting the very number this tool exists to produce.
-import { loadFindings } from './project.mjs';
+import { loadFindings, loadManifest, modelOf, REPO_EVAL_PASSES } from './project.mjs';
 import { isMain } from './doctrine.mjs';
 
 // identity tokens: the specific thing a finding is about — full evidence PATH (not basename)
@@ -77,12 +87,21 @@ export const groupKey = (f) => f.dimension || (f.source ? `source:${f.source}` :
 // A fact = a connected component under: same dimension + a shared identity token, matched only
 // ACROSS sweeps. Deterministic; used by the CLI and pinned by tests/regression.mjs.
 export function computeVariance(runDirs) {
-  return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)));
+  return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)), runDirs.map((d) => modelResolver(loadManifest(d))));
+}
+
+// A sweep's model of record per clustering bucket (SCHEMA.md §5a): a dimension reads
+// its repo-eval pass's model (else the row's), a `source:<id>` bucket that scanner's.
+// null where the run record names none — reported as such, never guessed.
+const PASS_OF_DIMENSION = Object.fromEntries(Object.entries(REPO_EVAL_PASSES).map(([p, d]) => [d, p]));
+export function modelResolver(manifest) {
+  return (g) => (String(g).startsWith('source:') ? modelOf(manifest, g.slice('source:'.length)) : modelOf(manifest, 'repo-eval', PASS_OF_DIMENSION[g]));
 }
 
 // The pure half — sweeps is an array of FINDINGS ARRAYS, so the measure is testable
-// without fixtures (same split as descriptorAgreement below).
-export function varianceFromSweeps(sweeps, names) {
+// without fixtures (same split as descriptorAgreement below). models (optional): one
+// resolver per sweep, bucket → model id | null, for the per-model-pair agreement.
+export function varianceFromSweeps(sweeps, names, models) {
   const N = sweeps.length;
   const nodes = [];
   sweeps.forEach((findings, ri) => { for (const f of findings || []) nodes.push({ run: ri, dim: groupKey(f), subj: f.subject_type || '-', ev: idTokens(f), obs: (f.observation || '').trim().replace(/\s+/g, ' ').slice(0, 90) }); });
@@ -109,8 +128,24 @@ export function varianceFromSweeps(sweeps, names) {
     const c = fs.filter((f) => f.runs.size === N).length;
     byDimension[d] = { core: c, union: fs.length, pct: Math.round(100 * c / fs.length) };
   }
+  // agreement per MODEL PAIR: for every pair of sweeps, a fact either caught agrees when
+  // both caught it; keyed by the two models of record that wrote its bucket in those
+  // sweeps, so a model change reads as its own row rather than blended into the whole.
+  const byModelPair = {};
+  if (models) {
+    const NONE = '(no model recorded)';
+    for (const fct of factList) for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+      if (!fct.runs.has(i) && !fct.runs.has(j)) continue;
+      const key = [models[i](fct.dim) || NONE, models[j](fct.dim) || NONE].sort().join(' × ');
+      const e = byModelPair[key] || (byModelPair[key] = { agree: 0, of: 0, pct: 0 });
+      e.of += 1;
+      if (fct.runs.has(i) && fct.runs.has(j)) e.agree += 1;
+    }
+    for (const e of Object.values(byModelPair)) e.pct = Math.round(100 * e.agree / e.of);
+  }
   return {
     sweeps: sweeps.map((_, i) => ({ name: (names && names[i]) || `sweep-${i}`, findings: nodes.filter((n) => n.run === i).length })),
+    byModelPair,
     N, union: union_, core, pct: union_ ? Math.round(100 * core / union_) : 0,
     byDimension,
     variant: factList.filter((f) => f.runs.size < N).sort((a, b) => a.runs.size - b.runs.size || String(a.dim).localeCompare(String(b.dim))),
@@ -205,6 +240,41 @@ export function computeDescriptorAgreement(runDirs) {
   return descriptorAgreement(runDirs.map((d) => loadFindings(d)));
 }
 
+// ── the sweep set and its gate ──────────────────────────────────────────────
+// loadSweepSet(dir) → { meta, threshold, runDirs }; throws on a malformed set (a set
+// that cannot say what it gates on is never an ungated pass).
+export function loadSweepSet(dir) {
+  const path = join(dir, 'SWEEP.yaml');
+  if (!existsSync(path)) throw new Error(`no SWEEP.yaml in ${dir}`);
+  const meta = parseYaml(readFileSync(path, 'utf8')) || {};
+  const bad = (m) => { throw new Error(`${path}: ${m}`); };
+  for (const k of ['target', 'target_commit', 'method_commit', 'date']) if (typeof meta[k] !== 'string' || !meta[k].trim()) bad(`${k} must be a non-empty string`);
+  if (typeof meta.blind !== 'boolean') bad('blind must be true or false (a set authored beside its answers is not blind)');
+  const thr = meta.threshold;
+  if (!thr || typeof thr !== 'object') bad('threshold is required: { fact_presence, descriptor_agreement }, each a percentage');
+  for (const k of ['fact_presence', 'descriptor_agreement']) if (typeof thr[k] !== 'number' || thr[k] < 0 || thr[k] > 100) bad(`threshold.${k} must be a percentage 0–100`);
+  if (!Array.isArray(meta.sweeps) || meta.sweeps.length < 2) bad('sweeps must list at least two sweep directories');
+  for (const s of meta.sweeps) {
+    if (typeof s !== 'string' || !/^[\w.-]+$/.test(s) || s === '..' || s === '.') bad(`sweep ${JSON.stringify(s)} must be a directory name inside the set`);
+    if (!existsSync(join(dir, s))) bad(`sweep ${s} does not exist`);
+  }
+  return { meta, threshold: thr, runDirs: meta.sweeps.map((s) => join(dir, s)) };
+}
+
+// sweepGate(r, d, threshold) → breaches (empty = the set holds). r is computeVariance's
+// result, d descriptorAgreement's. A descriptor threshold over no shared channel is a
+// breach: the measure was not taken, which never reads as met.
+export function sweepGate(r, d, threshold) {
+  const out = [];
+  if (typeof threshold.fact_presence === 'number' && r.pct < threshold.fact_presence)
+    out.push(`fact presence ${r.pct}% is below the threshold ${threshold.fact_presence}%`);
+  if (typeof threshold.descriptor_agreement === 'number') {
+    if (!d.channels.shared) { if (threshold.descriptor_agreement > 0) out.push(`descriptor agreement not measured: no shared effect channel, threshold ${threshold.descriptor_agreement}%`); }
+    else if (d.allFields.pct < threshold.descriptor_agreement) out.push(`descriptor agreement ${d.allFields.pct}% is below the threshold ${threshold.descriptor_agreement}%`);
+  }
+  return out;
+}
+
 function reportDescriptors(d) {
   console.log(`  descriptor agreement (the layer every shipped number is computed from):`);
   console.log(`    effect channels shared by 2+ sweeps: ${d.channels.shared} of ${d.channels.total}` +
@@ -235,6 +305,9 @@ function report(r) {
   console.log(`\n  by dimension (repeatable core / union facts = %):`);
   for (const [d, v] of Object.entries(r.byDimension))
     console.log(`    ${d.padEnd(22)} ${String(v.core).padStart(3)}/${String(v.union).padStart(3)}  ${String(v.pct + '%').padStart(5)}`);
+  console.log(`\n  by model pair (facts caught by both sweeps of a pair / caught by either, across every sweep pair):`);
+  for (const [k, v] of Object.entries(r.byModelPair).sort())
+    console.log(`    ${k.padEnd(40)} ${String(v.agree).padStart(3)}/${String(v.of).padStart(3)}  ${String(v.pct + '%').padStart(5)}`);
   console.log(`\n  variance detail (which sweeps caught each divergent fact):`);
   for (const f of r.variant) console.log(`    [${f.runs.size}/${r.N} · sweeps ${[...f.runs].sort().join(',')}] ${f.dim}/${f.subj}: ${f.sample}`);
   console.log('');
@@ -242,14 +315,41 @@ function report(r) {
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
-  const runs = process.argv.slice(2).filter((a) => !a.startsWith('--'));
-  if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...]'); process.exit(2); }
+  const argv = process.argv.slice(2);
+  const VALUED = ['--set', '--min-facts', '--min-descriptors'];
+  const flag = (n) => { const i = argv.indexOf(n); return i > -1 ? argv[i + 1] : null; };
+  let runs = argv.filter((a, i) => !a.startsWith('--') && !VALUED.includes(argv[i - 1]));
+  let threshold = {}, set = null;
+  if (flag('--set')) {
+    try { set = loadSweepSet(flag('--set')); } catch (e) { console.error(`✗ variance: malformed sweep set — ${e.message}`); process.exit(2); }
+    runs = set.runDirs; threshold = { ...set.threshold };
+  }
+  for (const [f, k] of [['--min-facts', 'fact_presence'], ['--min-descriptors', 'descriptor_agreement']]) {
+    if (flag(f) === null) continue;
+    const n = Number(flag(f));
+    if (!Number.isFinite(n)) { console.error(`${f} takes a percentage`); process.exit(2); }
+    threshold[k] = n;
+  }
+  if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...] | --set <sweep-set-dir>  [--min-facts N] [--min-descriptors N] [--json]'); process.exit(2); }
   const r = computeVariance(runs);
   const d = computeDescriptorAgreement(runs);
+  const gated = Object.keys(threshold).length > 0;
+  const breaches = gated ? sweepGate(r, d, threshold) : [];
   if (process.argv.includes('--json')) console.log(JSON.stringify({
-    pct: r.pct, union: r.union, core: r.core, byDimension: r.byDimension,
+    pct: r.pct, union: r.union, core: r.core, byDimension: r.byDimension, byModelPair: r.byModelPair,
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
+    ...(set ? { set: { target: set.meta.target, target_commit: set.meta.target_commit, method_commit: set.meta.method_commit, date: set.meta.date, blind: set.meta.blind } } : {}),
+    ...(gated ? { gate: { threshold, breaches } } : {}),
   }, null, 2));
-  else { report(r); reportDescriptors(d); }
+  else {
+    if (set) console.log(`\nsweep set ${flag('--set')}: ${set.meta.target} @ ${set.meta.target_commit}, method @ ${set.meta.method_commit}, ${set.meta.date}${set.meta.blind ? ', blind' : ', NOT blind (authored beside its answers)'}`);
+    report(r); reportDescriptors(d);
+    if (gated) {
+      console.log(`  gate: fact presence ≥ ${threshold.fact_presence ?? '—'}% · descriptor agreement ≥ ${threshold.descriptor_agreement ?? '—'}%`);
+      if (breaches.length) for (const b of breaches) console.log(`  ✗ ${b}`);
+      else console.log('  ✓ the set holds its threshold');
+    }
+  }
+  if (breaches.length) process.exit(1);
 }

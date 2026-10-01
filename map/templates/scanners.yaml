@@ -15,7 +15,11 @@
 #   status: skipped  — a decision not to run it; `reason` required
 #   status: failed   — it was invoked and errored; `reason` carries the error
 #   model:           — optional: the model id a judgment scanner ran on (warned when a
-#                      judgment scanner ran without one); instruments need none
+#                      judgment scanner ran without one, repo-eval included); instruments need none
+#   spend:           — optional: what its inference spent, with the unit ("41k tokens")
+#   passes:          — repo-eval only, optional: model:/spend: per pass, keyed by the
+#                      pass file's name (repo-eval-<pass>.yaml) — `record <run> repo-eval
+#                      ran --pass <pass> --model <id> [--spend "<text>"]` (SCHEMA.md §5a)
 #
 # The adopted roster is every adapter under map/scanners/adapters/ that does not
 # carry `adopted: false`. Rows from a scanner recorded as not run are rejected.

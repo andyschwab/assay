@@ -30,7 +30,7 @@ import { buildSupervision } from '../map/supervision.mjs';
 import { buildCapabilities } from '../map/capabilities.mjs';
 import { computeVariance } from '../map/variance.mjs';
 import { decideProjected, loadDecisions } from '../map/decisions.mjs';
-import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
+import { convert as convertRaw, coverageYaml, nextStart } from '../map/ingest.mjs';
 import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
@@ -53,6 +53,13 @@ import { setScannerRow } from '../map/record.mjs';
 import { renderMd as renderSinceMd } from '../views/since.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// (#53, F-1230) an instrument row carries no severity; the view layer computes its band.
+// Loaded dynamically so a missing module reads as failed assertions, not a crash.
+const VIEW_SEV = await import('../views/severity.mjs').catch(() => null);
+const viewSev = (r) => VIEW_SEV ? VIEW_SEV.severityOf(r) : '(no views/severity.mjs)';
+// every row any block below converts is kept, so the instrument-severity block can sweep them all
+const convertedRows = [];
+const convert = (...a) => { const rows = convertRaw(...a); convertedRows.push(...rows); return rows; };
 const ROOT = join(HERE, '..');            // repo root
 const GOLDEN = join(HERE, 'golden.json');
 const bless = process.argv.includes('--bless');
@@ -419,7 +426,7 @@ for (const [dir, what, expect, opts = {}] of NEGATIVE) {
   if (JSON.stringify(gl).includes('AKIAFAKE') || JSON.stringify(gl).includes('sk-FAKE')) fail('a matched secret value leaked into the converted rows — the converter must never copy Secret/Match');
   const sc = convert('scorecard', scRaw, 0);
   const by = Object.fromEntries(sc.map((r) => [r.native_category, r]));
-  if (by['Branch-Protection']?.polarity !== 'gap' || by['Branch-Protection']?.severity !== 'High') fail('a score-2 check must read gap/High');
+  if (by['Branch-Protection']?.polarity !== 'gap' || viewSev(by['Branch-Protection']) !== 'High') fail('a score-2 check must read gap, banded High by the view');
   if (by['CI-Tests']?.polarity !== 'strength') fail('a score-10 check must read strength');
   if (by['Dangerous-Workflow']?.evidence[0] !== '.github/workflows/deploy.yml:12') fail('a detail path must become the evidence');
   if (!sc.skipped || !sc.skipped.includes('Fuzzing')) fail('an N/A (-1) check must be skipped AND logged, never silent');
@@ -746,7 +753,7 @@ function adaptersOnce() { return loadAdapters(); }
     const dbRows = convert('fresh-clone', JSON.stringify(dbDoc), 1);
     if (!dbRows.some((r) => r.native_category === 'migrate')) fail('with a database in the tree, an undeclared migrate step is a gap');
     if (dbRows.some((r) => r.native_category === 'no-database-signal')) fail('with a database in the tree, no no-database-signal fact must be emitted');
-    if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every fresh-clone GAP row carries a severity and a fix');
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || r.severity || !viewSev(r))) fail('every fresh-clone GAP row carries a fix and no severity; the view bands it');
     if (rows.filter((r) => r.polarity === 'fact').some((r) => r.fix || r.severity)) fail('a fresh-clone FACT row carries neither severity nor fix (it is not a gap)');
     const claimRow = rows.find((r) => r.native_category === 'readme-claim');
     if (claimRow?.evidence[0] !== `README.md:${claims.deploy?.line}`) fail(`a missing claim must cite README.md:<line> (got ${claimRow?.evidence[0]})`);
@@ -757,7 +764,7 @@ function adaptersOnce() { return loadAdapters(); }
     // a failed install/build/test reads High; timed-out likewise; not-declared reads Medium
     const failedDoc = { ...doc, exit: 1, steps: doc.steps.map((s) => s.name === 'build' ? { ...s, status: 'failed', exit_code: 1 } : s.name === 'test' ? { ...s, status: 'timed-out', exit_code: null, reason: 'exceeded 1s' } : s) };
     const fr = Object.fromEntries(convert('fresh-clone', JSON.stringify(failedDoc), 1).map((r) => [r.native_category, r]));
-    if (fr.build?.severity !== 'High' || fr.test?.severity !== 'High' || fr.lint?.severity !== 'Medium') fail(`failed build / timed-out test read High, not-declared lint Medium (got ${fr.build?.severity}/${fr.test?.severity}/${fr.lint?.severity})`);
+    if (viewSev(fr.build) !== 'High' || viewSev(fr.test) !== 'High' || viewSev(fr.lint) !== 'Medium') fail(`failed build / timed-out test read High, not-declared lint Medium in the view (got ${viewSev(fr.build)}/${viewSev(fr.test)}/${viewSev(fr.lint)})`);
     if (!/exit 1/.test(fr.build?.observation || '')) fail('a failed step row carries the exit code in its observation');
     // (c) a runner crash halts; a document that disagrees with the exit code halts; truncation halts
     mustThrow('a runner crash (exit 2)', () => convert('fresh-clone', raw, 2));
@@ -832,7 +839,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (skipRows.length !== 1) fail(`a passed test step with skips yields exactly one test row (got ${skipRows.length})`);
   const r = skipRows[0];
   if (r) {
-    if (r.polarity !== 'gap' || !r.severity || !r.fix) fail('the skipped-share row is a gap with a severity and a fix');
+    if (r.polarity !== 'gap' || r.severity || viewSev(r) !== 'Medium' || !r.fix) fail('the skipped-share row is a gap with a fix, banded Medium by the view');
     if (r.native_id !== 'test:skipped') fail(`the skipped-share row is keyed test:skipped (got ${r.native_id})`);
     if (!/passed, but 3 of 5 tests \(60%\) were skipped in a clean checkout/.test(r.observation)) fail(`the observation states the skipped share (got "${r.observation}")`);
     if (r.evidence?.[0] !== 'package.json:1') fail(`with no test config file, the row cites the manifest that declares the test script (got ${r.evidence?.[0]})`);
@@ -1041,13 +1048,13 @@ function adaptersOnce() { return loadAdapters(); }
   const rows = convert('dependency-scan', raw, 1);
   const cats = rows.map((r) => r.native_category).sort().join(',');
   if (cats !== 'high,lockfile-failed,lockfile-not-audited,lockfile-not-audited') fail(`convert must yield high + lockfile-failed gaps and a lockfile-not-audited fact for each of the failed and not-run lockfiles (got ${cats || '(none)'})`);
-  if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every dependency-scan gap carries a severity and a fix');
+  if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || r.severity || !viewSev(r))) fail('every dependency-scan gap carries a fix and no severity; the view bands it');
   if (rows.filter((r) => r.native_category === 'lockfile-not-audited').some((r) => r.polarity !== 'fact' || r.severity || r.fix)) fail('a lockfile-not-audited row is a fact: no severity, no fix');
   if (rows.some((r) => r.polarity === 'gap' && r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')) fail('a lockfile the instrument could not run on (its package manager unavailable) is the instrument\'s limit, never a gap against the target');
   if (!/pnpm is not available/.test(rows.find((r) => r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')?.observation || '')) fail('the not-run fact must carry the instrument\'s reason');
   const by = Object.fromEntries(rows.filter((r) => r.polarity === 'gap').map((r) => [r.native_category, r]));
-  if (by.high?.severity !== 'High') fail(`a high advisory must map severity High (got ${by.high?.severity})`);
-  if (by['lockfile-failed']?.severity !== 'Medium') fail('a failed lockfile reads severity Medium');
+  if (viewSev(by.high) !== 'High') fail(`a high advisory must read High in the view (got ${viewSev(by.high)})`);
+  if (viewSev(by['lockfile-failed']) !== 'Medium') fail('a failed lockfile reads Medium in the view');
   const legacy = convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [{ path: 'yarn.lock', status: 'not-supported', manager: 'yarn', reason: 'old document' }] }), 1);
   if (legacy.map((r) => `${r.native_category}/${r.polarity}`).join() !== 'lockfile-not-audited/fact') fail(`a document from before 0.2.0 (status not-supported) converts to the not-audited fact, not a gap (got ${legacy.map((r) => r.native_category + '/' + r.polarity).join()})`);
   if (by.high?.evidence[0] !== 'package-lock.json:1') fail(`an advisory row must cite its lockfile at :1 (got ${by.high?.evidence[0]})`);
@@ -1161,7 +1168,7 @@ function adaptersOnce() { return loadAdapters(); }
 
 // ── dependency-scan: manifest enumeration + lockfile coverage on real directories ──
 // findManifests / isCoveredByLockfile / run() end to end: a manifest with real
-// dependencies and no lockfile anywhere up its own directory tree is uncovered
+// dependencies and no lockfile in its own directory, nor in an ancestor whose workspaces include it, is uncovered
 // (never silently clean); zero package.json anywhere is the distinct
 // not-applicable fact.
 {
@@ -1189,14 +1196,38 @@ function adaptersOnce() { return loadAdapters(); }
   if (docEmpty.exit !== 0) fail(`a tree with nothing to audit must exit 0 (not-applicable is not a failure, got ${docEmpty.exit})`);
   rmSync(tmpEmpty, { recursive: true, force: true });
 
-  // an ancestor lockfile covers a nested manifest with no lockfile of its own
+  // (#53, F-1212) an ancestor lockfile covers a nested manifest only when that ancestor's
+  // declared workspaces include it: npm never audits a manifest outside its workspaces, so a
+  // root lockfile with no root package.json covers nothing below it, and examples/demo under
+  // a root whose workspaces name packages/* is unaudited. Decided on #53, 2026-10-01; this
+  // rewrites the earlier assertion that any ancestor lockfile covered any nested manifest.
   const tmpAncestor = join(HERE, 'tmp-dep-ancestor'); rmSync(tmpAncestor, { recursive: true, force: true });
   mkdirSync(join(tmpAncestor, 'packages', 'sub'), { recursive: true });
   writeFileSync(join(tmpAncestor, 'package-lock.json'), JSON.stringify({ name: 'root', lockfileVersion: 3, packages: {} }));
   writeFileSync(join(tmpAncestor, 'packages', 'sub', 'package.json'), JSON.stringify({ name: 'sub', dependencies: { left: '1.0.0' } }));
   const docAncestor = runDependencyScan({ target: tmpAncestor, timeout: 5, log: () => {} });
-  if (docAncestor.manifests.length) fail(`a manifest covered by an ANCESTOR lockfile must not be recorded uncovered (got ${JSON.stringify(docAncestor.manifests)})`);
+  if (!docAncestor.manifests.some((m) => m.path === 'packages/sub/package.json')) fail(`a root lockfile with no root package.json declares no workspaces, so packages/sub must read unaudited (got ${JSON.stringify(docAncestor.manifests)})`);
   rmSync(tmpAncestor, { recursive: true, force: true });
+
+  const tmpWs = join(HERE, 'tmp-dep-workspaces'); rmSync(tmpWs, { recursive: true, force: true });
+  mkdirSync(join(tmpWs, 'packages', 'sub'), { recursive: true });
+  mkdirSync(join(tmpWs, 'examples', 'demo'), { recursive: true });
+  writeFileSync(join(tmpWs, 'package.json'), JSON.stringify({ name: 'root', workspaces: ['packages/*'] }));
+  writeFileSync(join(tmpWs, 'package-lock.json'), JSON.stringify({ name: 'root', lockfileVersion: 3, packages: {} }));
+  writeFileSync(join(tmpWs, 'packages', 'sub', 'package.json'), JSON.stringify({ name: 'sub', dependencies: { left: '1.0.0' } }));
+  writeFileSync(join(tmpWs, 'examples', 'demo', 'package.json'), JSON.stringify({ name: 'demo', dependencies: { right: '1.0.0' } }));
+  const docWs = runDependencyScan({ target: tmpWs, timeout: 5, log: () => {} });
+  const wsPaths = docWs.manifests.map((m) => m.path);
+  if (wsPaths.includes('packages/sub/package.json')) fail(`a manifest inside the root's workspaces globs is covered by the root lockfile (got ${JSON.stringify(wsPaths)})`);
+  if (!wsPaths.includes('examples/demo/package.json')) fail(`examples/demo/package.json under a root lockfile, outside its workspaces, must read unaudited (got ${JSON.stringify(wsPaths)})`);
+  // pnpm: the workspace list is pnpm-workspace.yaml's, `!` exclusions honoured
+  rmSync(join(tmpWs, 'package-lock.json')); writeFileSync(join(tmpWs, 'package.json'), JSON.stringify({ name: 'root' }));
+  writeFileSync(join(tmpWs, 'pnpm-lock.yaml'), 'lockfileVersion: 9.0\n');
+  writeFileSync(join(tmpWs, 'pnpm-workspace.yaml'), "packages:\n  - 'packages/*'\n  - 'examples/*'\n  - '!examples/demo'\n");
+  const pnpmPaths = runDependencyScan({ target: tmpWs, timeout: 5, log: () => {} }).manifests.map((m) => m.path);
+  if (pnpmPaths.includes('packages/sub/package.json')) fail(`a manifest pnpm-workspace.yaml includes is covered by the root pnpm-lock.yaml (got ${JSON.stringify(pnpmPaths)})`);
+  if (!pnpmPaths.includes('examples/demo/package.json')) fail(`a manifest pnpm-workspace.yaml excludes with ! is not covered (got ${JSON.stringify(pnpmPaths)})`);
+  rmSync(tmpWs, { recursive: true, force: true });
 
   // (#53, F-1212) a package.json that JSON.parse refuses was skipped, so a tree whose only
   // manifest carried a BOM or a trailing comma read no-manifest → not-applicable. A BOM is
@@ -1641,7 +1672,7 @@ function adaptersOnce() { return loadAdapters(); }
     if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'gap').length !== 1) fail('exactly one architecture-page gap row (apps/one)');
     if ((byNc['agent-contract'] || []).filter((r) => r.polarity === 'gap').length !== 2) fail('two agent-contract gap rows (root + apps/one)');
     if ((byNc['runbook'] || []).length !== 1 || byNc['runbook'][0].polarity !== 'gap') fail('one runbook gap row');
-    if ((byNc['ci-gate'] || []).length !== 1 || byNc['ci-gate'][0].polarity !== 'gap' || byNc['ci-gate'][0].severity !== 'High') fail(`ci-gate fail-open must read gap/High (got ${byNc['ci-gate']?.[0]?.polarity}/${byNc['ci-gate']?.[0]?.severity})`);
+    if ((byNc['ci-gate'] || []).length !== 1 || byNc['ci-gate'][0].polarity !== 'gap' || viewSev(byNc['ci-gate'][0]) !== 'High') fail(`ci-gate fail-open must read gap, banded High by the view (got ${byNc['ci-gate']?.[0]?.polarity}/${viewSev(byNc['ci-gate']?.[0] || {})})`);
     // the six evidence categories: native_category is the real, colon-bearing name;
     // one strength row (the pass), five gap rows (the rest)
     const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
@@ -1651,7 +1682,7 @@ function adaptersOnce() { return loadAdapters(); }
       const got = byNc[nc];
       if (!got || got.length !== 1 || got[0].polarity !== want) fail(`${nc} must convert to exactly one ${want} row (got ${JSON.stringify(got)})`);
     }
-    if (rows.filter((r) => r.polarity === 'gap').some((r) => r.native_category !== 'ci-gate' && r.severity !== 'Medium')) fail('every non-ci-gate gap must read Medium severity');
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => r.native_category !== 'ci-gate' && viewSev(r) !== 'Medium')) fail('every non-ci-gate gap must read Medium in the view');
     if (rows.some((r) => !Array.isArray(r.evidence) || !r.evidence.length)) fail('every row needs at least one path:line');
     if (rows[0]?.id !== 'F-960') fail(`repo-census ids start at F-960 (got ${rows[0]?.id})`);
     // (c) a runner crash halts; a document that disagrees with the exit code halts; truncation halts
@@ -3858,6 +3889,104 @@ function adaptersOnce() { return loadAdapters(); }
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── the run knows its lanes (#56, F-118 F-438 F-615 F-120): the run record names
+// the model per scanner AND per repo-eval pass (with an optional spend), repo-eval's
+// missing model warns like any judgment scanner's, the report and INDEX name the
+// models of record, and variance reports agreement per model pair ─────────────
+{
+  const fail = (m) => negFailures.push('model-of-record: ' + m);
+  const scannersText = (repoEvalRow) => [
+    'engine: fixture', 'scanners:', '  repo-eval:', '    status: ran', ...repoEvalRow,
+    '  deep-code-review:', '    status: skipped', '    reason: "fixture: not executed"',
+    '  gitleaks:', '    status: ran', '  fresh-clone:', '    status: ran', '  dependency-scan:', '    status: ran',
+    '  repo-census:', '    status: skipped', '    reason: "fixture: not executed"', '',
+  ].join('\n');
+  const tmp = join(HERE, 'tmp-model-of-record'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('cleanlib', tmp);
+  const validateJson = (rows) => {
+    writeFileSync(join(tmp, 'map', 'scanners.yaml'), scannersText(rows));
+    const r = spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp, '--json'], { encoding: 'utf8' });
+    try { return { exit: r.status, ...JSON.parse(r.stdout) }; } catch { return { exit: r.status, errors: [`unparseable: ${r.stdout}${r.stderr}`], warnings: [] }; }
+  };
+  const noModelWarn = (v) => v.warnings.filter((w) => /repo-eval: .*no model/.test(w));
+
+  // F-118: repo-eval is a judgment scanner — no model, a warning like any other
+  const bare = validateJson([]);
+  if (bare.exit !== 0) fail(`a repo-eval row with no model must still validate (a warning, not an error); got ${bare.errors.join(' | ')}`);
+  if (!noModelWarn(bare).length) fail(`a repo-eval row that ran with no model must warn like any judgment scanner (got warnings: ${bare.warnings.join(' | ') || 'none'})`);
+  // per pass: a model on SOME passes names the passes still without one
+  const some = validateJson(['    passes:', '      delegation:', '        model: "model-b"']);
+  if (!noModelWarn(some).some((w) => /legibility/.test(w) && /verification/.test(w) && !/delegation/.test(w))) fail(`a partly-recorded repo-eval must name the passes with no model (legibility, verification), not the recorded one (got ${noModelWarn(some).join(' | ') || 'none'})`);
+  const all = validateJson(['    passes:', '      delegation:', '        model: "model-b"', '      legibility:', '        model: "model-b"', '      verification:', '        model: "model-c"']);
+  if (all.exit !== 0 || noModelWarn(all).length) fail(`every pass carrying a model must validate without the warning (got ${[...all.errors, ...noModelWarn(all)].join(' | ')})`);
+  const row = validateJson(['    model: "model-a"', '    spend: "41k tokens"']);
+  if (row.exit !== 0 || noModelWarn(row).length) fail(`a row-level model and spend must validate without the warning (got ${[...row.errors, ...noModelWarn(row)].join(' | ')})`);
+  // the per-pass record fails closed on what it cannot mean
+  const badPass = validateJson(['    model: "model-a"', '    passes:', '      no-such-pass:', '        model: "x"']);
+  if (badPass.exit === 0 || !badPass.errors.some((e) => /no-such-pass/.test(e))) fail('a pass the built-in scanner does not have must be an error, naming it');
+  const emptyPass = validateJson(['    model: "model-a"', '    passes:', '      delegation:', '        note: "x"']);
+  if (emptyPass.exit === 0 || !emptyPass.errors.some((e) => /delegation/.test(e))) fail('a pass entry carrying neither model nor spend must be an error');
+  const badSpend = validateJson(['    model: "model-a"', '    spend: ""']);
+  if (badSpend.exit === 0 || !badSpend.errors.some((e) => /spend/.test(e))) fail('an empty spend must be an error (absent, or what was spent)');
+
+  // record: --pass edits one pass of the repo-eval row, and every later edit keeps it
+  const base = scannersText([]);
+  const { text: p1 } = setScannerRow(base, 'repo-eval', 'ran', { pass: 'delegation', model: 'model-b', spend: '12k tokens' });
+  const m1 = parseYaml(p1).scanners['repo-eval'];
+  if (m1?.passes?.delegation?.model !== 'model-b' || m1?.passes?.delegation?.spend !== '12k tokens' || m1.model !== undefined) fail(`record --pass must write the pass's model and spend, not the row's (got ${JSON.stringify(m1)})`);
+  const { text: p2 } = setScannerRow(p1, 'repo-eval', 'ran', { model: 'model-a', spend: '40k tokens' });
+  const m2 = parseYaml(p2).scanners['repo-eval'];
+  if (m2?.passes?.delegation?.model !== 'model-b' || m2.model !== 'model-a' || m2.spend !== '40k tokens') fail(`a row-level record must keep the recorded passes and set the row's model and spend (got ${JSON.stringify(m2)})`);
+  const { text: p3 } = setScannerRow(p2, 'repo-eval', 'ran', { pass: 'legibility', model: 'model-c' });
+  const m3 = parseYaml(p3).scanners['repo-eval'];
+  if (m3?.passes?.delegation?.model !== 'model-b' || m3?.passes?.legibility?.model !== 'model-c' || m3.spend !== '40k tokens') fail(`recording a second pass must keep the first and the row's spend (got ${JSON.stringify(m3)})`);
+  if (!/gitleaks:\n {4}status: ran/.test(p3)) fail('a pass record must not disturb another row');
+  let threw = false; try { setScannerRow(base, 'gitleaks', 'ran', { pass: 'delegation', model: 'x' }); } catch { threw = true; }
+  if (!threw) fail('record --pass on a scanner with no passes (only repo-eval has them) must refuse');
+  threw = false; try { setScannerRow(base, 'repo-eval', 'ran', { pass: 'no-such-pass', model: 'x' }); } catch { threw = true; }
+  if (!threw) fail('record --pass with a pass the built-in scanner does not have must refuse');
+
+  // F-438 / F-615: INDEX and the report name the model per scanner and per pass
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), p3);
+  mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });
+  writeFileSync(join(tmp, 'views', 'improve', 'prose.yaml'), 'target: "cleanlib"\nmaintainer: "the test maintainers"\nexec_summary: "test"\nroadmap: []\n');
+  writeFileSync(join(tmp, 'views', 'improve', 'security-gate.yaml'), 'exposures: []\n');
+  const c = spawnSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), tmp], { encoding: 'utf8' });
+  if (c.status !== 0) fail(`the fixture is wrong: cleanlib with a per-pass record must compile (exit ${c.status}: ${String(c.stderr).split('\n').slice(-3).join(' | ')})`);
+  else {
+    for (const page of ['INDEX.md', 'IMPROVE.md']) {
+      const md = readFileSync(join(tmp, page), 'utf8');
+      if (!/repo-eval on model-a \(40k tokens\)/.test(md)) fail(`${page} must name repo-eval's model and spend of record`);
+      if (!/delegation pass on model-b \(12k tokens\)/.test(md) || !/legibility pass on model-c/.test(md)) fail(`${page} must name the model per pass where recorded`);
+    }
+    const imp = readFileSync(join(tmp, 'IMPROVE.md'), 'utf8');
+    const colo = imp.slice(imp.indexOf('Generated by assay'));
+    if (!/model-b/.test(colo)) fail('the report\'s colophon must credit the models that drafted findings, not only assay');
+  }
+  // a judgment scanner that ran with no model is NAMED as such, never silent
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), scannersText([]));
+  if (spawnSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), tmp], { encoding: 'utf8' }).status === 0) {
+    if (!/repo-eval: no model recorded/.test(readFileSync(join(tmp, 'INDEX.md'), 'utf8'))) fail('INDEX must say a judgment scanner ran with no model recorded');
+  } else fail('the fixture is wrong: cleanlib with a bare record must compile');
+  rmSync(tmp, { recursive: true, force: true });
+
+  // F-120: variance reads the model and reports agreement per model pair
+  const fa = { dimension: 'delegation', evidence: ['a.md:1'] }, fb = { dimension: 'delegation', evidence: ['b.md:1'] };
+  const vm = varianceFromSweeps([[fa, fb], [fa, fb], [fa]], ['s0', 's1', 's2'], [() => 'a', () => 'a', () => 'b']);
+  const pairs = vm.byModelPair || {};
+  if (pairs['a × a']?.agree !== 2 || pairs['a × a']?.of !== 2) fail(`agreement for the a × a sweep pair must be 2/2 (got ${JSON.stringify(pairs['a × a'])})`);
+  if (pairs['a × b']?.agree !== 2 || pairs['a × b']?.of !== 4 || pairs['a × b']?.pct !== 50) fail(`agreement across the a × b sweep pairs must be 2/4 = 50% (got ${JSON.stringify(pairs['a × b'])})`);
+  const runA = join(tmp, 'a'), runB = join(tmp, 'b');
+  copyFixtureFindings('notesbox', runA); copyFixtureFindings('notesbox', runB);
+  writeFileSync(join(runA, 'map', 'scanners.yaml'), scannersText(['    model: "model-a"']));
+  writeFileSync(join(runB, 'map', 'scanners.yaml'), scannersText(['    model: "model-a"', '    passes:', '      context:', '        model: "model-c"']));
+  const cv = computeVariance([runA, runB]).byModelPair || {};
+  if (!cv['model-a × model-a'] || !cv['model-a × model-c']) fail(`computeVariance must read each sweep's model of record, per pass (got pairs: ${Object.keys(cv).join(', ') || 'none'})`);
+  const cli = spawnSync(process.execPath, [join(ROOT, 'map', 'variance.mjs'), runA, runB], { encoding: 'utf8' });
+  if (!/by model pair/.test(cli.stdout) || !/model-a × model-c/.test(cli.stdout)) fail('the variance report must print agreement per model pair');
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── ingest keeps the run record: a successful ingest flips that scanner's row
 // to ran, without disturbing anything else in map/scanners.yaml ─────────────
 {
@@ -3886,6 +4015,54 @@ function adaptersOnce() { return loadAdapters(); }
   const raw = readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8');
   if (!raw.startsWith('# a header comment')) fail('ingest\'s record-keeping must not disturb the file\'s own header comment');
 
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── the run record's read-modify-write is locked (#53, F-613) ──────────────────
+// `record` and `ingest` each read map/scanners.yaml, edit one row and write it back; two
+// writers interleaving lose a row. A lock file beside it (scanners.yaml.lock) guards the
+// whole read-modify-write. Pinned: four processes each adding fifty rows lose none; a
+// record and an ingest started while the lock is held write nothing until it is released,
+// then write their row.
+{
+  const fail = (m) => negFailures.push('run-record-lock: ' + m);
+  const rec = await import('../map/record.mjs');
+  const tmp = join(HERE, 'tmp-run-record-lock'); rmSync(tmp, { recursive: true, force: true });
+  mkdirSync(join(tmp, 'map'), { recursive: true });
+  const mPath = join(tmp, 'map', 'scanners.yaml');
+  const lockFile = mPath + '.lock';
+  writeFileSync(mPath, 'engine: x\nscanners:\n  repo-eval:\n    status: skipped\n    reason: "not yet run: ingesting its report records it ran"\n  gitleaks:\n    status: skipped\n    reason: "not yet run: ingesting its report records it ran"\n');
+  if (typeof rec.updateRunRecord !== 'function') fail('map/record.mjs must export updateRunRecord(path, edit), the locked read-modify-write both record and ingest use');
+  else {
+    const writer = join(tmp, 'writer.mjs');
+    writeFileSync(writer, `import { updateRunRecord, setScannerRow } from ${JSON.stringify(join(ROOT, 'map', 'record.mjs'))};\n`
+      + 'const [p, k] = process.argv.slice(2);\n'
+      + "for (let i = 0; i < 50; i++) updateRunRecord(p, (t) => setScannerRow(t, `w${k}-${i}`, 'skipped', { reason: 'r' }).text);\n");
+    const { spawn } = await import('node:child_process');
+    const exited = (c) => new Promise((res) => c.on('close', (code) => res(code)));
+    const codes = await Promise.all([0, 1, 2, 3].map((k) => exited(spawn(process.execPath, [writer, mPath, String(k)], { stdio: 'ignore' }))));
+    if (codes.some((c) => c !== 0)) fail(`every concurrent writer must exit 0 (got ${codes.join(', ')})`);
+    const rows = Object.keys(parseYaml(readFileSync(mPath, 'utf8')).scanners || {}).filter((id) => id.startsWith('w'));
+    if (rows.length !== 200) fail(`four writers adding fifty rows each must leave 200 rows, none lost (got ${rows.length})`);
+    if (existsSync(lockFile)) fail('the lock file must be removed once the last writer is done');
+
+    // a held lock: record and ingest both wait for it, then write
+    for (const [label, args, check] of [
+      ['record', [join(ROOT, 'map', 'record.mjs'), tmp, 'repo-eval', 'ran'], (d) => d.scanners?.['repo-eval']?.status === 'ran'],
+      ['ingest', [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], (d) => d.scanners?.gitleaks?.status === 'ran'],
+    ]) {
+      writeFileSync(lockFile, 'held by the harness\n');
+      const before = readFileSync(mPath, 'utf8');
+      const child = spawn(process.execPath, /** @type {string[]} */ (args), { stdio: 'ignore' });
+      const done = exited(child);
+      await new Promise((res) => setTimeout(res, 1500));
+      if (readFileSync(mPath, 'utf8') !== before) fail(`${label} must not write map/scanners.yaml while another writer holds the lock`);
+      rmSync(lockFile, { force: true });
+      const code = await done;
+      if (code !== 0) fail(`${label} must finish once the lock is released (exit ${code})`);
+      if (!check(parseYaml(readFileSync(mPath, 'utf8')))) fail(`${label} must write its row once the lock is released`);
+    }
+  }
   rmSync(tmp, { recursive: true, force: true });
 }
 
@@ -3992,9 +4169,9 @@ function adaptersOnce() { return loadAdapters(); }
   // two lockfiles: one single Critical advisory the roadmap will NOT cover, one
   // with two Medium advisories — two remedies, not three, not one per advisory.
   writeFileSync(join(tmp, 'map', 'findings', 'dependency-scan.yaml'), [
-    `- id: F-1000\n  source: dependency-scan\n  native_id: "GHSA-aaaa@lodash@apps/api/package-lock.json"\n  native_category: "critical"\n  polarity: gap\n  severity: Critical\n  observation: >\n    lodash in apps/api/package-lock.json is vulnerable to GHSA-aaaa (Critical).\n  evidence: [apps/api/package-lock.json:1]\n  fix: >\n    Upgrade lodash and regenerate apps/api/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
-    `- id: F-1001\n  source: dependency-scan\n  native_id: "GHSA-bbbb@axios@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  severity: Medium\n  observation: >\n    axios in apps/web/package-lock.json is vulnerable to GHSA-bbbb (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade axios and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
-    `- id: F-1002\n  source: dependency-scan\n  native_id: "GHSA-cccc@qs@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  severity: Medium\n  observation: >\n    qs in apps/web/package-lock.json is vulnerable to GHSA-cccc (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade qs and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
+    `- id: F-1000\n  source: dependency-scan\n  native_id: "GHSA-aaaa@lodash@apps/api/package-lock.json"\n  native_category: "critical"\n  polarity: gap\n  observation: >\n    lodash in apps/api/package-lock.json is vulnerable to GHSA-aaaa (Critical).\n  evidence: [apps/api/package-lock.json:1]\n  fix: >\n    Upgrade lodash and regenerate apps/api/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
+    `- id: F-1001\n  source: dependency-scan\n  native_id: "GHSA-bbbb@axios@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  observation: >\n    axios in apps/web/package-lock.json is vulnerable to GHSA-bbbb (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade axios and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
+    `- id: F-1002\n  source: dependency-scan\n  native_id: "GHSA-cccc@qs@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  observation: >\n    qs in apps/web/package-lock.json is vulnerable to GHSA-cccc (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade qs and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
   ].join(''));
 
   // the authored roadmap absorbs F-900 (lint) only — F-901 (typecheck), both
@@ -4122,6 +4299,9 @@ function adaptersOnce() { return loadAdapters(); }
   const tmp = join(HERE, 'tmp-roadmap-decision'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('cleanlib', tmp);
   copyFixtureScanners('cleanlib', tmp);
+  // repo-eval is a judgment scanner: with no model of record it warns (#56), and this
+  // block's "no warning at all" must stay about the roadmap shape alone
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8').replace('  repo-eval:\n    status: ran\n', '  repo-eval:\n    status: ran\n    model: "test-model"\n'));
   mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });
   const head = ['target: "decision test target"', 'maintainer: "the test maintainers"', 'exec_summary: "test"', 'roadmap:'];
   const item = (extra) => ['  - slug: declare-lint', '    title: "Declare the missing lint gate"', '    body: "Lint is not declared; add it."', '    findings: [F-900]', ...extra, '    done_when:', '      - "package.json declares a lint script"', ''];
@@ -4405,6 +4585,190 @@ function adaptersOnce() { return loadAdapters(); }
   }
 }
 
+// ── the repeatability gate: a committed sweep set, a threshold variance enforces (#57, F-324, F-517) ──
+// variance printed its measures and exited 0 at any agreement level, and no sweep set was
+// committed, so the agreement figures the docs cite could not be reproduced from the tree.
+// Every set under tests/sweeps/ is gated here at its own SWEEP.yaml threshold; the fixture
+// set proves the gate can go red.
+{
+  const fail = (m) => negFailures.push('sweep-gate: ' + m);
+  const V = await import('../map/variance.mjs');
+  if (typeof V.loadSweepSet !== 'function' || typeof V.sweepGate !== 'function') fail('map/variance.mjs must export loadSweepSet and sweepGate');
+  const SWEEPS = join(HERE, 'sweeps');
+  const sets = existsSync(SWEEPS) ? readdirSync(SWEEPS).filter((d) => existsSync(join(SWEEPS, d, 'SWEEP.yaml'))) : [];
+  if (!sets.includes('fixture-notesbox')) fail('tests/sweeps/fixture-notesbox/ (the fixture-sized sweep set that exercises the gate) must be committed');
+  const varianceCli = (args) => spawnSync(process.execPath, [join(ROOT, 'map', 'variance.mjs'), ...args], { encoding: 'utf8' });
+  // every committed set passes at its own threshold, and every one of its sweeps is a valid map
+  for (const s of sets) {
+    const r = varianceCli(['--set', join(SWEEPS, s)]);
+    if (r.status !== 0) fail(`tests/sweeps/${s} must pass its own threshold (exit ${r.status}): ${(r.stdout + r.stderr).split('\n').filter((l) => /below|threshold|✗/.test(l)).join(' | ')}`);
+    let set = null;
+    try { set = V.loadSweepSet(join(SWEEPS, s)); } catch (e) { fail(`tests/sweeps/${s}/SWEEP.yaml must load (${e.message})`); }
+    for (const d of (set ? set.runDirs : [])) {
+      const v = spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), d], { encoding: 'utf8' });
+      if (v.status !== 0) fail(`tests/sweeps/${s}: sweep ${d.slice(SWEEPS.length + 1)} must validate (${String(v.stderr).split('\n').slice(0, 3).join(' | ')})`);
+    }
+  }
+  const fx = join(SWEEPS, 'fixture-notesbox');
+  if (existsSync(join(fx, 'SWEEP.yaml'))) {
+    const j = varianceCli(['--set', fx, '--json']);
+    let out = null; try { out = JSON.parse(j.stdout); } catch { fail(`variance --set --json must print JSON (got ${j.stdout.slice(0, 120)})`); }
+    if (out) {
+      if (!out.gate || !out.gate.threshold || !Array.isArray(out.gate.breaches)) fail(`variance --set --json must carry gate.threshold and gate.breaches (got ${JSON.stringify(out.gate)})`);
+      if (out.pct === 100 || out.descriptors?.pct === 100) fail('the fixture set must carry real variance on both measures (a 100% set cannot show the gate reading the number)');
+      // one point above the measured value on either measure turns the same set red
+      const facts = varianceCli(['--set', fx, '--min-facts', String(out.pct + 1)]);
+      if (facts.status !== 1) fail(`variance must exit 1 when fact presence (${out.pct}%) is below the threshold (got ${facts.status})`);
+      if (!/fact presence/i.test(facts.stdout + facts.stderr)) fail('a fact-presence breach must name the measure it failed');
+      const desc = varianceCli(['--set', fx, '--min-descriptors', String((out.descriptors?.pct ?? 0) + 1)]);
+      if (desc.status !== 1) fail(`variance must exit 1 when descriptor agreement is below the threshold (got ${desc.status})`);
+      if (!/descriptor agreement/i.test(desc.stdout + desc.stderr)) fail('a descriptor-agreement breach must name the measure it failed');
+    }
+    // a set with no threshold is malformed: fail loud (exit 2), never an ungated pass
+    const tmp = join(HERE, 'tmp-sweep-gate'); rmSync(tmp, { recursive: true, force: true });
+    cpSync(fx, tmp, { recursive: true });
+    writeFileSync(join(tmp, 'SWEEP.yaml'), readFileSync(join(fx, 'SWEEP.yaml'), 'utf8').replace(/^threshold:[\s\S]*?(?=^\S)/m, ''));
+    const noThr = varianceCli(['--set', tmp]);
+    if (noThr.status !== 2) fail(`a sweep set with no threshold must exit 2 (got ${noThr.status})`);
+    rmSync(tmp, { recursive: true, force: true });
+  }
+  // the pure gate: a measure below its threshold is a breach naming it; no shared channel is not a pass
+  if (typeof V.sweepGate === 'function') {
+    const thr = { fact_presence: 80, descriptor_agreement: 50 };
+    const ok = V.sweepGate({ pct: 80 }, { allFields: { pct: 50 }, channels: { shared: 2 } }, thr);
+    if (ok.length) fail(`at the threshold must pass (got ${JSON.stringify(ok)})`);
+    const lo = V.sweepGate({ pct: 79 }, { allFields: { pct: 49 }, channels: { shared: 2 } }, thr);
+    if (lo.length !== 2) fail(`below both thresholds must give two breaches (got ${JSON.stringify(lo)})`);
+    const none = V.sweepGate({ pct: 90 }, { allFields: { pct: 0 }, channels: { shared: 0 } }, thr);
+    if (none.length !== 1 || !/no shared/.test(none[0])) fail(`no shared channel under a descriptor threshold must be a breach saying so (got ${JSON.stringify(none)})`);
+  }
+}
+
+// ── the chains and the handoff sequence are data files with a schema validate checks (#57, F-604, F-605) ──
+// The ranked chains reached a consumer only as IMPROVE.md prose and the handoff only as
+// markdown, so an agent iterating the work had to parse the human report.
+{
+  const fail = (m) => negFailures.push('run-data: ' + m);
+  let D = null;
+  try { D = await import('../lib/run-data.mjs'); } catch (e) { fail(`lib/run-data.mjs must exist and export the data-file schemas (${e.message.split('\n')[0]})`); }
+  const L = await import('../lib/run-layout.mjs');
+  if (typeof L.chainsDataPath !== 'function' || typeof L.handoffSequencePath !== 'function') fail('lib/run-layout.mjs must place chains.json and the handoff sequence');
+  const tmp = join(HERE, 'tmp-run-data'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp); copyFixtureScanners('notesbox', tmp);
+  mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });
+  writeFileSync(join(tmp, 'views', 'improve', 'prose.yaml'), [
+    'target: "notesbox"', 'maintainer: "the test maintainers"', 'exec_summary: "test"',
+    'roadmap:', '  - slug: close-admin-default', '    title: "Fail authentication closed"',
+    '    body: "authenticate() defaults to admin; refuse unknown tokens and gate the two outbound effects."', '    findings: [F-050, F-052, F-053]', '',
+  ].join('\n'));
+  writeFileSync(join(tmp, 'views', 'improve', 'security-gate.yaml'), 'exposures: []\n');
+  const h = spawnSync(process.execPath, [join(ROOT, 'views', 'improve', 'handoff.mjs'), tmp], { encoding: 'utf8' });
+  if (h.status !== 0) fail(`handoff.mjs must compile notesbox (stderr: ${h.stderr})`);
+  const rp = spawnSync(process.execPath, [join(ROOT, 'views', 'improve', 'report.mjs'), tmp], { encoding: 'utf8' });
+  if (rp.status !== 0) fail(`report.mjs must compile notesbox (stderr: ${rp.stderr})`);
+  const seqPath = L.handoffSequencePath ? L.handoffSequencePath(tmp) : join(tmp, 'handoff', 'sequence.json');
+  const chPath = L.chainsDataPath ? L.chainsDataPath(tmp) : join(tmp, 'views', 'improve', 'chains.json');
+  const readJson = (p, what) => { if (!existsSync(p)) { fail(`${what} must be written at ${p.slice(tmp.length + 1)}`); return null; } try { return JSON.parse(readFileSync(p, 'utf8')); } catch (e) { fail(`${what} must parse as JSON (${e.message})`); return null; } };
+  const seq = readJson(seqPath, 'the handoff sequence');
+  const ch = readJson(chPath, 'the chains data file');
+  if (seq && D) {
+    const errs = D.checkSequence(seq);
+    if (errs.length) fail(`the handoff's own sequence must pass its schema (got ${errs.join('; ')})`);
+    const first = (seq.sequence || [])[0];
+    if (!first || first.kind !== 'authored' || first.voice !== 'eval-authored' || !(first.findings || []).includes('F-050') || first.plan !== 'plan/01-close-admin-default.md')
+      fail(`sequence[0] must be the roadmap item with its voice, finding ids and plan file (got ${JSON.stringify(first)})`);
+    for (const s of seq.sequence || []) if (s.plan && !existsSync(join(tmp, 'handoff', s.plan))) fail(`sequence item ${s.n} names ${s.plan}, which the handoff did not write`);
+    if (!Array.isArray(seq.pending)) fail('the sequence must carry the pending (owner-defined) ids, even when empty');
+  }
+  if (ch && D) {
+    const errs = D.checkChains(ch);
+    if (errs.length) fail(`the report's own chains file must pass its schema (got ${errs.join('; ')})`);
+    const top = (ch.live || [])[0];
+    if (!top || top.rank !== 1 || !Array.isArray(top.path) || !top.entry?.id || !top.headline?.id || !top.blast) fail(`chains.live[0] must carry rank, entry, headline, blast and path (got ${JSON.stringify(top)})`);
+  }
+  // validate reads both files back and fails closed on a malformed one, naming it
+  const val = () => spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { encoding: 'utf8' });
+  const v0 = val();
+  if (v0.status !== 0) fail(`validate must pass over the compiled run (stderr: ${String(v0.stderr).split('\n').slice(0, 4).join(' | ')})`);
+  if (seq) {
+    writeFileSync(seqPath, JSON.stringify({ ...seq, sequence: [{ ...seq.sequence[0], findings: ['F-999999'] }] }));
+    const v = val();
+    if (v.status === 0 || !/sequence\.json/.test(v.stderr) || !/F-999999/.test(v.stderr)) fail(`validate must fail closed on a sequence citing an id not in the base, naming the file (got ${v.status}: ${String(v.stderr).slice(0, 200)})`);
+    writeFileSync(seqPath, JSON.stringify(seq));
+  }
+  if (ch) {
+    writeFileSync(chPath, JSON.stringify({ ...ch, live: [{ ...ch.live[0], blast: 'galaxy' }] }));
+    const v = val();
+    if (v.status === 0 || !/chains\.json/.test(v.stderr)) fail(`validate must fail closed on a malformed chains file, naming it (got ${v.status}: ${String(v.stderr).slice(0, 200)})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── the feedback hook: backlog.mjs exercised, its authored half has a path and a schema (#57, F-520, F-522) ──
+// backlog.mjs had no block of its own; the authored half (curated classes, the surprise
+// notes) had no path in lib/run-layout.mjs, no schema and no validator check, and nothing
+// read map/backlog.yaml back.
+{
+  const fail = (m) => negFailures.push('backlog: ' + m);
+  let D = null;
+  try { D = await import('../lib/run-data.mjs'); } catch { /* the run-data block reports it */ }
+  const L = await import('../lib/run-layout.mjs');
+  if (typeof L.backlogAuthoredPath !== 'function') fail('lib/run-layout.mjs must place the authored half of the backlog');
+  const src = readFileSync(join(ROOT, 'map', 'backlog.mjs'), 'utf8');
+  const head = src.split('\nimport ')[0];
+  for (const f of ['map/backlog.yaml', 'map/backlog-authored.yaml']) if (!head.includes(f)) fail(`backlog.mjs's header must name ${f}`);
+  // the header names only files the run layout places or the repository has
+  for (const m of head.matchAll(/\b((?:map|views|lib)\/[\w./-]+\.(?:mjs|yaml|md))\b/g)) {
+    const p = m[1];
+    const placed = ['map/backlog.yaml', 'map/backlog-authored.yaml', 'views/improve/maturity-grades.yaml'].includes(p);
+    if (!placed && !existsSync(join(ROOT, p))) fail(`backlog.mjs's header names ${p}, which does not exist`);
+  }
+  const tmp = join(HERE, 'tmp-backlog'); rmSync(tmp, { recursive: true, force: true });
+  const run = join(tmp, 'run'), prior = join(tmp, 'prior');
+  for (const d of [run, prior]) { copyFixtureFindings('notesbox', d); copyFixtureScanners('notesbox', d); }
+  // the prior judged one channel's telemetry differently: one descriptor-divergence item
+  const dPath = join(prior, 'map', 'findings', 'repo-eval-delegation.yaml');
+  const before = readFileSync(dPath, 'utf8');
+  writeFileSync(dPath, before.replace('    telemetry: unstructured\n', '    telemetry: none\n'));
+  if (readFileSync(dPath, 'utf8') === before) fail('test setup: the prior must change one telemetry descriptor');
+  const w = spawnSync(process.execPath, [join(ROOT, 'map', 'backlog.mjs'), run, '--prior', prior, '--write'], { encoding: 'utf8' });
+  if (w.status !== 0) fail(`backlog --prior --write must exit 0 (got ${w.status}: ${w.stderr})`);
+  const out = L.backlogPath(run);
+  if (!existsSync(out)) fail('backlog --write must write map/backlog.yaml');
+  else {
+    const txt = readFileSync(out, 'utf8');
+    if (!/^# map\/backlog\.yaml — GENERATED by map\/backlog\.mjs/.test(txt)) fail('the written file must open naming itself and its writer');
+    let doc = null; try { doc = parseYaml(txt); } catch (e) { fail(`map/backlog.yaml must parse (${e.message})`); }
+    if (doc && D) { const e = D.checkBacklog(doc); if (e.length) fail(`the written backlog must pass its schema (got ${e.join('; ')})`); }
+    const dd = (doc?.items || []).filter((i) => i.class === 'descriptor-divergence');
+    if (dd.length !== 1 || !/telemetry/.test(dd[0].observation)) fail(`one descriptor-divergence item naming telemetry expected (got ${JSON.stringify(dd)})`);
+    if (doc?.counts?.['un-enumerated-population'] !== null || !/no --target/.test(doc?.not_computed?.['un-enumerated-population'] || '')) fail('a class not requested must read not computed with its reason, never 0');
+  }
+  // validate reads the backlog back, the authored half included, and fails closed on a malformed one
+  const val = () => spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), run], { encoding: 'utf8' });
+  const authored = L.backlogAuthoredPath ? L.backlogAuthoredPath(run) : join(run, 'map', 'backlog-authored.yaml');
+  writeFileSync(authored, [
+    '# map/backlog-authored.yaml — the authored half of the backlog (SCHEMA.md §5b)',
+    'items:', '  - id: OB-A01', '    class: tooling-gap', '    status: proposed',
+    '    observation: "enumerate matched no Node child_process call site."', '    evidence: ["map/enumerate.mjs:105"]',
+    '    mechanism: "Teach the effect-site detector the Node shapes."',
+    'notes:', '  - "A strength shape the dimensions did not anticipate."', '',
+  ].join('\n'));
+  const v1 = val();
+  if (v1.status !== 0) fail(`validate must pass a well-formed backlog and authored half (stderr: ${String(v1.stderr).split('\n').slice(0, 4).join(' | ')})`);
+  writeFileSync(authored, readFileSync(authored, 'utf8').replace('class: tooling-gap', 'class: vibes'));
+  const v2 = val();
+  if (v2.status === 0 || !/backlog-authored\.yaml/.test(v2.stderr) || !/vibes/.test(v2.stderr)) fail(`validate must fail closed on an authored item outside the closed classes, naming the file (got ${v2.status})`);
+  writeFileSync(authored, 'items: []\nnotes: []\n');
+  const v3 = val();
+  if (v3.status === 0 || !/notes/.test(v3.stderr)) fail('validate must refuse an authored half with no note (one saying nothing surprised counts)');
+  rmSync(authored);
+  writeFileSync(out, readFileSync(out, 'utf8').replace(/class: descriptor-divergence/, 'class: made-up'));
+  const v4 = val();
+  if (v4.status === 0 || !/backlog\.yaml/.test(v4.stderr)) fail(`validate must fail closed on a computed backlog item outside the closed classes (got ${v4.status})`);
+  rmSync(tmp, { recursive: true, force: true });
+}
+
 // ── SCORED fixtures (the recall floor) ────────────────────────────────────────
 const current = { _score: {} };
 for (const [key, dir] of SCORED) {
@@ -4549,6 +4913,7 @@ for (const [key, dir] of SCORED) {
     ['maturityPath', [], 'views/improve/maturity.md'], ['maturityGradesPath', [], 'views/improve/maturity-grades.yaml'],
     ['securityPath', [], 'views/improve/security.md'], ['securityGatePath', [], 'views/improve/security-gate.yaml'],
     ['synthesisPath', [], 'views/improve/synthesis.md'], ['decisionsPath', [], 'owner/decisions.yaml'], ['packetManifestPath', [], 'owner/manifest.yaml'],
+    ['backlogAuthoredPath', [], 'map/backlog-authored.yaml'], ['chainsDataPath', [], 'views/improve/chains.json'], ['handoffSequencePath', [], 'handoff/sequence.json'],
   ];
   for (const [fn, args, path] of want) {
     if (typeof L[fn] !== 'function') { fail(`lib/run-layout.mjs no longer exports ${fn}`); continue; }
@@ -4593,6 +4958,30 @@ for (const [key, dir] of SCORED) {
   const ok = verdict({ bless: true, negFailures: [], current: { _score: { a: { recall: 1 } } }, goldenPath: g });
   if (ok.exit !== 0 || JSON.stringify(JSON.parse(readFileSync(g, 'utf8'))) !== JSON.stringify({ _score: { a: { recall: 1 } } })) fail('--bless over a tree that holds must write the scores and exit 0');
   rmSync(tmp, { recursive: true, force: true });
+}
+
+// ── instrument rows assert no severity; the views band them (#53, F-1230) ──────
+// Every row the blocks above converted from an instrument report (gitleaks, scorecard,
+// fresh-clone, dependency-scan, repo-census) carries no severity field: CLAUDE.md rule 1
+// keeps no exception for the bands. The projection every view reads hands the view the
+// band views/severity.mjs computes (the report rendering in intake-maintain-improve pins
+// it end to end over dependency-scan rows written with no severity).
+{
+  const fail = (m) => negFailures.push('instrument-severity: ' + m);
+  const INSTRUMENTS = ['gitleaks', 'scorecard', 'fresh-clone', 'dependency-scan', 'repo-census'];
+  const inst = convertedRows.filter((r) => INSTRUMENTS.includes(r.source));
+  for (const src of INSTRUMENTS) if (!inst.some((r) => r.source === src)) fail(`the sweep saw no ${src} row (the harness must convert at least one)`);
+  const carrying = inst.filter((r) => 'severity' in r);
+  if (carrying.length) fail(`an instrument row asserts a severity in the map (${carrying.length}, e.g. ${carrying.slice(0, 3).map((r) => `${r.source} ${r.native_id}: ${r.severity}`).join('; ')})`);
+  const { projected } = projectMulti(inst.filter((r) => r.polarity === 'gap'), adaptersOnce());
+  const unbanded = projected.filter((p) => p.source !== 'gitleaks' && !['Critical', 'High', 'Medium', 'Low'].includes(p.f.severity));
+  if (unbanded.length) fail(`every instrument gap but gitleaks must reach the views banded (${unbanded.length} not, e.g. ${unbanded.slice(0, 3).map((p) => `${p.source} ${p.f.native_id}`).join('; ')})`);
+  for (const [src, cat, sev] of [['scorecard', 'Branch-Protection', 'High'], ['dependency-scan', 'high', 'High'], ['dependency-scan', 'lockfile-failed', 'Medium'], ['repo-census', 'runbook', 'Medium']]) {
+    const p = projected.find((x) => x.source === src && x.f.native_category === cat);
+    if (!p || p.f.severity !== sev) fail(`the projection must hand the view ${src} ${cat} banded ${sev} (got ${p ? p.f.severity : 'no row'})`);
+  }
+  if (!projected.some((p) => p.source === 'repo-census' && p.f.native_category === 'ci-gate' && p.f.fail_open === true && p.f.severity === 'High')) fail('a fail-open ci-gate gap must carry the fail_open fact and reach the view banded High');
+  if (!projected.some((p) => p.source === 'fresh-clone' && /:(failed|timed-out)$/.test(p.f.native_id) && p.f.severity === 'High')) fail('a failed or timed-out fresh-clone step must reach the view banded High');
 }
 
 // ── bless / assert ────────────────────────────────────────────────────────────
@@ -4640,6 +5029,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, model-of-record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, sweep-gate, run-data, backlog, cli-commands, canon, run-layout, compile-target, bless-guard, run-record-lock, instrument-severity, fixture-recall).`);
 }
 process.exit(v.exit);

@@ -3,8 +3,8 @@
 # Instruments never contribute an axis; Scorecard's checks feed the native
 # workspace axes — the only mature external tool whose findings are about the
 # workspace rather than the code. Rows produced by map/ingest.mjs (exit code
-# verified; score bands documented there: >=8 strength · 4-7 gap Medium · 0-3
-# gap High · -1 N/A skipped-and-logged). Keyed by the check's stable name; a
+# verified; >=8 strength · 0-7 gap · -1 N/A skipped-and-logged; a gap's band,
+# 4-7 Medium · 0-3 High, is the views' — views/severity.mjs). Keyed by the check's stable name; a
 # check this map does not know halts loud (a new Scorecard check = add one row).
 scanner: scorecard
 targets_taxonomy: 3

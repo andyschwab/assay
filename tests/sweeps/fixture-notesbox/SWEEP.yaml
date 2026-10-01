@@ -1,0 +1,16 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/fixture-notesbox
+#
+# FIXTURE-SIZED and NOT BLIND: three copies of the notesbox fixture's repo-eval passes,
+# one with a finding dropped (F-031) and one with one descriptor re-judged
+# (assistant-email telemetry). It proves the gate reads the number and can go red;
+# it measures nothing about the method's repeatability.
+target: "notesbox (tests/fixtures/notesbox)"
+target_commit: "fixture"
+method_commit: "ebccbf1"
+date: "2026-10-01"
+blind: false
+threshold:
+  fact_presence: 80
+  descriptor_agreement: 50
+sweeps: [sweep-1, sweep-2, sweep-3]

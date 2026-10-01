@@ -991,3 +991,52 @@ what the public engine learned.
   confirmed red against the old code (37 failures), and again with only the
   yardstick rows reverted (6, reading met) and only the ingest change reverted
   (12).
+- **2026-10-01 — the rest of #53: workspace-scoped lockfile coverage, a locked
+  run record, and no severity in the map** (issue #53, roadmap item 8, the
+  owner's three decisions of 2026-10-01). dependency-scan: an ancestor
+  lockfile covers a nested manifest only when that ancestor's declared
+  workspaces (`workspaces` in its package.json, else pnpm-workspace.yaml with
+  its `!` exclusions) include it, else only the manifest's own lockfile does
+  (F-1212); the `dependency-scan-manifests` assertion that pinned the opposite
+  was rewritten to the new rule, and `examples/demo` under a root lockfile whose
+  workspaces name `packages/*` reads unaudited (confirmed red, 3 failures).
+  `record` and `ingest` hold `map/scanners.yaml.lock` across the run record's
+  read-modify-write (F-613); `run-record-lock` pins four writers adding fifty
+  rows each keep all 200 (confirmed red with the lock bypassed: 61 and 69
+  kept). The instrument profiles write no severity; the bands moved unchanged
+  into `views/severity.mjs`, which the projection applies for every view, and
+  a fail-open CI gate is recorded as the fact `fail_open: true` (F-1230); the
+  convert-level severity assertions now read the band through the view layer,
+  and `instrument-severity` sweeps every converted row (confirmed red, 18
+  failures; that commit's message says 19 in error). Goldens untouched. The
+  duplicated helpers and unreferenced exports (F-1232) become their own item.
+- **2026-10-01 — the run knows its lanes** (#56). The run record carries the
+  model and an optional `spend:` per scanner, and per repo-eval pass under a
+  `passes:` map (`record ... --pass <pass> --model <id> --spend "<text>"`;
+  every edit keeps recorded passes). The missing-model warning no longer
+  exempts repo-eval by name: the built-in scanner is a judgment scanner like
+  any other, and with a per-pass record the warning names the passes with no
+  model. INDEX.md prints **Models of record** and the report's colophon names
+  them, so a reader is told which model drafted findings, not only that assay
+  assembled them. `variance` reads each sweep's model of record, per pass,
+  and reports fact agreement per model pair. Goldens untouched. The
+  `model-of-record` block was confirmed red against the old code (20
+  failures), and again with only the repo-eval exemption restored (its two
+  assertions).
+- **2026-10-01 — the feedback hook and the repeatability claim are data**
+  (#57). `variance --set <set>` measures a committed sweep set
+  (`tests/sweeps/<set>/SWEEP.yaml`: target, commits, date, `blind`, threshold,
+  sweeps) and exits 1 when fact presence or descriptor agreement falls below
+  the set's own threshold, 2 when the set is malformed; `npm test` gates every
+  set. The one committed set, `fixture-notesbox`, is fixture-sized and not
+  blind (88% facts, 50% descriptors): it proves the gate, not the method. The
+  figures `METHOD.md`, `SCHEMA.md` and the variance header cite are now marked
+  as off-repo field measurements until a blind set over this repository lands.
+  `report.mjs` writes `views/improve/chains.json` and `handoff.mjs` writes
+  `handoff/sequence.json`; the backlog's authored half has a path,
+  `map/backlog-authored.yaml` (curated items and the 1–5 surprise notes, which
+  replace `candidate-insights.md`); the four schemas are `lib/run-data.mjs` and
+  `validate` reads every one back, fail-closed. Goldens untouched. The
+  `sweep-gate`, `run-data` and `backlog` blocks were confirmed red against the
+  old code, again with only the variance exit reverted (its two
+  breach assertions), and with only validate's read-back reverted (five).

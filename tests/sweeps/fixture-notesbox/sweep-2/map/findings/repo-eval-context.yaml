@@ -1,0 +1,11 @@
+# Context-economy pass over the notesbox fixture target.
+- id: F-010
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Storage sits behind a narrow module interface (lib/db.mjs), so a task can load the storage
+    surface standalone and the engine can be swapped without touching call sites — the ADR-0001
+    boundary is actually enacted.
+  evidence: [lib/db.mjs:1]
+  confidence: confirmed

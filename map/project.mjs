@@ -26,6 +26,7 @@ const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 // ── axis titles live in lib/display.mjs (AXIS_META, the one label home);
 //    re-exported here so projection consumers keep a single import site ───────
 import { axisTitle } from '../lib/display.mjs';
+import { severityOf } from '../views/severity.mjs';
 export { axisTitle };
 // canonical ordering: the seven native dimension axes in pass order, then the
 // known contributed axes; axes outside this list append sorted (deterministic).
@@ -158,6 +159,44 @@ export function notRunPhrase(manifest, id) {
   return manifest ? 'no disposition recorded in the run manifest' : 'no run manifest (map/scanners.yaml)';
 }
 
+// ── models of record (SCHEMA.md §5a) ─────────────────────────────────────────
+// The built-in scanner's passes: the pass name its file carries
+// (map/findings/repo-eval-<pass>.yaml, a `passes:` key in its manifest row) → the
+// dimension every finding in that file carries.
+export const REPO_EVAL_PASSES = {
+  legibility: 'artifact-legibility', context: 'context-economy', gates: 'deterministic-gates',
+  verification: 'verification', delegation: 'delegation', improvement: 'improvement-loop', multiplayer: 'multiplayer',
+};
+
+// The model a scanner (or one repo-eval pass) ran on: the pass's own model, else the
+// row's, else null — never a guess.
+export function modelOf(manifest, scanner, pass) {
+  const r = manifest && manifest.scanners && manifest.scanners[scanner];
+  if (!r || typeof r !== 'object') return null;
+  const p = pass && r.passes && typeof r.passes === 'object' ? r.passes[pass] : null;
+  return (p && p.model) || r.model || null;
+}
+
+// One line naming the model (and spend) of record per scanner and per pass, for every
+// scanner that ran and is judgment-bearing or carries a model. A judgment scanner with
+// none says so. null when nothing ran that needs one.
+export function modelsLine(manifest, adapters) {
+  const rows = (manifest && manifest.scanners && typeof manifest.scanners === 'object') ? manifest.scanners : {};
+  const sp = (s) => (s === undefined || s === null ? '' : ` (${s})`);
+  const out = [];
+  for (const id of Object.keys(rows).sort()) {
+    const r = rows[id];
+    if (!r || r.status !== 'ran') continue;
+    const passes = r.passes && typeof r.passes === 'object' ? Object.entries(r.passes) : [];
+    const judgment = adapters[id] && adapters[id].role !== 'instrument';
+    if (!judgment && !r.model && r.spend === undefined && !passes.length) continue;
+    const head = r.model ? `${id} on ${r.model}${sp(r.spend)}` : passes.length ? `${id}${sp(r.spend)}` : `${id}: no model recorded${sp(r.spend)}`;
+    const per = passes.map(([p, v]) => `${p} pass${v && v.model ? ` on ${v.model}` : ''}${sp(v && v.spend)}`);
+    out.push(per.length ? `${head} — ${per.join(', ')}` : head);
+  }
+  return out.length ? out.join('; ') : null;
+}
+
 // ── scanner coverage sidecars — map/coverage/<scanner>.yaml ───────────────────
 // A peer scanner that reports per-domain coverage (deep-code-review 1.128+'s
 // machine report) has it archived by ingest.mjs as a sidecar in the scanner's
@@ -239,7 +278,11 @@ export function rosterFor(adapters, sources, projected) {
 // a scanner that classified it itself.
 export function projectMulti(findings, adapters) {
   const unmapped = [], needsAxis = [], projected = [];
-  for (const f of findings) {
+  for (const raw of findings) {
+    // the severity a view reads: an instrument row's band is computed here, in the view
+    // layer (views/severity.mjs), never stored in the map (#53, F-1230)
+    const sev = severityOf(raw);
+    const f = sev === raw.severity ? raw : { ...raw, severity: sev };
     const src = f.source || 'repo-eval';
     const alsoFromFinding = explicitAlso(f);
     const ex = explicitAxis(f);
