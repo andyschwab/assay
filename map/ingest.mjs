@@ -729,7 +729,7 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
 }
 
 // ── the coverage sidecar (block YAML; the scanner's own account of what it looked at) ─
-export function coverageYaml(c) {
+function coverageYaml(c) {
   const scalar = (v) => (typeof v === 'number' || typeof v === 'boolean') ? String(v) : (v === null || v === undefined) ? 'null' : q(oneLine(v));
   const out = [
     `# map/coverage/${c.scanner}.yaml — the scanner's OWN coverage account, archived by assay.mjs ingest.`,
