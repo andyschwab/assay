@@ -32,7 +32,7 @@
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { parseYaml } from '../../lib/yaml-min.mjs';
+import { parseYaml, q } from '../../lib/yaml-min.mjs';
 import { censusesPath, maturityGradesPath } from '../../lib/run-layout.mjs';
 import { gateHolds, isHaltClass, isMain } from '../../map/doctrine.mjs';
 import { loadFindings } from '../../map/project.mjs';
@@ -158,7 +158,6 @@ export function buildGrades(findings, inputs) {
   };
 }
 
-const q = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
 // Emit the constrained-YAML subset yaml-min reads back (block style only).
 export function gradesToYaml(g, generatedNote) {

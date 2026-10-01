@@ -40,7 +40,7 @@ map:
     axis: code-security
   lockfile-not-audited:         # a fact row: a lockfile nothing audited (failed, or not-run) —
     axis: code-security         # holds d-dependencies-known-clean at not-measured (yardstick/requirements.yaml)
-  no-lockfile:                  # a fact row: a manifest with dependencies, no lockfile covers it —
+  no-lockfile:                  # a fact row: a manifest with dependencies (or one that is not valid JSON), no lockfile covers it —
     axis: code-security         # decides d-dependencies-known-clean not-measured (yardstick/requirements.yaml)
   no-manifest:                  # a fact row: no package.json anywhere in the tree —
     axis: code-security         # decides d-dependencies-known-clean not-applicable (yardstick/requirements.yaml)

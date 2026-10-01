@@ -143,7 +143,7 @@ function findAppendices() {
 const descRows = measureRunOf(runDir);
 const descSum = summarizeMeasurement(descRows);
 const descUnmet = descRows.filter((r) => r.status === 'unmet').map((r) => `\`${r.id}\``);
-const descClaims = descRows.filter((r) => r.kind === 'claim').length;
+const descClaims = descRows.filter((r) => r.kind === 'claim' && r.status === 'not-measured').length;   // the claim rows no packet decided
 
 // ── the four views' own counts, for the lead lines ─────────────────────────
 const intakeBuilt = buildRows(runDir, 'floor');

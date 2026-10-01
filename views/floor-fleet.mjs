@@ -5,6 +5,7 @@
 // run manifest (what was not seen). Ordering: tier order, then register order.
 import { loadYardstick, loadMeasurement } from '../yardstick/measure.mjs';
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';
+import { q as yq } from '../lib/yaml-min.mjs';
 
 // Join a run's raw contradictions (yardstick.yaml: id/claim/run_status/findings)
 // with the register's title, for display — read by both Intake and Maintain
@@ -87,7 +88,7 @@ export function buildRows(runDir, tag, { withFloor = false } = {}) {
 }
 
 // ── shared YAML emission (yaml-min's constrained block-only subset) ──────────
-const q = (s) => `"${String(s == null ? '' : s).replace(/"/g, '\\"')}"`;
+const q = (s) => yq(s == null ? '' : s);
 function openRowYaml(r) {
   const L = [`  - id: ${r.id}`, `    tier: ${r.tier}`, `    topic: ${r.topic}`];
   if (r.floor !== undefined) L.push(`    floor: ${r.floor}`);

@@ -58,7 +58,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname } from 'node:path';
-import { parseYaml } from '../lib/yaml-min.mjs';
+import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { yardstickPath, rawPath } from '../lib/run-layout.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { loadYardstick, STATUSES, loadContradictions } from './measure.mjs';
@@ -199,7 +199,6 @@ export function evaluateRatchet(baselineDoc, currentDoc, titleOf) {
 }
 
 // ── writing a baseline FROM a run's current measurement ─────────────────────
-const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 export function toBaselineYaml({ yardstickVersion, date, by, commit, requirements }) {
   const L = [
     '# baseline.yaml — the reviewed snapshot a steward accepted (yardstick/ratchet.mjs). Written by',

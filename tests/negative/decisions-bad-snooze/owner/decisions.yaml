@@ -1,0 +1,6 @@
+- finding: F-001
+  action: snooze
+  reason: "waiting on the vendor fix"
+  snooze_until: next quarter
+  by: platform-eng
+  at: 2026-08-14

@@ -25,6 +25,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname, basename } from 'node:path';
 import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
+import { parseYaml } from '../lib/yaml-min.mjs';
 
 const target = process.argv[2];
 if (!target || target.startsWith('--')) {
@@ -55,7 +56,13 @@ function walk(dir, out = []) {
   return out;
 }
 
+// FAIL LOUD: a target that is not a directory, or a tree that yields no files, is
+// not a tree with no coverage gaps (walk() reads an unreadable dir as empty).
+let isDir = false;
+try { isDir = statSync(target).isDirectory(); } catch { /* reported below */ }
+if (!isDir) { console.error(`enumerate: target is not a directory: ${target}`); process.exit(2); }
 const files = walk(target);
+if (!files.length) { console.error(`enumerate: target yields no files: ${target}`); process.exit(2); }
 const rel = (f) => relative(target, f);
 function lines(f) { try { return readFileSync(f, 'utf8').split('\n'); } catch { return []; } }
 
@@ -271,11 +278,20 @@ if (runDir) {
     for (const p of srcs) {
       const txt = readFileSync(p, 'utf8');
       for (const m of txt.matchAll(/([A-Za-z0-9_./-]+?\.(?:py|sh|js|ts|json|ya?ml|txt|example|service)):\d/g)) cited.add(m[1].split(':')[0]);
-      for (const m of txt.matchAll(/evidence:\s*\[([^\]]*)\]/g)) for (const p2 of m[1].split(',')) { const path = p2.trim().split(':')[0]; if (path) cited.add(path); }
+    }
+    // a finding's evidence list, parsed (a quoted element may hold a comma)
+    if (existsSync(fd)) for (const f of readdirSync(fd)) if (f.endsWith('.yaml')) {
+      const doc = parseYaml(readFileSync(join(fd, f), 'utf8'));
+      for (const row of Array.isArray(doc) ? doc : []) for (const e of Array.isArray(row?.evidence) ? row.evidence : []) cited.add(String(e).split(':')[0]);
     }
   } catch (e) { console.error(`--run: could not read findings in ${runDir}: ${e.message}`); process.exit(2); }
 
-  const covers = (evSet) => [...evSet].some((e) => { const p = e.split(':')[0]; return [...cited].some((c) => p === c || p.startsWith(c) || c.startsWith(p)); });
+  // covered by the exact path, or by a cited directory on a segment boundary; `.`,
+  // `./` and an empty path name the whole tree and cover nothing (repo-census cites
+  // `.:1` for a repo-wide fact, which once cleared every member under a dot-directory)
+  const norm = (s) => String(s).replace(/^(?:\.\/)+/, '').replace(/\/+$/, '');
+  const citedPaths = [...cited].map(norm).filter((c) => c && c !== '.');
+  const covers = (evSet) => [...evSet].some((e) => { const p = norm(e.split(':')[0]); return citedPaths.some((c) => p === c || p.startsWith(c + '/')); });
 
   // collect the uncovered live-surface members once; render as text or JSON
   const coverageGaps = [];
