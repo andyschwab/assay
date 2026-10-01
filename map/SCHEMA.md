@@ -688,7 +688,9 @@ Run: `node assay.mjs validate <run-dir>` (exits non-zero on any
 violation). It checks, and **fails closed** — an input it cannot parse is an error, not
 a pass (the run's own CI-1 lesson, applied to the checker):
 
-1. Every finding carries the mandatory keys (§1); `evidence` is present and non-empty.
+1. Every finding carries the mandatory keys (§1); `evidence` is present and non-empty, and
+   every entry is a `path:line` (or `path:a-b`) string — a bare path, a map, or `:12`
+   alone is refused.
 2. Every closed-vocab field holds an allowed value (§2), including facet sub-fields.
 3. Conditional-required facets are present and complete (§4), incl. the `fail_mode`
    rule and the **fail-closed discovery rule** (§6d): an unheld-halt effect — a chain
@@ -710,9 +712,12 @@ a pass (the run's own CI-1 lesson, applied to the checker):
    `reason` + a `note`. A silent uncovered gap fails closed; a stale disposition warns.
 10. **With `--target <repo>` (optional):** every evidence path resolves to a real file
    in the target repo — fail-closed on a cited path that does not exist (a container
-   mount alias, a misremembered directory, an evidence-of-absence path). Off without
-   the flag so the validator stays portable; run it in-session when the target is
-   present. A confirmed-absence finding cites what it inspected, not the missing path.
+   mount alias, a misremembered directory, an evidence-of-absence path) — and every
+   cited line (the end of a range) is inside that file. It cannot check that the line
+   says what the observation claims. Off without the flag so the validator stays
+   portable; `assay start`, the routine and `compile --target` pass it wherever the
+   target is present. A confirmed-absence finding cites what it inspected, not the
+   missing path.
 11. **If the run declares a canon (§8):** `views/improve/prose.yaml`'s `canon:` names a
    `canon/<name>.yaml`. If the file is named but missing, that is an **error**
    (fail-closed — you referenced a contract that is not there). If present, the run's

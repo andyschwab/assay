@@ -1,0 +1,26 @@
+- id: F-001
+  dimension: delegation
+  polarity: fact
+  subject_type: process
+  observation: >
+    A citation inside the file.
+  evidence: [lib/agent.mjs:2]
+  confidence: confirmed
+
+- id: F-002
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    A citation to a line the file does not have.
+  evidence: [lib/agent.mjs:9]
+  confidence: confirmed
+
+- id: F-003
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    A citation to a range that runs past the end of the file.
+  evidence: [lib/agent.mjs:2-7]
+  confidence: confirmed
