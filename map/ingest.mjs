@@ -502,8 +502,10 @@ const PROFILES = {
     // Rows: one gap row per `gap` check, one strength row per `pass` check (so the
     // axis sees the evidence, not just the absence of a gap), one FACT row (its own
     // `<check>-unverifiable` category) per `not-measured` check (the checkout could
-    // not confirm a transcript's commit either way — never silently "clean") — a
-    // `not-applicable` check yields nothing. native_id is `<check name>@<location>` (location is the
+    // not confirm a transcript's commit either way — never silently "clean"), and one
+    // FACT row (its own `<check>-not-applicable` category) per `not-applicable` check
+    // (no deployment signal in the tree — the yardstick reads the row not-applicable
+    // from it; dropping it would read met by silence). native_id is `<check name>@<location>` (location is the
     // check's detail.path, "." for the whole-repo checks); evidence is the check's
     // own evidence, which always carries at least one path:line (the runner falls
     // back to `<location>/:1` when a check has nothing more specific to cite).
@@ -518,7 +520,6 @@ const PROFILES = {
       for (const c of rep.checks) {
         if (!c || !RC_CHECKS.includes(c.name)) throw new Error(`repo-census check "${c && c.name}" is not one of ${RC_CHECKS.join(' | ')} (truncated report? unknown check?)`);
         if (!RC_STATUS.includes(c.status)) throw new Error(`repo-census check ${c.name}: status "${c.status}" is not one of ${RC_STATUS.join(' | ')}`);
-        if (c.status === 'not-applicable') continue;
         if (typeof c.observation !== 'string' || !c.observation.trim()) throw new Error(`repo-census check ${c.name}: missing observation (truncated report?)`);
         const location = (c.detail && typeof c.detail.path === 'string' && c.detail.path) || '.';
         const nativeLoc = location === '.' ? 'root' : location;
@@ -559,6 +560,18 @@ const PROFILES = {
             source: 'repo-census',
             native_id: `${c.name}@${nativeLoc}`,
             native_category: `${c.name}-unverifiable`,
+            polarity: 'fact',
+            observation: oneLine(c.observation),
+            evidence,
+          });
+        } else if (c.status === 'not-applicable') {
+          // a FACT row, in its own category (same reason as -unverifiable): the census
+          // looked for a deployment signal anywhere in the tree and found none.
+          rows.push({
+            id: fid(startId + n++),
+            source: 'repo-census',
+            native_id: `${c.name}@${nativeLoc}`,
+            native_category: `${c.name}-not-applicable`,
             polarity: 'fact',
             observation: oneLine(c.observation),
             evidence,
