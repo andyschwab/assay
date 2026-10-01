@@ -35,6 +35,8 @@
 //   REMEDIATION.md   the full spine: every remedy with claim-audit block + proof
 //   FINDINGS.md      the complete projected base (held/open/facts, verbatim + evidence)
 //   plan/NN-*.md     one session prompt per sequenced remedy (interview→fix→prove)
+//   sequence.json    the same sequence as data: each item's kind, voice, finding ids and
+//                    plan file, plus the pending ids (lib/run-data.mjs checkSequence)
 //
 // Usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]...
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
@@ -43,7 +45,8 @@ import { createHash } from 'node:crypto';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase } from '../../map/project.mjs';
 import { loadDecisions, decideProjected } from '../../map/decisions.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { prosePath as runProsePath, handoffDir } from '../../lib/run-layout.mjs';
+import { prosePath as runProsePath, handoffDir, handoffSequencePath } from '../../lib/run-layout.mjs';
+import { SEQUENCE_SCHEMA, SEQUENCE_VOICES, checkSequence } from '../../lib/run-data.mjs';
 import { buildRoadmap, buildSequence, clientProofFor, handoffConfig, stripLine, urgentNote } from './sequence.mjs';
 import { mdText, mdCode } from '../../lib/display.mjs';
 
@@ -178,7 +181,19 @@ function proofBlock(ps, doneWhen = []) {
 // ── START-HERE.md ────────────────────────────────────────────────────────────
 function startHere() {
   const nAuthored = seq.filter((s) => s.kind === 'authored').length;
-  const nTriage = seq.filter((s) => s.kind === 'triage').length;
+  const sequenceDoc = {
+  schema: SEQUENCE_SCHEMA, run: runId,
+  sequence: seq.map((s) => ({
+    n: s.n, kind: s.kind, voice: SEQUENCE_VOICES[s.kind], source: s.kind === 'authored' ? null : s.source,
+    title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null,
+  })),
+  pending: pending.map((p) => p.f.id),
+};
+const sequenceErrors = checkSequence(sequenceDoc, new Set(decided.map((p) => p.f.id)));
+if (sequenceErrors.length) { console.error(`sequence.json would not hold its schema:\n  ${sequenceErrors.join('\n  ')}`); process.exit(1); }
+writeFileSync(handoffSequencePath(runDir), JSON.stringify(sequenceDoc, null, 2) + '\n');
+
+const nTriage = seq.filter((s) => s.kind === 'triage').length;
   const nRemedy = seq.length - nAuthored - nTriage;
   const voices = [];
   if (nRemedy) voices.push(`**${nRemedy} scanner-supplied** (quoted verbatim from the scanner that found them; the engine never rewrites a fix)`);

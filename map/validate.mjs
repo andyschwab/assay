@@ -15,7 +15,9 @@ import {
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
   nativeReportPath, isRepoEvalPassFile, REPO_EVAL_PASS_PREFIX, decisionsPath,
+  chainsDataPath, handoffSequencePath, backlogPath, backlogAuthoredPath,
 } from '../lib/run-layout.mjs';
+import { checkChains, checkSequence, checkBacklog, checkAuthoredBacklog } from '../lib/run-data.mjs';
 import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
 import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
 
@@ -566,6 +568,26 @@ if (existsSync(gradesPath)) {
           err(`${gradesLabel}:aggregate`, `aggregate.over ${a.over} does not equal the measured-row count (${measured.length})`);
       }
     }
+  }
+}
+
+// ── the run's data files (lib/run-data.mjs): read back, fail-closed ─────────
+// Each is optional (written by a later step), and each that is present must hold its
+// schema; the chains and the sequence must name only ids this base carries.
+{
+  const baseIds = new Set(allById.keys());
+  const dataFiles = [
+    [chainsDataPath(runDir), 'views/improve/chains.json', 'json', (d) => checkChains(d, baseIds)],
+    [handoffSequencePath(runDir), 'handoff/sequence.json', 'json', (d) => checkSequence(d, baseIds)],
+    [backlogPath(runDir), 'map/backlog.yaml', 'yaml', checkBacklog],
+    [backlogAuthoredPath(runDir), 'map/backlog-authored.yaml', 'yaml', checkAuthoredBacklog],
+  ];
+  for (const [path, label, kind, check] of dataFiles) {
+    if (!existsSync(path)) continue;
+    let doc;
+    try { const src = readFileSync(path, 'utf8'); doc = kind === 'json' ? JSON.parse(src) : parseYaml(src); }
+    catch (e) { err(label, `${kind.toUpperCase()} parse failed (fail-closed): ${e.message}`); continue; }
+    for (const m of check(doc)) err(label, m);
   }
 }
 
