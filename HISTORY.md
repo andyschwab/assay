@@ -1040,3 +1040,19 @@ what the public engine learned.
   `sweep-gate`, `run-data` and `backlog` blocks were confirmed red against the
   old code, again with only the variance exit reverted (its two
   breach assertions), and with only validate's read-back reverted (five).
+- **2026-10-01 — the proxy and CA plumbing reaches the target's package
+  manager (#65).** Behind a TLS-intercepting proxy every `npm audit` was
+  recorded `failed` and fresh-clone's install timed out, because the #47
+  allow-list dropped the proxy settings. `map/child-env.mjs` now passes
+  `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`, `NODE_EXTRA_CA_CERTS` and
+  `SSL_CERT_FILE` through; a proxy URL carrying userinfo is a credential, so
+  it is dropped (the rest of the plumbing still passes) and every fresh-clone
+  step row and dependency-scan lockfile row run without it carries `env_note`
+  naming the variable and why. No flag. The `database-signals` fixture
+  installs a local stand-in for its Supabase dependency, so its install no
+  longer times out, SIGKILLs its shell and leaves npm orphaned writing
+  `tests/tmp-db-signals/` back after the cleanup. The `isolation` block pins
+  both branches (pass-through and drop) and was confirmed red against the old
+  code (six failures), the `database-signals` install assertion likewise; each
+  rule (the drop, the row note) was reverted alone and went red for its own
+  assertions. Goldens untouched.

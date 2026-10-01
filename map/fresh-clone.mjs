@@ -86,7 +86,7 @@ import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
-import { childEnv } from './child-env.mjs';
+import { childEnv, proxyDropNote } from './child-env.mjs';
 import { stripUserinfo } from './repo-census.mjs';
 
 export const VERSION = '0.4.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30)
@@ -390,10 +390,12 @@ export function runStep(name, command, cwd, timeoutSec) {
   const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: stepEnv(), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
   const duration_ms = Date.now() - started;
   const output_tail = tail(r.stdout);
-  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return { name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` };
-  if (r.error) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `could not spawn: ${r.error.message}` };
-  if (r.signal) return { name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `killed by ${r.signal}` };
-  const row = { name, status: r.status === 0 ? 'passed' : 'failed', command, exit_code: r.status, duration_ms, output_tail };
+  const envNote = proxyDropNote();   // #65: a proxy URL kept from the step is said on its row
+  const noted = (row) => envNote ? { ...row, env_note: envNote } : row;
+  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return noted({ name, status: 'timed-out', command, exit_code: null, duration_ms, output_tail, reason: `exceeded ${timeoutSec}s` });
+  if (r.error) return noted({ name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `could not spawn: ${r.error.message}` });
+  if (r.signal) return noted({ name, status: 'failed', command, exit_code: null, duration_ms, output_tail, reason: `killed by ${r.signal}` });
+  const row = noted({ name, status: r.status === 0 ? 'passed' : 'failed', command, exit_code: r.status, duration_ms, output_tail });
   if (name === 'test') {
     row.tests = parseTestCounts(r.stdout) || 'unparsed';
     const config = TEST_CONFIGS.find((f) => existsSync(join(cwd, f)));
