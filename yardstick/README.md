@@ -31,7 +31,11 @@ read. `d-dependencies-known-clean` reads not-measured on `no-lockfile` (a manife
 with dependencies that no lockfile covers) or `lockfile-not-audited` (a lockfile
 whose audit failed, or whose package manager was not on the runner): a lockfile
 nothing audited is not a clean one, and before that fact existed a run whose only
-lockfile went unaudited read met. A `claim`-kind row's own state can independently be `not-applicable`
+lockfile went unaudited read met. The four fresh-clone rows read not-measured on
+their steps' `<step>-not-run` facts (`test-not-run`, `lint-not-run`, …), which
+fresh-clone records for a step it skipped because the install did not pass: a
+step that never ran is not a clean one, and before that fact existed a
+repository whose install failed read met on tests, lint and typecheck. A `claim`-kind row's own state can independently be `not-applicable`
 (the owner is the only decider a claim row ever has, same as `satisfied`): see
 below.
 
