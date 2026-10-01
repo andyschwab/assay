@@ -1,0 +1,19 @@
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    A citation that names a file and no line.
+  evidence: [lib/agent.mjs]
+  confidence: confirmed
+
+- id: F-002
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    A citation written as a map instead of a path:line string.
+  evidence:
+    - path: lib/agent.mjs
+      lines: "1"
+  confidence: confirmed

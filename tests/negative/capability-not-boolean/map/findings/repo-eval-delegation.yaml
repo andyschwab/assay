@@ -1,0 +1,12 @@
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  observation: >
+    A context whose untrusted-input leg is stated as a word, not a boolean.
+  evidence: [a.py:1]
+  confidence: confirmed
+  capabilities:
+    untrusted_input: maybe
+    private_data: true
+    external_effect: false

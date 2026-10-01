@@ -1,0 +1,1 @@
+Negative fixture: validate with `--target target/`. F-001 cites lib/agent.mjs:2, which the three-line stub has; F-002 cites lib/agent.mjs:9 and F-003 the range lib/agent.mjs:2-7, which run past its end. validate must refuse a cited line the file does not have. `target/` holds inert stubs only.

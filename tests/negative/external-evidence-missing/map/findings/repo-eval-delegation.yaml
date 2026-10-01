@@ -1,0 +1,8 @@
+- id: F-001
+  dimension: delegation
+  polarity: fact
+  subject_type: process
+  observation: >
+    The base needs one native row beside the scanner row.
+  evidence: [a.py:1]
+  confidence: confirmed

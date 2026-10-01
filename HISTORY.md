@@ -878,3 +878,30 @@ what the public engine learned.
   and the `ci-workflow` install check were confirmed red against the old code
   (4 failures without gitleaks, 14 with it) before the change. Goldens
   untouched.
+- **2026-10-01 — the harness goes red when one of its own rules is removed, and
+  bless never reads green over red** (issue #52). Of eight validator rules
+  disabled one at a time, the harness had caught only filename-dimension
+  agreement; the evidence key, the `d-gates-fail-closed` decider (its
+  assertion sat behind a condition that was always false) and the canon check
+  were unpinned too; `--bless` rewrote `golden.json` and exited 0 before the
+  unit and negative failures were read; and `--target` checked only that a
+  cited file existed, never the line, while compile's gate never passed it.
+  Now every validator rule has a negative fixture red for its own reason
+  (`bad-polarity`, `effect-no-facet`, `effect-no-fail-mode`,
+  `halt-no-preconditions`, `capability-not-boolean`, `link-unknown`,
+  `unprompted-gap-no-axis`, `evidence-missing`, `external-evidence-missing`);
+  evidence entries must be `path:line` strings (`evidence-not-path-line`;
+  three older fixtures that cited a map were corrected); `--target` refuses a
+  cited line past the end of its file (`evidence-line-past-end`; the
+  `evidence-not-in-target` stubs are padded so only their missing file is
+  red); the yardstick drift check compares the id set, not only the count
+  (`yardstick-id-set`); `compile --target` forwards the target to its validate
+  gate and the routine passes it; validate's unheld-halt rule is
+  `map/doctrine.mjs`'s `isHalt`, not a restatement; and `--bless` refuses,
+  writing nothing and exiting 1, while any unit, negative or scorer failure
+  stands. New harness blocks `canon`, `run-layout` (the run's paths pinned
+  as literals), `compile-target` and `bless-guard`, and the
+  `d-gates-fail-closed` assertion made unconditional. Each was confirmed red
+  by disabling the rule or property it pins in a scratch copy (twenty
+  mutations, each red for its own reason; the environment scrub was already
+  pinned by the `isolation` block). Goldens untouched.

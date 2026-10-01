@@ -1,0 +1,8 @@
+- id: F-001
+  dimension: delegation
+  polarity: concern
+  subject_type: process
+  observation: >
+    A finding filed under a polarity the schema does not have.
+  evidence: [a.py:1]
+  confidence: confirmed
