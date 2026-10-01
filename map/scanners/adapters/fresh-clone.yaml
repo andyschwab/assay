@@ -6,7 +6,8 @@
 # step, a NOT-DECLARED floor step (lint, typecheck, test, migrate — absence is a
 # gap, never clean), or a MISSING README claim into one gap row each. A run where
 # every declared step passed and every claim is present is the explicit empty
-# map/findings/fresh-clone.yaml. Instruments never contribute an axis; these rows
+# map/findings/fresh-clone.yaml. A SKIPPED step (install broke) is one
+# `<step>-not-run` fact row, never silence. Instruments never contribute an axis; these rows
 # feed the axes the yardstick already homes the floor rows on
 # (yardstick/requirements.yaml): the reproducibility rows (d-fresh-clone-runs) on
 # context-economy, the verification-gate rows (d-tests-execute-core,
@@ -36,6 +37,20 @@ map:
     axis: deterministic-gates
   readme-claim:                 # the README is true, measured by replaying it
     axis: artifact-legibility
+  # a fact row per SKIPPED step (install broke, so it never ran): homed beside its step,
+  # it decides that step's requirement not measured (not_measured_when), never met
+  install-not-run:
+    axis: context-economy
+  build-not-run:
+    axis: context-economy
+  migrate-not-run:
+    axis: context-economy
+  lint-not-run:
+    axis: deterministic-gates
+  typecheck-not-run:
+    axis: deterministic-gates
+  test-not-run:
+    axis: deterministic-gates
 
 default: FAIL
 

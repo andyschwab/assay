@@ -921,3 +921,21 @@ what the public engine learned.
   passing and 3 skipped behind `DATABASE_URL`) and the `test-skips` block were
   confirmed red against the old code (12 failures, with `parseTestCounts`
   stubbed to null) before the change. Goldens untouched.
+- **2026-10-01 — a step that did not run reads not measured, never met** (issue
+  #30, the rest of the roadmap plan on it). When the install failed, fresh-clone
+  marked every later step `skipped`, ingest wrote no row for a skipped step, and
+  a category with no rows reads met: a repository whose install failed read met
+  on tests, lint, typecheck and migrations. Ingest now writes one
+  `<step>-not-run` fact row per skipped step, mapped beside its step, and the
+  four fresh-clone requirements name those facts in `decide.not_measured_when`
+  (the existing evidence-condition mechanism; a real gap in the category still
+  governs). The same pass closes three more ways a run that did not look read
+  clean: `--exit` must be digits (`Number('')` is 0, so an unset `$code` filed
+  an empty report as verified clean); the gitleaks profile refuses an exit code
+  that disagrees with its leak count, as the other instruments already did; and
+  the Owner view's lead reassures about custody, safety or the floor only when
+  no row there was could-not-tell, saying instead that who controls the app
+  could not be told. A new public fixture
+  (`tests/instruments/fresh-clone-install-fails`, a preinstall that exits 1)
+  and the `step-not-run` block were confirmed red against the old code (15
+  failures) before the change. Goldens untouched.

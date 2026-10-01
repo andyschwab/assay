@@ -176,7 +176,9 @@ credential census; git mode reads the history of the repository that
 CONTAINS its source, so `assay start` and the routine scan only a
 repository's own top level — a subdirectory of a larger checkout is recorded
 skipped with that reason, a directory in no repository is scanned in
-directory mode, and every reported path is relative to the target),
+directory mode, and every reported path is relative to the target; its exit
+code must agree with its report, 1 with leaks and 0 with none, or the intake
+halts),
 **fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
 **dependency-scan** (`adapters/dependency-scan.yaml`, §3c), and **repo-census**
 (`adapters/repo-census.yaml`, §3d). **OpenSSF Scorecard**
@@ -223,7 +225,12 @@ and one `test` gap (`test:skipped`) when the test step **passed with tests
 skipped** — the step stays `passed` (its exit code is honest) and the row states
 the share ("passed, but 3 of 5 tests (60%) were skipped in a clean checkout"),
 cites the test config (else the manifest) and names what the skipped tests need
-(a database, where the tree carries a database signal);
+(a database, where the tree carries a database signal). A **skipped** step (the
+install did not pass, so it was never attempted) is one `<step>-not-run` **fact**
+row (`test-not-run`, …), never silence: each fresh-clone requirement names its
+steps' facts in `decide.not_measured_when`, so a repository whose install fails
+reads `d-tests-execute-core` and `d-lint-typecheck-gate` not measured, never met.
+Gap rows are
 `High` for a failed or timed-out install / build / test, `Medium` otherwise. A
 clean run is the explicit empty `map/findings/fresh-clone.yaml`. Rows carry the
 command and exit code only, and the archived `map/raw/fresh-clone.json` drops every
@@ -232,7 +239,7 @@ drops a failed audit's stderr tail), so a value a build prints can never reach a
 findings base or the uploaded run. Categories land on the
 axes the yardstick already homes those floor rows on: install / build / migrate on
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
-on `artifact-legibility`.
+on `artifact-legibility`; each `<step>-not-run` fact lands beside its step.
 
 **Workspaces.** An npm-workspaces root is not one repository, it is
 several: a root that is only a workspaces shell (no scripts, no dependencies, no

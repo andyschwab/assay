@@ -6,8 +6,9 @@
 // hygiene checker). It never contributes an axis; its rows feed existing ones.
 // Two rules make the intake trustworthy (fail loud, never empty):
 //
-//   1. FAIL LOUD, NEVER EMPTY. The converter requires the tool's own exit code
-//      and halts on anything outside the tool's documented success set — a tool
+//   1. FAIL LOUD, NEVER EMPTY. The converter requires the tool's own exit code,
+//      as digits (an empty --exit is not 0), and halts on anything outside the
+//      tool's documented success set or disagreeing with the report — a tool
 //      that crashed must never read as "0 findings". Malformed or truncated
 //      input halts. A verified-clean run (success exit, empty report) writes an
 //      explicit zero-findings file recording that the instrument ran.
@@ -74,9 +75,13 @@ const PROFILES = {
       const leaks = JSON.parse(raw);
       return JSON.stringify(leaks.map((l) => Object.fromEntries(GITLEAKS_ARCHIVE_KEYS.filter((k) => l[k] !== undefined).map((k) => [k, k === 'Commit' ? String(l[k]).slice(0, 12) : l[k]]))), null, 1) + '\n';
     },
-    convert(raw, startId) {
+    convert(raw, startId, exitCode) {
       const leaks = parseJson(raw, 'gitleaks');
       if (!Array.isArray(leaks)) throw new Error('gitleaks report must be a JSON array');
+      // the exit code and the report agree (F-304), as fresh-clone / dependency-scan / repo-census
+      // already require: gitleaks exits 1 when it found leaks and 0 when it found none, so an
+      // exit 1 over an empty array (a truncated or foreign report) is not a verified-clean run
+      if ((exitCode === 1) !== (leaks.length > 0)) throw new Error(`gitleaks exited ${exitCode} but its report holds ${leaks.length} leak(s) — the report does not describe the run it is filed under (exit 1 means leaks found, 0 none)`);
       return leaks.map((l, i) => {
         for (const k of ['RuleID', 'File', 'StartLine']) {
           if (l[k] === undefined || l[k] === null || l[k] === '') throw new Error(`gitleaks leak ${i} missing ${k} (truncated report?)`);
@@ -212,7 +217,9 @@ const PROFILES = {
     // missing, anywhere. Both are successful RUNS. A crash of the runner itself exits
     // 2 and halts here.
     okExits: [0, 1],
-    // Rows: one gap per step that failed / timed out; one gap per NOT-DECLARED lint,
+    // Rows: one `<step>-not-run` FACT per step that was SKIPPED (install broke, so it never
+    // ran; the requirements' not_measured_when reads it as not measured, never met);
+    // one gap per step that failed / timed out; one gap per NOT-DECLARED lint,
     // typecheck, test, migrate (the floor descriptors are worded so absence is a gap,
     // never clean: no lint script is not a green lint); one gap per MISSING README
     // claim. A passing step yields no row — a clean run is the explicit empty file —
@@ -264,6 +271,21 @@ const PROFILES = {
           if (s.status === 'covered') {
             const by = s.covered_by;
             if (!by || typeof by.path !== 'string' || !by.path || typeof by.command !== 'string' || !by.command) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: covered with no covered_by path + command — coverage that names no covering step is not evidence (truncated report?)`);
+            continue;
+          }
+          // skipped (#30, F-1202): the step never ran (install broke), so it is neither a gap nor
+          // clean — a fact the fresh-clone requirements' not_measured_when names, so their
+          // category reads not measured instead of met by the silence of a step that did not run
+          if (s.status === 'skipped') {
+            rows.push({
+              id: fid(startId + n++),
+              source: 'fresh-clone',
+              native_id: `${ctx.idPrefix}${s.name}-not-run`,
+              native_category: `${s.name}-not-run`,
+              polarity: 'fact',
+              observation: `Fresh-clone step ${s.name}${ctx.inLabel} did not run${s.reason ? ': ' + oneLine(s.reason) : ''}; nothing was measured about whether a clean checkout can ${FC_VERB[s.name]}${ctx.inLabel}.`,
+              evidence: [ctx.manifest],
+            });
             continue;
           }
           // test counts (#30): the runner's own summary, or `unparsed`; a passed step that
@@ -618,8 +640,11 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
   const p = PROFILES[tool];
   if (!p) throw new Error(`unknown instrument "${tool}" (profiles: ${Object.keys(PROFILES).join(', ')})`);
   if (!p.exitless) {
+    // the raw digits only (F-1215): Number('') and Number(' ') are 0, so `--exit "$code"` with
+    // an unset variable would file an empty report as a verified-clean run; 0x1, 1e0, 1.0 and
+    // +1 are not what a shell's $? prints either
+    if (!/^\d+$/.test(String(exitCode))) throw new Error(`--exit must be the tool's actual exit code, as digits (got ${JSON.stringify(exitCode)}; fail-loud: a run without one cannot be trusted)`);
     const code = Number(exitCode);
-    if (!Number.isInteger(code)) throw new Error(`--exit must be the tool's actual exit code (fail-loud: a run without one cannot be trusted)`);
     if (!p.okExits.includes(code)) throw new Error(`${tool} exited ${code}, outside its success set [${p.okExits.join(', ')}] — a tool error must never read as "0 findings"`);
   }
   const start = startId ? Number(String(startId).replace(/^F-/, '')) : p.startId;
