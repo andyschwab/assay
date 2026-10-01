@@ -50,7 +50,7 @@ import { basename } from 'node:path';
 // The shared fail-closed loader: a sweep file this reader cannot parse HALTS the
 // measurement instead of being skipped — a silently dropped file would be
 // mis-read as variance, corrupting the very number this tool exists to produce.
-import { loadFindings } from './project.mjs';
+import { loadFindings, loadManifest, modelOf, REPO_EVAL_PASSES } from './project.mjs';
 import { isMain } from './doctrine.mjs';
 
 // identity tokens: the specific thing a finding is about — full evidence PATH (not basename)
@@ -77,12 +77,21 @@ export const groupKey = (f) => f.dimension || (f.source ? `source:${f.source}` :
 // A fact = a connected component under: same dimension + a shared identity token, matched only
 // ACROSS sweeps. Deterministic; used by the CLI and pinned by tests/regression.mjs.
 export function computeVariance(runDirs) {
-  return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)));
+  return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)), runDirs.map((d) => modelResolver(loadManifest(d))));
+}
+
+// A sweep's model of record per clustering bucket (SCHEMA.md §5a): a dimension reads
+// its repo-eval pass's model (else the row's), a `source:<id>` bucket that scanner's.
+// null where the run record names none — reported as such, never guessed.
+const PASS_OF_DIMENSION = Object.fromEntries(Object.entries(REPO_EVAL_PASSES).map(([p, d]) => [d, p]));
+export function modelResolver(manifest) {
+  return (g) => (String(g).startsWith('source:') ? modelOf(manifest, g.slice('source:'.length)) : modelOf(manifest, 'repo-eval', PASS_OF_DIMENSION[g]));
 }
 
 // The pure half — sweeps is an array of FINDINGS ARRAYS, so the measure is testable
-// without fixtures (same split as descriptorAgreement below).
-export function varianceFromSweeps(sweeps, names) {
+// without fixtures (same split as descriptorAgreement below). models (optional): one
+// resolver per sweep, bucket → model id | null, for the per-model-pair agreement.
+export function varianceFromSweeps(sweeps, names, models) {
   const N = sweeps.length;
   const nodes = [];
   sweeps.forEach((findings, ri) => { for (const f of findings || []) nodes.push({ run: ri, dim: groupKey(f), subj: f.subject_type || '-', ev: idTokens(f), obs: (f.observation || '').trim().replace(/\s+/g, ' ').slice(0, 90) }); });
@@ -109,8 +118,24 @@ export function varianceFromSweeps(sweeps, names) {
     const c = fs.filter((f) => f.runs.size === N).length;
     byDimension[d] = { core: c, union: fs.length, pct: Math.round(100 * c / fs.length) };
   }
+  // agreement per MODEL PAIR: for every pair of sweeps, a fact either caught agrees when
+  // both caught it; keyed by the two models of record that wrote its bucket in those
+  // sweeps, so a model change reads as its own row rather than blended into the whole.
+  const byModelPair = {};
+  if (models) {
+    const NONE = '(no model recorded)';
+    for (const fct of factList) for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+      if (!fct.runs.has(i) && !fct.runs.has(j)) continue;
+      const key = [models[i](fct.dim) || NONE, models[j](fct.dim) || NONE].sort().join(' × ');
+      const e = byModelPair[key] || (byModelPair[key] = { agree: 0, of: 0, pct: 0 });
+      e.of += 1;
+      if (fct.runs.has(i) && fct.runs.has(j)) e.agree += 1;
+    }
+    for (const e of Object.values(byModelPair)) e.pct = Math.round(100 * e.agree / e.of);
+  }
   return {
     sweeps: sweeps.map((_, i) => ({ name: (names && names[i]) || `sweep-${i}`, findings: nodes.filter((n) => n.run === i).length })),
+    byModelPair,
     N, union: union_, core, pct: union_ ? Math.round(100 * core / union_) : 0,
     byDimension,
     variant: factList.filter((f) => f.runs.size < N).sort((a, b) => a.runs.size - b.runs.size || String(a.dim).localeCompare(String(b.dim))),
@@ -235,6 +260,9 @@ function report(r) {
   console.log(`\n  by dimension (repeatable core / union facts = %):`);
   for (const [d, v] of Object.entries(r.byDimension))
     console.log(`    ${d.padEnd(22)} ${String(v.core).padStart(3)}/${String(v.union).padStart(3)}  ${String(v.pct + '%').padStart(5)}`);
+  console.log(`\n  by model pair (facts caught by both sweeps of a pair / caught by either, across every sweep pair):`);
+  for (const [k, v] of Object.entries(r.byModelPair).sort())
+    console.log(`    ${k.padEnd(40)} ${String(v.agree).padStart(3)}/${String(v.of).padStart(3)}  ${String(v.pct + '%').padStart(5)}`);
   console.log(`\n  variance detail (which sweeps caught each divergent fact):`);
   for (const f of r.variant) console.log(`    [${f.runs.size}/${r.N} · sweeps ${[...f.runs].sort().join(',')}] ${f.dim}/${f.subj}: ${f.sample}`);
   console.log('');
@@ -247,7 +275,7 @@ if (isMain(import.meta.url)) {
   const r = computeVariance(runs);
   const d = computeDescriptorAgreement(runs);
   if (process.argv.includes('--json')) console.log(JSON.stringify({
-    pct: r.pct, union: r.union, core: r.core, byDimension: r.byDimension,
+    pct: r.pct, union: r.union, core: r.core, byDimension: r.byDimension, byModelPair: r.byModelPair,
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
   }, null, 2));

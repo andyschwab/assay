@@ -29,7 +29,7 @@ import { writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
+import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, modelsLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
 import { loadDecisions, decideProjected } from '../map/decisions.mjs';
 import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '../yardstick/measure.mjs';
 import { buildRows } from './floor-fleet.mjs';
@@ -162,6 +162,7 @@ const sinceRow = sinceOk
   ? `\n- **Since** _(what changed?)_ — [\`SINCE.md\`](SINCE.md): compared against \`${basename(previousRun)}\`.`
   : '';
 
+const models = modelsLine(manifest, adapters);   // per scanner and per pass (SCHEMA.md §5a)
 const index = `---
 type: doc
 ${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "${runId} — evaluation package"
@@ -174,7 +175,7 @@ each axis its own posture; a requirement is met, unmet, mixed, or not measured
 — never priced, never graded pass/fail.
 
 **Scanners:** ${scannerLine(manifest, sources, adapters)} · **${projected.length} findings** · run ${runDate}${hasDecisions ? ' · owner triage applied (`owner/decisions.yaml`)' : ' · raw base (no triage)'}.
-
+${models ? `\n**Models of record:** ${models}.\n` : ''}
 ## The four views
 
 - **Intake** _(can this map be carried?)_ — [\`INTAKE.md\`](INTAKE.md): ${viewCount(intakeBuilt)} of the floor requirements.

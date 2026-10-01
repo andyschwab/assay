@@ -14,7 +14,7 @@ import {
   findingsDir, coverageDir, scannersPath, yardstickPath as runYardstickPath,
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
-  nativeReportPath, isRepoEvalPassFile, decisionsPath,
+  nativeReportPath, isRepoEvalPassFile, REPO_EVAL_PASS_PREFIX, decisionsPath,
 } from '../lib/run-layout.mjs';
 import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
 import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
@@ -36,7 +36,7 @@ const PRECONDITIONS = new Set(['prompt-injection','stolen-credential','malicious
 // absent is valid (the adapter projects it). The valid set is DERIVED from the
 // adapters — axes are scanner-contributed, so the vocab is open by design:
 // every axis any adapter contributes or maps to. See map/scanners/CONTRACT.md.
-const { loadAdapters, projectMulti } = await import('./project.mjs');
+const { loadAdapters, projectMulti, REPO_EVAL_PASSES } = await import('./project.mjs');
 const AXES = new Set();
 let ADAPTERS = {};
 try {
@@ -54,15 +54,7 @@ const LIKELIHOOD = new Set(['high','moderate','low']);
 // Ids are F-### unique within a run, carrying NO dimension meaning (decoupled 2026-08-05):
 // the `dimension` field + filename↔dimension agreement is the source of truth for a finding's
 // dimension. No per-dimension id bands, no fixed budget, no ceiling. See SCHEMA §3.
-const FILE_DIM = {
-  'repo-eval-legibility.yaml': 'artifact-legibility',
-  'repo-eval-context.yaml': 'context-economy',
-  'repo-eval-gates.yaml': 'deterministic-gates',
-  'repo-eval-verification.yaml': 'verification',
-  'repo-eval-delegation.yaml': 'delegation',
-  'repo-eval-improvement.yaml': 'improvement-loop',
-  'repo-eval-multiplayer.yaml': 'multiplayer',
-};
+const FILE_DIM = Object.fromEntries(Object.entries(REPO_EVAL_PASSES).map(([p, d]) => [`repo-eval-${p}.yaml`, d]));
 
 const errors = [];
 const err = (where, msg) => errors.push(`${where}: ${msg}`);
@@ -226,9 +218,28 @@ for (const file of passFiles) {
             err(at, `${row.status} needs a reason — a skip without one is indistinguishable from an omission`);
           if (row.model !== undefined && !(typeof row.model === 'string' && row.model.trim()))
             err(at, `model must be the model id the scanner ran on (a string), or absent`);
+          const spendOk = (v) => v === undefined || (typeof v === 'string' && v.trim()) || (Number.isInteger(v) && v >= 0);
+          if (!spendOk(row.spend)) err(at, `spend must be what the scanner's inference spent (a string with its unit, or a whole number), or absent`);
+          if (row.passes !== undefined) {
+            if (id !== 'repo-eval') err(at, `passes: is the built-in scanner's per-pass record; ${id} has no passes`);
+            else if (!row.passes || typeof row.passes !== 'object' || Array.isArray(row.passes)) err(at, `passes: must be a map of pass → { model, spend }`);
+            else for (const [p, v] of Object.entries(row.passes)) {
+              if (!REPO_EVAL_PASSES[p]) { err(`${at}:${p}`, `unknown pass — the built-in scanner's passes are ${Object.keys(REPO_EVAL_PASSES).join(', ')}`); continue; }
+              if (!v || typeof v !== 'object' || Array.isArray(v) || (v.model === undefined && v.spend === undefined)) { err(`${at}:${p}`, `a pass record carries model:, spend:, or both`); continue; }
+              if (v.model !== undefined && !(typeof v.model === 'string' && v.model.trim())) err(`${at}:${p}`, `model must be the model id the pass ran on (a string), or absent`);
+              if (!spendOk(v.spend)) err(`${at}:${p}`, `spend must be what the pass's inference spent (a string with its unit, or a whole number), or absent`);
+            }
+          }
           if (row.status === 'ran') {
-            if (row.model === undefined && id !== 'repo-eval' && ADAPTERS[id].role !== 'instrument')
-              warn(at, `no model: recorded for a judgment scanner — a repeat cannot separate model drift from method drift`);
+            if (row.model === undefined && ADAPTERS[id].role !== 'instrument') {
+              // repo-eval may record its model per pass instead: warn for the passes with none
+              const passes = row.passes && typeof row.passes === 'object' ? row.passes : {};
+              const bare = id === 'repo-eval' ? passFiles.filter(isRepoEvalPassFile).map((f) => f.slice(REPO_EVAL_PASS_PREFIX.length, -'.yaml'.length)).filter((p) => !(passes[p] && passes[p].model)) : [];
+              if (id !== 'repo-eval' || !Object.keys(passes).length)
+                warn(at, `no model: recorded for a judgment scanner — a repeat cannot separate model drift from method drift`);
+              else if (bare.length)
+                warn(at, `no model: recorded for pass(es) ${bare.join(', ')} of a judgment scanner — a repeat cannot separate model drift from method drift`);
+            }
             const explicitFile = passFiles.includes(`${id}.yaml`);
             if (!sourcesSeen.has(id) && !explicitFile)
               err(at, `status ran, but the base carries no rows from ${id} and no map/findings/${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty); if it did not run, record that: node assay.mjs record ${runDir} ${id} skipped --reason "<why>"`);
