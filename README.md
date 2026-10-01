@@ -132,7 +132,8 @@ node assay.mjs start --out <run> <target> [--allow-exec]
 #   pointed at the target repository; it drives the passes
 node assay.mjs ingest <run> --tool deep-code-review --raw dcr-report.yaml
 #   ingesting a report also flips that scanner's row to ran in map/scanners.yaml
-node assay.mjs record <run> repo-eval ran                          # or record one directly (no report to ingest)
+node assay.mjs record <run> repo-eval ran --model <id>             # or record one directly (no report to ingest)
+#   --pass <pass> records the model (and --spend) of one repo-eval pass
 node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed
 
 # measure and write every view from the same map

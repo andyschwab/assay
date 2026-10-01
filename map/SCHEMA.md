@@ -348,10 +348,33 @@ scanners:
     reason: "gitleaks binary not on PATH in the run container"
 ```
 
-A row may carry `model:`, the model id a judgment scanner ran on (deep-code-review, a
-census authored by a model). It is warned when a judgment scanner ran without one: a
-repeat cannot separate model drift from method drift. Deterministic instruments need
-none.
+A row may carry `model:`, the model id a judgment scanner ran on (repo-eval,
+deep-code-review, a census authored by a model), and `spend:`, what its inference spent,
+with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. The `repo-eval` row may
+also carry `passes:`, the same two fields per pass, keyed by the pass's file name
+(`map/findings/repo-eval-<pass>.yaml`), so a run can say which model wrote each pass:
+
+```yaml
+  repo-eval:
+    status: ran
+    model: "<model id>"            # the passes' default
+    spend: "180k tokens"
+    passes:
+      delegation:
+        model: "<another model id>"
+        spend: "22k tokens"
+```
+
+`node assay.mjs record <run> repo-eval ran --pass <pass> --model <id> [--spend "<text>"]`
+writes one pass; every record and ingest keeps the passes already recorded. A judgment
+scanner that ran with no model is warned, repo-eval included: a repeat cannot separate
+model drift from method drift. With a per-pass record and no row model, the warning names
+the passes present in the base that carry no model. Deterministic instruments need none.
+An unknown pass, a pass entry with neither field, or an empty `model:`/`spend:` is an
+error. INDEX.md (**Models of record**) and the report's colophon name the model and spend
+per scanner and per pass where recorded, and say `no model recorded` for a judgment
+scanner that has none; `node assay.mjs variance` reads them and reports fact agreement
+per model pair.
 
 Rules (`validate.mjs`, fail-closed; `views/compile.mjs` validates before it
 compiles anything):

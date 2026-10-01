@@ -991,3 +991,16 @@ what the public engine learned.
   confirmed red against the old code (37 failures), and again with only the
   yardstick rows reverted (6, reading met) and only the ingest change reverted
   (12).
+- **2026-10-01 — the run knows its lanes** (#56). The run record carries the
+  model and an optional `spend:` per scanner, and per repo-eval pass under a
+  `passes:` map (`record ... --pass <pass> --model <id> --spend "<text>"`;
+  every edit keeps recorded passes). The missing-model warning no longer
+  exempts repo-eval by name: the built-in scanner is a judgment scanner like
+  any other, and with a per-pass record the warning names the passes with no
+  model. INDEX.md prints **Models of record** and the report's colophon names
+  them, so a reader is told which model drafted findings, not only that assay
+  assembled them. `variance` reads each sweep's model of record, per pass,
+  and reports fact agreement per model pair. Goldens untouched. The
+  `model-of-record` block was confirmed red against the old code (20
+  failures), and again with only the repo-eval exemption restored (its two
+  assertions).
