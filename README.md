@@ -162,6 +162,7 @@ owner/           what a repository's owner supplies that no scan can
 routine/         the routine a stewarded repository runs on its own schedule (GitHub Actions template + driver)
 lib/             shared helpers
 tests/           the regression harness and the public scored fixtures
+RUNBOOK.md       releasing, re-blessing, restarting a routine, rolling back, the read token, restoring a baseline
 HISTORY.md       how the engine got here
 ```
 
