@@ -30,7 +30,7 @@ import { buildSupervision } from '../map/supervision.mjs';
 import { buildCapabilities } from '../map/capabilities.mjs';
 import { computeVariance } from '../map/variance.mjs';
 import { decideProjected, loadDecisions } from '../map/decisions.mjs';
-import { convert, coverageYaml, nextStart } from '../map/ingest.mjs';
+import { convert as convertRaw, coverageYaml, nextStart } from '../map/ingest.mjs';
 import { score } from '../map/score.mjs';
 import { buildGrades } from '../views/improve/maturity.mjs';
 import { descriptorAgreement, varianceFromSweeps, groupKey } from '../map/variance.mjs';
@@ -53,6 +53,13 @@ import { setScannerRow } from '../map/record.mjs';
 import { renderMd as renderSinceMd } from '../views/since.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+// (#53, F-1230) an instrument row carries no severity; the view layer computes its band.
+// Loaded dynamically so a missing module reads as failed assertions, not a crash.
+const VIEW_SEV = await import('../views/severity.mjs').catch(() => null);
+const viewSev = (r) => VIEW_SEV ? VIEW_SEV.severityOf(r) : '(no views/severity.mjs)';
+// every row any block below converts is kept, so the instrument-severity block can sweep them all
+const convertedRows = [];
+const convert = (...a) => { const rows = convertRaw(...a); convertedRows.push(...rows); return rows; };
 const ROOT = join(HERE, '..');            // repo root
 const GOLDEN = join(HERE, 'golden.json');
 const bless = process.argv.includes('--bless');
@@ -419,7 +426,7 @@ for (const [dir, what, expect, opts = {}] of NEGATIVE) {
   if (JSON.stringify(gl).includes('AKIAFAKE') || JSON.stringify(gl).includes('sk-FAKE')) fail('a matched secret value leaked into the converted rows — the converter must never copy Secret/Match');
   const sc = convert('scorecard', scRaw, 0);
   const by = Object.fromEntries(sc.map((r) => [r.native_category, r]));
-  if (by['Branch-Protection']?.polarity !== 'gap' || by['Branch-Protection']?.severity !== 'High') fail('a score-2 check must read gap/High');
+  if (by['Branch-Protection']?.polarity !== 'gap' || viewSev(by['Branch-Protection']) !== 'High') fail('a score-2 check must read gap, banded High by the view');
   if (by['CI-Tests']?.polarity !== 'strength') fail('a score-10 check must read strength');
   if (by['Dangerous-Workflow']?.evidence[0] !== '.github/workflows/deploy.yml:12') fail('a detail path must become the evidence');
   if (!sc.skipped || !sc.skipped.includes('Fuzzing')) fail('an N/A (-1) check must be skipped AND logged, never silent');
@@ -746,7 +753,7 @@ function adaptersOnce() { return loadAdapters(); }
     const dbRows = convert('fresh-clone', JSON.stringify(dbDoc), 1);
     if (!dbRows.some((r) => r.native_category === 'migrate')) fail('with a database in the tree, an undeclared migrate step is a gap');
     if (dbRows.some((r) => r.native_category === 'no-database-signal')) fail('with a database in the tree, no no-database-signal fact must be emitted');
-    if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every fresh-clone GAP row carries a severity and a fix');
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || r.severity || !viewSev(r))) fail('every fresh-clone GAP row carries a fix and no severity; the view bands it');
     if (rows.filter((r) => r.polarity === 'fact').some((r) => r.fix || r.severity)) fail('a fresh-clone FACT row carries neither severity nor fix (it is not a gap)');
     const claimRow = rows.find((r) => r.native_category === 'readme-claim');
     if (claimRow?.evidence[0] !== `README.md:${claims.deploy?.line}`) fail(`a missing claim must cite README.md:<line> (got ${claimRow?.evidence[0]})`);
@@ -757,7 +764,7 @@ function adaptersOnce() { return loadAdapters(); }
     // a failed install/build/test reads High; timed-out likewise; not-declared reads Medium
     const failedDoc = { ...doc, exit: 1, steps: doc.steps.map((s) => s.name === 'build' ? { ...s, status: 'failed', exit_code: 1 } : s.name === 'test' ? { ...s, status: 'timed-out', exit_code: null, reason: 'exceeded 1s' } : s) };
     const fr = Object.fromEntries(convert('fresh-clone', JSON.stringify(failedDoc), 1).map((r) => [r.native_category, r]));
-    if (fr.build?.severity !== 'High' || fr.test?.severity !== 'High' || fr.lint?.severity !== 'Medium') fail(`failed build / timed-out test read High, not-declared lint Medium (got ${fr.build?.severity}/${fr.test?.severity}/${fr.lint?.severity})`);
+    if (viewSev(fr.build) !== 'High' || viewSev(fr.test) !== 'High' || viewSev(fr.lint) !== 'Medium') fail(`failed build / timed-out test read High, not-declared lint Medium in the view (got ${viewSev(fr.build)}/${viewSev(fr.test)}/${viewSev(fr.lint)})`);
     if (!/exit 1/.test(fr.build?.observation || '')) fail('a failed step row carries the exit code in its observation');
     // (c) a runner crash halts; a document that disagrees with the exit code halts; truncation halts
     mustThrow('a runner crash (exit 2)', () => convert('fresh-clone', raw, 2));
@@ -832,7 +839,7 @@ function adaptersOnce() { return loadAdapters(); }
   if (skipRows.length !== 1) fail(`a passed test step with skips yields exactly one test row (got ${skipRows.length})`);
   const r = skipRows[0];
   if (r) {
-    if (r.polarity !== 'gap' || !r.severity || !r.fix) fail('the skipped-share row is a gap with a severity and a fix');
+    if (r.polarity !== 'gap' || r.severity || viewSev(r) !== 'Medium' || !r.fix) fail('the skipped-share row is a gap with a fix, banded Medium by the view');
     if (r.native_id !== 'test:skipped') fail(`the skipped-share row is keyed test:skipped (got ${r.native_id})`);
     if (!/passed, but 3 of 5 tests \(60%\) were skipped in a clean checkout/.test(r.observation)) fail(`the observation states the skipped share (got "${r.observation}")`);
     if (r.evidence?.[0] !== 'package.json:1') fail(`with no test config file, the row cites the manifest that declares the test script (got ${r.evidence?.[0]})`);
@@ -1041,13 +1048,13 @@ function adaptersOnce() { return loadAdapters(); }
   const rows = convert('dependency-scan', raw, 1);
   const cats = rows.map((r) => r.native_category).sort().join(',');
   if (cats !== 'high,lockfile-failed,lockfile-not-audited,lockfile-not-audited') fail(`convert must yield high + lockfile-failed gaps and a lockfile-not-audited fact for each of the failed and not-run lockfiles (got ${cats || '(none)'})`);
-  if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every dependency-scan gap carries a severity and a fix');
+  if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || r.severity || !viewSev(r))) fail('every dependency-scan gap carries a fix and no severity; the view bands it');
   if (rows.filter((r) => r.native_category === 'lockfile-not-audited').some((r) => r.polarity !== 'fact' || r.severity || r.fix)) fail('a lockfile-not-audited row is a fact: no severity, no fix');
   if (rows.some((r) => r.polarity === 'gap' && r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')) fail('a lockfile the instrument could not run on (its package manager unavailable) is the instrument\'s limit, never a gap against the target');
   if (!/pnpm is not available/.test(rows.find((r) => r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')?.observation || '')) fail('the not-run fact must carry the instrument\'s reason');
   const by = Object.fromEntries(rows.filter((r) => r.polarity === 'gap').map((r) => [r.native_category, r]));
-  if (by.high?.severity !== 'High') fail(`a high advisory must map severity High (got ${by.high?.severity})`);
-  if (by['lockfile-failed']?.severity !== 'Medium') fail('a failed lockfile reads severity Medium');
+  if (viewSev(by.high) !== 'High') fail(`a high advisory must read High in the view (got ${viewSev(by.high)})`);
+  if (viewSev(by['lockfile-failed']) !== 'Medium') fail('a failed lockfile reads Medium in the view');
   const legacy = convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [{ path: 'yarn.lock', status: 'not-supported', manager: 'yarn', reason: 'old document' }] }), 1);
   if (legacy.map((r) => `${r.native_category}/${r.polarity}`).join() !== 'lockfile-not-audited/fact') fail(`a document from before 0.2.0 (status not-supported) converts to the not-audited fact, not a gap (got ${legacy.map((r) => r.native_category + '/' + r.polarity).join()})`);
   if (by.high?.evidence[0] !== 'package-lock.json:1') fail(`an advisory row must cite its lockfile at :1 (got ${by.high?.evidence[0]})`);
@@ -1665,7 +1672,7 @@ function adaptersOnce() { return loadAdapters(); }
     if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'gap').length !== 1) fail('exactly one architecture-page gap row (apps/one)');
     if ((byNc['agent-contract'] || []).filter((r) => r.polarity === 'gap').length !== 2) fail('two agent-contract gap rows (root + apps/one)');
     if ((byNc['runbook'] || []).length !== 1 || byNc['runbook'][0].polarity !== 'gap') fail('one runbook gap row');
-    if ((byNc['ci-gate'] || []).length !== 1 || byNc['ci-gate'][0].polarity !== 'gap' || byNc['ci-gate'][0].severity !== 'High') fail(`ci-gate fail-open must read gap/High (got ${byNc['ci-gate']?.[0]?.polarity}/${byNc['ci-gate']?.[0]?.severity})`);
+    if ((byNc['ci-gate'] || []).length !== 1 || byNc['ci-gate'][0].polarity !== 'gap' || viewSev(byNc['ci-gate'][0]) !== 'High') fail(`ci-gate fail-open must read gap, banded High by the view (got ${byNc['ci-gate']?.[0]?.polarity}/${viewSev(byNc['ci-gate']?.[0] || {})})`);
     // the six evidence categories: native_category is the real, colon-bearing name;
     // one strength row (the pass), five gap rows (the rest)
     const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
@@ -1675,7 +1682,7 @@ function adaptersOnce() { return loadAdapters(); }
       const got = byNc[nc];
       if (!got || got.length !== 1 || got[0].polarity !== want) fail(`${nc} must convert to exactly one ${want} row (got ${JSON.stringify(got)})`);
     }
-    if (rows.filter((r) => r.polarity === 'gap').some((r) => r.native_category !== 'ci-gate' && r.severity !== 'Medium')) fail('every non-ci-gate gap must read Medium severity');
+    if (rows.filter((r) => r.polarity === 'gap').some((r) => r.native_category !== 'ci-gate' && viewSev(r) !== 'Medium')) fail('every non-ci-gate gap must read Medium in the view');
     if (rows.some((r) => !Array.isArray(r.evidence) || !r.evidence.length)) fail('every row needs at least one path:line');
     if (rows[0]?.id !== 'F-960') fail(`repo-census ids start at F-960 (got ${rows[0]?.id})`);
     // (c) a runner crash halts; a document that disagrees with the exit code halts; truncation halts
@@ -4064,9 +4071,9 @@ function adaptersOnce() { return loadAdapters(); }
   // two lockfiles: one single Critical advisory the roadmap will NOT cover, one
   // with two Medium advisories — two remedies, not three, not one per advisory.
   writeFileSync(join(tmp, 'map', 'findings', 'dependency-scan.yaml'), [
-    `- id: F-1000\n  source: dependency-scan\n  native_id: "GHSA-aaaa@lodash@apps/api/package-lock.json"\n  native_category: "critical"\n  polarity: gap\n  severity: Critical\n  observation: >\n    lodash in apps/api/package-lock.json is vulnerable to GHSA-aaaa (Critical).\n  evidence: [apps/api/package-lock.json:1]\n  fix: >\n    Upgrade lodash and regenerate apps/api/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
-    `- id: F-1001\n  source: dependency-scan\n  native_id: "GHSA-bbbb@axios@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  severity: Medium\n  observation: >\n    axios in apps/web/package-lock.json is vulnerable to GHSA-bbbb (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade axios and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
-    `- id: F-1002\n  source: dependency-scan\n  native_id: "GHSA-cccc@qs@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  severity: Medium\n  observation: >\n    qs in apps/web/package-lock.json is vulnerable to GHSA-cccc (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade qs and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
+    `- id: F-1000\n  source: dependency-scan\n  native_id: "GHSA-aaaa@lodash@apps/api/package-lock.json"\n  native_category: "critical"\n  polarity: gap\n  observation: >\n    lodash in apps/api/package-lock.json is vulnerable to GHSA-aaaa (Critical).\n  evidence: [apps/api/package-lock.json:1]\n  fix: >\n    Upgrade lodash and regenerate apps/api/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
+    `- id: F-1001\n  source: dependency-scan\n  native_id: "GHSA-bbbb@axios@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  observation: >\n    axios in apps/web/package-lock.json is vulnerable to GHSA-bbbb (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade axios and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
+    `- id: F-1002\n  source: dependency-scan\n  native_id: "GHSA-cccc@qs@apps/web/package-lock.json"\n  native_category: "moderate"\n  polarity: gap\n  observation: >\n    qs in apps/web/package-lock.json is vulnerable to GHSA-cccc (Medium).\n  evidence: [apps/web/package-lock.json:1]\n  fix: >\n    Upgrade qs and regenerate apps/web/package-lock.json; re-run dependency-scan and confirm the advisory is gone.\n`,
   ].join(''));
 
   // the authored roadmap absorbs F-900 (lint) only — F-901 (typecheck), both
@@ -4667,6 +4674,30 @@ for (const [key, dir] of SCORED) {
   rmSync(tmp, { recursive: true, force: true });
 }
 
+// ── instrument rows assert no severity; the views band them (#53, F-1230) ──────
+// Every row the blocks above converted from an instrument report (gitleaks, scorecard,
+// fresh-clone, dependency-scan, repo-census) carries no severity field: CLAUDE.md rule 1
+// keeps no exception for the bands. The projection every view reads hands the view the
+// band views/severity.mjs computes (the report rendering in intake-maintain-improve pins
+// it end to end over dependency-scan rows written with no severity).
+{
+  const fail = (m) => negFailures.push('instrument-severity: ' + m);
+  const INSTRUMENTS = ['gitleaks', 'scorecard', 'fresh-clone', 'dependency-scan', 'repo-census'];
+  const inst = convertedRows.filter((r) => INSTRUMENTS.includes(r.source));
+  for (const src of INSTRUMENTS) if (!inst.some((r) => r.source === src)) fail(`the sweep saw no ${src} row (the harness must convert at least one)`);
+  const carrying = inst.filter((r) => 'severity' in r);
+  if (carrying.length) fail(`an instrument row asserts a severity in the map (${carrying.length}, e.g. ${carrying.slice(0, 3).map((r) => `${r.source} ${r.native_id}: ${r.severity}`).join('; ')})`);
+  const { projected } = projectMulti(inst.filter((r) => r.polarity === 'gap'), adaptersOnce());
+  const unbanded = projected.filter((p) => p.source !== 'gitleaks' && !['Critical', 'High', 'Medium', 'Low'].includes(p.f.severity));
+  if (unbanded.length) fail(`every instrument gap but gitleaks must reach the views banded (${unbanded.length} not, e.g. ${unbanded.slice(0, 3).map((p) => `${p.source} ${p.f.native_id}`).join('; ')})`);
+  for (const [src, cat, sev] of [['scorecard', 'Branch-Protection', 'High'], ['dependency-scan', 'high', 'High'], ['dependency-scan', 'lockfile-failed', 'Medium'], ['repo-census', 'runbook', 'Medium']]) {
+    const p = projected.find((x) => x.source === src && x.f.native_category === cat);
+    if (!p || p.f.severity !== sev) fail(`the projection must hand the view ${src} ${cat} banded ${sev} (got ${p ? p.f.severity : 'no row'})`);
+  }
+  if (!projected.some((p) => p.source === 'repo-census' && p.f.native_category === 'ci-gate' && p.f.fail_open === true && p.f.severity === 'High')) fail('a fail-open ci-gate gap must carry the fail_open fact and reach the view banded High');
+  if (!projected.some((p) => p.source === 'fresh-clone' && /:(failed|timed-out)$/.test(p.f.native_id) && p.f.severity === 'High')) fail('a failed or timed-out fresh-clone step must reach the view banded High');
+}
+
 // ── bless / assert ────────────────────────────────────────────────────────────
 // The verdict of one harness run. --bless rewrites golden.json only when every unit and
 // negative invariant holds and every scored fixture graded; otherwise it refuses, writes
@@ -4712,6 +4743,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, run-record-lock, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, capabilities-blast, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, run-record-lock, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, instrument-severity, fixture-recall).`);
 }
 process.exit(v.exit);

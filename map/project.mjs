@@ -26,6 +26,7 @@ const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 // ── axis titles live in lib/display.mjs (AXIS_META, the one label home);
 //    re-exported here so projection consumers keep a single import site ───────
 import { axisTitle } from '../lib/display.mjs';
+import { severityOf } from '../views/severity.mjs';
 export { axisTitle };
 // canonical ordering: the seven native dimension axes in pass order, then the
 // known contributed axes; axes outside this list append sorted (deterministic).
@@ -239,7 +240,11 @@ export function rosterFor(adapters, sources, projected) {
 // a scanner that classified it itself.
 export function projectMulti(findings, adapters) {
   const unmapped = [], needsAxis = [], projected = [];
-  for (const f of findings) {
+  for (const raw of findings) {
+    // the severity a view reads: an instrument row's band is computed here, in the view
+    // layer (views/severity.mjs), never stored in the map (#53, F-1230)
+    const sev = severityOf(raw);
+    const f = sev === raw.severity ? raw : { ...raw, severity: sev };
     const src = f.source || 'repo-eval';
     const alsoFromFinding = explicitAlso(f);
     const ex = explicitAxis(f);
