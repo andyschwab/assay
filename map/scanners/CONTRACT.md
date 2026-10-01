@@ -230,8 +230,8 @@ install did not pass, so it was never attempted) is one `<step>-not-run` **fact*
 row (`test-not-run`, …), never silence: each fresh-clone requirement names its
 steps' facts in `decide.not_measured_when`, so a repository whose install fails
 reads `d-tests-execute-core` and `d-lint-typecheck-gate` not measured, never met.
-Gap rows are
-`High` for a failed or timed-out install / build / test, `Medium` otherwise. A
+Gap rows carry no severity; the views band them (`views/severity.mjs`): `High`
+for a failed or timed-out install / build / test, `Medium` otherwise. A
 clean run is the explicit empty `map/findings/fresh-clone.yaml`. Rows carry the
 command and exit code only, and the archived `map/raw/fresh-clone.json` drops every
 step's output tail and a URL target's userinfo (as `map/raw/dependency-scan.json`
@@ -343,7 +343,8 @@ lockfile failed, or any lockfile was not run; both are successful RUNS and
 `ingest.mjs --tool dependency-scan` accepts both. A crash of the runner itself
 exits `2` and halts the intake. The converter writes one gap row per advisory
 (`native_category` = its own severity — `critical | high | moderate | low |
-info` — mapped `Critical | High | Medium | Low | Low` respectively, evidence
+info` — which the views band `Critical | High | Medium | Low | Low` respectively
+(`views/severity.mjs`; the row itself asserts no severity), evidence
 the lockfile at `:1`), one gap (`lockfile-failed`) per failed lockfile, and one
 `lockfile-not-audited` **fact** per lockfile nothing audited (failed, or not-run).
 That fact holds `d-dependencies-known-clean` at not-measured unless a real critical
@@ -422,10 +423,11 @@ row in its own `<check>-unverifiable` category, never the check's own category, 
 the requirement it decides reads not-measured rather than a silent met; a
 `not-applicable` check (the same six, over a tree with no deployment signal —
 below) likewise yields a FACT row in its own `<check>-not-applicable` category,
-so the requirement reads not-applicable, never met by silence. `Medium`
-severity throughout, except a
-ci-gate gap from a fail-open step, which reads `High` — a gate that can be turned
-off from inside the workflow is worse than no gate recorded. Rows carry the
+so the requirement reads not-applicable, never met by silence. Rows carry no
+severity; the views band every gap `Medium` (`views/severity.mjs`), except a
+ci-gate gap from a fail-open step — recorded on the row as the fact `fail_open:
+true` — which reads `High`: a gate that can be turned off from inside the
+workflow is worse than no gate recorded. Rows carry the
 check's own evidence (`file:line`) or, where a check has nothing more specific to
 cite (an absent file, an absent workflow directory), a `<location>/:1`-style path
 into the target; every row carries at least one.

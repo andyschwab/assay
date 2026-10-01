@@ -53,7 +53,7 @@ import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
-import { setScannerRow } from './record.mjs';
+import { setScannerRow, updateRunRecord } from './record.mjs';
 import { stripUserinfo } from './repo-census.mjs';
 
 // The routine uploads the whole run, map/raw/ included, as a workflow artifact
@@ -103,8 +103,8 @@ const PROFILES = {
   scorecard: {
     startId: 750,
     okExits: [0],
-    // Score bands (the instrument profile's documented normalization):
-    //   >= 8 strength · 4-7 gap Medium · 0-3 gap High · -1 (N/A) skipped, logged.
+    // >= 8 strength · 0-7 gap · -1 (N/A) skipped, logged. The gap's severity band is the
+    // view's (views/severity.mjs), read from the score in native_id; the row asserts none.
     convert(raw, startId) {
       const rep = parseJson(raw, 'scorecard');
       if (!rep || !Array.isArray(rep.checks)) throw new Error('scorecard report has no checks[] (truncated report?)');
@@ -124,7 +124,6 @@ const PROFILES = {
           evidence: [detailPath || 'map/raw/scorecard.json:1'],
         };
         if (row.polarity === 'gap') {
-          row.severity = c.score <= 3 ? 'High' : 'Medium';
           row.fix = `Raise the ${c.name} score: follow the check's remediation guidance${c.documentation && c.documentation.url ? ` (${c.documentation.url})` : ''}.`;
         }
         rows.push(row);
@@ -301,7 +300,6 @@ const PROFILES = {
                 native_id: `${ctx.idPrefix}test:skipped`,
                 native_category: 'test',
                 polarity: 'gap',
-                severity: 'Medium',
                 observation: `Fresh-clone step test${ctx.inLabel} passed, but ${t.skipped} of ${total} tests (${Math.round(100 * t.skipped / total)}%) were skipped in a clean checkout (\`${oneLine(s.command || 'test')}\`); the pass covers the ${t.passed + t.failed} that ran, not the suite.`,
                 evidence: [s.test_config ? `${ctx.dir}${s.test_config}:1` : ctx.manifest],
                 fix: ctx.hasDbSignals ? FC_FIX_SKIPPED_DB : FC_FIX_SKIPPED,
@@ -336,7 +334,6 @@ const PROFILES = {
             native_id: `${ctx.idPrefix}${s.name}:${s.status}`,
             native_category: s.name,
             polarity: 'gap',
-            severity: (s.status === 'failed' || s.status === 'timed-out') && ['install', 'build', 'test'].includes(s.name) ? 'High' : 'Medium',
             observation,
             evidence: [ctx.manifest],
             fix: FC_FIX[s.name],
@@ -352,7 +349,6 @@ const PROFILES = {
             native_id: `${ctx.idPrefix}readme-claim@${ctx.readme}:${c.line}`,
             native_category: 'readme-claim',
             polarity: 'gap',
-            severity: 'Medium',
             observation: `README claims \`${oneLine(c.command)}\` (${ctx.readme}:${c.line})${ctx.inLabel} but the ${FC_CLAIM_NOUN[c.kind] || 'target'} it names does not exist in the tree; the README is not true of this checkout at that line.`,
             evidence: [`${ctx.readme}:${c.line}`],
             fix: `Make the README true: add the ${FC_CLAIM_NOUN[c.kind] || 'target'} the line claims, or correct the line to the command that exists; re-run fresh-clone and confirm the claim reads present.`,
@@ -432,7 +428,7 @@ const PROFILES = {
           const code = Number.isInteger(lf.npm_exit_code) ? lf.npm_exit_code : Number.isInteger(lf.exit_code) ? lf.exit_code : null;
           rows.push({
             id: fid(startId + n++), source: 'dependency-scan',
-            native_id: `lockfile-failed@${lf.path}`, native_category: 'lockfile-failed', polarity: 'gap', severity: 'Medium',
+            native_id: `lockfile-failed@${lf.path}`, native_category: 'lockfile-failed', polarity: 'gap',
             observation: `dependency-scan could not audit ${lf.path}${code !== null ? ` (${mgr} audit exited ${code})` : ''}${lf.reason ? ': ' + oneLine(lf.reason) : ''}; a tool error is never read as a clean lockfile.`,
             evidence,
             fix: `Fix what is blocking ${mgr} audit against ${lf.path} (registry reachability, a malformed lockfile, or a workspace root the package manager cannot resolve) and re-run dependency-scan until it reads audited.`,
@@ -454,7 +450,6 @@ const PROFILES = {
           rows.push({
             id: fid(startId + n++), source: 'dependency-scan',
             native_id: `${a.id}@${a.package}@${lf.path}`, native_category: a.severity, polarity: 'gap',
-            severity: DS_SEVERITY_MAP[a.severity],
             observation: `${a.package}${a.installed ? ` (installed ${oneLine(a.installed)})` : ''} in ${lf.path} is vulnerable to ${a.id} (${a.severity}${a.range ? `, range ${oneLine(a.range)}` : ''})${a.url ? ` — ${a.url}` : ''}.`,
             evidence,
             fix: `Upgrade ${a.package} to a version outside ${a.range ? oneLine(a.range) : 'the vulnerable range'} (${mgr} audit reports a fix available: ${a.fix_available ? 'yes' : 'no'}) and regenerate ${lf.path}; re-run dependency-scan and confirm the advisory is gone.`,
@@ -534,7 +529,7 @@ const PROFILES = {
             native_id: `${c.name}@${nativeLoc}`,
             native_category: c.name,
             polarity: 'gap',
-            severity: c.name === 'ci-gate' && failOpen.length ? 'High' : 'Medium',
+            ...(c.name === 'ci-gate' && failOpen.length ? { fail_open: true } : {}),
             observation: oneLine(c.observation),
             evidence,
             fix: RC_FIX[c.name],
@@ -599,7 +594,6 @@ const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'En
 // dependency-scan vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const DS_STATUS = ['audited', 'failed', 'not-run', 'not-supported'];   // not-supported: documents from before 0.2.0
 const DS_SEVERITIES = ['critical', 'high', 'moderate', 'low', 'info'];
-const DS_SEVERITY_MAP = { critical: 'Critical', high: 'High', moderate: 'Medium', low: 'Low', info: 'Low' };
 // fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
@@ -718,6 +712,7 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
     out.push(`  native_category: ${q(esc(r.native_category))}`);
     out.push(`  polarity: ${r.polarity}`);
     if (r.severity) out.push(`  severity: ${r.severity}`);
+    if (r.fail_open) out.push(`  fail_open: true`);
     out.push(`  observation: >`, `    ${esc(r.observation)}`);
     out.push(`  evidence: [${r.evidence.map((e) => q(esc(e))).join(', ')}]`);   // quoted: a path may hold a comma or a ` #`
     if (r.fix) out.push(`  fix: >`, `    ${esc(r.fix)}`);
@@ -804,9 +799,7 @@ if (isMain(import.meta.url)) {
   // exactly today's behavior.
   const mPath = scannersPath(runDir);
   if (existsSync(mPath)) {
-    const before = readFileSync(mPath, 'utf8');
-    const { text: after } = setScannerRow(before, tool, 'ran', { model: model ?? undefined });
-    writeFileSync(mPath, after);
+    updateRunRecord(mPath, (before) => setScannerRow(before, tool, 'ran', { model: model ?? undefined }).text);
     console.log(`✓ recorded ${tool} ran in map/scanners.yaml`);
   }
 }

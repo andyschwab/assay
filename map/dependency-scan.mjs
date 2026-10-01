@@ -40,7 +40,7 @@
 // read as clean — a tool that errored must never read as "0 findings". A
 // lockfile `not-run` (its package manager unavailable) is never clean either. A package.json
 // that declares real dependencies with NO lockfile (npm or otherwise) covering
-// it — in its own directory or any ancestor up to the scan root — is recorded
+// it — in its own directory, or in an ancestor whose workspaces include it — is recorded
 // in `manifests` (`status: no-lockfile`): zero lockfiles audited is never read
 // as clean (`yardstick/requirements.yaml` `d-dependencies-known-clean` reads
 // not-measured over it, "no lockfile: nothing to audit", never met; a lockfile
@@ -67,6 +67,7 @@ import { join, resolve, isAbsolute, dirname, relative, basename } from 'node:pat
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
+import { readPnpmWorkspace, workspaceGlobRe } from './fresh-clone.mjs';
 
 export const VERSION = '0.2.0';   // 0.2.0: pnpm + yarn classic audited; `not-supported` became `not-run`
 export const LOCK_STATUS = ['audited', 'failed', 'not-run'];
@@ -134,17 +135,37 @@ export function findManifests(root) {
 }
 // A manifest is "covered" when a lockfile (npm or otherwise — any lockfile is
 // evidence something tracked its dependency graph, even one this instrument
-// cannot itself audit) sits in its own directory or any ancestor directory up
-// to the scan root — the same resolution npm itself walks for `npm ci`.
+// cannot itself audit) sits in its own directory, or in an ancestor directory
+// up to the scan root whose declared workspaces include the manifest's
+// directory (`workspaces` in that ancestor's package.json, an array or
+// `{packages: [...]}`, else pnpm-workspace.yaml's `packages:` with its `!`
+// exclusions). A lockfile above a manifest its workspaces do not name covers
+// nothing: npm never audits that manifest from there (#53, F-1212).
 export function isCoveredByLockfile(manifestDir, root, lockDirs) {
-  let d = resolve(manifestDir), stop = resolve(root);
-  for (;;) {
-    if (lockDirs.has(d)) return true;
-    if (d === stop) return false;
+  const own = resolve(manifestDir), stop = resolve(root);
+  if (lockDirs.has(own)) return true;
+  let d = own;
+  while (d !== stop) {
     const parent = dirname(d);
     if (parent === d) return false;
     d = parent;
+    if (lockDirs.has(d) && workspacesInclude(d, relative(d, own).split('\\').join('/'))) return true;
   }
+  return false;
+}
+// the ancestor's own declared workspace globs, never the apps/* + packages/* convention
+function workspacesInclude(dir, rel) {
+  let include = [], exclude = [];
+  const pw = readPnpmWorkspace(dir);
+  if (pw && pw.include.length) ({ include, exclude } = pw);
+  else {
+    let pkg = null;
+    try { pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8').replace(/^\uFEFF/, '')); } catch { pkg = null; }
+    const ws = pkg && pkg.workspaces;
+    include = Array.isArray(ws) ? ws : (ws && typeof ws === 'object' && Array.isArray(ws.packages)) ? ws.packages : [];
+  }
+  const hit = (p) => workspaceGlobRe(String(p).replace(/\/+$/, '')).test(rel);
+  return include.some(hit) && !exclude.some(hit);
 }
 
 // ── read installed version(s) of a package straight out of the lockfile itself ─
