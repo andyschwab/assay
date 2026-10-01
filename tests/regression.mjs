@@ -3727,8 +3727,9 @@ function adaptersOnce() { return loadAdapters(); }
 
 // ── isolation (#47): the target's code never runs with the evaluator's environment ──
 // fresh-clone and dependency-scan spawn the target's package manager. Pinned: (a) a child
-// of either instrument sees only the allow-listed environment names — PATH, HOME, CI and
-// the npm_config_* values the runner sets — never a credential the evaluator's shell holds;
+// of either instrument sees only the allow-listed environment names — PATH, HOME, CI, the
+// npm_config_* values the runner sets and the proxy/CA plumbing (#65), a proxy URL carrying
+// userinfo dropped with the reason on the row — never a credential the evaluator's shell holds;
 // (b) every audit runs in a scratch directory holding only the manifest and the lockfile,
 // so a planted .yarnrc (yarn-path → the target's own script) never runs and cannot forge
 // a clean audit; (c) `assay start <target>` runs fresh-clone (the target's install,

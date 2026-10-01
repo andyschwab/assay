@@ -154,9 +154,13 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   target's code: fresh-clone runs its install (lifecycle scripts included) and
   its declared scripts; dependency-scan runs its package manager's audit. Every
   child either spawns gets the environment of `map/child-env.mjs` — `PATH`,
-  `HOME`, `CI` and the `npm_config_*` values the instrument itself sets — and
-  nothing else: no token, cloud key, agent socket or `DATABASE_URL` of the
-  evaluator's reaches the target. Every audit runs in a scratch directory
+  `HOME`, `CI`, the `npm_config_*` values the instrument itself sets and the
+  network plumbing (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`,
+  `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`; #65) — and nothing else: no token,
+  cloud key, agent socket or `DATABASE_URL` of the evaluator's reaches the
+  target. A proxy URL carrying userinfo (`user:pass@`) is a credential: it is
+  dropped, and every step or lockfile row run without it carries `env_note`
+  saying which and why. Every audit runs in a scratch directory
   holding only one lockfile and its `package.json`, never in the target's tree,
   so the package manager loads none of the target's own configuration (an
   `.npmrc` naming a registry, a yarn classic `.yarnrc` whose `yarn-path` runs a
