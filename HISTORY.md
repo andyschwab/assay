@@ -781,6 +781,22 @@ what the public engine learned.
   `CLAUDE.md` citation, the corrected pointers and repo-census's own reading of
   this repository to the code; it was confirmed red against the old documents
   and with each rule reverted. Goldens untouched.
+- **2026-10-01 — text from the evaluated repository stays data** (#50, item 4
+  of the take-on roadmap). A handoff fence now closes only on `>>> <tag>`, the
+  tag a hash of the run's scanner text (reproducible per run; no text can carry
+  the hash it is fenced with), and a `<<<`/`>>>` run inside fenced text is
+  spaced out, so an observation opening with the marker stays inside its fence.
+  Evidence paths render as code spans one backtick longer than any run in the
+  path (`lib/display.mjs` `mdCode`). A roadmap `slug` must match
+  `^[a-z0-9-]+$`: `validate.mjs` errors on any other and the handoff halts
+  before writing (it names a plan file; `../` once wrote outside `handoff/`).
+  One escape helper (`lib/display.mjs` `mdText`) makes packet answers,
+  observations and reason strings inert Markdown in INTAKE, SINCE, OWNER and
+  the handoff's unfenced `FINDINGS.md`. The owner block's YAML quotes every
+  free-text scalar and writes free-text lists as block sequences (a quoted
+  flow list split on its commas when read back). A `handoff-text-is-data`
+  harness block pins all of it; it was confirmed red with each rule reverted.
+  Goldens untouched.
 - **2026-10-01 — the target's code runs with nothing of the evaluator's
   (#47).** fresh-clone ran the target's install, lifecycle scripts and test
   with the evaluator's whole environment minus `DATABASE_URL`, and

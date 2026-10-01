@@ -557,7 +557,7 @@ strengths:                  # [{title, body}]
     body: >
       …
 roadmap:                    # each item ALSO carries the decision structure the plan prompts use
-  - slug: audit-logs        # the plan filename (handoff/plan/NN-slug.md)
+  - slug: audit-logs        # the plan filename (handoff/plan/NN-slug.md); ^[a-z0-9-]+$
     title: "…"
     body: >                 # the item summary (report §6 + plan "The item")
       …
@@ -592,7 +592,9 @@ the item carries no `assumptions`, `question` or recommended option; `validate.m
 (non-fatally) on any `questions:` use. `validate.mjs` fails closed on a malformed new field,
 naming the item's slug: `assumptions` a list of non-empty strings; `question` an object with
 non-empty string `text` and `recommended` and a boolean `blocking` when present; `recommended`
-a boolean on at most one option.
+a boolean on at most one option. A `slug` (or the `item-N` default) must match `^[a-z0-9-]+$`:
+it names the plan file, and a path segment would write outside `handoff/`; `validate.mjs`
+and the handoff both fail closed on any other.
 
 Otherwise not validator-enforced (authored prose), but the compilers depend on the shape: `roadmap[]`
 items need `slug` + `findings` for the plan files, and every `channel_notes` key must be an

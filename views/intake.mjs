@@ -20,6 +20,7 @@ import { loadYardstick, loadContradictions, loadRunPacket } from '../yardstick/m
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { viewPath, intakePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
+import { mdText as t } from '../lib/display.mjs';
 
 // ── "What the owner told us" — facts from the run's own packet, never a verdict ──
 const yn3 = (v) => (v === 'yes' || v === 'no' || v === 'unsure' ? v : 'unknown');   // the packet's four answers; 'unsure' is the owner's partial knowledge, never folded into unknown
@@ -87,7 +88,8 @@ export function annotateCredentialsRow(built, owner) {
 }
 
 const oq = (s) => `"${String(s == null ? '' : s).replace(/"/g, '\\"')}"`;
-const flow = (arr) => `[${(arr || []).map((s) => oq(s)).join(', ')}]`;
+// a free-text list as a block sequence at `indent`: a flow list's commas split an item on read-back
+const seq = (arr, indent) => ((arr || []).length ? (arr || []).map((s) => `\n${indent}- ${oq(s)}`).join('') : ' []');
 export function ownerYaml(owner) {
   if (!owner) return 'owner: null\n';
   const L = ['owner:'];
@@ -96,19 +98,19 @@ export function ownerYaml(owner) {
   L.push('    transferable:', `      yes: ${owner.accounts.transferable.yes}`, `      no: ${owner.accounts.transferable.no}`, `      unsure: ${owner.accounts.transferable.unsure}`, `      unknown: ${owner.accounts.transferable.unknown}`);
   if (owner.accounts.rows.length) {
     L.push('    rows:');
-    for (const r of owner.accounts.rows) L.push(`      - what: ${oq(r.what)}`, `        provider: ${oq(r.provider)}`, `        owner_role: ${oq(r.owner_role)}`, `        personal_or_organisational: ${r.personal_or_organisational}`, `        transferable: ${r.transferable}`);
+    for (const r of owner.accounts.rows) L.push(`      - what: ${oq(r.what)}`, `        provider: ${oq(r.provider)}`, `        owner_role: ${oq(r.owner_role)}`, `        personal_or_organisational: ${oq(r.personal_or_organisational)}`, `        transferable: ${oq(r.transferable)}`);
   } else L.push('    rows: []');
-  L.push('  credentials:', `    count: ${owner.credentials.count}`, `    lives: ${flow(owner.credentials.lives)}`, `    never_rotated: ${owner.credentials.never_rotated}`, `    rotation_unknown: ${owner.credentials.rotation_unknown}`, `    readers: ${flow(owner.credentials.readers)}`);
+  L.push('  credentials:', `    count: ${owner.credentials.count}`, `    lives:${seq(owner.credentials.lives, '      ')}`, `    never_rotated: ${owner.credentials.never_rotated}`, `    rotation_unknown: ${owner.credentials.rotation_unknown}`, `    readers:${seq(owner.credentials.readers, '      ')}`);
   if (owner.credentials.rows.length) {
     L.push('    rows:');
-    for (const r of owner.credentials.rows) L.push(`      - name: ${oq(r.name)}`, `        lives: ${oq(r.lives)}`, `        readers: ${r.readers === null ? 'null' : flow(r.readers)}`, `        rotated: ${oq(r.rotated)}`);
+    for (const r of owner.credentials.rows) L.push(`      - name: ${oq(r.name)}`, `        lives: ${oq(r.lives)}`, `        readers:${r.readers === null ? ' null' : seq(r.readers, '          ')}`, `        rotated: ${oq(r.rotated)}`);
   } else L.push('    rows: []');
   L.push('  people:');
-  L.push(`    build: ${owner.people.build === null ? 'null' : flow(owner.people.build)}`);
-  L.push(`    deploy: ${owner.people.deploy === null ? 'null' : flow(owner.people.deploy)}`);
-  L.push(`    restore: ${owner.people.restore === null ? 'null' : flow(owner.people.restore)}`);
-  L.push(`    restore_done: ${owner.people.restore_done}`);
-  L.push('  data:', `    personal: ${oq(owner.data.personal)}`, `    leaves_via: ${flow(owner.data.leaves_via)}`);
+  L.push(`    build:${owner.people.build === null ? ' null' : seq(owner.people.build, '      ')}`);
+  L.push(`    deploy:${owner.people.deploy === null ? ' null' : seq(owner.people.deploy, '      ')}`);
+  L.push(`    restore:${owner.people.restore === null ? ' null' : seq(owner.people.restore, '      ')}`);
+  L.push(`    restore_done: ${oq(owner.people.restore_done)}`);
+  L.push('  data:', `    personal: ${oq(owner.data.personal)}`, `    leaves_via:${seq(owner.data.leaves_via, '      ')}`);
   if (owner.money.monthly.length) {
     L.push('  money:', '    monthly:');
     for (const m of owner.money.monthly) L.push(`      - provider: ${oq(m.provider)}`, `        amount: ${oq(m.amount)}`);
@@ -127,23 +129,23 @@ export function renderOwnerSection(owner) {
     out.push("_No owner's packet yet: the owner prompt (`assay.mjs ask-owner`) collects these._", '');
     return out;
   }
-  const roleLine = (v) => (v === null ? 'unknown' : v.length ? v.join(', ') : 'nobody');
+  const roleLine = (v) => (v === null ? 'unknown' : v.length ? v.map(t).join(', ') : 'nobody');
   const a = owner.accounts;
   out.push(`- **Accounts** — ${a.count} total: ${a.personal} personal, ${a.organisational} organisational. Transferable: ${a.transferable.yes} yes, ${a.transferable.no} no, ${a.transferable.unsure} unsure, ${a.transferable.unknown} unknown.`);
-  for (const r of a.rows) out.push(`  - ${r.what} (${r.provider}) — owner: ${r.owner_role}, ${r.personal_or_organisational}, transferable: ${r.transferable}.`);
+  for (const r of a.rows) out.push(`  - ${t(r.what)} (${t(r.provider)}) — owner: ${t(r.owner_role)}, ${r.personal_or_organisational}, transferable: ${r.transferable}.`);
   const c = owner.credentials;
   out.push(`- **Credentials** — ${c.count} total. Never rotated: ${c.never_rotated}; rotation unknown: ${c.rotation_unknown}.`);
-  for (const r of c.rows) out.push(`  - ${r.name} — lives: ${r.lives}; readers: ${r.readers === null ? 'unknown' : r.readers.length ? r.readers.join(', ') : 'nobody'}; rotated: ${r.rotated}.`);
+  for (const r of c.rows) out.push(`  - ${t(r.name)} — lives: ${t(r.lives)}; readers: ${r.readers === null ? 'unknown' : r.readers.length ? r.readers.map(t).join(', ') : 'nobody'}; rotated: ${t(r.rotated)}.`);
   const p = owner.people;
   out.push(`- **People** — build: ${roleLine(p.build)}. deploy: ${roleLine(p.deploy)}. restore: ${roleLine(p.restore)}. Restore ever done: ${p.restore_done}.`);
   const d = owner.data;
-  out.push(`- **Data** — personal data: ${d.personal}. Leaves via: ${d.leaves_via.length ? d.leaves_via.join(', ') : 'unknown'}.`);
+  out.push(`- **Data** — personal data: ${t(d.personal)}. Leaves via: ${d.leaves_via.length ? d.leaves_via.map(t).join(', ') : 'unknown'}.`);
   const m = owner.money;
-  out.push(`- **Money** — ${m.monthly.length ? m.monthly.map((x) => `${x.provider}: ${x.amount}`).join('; ') : 'unknown'}. Alerts: ${m.alerts}.`);
-  out.push(`- **Handover** — ${owner.handover}.`);
-  if (owner.notes) out.push(`- **Notes** — ${owner.notes}`);
+  out.push(`- **Money** — ${m.monthly.length ? m.monthly.map((x) => `${t(x.provider)}: ${t(x.amount)}`).join('; ') : 'unknown'}. Alerts: ${t(m.alerts)}.`);
+  out.push(`- **Handover** — ${t(owner.handover)}.`);
+  if (owner.notes) out.push(`- **Notes** — ${t(owner.notes)}`);
   out.push('');
-  if (owner.answered) out.push(`_Answered ${owner.answered.date} by ${owner.answered.by}, via ${owner.answered.via}._`, '');
+  if (owner.answered) out.push(`_Answered ${t(owner.answered.date)} by ${t(owner.answered.by)}, via ${t(owner.answered.via)}._`, '');
   return out;
 }
 
@@ -159,26 +161,26 @@ export function renderMd(runId, built, confidential = false, contradictions = []
 
   out.push('## Open', '');
   if (open.length) {
-    for (const r of open) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. Today: ${r.status}${basisNote(r)}${r.of != null ? ` (${r.met} of ${r.of})` : ''} — ${r.note}. Proving check: ${r.check}.`);
+    for (const r of open) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. Today: ${r.status}${basisNote(r)}${r.of != null ? ` (${r.met} of ${r.of})` : ''} — ${t(r.note)}. Proving check: ${r.check}.`);
   } else out.push('_Nothing open._');
   out.push('');
 
   out.push('## Met', '');
   if (met.length) {
-    for (const r of met) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${r.note} (met${basisNote(r)}).`);
+    for (const r of met) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${t(r.note)} (met${basisNote(r)}).`);
   } else out.push('_Nothing met yet._');
   out.push('');
 
   out.push('## To run', '');
   if (to_run.length) {
-    for (const r of to_run) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. Decided by ${r.decided_by}. Proving check: ${r.check}. ${r.note}`);
+    for (const r of to_run) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. Decided by ${r.decided_by}. Proving check: ${r.check}. ${t(r.note)}`);
   } else out.push('_Nothing left to run._');
   out.push('');
 
   out.push('## Not applicable', '');
   out.push('_Decided from the map, never a packet claim — listed separately, never counted as met._', '');
   if (not_applicable.length) {
-    for (const r of not_applicable) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${String(r.note || '').replace(/\.$/, '')}${basisNote(r)}.`);
+    for (const r of not_applicable) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${t(String(r.note || '').replace(/\.$/, ''))}${basisNote(r)}.`);
   } else out.push('_None._');
   out.push('');
 
@@ -192,7 +194,7 @@ export function renderMd(runId, built, confidential = false, contradictions = []
 
   out.push('## Not seen this run', '');
   if (not_seen.length) {
-    for (const r of not_seen) out.push(`- **${r.scanner}** — ${r.status}: ${r.reason}`);
+    for (const r of not_seen) out.push(`- **${r.scanner}** — ${r.status}: ${t(r.reason)}`);
   } else out.push('_Every adopted scanner ran._');
   out.push('');
 
