@@ -239,7 +239,7 @@ export function workspaceGlobRe(pattern) {
 }
 
 // where the workspace list came from — recorded so a reader can check it
-export function workspaceSource(dir, pkg) {
+function workspaceSource(dir, pkg) {
   const pw = readPnpmWorkspace(dir);
   if (pw && pw.include.length) return 'pnpm-workspace.yaml';
   if (pkg && pkg.workspaces && (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces.packages))) return 'package.json';
@@ -271,7 +271,7 @@ const NOT_DECLARED = (reason) => ({ status: 'not-declared', command: null, reaso
 const MIGRATE_NAMES = ['migrate', 'db:migrate'];
 const MIGRATE_DRY_NAMES = ['migrate:dry', 'migrate:dry-run', 'migrate:check', 'migrate:status', 'db:migrate:dry', 'db:migrate:dry-run', 'db:migrate:check', 'db:migrate:status'];
 
-export function planSteps(toolchain, pkg) {
+function planSteps(toolchain, pkg) {
   const plan = /** @type {Record<string, any>} */ ({});
   if (toolchain.family !== 'node' || !pkg) {
     const why = toolchain.package_json_error || (toolchain.family === 'none' ? 'no package.json in the tree' : `${toolchain.family} family: not supported by this runner`);
@@ -404,7 +404,7 @@ export function runStep(name, command, cwd, timeoutSec) {
   return row;
 }
 
-export function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
+function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
   const out = [];
   let installBroken = null;
   for (const name of STEPS) {
@@ -482,7 +482,7 @@ const discoversTree = (cmd) => {
   return !toks.some((t) => !t.startsWith('-') && t.includes('/'));
 };
 const SCRIPT_REF_RE = /^(?:npm|pnpm|yarn)\s+(?:run\s+)?([\w:.-]+)\s*$/;
-export function rootCovers(root, step, rootToolchain, wsRelPath) {
+function rootCovers(root, step, rootToolchain, wsRelPath) {
   const st = Array.isArray(root.steps) ? root.steps.find((x) => x.name === step) : null;
   if (!st || st.status !== 'passed') return null;       // only a root step that ran and passed covers anything
   const scripts = (root.pkg && root.pkg.scripts) || {};
@@ -505,12 +505,12 @@ export function rootCovers(root, step, rootToolchain, wsRelPath) {
   return { command: st.command, via: r.via, why: `the root's passing \`${st.command}\` (\`${r.part}\`) ${why}, ${wsRelPath} included` };
 }
 const MIGRATE_SCRIPT_RE = /prisma\s+migrate\s+deploy|knex\s+migrate:latest/;
-export function declaresMigrate(pkg) {
+function declaresMigrate(pkg) {
   const scripts = (pkg && pkg.scripts) || {};
   return MIGRATE_NAMES.find((n) => scripts[n] !== undefined) || Object.keys(scripts).find((n) => MIGRATE_SCRIPT_RE.test(String(scripts[n]))) || null;
 }
 
-export function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {}), root = null) {
+function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {}), root = null) {
   const wsDir = join(workDir, wsRelPath);
   const { toolchain, pkg } = detectToolchain(wsDir);
   const plan = planWorkspace(rootToolchain, toolchain, pkg, wsRelPath, root);
@@ -527,7 +527,7 @@ export function findReadme(dir) {
 }
 // the claim grammar — one line, one claim; a leading shell prompt is not part of it
 const CLAIM_RE = /^(?:\$\s+|>\s+)?(npm run (\S+)|npm test\b|npx (\S+)|node (\S+)|make (\S+))/;
-export function parseReadmeClaims(text) {
+function parseReadmeClaims(text) {
   const claims = /** @type {any[]} */ ([]);
   let inFence = null;
   const lines = text.split('\n');
@@ -582,7 +582,7 @@ export function claimPresent(claim, dir, pkg) {
   return false;
 }
 
-export function replayReadme(dir, pkg) {
+function replayReadme(dir, pkg) {
   const readme = findReadme(dir);
   if (!readme) return { readme: null, claims: [] };
   const claims = parseReadmeClaims(readFileSync(join(dir, readme), 'utf8'));

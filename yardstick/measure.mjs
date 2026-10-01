@@ -37,9 +37,9 @@ import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORD
 import { loadPacket, validatePacket, decidePacketClaim } from './packet.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
-export const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
+const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
 export const KINDS = ['facet', 'census', 'instrument', 'claim'];
-export const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable'];
+const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable'];
 export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured', 'not-applicable'];
 const STRUCTURED = new Set(['structured-event', 'audited']);
 // TOPICS — the roster a requirement's `topic:` must land on: the axis roster
@@ -97,7 +97,7 @@ export function loadYardstick(file = YARDSTICK_FILE) {
 }
 
 // ── the run's inputs beyond the base ─────────────────────────────────────────
-export function loadMaturityInputs(dir) {
+function loadMaturityInputs(dir) {
   const p = censusesPath(dir);
   if (!existsSync(p)) return null;
   return parseYaml(readFileSync(p, 'utf8'));
@@ -113,7 +113,7 @@ export function loadRunPacket(dir) {
   return parseYaml(readFileSync(p, 'utf8'));
 }
 // manifest → { scanner: {status, reason} } across the two manifest shapes the tools accept
-export function dispositionsOf(manifest) {
+function dispositionsOf(manifest) {
   const out = {};
   if (!manifest) return out;
   const rows = Array.isArray(manifest) ? manifest : Array.isArray(manifest.scanners) ? manifest.scanners

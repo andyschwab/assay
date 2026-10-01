@@ -109,7 +109,7 @@ function triggerName() {
 // the baseline and re-running evaluateRatchet a second time over the same
 // inputs. The one line excluded is ratchet's own summary ("✗ ratchet: N
 // requirement(s)/contradiction(s) …"), which is a count, not a failure line.
-export function ratchetFailureLines(stderr) {
+function ratchetFailureLines(stderr) {
   return String(stderr || '')
     .split('\n')
     .map((l) => l.trim())
@@ -124,7 +124,7 @@ export function ratchetFailureLines(stderr) {
 // record keeps it to one readable line: assay's YAML reader (lib/yaml-min.mjs) takes no
 // multi-line or backslash-escaped scalars, and a fleet page needs the gist, not the log
 // (the full output stays in the CI log and the run's own files).
-export function oneLineReason(s, max = 400) {
+function oneLineReason(s, max = 400) {
   const flat = String(s ?? '').replace(/\u001b\[[0-9;]*m/g, '').replace(/\\/g, '/').replace(/\s*\r?\n\s*/g, ' · ').replace(/\s+/g, ' ').trim();
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat;
 }

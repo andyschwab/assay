@@ -38,7 +38,7 @@ export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
   return Array.isArray(reg && reg.requirements) ? reg.requirements.map((d) => d.id) : [];
 }
 
-export const PACKET_VERSION = 1;
+const PACKET_VERSION = 1;
 const PLACEHOLDER_ROLE = /^(unknown|nobody|none|no one|n\/a|tbd|\?+)$/i;
 // answered.by (owner/PACKET.md: "a role, never a name") — a name is not a
 // secret, but it is exactly the kind of identifying detail owner/PACKET.md asks
@@ -57,17 +57,17 @@ export function looksLikePersonName(v) {
   const titleCaseWords = s.split(/\s+/).filter((w) => /^[A-Z][A-Za-z.'-]*$/.test(w));
   return titleCaseWords.length >= 2 && !ROLE_WORD_RE.test(s); // "Dana Reyes"
 }
-export const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answered', 'claims', 'custody', 'pointers', 'notes'];
+const TOP_KEYS = ['packet', 'yardstick', 'repository', 'commit', 'answered', 'claims', 'custody', 'pointers', 'notes'];
 // pointers: where a repository keeps what the yardstick asks about (owner/PACKET.md
 // "Pointers"). Each is optional; the whole section is optional. Split by shape:
 //   - a single path or a list of paths (root and per-app pages allowed)
 //   - a single path only
 //   - free-text commands, never executed, never path-checked
 //   - default_branch, checked as a plausible git ref name instead of a path
-export const POINTER_PATH_OR_LIST_KEYS = ['apps', 'architecture', 'agent_contract'];
-export const POINTER_PATH_KEYS = ['runbook', 'evidence', 'workflows', 'canon'];
-export const POINTER_COMMAND_KEYS = ['install', 'build', 'test'];
-export const POINTER_KEYS = ['default_branch', ...POINTER_PATH_OR_LIST_KEYS, ...POINTER_PATH_KEYS, ...POINTER_COMMAND_KEYS];
+const POINTER_PATH_OR_LIST_KEYS = ['apps', 'architecture', 'agent_contract'];
+const POINTER_PATH_KEYS = ['runbook', 'evidence', 'workflows', 'canon'];
+const POINTER_COMMAND_KEYS = ['install', 'build', 'test'];
+const POINTER_KEYS = ['default_branch', ...POINTER_PATH_OR_LIST_KEYS, ...POINTER_PATH_KEYS, ...POINTER_COMMAND_KEYS];
 // a plausible git ref: no absolute/relative-parent shape, no whitespace or the
 // characters git itself refuses in a ref (~^:?*[\), no leading/trailing/doubled
 // slash, no leading dash, never just "."
@@ -81,19 +81,19 @@ export function badGitRef(v) {
 // a pointer path is relative to the repo root, never absolute, never climbing
 // out with "..", and never a URL (a pointer names a file IN the repository).
 const URL_SCHEME_RE = /^[A-Za-z][A-Za-z0-9+.-]*:\/\//;
-export function badPointerPath(v) {
+function badPointerPath(v) {
   if (typeof v !== 'string') return 'must be a string';
   if (URL_SCHEME_RE.test(v)) return 'must be a path in the repository, not a URL';
   if (v.startsWith('/')) return 'must be relative to the repo root, not absolute';
   if (v.split('/').includes('..')) return 'must not contain ".."';
   return null;
 }
-export const ANSWERED_VIA = ['owner-prompt', 'steward'];
-export const CLAIM_STATES = ['satisfied', 'not-applicable', 'open', 'unknown'];
-export const CERTAINTY = ['sure', 'unsure', 'unknown'];
-export const YES_NO = ['yes', 'no', 'unsure', 'unknown'];   // unsure and unknown both leave a claim undecided
-export const COMMIT_RE = /^[0-9a-fA-F]{7,40}$/;
-export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ANSWERED_VIA = ['owner-prompt', 'steward'];
+const CLAIM_STATES = ['satisfied', 'not-applicable', 'open', 'unknown'];
+const CERTAINTY = ['sure', 'unsure', 'unknown'];
+const YES_NO = ['yes', 'no', 'unsure', 'unknown'];   // unsure and unknown both leave a claim undecided
+const COMMIT_RE = /^[0-9a-fA-F]{7,40}$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EMAIL_RE = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
 
 // ── secret-shaped value (gitleaks-style patterns, reused rather than re-derived) ─
@@ -134,7 +134,7 @@ const SECRET_SHAPES = [
 // ("Xk9aB2") and stays caught.
 const WORD = '(?:[a-z0-9]+|[A-Z0-9]+|[a-z]*(?:[A-Z][a-z]{2,}[a-z0-9]*)+)';   // lower, UPPER, or CamelCase whose humps are words
 const PATH_SEGMENT = new RegExp(`^${WORD}(?:[-_]${WORD})*$`);
-export function isPathLike(token) {
+function isPathLike(token) {
   const segs = token.split('/').filter(Boolean);
   return token.includes('/') && segs.length >= 2 && segs.every((s) => s.length <= 48 && PATH_SEGMENT.test(s));
 }
@@ -287,7 +287,7 @@ export function validatePacket(doc, { requirementIds = [] } = {}) {
 // ── load + parse defensively ────────────────────────────────────────────────────
 // The packet is untrusted input: a YAML the parser cannot read is one error, not
 // a stack trace, and nothing in its body is ever treated as an instruction.
-export function packetFilePath(pathOrDir) {
+function packetFilePath(pathOrDir) {
   try { if (statSync(pathOrDir).isDirectory()) return join(pathOrDir, 'manifest.yaml'); } catch { /* not a dir (or doesn't exist yet) — treat as a file path */ }
   return pathOrDir;
 }

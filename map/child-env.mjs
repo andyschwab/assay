@@ -12,7 +12,7 @@ export const CHILD_ENV_NAMES = ['PATH', 'HOME', 'CI'];
 // The network plumbing (#65): without it a package manager behind a proxy cannot
 // reach its registry. Plumbing, not a credential, once a proxy URL carries no
 // userinfo; a URL with user:pass@ is dropped, and proxyDropNote() says why.
-export const PLUMBING_NAMES = ['HTTPS_PROXY', 'HTTP_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE'];
+const PLUMBING_NAMES = ['HTTPS_PROXY', 'HTTP_PROXY', 'NO_PROXY', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE'];
 const PROXY_URL_NAMES = ['HTTPS_PROXY', 'HTTP_PROXY'];
 // an '@' in the authority (scheme, if any, stripped) is userinfo; fail closed on any '@'
 const hasUserinfo = (url) => String(url).replace(/^[a-z][\w+.-]*:\/\//i, '').split(/[/?#]/)[0].includes('@');

@@ -64,10 +64,10 @@ import { isMain } from '../map/doctrine.mjs';
 import { loadYardstick, STATUSES, loadContradictions } from './measure.mjs';
 import { compare } from './compare.mjs';
 
-export const BASIS = ['run', 'owner'];
+const BASIS = ['run', 'owner'];
 
 // ── baseline: load + validate (fail closed) ─────────────────────────────────
-export function validateBaseline(doc) {
+function validateBaseline(doc) {
   const errors = [];
   if (!doc || typeof doc !== 'object') return ['baseline: not a YAML map'];
   if (doc.baseline == null) errors.push('baseline: missing "baseline" (format version)');
@@ -122,7 +122,7 @@ export function resolveGitRef(repoDir, ref) {
 // loadBaselineFromRef — the --baseline-ref gate's own loader: the SAME
 // fail-closed validation as loadBaseline, over content read from a git ref
 // instead of the working tree.
-export function loadBaselineFromRef(repoDir, ref, path = 'packet/baseline.yaml') {
+function loadBaselineFromRef(repoDir, ref, path = 'packet/baseline.yaml') {
   const got = catGitFile(repoDir, ref, path);
   if (!got.ok) throw new Error(`cannot read ${path} at ${ref} in ${repoDir} (${got.error})`);
   const doc = parseYaml(got.content);
@@ -199,7 +199,7 @@ export function evaluateRatchet(baselineDoc, currentDoc, titleOf) {
 }
 
 // ── writing a baseline FROM a run's current measurement ─────────────────────
-export function toBaselineYaml({ yardstickVersion, date, by, commit, requirements }) {
+function toBaselineYaml({ yardstickVersion, date, by, commit, requirements }) {
   const L = [
     '# baseline.yaml — the reviewed snapshot a steward accepted (yardstick/ratchet.mjs). Written by',
     '# `ratchet --write-baseline`; committing it is the steward\'s own reviewed act, never automatic.',

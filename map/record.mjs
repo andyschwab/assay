@@ -119,7 +119,7 @@ export function setScannerRow(text, scanner, status, { reason, model, spend, pas
 // for a held lock up to LOCK_WAIT_MS, then fails loud naming the lock file (a
 // writer that crashed holding it leaves it behind; remove it by hand), never
 // writing unlocked.
-export const LOCK_WAIT_MS = 30000;
+const LOCK_WAIT_MS = 30000;
 export function updateRunRecord(path, edit) {
   const lock = `${path}.lock`;
   const deadline = Date.now() + LOCK_WAIT_MS;

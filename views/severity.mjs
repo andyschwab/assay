@@ -23,7 +23,6 @@ const BANDS = {
   'dependency-scan': (f) => ADVISORY[f.native_category] || 'Medium',
   'repo-census': (f) => f.native_category === 'ci-gate' && f.fail_open === true ? 'High' : 'Medium',
 };
-export const BANDED_SOURCES = Object.keys(BANDS);
 
 // the severity a view reads for one finding: an instrument gap's computed band, else
 // the row's own label (a peer scanner's or an analyst's), else none (unrated)

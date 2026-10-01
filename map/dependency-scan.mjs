@@ -92,7 +92,7 @@ function inScratch(lockPath, fn) {
 }
 
 // ── enumerate lockfiles ──────────────────────────────────────────────────────
-export function findLockfiles(root) {
+function findLockfiles(root) {
   const npm = [], other = [];
   (function walk(dir) {
     let entries;
@@ -172,7 +172,7 @@ function workspacesInclude(dir, rel) {
 // (npm audit's report gives node_modules PATHS, never versions; the lockfile is
 // the one artifact both formats — lockfileVersion 1 `dependencies`, 2/3 `packages`
 // — already carry the answer, so nothing here touches the network.)
-export function installedVersions(lockJson, pkgName) {
+function installedVersions(lockJson, pkgName) {
   const versions = new Set();
   if (lockJson && lockJson.packages && typeof lockJson.packages === 'object' && !Array.isArray(lockJson.packages)) {
     for (const [p, info] of Object.entries(lockJson.packages)) {
@@ -199,7 +199,7 @@ export function installedVersions(lockJson, pkgName) {
 // only reachable transitively — those name the package that carries the real
 // object elsewhere in the same report, so they are skipped here (never turned
 // into a phantom advisory on the dependent).
-export function advisoriesFor(vulnerabilities, lockJson) {
+function advisoriesFor(vulnerabilities, lockJson) {
   const rows = []; const seen = new Set();
   for (const [pkg, v] of Object.entries(vulnerabilities || {})) {
     if (!v || !Array.isArray(v.via)) continue;
@@ -246,7 +246,7 @@ function failureReason(r, doc) {
 }
 const oneLine = (s) => String(s || '').replace(/\s+/g, ' ').trim();
 
-export function auditLockfile(lockPath, root, timeoutSec, log) {
+function auditLockfile(lockPath, root, timeoutSec, log) {
   const relPath = relative(root, lockPath).split('\\').join('/');
   const r = inScratch(lockPath, (scratch) => runAudit(scratch, timeoutSec));
   const doc = parseAudit(r.stdout);
@@ -274,7 +274,7 @@ export function auditLockfile(lockPath, root, timeoutSec, log) {
 // Both `pnpm audit --json` and yarn classic's `auditAdvisory` lines carry the same
 // advisory object: module_name, severity, vulnerable_versions, patched_versions,
 // github_advisory_id, url, title, findings[].version. One row per (id, package).
-export function advisoriesFromV6(list) {
+function advisoriesFromV6(list) {
   const rows = []; const seen = new Set();
   for (const a of list) {
     if (!a || typeof a !== 'object' || !a.module_name) continue;
@@ -345,7 +345,7 @@ function isYarnBerry(lockPath) {
 
 // one pnpm-lock.yaml / yarn.lock: audited with its own package manager, or not-run
 // with the reason when the instrument cannot (its limit, not the target's gap)
-export function auditOtherLockfile(o, root, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
+function auditOtherLockfile(o, root, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
   const relPath = relative(root, o.path).split('\\').join('/');
   const notRun = (reason) => { log(`  → ${relPath}: not-run (${reason})`); return { path: relPath, status: 'not-run', manager: o.manager, reason }; };
   if (o.manager === 'yarn' && isYarnBerry(o.path)) return notRun('a yarn berry (2+) lockfile: this instrument drives yarn classic\'s `yarn audit` only; run `yarn npm audit --all --recursive` on it');
