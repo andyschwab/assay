@@ -1,7 +1,7 @@
 {
   "name": "assay",
   "version": "0.3.0",
-  "description": "Evidence-based repository evaluation: a map of a repository, measured against a yardstick of requirements, written as three views: Intake, Maintain and Improve.",
+  "description": "Evidence-based repository evaluation: a map of a repository, measured against a yardstick of requirements, written as four views of one run (Intake, Maintain, Improve and Owner) plus Since, of two.",
   "type": "module",
   "license": "Apache-2.0",
   "bin": { "assay": "assay.mjs" },

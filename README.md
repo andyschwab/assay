@@ -11,6 +11,9 @@ of requirements, and writes four **views** of the result:
 | **Improve** | What makes it better next? | `IMPROVE.md`, the axis walk, `handoff/` | `views/improve.yaml` |
 | **Owner** | What is true of my app, and what do I do first? | `OWNER.md` | `views/owner.yaml` |
 
+With a previous run to compare against, a fifth, **Since**, reads two runs:
+what changed between them (`SINCE.md`, `views/since.yaml`).
+
 Every view is computed from the same map in one pass, so the four never
 disagree about the repository. Owner reads the same measurement in plain,
 non-engineer language — consequence first, no score, no grade, no verdict —
@@ -24,14 +27,15 @@ irreversible and has no gate"; it may not record "critical". assay issues no
 verdict and prices nothing. It shows what is met, what is open with the check
 that would prove it closed, and what nobody measured.
 
-## The three layers
+## Architecture: the three layers
 
 ```
 repository ─ scanners and instruments ─▶ map/ ─▶ yardstick/ ─▶ views/
                                           │          │            ├ Intake
    facts with file:line, counted          │          │            ├ Maintain
-   populations, attack paths, and a  ─────┘          │            └ Improve
-   record of what was not looked at                  │
+   populations, attack paths, and a  ─────┘          │            ├ Improve
+   record of what was not looked at                  │            ├ Owner
+                                                     │            └ Since (two runs)
                   requirements, each decided from the map:
                   met · unmet · mixed · not measured · not applicable
 ```
@@ -40,7 +44,7 @@ repository ─ scanners and instruments ─▶ map/ ─▶ yardstick/ ─▶ vie
 judgment and their own taxonomy: `repo-eval`, the built-in method
 (`map/METHOD.md`), and `deep-code-review`, an external code reviewer. Each has an
 adapter and keeps its native report as an appendix. **Instruments** are
-deterministic and run offline against the checkout: `gitleaks`; `fresh-clone`,
+deterministic and run offline against the checkout (offline as defined below): `gitleaks`; `fresh-clone`,
 which installs, builds, lints, typechecks, tests and migrates from a clean
 checkout and replays the README's commands, once per workspace in a monorepo;
 `dependency-scan`, npm, pnpm or yarn audit over every lockfile; and `repo-census`, which
@@ -67,8 +71,8 @@ Maintain reads the fleet requirements; Improve reads every requirement by topic
 and adds the maturity of each dimension, the attack paths through the code, and
 a fix prompt per gap; Owner reads the same floor and beyond-floor requirements
 in plain, non-engineer language, joined with a risk and a fix from the
-yardstick's own `owner:` register. `views/README.md` gives each data file's
-schema.
+yardstick's own `owner:` register; Since compares two runs' measurements and
+findings. `views/README.md` gives each data file's schema.
 
 **What the owner supplies** (`owner/`). Some requirements are about things a
 repository cannot show by itself: a restore was run, a rollback was exercised,
@@ -81,6 +85,24 @@ fills it from the map); `owner/PACKET.md` is the format for a repository's own
 (`node assay.mjs measure <run> --packet <dir>`), never merged with what the run
 itself decided. `node assay.mjs ask-owner --run <run>` prints the owner prompt
 pre-filled with what that run already shows.
+
+**External services and data stores.** assay runs no service and keeps no
+database, queue or bucket: its only data store is the run directory on disk
+(laid out by `lib/run-layout.mjs`), plus the files a stewarded repository
+commits (`packet/`). It reaches outside the checkout in three places, and only
+these. **The package registry** (npm's, or the one a lockfile names):
+`fresh-clone`'s install step runs the target's own package manager, and
+`dependency-scan` runs `npm audit`, `pnpm audit` or `yarn audit` against it to
+resolve advisories. **The instruments' binaries** on the runner's `PATH`:
+`git`, `node`, the target's package manager, and `gitleaks` when present.
+**GitHub Actions**, only for `routine/`: the template checks out the target
+and assay itself, reading assay with an optional read token when assay's own
+repository is private (`routine/README.md`). No adopted instrument calls a
+repo-hosting platform's own API; that is what **offline** means everywhere in
+assay (`map/scanners/CONTRACT.md` §3a): no hosting platform's API, while a
+package registry may be reached. A peer scanner (`repo-eval`,
+`deep-code-review`) runs in a coding-agent session the operator opens, outside
+the engine. How to operate all of it is `RUNBOOK.md`.
 
 ## Quickstart
 

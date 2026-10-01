@@ -1,8 +1,8 @@
 # CLAUDE.md — working in the assay repo
 
 This repository is **assay**. It draws a map of a repository, measures the map
-against a yardstick of requirements, and writes three views (Intake, Maintain,
-Improve). `README.md` is the front door. `map/SCHEMA.md` is the authoritative
+against a yardstick of requirements, and writes four views of one run (Intake,
+Maintain, Improve, Owner) plus Since, of two. `README.md` is the front door. `map/SCHEMA.md` is the authoritative
 finding format, `map/METHOD.md` the built-in scanner, `yardstick/README.md` the
 requirements contract, and `views/README.md` the views' data formats.
 
