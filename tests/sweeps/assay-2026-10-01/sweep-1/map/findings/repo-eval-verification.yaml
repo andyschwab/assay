@@ -1,0 +1,108 @@
+# map/findings/repo-eval-verification.yaml — neutral evidence base for assay at
+# c30912c (blind sweep 1). Pass 4: verification affordances (effects vs reports,
+# the decay condition, the calibration harness). Effect-provability items are
+# subject_type control (SCHEMA.md §2 canonical census subject_type).
+
+- id: F-039
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "The engine's recall is measured against public known-answer fixtures (a flawed target, a clean control, a repo-root sheet) and pinned by the harness, which re-derives each score every run and fails on drift."
+  evidence: [tests/fixtures/README.md:5-20, tests/regression.mjs:4772-4783, tests/golden.json:1-27]
+  confidence: confirmed
+
+- id: F-040
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: "The scored fixture runs are declared not blind (the same agent authored the answers and the findings), so they prove the pipeline and recall floor, with blind repeatability left to sweep sets."
+  evidence: [tests/fixtures/README.md:28-31, map/METHOD.md:752-758]
+  confidence: confirmed
+
+- id: F-041
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "A calibration harness exists: committed sweep sets are gated at their own threshold by variance --set, and the harness proves the gate goes red one point above the measured value and exits 2 on a set with no threshold."
+  evidence: [tests/regression.mjs:4588-4646, map/METHOD.md:752-758]
+  confidence: confirmed
+
+- id: F-042
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "Repeatability is reported as two numbers, fact presence and descriptor agreement, with a direction per divergence so judgment drift (both directions) is distinguishable from target change (one direction)."
+  evidence: [README.md:161-166, map/SCHEMA.md:165-182]
+  confidence: confirmed
+
+- id: F-043
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "Every instrument run checks the tool's exit code against its documented success set before ingesting; any other exit, or a report that fails to ingest, is recorded failed with the reason rather than read as zero findings."
+  evidence: [map/start.mjs:86-103, map/start.mjs:129-145]
+  confidence: confirmed
+
+- id: F-044
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "fresh-clone does not treat a test step's exit 0 as the suite having run: it records the runner's own pass, skip and fail counts or marks them unparsed, and a passed step with skipped tests becomes its own gap row."
+  evidence: [map/fresh-clone.mjs:17-20, map/scanners/CONTRACT.md:209-215, map/scanners/CONTRACT.md:221-229]
+  confidence: confirmed
+
+- id: F-045
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "On a pull request the gate job ingests a fresh-clone report and exit status written by the target job, which runs the change's own install and tests, so a change can hand the gate a passing report for steps it failed."
+  evidence: [routine/README.md:134-136, map/start.mjs:205-235, routine/assay-routine.yml:71-81]
+  confidence: confirmed
+
+- id: F-046
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "The routine writes routine.yaml as the last step on every path (held, failed, skipped, not-run and an unexpected crash), so the uploaded run states the gate outcome without the CI log."
+  evidence: [routine/run.mjs:178-190, routine/run.mjs:324-329, routine/README.md:38-45]
+  confidence: confirmed
+
+- id: F-047
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: "With no committed baseline the routine exits 0 with gate skipped and a printed warning, so a required routine check reads green while no ratchet held."
+  evidence: [routine/run.mjs:303-308, routine/README.md:156-158]
+  confidence: confirmed
+
+- id: F-048
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: "The README claim replay decides only that a named script, binary, file or target exists; a present claim is not proof the command works."
+  evidence: [map/scanners/CONTRACT.md:289-293, map/fresh-clone.mjs:22-25]
+  confidence: confirmed
+
+- id: F-049
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: "validate --target proves each cited file and line exists but cannot check that the line says what the observation claims; nothing in the tree checks a finding's claim against its cited content."
+  evidence: [map/SCHEMA.md:775-782]
+  confidence: confirmed
+
+- id: F-050
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: "Owner-evidence transcripts are decided on shape, freshness and that the named commit resolves; the truth of the procedure rests on the attesting person's or CI job's commit."
+  evidence: [map/scanners/CONTRACT.md:464-473, owner/evidence/README.md:98-116]
+  confidence: confirmed
+
+- id: F-051
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "Each adopted instrument ships fixture targets and regression assertions proving its fail-loud halts bite, including planted lifecycle scripts and a planted .yarnrc for the isolation rules."
+  evidence: [map/scanners/CONTRACT.md:125-131, map/scanners/CONTRACT.md:170-171, tests/regression.mjs:3721]
+  confidence: confirmed

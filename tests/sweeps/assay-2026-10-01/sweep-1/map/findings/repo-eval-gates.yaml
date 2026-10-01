@@ -1,0 +1,107 @@
+# map/findings/repo-eval-gates.yaml — neutral evidence base for assay at
+# c30912c (blind sweep 1). Pass 3: deterministic gates. Gate/test-coverage items
+# are subject_type contract (SCHEMA.md §2 canonical census subject_type).
+
+- id: F-026
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "CI runs on every push to main and every pull request, on Node 20 and 22, executing npm ci, lint, typecheck, build and the regression harness."
+  evidence: [.github/workflows/ci.yml:7-11, .github/workflows/ci.yml:20-31, .github/workflows/ci.yml:47]
+  confidence: confirmed
+
+- id: F-027
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The engine's own CI workflow pins actions to commit SHAs, runs with a read-only token and a timeout, and the harness asserts those invariants on it and on the shipped routine template."
+  evidence: [.github/workflows/ci.yml:13-14, .github/workflows/ci.yml:19, .github/workflows/ci.yml:24-25, tests/regression.mjs:3505-3512]
+  confidence: confirmed
+
+- id: F-028
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The harness carries one negative fixture per validator rule, each required to fail for its own named violation and no other, so removing any rule turns the suite red."
+  evidence: [tests/regression.mjs:76-82, tests/regression.mjs:112-114, tests/regression.mjs:146]
+  confidence: confirmed
+
+- id: F-029
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The YAML reader, the shared findings loader, variance and the projection are each asserted to throw or flag on input they cannot read, rather than skipping it."
+  evidence: [tests/regression.mjs:160-175, tests/regression.mjs:195-200]
+  confidence: confirmed
+
+- id: F-030
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The gate doctrine (what counts as a held stop, the halt class, the unheld halt) is stated once in map/doctrine.mjs and the harness pins that its consumers share the one rule."
+  evidence: [map/doctrine.mjs:13-29, tests/regression.mjs:239-246]
+  confidence: confirmed
+
+- id: F-031
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "Fixture recall is pinned in tests/golden.json and may move only through a reviewed --bless committed with the change; a failing unit or negative assertion is never re-blessed."
+  evidence: [tests/golden.json:1-27, CLAUDE.md:43-45, RUNBOOK.md:21-33]
+  confidence: confirmed
+
+- id: F-032
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "An adapter's only sanctioned default is FAIL, so a scanner category with no mapping halts the projection instead of landing on a silent axis."
+  evidence: [map/scanners/CONTRACT.md:520-527, map/scanners/adapters/repo-eval.yaml:41]
+  confidence: confirmed
+
+- id: F-033
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: "The lint step is a parse check (node --check over tracked modules) with no lint rules, and the build script runs the identical command, so lint and build are one syntax gate counted twice."
+  evidence: [lib/check-syntax.mjs:1-4, lib/check-syntax.mjs:13, package.json:10, package.json:12]
+  confidence: confirmed
+
+- id: F-034
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: "The typecheck covers the engine's modules under checkJs but excludes tests/, so the 5,034-line harness itself is not type-checked."
+  evidence: [tsconfig.json:3-5, tsconfig.json:12]
+  confidence: confirmed
+
+- id: F-035
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The syntax gate refuses to read an empty module list as clean."
+  evidence: [lib/check-syntax.mjs:12]
+  confidence: confirmed
+
+- id: F-036
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: "No pre-commit hook exists; the earliest automatic catch of a regression is CI on the pull request, and whether the ci check is required by branch protection is not visible from the tree (the runbook states the release convention as a green ci check before merge)."
+  evidence: [.github/workflows/ci.yml:8-11, RUNBOOK.md:11-12, .github/PULL_REQUEST_TEMPLATE.md:1-11]
+  confidence: plausible
+
+- id: F-037
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The validator fails closed on any input it cannot parse and checks closed vocabularies, conditional facets, id uniqueness, links, the run manifest and, with --target, that every cited line exists."
+  evidence: [map/validate.mjs:1-7, map/SCHEMA.md:747-782]
+  confidence: confirmed
+
+- id: F-038
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: "CI installs gitleaks from a pinned release verified against its sha256 before executing it, matching the routine template's optional step, and the harness holds the two pins equal."
+  evidence: [.github/workflows/ci.yml:32-46, routine/assay-routine.yml:138-148]
+  confidence: confirmed
