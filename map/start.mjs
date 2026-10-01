@@ -12,11 +12,16 @@
 // hard-coded, so moving this file changed nothing about what the routine
 // records (tests/regression.mjs's routine block pins this byte-for-byte).
 //
-// Usage: node assay.mjs start --out <run> [<target>]
-//   <target> given  — runs repo-census, fresh-clone (from a scratch clone of the
-//                      target's committed head, never in place: the routine's
-//                      CI checkout is the only in-place caller), dependency-scan,
-//                      and gitleaks when its binary is on PATH; every OTHER adopted scanner (every adapter under
+// Usage: node assay.mjs start --out <run> [<target>] [--allow-exec]
+//   <target> given  — runs repo-census, dependency-scan (from scratch copies of
+//                      each lockfile, never the target's own configuration),
+//                      and gitleaks when its binary is on PATH; and fresh-clone
+//                      (from a scratch clone of the target's committed head,
+//                      never in place: the routine's CI checkout is the only
+//                      in-place caller) ONLY under --allow-exec, because it
+//                      runs the target's own install, lifecycle scripts and
+//                      tests on this machine — without the flag it is recorded
+//                      skipped with that reason (#47); every OTHER adopted scanner (every adapter under
 //                      map/scanners/adapters/ without `adopted: false`) is
 //                      recorded skipped, plainly saying it has not run yet and
 //                      how to record it.
@@ -154,13 +159,17 @@ const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
 //                           their working tree and measure uncommitted state;
 //                           fresh-clone then clones repoDir itself (a real
 //                           git ref) into a scratch directory first.
-export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+//   freshCloneSkipReason  — when set, fresh-clone is not run and is recorded
+//                           skipped with this reason: `assay start` without
+//                           --allow-exec. The routine never sets it.
+export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of JUDGMENT_SCANNERS) rows[id] = { status: 'skipped', reason: reasonFor(id) };
   rows['repo-census'] = runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log });
   const fcArgs = freshCloneNoClone ? [repoDir, '--no-clone'] : [repoDir];
-  rows['fresh-clone'] = runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log });
+  if (freshCloneSkipReason) { log(`· fresh-clone — not run: ${freshCloneSkipReason}`); rows['fresh-clone'] = { status: 'skipped', reason: freshCloneSkipReason }; }
+  else rows['fresh-clone'] = runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log });
   rows['dependency-scan'] = runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log });
   rows['gitleaks'] = runGitleaks(repoDir, outDir, log, gitleaksAbsentReason);
   return rows;
@@ -174,6 +183,7 @@ const pendingReasonFor = (_outArg) => (id) =>
   `not yet run: a steward session runs it; ingesting its report records it ran (${id}: node assay.mjs record <run> ${id} ran)`;
 const GITLEAKS_ABSENT_HERE = 'gitleaks binary not on PATH where this run was drawn';
 const NO_TARGET_REASON = 'not yet run: ingesting its report records it ran';
+const NO_EXEC_REASON = "not run: fresh-clone runs the target's own install, lifecycle scripts and tests on this machine; re-run start with --allow-exec in a disposable container or VM, or ingest a fresh-clone report drawn there";
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) runCli();
@@ -185,7 +195,7 @@ function runCli() {
   const flagIdx = new Set(outIdx > -1 ? [outIdx, outIdx + 1] : []);
   const target = args.find((a, i) => !flagIdx.has(i) && !a.startsWith('--'));
   if (!outArg) {
-    console.error('usage: node assay.mjs start --out <run> [<target>]');
+    console.error('usage: node assay.mjs start --out <run> [<target>] [--allow-exec]');
     process.exit(2);
   }
   const outDir = resolve(outArg);
@@ -206,7 +216,8 @@ function runCli() {
   let rows = {};
   if (target) {
     const repoDir = resolve(target);
-    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), gitleaksAbsentReason: GITLEAKS_ABSENT_HERE }, log);
+    const freshCloneSkipReason = args.includes('--allow-exec') ? null : NO_EXEC_REASON;
+    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), gitleaksAbsentReason: GITLEAKS_ABSENT_HERE, freshCloneSkipReason }, log);
   }
   // Every OTHER adopted scanner (today: none beyond the six drawOfflineMap
   // already covers; a future adapter falls here automatically) is recorded
