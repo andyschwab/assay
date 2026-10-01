@@ -35,7 +35,7 @@ scanners:
     status: skipped
     reason: "<why — e.g. the run environment cannot execute the target's install step; decided by <role>>"
   dependency-scan:
-    # npm audit over every lockfile in the tree (map/dependency-scan.mjs → ingest
+    # npm / pnpm / yarn audit over every lockfile in the tree (map/dependency-scan.mjs → ingest
     # --tool dependency-scan). ran = the base carries its rows or the explicit empty
     # map/findings/dependency-scan.yaml; skipped needs the reason (e.g. no registry
     # reach in this environment).

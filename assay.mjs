@@ -20,7 +20,7 @@ const GROUPS = [
     'record': ['map/record.mjs', "set one scanner's disposition in the run record"],
     'enumerate': ['map/enumerate.mjs', 'list the populations a run must cover, and gate on coverage'],
     'fresh-clone': ['map/fresh-clone.mjs', 'install, build, lint, typecheck, test and migrate from a clean checkout'],
-    'dependency-scan': ['map/dependency-scan.mjs', 'npm audit over every lockfile'],
+    'dependency-scan': ['map/dependency-scan.mjs', 'npm, pnpm and yarn audit over every lockfile'],
     'repo-census': ['map/repo-census.mjs', 'architecture page, agent contract, runbook, CI gate, owner evidence'],
     'chains': ['map/chains.mjs', 'the attack paths through the map'],
     'capabilities': ['map/capabilities.mjs', 'one row per effect channel'],

@@ -707,3 +707,57 @@ what the public engine learned.
   ordering, the bundling, the dual proofs, the guard line, and the stderr
   note, and was proved to fail on the prior code (git-stashed) before being
   trusted.
+- **2026-09-29 — negative fixtures prove their own check (#39).** The harness
+  asserted only that a negative fixture failed, never which check failed it, and
+  `descriptors-drift` had drifted into failing sixteen ways (fifteen stale
+  mechanism rows from before the register moved those requirements to
+  instruments), so removing the check it was built for would have left it red.
+  Each `NEGATIVE` entry now names the violation it must produce, and the harness
+  fails when that violation is missing or when anything else fires beside it;
+  `descriptors-drift` is regenerated so the claim row is its only drift. Four
+  checks that had no fixture gain one: `evidence-not-in-target` (the loop can now
+  pass `--target`), `solution-coverage-gap`, `counted-drift`, and
+  `sampled-drift`. The last exposed a real hole: validate re-derived counted
+  maturity rows from the base but never re-derived sampled rows from
+  `map/censuses.yaml`, so a sample hand-inflated in the generated file (7/10 →
+  10/10, aggregate re-pooled) validated clean. It no longer does; `bad-aggregate`
+  gains the census its sampled row names. Every new check was confirmed red with
+  its rule disabled.
+- **2026-09-29 — fresh-clone on a pnpm monorepo (#25, #26).** On a pnpm
+  workspace whose gates run once at the root, fresh-clone filed seven High
+  `install:failed` rows (it installed each workspace with `npm ci --workspace`,
+  which npm cannot do against a pnpm tree) and a Medium gap for every step a
+  workspace did not declare itself, though the root's passing `eslint .`,
+  `vitest run` and `pnpm -r typecheck` reached them. The workspace list now comes
+  from `pnpm-workspace.yaml` (with `!` exclusions) when it exists; a pnpm or yarn
+  root's install covers its workspaces; a workspace runs its scripts with the
+  root's package manager; and a step a workspace does not declare reads `covered`
+  when a root step that passed demonstrably reaches it (a recursive command, a
+  root linter pointed at `.`, a root test runner with no path argument), with the
+  covering command recorded and no row filed. Migrate belongs to the package that
+  declares it. A root step that failed, or does not reach the tree, covers
+  nothing, and a workspace's own failing script stays its gap. The same fixture
+  surfaced a false fact: the root's "no database signal" read only the root
+  manifest, so a monorepo whose database dependency sits in a workspace recorded
+  migrate as not applicable; it is now read across the tree. Pinned by a
+  `fresh-clone-pnpm` block over a pnpm-workspace fixture run through offline
+  shims (CI has neither pnpm nor a registry), each assertion confirmed red with
+  its rule reverted. Goldens untouched.
+- **2026-09-29 — dependency-scan audits pnpm and yarn; an unaudited lockfile is
+  not a clean one (#29).** dependency-scan audited npm lockfiles only and filed
+  every `pnpm-lock.yaml` / `yarn.lock` as a Medium gap whose fix told the target
+  to change package managers. Worse, verifying the issue showed that
+  `d-dependencies-known-clean` decides on the `critical` category alone, so a
+  run whose only lockfile went unaudited — a pnpm repository, or an npm audit
+  that errored — read **met**. pnpm lockfiles are now audited with `pnpm audit
+  --json` and yarn classic lockfiles with `yarn audit --json` (both report npm's
+  v6 advisory objects; parsers pinned against real reports captured for the
+  harness); a lockfile whose package manager is not on the runner, or a yarn
+  berry lockfile, is `not-run` with the reason. Ingest records every lockfile
+  nothing audited as a `lockfile-not-audited` fact rather than a gap charged to
+  the target, and the requirement's `not_measured_when` (now a list) names it,
+  so such a run reads not-measured; a real critical advisory elsewhere still
+  decides unmet. The old dependency-scan unit assertions pinned the npm-only
+  contract (a not-supported lockfile as a Medium gap) and are rewritten to the
+  new one, which also pins "unaudited never reads met"; every new assertion was
+  confirmed red with its rule reverted. Goldens untouched.

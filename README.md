@@ -43,7 +43,7 @@ adapter and keeps its native report as an appendix. **Instruments** are
 deterministic and run offline against the checkout: `gitleaks`; `fresh-clone`,
 which installs, builds, lints, typechecks, tests and migrates from a clean
 checkout and replays the README's commands, once per workspace in a monorepo;
-`dependency-scan`, `npm audit` over every lockfile; and `repo-census`, which
+`dependency-scan`, npm, pnpm or yarn audit over every lockfile; and `repo-census`, which
 checks for an architecture page, a present-tense agent contract, a runbook, a
 CI gate on the default branch, and the owner's evidence transcripts. Every run
 carries a **run record** (`map/scanners.yaml`) saying, for each adopted

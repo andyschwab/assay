@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import {
   findingsDir, coverageDir, scannersPath, yardstickPath as runYardstickPath,
-  prosePath as runProsePath, securityGatePath, maturityGradesPath,
+  prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
   nativeReportPath, isRepoEvalPassFile,
 } from '../lib/run-layout.mjs';
@@ -411,6 +411,23 @@ if (existsSync(gradesPath)) {
       const { computeCoverage } = await import('../views/improve/maturity.mjs');
       const recomputed = computeCoverage([...allById.values()].map((v) => v.f));
       const reByDim = Object.fromEntries(recomputed.dimensions.map((d) => [d.dimension, d]));
+      // sampled rows are re-derived from their authored source, map/censuses.yaml, the way
+      // counted rows are re-derived from the base: a sampled number hand-edited in the
+      // generated file (and the aggregate re-pooled to match) must not validate.
+      let censusDims = {};
+      if (existsSync(censusesPath(runDir))) {
+        try {
+          const cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8'));
+          censusDims = Object.fromEntries(((cz && cz.dimensions) || []).filter((x) => x && x.dimension).map((x) => [x.dimension, x]));
+        } catch (e) { err('map/censuses.yaml', `YAML parse failed (fail-closed): ${e.message}`); }
+      }
+      const sampledDrift = (at, dim, row) => {
+        if (!row.name) { err(at, `sampled coverage must name its measure (the census row it comes from)`); return; }
+        const src = ((censusDims[dim] && censusDims[dim].sampled) || []).find((x) => x && x.name === row.name);
+        if (!src) { err(at, `sampled measure "${row.name}" has no census in map/censuses.yaml — a sampled number with no authored source cannot be checked`); return; }
+        if (src.met !== row.met || src.of !== row.of) err(at, `sampled drift: file says ${row.met}/${row.of}, map/censuses.yaml records ${src.met}/${src.of} — regenerate with maturity.mjs --write`);
+        else if (String(src.method || '') !== String(row.method || '')) err(at, `sampled drift: method differs from map/censuses.yaml — regenerate with maturity.mjs --write`);
+      };
       for (const d of grades.dimensions) {
         const at = `${gradesLabel}:${d && d.dimension || '??'}`;
         if (!d || !DIMENSIONS.has(d.dimension)) { err(at, `bad or missing dimension`); continue; }
@@ -421,12 +438,14 @@ if (existsSync(gradesPath)) {
           if (typeof c.met !== 'number' || typeof c.of !== 'number' || c.of < 1) err(at, `coverage needs numeric met/of`);
           else if (c.pct !== Math.round((c.met / c.of) * 100)) err(at, `coverage.pct ${c.pct} does not equal met/of`);
           if (c.kind === 'sampled' && !c.method) err(at, `sampled coverage must state its method`);
+          if (c.kind === 'sampled') sampledDrift(at, d.dimension, { name: c.measure, met: c.met, of: c.of, method: c.method });
           if (c.kind === 'counted') {
             const re = reByDim[d.dimension] && reByDim[d.dimension].measures.find((mm) => mm.name === c.measure);
             if (!re) err(at, `counted measure "${c.measure}" is not one this base computes`);
             else if (re.met !== c.met || re.of !== c.of) err(at, `counted drift: file says ${c.met}/${c.of}, base computes ${re.met}/${re.of} — regenerate with maturity.mjs --write`);
           }
         }
+        for (const sr of (Array.isArray(d.secondary) ? d.secondary : [])) if (sr && sr.kind === 'sampled') sampledDrift(`${at}:${sr.name}`, d.dimension, sr);
         if (!d.depth) err(at, `needs an authored depth sentence (map/censuses.yaml)`);
         for (const k of ['enforced', 'generative']) {
           const f = d[k];

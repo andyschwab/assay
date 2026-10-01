@@ -211,7 +211,23 @@ step handled specially: when the root carries a lockfile, a workspace installs v
 tree); when it does not, the workspace's own plan runs in its own directory — which
 reproduces the real `EUSAGE` failure npm gives a workspace whose own lockfile
 disagrees with a root that has none, and that failure is the honest result,
-recorded like any other step failure. The document carries this as `workspaces:
+recorded like any other step failure. **pnpm and yarn roots:** the workspace list
+comes from `pnpm-workspace.yaml` when it exists (its `packages:` globs, `!`
+exclusions honored; pnpm ignores the package.json field), and the root's own
+install already installs every workspace, so a workspace's install reads `covered`
+by it (or `skipped` when the root install did not pass). No npm command is ever run
+against a pnpm or yarn lockfile, and a workspace with no lockfile of its own runs its
+scripts with the root's package manager. **Covered by the root:** a step a workspace
+does not declare reads `covered` (with `covered_by: { path, step, command, via }`)
+when a root step that **passed** demonstrably reaches it — a recursive root command
+(`pnpm -r`, `npm … --workspaces`, `yarn workspaces foreach`, `turbo run`, `nx
+run-many`, `lerna run`), a root linter pointed at `.` (lint), or a root test runner
+given no path argument (test). Migrate belongs to the package that declares it (the
+root, else the first workspace that does). A covered step yields no row; a workspace
+script that exists and fails is still its own gap; a root step that failed or does
+not reach the tree covers nothing. The root's "no database signal" fact is read
+across the whole tree, so a database dependency in any workspace counts.
+The document carries this as `workspaces:
 [{ path, toolchain, steps, readme, readme_claims }]` beside the root's existing
 fields, unchanged; `exit` is `1` when the root **or any workspace** has a failed or
 timed-out step or a missing claim. A workspace-free repo emits `workspaces: []`
@@ -258,9 +274,13 @@ for every `package-lock.json` / `npm-shrinkwrap.json` and runs `npm audit
 whose effective root carries no lockfile of its own makes npm fail `ENOLOCK`;
 that member's `package.json` and its own lockfile are copied into a scratch
 directory and audited there instead (`method: scratch-copy`, vs `in-place`).
-Every `pnpm-lock.yaml` / `yarn.lock` found is recorded `not-supported` — this
-instrument audits npm lockfiles only, and an absent audit is never read as a
-clean one. Each lockfile records its path, audit method, npm's own exit code,
+Every `pnpm-lock.yaml` is audited with `pnpm audit --json` and every yarn classic
+`yarn.lock` with `yarn audit --json`, from the lockfile alone; both report npm's v6
+advisory objects, recorded in the same rows. When the lockfile's package manager is
+not on the runner, or the lockfile is yarn berry (whose `yarn npm audit` this
+instrument does not drive yet), the lockfile is `not-run` with the reason: the
+instrument's limit, never charged to the target as a gap, and never read as clean.
+Each lockfile records its path, its package manager, audit method, the audit's own exit code,
 severity counts, dependencies audited, and one advisory row per (advisory id,
 package): the id (GHSA when the advisory's url names one, else the npm source
 id), the package, its installed version(s) read straight out of the lockfile,
@@ -274,16 +294,20 @@ exit code, a timeout, a spawn failure, or output that does not parse into npm's
 registry reachable is exactly this shape) makes that lockfile `status: failed`,
 never clean. The runner's own document `exit` is `0` only when every lockfile
 in the tree audited with zero advisories; `1` when any advisory exists, any
-lockfile failed, or any lockfile is not-supported; both are successful RUNS and
+lockfile failed, or any lockfile was not run; both are successful RUNS and
 `ingest.mjs --tool dependency-scan` accepts both. A crash of the runner itself
 exits `2` and halts the intake. The converter writes one gap row per advisory
 (`native_category` = its own severity — `critical | high | moderate | low |
 info` — mapped `Critical | High | Medium | Low | Low` respectively, evidence
-the lockfile at `:1`), one gap (`lockfile-failed`) per failed lockfile, and one gap
-(`lockfile-unsupported`) per not-supported lockfile. A run with none of the
-three is the explicit empty `map/findings/dependency-scan.yaml`. All seven
-categories land on `code-security` — the shared property gitleaks and
-deep-code-review also feed.
+the lockfile at `:1`), one gap (`lockfile-failed`) per failed lockfile, and one
+`lockfile-not-audited` **fact** per lockfile nothing audited (failed, or not-run).
+That fact holds `d-dependencies-known-clean` at not-measured unless a real critical
+advisory decides it: an unaudited lockfile is not a clean one (before the fact
+existed, a run whose only lockfile went unaudited read met). A clean run is the
+explicit empty `map/findings/dependency-scan.yaml`. Every category lands on
+`code-security` — the shared property gitleaks and deep-code-review also feed.
+(`lockfile-unsupported` stays mapped for runs frozen before 0.2.0, which filed a
+pnpm/yarn lockfile as a gap.)
 
 **What it deliberately does not do.** It never runs `npm install` or otherwise
 mutates the tree — the existing lockfile is read as-is. It never audits

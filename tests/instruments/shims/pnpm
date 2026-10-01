@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+// Offline pnpm stand-in for the regression harness (CI has neither pnpm nor a registry).
+// `--version` answers; `audit --json` replays a real pnpm audit report
+// (tests/instruments/pnpm-audit-sample.json) with pnpm's own exit code for it (1: advisories);
+// install and recursive runs succeed; `pnpm [run] <script>` really runs that script from
+// the package.json in the working directory, so a script that fails, fails.
+import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+const args = process.argv.slice(2);
+if (args[0] === '--version') { console.log('10.0.0-shim'); process.exit(0); }
+if (args[0] === 'audit') {
+  process.stdout.write(readFileSync(new URL('../pnpm-audit-sample.json', import.meta.url), 'utf8'));
+  process.exit(1);
+}
+if (args[0] === 'install' || args.includes('-r') || args.includes('--recursive')) process.exit(0);
+const name = args[0] === 'run' ? args[1] : args[0];
+let pkg = {};
+try { pkg = JSON.parse(readFileSync('package.json', 'utf8')); } catch { /* no manifest */ }
+const cmd = pkg.scripts && pkg.scripts[name];
+if (!cmd) { console.error(`pnpm shim: no script "${name}"`); process.exit(1); }
+const r = spawnSync(cmd, { shell: true, stdio: 'inherit' });
+process.exit(r.status === null ? 1 : r.status);

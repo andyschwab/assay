@@ -1,0 +1,23 @@
+# map/censuses.yaml (authored) — negative fixture: depth sentences only, no sampled census.
+dimensions:
+  - dimension: delegation
+    depth: >
+      The fail-open auth path defeats the one gate that exists (F-050).
+  - dimension: verification
+    depth: >
+      The smoke suite asserts the happy path only (F-030).
+  - dimension: artifact-legibility
+    depth: >
+      One full ADR reconstructs the storage choice from the file alone (F-001).
+  - dimension: context-economy
+    depth: >
+      Storage sits behind a narrow module interface (F-010).
+  - dimension: deterministic-gates
+    depth: >
+      No gate runs before merge.
+  - dimension: improvement-loop
+    depth: >
+      No lesson became a mechanism.
+  - dimension: multiplayer
+    depth: >
+      Single-tenant notes only.

@@ -41,6 +41,8 @@ import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFou
 import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../views/intake.mjs';
 import { runRoutine, toRoutineYaml } from '../routine/run.mjs';
 import { parseWorkflow } from '../map/repo-census.mjs';
+import { planWorkspace } from '../map/fresh-clone.mjs';
+import { parsePnpmAudit, parseYarnClassicAudit } from '../map/dependency-scan.mjs';
 import { detectToolchain, run as runFreshClone } from '../map/fresh-clone.mjs';
 import { run as runDependencyScan } from '../map/dependency-scan.mjs';
 import { scannersPath as runScannersPath } from '../lib/run-layout.mjs';
@@ -66,25 +68,36 @@ function copyFixtureScanners(fixtureName, destRunDir) {
 
 // NEGATIVE fixtures: deliberately-malformed eval dirs that validate MUST reject. Pinning
 // only green-over-valid-bases is false-green — a validator weakened to accept everything
-// moves no positive invariant. Each targets one check; if that check is disabled, the
-// fixture flips green and this harness goes red.
+// moves no positive invariant. Each targets ONE check and names the violation it must
+// produce: the run must go red, the named violation must fire, and every violation must
+// be that one — a fixture red for an unrelated reason proves nothing about its check
+// (descriptors-drift once failed sixteen ways, fifteen of them stale mechanism drift, so
+// removing the check it was built for would have left it red). [dir, what, expect, opts]
 const NEGATIVE = [
-  ['bad-dimension', 'filename-dimension disagreement'],
-  ['bad-aggregate', 'hand-inflated maturity aggregate'],
-  ['bad-standing-watch', 'non-boolean standing_watch on an exposure'],
+  ['bad-dimension', 'filename-dimension disagreement', /: dimension "[^"]+" in \S+ \(expected /],
+  ['bad-aggregate', 'hand-inflated maturity aggregate', /:aggregate: aggregate \d+\/\d+ does not pool the measured rows/],
+  ['bad-standing-watch', 'non-boolean standing_watch on an exposure', /standing_watch must be boolean/],
   // the run manifest (SCHEMA §5a): an integration that did not run must be RECORDED as
   // such, with a reason — never inferred absent. Found by a run that shipped a full
   // package with a queued code scanner never invoked and nothing recording the omission.
-  ['no-manifest', 'no map/scanners.yaml — an adopted scanner with no recorded disposition'],
-  ['manifest-skip-no-reason', 'a scanner skipped with no reason (indistinguishable from an omission)'],
-  ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file'],
-  ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped'],
-  ['coverage-incomplete', 'a scanner coverage sidecar missing rows for domains the adapter lists'],
+  ['no-manifest', 'no map/scanners.yaml — an adopted scanner with no recorded disposition', /^map\/scanners\.yaml: missing/],
+  ['manifest-skip-no-reason', 'a scanner skipped with no reason (indistinguishable from an omission)', /skipped needs a reason/],
+  ['manifest-ran-no-rows', 'a scanner recorded as ran with no rows and no explicit empty file', /status ran, but the base carries no rows/],
+  ['manifest-rows-not-ran', 'rows present from a scanner the manifest records as skipped', /status skipped, but the base carries rows/],
+  ['coverage-incomplete', 'a scanner coverage sidecar missing rows for domains the adapter lists', /coverage incomplete: no row for domain/],
   // the yardstick measurement (yardstick/README.md): a status the base does not recompute is drift, and a
   // claim-only row reading met is the exact laundering the two-file rule exists to prevent
-  ['descriptors-drift', 'a yardstick.yaml whose statuses the base does not recompute (a claim row reads met)'],
+  ['descriptors-drift', 'a yardstick.yaml whose statuses the base does not recompute (a claim row reads met)', /d-accounts-enumerated: requirement drift: file says met/],
   // no claim without evidence: `:1` names a line of no file (repo-census cited it at the root)
-  ['evidence-no-path', 'an instrument finding whose evidence is ":1" — a line number with no path'],
+  ['evidence-no-path', 'an instrument finding whose evidence is ":1" — a line number with no path', /evidence ":1" cites no path/],
+  // citation resolution: a cited file the target does not have (only checkable with --target)
+  ['evidence-not-in-target', 'a finding citing a file the target does not have', /evidence path not found in target: lib\/sync\.mjs/, { target: 'target' }],
+  // solution coverage (fail-closed): an unsupervised kind with no roadmap fix and no disposition
+  ['solution-coverage-gap', 'an unsupervised kind with no fix and no disposition', /unsupervised kind "assistant-email" has no fix/],
+  // maturity numbers re-derived from their sources: a counted row from the base, a sampled row
+  // from map/censuses.yaml — a hand-inflated number with a re-pooled aggregate must not validate
+  ['counted-drift', 'a counted maturity row the base does not compute', /deterministic-gates: counted drift: file says 2\/2, base computes 0\/2/],
+  ['sampled-drift', 'a sampled maturity row its authored census does not record (a sample inflating the headline)', /artifact-legibility: sampled drift: file says 10\/10, map\/censuses\.yaml records 7\/10/],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -99,11 +112,17 @@ const SCORED = [
 const negFailures = [];
 
 // ── negative fixtures: each MUST validate RED ─────────────────────────────────
-for (const [dir, what] of NEGATIVE) {
-  let red = false;
-  try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), join(HERE, 'negative', dir)], { stdio: 'pipe' }); }
-  catch { red = true; }
-  if (!red) negFailures.push(`negative/${dir} validated GREEN but must be RED (${what}) — the validator stopped catching this class`);
+for (const [dir, what, expect, opts = {}] of NEGATIVE) {
+  const fx = join(HERE, 'negative', dir);
+  const args = [join(ROOT, 'map', 'validate.mjs'), fx, ...(opts.target ? ['--target', join(fx, opts.target)] : [])];
+  let red = false, out = '';
+  try { execFileSync(process.execPath, args, { stdio: 'pipe' }); }
+  catch (e) { red = true; out = String(e.stdout || '') + String(e.stderr || ''); }
+  if (!red) { negFailures.push(`negative/${dir} validated GREEN but must be RED (${what}) — the validator stopped catching this class`); continue; }
+  const violations = out.split('\n').filter((l) => l.startsWith('  • ')).map((l) => l.slice(4));
+  if (!violations.some((v) => expect.test(v))) negFailures.push(`negative/${dir} is red, but not for its reason (${what}): expected ${expect}, got ${violations.length ? violations.join(' | ') : 'no listed violation'}`);
+  const stray = violations.filter((v) => !expect.test(v));
+  if (stray.length) negFailures.push(`negative/${dir} is red for other reasons too, so it cannot prove its own check (${what}): ${stray.join(' | ')}`);
 }
 
 // ── fail-closed unit invariants ───────────────────────────────────────────────
@@ -707,8 +726,9 @@ function adaptersOnce() { return loadAdapters(); }
 // ── dependency-scan instrument (map/dependency-scan.mjs → ingest profile dependency-scan) ─
 // The converter turns a synthetic dependency-scan document into exactly: one gap row
 // per advisory (category = its own severity), one lockfile-failed gap per failed
-// lockfile, one lockfile-unsupported gap per not-supported (pnpm/yarn) lockfile, and
-// nothing for a clean audited lockfile. A runner crash (exit 2) halts it; a document
+// lockfile, one lockfile-not-audited FACT per lockfile nothing audited (failed, or
+// not-run because its package manager is unavailable — the instrument's limit, never
+// a gap against the target), and nothing for a clean audited lockfile. A runner crash (exit 2) halts it; a document
 // whose exit disagrees with the runner exit halts; a truncated document halts. Every
 // category maps onto the shared code-security axis and the instrument contributes
 // none. The yardstick decides d-dependencies-known-clean on the `critical`
@@ -726,19 +746,24 @@ function adaptersOnce() { return loadAdapters(); }
         advisories: [{ id: 'GHSA-aaaa-bbbb-cccc', package: 'left-pad', installed: '1.0.0', range: '<1.0.1', severity: 'high', fix_available: true, url: 'https://github.com/advisories/GHSA-aaaa-bbbb-cccc' }],
       },
       { path: 'packages/foo/package-lock.json', status: 'failed', method: 'scratch-copy', npm_exit_code: null, reason: 'npm audit did not produce parseable JSON (registry unreachable, or npm printed a non-JSON error)' },
-      { path: 'packages/bar/pnpm-lock.yaml', status: 'not-supported', manager: 'pnpm', reason: 'dependency-scan audits npm lockfiles only; pnpm lockfiles are not covered' },
+      { path: 'packages/bar/pnpm-lock.yaml', status: 'not-run', manager: 'pnpm', reason: 'pnpm is not available on the runner; run `pnpm audit` where it is, or re-run dependency-scan there' },
     ],
     exit: 1,
   };
   const raw = JSON.stringify(doc);
-  // (a) convert: one row per advisory, one per failed lockfile, one per unsupported lockfile
+  // (a) convert: one gap per advisory, one gap per failed lockfile, one fact per unaudited lockfile
   const rows = convert('dependency-scan', raw, 1);
   const cats = rows.map((r) => r.native_category).sort().join(',');
-  if (cats !== 'high,lockfile-failed,lockfile-unsupported') fail(`convert must yield exactly high, lockfile-failed, lockfile-unsupported gap rows (got ${cats || '(none)'})`);
-  if (rows.some((r) => r.polarity !== 'gap' || !r.fix || !r.severity)) fail('every dependency-scan row is a gap with a severity and a fix');
-  const by = Object.fromEntries(rows.map((r) => [r.native_category, r]));
+  if (cats !== 'high,lockfile-failed,lockfile-not-audited,lockfile-not-audited') fail(`convert must yield high + lockfile-failed gaps and a lockfile-not-audited fact for each of the failed and not-run lockfiles (got ${cats || '(none)'})`);
+  if (rows.filter((r) => r.polarity === 'gap').some((r) => !r.fix || !r.severity)) fail('every dependency-scan gap carries a severity and a fix');
+  if (rows.filter((r) => r.native_category === 'lockfile-not-audited').some((r) => r.polarity !== 'fact' || r.severity || r.fix)) fail('a lockfile-not-audited row is a fact: no severity, no fix');
+  if (rows.some((r) => r.polarity === 'gap' && r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')) fail('a lockfile the instrument could not run on (its package manager unavailable) is the instrument\'s limit, never a gap against the target');
+  if (!/pnpm is not available/.test(rows.find((r) => r.evidence[0] === 'packages/bar/pnpm-lock.yaml:1')?.observation || '')) fail('the not-run fact must carry the instrument\'s reason');
+  const by = Object.fromEntries(rows.filter((r) => r.polarity === 'gap').map((r) => [r.native_category, r]));
   if (by.high?.severity !== 'High') fail(`a high advisory must map severity High (got ${by.high?.severity})`);
-  if (by['lockfile-failed']?.severity !== 'Medium' || by['lockfile-unsupported']?.severity !== 'Medium') fail('a failed or unsupported lockfile reads severity Medium');
+  if (by['lockfile-failed']?.severity !== 'Medium') fail('a failed lockfile reads severity Medium');
+  const legacy = convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [{ path: 'yarn.lock', status: 'not-supported', manager: 'yarn', reason: 'old document' }] }), 1);
+  if (legacy.map((r) => `${r.native_category}/${r.polarity}`).join() !== 'lockfile-not-audited/fact') fail(`a document from before 0.2.0 (status not-supported) converts to the not-audited fact, not a gap (got ${legacy.map((r) => r.native_category + '/' + r.polarity).join()})`);
   if (by.high?.evidence[0] !== 'package-lock.json:1') fail(`an advisory row must cite its lockfile at :1 (got ${by.high?.evidence[0]})`);
   if (by['lockfile-failed']?.evidence[0] !== 'packages/foo/package-lock.json:1') fail('a failed-lockfile row must cite its own lockfile path');
   if (!/left-pad/.test(by.high?.fix || '') || !/GHSA-aaaa-bbbb-cccc/.test(by.high?.observation || '')) fail('an advisory row must name the package (fix) and the advisory id (observation)');
@@ -757,7 +782,7 @@ function adaptersOnce() { return loadAdapters(); }
   const proj = projectMulti(rows, adaptersOnce());
   if (proj.unmapped.length) fail(`dependency-scan rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   const axisOf = (cat) => proj.projected.find((p) => p.f.native_category === cat)?.axis;
-  if (axisOf('high') !== 'code-security' || axisOf('lockfile-failed') !== 'code-security' || axisOf('lockfile-unsupported') !== 'code-security') fail('every dependency-scan category must land on code-security');
+  if (axisOf('high') !== 'code-security' || axisOf('lockfile-failed') !== 'code-security' || axisOf('lockfile-not-audited') !== 'code-security') fail('every dependency-scan category must land on code-security');
   if (contributedBySources(adaptersOnce(), ['dependency-scan']).size !== 0) fail('dependency-scan is an instrument and must contribute no axis');
   const rogue = projectMulti([{ ...rows[0], native_category: 'severe' }], adaptersOnce());
   if (!rogue.unmapped.length) fail('an unknown dependency-scan category must halt at projection (default: FAIL)');
@@ -779,7 +804,48 @@ function adaptersOnce() { return loadAdapters(); }
       findings: [], manifest: [{ scanner: 'dependency-scan', status: 'skipped', reason: 'no registry reach' }], inputs: null, coverage: {},
     }, reg).find((r) => r.id === 'd-dependencies-known-clean');
     if (skipped?.status !== 'not-measured' || !/no registry reach/.test(skipped.note || '')) fail(`a skipped manifest must read not-measured with the recorded reason (got ${skipped?.status}/${skipped?.note})`);
+    // an unaudited lockfile is not a clean one: before the fact existed, a run whose only
+    // lockfile went unaudited (pnpm not on the runner, or npm audit erroring) read MET
+    const dRow = (findings) => measureRun({ findings, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, reg).find((r) => r.id === 'd-dependencies-known-clean');
+    const notRunOnly = convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [doc.lockfiles[2]] }), 1);
+    const nr = dRow(notRunOnly);
+    if (nr?.status !== 'not-measured' || !/pnpm is not available/.test(nr.note || '')) fail(`a run whose only lockfile was not audited must read not-measured, never met (got ${nr?.status}/${nr?.note})`);
+    const failedOnly = dRow(convert('dependency-scan', JSON.stringify({ ...doc, lockfiles: [doc.lockfiles[1]] }), 1));
+    if (failedOnly?.status !== 'not-measured') fail(`a run whose only lockfile failed its audit must read not-measured, never met (got ${failedOnly?.status})`);
+    const withCritical = dRow([...notRunOnly, { id: 'F-9', source: 'dependency-scan', native_category: 'critical', polarity: 'gap' }]);
+    if (withCritical?.status !== 'unmet') fail(`a real critical advisory elsewhere governs over an unaudited lockfile (got ${withCritical?.status})`);
   }
+  // (g) pnpm / yarn classic audits, parsed from real reports (tests/instruments/*-audit-sample.*):
+  // the same six advisories through both, the critical one kept; anything that is not an
+  // audit (another exit code, no report, an error line, no summary) is a failure, never clean
+  const pnpmOut = readFileSync(join(HERE, 'instruments', 'pnpm-audit-sample.json'), 'utf8');
+  const yarnOut = readFileSync(join(HERE, 'instruments', 'yarn-audit-sample.ndjson'), 'utf8');
+  const pp = parsePnpmAudit(pnpmOut, 1), yp = parseYarnClassicAudit(yarnOut, 28);
+  const sig = (r) => (r.advisories || []).map((a) => `${a.id}@${a.package}:${a.severity}`).sort().join(',');
+  if (!pp.ok || pp.advisories.length !== 6 || pp.counts.critical !== 1 || !pp.advisories.some((a) => a.id === 'GHSA-xvch-5gv4-984h' && a.package === 'minimist' && a.severity === 'critical' && a.installed === '1.2.5')) fail(`pnpm audit: six advisories, minimist's critical GHSA-xvch-5gv4-984h at 1.2.5 among them (got ${JSON.stringify(pp).slice(0, 200)})`);
+  if (!yp.ok || sig(yp) !== sig(pp)) fail('yarn classic audit of the same dependencies must yield the same advisories as pnpm');
+  if (parsePnpmAudit(pnpmOut, 2).ok) fail('pnpm audit exiting 2 is not an audit');
+  if (parsePnpmAudit('ERR_PNPM_AUDIT_BAD_RESPONSE', 1).ok) fail('a non-JSON pnpm audit is not an audit');
+  if (parseYarnClassicAudit(yarnOut.split('\n').filter((l) => !l.includes('auditSummary')).join('\n'), 28).ok) fail('a yarn audit with no auditSummary is not an audit');
+  if (parseYarnClassicAudit('{"type":"error","data":"registry unreachable"}\n', 1).ok) fail('a yarn audit error line is not an audit');
+  if (parseYarnClassicAudit(yarnOut, 32).ok) fail('a yarn exit outside the 0-31 severity bitmask is not an audit');
+  // (h) end to end: a pnpm lockfile audited through the offline pnpm shim; with no pnpm on
+  // the runner the same lockfile reads not-run with the reason (never failed, never clean)
+  const tmpP = join(HERE, 'tmp-dep-pnpm'); rmSync(tmpP, { recursive: true, force: true }); mkdirSync(tmpP, { recursive: true });
+  writeFileSync(join(tmpP, 'package.json'), JSON.stringify({ name: 'p', dependencies: { lodash: '4.17.20', minimist: '1.2.5' } }));
+  writeFileSync(join(tmpP, 'pnpm-lock.yaml'), "lockfileVersion: '9.0'\n");
+  const savedPath = process.env.PATH;
+  try {
+    process.env.PATH = `${join(HERE, 'instruments', 'shims')}:${savedPath}`;
+    const withPnpm = runDependencyScan({ target: tmpP, timeout: 30, log: () => {} });
+    const lf = withPnpm.lockfiles[0] || {};
+    if (lf.status !== 'audited' || lf.manager !== 'pnpm' || (lf.advisories || []).length !== 6 || withPnpm.exit !== 1) fail(`a pnpm lockfile with pnpm on the runner is audited (got ${lf.status}/${lf.manager}/${(lf.advisories || []).length}/${withPnpm.exit})`);
+    process.env.PATH = join(tmpP, 'no-such-bin');
+    const noPnpm = runDependencyScan({ target: tmpP, timeout: 30, log: () => {} });
+    const nlf = noPnpm.lockfiles[0] || {};
+    if (nlf.status !== 'not-run' || !/pnpm is not available/.test(nlf.reason || '') || noPnpm.exit !== 1) fail(`with no pnpm on the runner the lockfile reads not-run with the reason, and the run is not clean (got ${nlf.status}/${nlf.reason}/${noPnpm.exit})`);
+  } finally { process.env.PATH = savedPath; }
+  rmSync(tmpP, { recursive: true, force: true });
   // (f) manifests / noManifest: a manifest with dependencies and no lockfile covering
   // it is a FACT (not a gap) — zero lockfiles audited is never clean, but it is a
   // different claim than a known advisory. Decides d-dependencies-known-clean
@@ -845,6 +911,68 @@ function adaptersOnce() { return loadAdapters(); }
   const docAncestor = runDependencyScan({ target: tmpAncestor, timeout: 5, log: () => {} });
   if (docAncestor.manifests.length) fail(`a manifest covered by an ANCESTOR lockfile must not be recorded uncovered (got ${JSON.stringify(docAncestor.manifests)})`);
   rmSync(tmpAncestor, { recursive: true, force: true });
+}
+
+// ── fresh-clone on a pnpm monorepo (#25, #26): the root's gates cover the tree ──
+// A pnpm workspace (pnpm-workspace.yaml, no package.json field) whose gates run once at
+// the root must not read as seven failed installs and a gap per undeclared workspace
+// step. The fixture runs through offline shims (tests/instruments/shims: CI has no pnpm
+// and no registry); the pnpm shim really runs package.json scripts, so a workspace's own
+// failing test still fails. Pinned: the list comes from pnpm-workspace.yaml with its `!`
+// exclusion; no npm command ever runs against the pnpm tree; each undeclared step a
+// passing root step reaches reads covered, naming the covering command; migrate belongs
+// to the package that declares it; the failing workspace test stays a gap; the root's
+// database signal is read tree-wide. And the other direction: a root step that did not
+// pass, or that does not reach the tree, covers nothing.
+{
+  const fail = (m) => negFailures.push('fresh-clone-pnpm: ' + m);
+  const fx = join(HERE, 'instruments', 'fresh-clone-pnpm');
+  const tmp = join(HERE, 'tmp-fresh-clone-pnpm'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
+  const out = join(tmp, 'fresh-clone.json');
+  const env = { ...process.env, PATH: `${join(HERE, 'instruments', 'shims')}:${process.env.PATH}` };
+  let exit = 0;
+  try { execFileSync(process.execPath, [join(ROOT, 'map', 'fresh-clone.mjs'), fx, '--no-clone', '--out', out, '--timeout', '60'], { stdio: 'pipe', env }); }
+  catch (e) { exit = e.status; }
+  let doc = null; try { doc = JSON.parse(readFileSync(out, 'utf8')); } catch { fail('the runner must write a document'); }
+  if (doc) {
+    if (exit !== 1 || doc.exit !== 1) fail(`packages/failing's own test fails, so the run exits 1 (got ${exit}/${doc.exit})`);
+    if (doc.workspaces_from !== 'pnpm-workspace.yaml') fail(`the workspace list must come from pnpm-workspace.yaml (got ${doc.workspaces_from})`);
+    const paths = (doc.workspaces || []).map((w) => w.path).join();
+    if (paths !== 'apps/web,packages/failing,packages/lib') fail(`workspaces must be apps/web, packages/failing, packages/lib — packages/scratch excluded by "!packages/scratch" (got ${paths})`);
+    const cmds = [doc.steps, ...(doc.workspaces || []).map((w) => w.steps)].flat().map((x) => x.command).filter(Boolean);
+    if (cmds.some((c) => /^npm\b|\bnpm ci\b/.test(c))) fail(`no npm command may run against a pnpm tree (got ${cmds.filter((c) => /npm/.test(c)).join(' | ')})`);
+    const ws = (p) => (doc.workspaces || []).find((w) => w.path === p) || { steps: [] };
+    const st = (p, n) => ws(p).steps.find((x) => x.name === n) || {};
+    const web = (n) => st('apps/web', n);
+    if (web('install').status !== 'covered' || web('install').covered_by?.command !== 'pnpm install --frozen-lockfile') fail(`apps/web install must be covered by the root pnpm install (got ${JSON.stringify(web('install'))})`);
+    if (web('build').status !== 'passed' || web('build').command !== 'pnpm run build') fail(`apps/web's own build runs with pnpm and passes (got ${web('build').status} / ${web('build').command})`);
+    for (const [n, via] of [['lint', 'lint-root'], ['typecheck', 'recursive'], ['test', 'test-discovery']])
+      if (web(n).status !== 'covered' || web(n).covered_by?.via !== via || web(n).covered_by?.path !== '.') fail(`apps/web ${n} must be covered by the root (${via}) (got ${JSON.stringify(web(n))})`);
+    if (web('migrate').status !== 'covered' || web('migrate').covered_by?.path !== '.' || web('migrate').covered_by?.command !== 'db:migrate') fail(`apps/web migrate must belong to the root's db:migrate (got ${JSON.stringify(web('migrate'))})`);
+    if (st('packages/failing', 'test').status !== 'failed') fail(`a workspace's own failing test stays failed, never covered (got ${st('packages/failing', 'test').status})`);
+    if (st('packages/lib', 'install').status !== 'covered') fail('packages/lib (dependencies, no lockfile of its own) installs through the root');
+    let rows = [];
+    try { rows = convert('fresh-clone', readFileSync(out, 'utf8'), exit); } catch (e) { fail(`ingest must accept the covered statuses (${e.message})`); }
+    const ids = rows.map((r) => r.native_id).sort().join(', ');
+    if (ids !== 'build:not-declared, migrate:not-declared, packages/failing:build:not-declared, packages/failing:test:failed, packages/lib:build:not-declared')
+      fail(`ingest must file only the real gaps — the root's undeclared build and live-database migrate, the failing workspace test, and the builds no root step reaches (got ${ids})`);
+    if (rows.some((r) => r.native_category === 'no-database-signal')) fail('the root declares prisma migrations and apps/web depends on @prisma/client: no "no database signal" fact may be filed');
+    const bare = readFileSync(out, 'utf8').replace(/"covered_by": \{[^}]*\}/, '"covered_by": null');
+    let threw = false; try { convert('fresh-clone', bare, exit); } catch { threw = true; }
+    if (!threw) fail('a covered step with no covered_by must halt ingest (coverage that names no covering step is not evidence)');
+  }
+  // the other direction, on the planner directly
+  const rootTc = { family: 'node', package_manager: 'pnpm', lockfile: 'pnpm-lock.yaml' };
+  const wsTc = { family: 'node', package_manager: 'npm', lockfile: null, has_dependencies: true };
+  const rootPkg = { scripts: { lint: 'eslint src', test: 'vitest run apps/web', typecheck: 'pnpm -r typecheck' } };
+  const passed = (n, c) => ({ name: n, status: 'passed', command: c });
+  const plan = planWorkspace(rootTc, wsTc, { name: 'x', dependencies: { a: '1' } }, 'packages/x', { pkg: rootPkg, migrateOwner: null,
+    steps: [{ name: 'install', status: 'failed', command: 'pnpm install --frozen-lockfile' }, passed('lint', 'pnpm run lint'), passed('test', 'pnpm run test'), { name: 'typecheck', status: 'failed', command: 'pnpm run typecheck' }] });
+  if (plan.install.status !== 'root-install-broken') fail(`a root install that failed covers nothing: the workspace install is recorded skipped (got ${plan.install.status})`);
+  if (plan.lint.status !== 'not-declared') fail('`eslint src` does not reach packages/x: lint stays not-declared');
+  if (plan.test.status !== 'not-declared') fail('`vitest run apps/web` names a path: test stays not-declared for packages/x');
+  if (plan.typecheck.status !== 'not-declared') fail('a recursive root typecheck that FAILED covers nothing');
+  rmSync(tmp, { recursive: true, force: true });
 }
 
 // ── fresh-clone workspaces ──────────────
@@ -3126,7 +3254,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, sequence, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, sequence, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

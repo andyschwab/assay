@@ -1,0 +1,11 @@
+{
+  "name": "pnpm-monorepo-fixture",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run --project unit --project gates",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "prisma migrate deploy"
+  }
+}

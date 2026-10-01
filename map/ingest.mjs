@@ -35,8 +35,9 @@
 // The DEPENDENCY-SCAN instrument (map/dependency-scan.mjs) also comes in here:
 // its JSON document records each lockfile's audit status and one advisory row
 // per (advisory id, package); exits 0 and 1 are both successful runs (1 = an
-// advisory or a failed/not-supported lockfile exists), a runner crash exits 2
-// and halts. A failed or not-supported lockfile is a gap row, never silence.
+// advisory, a failed lockfile or one not run exists), a runner crash exits 2
+// and halts. A failed lockfile is a gap row; a lockfile nothing audited (failed,
+// or not run) is also a lockfile-not-audited fact — never silence, never clean.
 //
 // Usage:
 //   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx]
@@ -209,6 +210,8 @@ const PROFILES = {
     // typecheck, test, migrate (the floor descriptors are worded so absence is a gap,
     // never clean: no lint script is not a green lint); one gap per MISSING README
     // claim. A passing step yields no row — a clean run is the explicit empty file.
+    // A workspace step COVERED by a passing root step (fresh-clone's covered_by names
+    // it) yields no row either: the root's own row already carries that step.
     // NEVER copy step output: the last-40-lines tail (which may echo environment
     // values) stays in the raw archive; rows carry the command and exit code only.
     //
@@ -241,6 +244,14 @@ const PROFILES = {
           if (!FC_STEP_STATUS.includes(s.status)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: status "${s.status}" is not one of ${FC_STEP_STATUS.join(' | ')}`);
           if (seen.has(s.name)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name} appears twice`);
           seen.add(s.name);
+          // covered: a step this workspace does not declare, reached by a PASSING root step
+          // (or, for migrate, owned by the package that declares it) — no row, but only with
+          // the covering command recorded; a bare "covered" is unprovable and halts
+          if (s.status === 'covered') {
+            const by = s.covered_by;
+            if (!by || typeof by.path !== 'string' || !by.path || typeof by.command !== 'string' || !by.command) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: covered with no covered_by path + command — coverage that names no covering step is not evidence (truncated report?)`);
+            continue;
+          }
           const cmd = s.command ? ` (\`${oneLine(s.command)}\`` + (Number.isInteger(s.exit_code) ? `, exit ${s.exit_code})` : ')') : '';
           let observation = null;
           if (s.status === 'failed') observation = `Fresh-clone step ${s.name}${ctx.inLabel} failed${cmd}${s.reason ? ': ' + oneLine(s.reason) : ''}; a clean checkout does not ${FC_VERB[s.name]}${ctx.inLabel}.`;
@@ -293,7 +304,11 @@ const PROFILES = {
         }
       };
 
-      const rootDbSignals = Array.isArray(rep.toolchain && rep.toolchain.database_signals) && rep.toolchain.database_signals.length > 0;
+      // the root's "no database signal" is a claim about the whole tree: a monorepo whose
+      // database dependency sits in a workspace (apps/web → @prisma/client) has one, and
+      // reading only the root manifest would record a false not-applicable fact
+      const hasSignals = (tc) => Array.isArray(tc && tc.database_signals) && tc.database_signals.length > 0;
+      const rootDbSignals = hasSignals(rep.toolchain) || (Array.isArray(rep.workspaces) && rep.workspaces.some((w) => w && hasSignals(w.toolchain)));
       emitEntry(rep.steps, rep.readme_claims, {
         idPrefix: '', inLabel: '', errLabel: '',
         manifest: (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
@@ -320,15 +335,18 @@ const PROFILES = {
   'dependency-scan': {
     startId: 950,
     // 0 = every lockfile in the tree audited with zero advisories; 1 = any advisory,
-    // any failed lockfile, or any not-supported (pnpm/yarn) lockfile. Both are
+    // any failed lockfile, or any lockfile not run. Both are
     // successful RUNS. A crash of the runner itself exits 2 and halts.
     okExits: [0, 1],
     // Rows: one gap per advisory (category = its severity — critical | high |
-    // moderate | low | info); one gap (category lockfile-failed) per lockfile npm
-    // audit could not complete against (a tool error is never a clean lockfile);
-    // one gap (category lockfile-unsupported) per pnpm-lock.yaml / yarn.lock (an
-    // absent audit is a gap, never clean). A clean audited lockfile with no
-    // advisories yields no row — a clean run is the explicit empty file.
+    // moderate | low | info), from npm, pnpm or yarn audit alike; one gap (category
+    // lockfile-failed) per lockfile an audit could not complete against (a tool
+    // error is never a clean lockfile); and for every lockfile nothing audited —
+    // failed, or not-run because its package manager is unavailable (the
+    // instrument's limit, so no gap against the target) — one FACT
+    // (lockfile-not-audited) that holds d-dependencies-known-clean at not-measured.
+    // A clean audited lockfile with no advisories yields no row — a clean run is
+    // the explicit empty file.
     convert(raw, startId, exitCode) {
       const rep = parseJson(raw, 'dependency-scan');
       if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('dependency-scan report must be a JSON object');
@@ -341,24 +359,33 @@ const PROFILES = {
         if (!lf || typeof lf.path !== 'string' || !lf.path) throw new Error('dependency-scan lockfile row missing path (truncated report?)');
         if (!DS_STATUS.includes(lf.status)) throw new Error(`dependency-scan lockfile ${lf.path}: status "${lf.status}" is not one of ${DS_STATUS.join(' | ')}`);
         const evidence = [`${lf.path}:1`];
+        const mgr = lf.manager || 'npm';
+        // a lockfile nothing audited is never clean: one FACT row per such lockfile, which
+        // holds d-dependencies-known-clean at not-measured (decide.not_measured_when) unless a
+        // real critical advisory elsewhere already decides it — without it, a run whose only
+        // lockfile went unaudited read "met" (no critical rows)
+        const notAudited = (why) => rows.push({
+          id: fid(startId + n++), source: 'dependency-scan',
+          native_id: `lockfile-not-audited@${lf.path}`, native_category: 'lockfile-not-audited', polarity: 'fact',
+          observation: `${lf.path} (${mgr}) was not audited: ${why}. Nothing read it for advisories, so it is not known clean.`,
+          evidence,
+        });
         if (lf.status === 'failed') {
+          const code = Number.isInteger(lf.npm_exit_code) ? lf.npm_exit_code : Number.isInteger(lf.exit_code) ? lf.exit_code : null;
           rows.push({
             id: fid(startId + n++), source: 'dependency-scan',
             native_id: `lockfile-failed@${lf.path}`, native_category: 'lockfile-failed', polarity: 'gap', severity: 'Medium',
-            observation: `dependency-scan could not audit ${lf.path}${Number.isInteger(lf.npm_exit_code) ? ` (npm audit exited ${lf.npm_exit_code})` : ''}${lf.reason ? ': ' + oneLine(lf.reason) : ''}; a tool error is never read as a clean lockfile.`,
+            observation: `dependency-scan could not audit ${lf.path}${code !== null ? ` (${mgr} audit exited ${code})` : ''}${lf.reason ? ': ' + oneLine(lf.reason) : ''}; a tool error is never read as a clean lockfile.`,
             evidence,
-            fix: `Fix what is blocking npm audit against ${lf.path} (registry reachability, a malformed lockfile, or an ENOLOCK workspace root npm cannot resolve) and re-run dependency-scan until it reads audited.`,
+            fix: `Fix what is blocking ${mgr} audit against ${lf.path} (registry reachability, a malformed lockfile, or a workspace root the package manager cannot resolve) and re-run dependency-scan until it reads audited.`,
           });
+          notAudited(`the ${mgr} audit failed${lf.reason ? ' (' + oneLine(lf.reason) + ')' : ''}`);
           continue;
         }
-        if (lf.status === 'not-supported') {
-          rows.push({
-            id: fid(startId + n++), source: 'dependency-scan',
-            native_id: `lockfile-unsupported@${lf.path}`, native_category: 'lockfile-unsupported', polarity: 'gap', severity: 'Medium',
-            observation: `${lf.path} is a ${lf.manager || 'non-npm'} lockfile; dependency-scan audits npm lockfiles only, so it was never checked${lf.reason ? ': ' + oneLine(lf.reason) : ''}.`,
-            evidence,
-            fix: `Audit ${lf.path} with its own package manager's vulnerability tool (${lf.manager === 'yarn' ? 'yarn npm audit' : 'pnpm audit'}), or restate it as an npm lockfile; the absence of an audit is a gap, not a clean lockfile.`,
-          });
+        if (lf.status === 'not-run' || lf.status === 'not-supported') {
+          // the instrument's limit (its package manager unavailable, an unsupported lockfile
+          // format), not the target's: a fact, never a gap severity-rated against the repository
+          notAudited(lf.reason ? oneLine(lf.reason) : `dependency-scan did not run ${mgr} audit on it`);
           continue;
         }
         // status === 'audited'
@@ -372,7 +399,7 @@ const PROFILES = {
             severity: DS_SEVERITY_MAP[a.severity],
             observation: `${a.package}${a.installed ? ` (installed ${oneLine(a.installed)})` : ''} in ${lf.path} is vulnerable to ${a.id} (${a.severity}${a.range ? `, range ${oneLine(a.range)}` : ''})${a.url ? ` — ${a.url}` : ''}.`,
             evidence,
-            fix: `Upgrade ${a.package} to a version outside ${a.range ? oneLine(a.range) : 'the vulnerable range'} (npm reports a fix available: ${a.fix_available ? 'yes' : 'no'}) and regenerate ${lf.path}; re-run dependency-scan and confirm the advisory is gone.`,
+            fix: `Upgrade ${a.package} to a version outside ${a.range ? oneLine(a.range) : 'the vulnerable range'} (${mgr} audit reports a fix available: ${a.fix_available ? 'yes' : 'no'}) and regenerate ${lf.path}; re-run dependency-scan and confirm the advisory is gone.`,
           });
         }
       }
@@ -497,12 +524,12 @@ const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
 // the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)
 const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'EndLine', 'StartColumn', 'EndColumn', 'Commit', 'Date', 'Fingerprint', 'Entropy', 'Tags'];
 // dependency-scan vocab (the runner's closed sets; a report outside them is truncated or foreign)
-const DS_STATUS = ['audited', 'failed', 'not-supported'];
+const DS_STATUS = ['audited', 'failed', 'not-run', 'not-supported'];   // not-supported: documents from before 0.2.0
 const DS_SEVERITIES = ['critical', 'high', 'moderate', 'low', 'info'];
 const DS_SEVERITY_MAP = { critical: 'Critical', high: 'High', moderate: 'Medium', low: 'Low', info: 'Low' };
 // fresh-clone vocab (the runner's closed sets; a report outside them is truncated or foreign)
 const FC_STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
-const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped'];
+const FC_STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 // not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
 // already held — undeclared meant met for build alone until this fixed the
 // inconsistency); migrate only where the tree carries database signals (see

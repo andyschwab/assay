@@ -8,6 +8,7 @@ dimensions:
   - dimension: artifact-legibility
     coverage:
       kind: sampled
+      measure: decision-reconstruction
       met: 62
       of: 100
       pct: 62

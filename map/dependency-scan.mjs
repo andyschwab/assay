@@ -1,15 +1,22 @@
 #!/usr/bin/env node
-// dependency-scan.mjs — the DEPENDENCY-SCAN instrument: does every npm lockfile
-// in the tree audit clean against the npm registry's advisory database?
+// dependency-scan.mjs — the DEPENDENCY-SCAN instrument: does every lockfile in
+// the tree (npm, pnpm, yarn) audit clean against the registry's advisory database?
 // (yardstick/requirements.yaml d-dependencies-known-clean — "no known-critical
 // dependency vulnerability is present".) Its rows come in through
 // map/ingest.mjs (profile `dependency-scan`) and land on the shared
 // code-security axis via adapters/dependency-scan.yaml.
 //
 // What it does, in order:
-//   1. ENUMERATE every package-lock.json / npm-shrinkwrap.json in the tree
-//      (node_modules/ and .git/ excluded), plus every pnpm-lock.yaml /
-//      yarn.lock — recorded `not-supported`, never silently skipped.
+//   1. ENUMERATE every package-lock.json / npm-shrinkwrap.json, pnpm-lock.yaml
+//      and yarn.lock in the tree (node_modules/ and .git/ excluded).
+//   1a. AUDIT each pnpm-lock.yaml with `pnpm audit --json` and each yarn
+//      classic yarn.lock with `yarn audit --json`, both read from the lockfile
+//      alone (no install). Both report npm's v6 advisory objects, recorded in
+//      the same rows as the npm path. When the package manager is not on the
+//      runner (or the lockfile is yarn berry, whose `yarn npm audit` this
+//      instrument does not drive yet), the lockfile is `not-run` with the reason:
+//      the instrument's limit, recorded as such — never charged to the target
+//      as a gap, never read as clean.
 //   2. AUDIT each npm lockfile with `npm audit --json` (no install; the
 //      lockfile is read as-is, against the live registry). A directory that
 //      is a workspace member whose effective root carries no lockfile of its
@@ -29,18 +36,19 @@
 // npm error document, e.g. no registry reachable, looks exactly like this), a
 // timeout, or a spawn failure makes that lockfile `status: failed`, never
 // read as clean — a tool that errored must never read as "0 findings". A
-// pnpm-lock.yaml / yarn.lock is `not-supported`, never clean. A package.json
+// lockfile `not-run` (its package manager unavailable) is never clean either. A package.json
 // that declares real dependencies with NO lockfile (npm or otherwise) covering
 // it — in its own directory or any ancestor up to the scan root — is recorded
 // in `manifests` (`status: no-lockfile`): zero lockfiles audited is never read
 // as clean (`yardstick/requirements.yaml` `d-dependencies-known-clean` reads
-// not-measured over it, "no lockfile: nothing to audit", never met). Zero
+// not-measured over it, "no lockfile: nothing to audit", never met; a lockfile
+// that failed or was not run reads the same way: not audited is not clean). Zero
 // package.json files anywhere in the tree is the DIFFERENT fact `noManifest:
 // true` — no dependency graph exists at all, and the requirement reads
 // not-applicable, never met by silence. The document's own `exit` is 0 only
 // when every lockfile in the tree audited with zero advisories AND every
 // manifest with dependencies is covered by a lockfile; 1 when any advisory
-// exists, any lockfile failed, any lockfile is not-supported, or any manifest
+// exists, any lockfile failed or was not run, or any manifest
 // is uncovered; a crash of the runner itself exits 2 (uncaught at the CLI
 // boundary), so ingest.mjs (success set [0, 1]) halts on it.
 //
@@ -57,8 +65,8 @@ import { join, resolve, isAbsolute, dirname, relative, basename } from 'node:pat
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 
-export const VERSION = '0.1.0';
-export const LOCK_STATUS = ['audited', 'failed', 'not-supported'];
+export const VERSION = '0.2.0';   // 0.2.0: pnpm + yarn classic audited; `not-supported` became `not-run`
+export const LOCK_STATUS = ['audited', 'failed', 'not-run'];
 export const SEVERITIES = ['critical', 'high', 'moderate', 'low', 'info'];
 const MAX_BUFFER = 64 * 1024 * 1024;
 const TAIL_LINES = 40;
@@ -241,6 +249,100 @@ export function auditLockfile(lockPath, root, timeoutSec, log) {
   };
 }
 
+// ── pnpm and yarn classic: npm's v6 advisory objects ─────────────────────────
+// Both `pnpm audit --json` and yarn classic's `auditAdvisory` lines carry the same
+// advisory object: module_name, severity, vulnerable_versions, patched_versions,
+// github_advisory_id, url, title, findings[].version. One row per (id, package).
+export function advisoriesFromV6(list) {
+  const rows = []; const seen = new Set();
+  for (const a of list) {
+    if (!a || typeof a !== 'object' || !a.module_name) continue;
+    const ghsa = typeof a.url === 'string' && a.url.match(/GHSA-[a-zA-Z0-9-]+/);
+    const id = a.github_advisory_id || (ghsa ? ghsa[0] : null) || (a.id !== undefined ? `npm-${a.id}` : null);
+    if (!id) continue;
+    const key = `${id}@${a.module_name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const installed = [...new Set((Array.isArray(a.findings) ? a.findings : []).map((f) => f && f.version).filter(Boolean).map(String))];
+    rows.push({
+      id, package: a.module_name,
+      installed: installed.length ? installed.join(', ') : null,
+      range: a.vulnerable_versions || null,
+      severity: a.severity,
+      fix_available: !!(a.patched_versions && a.patched_versions !== '<0.0.0'),
+      url: a.url || null,
+      title: a.title || null,
+    });
+  }
+  return rows;
+}
+const countsOf = (v) => ({ critical: v.critical || 0, high: v.high || 0, moderate: v.moderate || 0, low: v.low || 0, info: v.info || 0 });
+
+// `pnpm audit --json`: exit 0 clean, 1 advisories. Any other exit, or a report without
+// `advisories` + `metadata.vulnerabilities`, is not an audit.
+export function parsePnpmAudit(stdout, status) {
+  let doc = null;
+  try { doc = JSON.parse(stdout); } catch { doc = null; }
+  const ok = (status === 0 || status === 1) && doc && typeof doc === 'object' && doc.advisories && typeof doc.advisories === 'object'
+    && doc.metadata && doc.metadata.vulnerabilities;
+  if (!ok) {
+    const reason = doc && doc.error ? `pnpm audit error ${doc.error.code || ''}: ${oneLine(doc.error.message || doc.error.summary || '')}`.trim()
+      : doc ? `pnpm audit exited ${status} with an unrecognized report shape`
+      : 'pnpm audit did not produce parseable JSON (registry unreachable, or pnpm printed a non-JSON error)';
+    return { ok: false, reason };
+  }
+  return { ok: true, counts: countsOf(doc.metadata.vulnerabilities), dependencies_audited: doc.metadata.totalDependencies ?? doc.metadata.dependencies ?? null, advisories: advisoriesFromV6(Object.values(doc.advisories)) };
+}
+
+// `yarn audit --json` (classic): NDJSON — `auditAdvisory` lines and one `auditSummary`.
+// The exit code is a severity bitmask (0–31), so any of those is an audit; without a
+// summary line, or with an `error` line, it is not.
+export function parseYarnClassicAudit(stdout, status) {
+  const parsed = [];
+  for (const l of String(stdout || '').split('\n').map((x) => x.trim()).filter(Boolean)) {
+    try { parsed.push(JSON.parse(l)); }
+    catch { return { ok: false, reason: 'yarn audit printed a line that is not JSON (registry unreachable, or yarn printed a non-JSON error)' }; }
+  }
+  const err = parsed.find((x) => x && x.type === 'error');
+  const summary = parsed.find((x) => x && x.type === 'auditSummary' && x.data && x.data.vulnerabilities);
+  if (err) return { ok: false, reason: `yarn audit error: ${oneLine(err.data)}` };
+  if (!summary) return { ok: false, reason: 'yarn audit produced no auditSummary (a truncated or failed audit)' };
+  if (!(Number.isInteger(status) && status >= 0 && status <= 31)) return { ok: false, reason: `yarn audit exited ${status}` };
+  const advisories = advisoriesFromV6(parsed.filter((x) => x && x.type === 'auditAdvisory' && x.data && x.data.advisory).map((x) => x.data.advisory));
+  return { ok: true, counts: countsOf(summary.data.vulnerabilities), dependencies_audited: summary.data.totalDependencies ?? summary.data.dependencies ?? null, advisories };
+}
+
+function toolVersion(bin) {
+  const r = spawnSync(bin, ['--version'], { encoding: 'utf8', env: scrubbedEnv(), timeout: 30000 });
+  return (!r.error && r.status === 0) ? String(r.stdout || '').trim() : null;
+}
+// yarn berry (2+): a .yarnrc.yml beside the lockfile, or the berry lockfile header
+function isYarnBerry(lockPath) {
+  if (existsSync(join(dirname(lockPath), '.yarnrc.yml'))) return true;
+  try { return /^__metadata:/m.test(readFileSync(lockPath, 'utf8').slice(0, 4000)); } catch { return false; }
+}
+
+// one pnpm-lock.yaml / yarn.lock: audited with its own package manager, or not-run
+// with the reason when the instrument cannot (its limit, not the target's gap)
+export function auditOtherLockfile(o, root, timeoutSec, log = () => {}) {
+  const relPath = relative(root, o.path).split('\\').join('/');
+  const notRun = (reason) => { log(`  → ${relPath}: not-run (${reason})`); return { path: relPath, status: 'not-run', manager: o.manager, reason }; };
+  if (o.manager === 'yarn' && isYarnBerry(o.path)) return notRun('a yarn berry (2+) lockfile: this instrument drives yarn classic\'s `yarn audit` only; run `yarn npm audit --all --recursive` on it');
+  const version = toolVersion(o.manager);
+  if (!version) return notRun(`${o.manager} is not available on the runner; run \`${o.manager} audit\` where it is, or re-run dependency-scan there`);
+  const cmd = `${o.manager} audit --json`;
+  const r = spawnSync(o.manager, ['audit', '--json'], { cwd: dirname(o.path), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: scrubbedEnv() });
+  let res;
+  if (r.error && r.error.code === 'ETIMEDOUT') res = { ok: false, reason: `${cmd} timed out` };
+  else if (r.error) res = { ok: false, reason: `could not spawn ${o.manager}: ${r.error.message}` };
+  else if (r.signal) res = { ok: false, reason: `${cmd} was killed by ${r.signal}` };
+  else res = o.manager === 'pnpm' ? parsePnpmAudit(r.stdout, r.status) : parseYarnClassicAudit(r.stdout, r.status);
+  log(`  → ${cmd} ${relPath} (${o.manager} ${version}): ${res.ok ? `exit ${r.status}` : 'failed'}`);
+  if (!res.ok) return { path: relPath, status: 'failed', manager: o.manager, method: 'in-place', exit_code: r.status ?? null, reason: res.reason, stderr_tail: tail(r.stderr) };
+  return { path: relPath, status: 'audited', manager: o.manager, tool_version: version, method: 'in-place', exit_code: r.status,
+    counts: res.counts, dependencies_audited: res.dependencies_audited, advisories: res.advisories };
+}
+
 // ── the run ──────────────────────────────────────────────────────────────────
 export function run({ target, timeout = 300, log = () => {} }) {
   const startedAt = new Date().toISOString();
@@ -248,13 +350,8 @@ export function run({ target, timeout = 300, log = () => {} }) {
   const root = resolve(target);
   const { npm, other } = findLockfiles(root);
   const lockfiles = [];
-  for (const lp of npm) lockfiles.push(auditLockfile(lp, root, timeout, log));
-  for (const o of other) {
-    const relPath = relative(root, o.path).split('\\').join('/');
-    log(`  → ${relPath}: not-supported (${o.manager})`);
-    lockfiles.push({ path: relPath, status: 'not-supported', manager: o.manager,
-      reason: `audit with ${o.manager === 'pnpm' ? 'pnpm audit' : 'yarn npm audit'} instead` });
-  }
+  for (const lp of npm) lockfiles.push({ manager: 'npm', ...auditLockfile(lp, root, timeout, log) });
+  for (const o of other) lockfiles.push(auditOtherLockfile(o, root, timeout, log));
   lockfiles.sort((a, b) => a.path < b.path ? -1 : 1);
 
   // manifests: a package.json with real dependencies and NO lockfile (npm or
@@ -272,12 +369,12 @@ export function run({ target, timeout = 300, log = () => {} }) {
 
   const anyAdvisory = lockfiles.some((l) => l.status === 'audited' && l.advisories.length);
   const anyFailed = lockfiles.some((l) => l.status === 'failed');
-  const anyUnsupported = lockfiles.some((l) => l.status === 'not-supported');
+  const anyNotRun = lockfiles.some((l) => l.status === 'not-run');
   const anyUncovered = manifests.length > 0;
   return {
     tool: 'dependency-scan', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
     target: { path: target }, timeout_seconds: timeout, lockfiles, manifests, noManifest,
-    exit: (anyAdvisory || anyFailed || anyUnsupported || anyUncovered) ? 1 : 0,
+    exit: (anyAdvisory || anyFailed || anyNotRun || anyUncovered) ? 1 : 0,
   };
 }
 
@@ -298,9 +395,9 @@ if (isMain(import.meta.url)) {
     const audited = doc.lockfiles.filter((l) => l.status === 'audited');
     const advisories = audited.reduce((n, l) => n + l.advisories.length, 0);
     const failed = doc.lockfiles.filter((l) => l.status === 'failed').length;
-    const unsupported = doc.lockfiles.filter((l) => l.status === 'not-supported').length;
+    const notRun = doc.lockfiles.filter((l) => l.status === 'not-run').length;
     const uncoveredNote = doc.manifests.length ? ` · ${doc.manifests.length} manifest(s) with no lockfile` : doc.noManifest ? ' · no manifest in the tree (not applicable)' : '';
-    console.error(`${doc.exit === 0 ? '✓' : '✗'} dependency-scan: ${audited.length} lockfile(s) audited (${advisories} advisor${advisories === 1 ? 'y' : 'ies'}) · ${failed} failed · ${unsupported} not supported${uncoveredNote} → ${out}`);
+    console.error(`${doc.exit === 0 ? '✓' : '✗'} dependency-scan: ${audited.length} lockfile(s) audited (${advisories} advisor${advisories === 1 ? 'y' : 'ies'}) · ${failed} failed · ${notRun} not run${uncoveredNote} → ${out}`);
     process.exit(doc.exit);
   } catch (e) {
     console.error(`✗ dependency-scan crashed: ${e.message}`);

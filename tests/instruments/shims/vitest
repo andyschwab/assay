@@ -1,0 +1,3 @@
+#!/bin/sh
+# offline vitest stand-in for the regression harness: always passes
+exit 0
