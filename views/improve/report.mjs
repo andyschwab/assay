@@ -228,7 +228,7 @@ function scannerAxes() {
   try {
     const rows = measureRunOf(runDir);
     const sm = summarizeMeasurement(rows);
-    const claims = rows.filter((r) => r.kind === 'claim').length;
+    const claims = rows.filter((r) => r.kind === 'claim' && r.status === 'not-measured').length;   // the claim rows no packet decided
     const unmet = rows.filter((r) => r.status === 'unmet');
     out.push(`\nAgainst the yardstick (${sm.of} requirements a repository can claim and a run can verify): this run decides ${sm.decided}, of which ${sm.met} met, ${sm.unmet} unmet, ${sm.mixed} mixed, ${sm['not-applicable']} not applicable (decided from the map, never a claim); ${sm['not-measured']} are not measured, ${claims} of them claims only the repository's own sidecar can make.${unmet.length ? ` Unmet: ${unmet.map((r) => r.title.toLowerCase()).join('; ')}.` : ''}`);
   } catch { /* the yardstick measurement is optional to the report; validate.mjs is where it fails loud */ }

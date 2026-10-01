@@ -49,6 +49,7 @@ import { run as runDependencyScan } from '../map/dependency-scan.mjs';
 import { runAssayInstrument, runGitleaks } from '../map/start.mjs';
 import { scannersPath as runScannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow } from '../map/record.mjs';
+import { renderMd as renderSinceMd } from '../views/since.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');            // repo root
@@ -4334,6 +4335,34 @@ for (const [key, dir] of SCORED) {
   if (plain.status !== 0) fail(`backlog with no sub-tool requested must exit 0 (got ${plain.status}: ${String(plain.stderr).slice(0, 160)})`);
 }
 
+// ── a not-measured count and a previous status read what the measurement says (#53, F-1225) ──
+// INDEX and IMPROVE counted every claim row as a not-measured, claim-only row even when the
+// packet decided some of them; SINCE printed "not-measured → X" for a row that was
+// previously not-applicable.
+{
+  const fail = (m) => negFailures.push('counts-read-measurement: ' + m);
+  const tmp = join(HERE, 'tmp-counts-read'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('cleanlib', tmp); copyFixtureScanners('cleanlib', tmp);
+  mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });
+  writeFileSync(join(tmp, 'views', 'improve', 'prose.yaml'), 'target: "cleanlib"\nmaintainer: "the test maintainers"\nexec_summary: "test"\nroadmap: []\n');
+  writeFileSync(join(tmp, 'views', 'improve', 'security-gate.yaml'), 'exposures: []\n');
+  const c = spawnSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), tmp, '--packet', join(HERE, 'fixtures', 'packet-valid')], { encoding: 'utf8' });
+  if (c.status !== 0) fail(`the fixture is wrong: cleanlib with the valid packet must compile (exit ${c.status}: ${String(c.stderr).split('\n').slice(-3).join(' | ')})`);
+  else {
+    const rows = parseYaml(readFileSync(join(tmp, 'yardstick.yaml'), 'utf8')).requirements;
+    const claimNm = rows.filter((r) => r.how === 'claim' && r.status === 'not-measured').length;
+    if (claimNm === rows.filter((r) => r.how === 'claim').length) fail('the fixture is wrong: the valid packet must decide at least one claim row');
+    const idx = readFileSync(join(tmp, 'INDEX.md'), 'utf8').match(/of which (\d+) are claim-only/)?.[1];
+    if (Number(idx) !== claimNm) fail(`INDEX must count the claim rows still not measured (${claimNm}), not every claim row (got ${idx})`);
+    const imp = readFileSync(join(tmp, 'IMPROVE.md'), 'utf8').match(/not measured, (\d+) of them claims/)?.[1];
+    if (Number(imp) !== claimNm) fail(`IMPROVE must count the claim rows still not measured (${claimNm}), not every claim row (got ${imp})`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+  const row = { id: 'd-x', tier: 'floor', topic: 'custody', title: 'X', previous: { status: 'not-applicable' }, current: { status: 'met', findings: [] }, note: '' };
+  const md = renderSinceMd('run-b', 'run-a', { previousVersion: 1, currentVersion: 1, versionChanged: false, regressed: [], improved: [], newly_measured: [row], no_longer_measured: [], yardstick_only: [] }, { new: [], no_longer_found: [] });
+  if (!/not-applicable → met/.test(md) || /not-measured → met/.test(md)) fail('SINCE must print the previous status of a newly measured row (not-applicable → met), never "not-measured →"');
+}
+
 // ── every command help advertises has a command-line body (#53, F-103, F-603) ──
 // chains, capabilities, supervision and decisions dispatched to library modules with no
 // argv read and no isMain block, so `node assay.mjs supervision <run>` printed nothing and
@@ -4501,6 +4530,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, counts-read-measurement, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
 }
 process.exit(v.exit);

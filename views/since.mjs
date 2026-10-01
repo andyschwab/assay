@@ -113,7 +113,7 @@ export function renderMd(runId, previousId, since, findingsDelta, confidential =
   out.push('');
 
   out.push('## Newly measured', '');
-  if (since.newly_measured.length) for (const r of since.newly_measured) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. not-measured → ${r.current.status}. ${r.note}`);
+  if (since.newly_measured.length) for (const r of since.newly_measured) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${r.previous ? r.previous.status : 'not-measured'} → ${r.current.status}. ${r.note}`);
   else out.push('_Nothing newly measured._');
   out.push('');
 
