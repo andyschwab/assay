@@ -52,7 +52,7 @@ import { isMain } from '../map/doctrine.mjs';
 import { catGitFile } from '../yardstick/ratchet.mjs';
 import { gitHead, gitRemote } from '../map/repo-census.mjs';
 import { loadContradictions } from '../yardstick/measure.mjs';
-import { routinePath } from '../lib/run-layout.mjs';
+import { routinePath, scannersPath, mapDir } from '../lib/run-layout.mjs';
 import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit } from '../map/start.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // routine/
@@ -140,7 +140,7 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   const say = (s) => { lines.push(s); log(s); };
   repoDir = resolve(repoDir);
   outDir = resolve(outDir);
-  mkdirSync(join(outDir, 'map'), { recursive: true });
+  mkdirSync(mapDir(outDir), { recursive: true });
 
   const startDate = new Date().toISOString();
   const engine = engineCommit();
@@ -181,7 +181,7 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   // tree, leaves it false and lets fresh-clone clone repoDir itself instead).
   const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true }, say);
 
-  writeFileSync(join(outDir, 'map', 'scanners.yaml'), toScannersYaml(engineCommit(), scanners));
+  writeFileSync(scannersPath(outDir), toScannersYaml(engineCommit(), scanners));
 
   say('· validate …');
   const val = assay(['validate', outDir, '--target', repoDir]);

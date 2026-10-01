@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ask-owner.mjs — prints owner/ask-owner.md with {{WHAT_WE_FOUND}} filled in
-// from a run's map, or "Nothing yet: ask everything." absent one (owner/PACKET.md
-// Phase 3). The prompt's own body is written separately, by the orchestrator;
+// from a run's map, or "Nothing yet: ask everything." absent one. The prompt's
+// own body is the hand-written owner/ask-owner.md (owner/PACKET.md names it);
 // this command only fills its one marker — in plain words, for a non-engineer
 // owner: never a local filesystem path, never scanner jargon, singular/plural
 // said right.

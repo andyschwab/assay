@@ -41,7 +41,7 @@ import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { loadAdapters, adoptedAdapters } from './project.mjs';
-import { scannersPath } from '../lib/run-layout.mjs';
+import { scannersPath, findingsDir } from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // map/
 const ASSAY_ROOT = join(HERE, '..');
@@ -198,7 +198,7 @@ function runCli() {
   // map/findings/ is created even when nothing runs here (no target — every
   // instrument runs elsewhere): an explicit empty directory is what lets this
   // run validate green with zero rows, same as any other verified-clean base.
-  mkdirSync(join(outDir, 'map', 'findings'), { recursive: true });
+  mkdirSync(findingsDir(outDir), { recursive: true });
   const log = (l) => console.log(l);
   const adapters = loadAdapters();
   const adopted = adoptedAdapters(adapters);

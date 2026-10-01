@@ -11,7 +11,7 @@ with a scanner; we never fork its logic. This is the canonical home for the axis
 model, the port, the adapter format, and the fail-closed rule. The roster of
 candidate external scanners and instruments, with licenses and integration
 properties, is
-[`scanner-candidates.md`](/map/scanners/CANDIDATES.md).
+[`CANDIDATES.md`](/map/scanners/CANDIDATES.md).
 
 `taxonomy_version: 3`
 
@@ -148,6 +148,8 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   (fresh-clone's `install` step runs `npm ci` against it) — dependency-scan's
   `npm audit` reaches the same registry, not a hosting platform's API, and a
   lockfile it cannot reach is recorded `failed`, never silently skipped.
+  This is what **offline** means wherever assay says an instrument runs
+  offline: no repo-hosting platform's API; a package registry may be reached.
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
@@ -157,7 +159,7 @@ credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
 (`adapters/scorecard.yaml`) is integrated but not part of the adopted roster:
 its checks are remote repository-configuration reads that need direct GitHub
 API access at run time, which an offline run does not have. The wider
-candidate roster: `scanner-candidates.md`.
+candidate roster: `map/scanners/CANDIDATES.md`.
 
 ### 3b. The fresh-clone instrument (`map/fresh-clone.mjs`)
 
@@ -310,9 +312,10 @@ explicit empty `map/findings/dependency-scan.yaml`. Every category lands on
 pnpm/yarn lockfile as a gap.)
 
 **What it deliberately does not do.** It never runs `npm install` or otherwise
-mutates the tree — the existing lockfile is read as-is. It never audits
-pnpm/yarn lockfiles (recorded, never guessed at), and it never infers an
-installed version or a fix from anything but the lockfile and npm's own report.
+mutates the tree — the existing lockfile is read as-is. It never audits a
+yarn berry lockfile, or a lockfile whose package manager is not on the runner
+(each is `not-run` with the reason, never guessed at), and it never infers an
+installed version or a fix from anything but the lockfile and the package manager's own audit report.
 It needs the npm registry to resolve advisories — the same reach `npm ci`
 already needs in fresh-clone's `install` step — never a repo-hosting
 platform's own configuration API (§3a); a lockfile it cannot reach is `failed`,

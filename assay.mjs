@@ -3,7 +3,8 @@
 // engine script with its arguments.
 //
 // One map (map/), drawn once; one yardstick (yardstick/) it is measured
-// against; three views (views/) written from that measurement. Zero
+// against; four views (views/) written from that measurement, plus Since
+// when there is a previous run to compare against. Zero
 // dependencies: this file is a thin process dispatcher over node itself.
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -49,7 +50,7 @@ const GROUPS = [
 const COMMANDS = Object.fromEntries(GROUPS.flatMap(([, cmds]) => Object.entries(cmds).map(([k, v]) => [k, v[0]])));
 
 function help() {
-  console.log('assay: a map, a yardstick, three views.\n');
+  console.log('assay: a map, a yardstick, four views (plus Since).\n');
   console.log('Usage: node assay.mjs <command> [args]\n');
   for (const [label, cmds] of GROUPS) {
     console.log(label);

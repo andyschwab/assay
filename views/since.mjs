@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // since.mjs — Since: what changed between this run and a previous one, so a
 // stewarded repository's own scheduled runs say what moved without a person
-// diffing two packages by hand (CLAUDE.md: "a run says what changed since the
-// last one"). Reads ONLY the two runs' yardstick.yaml (via yardstick/compare.mjs)
+// diffing two packages by hand (views/README.md "Since: what changed?"). Reads ONLY the two runs' yardstick.yaml (via yardstick/compare.mjs)
 // for the requirement-level story, plus the two runs' findings for the
 // finding-level story — never recomputes a status itself (views/README.md: a
 // view decides no requirement on its own).

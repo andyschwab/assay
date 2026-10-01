@@ -31,7 +31,7 @@ import { viewPath, ownerPagePath, prosePath as runProsePath } from '../lib/run-l
 
 // Plain-language gloss for each tier, used only in the lead paragraph — never
 // a substitute for the tier id, which still rides at the end (yardstick/README.md
-// tiers; CLAUDE.md's discussion register: meaning first, id last).
+// tiers; meaning first, id last, so the owner reads the plain words first).
 export const TIER_GLOSS = {
   custody: 'who controls this app and its accounts',
   safety: 'whether something destructive could happen unnoticed',

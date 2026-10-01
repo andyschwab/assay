@@ -40,8 +40,7 @@
 // or not run) is also a lockfile-not-audited fact — never silence, never clean.
 //
 // Usage:
-//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx]
-//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx]
+//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan|repo-census> --raw <file> --exit <code> [--start F-7xx]
 //   node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
 // <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
@@ -596,7 +595,7 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
 
 // ── id allocation: above the base's highest id, never inside another block ──
 // Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
-// 800, fresh-clone 900, dependency-scan 950). A real history scan can run past the next floor (a real
+// 800, fresh-clone 900, dependency-scan 950, repo-census 960). A real history scan can run past the next floor (a real
 // history scan's gitleaks block ran F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same

@@ -15,7 +15,8 @@ Pass 9 — the lead deliverable). The scanner method runs in two layers:
 1. A **neutral evidence base** — findings against the seven artifact dimensions (enumerated in Passes 1-7 below), recorded as
  *facts with structured descriptors and evidence*. The base **never asserts a
  severity or a priority**; it records what is.
-2. Three **views** that compile the same base into different judgments —
+2. Three **views inside Improve** (the method's own readings; the engine's
+ views — Intake, Maintain, Improve, Owner and Since — are `views/README.md`'s) that compile the same base into different judgments —
  **leverage** (faster/better/reordered), **maturity** (measured coverage per dimension +
  judged depth), and
  **security** (always-on; exposures ranked by likelihood, no deploy verdict) —
@@ -493,7 +494,7 @@ not the missing path, and state the absence in the observation.
 
 ## Pass 8 — Meta-synthesis → `views/improve/synthesis.md`
 
-Reconcile the three views into one document (reads only the view artifacts):
+Reconcile the three method views (leverage, maturity, security) into one document (reads only the view artifacts):
 
 1. **Snapshot** — five sentences: what the repo is, standout strength, binding
  constraint, the maturity coverage numbers in one line, and the lead security

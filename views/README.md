@@ -43,7 +43,7 @@ not_applicable:    # status not-applicable — decided from the map, NEVER count
   - { id, tier, topic, title, basis, note }
 not_seen:          # every run-record row that did not run
   - { scanner, status, reason }
-contradictions:    # a packet claim of satisfied against a run-decided unmet row (Intake only)
+contradictions:    # a packet claim of satisfied against a run-decided unmet row (Intake and Maintain)
   - { id, claim, run_status, findings: [F-…] }
 owner:             # what the run's own packet says about itself, facts only (Intake only)
   answered: { date, by, via } | null
