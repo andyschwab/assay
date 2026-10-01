@@ -303,11 +303,6 @@ export function projectMulti(findings, adapters) {
   return { projected, unmapped, needsAxis };
 }
 
-// Single-adapter projection (pure single-scanner base; used by the regression harness).
-export function projectFindings(findings, adapter) {
-  return projectMulti(findings, { [adapter.scanner || 'repo-eval']: adapter });
-}
-
 // ── CLI (runs only when invoked directly) ────────────────────────────────────
 if (isMain(import.meta.url)) runCli();
 

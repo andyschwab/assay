@@ -162,7 +162,7 @@ function resolveWorkspaceGlob(dir, pattern) {
   }
   return existsSync(join(dir, p, 'package.json')) ? [p] : [];
 }
-export function detectMonorepo(dir) {
+function detectMonorepo(dir) {
   const locations = new Set();
   const pkg = (() => { try { return JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')); } catch { return null; } })();
   const workspaces = pkg && pkg.workspaces
@@ -189,12 +189,12 @@ export function detectMonorepo(dir) {
 // tree does not have), so it cites the packet itself when the packet is in the tree
 // (the claim that is wrong), else the repository root. Set per run().
 let missingPointerCite = './:1';
-export function findPacketSource(dir, packetArg) {
+function findPacketSource(dir, packetArg) {
   if (packetArg) return { source: packetArg, auto: false };
   if (existsSync(join(dir, 'packet', 'manifest.yaml'))) return { source: join(dir, 'packet'), auto: true };
   return null;
 }
-export function loadValidatedPacket(source) {
+function loadValidatedPacket(source) {
   const { doc, file } = loadPacket(source);
   const requirementIds = requirementIdsOnDisk();
   const errors = validatePacket(doc, { requirementIds });
@@ -205,7 +205,7 @@ export function loadValidatedPacket(source) {
 // location: a scalar names the root's page; a list is read positionally
 // against `locations` (root first, then apps in the packet's own `apps`
 // order) — every pointer path is relative to the repo root, per owner/PACKET.md.
-export function pointerForLocation(value, locations, loc) {
+function pointerForLocation(value, locations, loc) {
   if (value === undefined || value === null) return null;
   if (Array.isArray(value)) {
     const idx = locations.indexOf(loc);
@@ -914,7 +914,7 @@ function packageJsonSignal(text) {
   }
   return null;
 }
-export function findDeploymentSignals(dir, { evidencePointer = null } = {}) {
+function findDeploymentSignals(dir, { evidencePointer = null } = {}) {
   const signals = [];
   const add = (kind, path, what) => signals.push({ kind, path, what });
   // the owner already keeps (or points at) an evidence directory: they treat this as deployed

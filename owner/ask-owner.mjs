@@ -46,7 +46,7 @@ import { secretShape, emailShape } from '../yardstick/packet.mjs';
 import { stripUserinfo } from '../map/repo-census.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // owner/
-export const TEMPLATE_FILE = join(HERE, 'ask-owner.md');
+const TEMPLATE_FILE = join(HERE, 'ask-owner.md');
 export const MARKER = '{{WHAT_WE_FOUND}}';
 export const NOTHING_YET = 'Nothing yet: ask everything.';
 

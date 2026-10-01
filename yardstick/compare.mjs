@@ -37,8 +37,7 @@
 import { STATUSES } from './measure.mjs';
 
 // ── requirement-status comparison ───────────────────────────────────────────
-export const STATUS_RANK = { unmet: 1, mixed: 2, met: 3 }; // not-measured, not-applicable: off-scale, see above
-export const CLASSIFICATIONS = ['improved', 'regressed', 'unchanged', 'newly-measured', 'no-longer-measured', 'yardstick-only'];
+const STATUS_RANK = { unmet: 1, mixed: 2, met: 3 }; // not-measured, not-applicable: off-scale, see above
 // not-applicable sits off the met/mixed/unmet scale the same way not-measured
 // does (SCHEMA's total order excludes both): it is not a worse or better verdict,
 // it is a determination the requirement does not apply. classify() therefore

@@ -1056,3 +1056,17 @@ what the public engine learned.
   code (six failures), the `database-signals` install assertion likewise; each
   rule (the drop, the row note) was reverted alone and went red for its own
   assertions. Goldens untouched.
+- **2026-10-01 — shared helpers live once** (#80, roadmap item 15, F-1232).
+  The child environment was already built once (`map/child-env.mjs`, #47; the
+  `scrubbedEnv` copies the finding cited are gone), and the harness now pins it
+  there. Ingest restated the fresh-clone, dependency-scan and repo-census
+  vocabularies (steps, step and claim statuses, lockfile statuses, severities,
+  census checks and statuses); it now imports each from its producer, keeping
+  only dependency-scan's pre-0.2.0 `not-supported` as its own, and a status ingest
+  had no explicit case for (an `audited` lockfile, a README claim that is neither
+  present nor missing) halts instead of falling through. Eighty exports nothing
+  else named are gone: six dead declarations deleted, the rest made private to
+  the module that uses them. The new `shared-helpers` block pins all three and
+  was confirmed red against the old code (17 vocabulary failures, 80 unreferenced
+  exports), against a planted second env builder, and against a producer
+  status ingest has no case for. Goldens untouched.

@@ -33,7 +33,7 @@ import { mdText, mdCode } from '../lib/display.mjs';
 // Plain-language gloss for each tier, used only in the lead paragraph — never
 // a substitute for the tier id, which still rides at the end (yardstick/README.md
 // tiers; meaning first, id last, so the owner reads the plain words first).
-export const TIER_GLOSS = {
+const TIER_GLOSS = {
   custody: 'who controls this app and its accounts',
   safety: 'whether something destructive could happen unnoticed',
   reproducibility: 'whether it runs anywhere but the one machine it was built on',
