@@ -597,8 +597,13 @@ One command assembles the whole deliverable over the projected base:
  item, per triage item and per High-and-above remedy — the trailing lower-severity
  fixes stay in `REMEDIATION.md` — each prompt: confirm claims → interview → choose →
  implement → prove, never deploying or sending anything on its own). Scanner text is **fenced as data-not-instructions** (untrusted
- target repo); authored prose is the eval agent's own voice, unfenced and labeled.
- Two fail-closed gates: roadmap ids missing from the base halt (drift), and open gaps
+ target repo): a fence closes only on `>>> <tag>`, the tag a hash of the run's scanner
+ text, and a marker run inside the text is spaced out so it closes nothing; evidence
+ paths render as code spans no backtick in the path can close, and scanner text outside a
+ fence (`FINDINGS.md`) is Markdown-escaped. Authored prose is the eval agent's own voice,
+ unfenced and labeled.
+ Three fail-closed gates: roadmap ids missing from the base halt (drift), a roadmap slug
+ outside `^[a-z0-9-]+$` halts (it names a plan file), and open gaps
  with an empty sequence halt (the machine-side false-green — a handoff must never read
  "nothing to do" over live gaps).
 - **`INDEX.md`** — the front door: the roster at a glance (per-axis open/held

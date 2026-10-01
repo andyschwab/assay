@@ -28,6 +28,7 @@ import { loadYardstick } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { viewPath, ownerPagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
+import { mdText, mdCode } from '../lib/display.mjs';
 
 // Plain-language gloss for each tier, used only in the lead paragraph — never
 // a substitute for the tier id, which still rides at the end (yardstick/README.md
@@ -110,8 +111,8 @@ export function toYaml(runId, yardstickVersion, built) {
 }
 
 // ── the page ──────────────────────────────────────────────────────────────────
-const whereText = (r) => (r.where && r.where.length ? r.where.map((w) => `\`${w}\``).join(', ')
-  : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : r.reason);
+const whereText = (r) => (r.where && r.where.length ? r.where.map(mdCode).join(', ')
+  : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : mdText(r.reason));
 
 export function renderMd(runId, built, { confidential = false, name, date, commit } = /** @type {any} */ ({})) {
   const { floor, beyond_floor, not_looked_at } = built;
@@ -134,7 +135,7 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
   if (floor.open.length) {
     floor.open.forEach((r, i) => {
       out.push(`### ${i + 1}. ${r.title}`, '');
-      out.push(`What could happen: ${r.risk || r.reason}`, '');
+      out.push(`What could happen: ${r.risk || mdText(r.reason)}`, '');
       out.push(`Where: ${whereText(r)}`, '');
       out.push(`What to do: ${r.fix || 'no fix recorded yet — see the check'}`, '');
       out.push(`How to know it is fixed: ${r.check}`, '');
@@ -146,21 +147,21 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
     for (const r of floor.not_measured) {
       const asQuestion = r.decided_by === 'owner';
       const titlePart = asQuestion ? `${r.title.replace(/\.$/, '')}?` : `${r.title}.`;
-      out.push(`- **${titlePart}** ${r.reason} What would tell: ${r.check}`);
+      out.push(`- **${titlePart}** ${mdText(r.reason)} What would tell: ${r.check}`);
     }
   } else out.push('_Every floor requirement was measured this run._');
   out.push('');
 
   out.push('## Holds', '');
   if (floor.met.length) {
-    for (const r of floor.met) out.push(`- **${r.title}.** ${r.reason}`);
+    for (const r of floor.met) out.push(`- **${r.title}.** ${mdText(r.reason)}`);
   } else out.push('_Nothing on the floor is met yet._');
   out.push('');
 
   if (floor.not_applicable.length) {
     out.push('## Does not apply', '');
     out.push('_Decided from the code itself, not assumed: these requirements have nothing to apply to in this app (for example, no database, so nothing to migrate). They are not counted as met._', '');
-    for (const r of floor.not_applicable) out.push(`- **${r.title}.** ${r.reason}`);
+    for (const r of floor.not_applicable) out.push(`- **${r.title}.** ${mdText(r.reason)}`);
     out.push('');
   }
 
@@ -169,28 +170,28 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
   out.push(`_The same measurement, for the ${bfTotal} requirement${bfTotal === 1 ? '' : 's'} beyond the floor — what a steward's routines watch, and the AI-operating layer._`, '');
   out.push('### Open', '');
   if (beyond_floor.open.length) {
-    for (const r of beyond_floor.open) out.push(`- **${r.title}** _(${r.tier})_ — ${r.risk || r.reason} Where: ${whereText(r)}. What to do: ${r.fix} How to know it is fixed: ${r.check}`);
+    for (const r of beyond_floor.open) out.push(`- **${r.title}** _(${r.tier})_ — ${r.risk || mdText(r.reason)} Where: ${whereText(r)}. What to do: ${r.fix} How to know it is fixed: ${r.check}`);
   } else out.push('_Nothing open._');
   out.push('');
   out.push('### Could not tell', '');
   if (beyond_floor.not_measured.length) {
-    for (const r of beyond_floor.not_measured) out.push(`- **${r.title}** — ${r.reason} What would tell: ${r.check}`);
+    for (const r of beyond_floor.not_measured) out.push(`- **${r.title}** — ${mdText(r.reason)} What would tell: ${r.check}`);
   } else out.push('_Nothing left to run._');
   out.push('');
   out.push('### Holds', '');
   if (beyond_floor.met.length) {
-    for (const r of beyond_floor.met) out.push(`- **${r.title}** — ${r.reason}`);
+    for (const r of beyond_floor.met) out.push(`- **${r.title}** — ${mdText(r.reason)}`);
   } else out.push('_Nothing met yet._');
   out.push('');
   if (beyond_floor.not_applicable.length) {
     out.push('### Does not apply', '');
-    for (const r of beyond_floor.not_applicable) out.push(`- **${r.title}** — ${r.reason}`);
+    for (const r of beyond_floor.not_applicable) out.push(`- **${r.title}** — ${mdText(r.reason)}`);
     out.push('');
   }
 
   out.push('## What was not looked at', '');
   if (not_looked_at.length) {
-    for (const r of not_looked_at) out.push(`- **${r.scanner}** — ${r.status}: ${r.reason}`);
+    for (const r of not_looked_at) out.push(`- **${r.scanner}** — ${r.status}: ${mdText(r.reason)}`);
   } else out.push('_Every adopted scanner ran; nothing was skipped or failed this run._');
   out.push('');
 

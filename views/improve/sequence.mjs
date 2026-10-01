@@ -27,6 +27,7 @@ import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
 
 export const nn = (i) => String(i + 1).padStart(2, '0');
+export const SLUG_RE = /^[a-z0-9-]+$/;
 export const stripLine = (e) => String(e).replace(/:\d+$/, '');
 const cleanStr = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
 const worstSeverity = (ps) => {
@@ -86,7 +87,10 @@ export function buildRoadmap(roadmapRaw, byId) {
     missing: (Array.isArray(r.findings) ? r.findings : []).filter((id) => !byId.has(id)),
   }));
   const drift = roadmap.filter((r) => r.missing.length);
-  return { roadmap, drift };
+  // the slug names the item's plan file (plan/NN-<slug>.md): anything but [a-z0-9-] could
+  // carry a path segment out of handoff/. map/validate.mjs holds the same rule.
+  const badSlugs = roadmap.filter((r) => !SLUG_RE.test(String(r.slug)));
+  return { roadmap, drift, badSlugs };
 }
 
 const fileKeyOf = (p) => {
