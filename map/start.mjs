@@ -40,7 +40,7 @@
 // Library: drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml,
 // engineCommit — routine/run.mjs imports all five.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -70,19 +70,23 @@ export function engineCommit() {
 // when the exit is in the tool's documented success set (map/scanners/CONTRACT.md);
 // anything else (a crash) is recorded FAILED, with the tool's own stderr as the
 // reason — the caller keeps going, never crashing the whole run over one instrument.
+// The raw report is written inside a private mkdtemp directory, removed afterward —
+// never at a guessable name in the shared temp directory, where a planted file or
+// symlink would receive it.
+const rawScratch = (tool) => { const dir = mkdtempSync(join(tmpdir(), `assay-start-${tool}-`)); return { dir, file: join(dir, `${tool}.json`) }; };
 export function runAssayInstrument({ tool, cmd, cliArgs, okExits, outDir, log }) {
-  const rawFile = join(tmpdir(), `assay-start-${tool}-${process.pid}.json`);
+  const { dir: rawDir, file: rawFile } = rawScratch(tool);
   log(`· ${tool} …`);
   const r = assay([cmd, ...cliArgs, '--out', rawFile]);
   const exit = r.status;
   if (exit == null || !okExits.includes(exit)) {
     const reason = `${tool} exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
     log(`  ✗ ${tool} failed: ${reason}`);
-    try { rmSync(rawFile, { force: true }); } catch {}
+    try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
     return { status: 'failed', reason };
   }
   const ing = assay(['ingest', outDir, '--tool', tool, '--raw', rawFile, '--exit', String(exit)]);
-  try { rmSync(rawFile, { force: true }); } catch {}
+  try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
   if (ing.status !== 0) {
     const reason = `${tool} ran (exit ${exit}) but its report failed to ingest: ${String(ing.stderr || ing.stdout || '').trim().split('\n').slice(-3).join(' | ')}`;
     log(`  ✗ ${reason}`);
@@ -101,18 +105,18 @@ export function runGitleaks(repoDir, outDir, log, absentReason) {
     log('· gitleaks — binary not found on PATH, skipped');
     return { status: 'skipped', reason: absentReason };
   }
-  const rawFile = join(tmpdir(), `assay-start-gitleaks-${process.pid}.json`);
+  const { dir: rawDir, file: rawFile } = rawScratch('gitleaks');
   log('· gitleaks …');
   const r = spawnSync('gitleaks', ['detect', '--source', repoDir, '--report-format', 'json', '--report-path', rawFile, '--redact'], { encoding: 'utf8' });
   const exit = r.status;
   if (exit == null || (exit !== 0 && exit !== 1)) {
     const reason = `gitleaks exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
     log(`  ✗ gitleaks failed: ${reason}`);
-    try { rmSync(rawFile, { force: true }); } catch {}
+    try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
     return { status: 'failed', reason };
   }
   const ing = assay(['ingest', outDir, '--tool', 'gitleaks', '--raw', rawFile, '--exit', String(exit)]);
-  try { rmSync(rawFile, { force: true }); } catch {}
+  try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
   if (ing.status !== 0) {
     const reason = `gitleaks ran (exit ${exit}) but its report failed to ingest: ${String(ing.stderr || ing.stdout || '').trim().split('\n').slice(-3).join(' | ')}`;
     log(`  ✗ ${reason}`);

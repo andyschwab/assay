@@ -26,6 +26,15 @@ build artifact (`assay-run-<run id>`, kept per the template's
 reads the checkout, measures it, and hands the result to whoever is watching
 the workflow run.
 
+That artifact can be downloaded by anyone who can read the repository's
+workflow runs (on a public repository, anyone), for as long as
+`retention-days` keeps it, and the upload step does not filter it. So nothing
+in a run carries what an instrument's output could have echoed: ingest drops
+fresh-clone's step output tails and dependency-scan's stderr tails before
+archiving to `map/raw/`, keeps gitleaks' locations only, and records a URL
+target with its userinfo stripped. A failing step's cause is read from the
+workflow's own log, not from the artifact.
+
 Every firing also writes `<run>/routine.yaml` (`lib/run-layout.mjs`'s
 `routinePath`) — the run's own record of what the routine did and whether its
 gate held, so a fleet collector reading only the uploaded run artifact knows

@@ -209,8 +209,10 @@ typecheck, test or migrate (the floor is worded so absence is a gap, not clean),
 and one per missing README claim (`readme-claim`, evidence `README.md:<line>`);
 `High` for a failed or timed-out install / build / test, `Medium` otherwise. A
 clean run is the explicit empty `map/findings/fresh-clone.yaml`. Rows carry the
-command and exit code only — the output tail stays in `map/raw/fresh-clone.json`,
-so a value a build prints can never reach a findings base. Categories land on the
+command and exit code only, and the archived `map/raw/fresh-clone.json` drops every
+step's output tail and a URL target's userinfo (as `map/raw/dependency-scan.json`
+drops a failed audit's stderr tail), so a value a build prints can never reach a
+findings base or the uploaded run. Categories land on the
 axes the yardstick already homes those floor rows on: install / build / migrate on
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
 on `artifact-legibility`.
