@@ -3586,9 +3586,10 @@ function adaptersOnce() { return loadAdapters(); }
   if (spawnSync('git', ['-C', loose, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).status === 0) fail(`test setup: the temp directory ${tmpdir()} is inside a git repository, so the directory-mode case cannot be built`);
   const outLoose = join(scratch, 'run-loose');
   const lo = runGitleaks(loose, outLoose, (l) => logs.push(l), 'absent here');
+  // the evidence element may be quoted (#53: ingest quotes every element) or bare
   if (hasGitleaks) {
     const rows = existsSync(findingsFile(outLoose)) ? readFileSync(findingsFile(outLoose), 'utf8') : '';
-    if (lo.status !== 'ran' || !/evidence: \[lib\/k\.js:1\]/.test(rows)) fail(`a directory in no repository must be scanned in directory mode, evidence relative to the target (got ${JSON.stringify(lo)}, rows ${JSON.stringify(rows.slice(0, 300))})`);
+    if (lo.status !== 'ran' || !/evidence: \["?lib\/k\.js:1"?\]/.test(rows)) fail(`a directory in no repository must be scanned in directory mode, evidence relative to the target (got ${JSON.stringify(lo)}, rows ${JSON.stringify(rows.slice(0, 300))})`);
   } else if (lo.status !== 'skipped' || lo.reason !== 'absent here') fail(`with no binary, a directory in no repository must read skipped with the caller's absent reason (got ${JSON.stringify(lo)})`);
 
   // the engine's own disposition of its planted test values is tracked where gitleaks
