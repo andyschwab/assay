@@ -2819,6 +2819,58 @@ function adaptersOnce() { return loadAdapters(); }
   if (!/CODEOWNERS/.test(readme) || !/packet\//.test(readme) || !/\.github\/workflows\//.test(readme)) fail('routine/README.md must say to add CODEOWNERS entries for packet/ and .github/workflows/');
 }
 
+// ── .github/workflows/ci.yml: the engine's own CI holds the template's invariants ──
+// The invariants the block above holds the shipped template to (SHA pins, contents:
+// read, timeout-minutes on every job) hold on the engine's own workflow too, with the
+// same pins the template uses; it runs every Node major package.json's engines floor
+// declares up to the current one, and runs the static gates package.json declares.
+{
+  const fail = (m) => negFailures.push('ci-workflow: ' + m);
+  const yml = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const lines = yml.split('\n');
+  const pins = (text) => new Map([...text.matchAll(/uses:\s*([^\s@#]+)@([^\s#]+)/g)].map((m) => [m[1], m[2]]));
+  const templatePins = pins(readFileSync(join(ROOT, 'routine', 'assay-routine.yml'), 'utf8'));
+  const ciPins = pins(yml);
+  if (!ciPins.size) fail('ci.yml must use at least one action');
+  for (const [action, ref] of ciPins) {
+    if (!/^[0-9a-f]{40}$/.test(ref)) fail(`${action}@${ref} is not pinned to a 40-hex commit SHA`);
+    else if (templatePins.has(action) && templatePins.get(action) !== ref) fail(`${action} is pinned to ${ref}, the routine template to ${templatePins.get(action)} — one engine, one pin`);
+  }
+
+  const permIdx = lines.findIndex((l) => /^permissions:\s*$/.test(l));
+  if (permIdx === -1) fail('ci.yml must declare a top-level permissions: block');
+  else {
+    const block = [];
+    for (let i = permIdx + 1; i < lines.length && /^\s{2}\S/.test(lines[i]); i++) block.push(lines[i].trim().split('#')[0].trim());
+    const nonEmpty = block.filter(Boolean);
+    if (nonEmpty.length !== 1 || nonEmpty[0] !== 'contents: read') fail(`permissions must be exactly "contents: read" (got ${JSON.stringify(nonEmpty)})`);
+  }
+
+  const jobsIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l));
+  const jobs = [];
+  if (jobsIdx !== -1) for (let i = jobsIdx + 1; i < lines.length; i++) { const m = lines[i].match(/^\s{2}(\S[^:]*):\s*$/); if (m) jobs.push({ name: m[1], line: i }); }
+  if (!jobs.length) fail('ci.yml must declare at least one job');
+  for (let j = 0; j < jobs.length; j++) {
+    const body = lines.slice(jobs[j].line, j + 1 < jobs.length ? jobs[j + 1].line : lines.length);
+    if (!body.some((l) => /^\s{4}timeout-minutes:\s*\d+/.test(l))) fail(`job "${jobs[j].name}" has no timeout-minutes`);
+  }
+
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  const floor = Number((String(pkg.engines?.node || '').match(/>=\s*(\d+)/) || [])[1]);
+  const matrix = (yml.match(/node-version:\s*\[([^\]]*)\]/) || [])[1];
+  const versions = matrix ? matrix.split(',').map((v) => Number(v.trim().replace(/['"]/g, ''))) : [];
+  if (!floor) fail(`package.json must declare an engines.node ">=N" floor (got ${JSON.stringify(pkg.engines)})`);
+  else if (!versions.includes(floor)) fail(`ci.yml's node-version matrix must include the declared floor ${floor} (got ${JSON.stringify(versions)})`);
+  if (!versions.includes(22)) fail(`ci.yml's node-version matrix must include 22 (got ${JSON.stringify(versions)})`);
+  if (!/node-version:\s*\$\{\{\s*matrix\.node-version\s*\}\}/.test(yml)) fail('setup-node must take node-version from the matrix');
+
+  for (const s of ['lint', 'typecheck', 'build', 'test']) {
+    if (typeof pkg.scripts?.[s] !== 'string') fail(`package.json must declare a "${s}" script`);
+    const cmd = s === 'test' ? 'npm test' : `npm run ${s}`;
+    if (!lines.some((l) => (l.match(/^\s*(?:-\s*)?run:\s*(.*?)\s*$/) || [])[1] === cmd)) fail(`ci.yml must run "${cmd}"`);
+  }
+}
+
 // ── map/start.mjs: `assay start` makes a run, draws it, and records the rest ──
 // `assay start` (unlike the routine) runs fresh-clone in its DEFAULT clone
 // mode, never --no-clone: a person's own checkout is not a fresh CI checkout,
@@ -3460,7 +3512,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, sequence, doc-consistency, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, sequence, doc-consistency, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {

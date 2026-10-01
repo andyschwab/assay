@@ -305,7 +305,7 @@ export function loadContradictions(dir) {
 export function summarize(rows) {
   const c = Object.fromEntries(STATUSES.map((s) => [s, 0]));
   for (const r of rows) c[r.status]++;
-  return { ...c, decided: rows.length - c['not-measured'], of: rows.length };
+  return /** @type {Record<string, number>} */ ({ ...c, decided: rows.length - c['not-measured'], of: rows.length });
 }
 const q = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
 // yardstick.yaml — the run's measurement of the map against the yardstick.

@@ -96,7 +96,7 @@ const PROFILES = {
     convert(raw, startId) {
       const rep = parseJson(raw, 'scorecard');
       if (!rep || !Array.isArray(rep.checks)) throw new Error('scorecard report has no checks[] (truncated report?)');
-      const rows = []; const skipped = [];
+      const rows = /** @type {any} */ ([]); const skipped = [];
       let n = 0;
       for (const c of rep.checks) {
         if (!c || !c.name || typeof c.score !== 'number') throw new Error('scorecard check missing name/score (truncated report?)');
@@ -149,7 +149,7 @@ const PROFILES = {
         if (row.status !== 'scanned' && !(row.note && String(row.note).trim())) throw new Error(`coverage.${l}: ${row.status} needs a note — a skip without one is indistinguishable from an omission`);
       }
       if (!Array.isArray(rep.findings)) throw new Error('machine report findings: must be a list (an empty list with full coverage is a recorded clean run)');
-      const rows = []; let n = 0;
+      const rows = /** @type {any} */ ([]); let n = 0;
       for (const f of rep.findings) {
         const at = `finding ${(f && f.id) || '#' + (n + 1)}`;
         if (!f || typeof f !== 'object') throw new Error(`${at}: not a map`);

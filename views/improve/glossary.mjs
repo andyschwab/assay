@@ -2,7 +2,7 @@
 // views/improve/report.mjs (core + concepts in the report appendix).
 // Enum groups are filtered to the values this run actually uses; core/concepts always show.
 
-export function buildGlossary(findings, glossaryDefs, { only } = {}) {
+export function buildGlossary(findings, glossaryDefs, { only } = /** @type {any} */ ({})) {
   const dimsUsed = new Set(findings.map((f) => f.dimension));
   const subjUsed = new Set(findings.map((f) => f.subject_type));
   const confUsed = new Set(findings.map((f) => f.confidence));
@@ -24,7 +24,7 @@ export function buildGlossary(findings, glossaryDefs, { only } = {}) {
   ];
   const humanize = (t) => t.replace(/-/g, ' ');
   const out = [];
-  for (const [key, label, used, always] of GROUPS) {
+  for (const [key, label, used, always] of /** @type {[string, string, Set<string> | null, boolean][]} */ (GROUPS)) {
     if (only && !only.includes(key)) continue;
     const grp = glossaryDefs[key];
     if (!grp) continue;

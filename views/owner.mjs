@@ -113,7 +113,7 @@ export function toYaml(runId, yardstickVersion, built) {
 const whereText = (r) => (r.where && r.where.length ? r.where.map((w) => `\`${w}\``).join(', ')
   : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : r.reason);
 
-export function renderMd(runId, built, { confidential = false, name, date, commit } = {}) {
+export function renderMd(runId, built, { confidential = false, name, date, commit } = /** @type {any} */ ({})) {
   const { floor, beyond_floor, not_looked_at } = built;
   const out = [];
   out.push('---', 'type: doc', ...(confidential ? ['confidential: true'] : []), `title: "What is true of ${name}, ${date}"`, '---', '');
