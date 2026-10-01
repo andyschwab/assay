@@ -337,7 +337,10 @@ only under `--allow-exec`; without it, its row reads skipped with that reason. F
 scanner's report, and `node assay.mjs record <run> <scanner> ran|skipped|failed
 [--reason "<text>"] [--model <id>]` (`map/record.mjs`) sets one row directly — a
 judgment scanner's own review, a skip decision — leaving every other row and the
-file's own comments untouched.
+file's own comments untouched. Both hold `map/scanners.yaml.lock` (created
+exclusively beside the file) across their read-modify-write, so two writers into
+one run never lose a row; a writer waits for a held lock, then fails loud naming
+it, never writing unlocked.
 
 ```yaml
 # map/scanners.yaml — template: map/templates/scanners.yaml
