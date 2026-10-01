@@ -40,7 +40,7 @@
 // Library: drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml,
 // engineCommit — routine/run.mjs imports all five.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -70,19 +70,28 @@ export function engineCommit() {
 // when the exit is in the tool's documented success set (map/scanners/CONTRACT.md);
 // anything else (a crash) is recorded FAILED, with the tool's own stderr as the
 // reason — the caller keeps going, never crashing the whole run over one instrument.
+// The raw report is written inside a private mkdtemp directory, removed afterward —
+// never at a guessable name in the shared temp directory, where a planted file or
+// symlink would receive it.
+const rawScratch = (tool) => { const dir = mkdtempSync(join(tmpdir(), `assay-start-${tool}-`)); return { dir, file: join(dir, `${tool}.json`) }; };
 export function runAssayInstrument({ tool, cmd, cliArgs, okExits, outDir, log }) {
-  const rawFile = join(tmpdir(), `assay-start-${tool}-${process.pid}.json`);
+  const { dir: rawDir, file: rawFile } = rawScratch(tool);
   log(`· ${tool} …`);
   const r = assay([cmd, ...cliArgs, '--out', rawFile]);
-  const exit = r.status;
+  const row = ingestInstrumentRaw({ tool, exit: r.status, output: r.stderr || r.stdout, rawFile, okExits, outDir, log });
+  try { rmSync(rawDir, { recursive: true, force: true }); } catch {}   // the private raw-report directory (#49), removed by the caller: ingestInstrumentRaw also serves the handoff (#48)
+  return row;
+}
+// The second half of runAssayInstrument: given an instrument's exit and the raw
+// report it wrote, ingest it or record it failed. The routine's gate step calls it
+// directly on the report its target step handed forward (routine/README.md).
+export function ingestInstrumentRaw({ tool, exit, output, rawFile, okExits, outDir, log }) {
   if (exit == null || !okExits.includes(exit)) {
-    const reason = `${tool} exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
+    const reason = `${tool} exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(output || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
     log(`  ✗ ${tool} failed: ${reason}`);
-    try { rmSync(rawFile, { force: true }); } catch {}
     return { status: 'failed', reason };
   }
   const ing = assay(['ingest', outDir, '--tool', tool, '--raw', rawFile, '--exit', String(exit)]);
-  try { rmSync(rawFile, { force: true }); } catch {}
   if (ing.status !== 0) {
     const reason = `${tool} ran (exit ${exit}) but its report failed to ingest: ${String(ing.stderr || ing.stdout || '').trim().split('\n').slice(-3).join(' | ')}`;
     log(`  ✗ ${reason}`);
@@ -96,23 +105,36 @@ export function runAssayInstrument({ tool, cmd, cliArgs, okExits, outDir, log })
 // when present; when it is not, skip it with the CALLER's own absent-reason
 // (CONTRACT.md §3a: an adopted instrument may be absent from an environment,
 // and its absence must be RECORDED, never silently read as clean).
+// Git mode reads the history of whatever repository CONTAINS --source, so the
+// target must be its repository's top level: a subdirectory of a larger
+// checkout is refused with a reason (checked before the binary, so the record
+// is the same on every machine), and a directory in no repository is scanned in
+// directory mode. gitleaks runs from inside the target with --source . so every
+// File it reports is relative to the target (#51).
+export const GITLEAKS_NOT_TOP_LEVEL = "gitleaks not run: the target is not its git repository's top level, so a git-mode scan would read the enclosing repository's history — scan the repository's own checkout, or a copy outside any repository";
 export function runGitleaks(repoDir, outDir, log, absentReason) {
+  const top = spawnSync('git', ['-C', repoDir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+  const inRepo = top.status === 0;
+  if (inRepo && realpathSync(String(top.stdout).trim()) !== realpathSync(repoDir)) {
+    log('· gitleaks — target is not its repository\'s top level, skipped');
+    return { status: 'skipped', reason: GITLEAKS_NOT_TOP_LEVEL };
+  }
   if (!which('gitleaks')) {
     log('· gitleaks — binary not found on PATH, skipped');
     return { status: 'skipped', reason: absentReason };
   }
-  const rawFile = join(tmpdir(), `assay-start-gitleaks-${process.pid}.json`);
-  log('· gitleaks …');
-  const r = spawnSync('gitleaks', ['detect', '--source', repoDir, '--report-format', 'json', '--report-path', rawFile, '--redact'], { encoding: 'utf8' });
+  const { dir: rawDir, file: rawFile } = rawScratch('gitleaks');
+  log(`· gitleaks (${inRepo ? 'git history' : 'directory, no repository'}) …`);
+  const r = spawnSync('gitleaks', ['detect', '--source', '.', ...(inRepo ? [] : ['--no-git']), '--report-format', 'json', '--report-path', rawFile, '--redact'], { cwd: repoDir, encoding: 'utf8' });
   const exit = r.status;
   if (exit == null || (exit !== 0 && exit !== 1)) {
     const reason = `gitleaks exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
     log(`  ✗ gitleaks failed: ${reason}`);
-    try { rmSync(rawFile, { force: true }); } catch {}
+    try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
     return { status: 'failed', reason };
   }
   const ing = assay(['ingest', outDir, '--tool', 'gitleaks', '--raw', rawFile, '--exit', String(exit)]);
-  try { rmSync(rawFile, { force: true }); } catch {}
+  try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
   if (ing.status !== 0) {
     const reason = `gitleaks ran (exit ${exit}) but its report failed to ingest: ${String(ing.stderr || ing.stdout || '').trim().split('\n').slice(-3).join(' | ')}`;
     log(`  ✗ ${reason}`);
@@ -162,17 +184,54 @@ const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
 //   freshCloneSkipReason  — when set, fresh-clone is not run and is recorded
 //                           skipped with this reason: `assay start` without
 //                           --allow-exec. The routine never sets it.
-export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+//   freshCloneHandoff     — a directory another step wrote with
+//                           writeFreshCloneHandoff: fresh-clone is not run here,
+//                           its handed-forward report is ingested instead (the
+//                           routine's gate job, which never executes the target).
+export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null, freshCloneHandoff = null } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of JUDGMENT_SCANNERS) rows[id] = { status: 'skipped', reason: reasonFor(id) };
   rows['repo-census'] = runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log });
   const fcArgs = freshCloneNoClone ? [repoDir, '--no-clone'] : [repoDir];
   if (freshCloneSkipReason) { log(`· fresh-clone — not run: ${freshCloneSkipReason}`); rows['fresh-clone'] = { status: 'skipped', reason: freshCloneSkipReason }; }
+  else if (freshCloneHandoff) rows['fresh-clone'] = ingestFreshCloneHandoff(freshCloneHandoff, outDir, log);
   else rows['fresh-clone'] = runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log });
   rows['dependency-scan'] = runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log });
   rows['gitleaks'] = runGitleaks(repoDir, outDir, log, gitleaksAbsentReason);
   return rows;
+}
+
+// ── fresh-clone handed from one step to another ─────────────────────────────
+// The routine runs the target's own code in one job and gates in another
+// (routine/README.md "Two jobs"). The first writes, into a handoff directory,
+// fresh-clone's raw report and a status file ({ exit, output }); the second
+// ingests them. The handoff is the target job's output, read as data: ingest
+// validates the report like any other, and a missing or unreadable handoff
+// records fresh-clone failed with the reason — never run here, never clean.
+export const HANDOFF_REPORT = 'fresh-clone.json';
+export const HANDOFF_STATUS = 'fresh-clone.status.json';
+const FRESH_CLONE_OK_EXITS = [0, 1];
+export function writeFreshCloneHandoff({ repoDir, handoffDir }, log = /** @type {(msg: string) => void} */ (() => {})) {
+  mkdirSync(handoffDir, { recursive: true });
+  log('· fresh-clone (in place; its report is handed to the gate) …');
+  const r = assay(['fresh-clone', repoDir, '--no-clone', '--out', join(handoffDir, HANDOFF_REPORT)]);
+  const output = String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join('\n');
+  writeFileSync(join(handoffDir, HANDOFF_STATUS), JSON.stringify({ tool: 'fresh-clone', exit: r.status, output }) + '\n');
+  log(`  ${r.status != null && FRESH_CLONE_OK_EXITS.includes(r.status) ? '✓' : '✗'} fresh-clone exited ${r.status == null ? '(no exit code — process error)' : r.status}`);
+  return { exit: r.status };
+}
+function ingestFreshCloneHandoff(handoffDir, outDir, log) {
+  log(`· fresh-clone — from the target step's handoff (${HANDOFF_STATUS}) …`);
+  let status;
+  try { status = JSON.parse(readFileSync(join(handoffDir, HANDOFF_STATUS), 'utf8')); }
+  catch (e) {
+    const reason = `the target step handed no readable fresh-clone result forward (${e.message.split('\n')[0]})`;
+    log(`  ✗ fresh-clone failed: ${reason}`);
+    return { status: 'failed', reason };
+  }
+  const exit = Number.isInteger(status && status.exit) ? status.exit : null;
+  return ingestInstrumentRaw({ tool: 'fresh-clone', exit, output: status && status.output, rawFile: join(handoffDir, HANDOFF_REPORT), okExits: FRESH_CLONE_OK_EXITS, outDir, log });
 }
 
 // the reason a `start` run gives for a judgment scanner it never runs, naming

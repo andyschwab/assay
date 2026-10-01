@@ -29,4 +29,19 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      # gitleaks on PATH, so the harness runs the branch a routine with the optional
+      # step runs (issue #51): the exact release routine/assay-routine.yml pins,
+      # checked against its published sha256 before it is ever executed. Bump both
+      # files together (tests/regression.mjs "ci-workflow" holds them equal).
+      - name: Install gitleaks (pinned + checksummed)
+        env:
+          GITLEAKS_VERSION: '8.21.2'
+          GITLEAKS_SHA256: '5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba'
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP"
+          curl -sSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sha256sum -c -
+          tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
       - run: npm test

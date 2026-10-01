@@ -26,6 +26,15 @@ build artifact (`assay-run-<run id>`, kept per the template's
 reads the checkout, measures it, and hands the result to whoever is watching
 the workflow run.
 
+That artifact can be downloaded by anyone who can read the repository's
+workflow runs (on a public repository, anyone), for as long as
+`retention-days` keeps it, and the upload step does not filter it. So nothing
+in a run carries what an instrument's output could have echoed: ingest drops
+fresh-clone's step output tails and dependency-scan's stderr tails before
+archiving to `map/raw/`, keeps gitleaks' locations only, and records a URL
+target with its userinfo stripped. A failing step's cause is read from the
+workflow's own log, not from the artifact.
+
 Every firing also writes `<run>/routine.yaml` (`lib/run-layout.mjs`'s
 `routinePath`) — the run's own record of what the routine did and whether its
 gate held, so a fleet collector reading only the uploaded run artifact knows
@@ -76,12 +85,15 @@ re-loading the baseline and re-running the comparison a second time.
 
 The routine runs the instruments assay runs offline on its own — `repo-census`,
 `fresh-clone`, `dependency-scan` — plus `gitleaks` when that binary happens to
-be on the runner's `PATH`; when it is not, the run record carries it
-`skipped`, with that reason, never silently as clean
+be on the runner's `PATH` and the checkout is the repository's own top level
+(never a subdirectory of a larger checkout, whose history is not this
+repository's); when either fails, the run record carries it `skipped`, with
+that reason, never silently as clean
 (`map/scanners/CONTRACT.md` §3a). `fresh-clone` executes the repository's own
 install and scripts; the routine runs it in place because its checkout is a
-fresh, disposable CI job, and with the allow-listed environment of
-`map/child-env.mjs` only (§3a, "What runs, and with what"). `repo-eval` and `deep-code-review` are
+fresh, disposable CI job, with the allow-listed environment of
+`map/child-env.mjs` only (§3a, "What runs, and with what"), and in a job of
+its own (below, "Two jobs"). `repo-eval` and `deep-code-review` are
 judgment-bearing, LLM-driven scanners; the routine never runs them — every
 run's record carries both `skipped: "not run by the routine; a steward
 session runs them"`, so a repository's own scheduled runs never masquerade as
@@ -95,6 +107,41 @@ The routine does not fix anything, does not triage anything
 (`owner/decisions.yaml` stays a human's own act), and does not open issues —
 it produces a measurement and a pass/fail on the baseline; what a steward or a
 repository's own maintainers do with that is outside it.
+
+## Two jobs: the change's code never shares a job with its gate
+
+On a pull request the code being measured is the change itself, and
+`fresh-clone` runs its install and tests. Whatever runs there can write to
+anything in its job — the engine checkout, the run directory, the local
+`origin/<base>` ref, the runner's step files — so a change whose test script
+rewrote `yardstick/ratchet.mjs` or the run's `yardstick.yaml` could make its
+own gate read held. The template therefore splits the routine in two:
+
+- **`target`** checks out the repository and the pinned engine, runs
+  `node routine/run.mjs <repo> --target-steps --handoff <dir>` — `fresh-clone`
+  in place, nothing else — and uploads only `<dir>` (its raw report
+  `fresh-clone.json` and `fresh-clone.status.json`, the exit and the last
+  lines of its output) as a short-lived artifact. It never validates,
+  compiles or ratchets.
+- **`routine`** (`needs: target`; the required status check) checks out the
+  repository and the pinned engine afresh, downloads the handoff, and runs
+  `node routine/run.mjs <repo> --out <run> --handoff <dir>`: every other
+  instrument, then `ingest` of the handed-forward report (validated like any
+  other — it is data, never code), validate, compile and ratchet. Nothing in
+  this job ever executes the change. A missing or unreadable handoff records
+  `fresh-clone` failed with the reason, never runs it and never reads clean.
+
+The report itself is the change's own account of its install and tests,
+which the change controls in any case; what it can no longer reach is the
+engine, the baseline, the packet and the run the gate reads. Both jobs check
+out with `persist-credentials: false`, so no job token (and no
+`ASSAY_READ_TOKEN`, when uncommented) is left in a `.git/config`; the gate
+job's one `git fetch` of the base branch takes the token from its own step's
+environment. The base branch name reaches every script through `env:`,
+quoted, never expanded into the script text.
+
+A steward's local run (no `--handoff`) runs `fresh-clone` itself, exactly
+as before; run it in a disposable checkout.
 
 ## The baseline: accepted by a named steward, in a reviewed commit
 
@@ -115,13 +162,20 @@ change under review.** The pull request's own working tree is whatever the
 change proposes — including, potentially, an edited `packet/baseline.yaml` —
 so grading it against its own copy would let a change switch off the very gate
 meant to hold it. The workflow template detects a pull request (it passes
-`--base-ref origin/${{ github.base_ref }}` after fetching that branch) and
+`--base-ref "origin/$BASE_REF"`, the base branch through `env:`, after
+fetching that branch) and
 `routine/run.mjs` then reads the baseline with `git show
 <base-ref>:packet/baseline.yaml` in the checkout (`yardstick/ratchet.mjs`'s
 `--baseline-ref --repo`), never the file on disk. When the working tree's
 `packet/baseline.yaml` differs from the base ref's copy at all, the routine
 prints that plainly — a steward accepts a new baseline in its own reviewed
-change, never silently through the pull request it would otherwise gate. On a
+change, never silently through the pull request it would otherwise gate.
+The packet is read the same way (`git show <base-ref>:packet/manifest.yaml`,
+unless `--packet` names one): a change that edits its own claims is named,
+and measured against the base branch's claims. A base ref that does not
+resolve to a commit — mistyped, never fetched, or git itself failing — exits
+1 with `gate: not-run` and the reason; only a ref that resolves and carries
+no `packet/baseline.yaml` yet skips the gate. On a
 schedule or `workflow_dispatch` run (no base ref — there is no "pull request"
 to distinguish from the accepted state), the working tree's committed copy is
 read directly, exactly as before.
@@ -133,8 +187,9 @@ read directly, exactly as before.
 2. Set `ASSAY_REPO` and `ASSAY_REF` in the file — `ASSAY_REF` is a full commit
    SHA, **never a branch name** (a branch moves; a scheduled run must run the
    exact engine a steward reviewed). If assay's own repository is private,
-   uncomment the token line in the "assay" checkout step and supply a secret
-   that can read it.
+   uncomment the token line in both "assay" checkout steps and supply a
+   secret that can read it; `persist-credentials: false` on those steps keeps
+   it out of `.git/config`, where the `target` job's scripts would find it.
 3. If the workflow's `pull_request` branch filter isn't the repository's
    actual default branch, change it.
 4. Run the routine once (`workflow_dispatch`, or locally —
@@ -144,7 +199,8 @@ read directly, exactly as before.
    — a reviewed change, same as any other.
 5. **Make the `routine` job a required status check** on the default branch
    (repository Settings → Branches → a branch protection rule, or the newer
-   rulesets UI — either names the job by its `jobs.routine` id). Skip this and
+   rulesets UI — either names the job by its `jobs.routine` id; `target` need
+   not be required, since `routine` needs it). Skip this and
    the gate is a red mark someone can ignore, never a block: GitHub runs a
    pull request's own copy of the workflow regardless of whether its job
    passes, and nothing stops the merge unless the branch rule says this job is

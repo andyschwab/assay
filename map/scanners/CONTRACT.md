@@ -164,13 +164,20 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   scripts still run as the evaluator's user, with their filesystem and network
   — so fresh-clone belongs in a disposable container or VM: `assay start` runs
   it only under `--allow-exec` and otherwise records it `skipped` with that
-  reason; the routine, whose checkout is a fresh CI job, always runs it.
+  reason; the routine, whose checkout is a fresh CI job, always runs it, in a
+  job of its own that hands the gate only fresh-clone's raw report
+  (`routine/README.md` "Two jobs").
   `tests/instruments/exec-planted` (a planted `.yarnrc` and lifecycle scripts)
   and the harness's `isolation` block pin all of this.
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
-credential census), **fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
+credential census; git mode reads the history of the repository that
+CONTAINS its source, so `assay start` and the routine scan only a
+repository's own top level — a subdirectory of a larger checkout is recorded
+skipped with that reason, a directory in no repository is scanned in
+directory mode, and every reported path is relative to the target),
+**fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
 **dependency-scan** (`adapters/dependency-scan.yaml`, §3c), and **repo-census**
 (`adapters/repo-census.yaml`, §3d). **OpenSSF Scorecard**
 (`adapters/scorecard.yaml`) is integrated but not part of the adopted roster:
@@ -209,8 +216,10 @@ typecheck, test or migrate (the floor is worded so absence is a gap, not clean),
 and one per missing README claim (`readme-claim`, evidence `README.md:<line>`);
 `High` for a failed or timed-out install / build / test, `Medium` otherwise. A
 clean run is the explicit empty `map/findings/fresh-clone.yaml`. Rows carry the
-command and exit code only — the output tail stays in `map/raw/fresh-clone.json`,
-so a value a build prints can never reach a findings base. Categories land on the
+command and exit code only, and the archived `map/raw/fresh-clone.json` drops every
+step's output tail and a URL target's userinfo (as `map/raw/dependency-scan.json`
+drops a failed audit's stderr tail), so a value a build prints can never reach a
+findings base or the uploaded run. Categories land on the
 axes the yardstick already homes those floor rows on: install / build / migrate on
 `context-economy`, lint / typecheck / test on `deterministic-gates`, `readme-claim`
 on `artifact-legibility`.

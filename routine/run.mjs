@@ -40,20 +40,36 @@
 //                never silently through the pull request it would gate. With
 //                no --base-ref (schedule / workflow_dispatch), the baseline is
 //                read from the working tree, exactly as before.
+//                The packet is read from the base ref the same way (`git show
+//                <ref>:packet/manifest.yaml`, unless --packet names one): a change
+//                that edits a claim is named, and measured against the base's
+//                claims. A ref that does not resolve to a commit exits 1 with the
+//                reason (gate: not-run); only a resolvable ref with no
+//                packet/baseline.yaml skips the gate.
 //   --since      fold a previous run's SINCE view into the compile (views/README.md).
 //                No default: the workflow decides which prior run, if any, it has.
+//   --handoff    the gate step of the two-job routine (routine/README.md "Two
+//                jobs"): fresh-clone is not run here; the report the target step
+//                handed forward in this directory is ingested instead.
+//
+//        node routine/run.mjs <repo-dir> --target-steps --handoff <dir>
+//   the target step: runs fresh-clone in place (the target's own install and
+//   scripts) and writes only its raw report and exit into <dir> — no validate,
+//   compile or ratchet, which run in the gate step from a checkout that never
+//   executed the target.
 // A repository's own packet/manifest.yaml (owner/PACKET.md), when present at
 // <repo-dir>/packet/manifest.yaml, is folded into the measurement automatically.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, dirname, resolve, isAbsolute, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../map/doctrine.mjs';
-import { catGitFile } from '../yardstick/ratchet.mjs';
+import { catGitFile, resolveGitRef } from '../yardstick/ratchet.mjs';
 import { gitHead, gitRemote } from '../map/repo-census.mjs';
 import { loadContradictions } from '../yardstick/measure.mjs';
 import { routinePath, scannersPath, mapDir } from '../lib/run-layout.mjs';
-import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit } from '../map/start.mjs';
+import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit, writeFreshCloneHandoff } from '../map/start.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // routine/
 const ASSAY_ROOT = join(HERE, '..');
@@ -132,10 +148,21 @@ export function toRoutineYaml(rec) {
   return L.join('\n') + '\n';
 }
 
+// runTargetSteps — the target step of the two-job routine: the ONLY part that
+// executes the repository's own code. It runs fresh-clone in place and hands its
+// raw report forward; it never validates, compiles or ratchets. Exit 0 once the
+// handoff is written, whatever fresh-clone found — the gate step records that.
+export function runTargetSteps({ repoDir, handoffDir } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+  const lines = [];
+  const say = (s) => { lines.push(s); log(s); };
+  writeFreshCloneHandoff({ repoDir: resolve(repoDir), handoffDir: resolve(handoffDir) }, say);
+  return { ok: true, exitCode: 0, log: lines };
+}
+
 // runRoutine — the pure sequencing (spawns child processes; no process.exit of its
 // own), so it is both the CLI's body and the thing tests/regression.mjs calls
 // directly. Returns { ok, exitCode, log: [lines] }.
-export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, handoff } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const lines = [];
   const say = (s) => { lines.push(s); log(s); };
   repoDir = resolve(repoDir);
@@ -153,7 +180,7 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   // never only a job that exited green or red in CI (the goal this record exists
   // for). baselineInfo defaults to "none" for the paths that never got far enough
   // to resolve one (validate/compile failing before the baseline is even looked at).
-  function finish({ ok, exitCode, gate, baselineInfo = { source: 'none' }, failures = [] }) {
+  function finish({ ok, exitCode, gate, baselineInfo = /** @type {{ source: string, where?: string }} */ ({ source: 'none' }), failures = [] }) {
     let contradictions = 0;
     try { contradictions = loadContradictions(outDir).length; } catch { /* no readable yardstick.yaml yet */ }
     const record = { date: startDate, repository, commit, engine, trigger, baseline: baselineInfo, gate, failures, contradictions, exit: exitCode };
@@ -179,7 +206,10 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
   // before this sequencing moved to map/start.mjs (drawOfflineMap's
   // freshCloneNoClone param; `assay start`, run against a person's own working
   // tree, leaves it false and lets fresh-clone clone repoDir itself instead).
-  const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true }, say);
+  // With a handoff (the two-job template's gate step), fresh-clone already ran in
+  // the target step and this step only ingests its report — it never executes the
+  // target (routine/README.md "Two jobs").
+  const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true, freshCloneHandoff: handoff ? resolve(handoff) : null }, say);
 
   writeFileSync(scannersPath(outDir), toScannersYaml(engineCommit(), scanners));
 
@@ -191,13 +221,43 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef }
     return finish({ ok: false, exitCode: 1, gate: 'not-run', failures: [reason] });
   }
 
-  const packetDir = packet || join(repoDir, 'packet');
+  // A base ref must name a commit before anything is read from it: a mistyped or
+  // unfetched ref, a missing git or a broken repository is a gate that could not
+  // run (exit 1, the reason recorded), never "no baseline yet" (#48).
+  if (baseRef) {
+    const resolved = resolveGitRef(repoDir, baseRef);
+    if (!resolved.ok) {
+      const reason = `the base ref ${baseRef} could not be read: ${resolved.error}`;
+      say(`✗ ${reason} — nothing was held against the baseline.`);
+      return finish({ ok: false, exitCode: 1, gate: 'not-run', baselineInfo: { source: 'ref', where: baseRef }, failures: [reason] });
+    }
+  }
+
+  // On a pull request the packet, like the baseline, is read from the base ref:
+  // a change that edits its own claims would otherwise move the measurement its
+  // gate holds (#48). A --packet given by name is used as given.
+  let packetDir = packet || join(repoDir, 'packet');
+  let basePacketTmp = null;
+  if (baseRef && !packet) {
+    const MANIFEST_REL_PATH = 'packet/manifest.yaml';
+    const workingManifest = join(repoDir, MANIFEST_REL_PATH);
+    const workingContent = existsSync(workingManifest) ? readFileSync(workingManifest, 'utf8') : null;
+    const baseManifest = catGitFile(repoDir, baseRef, MANIFEST_REL_PATH);
+    const baseContent = baseManifest.ok ? baseManifest.content : null;
+    if (workingContent !== baseContent) {
+      say(`⚠ this change edits the packet (${MANIFEST_REL_PATH}); the measurement reads ${baseRef}'s copy;`);
+      say('  a steward accepts new claims in their own reviewed change.');
+    }
+    packetDir = basePacketTmp = mkdtempSync(join(tmpdir(), 'assay-routine-base-packet-'));
+    if (baseContent !== null) writeFileSync(join(packetDir, 'manifest.yaml'), baseContent);
+  }
   const hasPacket = existsSync(join(packetDir, 'manifest.yaml'));
   const compileArgs = [outDir];
   if (hasPacket) compileArgs.push('--packet', packetDir);
   if (since) compileArgs.push('--since', resolve(since));
   say(`· compile ${hasPacket ? '(with packet) ' : ''}${since ? '(with since) ' : ''}…`);
   const comp = assay(['compile', ...compileArgs]);
+  if (basePacketTmp) rmSync(basePacketTmp, { recursive: true, force: true });
   say(comp.stdout || '');
   if (comp.status !== 0) {
     const reason = `compile failed:\n${comp.stderr}`;
@@ -273,13 +333,18 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const flag = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
   const flagIdx = new Set();
-  ['--out', '--baseline', '--base-ref', '--since', '--packet'].forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
+  ['--out', '--baseline', '--base-ref', '--since', '--packet', '--handoff'].forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
   const repoDir = args.find((a, i) => !flagIdx.has(i) && !a.startsWith('--'));
   const outDir = flag('--out');
+  const handoff = flag('--handoff');
+  if (args.includes('--target-steps')) {
+    if (!repoDir || !handoff) { console.error('usage: node routine/run.mjs <repo-dir> --target-steps --handoff <dir>'); process.exit(2); }
+    process.exit(runTargetSteps({ repoDir, handoffDir: handoff }, (l) => console.log(l)).exitCode);
+  }
   if (!repoDir || !outDir) {
-    console.error('usage: node routine/run.mjs <repo-dir> --out <run-dir> [--baseline <file>] [--base-ref <git-ref>] [--since <prev-run-dir>] [--packet <dir>]');
+    console.error('usage: node routine/run.mjs <repo-dir> --out <run-dir> [--baseline <file>] [--base-ref <git-ref>] [--since <prev-run-dir>] [--packet <dir>] [--handoff <dir>]');
     process.exit(2);
   }
-  const { ok, exitCode } = runRoutine({ repoDir, outDir, baseline: flag('--baseline'), baseRef: flag('--base-ref'), since: flag('--since'), packet: flag('--packet') }, (l) => console.log(l));
+  const { ok, exitCode } = runRoutine({ repoDir, outDir, baseline: flag('--baseline'), baseRef: flag('--base-ref'), since: flag('--since'), packet: flag('--packet'), handoff }, (l) => console.log(l));
   process.exit(ok ? 0 : exitCode);
 }

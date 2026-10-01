@@ -37,7 +37,8 @@
 //                      dated today under the given --by role (default "steward")
 //                      and --commit (default: the head repo-census recorded for the run, else "").
 //                      The command only writes the file; committing it is the
-//                      steward's own reviewed act (routine/README.md).
+//                      steward's own reviewed act (routine/README.md). It refuses
+//                      to write when the run fails its own gate (exit 1).
 //
 // Exit codes:
 //   0   nothing held regressed or dropped off the scale, and no contradiction
@@ -48,7 +49,7 @@
 //       packet claimed satisfied; this run found the mechanism absent) — a
 //       contradiction is ALWAYS a failure under stewardship; there is no
 //       --allow-contradictions escape hatch (yardstick/README.md)
-//   2   a missing or unreadable input (the run's yardstick.yaml, the baseline
+//   2   a missing or unreadable input (a value flag given no value, the run's yardstick.yaml, the baseline
 //       file when --baseline names one, or the git ref/repo when --baseline-ref
 //       names one) — NEVER 0 on a bad input
 //
@@ -98,11 +99,25 @@ export function loadBaseline(file) {
 // the CONTENT git holds for `path` at `ref`, independent of whatever the current
 // working tree carries. Returns { ok: true, content } or { ok: false, error }; it
 // never throws, so a caller can tell "not present at that ref" (routine/run.mjs's
-// own "no baseline yet" case) apart from every other kind of failure.
+// own "no baseline yet" case) apart from every other kind of failure. A ref that
+// begins with "-" is refused before git sees it: git would read it as an option
+// (`--output=<file>` writes a file), never a revision (#48).
 export function catGitFile(repoDir, ref, path) {
+  if (typeof ref !== 'string' || !ref || ref.startsWith('-')) return { ok: false, error: `not a git ref: ${JSON.stringify(ref)}` };
   const r = spawnSync('git', ['-C', repoDir, 'show', `${ref}:${path}`], { encoding: 'utf8' });
   if (r.status !== 0) return { ok: false, error: String(r.stderr || r.stdout || '').trim() || `git show ${ref}:${path} failed` };
   return { ok: true, content: r.stdout };
+}
+// resolveGitRef(repoDir, ref) — whether `ref` names a commit in that repository
+// (`git rev-parse --verify <ref>^{commit}`). A caller that skips on "the file is
+// not at this ref" asks this first, so a mistyped or unfetched ref, a missing git
+// or a broken repository never reads as "not there yet" (#48).
+export function resolveGitRef(repoDir, ref) {
+  if (typeof ref !== 'string' || !ref || ref.startsWith('-')) return { ok: false, error: `not a git ref: ${JSON.stringify(ref)}` };
+  const r = spawnSync('git', ['-C', repoDir, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { encoding: 'utf8' });
+  if (r.error) return { ok: false, error: `git could not run (${r.error.message})` };
+  if (r.status !== 0) return { ok: false, error: `${ref} does not resolve to a commit in ${repoDir}${String(r.stderr || '').trim() ? ` (${String(r.stderr).trim()})` : ''}` };
+  return { ok: true, commit: String(r.stdout || '').trim() };
 }
 // loadBaselineFromRef — the --baseline-ref gate's own loader: the SAME
 // fail-closed validation as loadBaseline, over content read from a git ref
@@ -130,16 +145,19 @@ export function loadYardstickDoc(dir) {
 // title (a plain fallback to the id when the requirement no longer exists in
 // the register at all — a yardstick-only row).
 //
-// not-applicable is decided only from the map (yardstick/measure.mjs), never a
+// not-applicable decided from the map (yardstick/measure.mjs) is never a
 // failure either direction: a requirement that stops applying was not held and
 // then broken, it simply no longer applies (met -> not-applicable reports, it
-// never fails); and a baseline row that WAS not-applicable never reaches the
+// never fails). The one exception is an owner row (basis: owner, either side):
+// the packet, not the map, can say not-applicable, so a held owner claim moved
+// to not-applicable is a regression like no-longer-measured (#48). A baseline row that WAS not-applicable never reaches the
 // held-status check below (it is not met/mixed), so it can never fail regardless
 // of what it becomes now. Both directions land in `changed` — a real transition,
 // surfaced, not silently folded into "held" or "regressed".
 export function evaluateRatchet(baselineDoc, currentDoc, titleOf) {
   const previous = { version: baselineDoc.yardstick, requirements: baselineDoc.requirements };
   const { rows } = compare(previous, currentDoc);
+  const baselineBasis = new Map((baselineDoc.requirements || []).map((b) => [b.id, b.basis || 'run']));
   const failures = [];
   let held = 0;
   const improved = [];
@@ -155,6 +173,11 @@ export function evaluateRatchet(baselineDoc, currentDoc, titleOf) {
       continue; // side === 'current': a requirement ADDED since the baseline — nothing to hold yet
     }
     if (r.current.status === 'not-applicable' && r.previous.status !== 'not-applicable') {
+      const ownerRow = baselineBasis.get(r.id) === 'owner' || r.current.basis === 'owner';
+      if (ownerRow && (r.previous.status === 'met' || r.previous.status === 'mixed')) {
+        failures.push(`${r.id} — ${titleOf(r.id)}: ${r.previous.status} → not-applicable (an owner claim the baseline held, now claimed not to apply)`);
+        continue;
+      }
       changed.push({ id: r.id, title: titleOf(r.id), before: r.previous.status, after: r.current.status });
       continue;
     }
@@ -197,7 +220,14 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const flag = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
   const flagIdx = new Set();
-  ['--baseline', '--baseline-ref', '--repo', '--write-baseline', '--by', '--commit'].forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
+  const VALUE_FLAGS = ['--baseline', '--baseline-ref', '--repo', '--write-baseline', '--by', '--commit'];
+  VALUE_FLAGS.forEach((f) => { const i = args.indexOf(f); if (i > -1) { flagIdx.add(i); flagIdx.add(i + 1); } });
+  // a value flag with no value (or another flag where its value goes) is a bad input,
+  // never "no baseline given" (#48)
+  for (const f of VALUE_FLAGS) {
+    const i = args.indexOf(f);
+    if (i > -1 && (args[i + 1] == null || args[i + 1] === '' || args[i + 1].startsWith('--'))) { console.error(`✗ ratchet: ${f} needs a value`); process.exit(2); }
+  }
   const dir = args.find((a, i) => !flagIdx.has(i) && !a.startsWith('--'));
   if (!dir) { console.error('usage: node assay.mjs ratchet <run-dir> [--baseline <baseline.yaml> | --baseline-ref <git-ref> --repo <dir>] [--write-baseline <file>] [--by <role>] [--commit <sha>]'); process.exit(2); }
 
@@ -259,7 +289,9 @@ if (isMain(import.meta.url)) {
   }
 
   const writeTo = flag('--write-baseline');
-  if (writeTo) {
+  if (writeTo && exitCode !== 0) {
+    console.error(`\n✗ ratchet: not writing ${writeTo} — a run that failed its own gate is never accepted as a baseline.`);
+  } else if (writeTo) {
     const by = flag('--by') || 'steward';
     // the commit the run measured (repo-census records the checkout's head), unless named
     let runHead = '';

@@ -817,3 +817,64 @@ what the public engine learned.
   scripts, offline npm/yarn shims that record cwd, files and environment
   names) was confirmed red against the old code for each of its reasons
   (14 failures) before the change. Goldens untouched.
+- **2026-10-01 — a run's raw archive carries no output tail or credential**
+  (issue #49). The routine uploads the whole run, `map/raw/` included, as a
+  workflow artifact readable by anyone who can read the repository's workflow
+  runs, and ingest copied fresh-clone's and dependency-scan's raw reports
+  verbatim, last-40-line output tails and stderr tails included. Both profiles
+  now `archive()` like gitleaks': the tails are dropped, every other key kept.
+  fresh-clone records and logs a URL target with its userinfo stripped (the
+  clone itself still uses the URL as given), and the archive strips it again
+  for an older document. `assay start` and the routine write each raw report
+  inside a private mkdtemp directory, never at the guessable
+  `assay-start-<tool>-<pid>.json` in the shared temp directory. The option
+  taken minimises at archive time and uploads the run as before; the tail that
+  made a failure readable is now read from the workflow log. A new
+  `raw-minimised` block (a target whose build prints a planted value, cloned
+  through a URL with planted userinfo; a dependency-scan stderr tail; a
+  symlink planted at the old guessable name) was confirmed red against the
+  old code for each of its six reasons before the change. Goldens untouched.
+- **2026-10-01 — a pull request cannot touch the engine, the run or the
+  baseline before the gate reads them (#48).** The routine template ran the
+  change's own install and tests (fresh-clone, in place) in the same job,
+  workspace and user as the engine checkout, the run directory and the job
+  token, and only then spawned validate, compile and ratchet, which re-read
+  all of them from that writable workspace. It is now two jobs: `target` runs
+  `routine/run.mjs --target-steps` and hands forward only fresh-clone's raw
+  report and exit; `routine` (the required check, `needs: target`) checks
+  both repositories out afresh, ingests the handoff (`--handoff`) and gates,
+  never executing the change. Every checkout sets `persist-credentials:
+  false`; the base fetch takes the token from its step's environment; the
+  base branch reaches scripts through `env:`, quoted. On a pull request the
+  packet, like the baseline, is read from the base ref, and the ratchet fails
+  a held owner claim moved to `not-applicable` (a packet, not the map, can say
+  it). A base ref that does not resolve to a commit exits 1 with `gate:
+  not-run` and the reason, never "no baseline yet"; `catGitFile` refuses a ref
+  beginning with `-`; `ratchet` exits 2 on a value flag with no value and
+  `--write-baseline` refuses a run that fails its gate. New harness blocks
+  (`routine-pr-packet`, `routine-handoff`) and assertions in `routine-workflow`,
+  `routine-pr-baseline`, `ratchet` and `not-applicable-views` were each
+  confirmed red against the old code for their own reason before the change.
+  The template assertion on `--base-ref origin/${{ github.base_ref }}` now
+  reads the env form. Goldens untouched.
+- **2026-10-01 — the secret scan reads the target's own history, and the
+  harness gives one answer whatever is installed** (issue #51). `runGitleaks`
+  handed the target to `gitleaks detect` in git mode, which reads the history
+  of whatever repository contains the source: the routine test's fixture, a
+  subdirectory of the engine's own checkout, received a hit from the engine's
+  history that `validate --target` then refused, so with gitleaks on `PATH`
+  the harness exited 1 (seven routine failures) while CI, which installed no
+  gitleaks, only ever saw the passing branch; and a directory in no repository
+  silently read clean. Now a target that is not its repository's top level is
+  recorded skipped with that reason (checked before the binary, so the record
+  is the same on every machine), a directory in no repository is scanned with
+  `--no-git`, and gitleaks runs from inside the target so every path is
+  target-relative. CI installs the release the routine template pins, checked
+  against the same sha256 (the harness holds the two equal). A tracked
+  `.gitleaksignore` records the planted `secretShape` test value's one
+  historical hit with its reason, so a full-history scan of this repository
+  reads clean. The option taken refuses rather than attributing the enclosing
+  repository's hits to it. A new `gitleaks-target` block, the routine row pin
+  and the `ci-workflow` install check were confirmed red against the old code
+  (4 failures without gitleaks, 14 with it) before the change. Goldens
+  untouched.
