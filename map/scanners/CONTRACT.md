@@ -150,6 +150,23 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   lockfile it cannot reach is recorded `failed`, never silently skipped.
   This is what **offline** means wherever assay says an instrument runs
   offline: no repo-hosting platform's API; a package registry may be reached.
+- **What runs, and with what (#47).** Two adopted instruments execute the
+  target's code: fresh-clone runs its install (lifecycle scripts included) and
+  its declared scripts; dependency-scan runs its package manager's audit. Every
+  child either spawns gets the environment of `map/child-env.mjs` — `PATH`,
+  `HOME`, `CI` and the `npm_config_*` values the instrument itself sets — and
+  nothing else: no token, cloud key, agent socket or `DATABASE_URL` of the
+  evaluator's reaches the target. Every audit runs in a scratch directory
+  holding only one lockfile and its `package.json`, never in the target's tree,
+  so the package manager loads none of the target's own configuration (an
+  `.npmrc` naming a registry, a yarn classic `.yarnrc` whose `yarn-path` runs a
+  file from the tree, a `.pnpmfile.cjs`). This is not a sandbox — the target's
+  scripts still run as the evaluator's user, with their filesystem and network
+  — so fresh-clone belongs in a disposable container or VM: `assay start` runs
+  it only under `--allow-exec` and otherwise records it `skipped` with that
+  reason; the routine, whose checkout is a fresh CI job, always runs it.
+  `tests/instruments/exec-planted` (a planted `.yarnrc` and lifecycle scripts)
+  and the harness's `isolation` block pin all of this.
 
 Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
 `secret` category row onto `code-security`; corroborates the delegation
@@ -272,10 +289,10 @@ target's npm dependency graph — the floor the yardstick asks a
 dependency scanner to clear (`d-dependencies-known-clean`, decided on its
 `critical` category). It walks the tree (skipping `node_modules/` and `.git/`)
 for every `package-lock.json` / `npm-shrinkwrap.json` and runs `npm audit
---json` against each, with no install. A directory that is a workspace member
-whose effective root carries no lockfile of its own makes npm fail `ENOLOCK`;
-that member's `package.json` and its own lockfile are copied into a scratch
-directory and audited there instead (`method: scratch-copy`, vs `in-place`).
+--json` against each, with no install. Every lockfile — npm, pnpm or yarn — is
+audited from a scratch directory holding only it and its `package.json`
+(`method: scratch-copy`; documents from before #47 also carry `in-place`),
+never in the target's tree (§3a, "What runs, and with what").
 Every `pnpm-lock.yaml` is audited with `pnpm audit --json` and every yarn classic
 `yarn.lock` with `yarn audit --json`, from the lockfile alone; both report npm's v6
 advisory objects, recorded in the same rows. When the lockfile's package manager is

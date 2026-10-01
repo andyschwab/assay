@@ -781,3 +781,23 @@ what the public engine learned.
   `CLAUDE.md` citation, the corrected pointers and repo-census's own reading of
   this repository to the code; it was confirmed red against the old documents
   and with each rule reverted. Goldens untouched.
+- **2026-10-01 — the target's code runs with nothing of the evaluator's
+  (#47).** fresh-clone ran the target's install, lifecycle scripts and test
+  with the evaluator's whole environment minus `DATABASE_URL`, and
+  dependency-scan ran each audit inside the target's tree with the whole
+  environment, so a repo-local `.yarnrc` `yarn-path` ran the target's own
+  script and could forge a clean audit. Every child of either instrument now
+  gets the allow-list of `map/child-env.mjs` (`PATH`, `HOME`, `CI`, the
+  runner's `npm_config_*`); every audit, npm included, runs from a scratch
+  copy of one lockfile and its manifest (`method: scratch-copy`; the ENOLOCK
+  fallback is subsumed); `assay start` runs fresh-clone only under
+  `--allow-exec` and otherwise records it skipped with the reason (the routine
+  always runs it); a workspace pattern's `..` segment no longer leaves the
+  tree, `npm ci --workspace` quotes its path, and the README claim check no
+  longer accepts a prefix-sharing sibling. README, `assay help` and
+  `CONTRACT.md` §3a say plainly that the two instruments execute the target's
+  code and belong in a disposable container or VM. A new `isolation` block
+  over `tests/instruments/exec-planted` (a planted `.yarnrc` and lifecycle
+  scripts, offline npm/yarn shims that record cwd, files and environment
+  names) was confirmed red against the old code for each of its reasons
+  (14 failures) before the change. Goldens untouched.

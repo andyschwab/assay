@@ -3038,6 +3038,10 @@ function adaptersOnce() { return loadAdapters(); }
   mkdirSync(join(tmp, 'ws-sibling'), { recursive: true });
   writeFileSync(join(tmp, 'ws-sibling', 'x.js'), '');
   if (freshCloneClaimPresent({ kind: 'node-file', name: '../ws-sibling/x.js' }, ws, {})) fail('a README node-file claim resolving to a sibling directory that shares the tree\'s prefix must read missing, never present');
+  // (e) the front door and the help banner say the two instruments execute the target's code
+  if (!/\*\*Two instruments execute the target's code\.\*\*/.test(readFileSync(join(ROOT, 'README.md'), 'utf8'))) fail('README must say plainly that fresh-clone and dependency-scan execute the target\'s code');
+  const helpOut = execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'help'], { encoding: 'utf8' });
+  if (!/fresh-clone and dependency-scan execute the target's code/.test(helpOut) || !/--allow-exec/.test(helpOut)) fail('`assay help` must say fresh-clone and dependency-scan execute the target\'s code, and name --allow-exec');
   rmSync(tmp, { recursive: true, force: true });
 }
 
@@ -3605,7 +3609,7 @@ function cmp(path, g, c) {
 cmp('_score', golden._score, current._score);
 
 if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, not-applicable, not-applicable-views, evidence-produced-by, sequence, doc-consistency, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, doc-consistency, fixture-recall).`);
   process.exit(0);
 }
 if (negFailures.length) {
