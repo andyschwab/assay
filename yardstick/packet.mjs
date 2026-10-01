@@ -143,7 +143,7 @@ export function secretShape(value) {
   if (typeof value !== 'string') return null;
   const v = value.trim();
   if (!v) return null;
-  for (const [re, label] of SECRET_SHAPES) if (re.test(v)) return label;
+  for (const [re, label] of SECRET_SHAPES) if (/** @type {RegExp} */ (re).test(v)) return label;
   const m = v.match(/[A-Za-z0-9+/_=-]{32,}/);
   if (m && !isHexy(m[0]) && !isPathLike(m[0]) && classDiversity(m[0]) >= 3 && shannonEntropy(m[0]) > 3.5) return `a long high-entropy token ("${m[0].slice(0, 8)}…")`;
   return null;

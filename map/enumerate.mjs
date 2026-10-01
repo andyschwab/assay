@@ -152,7 +152,7 @@ for (const f of files) {
     else if (/\bblock(?:list|ed)[-_]?(?:host|domain|url|terminal|pattern)|website[-_]blocklist/i.test(line)) hit('egressControls', 'host/pattern blocklist', r, i, 'egress denylist');
 
     // 6. effect call sites
-    for (const [re, note] of EFFECT) if (re.test(line)) hit('effectSites', note, r, i, note);
+    for (const [re, note] of EFFECT) if (/** @type {RegExp} */ (re).test(line)) hit('effectSites', note, r, i, note);
 
     // 7. container/agent classes
     if (/docker\s+(?:run|create)\b/.test(line)) hit('containerClasses', 'docker run/create site', r, i, 'a container is launched here — enumerate its class');

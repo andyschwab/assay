@@ -135,7 +135,7 @@ export function buildGrades(findings, inputs) {
       measures = [...measures, ...sampled];
     }
     const primary = measures.find((mm) => mm.primary) || null;
-    const flag = (k) => (inp[k] && inp[k].claim === true ? { claim: true, why: inp[k].why || '', evidence: inp[k].evidence || [] } : false);
+    const flag = (k) => /** @type {{ claim: boolean, why: string, evidence: string[] } | false} */ (inp[k] && inp[k].claim === true ? { claim: true, why: inp[k].why || '', evidence: inp[k].evidence || [] } : false);
     return {
       dimension: d.dimension,
       coverage: primary ? { pct: primary.pct, met: primary.met, of: primary.of, kind: primary.kind, measure: primary.name, what: primary.what, ...(primary.method ? { method: primary.method } : {}) } : null,

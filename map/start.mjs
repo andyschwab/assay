@@ -154,7 +154,7 @@ const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
 //                           their working tree and measure uncommitted state;
 //                           fresh-clone then clones repoDir itself (a real
 //                           git ref) into a scratch directory first.
-export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false } = {}, log = () => {}) {
+export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of JUDGMENT_SCANNERS) rows[id] = { status: 'skipped', reason: reasonFor(id) };
@@ -170,7 +170,7 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentR
 // the command that records it once its report is ingested or reviewed. The run's
 // own path stays out of it: the reason is printed in every view that names what
 // was not measured, and a local path describes the machine, not the run.
-const pendingReasonFor = () => (id) =>
+const pendingReasonFor = (_outArg) => (id) =>
   `not yet run: a steward session runs it; ingesting its report records it ran (${id}: node assay.mjs record <run> ${id} ran)`;
 const GITLEAKS_ABSENT_HERE = 'gitleaks binary not on PATH where this run was drawn';
 const NO_TARGET_REASON = 'not yet run: ingesting its report records it ran';
