@@ -4291,6 +4291,33 @@ for (const [key, dir] of SCORED) {
   } catch (e) { current._score[key] = { error: e.message.split('\n')[0] }; }
 }
 
+// ── score --json and backlog carry their verdict in the exit code (#53, F-1228, F-308) ──
+// score's JSON mode exited 0 whatever it graded; backlog read a sub-tool that crashed as
+// zero items in that class and exited 0. A crashed class is not computed, never 0.
+{
+  const fail = (m) => negFailures.push('score-backlog-exit: ' + m);
+  const nb = join(HERE, 'fixtures', 'notesbox');
+  const scoreExit = (answers, json) => spawnSync(process.execPath, [join(ROOT, 'map', 'score.mjs'), nb, '--answers', answers, ...(json ? ['--json'] : [])], { encoding: 'utf8' }).status;
+  const miss = join(HERE, 'fixtures', 'cleanlib', 'ANSWERS.yaml');   // a control sheet: notesbox's findings are false positives there
+  if (scoreExit(miss, false) !== 1) fail('the fixture is wrong: score (text) over a failing grade must exit 1');
+  if (scoreExit(miss, true) !== 1) fail('score --json over a failing grade must exit 1, the same verdict as text mode');
+  if (scoreExit(join(nb, 'ANSWERS.yaml'), true) !== 0) fail('score --json over a passing grade must exit 0');
+  const bl = (extra) => spawnSync(process.execPath, [join(ROOT, 'map', 'backlog.mjs'), nb, ...extra], { encoding: 'utf8' });
+  const crashed = bl(['--target', join(HERE, 'tmp-no-such-target')]);
+  if (crashed.status === 0) fail('backlog must exit non-zero when a sub-tool (enumerate) crashed');
+  let doc = null; try { doc = parseYaml(crashed.stdout); } catch (e) { fail(`backlog's output must still parse (${e.message})`); }
+  if (doc) {
+    if (doc.counts?.['un-enumerated-population'] === 0) fail('a class whose sub-tool crashed must not be counted 0');
+    if (!/enumerate/.test(String(doc.not_computed?.['un-enumerated-population'] || ''))) fail(`a class whose sub-tool crashed must be recorded not computed, with the reason (got ${JSON.stringify(doc.not_computed)})`);
+  }
+  const priorGone = bl(['--prior', join(HERE, 'tmp-no-such-prior')]);
+  if (priorGone.status === 0) fail('backlog must exit non-zero when the prior run it was given cannot be read');
+  let pdoc = null; try { pdoc = parseYaml(priorGone.stdout); } catch (e) { fail(`backlog's output must still parse (${e.message})`); }
+  if (pdoc && (pdoc.counts?.['coverage-divergence'] === 0 || !pdoc.not_computed?.['coverage-divergence'])) fail(`an unreadable prior must leave coverage-divergence not computed, never 0 (got ${JSON.stringify(pdoc.counts)})`);
+  const plain = bl([]);
+  if (plain.status !== 0) fail(`backlog with no sub-tool requested must exit 0 (got ${plain.status}: ${String(plain.stderr).slice(0, 160)})`);
+}
+
 // ── every command help advertises has a command-line body (#53, F-103, F-603) ──
 // chains, capabilities, supervision and decisions dispatched to library modules with no
 // argv read and no isMain block, so `node assay.mjs supervision <run>` printed nothing and
@@ -4458,6 +4485,6 @@ const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
 for (const l of v.out) console.log(l);
 for (const l of v.err) console.error(l);
 if (v.ok) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, yaml-strict, findings-loader, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, score-backlog-exit, cli-commands, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
 }
 process.exit(v.exit);

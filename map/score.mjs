@@ -132,7 +132,9 @@ if (isMain(import.meta.url)) {
   if (!findings.length) { console.error(`no findings under ${runDir}`); process.exit(2); }
   const r = score(findings, loadAdapters(), answers, loadManifest(runDir));
 
-  if (process.argv.includes('--json')) { console.log(JSON.stringify(r, null, 2)); process.exit(0); }
+  // the verdict, the same in both modes: a miss, a mis-homing or a control false positive fails
+  const verdict = r.results.some((x) => x.status === 'missed' || x.status === 'mis-homed') || (r.isControl && r.falsePositives.length) ? 1 : 0;
+  if (process.argv.includes('--json')) { console.log(JSON.stringify(r, null, 2)); process.exit(verdict); }
 
   const mark = { recovered: '✓', 'mis-homed': '~', missed: '✗', 'out-of-scope': '·' };
   console.log(`\n# Score — ${r.target}  (methods: ${r.methods.join(', ')})\n`);
@@ -149,7 +151,5 @@ if (isMain(import.meta.url)) {
   } else if (r.falsePositives.length) {
     console.log(`  Findings off the planted set at/above tolerance: ${r.falsePositives.length} (not necessarily wrong — the sheet is the floor, not the ceiling)`);
   }
-  const misHomed = r.results.filter((x) => x.status === 'mis-homed').length;
-  const missed = r.results.filter((x) => x.status === 'missed').length;
-  process.exit(missed || misHomed || (r.isControl && r.falsePositives.length) ? 1 : 0);
+  process.exit(verdict);
 }
