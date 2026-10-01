@@ -7,3 +7,7 @@
 # The positive-case input to the packet validator's secretShape test (an
 # AKIA-prefixed made-up value, never a credential), as first committed.
 884eb529a5e282cbb24594001fb2939b8fac3083:tests/regression.mjs:aws-access-token:1065
+
+# The same planted value, moved into tests/blocks/packet.mjs when the harness
+# split into one file per block (#87), before it was assembled at runtime.
+cd3b21487398e7e9fa2213c97e029a9f2dbe151d:tests/blocks/packet.mjs:aws-access-token:97

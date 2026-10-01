@@ -1096,3 +1096,25 @@ what the public engine learned.
   `start-tree` block (a tree in no repository, and one inside this checkout)
   was confirmed red against the old code (three failures: both rows failed with
   git's error, and the help line). Goldens untouched.
+- **2026-10-01 — the regression harness, one file per block** (#87, roadmap
+  item 16). `tests/regression.mjs` held all 85 blocks in one file and ended in a
+  hand-edited label line, so two changes that each added a block conflicted at
+  its tail, and a wrong resolution could drop a name from the line while the
+  block still ran (start-tree, added by #88, already ran unnamed). Each block is
+  now `tests/blocks/<label>.mjs` exporting `label`, `run`, and optionally `gate`
+  and `after`; the shared state, fixture helpers and verdict live in
+  `tests/harness.mjs`; `tests/regression.mjs` is the runner, which discovers the
+  blocks in filename order, refuses a block it cannot run honestly, records a
+  block that throws as a failure under its label, and composes the gate line
+  from the blocks that ran. The line keeps every label it had and gains
+  start-tree and block-runner; nineteen blocks that ran unnamed before keep
+  `gate = []` until a reviewed change names them. `tests/README.md` says how to
+  add a block, and doc-consistency holds it to the exports the runner reads.
+  The split exposed `coverageYaml` as an export only a dead import in the old
+  file named, so it is now private to `map/ingest.mjs` (the shared-helpers
+  rule); `npm run lint` now checks `tests/blocks/`; the packet block's planted
+  `AKIA…` value is assembled at runtime, and `.gitleaksignore` pins the one
+  commit that carried it at its new path. The new `block-runner` block
+  and the doc-consistency check were confirmed red against the one-file harness
+  (five failures) and against each runner rule reverted in turn. Goldens
+  untouched.
