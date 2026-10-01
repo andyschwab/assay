@@ -82,7 +82,7 @@ if (target) {
 if (target) {
   const v = toolJson('validate.mjs', [runDir, '--target', target]);
   if (v && Array.isArray(v.evidencePathErrors)) for (const e of v.evidencePathErrors)
-    add('evidence-inaccuracy', `${e.finding} cites "${e.path}", which does not exist in the target.`, [`${e.file}:${e.finding}`]);
+    add('evidence-inaccuracy', e.line ? `${e.finding} cites line ${e.line} of "${e.path}", which the target's file does not have.` : `${e.finding} cites "${e.path}", which does not exist in the target.`, [`${e.file}:${e.finding}`]);
 }
 
 // 3) prior-run divergence (best-effort basename diff). Regex-scrape the raw findings

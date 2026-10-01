@@ -1,0 +1,8 @@
+- id: F-001
+  dimension: unprompted
+  polarity: gap
+  subject_type: process
+  observation: >
+    A gap filed unprompted and never given an axis.
+  evidence: [a.py:1]
+  confidence: confirmed

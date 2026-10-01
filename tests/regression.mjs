@@ -100,6 +100,21 @@ const NEGATIVE = [
   // from map/censuses.yaml — a hand-inflated number with a re-pooled aggregate must not validate
   ['counted-drift', 'a counted maturity row the base does not compute', /deterministic-gates: counted drift: file says 2\/2, base computes 0\/2/],
   ['sampled-drift', 'a sampled maturity row its authored census does not record (a sample inflating the headline)', /artifact-legibility: sampled drift: file says 10\/10, map\/censuses\.yaml records 7\/10/],
+  // one fixture per validator rule, so removing any rule turns the harness red (#52): the
+  // closed vocabulary, the conditional-required facets (SCHEMA §4), the fail-closed
+  // discovery rule, link resolution, the unprompted-gap axis rule, and evidence itself
+  ['bad-polarity', 'a native finding whose polarity is outside the closed vocabulary', /: bad polarity "concern"/],
+  ['effect-no-facet', 'subject_type effect with no effect facet', /: subject_type:effect requires an effect facet/],
+  ['effect-no-fail-mode', 'a gated effect that states no fail_mode', /: effect\.fail_mode required when gate_type != none/],
+  ['halt-no-preconditions', 'an unheld halt that leaves its preconditions to default', /: unheld-halt effect must state preconditions/],
+  ['capability-not-boolean', 'a capabilities block holding a non-boolean', /: capabilities\.untrusted_input must be boolean/],
+  ['link-unknown', 'a reaches link to a finding the run does not carry', /: reaches → unknown finding F-999/],
+  ['unprompted-gap-no-axis', 'an unprompted gap with no axis', /^projection:F-001: unprompted GAP has no axis/],
+  ['evidence-missing', 'a native finding with no evidence key', /: missing required key: evidence$/],
+  ['external-evidence-missing', 'a scanner row with no evidence key', /: missing required key \(external finding\): evidence$/],
+  ['evidence-not-path-line', 'evidence that is not a path:line string (a bare file, a map)', /: evidence (?:"lib\/agent\.mjs"|\{"path":"lib\/agent\.mjs","lines":"1"\}) is not a path:line citation/],
+  ['evidence-line-past-end', 'a citation to a line the cited file does not have', /evidence line (?:9|2-7) is past the end of lib\/agent\.mjs \(3 lines\)/, { target: 'target' }],
+  ['yardstick-id-set', 'a yardstick.yaml with one row duplicated and one missing (the count still matches)', /^yardstick\.yaml: carries no row for d-credentials-enumerated/],
 ];
 
 // SCORED public-fixture runs: grade the engine against the known-answer sheets so recall
@@ -1881,7 +1896,7 @@ function adaptersOnce() { return loadAdapters(); }
     const rows = measureRun({ findings: base, manifest: ran, inputs, coverage: {} }, reg);
     const by = Object.fromEntries(rows.map((r) => [r.id, r]));
     if (by['d-effects-gated']?.status !== 'unmet' || !by['d-effects-gated'].findings.includes('F-1')) fail('an unheld halt must read d-effects-gated unmet, citing it');
-    if (by['d-effects-gated']?.findings.includes('F-2') === false && by['d-gates-fail-closed']?.status !== 'unmet') fail('a gate with fail_mode open must read d-gates-fail-closed unmet');
+    if (by['d-gates-fail-closed']?.status !== 'unmet' || !by['d-gates-fail-closed'].findings.includes('F-2')) fail('a gate with fail_mode open must read d-gates-fail-closed unmet, citing it');
     if (by['d-effects-traced']?.status !== 'unmet') fail('a halt with telemetry none must read d-effects-traced unmet');
     if (by['d-capability-budget']?.status !== 'unmet') fail('a full trifecta reaching an unheld halt must read d-capability-budget unmet');
     if (by['d-decisions-reconstruct']?.status !== 'mixed' || by['d-decisions-reconstruct'].of !== 4) fail('a 3-of-4 census must read mixed with its denominator');
@@ -4164,37 +4179,149 @@ for (const [key, dir] of SCORED) {
   } catch (e) { current._score[key] = { error: e.message.split('\n')[0] }; }
 }
 
-// ── bless / assert ────────────────────────────────────────────────────────────
-if (bless) {
-  writeFileSync(GOLDEN, JSON.stringify(current, null, 2) + '\n');
-  console.log('✓ blessed golden.json from current state. Review the diff before committing.');
-  process.exit(0);
+// ── the canon check (SCHEMA.md §8, #52): a named-but-missing canon is an error,
+// channel drift against a present one is a warning, never an error ──
+{
+  const fail = (m) => negFailures.push('canon: ' + m);
+  const tmp = mkdtempSync(join(tmpdir(), 'assay-canon-'));
+  const run = join(tmp, 'entry', 'runs', 'r');   // the custody layout: <entry>/runs/<run>/, canon at <entry>/canon/
+  mkdirSync(join(run, 'map', 'findings'), { recursive: true });
+  mkdirSync(join(run, 'views', 'improve'), { recursive: true });
+  copyFileSync(join(HERE, 'negative', 'bad-standing-watch', 'map', 'scanners.yaml'), join(run, 'map', 'scanners.yaml'));
+  writeFileSync(join(run, 'map', 'findings', 'repo-eval-delegation.yaml'), [
+    '- id: F-001', '  dimension: delegation', '  polarity: strength', '  subject_type: effect',
+    '  observation: A held, reversible send.', '  evidence: [a.py:1]', '  confidence: confirmed',
+    '  effect:', '    channel: mail-send', '    reversibility: reversible', '    external: false',
+    '    gate_type: deterministic-halt', '    fail_mode: closed', '    telemetry: audited', '    blast_scope: user', ''].join('\n'));
+  writeFileSync(join(run, 'views', 'improve', 'prose.yaml'), 'canon: c1\n');
+  const validateJson = () => {
+    const r = spawnSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), run, '--json'], { encoding: 'utf8' });
+    try { return { exit: r.status, ...JSON.parse(r.stdout) }; } catch { return { exit: r.status, errors: [`unparseable: ${r.stdout}${r.stderr}`], warnings: [] }; }
+  };
+  const missing = validateJson();
+  if (missing.exit !== 1 || missing.errors.length !== 1 || !/canon: "c1" names canon\/c1\.yaml, which exists neither/.test(missing.errors[0] || ''))
+    fail(`a named-but-missing canon must be the one error (got exit ${missing.exit}: ${missing.errors.join(' | ')})`);
+  mkdirSync(join(tmp, 'entry', 'canon'), { recursive: true });
+  writeFileSync(join(tmp, 'entry', 'canon', 'c1.yaml'), 'effect_channels:\n  - slug: ledger-write\n');
+  const drift = validateJson();
+  if (drift.exit !== 0 || drift.errors.length) fail(`channel drift against a present canon must not fail validate (got exit ${drift.exit}: ${drift.errors.join(' | ')})`);
+  if (!drift.warnings.some((w) => /run effect channel "mail-send" is not in the canon/.test(w))) fail('a run channel the canon lacks must warn');
+  if (!drift.warnings.some((w) => /canon channel "ledger-write" has no effect finding/.test(w))) fail('a canon channel the run does not assess must warn');
+  rmSync(tmp, { recursive: true, force: true });
 }
-if (!existsSync(GOLDEN)) { console.error('✗ no golden.json — run `node tests/regression.mjs --bless` first, review, and commit.'); process.exit(2); }
-const golden = JSON.parse(readFileSync(GOLDEN, 'utf8'));
 
-const drifts = [];
-function cmp(path, g, c) {
-  if (typeof g === 'object' && g && typeof c === 'object' && c) {
-    for (const k of new Set([...Object.keys(g), ...Object.keys(c)])) cmp(`${path}.${k}`, g[k], c[k]);
-  } else if (JSON.stringify(g) !== JSON.stringify(c)) {
-    drifts.push(`${path}: golden ${JSON.stringify(g)} → now ${JSON.stringify(c)}`);
+// ── lib/run-layout.mjs places every artifact where the contract says (#52) ────
+// Pinned as literal run-relative paths, independent of the module: a moved path is a
+// layout change every reader and every existing run must agree to, never a silent one.
+{
+  const fail = (m) => negFailures.push('run-layout: ' + m);
+  const L = await import('../lib/run-layout.mjs');
+  const R = join(tmpdir(), 'assay-layout-probe');
+  const rel = (p) => p.slice(R.length + 1).split(/[\\/]/).join('/');
+  const want = [
+    ['indexPath', [], 'INDEX.md'], ['intakePagePath', [], 'INTAKE.md'], ['maintainPagePath', [], 'MAINTAIN.md'],
+    ['improvePagePath', [], 'IMPROVE.md'], ['ownerPagePath', [], 'OWNER.md'], ['sincePagePath', [], 'SINCE.md'],
+    ['routinePath', [], 'routine.yaml'], ['handoffDir', [], 'handoff'],
+    ['scannersPath', [], 'map/scanners.yaml'], ['findingsDir', [], 'map/findings'], ['findingsPath', ['gitleaks'], 'map/findings/gitleaks.yaml'],
+    ['repoEvalPassPath', ['gates'], 'map/findings/repo-eval-gates.yaml'], ['coveragePath', ['deep-code-review'], 'map/coverage/deep-code-review.yaml'],
+    ['censusesPath', [], 'map/censuses.yaml'], ['backlogPath', [], 'map/backlog.yaml'], ['terrainPath', [], 'map/terrain.md'],
+    ['nativeReportPath', ['deep-code-review'], 'map/native/deep-code-review.md'], ['rawPath', ['x.json'], 'map/raw/x.json'],
+    ['yardstickPath', [], 'yardstick.yaml'], ['viewPath', ['intake'], 'views/intake.yaml'],
+    ['prosePath', [], 'views/improve/prose.yaml'], ['axesPath', [], 'views/improve/axes.md'], ['leveragePath', [], 'views/improve/leverage.md'],
+    ['maturityPath', [], 'views/improve/maturity.md'], ['maturityGradesPath', [], 'views/improve/maturity-grades.yaml'],
+    ['securityPath', [], 'views/improve/security.md'], ['securityGatePath', [], 'views/improve/security-gate.yaml'],
+    ['synthesisPath', [], 'views/improve/synthesis.md'], ['decisionsPath', [], 'owner/decisions.yaml'], ['packetManifestPath', [], 'owner/manifest.yaml'],
+  ];
+  for (const [fn, args, path] of want) {
+    if (typeof L[fn] !== 'function') { fail(`lib/run-layout.mjs no longer exports ${fn}`); continue; }
+    const got = rel(L[fn](R, ...args));
+    if (got !== path) fail(`${fn} places ${got}; the run layout says ${path}`);
   }
 }
-cmp('_score', golden._score, current._score);
 
-if (!drifts.length && !negFailures.length) {
-  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, fixture-recall).`);
-  process.exit(0);
+// ── compile's gate checks citations against the target when it has one (#52) ──
+// compile forwards --target to validate, so a citation to a line the target's file does
+// not have halts the package, not only `assay start` and the routine.
+{
+  const fail = (m) => negFailures.push('compile-target: ' + m);
+  const fx = join(HERE, 'negative', 'evidence-line-past-end');
+  const tmp = mkdtempSync(join(tmpdir(), 'assay-compile-target-'));
+  cpSync(join(fx, 'map'), join(tmp, 'map'), { recursive: true });
+  const r = spawnSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), tmp, '--target', join(fx, 'target')], { encoding: 'utf8' });
+  const out = String(r.stdout || '') + String(r.stderr || '');
+  if (r.status === 0) fail('compile --target over a citation past the end of its file must fail at the validate gate (it compiled)');
+  else if (!/evidence line 9 is past the end of lib\/agent\.mjs/.test(out)) fail(`compile --target must fail at the validate gate for the cited line (got exit ${r.status}: ${out.split('\n').slice(-6).join(' | ')})`);
+  if (existsSync(join(tmp, 'INDEX.md'))) fail('compile --target must write no package over a base whose citations do not resolve');
+  rmSync(tmp, { recursive: true, force: true });
 }
-if (negFailures.length) {
-  console.error(`✗ assay regression: ${negFailures.length} unit/negative failure(s) — an invariant that must always hold was violated:\n`);
-  for (const f of negFailures) console.error('  • ' + f);
-  console.error('  These are never re-blessed. Restore the check the assertion targets.');
+
+// ── bless refuses a red tree (#52) ────────────────────────────────────────────
+// --bless pins scores; it must never read green over a failing invariant. Probed on a
+// scratch golden: a unit/negative failure or a scorer error refuses (exit 1, nothing
+// written); only a tree that holds is blessed.
+{
+  const fail = (m) => negFailures.push('bless-guard: ' + m);
+  const tmp = mkdtempSync(join(tmpdir(), 'assay-bless-'));
+  const g = join(tmp, 'golden.json');
+  const SENTINEL = '{"sentinel":true}\n';
+  for (const [what, nf, sc] of [['a unit/negative failure', ['planted failure'], { a: { recall: 1 } }], ['a scorer error', [], { a: { error: 'planted scorer error' } }]]) {
+    writeFileSync(g, SENTINEL);
+    const r = verdict({ bless: true, negFailures: nf, current: { _score: sc }, goldenPath: g });
+    if (r.exit !== 1) fail(`--bless over ${what} must exit 1 (got ${r.exit})`);
+    if (readFileSync(g, 'utf8') !== SENTINEL) fail(`--bless over ${what} must write nothing (golden.json was rewritten)`);
+    if (!r.err.some((l) => /planted/.test(l))) fail(`--bless over ${what} must print what is red`);
+  }
+  writeFileSync(g, SENTINEL);
+  const ok = verdict({ bless: true, negFailures: [], current: { _score: { a: { recall: 1 } } }, goldenPath: g });
+  if (ok.exit !== 0 || JSON.stringify(JSON.parse(readFileSync(g, 'utf8'))) !== JSON.stringify({ _score: { a: { recall: 1 } } })) fail('--bless over a tree that holds must write the scores and exit 0');
+  rmSync(tmp, { recursive: true, force: true });
 }
-if (drifts.length) {
-  console.error(`✗ assay regression: ${drifts.length} scored invariant(s) drifted:\n`);
-  for (const d of drifts) console.error('  • ' + d);
-  console.error('\n  If INTENTIONAL, re-bless (node tests/regression.mjs --bless) and commit golden.json in the same diff.');
+
+// ── bless / assert ────────────────────────────────────────────────────────────
+// The verdict of one harness run. --bless rewrites golden.json only when every unit and
+// negative invariant holds and every scored fixture graded; otherwise it refuses, writes
+// nothing and exits 1 (a bless over red would pin the regression and read green).
+function verdict({ bless, negFailures, current, goldenPath }) {
+  const out = [], err = [];
+  const scoreErrors = Object.entries(current._score).filter(([, v]) => v && v.error).map(([k, v]) => `_score.${k}: scorer error: ${v.error}`);
+  if (bless) {
+    if (negFailures.length || scoreErrors.length) {
+      err.push(`✗ refusing --bless: ${negFailures.length} unit/negative failure(s) and ${scoreErrors.length} scorer error(s); golden.json is unchanged. Fix these first — they are never re-blessed:\n`);
+      for (const f of [...negFailures, ...scoreErrors]) err.push('  • ' + f);
+      return { exit: 1, out, err };
+    }
+    writeFileSync(goldenPath, JSON.stringify(current, null, 2) + '\n');
+    out.push('✓ blessed golden.json from current state. Review the diff before committing.');
+    return { exit: 0, out, err };
+  }
+  if (!existsSync(goldenPath)) { err.push('✗ no golden.json — run `node tests/regression.mjs --bless` first, review, and commit.'); return { exit: 2, out, err }; }
+  const golden = JSON.parse(readFileSync(goldenPath, 'utf8'));
+  const drifts = [];
+  const cmp = (path, g, c) => {
+    if (typeof g === 'object' && g && typeof c === 'object' && c) {
+      for (const k of new Set([...Object.keys(g), ...Object.keys(c)])) cmp(`${path}.${k}`, g[k], c[k]);
+    } else if (JSON.stringify(g) !== JSON.stringify(c)) {
+      drifts.push(`${path}: golden ${JSON.stringify(g)} → now ${JSON.stringify(c)}`);
+    }
+  };
+  cmp('_score', golden._score, current._score);
+  if (!drifts.length && !negFailures.length) return { exit: 0, out, err, ok: true };
+  if (negFailures.length) {
+    err.push(`✗ assay regression: ${negFailures.length} unit/negative failure(s) — an invariant that must always hold was violated:\n`);
+    for (const f of negFailures) err.push('  • ' + f);
+    err.push('  These are never re-blessed. Restore the check the assertion targets.');
+  }
+  if (drifts.length) {
+    err.push(`✗ assay regression: ${drifts.length} scored invariant(s) drifted:\n`);
+    for (const d of drifts) err.push('  • ' + d);
+    err.push('\n  If INTENTIONAL, re-bless (node tests/regression.mjs --bless) and commit golden.json in the same diff.');
+  }
+  return { exit: 1, out, err };
 }
-process.exit(1);
+const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
+for (const l of v.out) console.log(l);
+for (const l of v.err) console.error(l);
+if (v.ok) {
+  console.log(`✓ assay regression: ${NEGATIVE.length} negative fixtures + fail-closed/engine/instrument unit invariants + ${SCORED.length} scored fixtures, all hold (validate, projection, roster-honesty, run-manifest, dcr-machine-report, decision-overlay, instrument-port, fresh-clone, test-skips, step-not-run, dependency-scan, fresh-clone-workspaces, fresh-clone-pnpm, yardstick-list-category, repo-census, census-gate-commands, score-scope, enumerate-gate, enumerate-tooldef, yardstick-register, yardstick-topic, intake-maintain-improve, owner-view, compare, compare-findings, ratchet, since, routine, routine-workflow, ci-workflow, gitleaks-target, start, record, ingest-record, validate-hints, all-clean-run, ci-gate-fail-open-shell, fresh-clone-build-floor, database-signals, dependency-scan-manifests, isolation, not-applicable, not-applicable-views, evidence-produced-by, sequence, handoff-text-is-data, doc-consistency, canon, run-layout, compile-target, bless-guard, fixture-recall).`);
+}
+process.exit(v.exit);

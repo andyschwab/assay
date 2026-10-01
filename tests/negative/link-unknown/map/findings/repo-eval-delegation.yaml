@@ -1,0 +1,9 @@
+- id: F-001
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    A finding that claims to reach one that does not exist.
+  evidence: [a.py:1]
+  confidence: confirmed
+  reaches: [F-999]

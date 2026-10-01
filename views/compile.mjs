@@ -20,7 +20,9 @@
 // No safe-to-run, no single grade — each axis carries its own posture
 //.
 //
-// Usage: node assay.mjs compile <run-dir> [--packet <dir>]
+// Usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>]
+//   --target   forwarded to the validate gate: every cited path must resolve in the
+//              target, and every cited line must be inside its file (map/SCHEMA.md §7)
 //   --packet   validate a repository's own packet and fold it into the measurement
 //              (forwarded to yardstick/measure.mjs --write; owner/PACKET.md)
 import { writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -42,9 +44,11 @@ const packetIdx = argv.indexOf('--packet');
 const packetArgs = packetIdx > -1 ? ['--packet', argv[packetIdx + 1]] : [];
 const sinceIdx = argv.indexOf('--since');
 const previousRun = sinceIdx > -1 ? argv[sinceIdx + 1] : null;
-const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1].filter((i) => i > -1));
+const targetIdx = argv.indexOf('--target');
+const targetArgs = targetIdx > -1 ? ['--target', argv[targetIdx + 1]] : [];
+const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1, targetIdx > -1 ? targetIdx + 1 : -1].filter((i) => i > -1));
 const arg = argv.find((a, i) => !a.startsWith('--') && !reserved.has(i));
-if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>]'); process.exit(2); }
+if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>]'); process.exit(2); }
 const runDir = arg;
 const runId = basename(runDir);
 
@@ -65,7 +69,7 @@ const confArgs = CONFIDENTIAL ? ['--confidential'] : [];
 // validate.mjs is the format contract AND the run manifest (every adopted scanner's
 // disposition). A package that compiles over a base with an unrecorded scanner
 // reads as coverage that never happened; so the package never compiles without it.
-console.log('· validate …');                  run('../map/validate.mjs', []);
+console.log('· validate …');                  run('../map/validate.mjs', targetArgs);
 // the measurement: every package carries yardstick.yaml (yardstick/README.md); the
 // validator drift-checks it on the next validate, so a stale read cannot outlive its base
 console.log('· measure  (yardstick) …');      run('../yardstick/measure.mjs', ['--write', ...packetArgs]);
