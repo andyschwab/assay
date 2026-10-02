@@ -10,7 +10,7 @@
 // stewarded repository runs on its own schedule). The routine's own reasons
 // (NOT_RUN_BY_ROUTINE, its gitleaks-absent line) are parameters here, not
 // hard-coded, so moving this file changed nothing about what the routine
-// records (tests/regression.mjs's routine block pins this byte-for-byte).
+// records (tests/blocks/routine.mjs pins this byte-for-byte).
 //
 // Usage: node assay.mjs start --out <run> [<target>] [--allow-exec]
 //   <target> given  — runs repo-census, dependency-scan (from scratch copies of
