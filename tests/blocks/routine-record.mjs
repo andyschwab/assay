@@ -4,7 +4,6 @@ import { toRoutineYaml } from '../../routine/run.mjs';
 import { negFailures } from '../harness.mjs';
 
 export const label = 'routine-record';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('routine-record: ' + m);

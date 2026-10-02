@@ -16,7 +16,6 @@ import { runRoutine } from '../../routine/run.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'routine-pr-baseline';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('routine-pr-baseline: ' + m);

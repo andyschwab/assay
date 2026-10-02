@@ -52,9 +52,9 @@ export function copyFixtureScanners(fixtureName, destRunDir) {
 export const BLOCK_FIELDS = ['label', 'run', 'gate', 'after'];
 
 // Load every tests/blocks/*.mjs in filename order and refuse what cannot run honestly: no
-// block at all, a label that is not its filename, no run function, a gate label two blocks
-// claim, an after naming no block, a block that does not load. Returns the blocks in run
-// order and every refusal; a refusal is a failure, never a skipped block.
+// block at all, a label that is not its filename, no run function, an empty gate, a gate
+// label two blocks claim, an after naming no block, a block that does not load. Returns
+// the blocks in run order and every refusal; a refusal is a failure, never a skipped block.
 export async function loadBlocks(dir) {
   const errors = [];
   const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort() : [];
@@ -69,6 +69,7 @@ export async function loadBlocks(dir) {
     if (typeof mod.run !== 'function') { errors.push(`${file} exports no run function`); continue; }
     const gate = mod.gate === undefined ? [name] : mod.gate;
     if (!Array.isArray(gate) || gate.some((g) => typeof g !== 'string' || !g)) { errors.push(`${file} exports a gate that is not a list of labels`); continue; }
+    if (!gate.length) { errors.push(`${file} exports an empty gate: every block that runs is named on the gate line`); continue; }
     const after = mod.after === undefined ? [] : mod.after;
     if (after !== '*' && (!Array.isArray(after) || after.some((a) => typeof a !== 'string'))) { errors.push(`${file} exports an after that is neither '*' nor a list of labels`); continue; }
     loaded.push({ file, label: name, gate, after, run: mod.run, mod });
