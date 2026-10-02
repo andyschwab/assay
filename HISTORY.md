@@ -1118,3 +1118,15 @@ what the public engine learned.
   and the doc-consistency check were confirmed red against the one-file harness
   (five failures) and against each runner rule reverted in turn. Goldens
   untouched.
+- **2026-10-02 — the gate line names every block that ran** (#94, roadmap item
+  18). The harness split (#87) kept nineteen blocks off the gate line with
+  `gate = []` so the line read as before; they now carry no override, so each
+  block's label is on the line (86 names, up from 67). The runner refuses an
+  empty gate, so no block can run unnamed again, and `tests/README.md` says so.
+  Six comments that named a block as `tests/regression.mjs "<block>"` (the CI
+  workflow, `map/scanners/CONTRACT.md`, `map/start.mjs`, `map/variance.mjs`,
+  `yardstick/packet.mjs`, `routine/run.mjs`) now name the block's file under
+  `tests/blocks/`. The `block-runner` block's two new assertions (every
+  committed block is named; the runner refuses an empty gate) were confirmed
+  red against the nineteen overrides and against the refusal reverted. Goldens
+  untouched.
