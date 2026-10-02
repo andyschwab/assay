@@ -31,8 +31,8 @@ import { isMain } from '../map/doctrine.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 const REQUIREMENTS_FILE = join(HERE, 'requirements.yaml');
 // The claim-id roster alone (no full validateYardstick — that closed-vocab check
-// is the register's own concern, pinned by tests/regression.mjs's
-// yardstick-register block; this only needs to know which ids exist).
+// is the register's own concern, pinned by
+// tests/blocks/yardstick-register.mjs; this only needs to know which ids exist).
 export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
   const reg = parseYaml(readFileSync(file, 'utf8'));
   return Array.isArray(reg && reg.requirements) ? reg.requirements.map((d) => d.id) : [];

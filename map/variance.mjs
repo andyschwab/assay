@@ -87,7 +87,8 @@ export const groupKey = (f) => f.dimension || (f.source ? `source:${f.source}` :
 
 // computeVariance(runDirs) → structured repeatability result (pure; no I/O beyond loadFindings).
 // A fact = a connected component under: same dimension + a shared identity token, matched only
-// ACROSS sweeps. Deterministic; used by the CLI and pinned by tests/regression.mjs.
+// ACROSS sweeps. Deterministic; used by the CLI and pinned by tests/blocks/model-of-record.mjs
+// and tests/blocks/variance-mixed-base.mjs.
 export function computeVariance(runDirs) {
   return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)), runDirs.map((d) => modelResolver(loadManifest(d))));
 }

@@ -5,7 +5,6 @@ import { score } from '../../map/score.mjs';
 import { negFailures, adaptersOnce } from '../harness.mjs';
 
 export const label = 'score-path';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('score-path: ' + m);

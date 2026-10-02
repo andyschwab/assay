@@ -16,7 +16,6 @@ import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
 import { HERE, ROOT, negFailures, convert, adaptersOnce } from '../harness.mjs';
 
 export const label = 'repo-census-no-deployment';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('repo-census-no-deployment: ' + m);
