@@ -21,6 +21,8 @@ export async function run() {
     const real = await H.loadBlocks(join(HERE, 'blocks'));
     if (real.errors.length) fail(`every committed block must load: ${real.errors.join(' | ')}`);
     if (real.blocks.length < 2) fail(`tests/blocks/ must carry the harness's blocks (found ${real.blocks.length})`);
+    const unnamed = real.blocks.filter((b) => !b.gate.length).map((b) => b.label);
+    if (unnamed.length) fail(`every committed block must be named on the gate line when it runs (#94); unnamed: ${unnamed.join(', ')}`);
     const probe = globalThis.__assayBlockProbe = [];
     const blk = (label, extra = '', body = '') => `export const label = '${label}';\n${extra}\nexport async function run() { globalThis.__assayBlockProbe.push('${label}'); ${body} }\n`;
     const dir = (files) => {
@@ -29,15 +31,15 @@ export async function run() {
       return d;
     };
     const scratch = [];
-    const good = dir({ 'b.mjs': blk('b'), 'a.mjs': blk('a', "export const after = '*';"), 'c.mjs': blk('c', "export const gate = ['c-one', 'c-two'];"), 'd.mjs': blk('d', '', "throw new Error('planted');"), 'e.mjs': blk('e', 'export const gate = [];'), 'notes.txt': 'not a block\n' });
+    const good = dir({ 'b.mjs': blk('b'), 'a.mjs': blk('a', "export const after = '*';"), 'c.mjs': blk('c', "export const gate = ['c-one', 'c-two'];"), 'd.mjs': blk('d', '', "throw new Error('planted');"), 'notes.txt': 'not a block\n' });
     scratch.push(good);
     const g = await H.loadBlocks(good);
     if (g.errors.length) fail(`well-formed blocks must load (got ${g.errors.join(' | ')})`);
     const order = g.blocks.map((b) => b.label).join(',');
-    if (order !== 'b,c,d,e,a') fail(`blocks run in filename order, one that says after '*' after every other (got ${order})`);
+    if (order !== 'b,c,d,a') fail(`blocks run in filename order, one that says after '*' after every other (got ${order})`);
     const failures = [];
     const ran = await H.runBlocks(g.blocks, failures);
-    if (probe.join(',') !== 'b,c,d,e,a') fail(`every discovered block runs, in that order (ran ${probe.join(',')})`);
+    if (probe.join(',') !== 'b,c,d,a') fail(`every discovered block runs, in that order (ran ${probe.join(',')})`);
     if (!failures.some((f) => /^d: .*planted/.test(f))) fail(`a block that throws is a failure under its own label, never a silent skip (got ${JSON.stringify(failures)})`);
     const labels = H.gateLabels(ran).join(',');
     if (labels !== 'b,c-one,c-two,a') fail(`the gate line names each block that ran by its gate labels, and never one that threw (got ${labels})`);
@@ -52,6 +54,7 @@ export async function run() {
       ['an empty blocks directory', {}, /no block/],
       ['a label that is not its filename', { 'x.mjs': blk('y') }, /x\.mjs.*"y"/],
       ['a block with no run function', { 'norun.mjs': "export const label = 'norun';\n" }, /norun\.mjs.*run/],
+      ['a block that names itself nowhere on the gate line', { 'quiet.mjs': blk('quiet', 'export const gate = [];') }, /quiet\.mjs.*empty gate/],
       ['a gate label two blocks claim', { 'b.mjs': blk('b'), 'dup.mjs': blk('dup', "export const gate = ['b'];") }, /gate label "b"/],
       ['an after naming no block', { 'late.mjs': blk('late', "export const after = ['nosuch'];") }, /late\.mjs.*nosuch/],
       ['a block that does not parse', { 'broken.mjs': 'export const label = ;\n' }, /broken\.mjs/],

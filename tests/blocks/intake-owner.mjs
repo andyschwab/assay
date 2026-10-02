@@ -8,7 +8,6 @@ import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../../views/inta
 import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
 
 export const label = 'intake-owner';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('intake-owner: ' + m);

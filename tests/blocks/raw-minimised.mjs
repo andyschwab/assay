@@ -14,7 +14,6 @@ import { runAssayInstrument } from '../../map/start.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'raw-minimised';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('raw-minimised: ' + m);

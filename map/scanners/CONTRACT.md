@@ -128,7 +128,7 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   never read as "0 findings"; malformed or truncated input halts; a
   verified-clean run (success exit, empty report) is recorded explicitly. Every
   instrument profile ships with regression assertions proving these halts bite
-  (`tests/regression.mjs`, instrument-port block).
+  (`tests/blocks/instrument-port.mjs`).
 - **`fix` is optional on an instrument's gaps.** Where the remediation is
   mechanical and rule-determined, the instrument profile supplies it (rotate the
   credential; follow the check's remediation) and it sequences normally; a gap

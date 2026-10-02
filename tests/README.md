@@ -43,14 +43,13 @@ The runner reads four exports off a block:
 - `export async function run` — required, the block's assertions. A block that throws is
   a failure under its label, and it is not named on the gate line.
 - `export const gate` — optional, the names the block puts on the gate's last line;
-  `[label]` when absent. A gate label two blocks claim is refused.
+  `[label]` when absent. An empty gate and a gate label two blocks claim are refused:
+  every block that runs is named on the line.
 - `export const after` — optional, `'*'` to run after every other block (the
   instrument-severity block sweeps the rows the others converted), or a list of labels
   the block must run after.
 
 The runner refuses a blocks directory that is empty, a label that is not its filename,
-a block with no run function, and an after that names no block. Confirm a new block red
-with the rule it pins reverted before trusting it (`CLAUDE.md` § How a change lands).
-
-Some blocks export `gate = []`: they ran before the split without a name on the gate
-line (#87), and naming them there is its own reviewed change.
+a block with no run function, an empty gate, and an after that names no block. Confirm a
+new block red with the rule it pins reverted before trusting it (`CLAUDE.md` § How a
+change lands).

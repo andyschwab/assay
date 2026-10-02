@@ -2,7 +2,7 @@
 # fail-closed unit invariants, doctrine lockstep, pinned fixture recall) runs on
 # every push and pull request. A repo that evaluates others for deterministic
 # gates runs one itself, and holds the invariants it holds the routine template
-# to (tests/regression.mjs "ci-workflow"): actions pinned to the same commit SHAs,
+# to (tests/blocks/ci-workflow.mjs): actions pinned to the same commit SHAs,
 # a read-only token, a timeout, and every Node major package.json declares.
 name: ci
 on:
@@ -32,7 +32,7 @@ jobs:
       # gitleaks on PATH, so the harness runs the branch a routine with the optional
       # step runs (issue #51): the exact release routine/assay-routine.yml pins,
       # checked against its published sha256 before it is ever executed. Bump both
-      # files together (tests/regression.mjs "ci-workflow" holds them equal).
+      # files together (tests/blocks/ci-workflow.mjs holds them equal).
       - name: Install gitleaks (pinned + checksummed)
         env:
           GITLEAKS_VERSION: '8.21.2'

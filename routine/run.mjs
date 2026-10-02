@@ -160,7 +160,7 @@ export function runTargetSteps({ repoDir, handoffDir } = /** @type {any} */ ({})
 }
 
 // runRoutine — the pure sequencing (spawns child processes; no process.exit of its
-// own), so it is both the CLI's body and the thing tests/regression.mjs calls
+// own), so it is both the CLI's body and the thing tests/blocks/routine.mjs calls
 // directly. Returns { ok, exitCode, log: [lines] }.
 export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, handoff } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const lines = [];

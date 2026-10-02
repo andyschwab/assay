@@ -7,7 +7,6 @@ import { buildWhatWeFound, render, MARKER, NOTHING_YET, creditSentence, buildFou
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'ask-owner';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('ask-owner: ' + m);

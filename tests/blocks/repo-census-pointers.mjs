@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'repo-census-pointers';
-export const gate = [];   // not named on the gate's last line before the split (#87); named there once a reviewed change adds it
 
 export async function run() {
   const fail = (m) => negFailures.push('repo-census-pointers: ' + m);
