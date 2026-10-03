@@ -1130,3 +1130,14 @@ what the public engine learned.
   committed block is named; the runner refuses an empty gate) were confirmed
   red against the nineteen overrides and against the refusal reverted. Goldens
   untouched.
+- **2026-10-03 — a dispatched workflow deletes merged `work/` and `sweep/` branches**
+  (#98). The work lane left 33 branches, every one merged into `main`, and a
+  ref is a write the lane's sessions cannot make from where they run.
+  `.github/workflows/branch-cleanup.yml` runs by hand: `dry_run` (default on)
+  prints the merged branches it would delete and the unmerged ones it keeps,
+  and deletes nothing; a second run with it off deletes the merged ones only,
+  under the repository's automation identity (`SEAD_BOT_TOKEN` in the Actions
+  secrets; without it the run fails before reading anything). The two prefixes
+  are the whole of its reach. No assertion added: the harness holds `ci.yml` to
+  the template's invariants (`tests/blocks/ci-workflow.mjs`) and this workflow
+  carries the same pin, read-only permissions and timeout by hand.
