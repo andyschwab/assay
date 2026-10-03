@@ -1,0 +1,68 @@
+# Deletes the work lane's merged branches: `work/<date>[letter]` (one integration branch per
+# slice) and `work/<date>[letter]-<issue>-<slug>` (one per item) and the sweep set's
+# `sweep/<date>[-n]`. Run by hand. `dry_run` (default true) prints the plan and deletes
+# nothing; a person reads it, then runs it again with dry_run off.
+#
+# Only the two prefixes, and only a branch whose tip is reachable from the default branch:
+# an unmerged branch is listed as kept, never deleted, so a slice in flight is safe. The
+# refs are deleted as the repository's automation identity (SEAD_BOT_TOKEN, the bot's
+# token in this repository's Actions secrets); without the secret the run fails before
+# reading anything, so nothing is ever deleted under the Actions token's own name.
+name: branch-cleanup
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Print what would be deleted and delete nothing
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.SEAD_BOT_TOKEN }}
+      DRY_RUN: ${{ inputs.dry_run }}
+    steps:
+      - name: The bot's token is set
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::SEAD_BOT_TOKEN is not set in this repository's Actions secrets; nothing was read or deleted"
+            exit 1
+          fi
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Plan, then delete the merged work/ and sweep/ branches
+        run: |
+          set -euo pipefail
+          default=$(gh repo view "$GITHUB_REPOSITORY" --json defaultBranchRef -q .defaultBranchRef.name)
+          git fetch --quiet origin "+refs/heads/*:refs/remotes/origin/*"
+          merged=$(git branch -r --merged "origin/$default" --format='%(refname:short)' | sed -n 's#^origin/\(work/.*\|sweep/.*\)$#\1#p' | sort)
+          kept=$(git branch -r --no-merged "origin/$default" --format='%(refname:short)' | sed -n 's#^origin/\(work/.*\|sweep/.*\)$#\1#p' | sort)
+          n_merged=$(printf '%s\n' "$merged" | sed '/^$/d' | wc -l | tr -d ' ')
+          n_kept=$(printf '%s\n' "$kept" | sed '/^$/d' | wc -l | tr -d ' ')
+          echo "default branch: $default"
+          echo "merged into $default, to delete ($n_merged):"
+          printf '%s\n' "$merged" | sed '/^$/d; s/^/  /'
+          echo "kept, not merged ($n_kept):"
+          printf '%s\n' "$kept" | sed '/^$/d; s/^/  /'
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry run: nothing deleted. Run again with dry_run off to delete the $n_merged merged branch(es)."
+            exit 0
+          fi
+          deleted=0
+          for b in $merged; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$b" --silent
+            echo "deleted $b"
+            deleted=$((deleted + 1))
+          done
+          echo "deleted $deleted branch(es); kept $n_kept unmerged"
