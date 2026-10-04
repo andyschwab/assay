@@ -22,8 +22,9 @@
 //     `pass` only when it is present-TENSE: no heading matching
 //     /^#+\s*(status|history|changelog|todo|backlog)\b/i and no dated changelog line
 //     (a line starting with a date like 2026-09-01, or a `- 2026-…` bullet).
-//   - runbook: RUNBOOK.md / docs/RUNBOOK.md / docs/runbook*.md, or a README/doc section
-//     headed "Runbook" or "Operations". `pass` only when it carries a heading or
+//   - runbook: RUNBOOK.md or RUNBOOKS.md at the root or in docs/, docs/runbook*.md, a
+//     runbook(s)/ or docs/runbook(s)/ directory (every .md in it, read together), or a
+//     README/doc section headed "Runbook" or "Operations". `pass` only when it carries a heading or
 //     paragraph for EACH of restart, roll back, rotate (a key/secret/credential), and
 //     restore (a backup). Presence of the words is what this decides — whether a
 //     procedure was ever actually run is a separate, sidecar claim, said in the
@@ -374,18 +375,30 @@ function checkRunbook(dir, pointerPath) {
     }
     return { name, status: 'pass', detail, evidence, observation: `${pointerPath}${pointerNote(true)} carries a heading or paragraph for restart, roll back, rotate, and restore. Presence of the words is what this decides; whether a procedure was ever actually run is a separate, sidecar claim.` };
   }
-  let filePath = null, content = null, lineOffset = 1;
+  let filePath = null, content = null, lineOffset = 1, evidence = null;
+  // a runbook(s)/ directory under `base` ('' or 'docs/'): every .md in it, read together,
+  // named as the directory and cited file by file
+  const readRunbookDir = (base) => {
+    const d = ['runbooks', 'runbook'].map((n) => ciFindDir(join(dir, base), n)).find(Boolean);
+    if (!d) return;
+    const files = safeReaddir(join(dir, base, d)).filter((e) => /\.md$/i.test(e) && statOk(join(dir, base, d, e), (st) => st.isFile())).sort();
+    const texts = files.map((f) => safeRead(join(dir, base, d, f)) || '');
+    if (!texts.some(Boolean)) return;
+    filePath = `${base}${d}/`; content = texts.join('\n'); evidence = files.map((f) => `${base}${d}/${f}:1`);
+  };
 
-  const top = ciFindFile(dir, ['RUNBOOK.md']);
+  const top = ciFindFile(dir, ['RUNBOOK.md', 'RUNBOOKS.md']);
   if (top) { filePath = top; content = safeRead(join(dir, top)); }
+  if (!content) readRunbookDir('');
   if (!content) {
-    const docsFile = ciFindFile(join(dir, 'docs'), ['RUNBOOK.md']);
+    const docsFile = ciFindFile(join(dir, 'docs'), ['RUNBOOK.md', 'RUNBOOKS.md']);
     if (docsFile) { filePath = `docs/${docsFile}`; content = safeRead(join(dir, 'docs', docsFile)); }
   }
   if (!content) {
-    const f = safeReaddir(join(dir, 'docs')).find((e) => /^runbook.*\.md$/i.test(e));
+    const f = safeReaddir(join(dir, 'docs')).find((e) => /^runbook.*\.md$/i.test(e) && statOk(join(dir, 'docs', e), (st) => st.isFile()));
     if (f) { filePath = `docs/${f}`; content = safeRead(join(dir, 'docs', f)); }
   }
+  if (!content) readRunbookDir('docs/');
   if (!content) {
     const candidates = [findReadme(dir), ...safeReaddir(join(dir, 'docs')).filter((f) => /\.md$/i.test(f)).map((f) => `docs/${f}`)].filter(Boolean);
     for (const c of candidates) {
@@ -399,11 +412,11 @@ function checkRunbook(dir, pointerPath) {
     return {
       name, status: 'gap', detail,
       evidence: ['./:1'],
-      observation: 'No runbook found (checked RUNBOOK.md, docs/RUNBOOK.md, docs/runbook*.md, and a README/doc "Runbook" or "Operations" section). Presence of the words is what this decides; whether a procedure was ever run is a separate, sidecar claim.',
+      observation: 'No runbook found (checked RUNBOOK.md and RUNBOOKS.md at the root and in docs/, docs/runbook*.md, a runbook(s)/ or docs/runbook(s)/ directory, and a README/doc "Runbook" or "Operations" section). Presence of the words is what this decides; whether a procedure was ever run is a separate, sidecar claim.',
     };
   }
   const missing = PROCEDURES.filter(([, verbRe, nounRe]) => !hasProcedure(content, verbRe, nounRe)).map(([label]) => label);
-  const evidence = [`${filePath}:${lineOffset}`];
+  evidence = evidence || [`${filePath}:${lineOffset}`];
   if (missing.length) {
     return {
       name, status: 'gap', detail, evidence,

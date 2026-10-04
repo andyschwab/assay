@@ -1141,3 +1141,12 @@ what the public engine learned.
   are the whole of its reach. No assertion added: the harness holds `ci.yml` to
   the template's invariants (`tests/blocks/ci-workflow.mjs`) and this workflow
   carries the same pin, read-only permissions and timeout by hand.
+- **2026-10-04 — repo-census finds a plural or directory runbook** (issue #28).
+  A root `RUNBOOKS.md` read as "No runbook found": the runbook check looked only
+  at `RUNBOOK.md`, `docs/RUNBOOK.md`, `docs/runbook*.md` and a README/doc section.
+  It now also reads `RUNBOOKS.md` at the root and in `docs/`, and a `runbook(s)/`
+  or `docs/runbook(s)/` directory (every `.md` in it, read together, cited file
+  by file); once found, the content still decides, so a file without restart
+  gaps naming the file and restart. Pinned by `tests/blocks/repo-census-runbooks.mjs`
+  over `tests/instruments/repo-census-runbooks-target`, confirmed red against the
+  old discovery (all four new cases read "No runbook found").
