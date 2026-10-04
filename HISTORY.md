@@ -1141,3 +1141,11 @@ what the public engine learned.
   are the whole of its reach. No assertion added: the harness holds `ci.yml` to
   the template's invariants (`tests/blocks/ci-workflow.mjs`) and this workflow
   carries the same pin, read-only permissions and timeout by hand.
+- **2026-10-04 — the report's lead carries every Critical no chain carries** (#32,
+  folding #38 item 3). §3 drew only from the chain walk, which starts at
+  untrusted-input capabilities, so a Critical access gap with nothing model-driven
+  on its path read only in §5. `views/improve/report.mjs` now adds, after the
+  chains, each exposure or control gap rated Critical or worse that no live chain
+  carries; SCHEMA §6d states the rule. `tests/blocks/lead-exposures.mjs` pins it
+  over notesbox with F-050 rated Critical, confirmed red before the change. Goldens
+  untouched.

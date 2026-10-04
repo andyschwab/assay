@@ -18,6 +18,8 @@ import { CHAINS_SCHEMA, checkChains } from '../../lib/run-data.mjs';
 import { DIM_LABEL, WHO_LABEL, channelLabel } from '../../lib/display.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capabilities.mjs';
 import { buildChains } from '../../map/chains.mjs';
+import { sevRank } from '../../map/doctrine.mjs';
+import { severityOf } from '../severity.mjs';
 import { buildGlossary } from './glossary.mjs';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, modelsLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
 import { loadDecisions, decideProjected } from '../../map/decisions.mjs';
@@ -148,8 +150,31 @@ function chains() {
     out.push('');
   }
   if (contained.length) out.push(`**No action found:** ${contained.map((c) => cell(c.label)).join(', ')} — ${contained.length > 1 ? 'each takes in outside text; the review found no action either can take' : 'takes in outside text; the review found no action it can take'}.\n`);
+  out.push(...uncarriedCriticals(live));
   if (unresolved.length) out.push(`_${unresolved.length} value${unresolved.length > 1 ? 's' : ''} the review could not determine; listed with the questions below._`);
   return out.join('\n');
+}
+// The lead's second half (SCHEMA §6d): an exposure or control gap at or above LEAD_SEVERITY
+// that no live chain carries. The chain walk starts only where outside text meets the ability
+// to act, so a Critical access gap with nothing model-driven on its path would otherwise read
+// only in §5 (#32). An exposure leads when one of its findings is at the bar and off every chain.
+const LEAD_SEVERITY = 'Critical';
+function uncarriedCriticals(live) {
+  const carried = new Set(live.flatMap((c) => [...c.path, ...c.sinks.map((s) => s.id), ...c.cuts.map((x) => x.id)]));
+  const atBar = (id) => byId.has(id) && byId.get(id).polarity === 'gap' && sevRank(severityOf(byId.get(id))) <= sevRank(LEAD_SEVERITY);
+  const exposures = (gate.exposures || []).filter((e) => !e.standing_watch && (e.findings || []).some((id) => atBar(id) && !carried.has(id)));
+  const inExposure = new Set(exposures.flatMap((e) => e.findings || []));
+  const gaps = findings.filter((f) => f.subject_type === 'control' && atBar(f.id) && !carried.has(f.id) && !inExposure.has(f.id))
+    .sort((a, b) => sevRank(severityOf(a)) - sevRank(severityOf(b)) || a.id.localeCompare(b.id));
+  if (!exposures.length && !gaps.length) return [];
+  const worst = (e) => Math.min(...(e.findings || []).filter(atBar).map((id) => sevRank(severityOf(byId.get(id)))));
+  const out = [`**Rated ${LEAD_SEVERITY} or worse, on no path above:** whatever the route, these lead too.\n`];
+  for (const e of exposures.sort((a, b) => worst(a) - worst(b)))
+    out.push(`- **${cell(e.title || e.name)}** (${(e.findings || []).join(', ')}) — _${cell(e.what)}_` +
+      (e.who ? ` · who: ${WHO_LABEL[e.who] || e.who}` : '') + `  \n  · **fix:** ${cell(e.fix)}`);
+  for (const f of gaps) out.push(`- **${f.id}** (${severityOf(f)}) — ${cell(f.label || f.observation)}`);
+  out.push('');
+  return out;
 }
 // chain-critical values the eval could not determine — folded into the questions section
 function chainUnknowns() {

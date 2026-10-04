@@ -41,8 +41,9 @@ title: "assay maintainer report — structural template"
 {{PROSE:strengths}}
 
 ## 3. The main risks, and the questions only you can answer
-<!-- SOURCE: the findings base (map/findings/) graph (computed by map/chains.mjs) + views/improve/prose.yaml
-     key_questions[]. The lead: the computed chains, then the open questions, together, so
+<!-- SOURCE: the findings base (map/findings/) graph (computed by map/chains.mjs) + the security-gate exposures and
+     control gaps rated Critical or worse that no chain carries (SCHEMA §6d) + views/improve/prose.yaml
+     key_questions[]. The lead: the computed chains and those, then the open questions, together, so
      the big items and the big unknowns open the report with no jump. -->
 {{COMPILE:chains}}
 
