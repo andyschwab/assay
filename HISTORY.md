@@ -1150,3 +1150,17 @@ what the public engine learned.
   gaps naming the file and restart. Pinned by `tests/blocks/repo-census-runbooks.mjs`
   over `tests/instruments/repo-census-runbooks-target`, confirmed red against the
   old discovery (all four new cases read "No runbook found").
+- **2026-10-04 — repo-census credits the root for a workspace it names** (#27).
+  A monorepo whose root architecture page and root agent contract already
+  describe every workspace filed two Medium gaps per workspace, libraries
+  included. Now a location with no page or contract of its own reads `pass`,
+  citing the root document's line, when that root document itself passes and
+  names the location by path (`apps/api`) or scoped package name (`@org/ui`); a
+  bare package name is never matched, a root README counts only its
+  Architecture section, and a location's own file is still what is checked when
+  it has one. `tests/blocks/repo-census-root-covers.mjs` pins it (root names
+  all three workspaces → no per-workspace gap; drop `apps/api` from the page →
+  exactly one architecture gap, for `apps/api`; a failing root contract credits
+  nothing; a bare name credits nothing). Confirmed red before the change, and
+  each guard confirmed red against its own mutation. The same covered-by-root
+  rule for fresh-clone stays with #26.

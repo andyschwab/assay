@@ -17,7 +17,8 @@
 //     line mentioning database/queue/API/service/store/bucket/provider, or a
 //     mermaid/diagram block) — presence alone is not enough. In a monorepo (package.json
 //     workspaces, or apps/*/package.json, or packages/*/package.json) this runs at the
-//     root AND at every app, one check per location.
+//     root AND at every app, one check per location; a location with no page of its
+//     own passes when the root's passing page names it (path or scoped package name).
 //   - agent-contract: AGENTS.md or CLAUDE.md (root and per app, same monorepo rule).
 //     `pass` only when it is present-TENSE: no heading matching
 //     /^#+\s*(status|history|changelog|todo|backlog)\b/i and no dated changelog line
@@ -216,10 +217,42 @@ function pointerForLocation(value, locations, loc) {
 }
 const pointerNote = (used) => (used ? " (per the packet's pointer)" : '');
 
+// ── root credit (issue #27) ──────────────────────────────────────────────────
+// A workspace with no page of its own is covered when the root's document, which
+// itself passes, names it: by its path (`apps/api`) or by its scoped package name
+// (`@org/ui`). A bare package name is never matched — `lib` or `web` is a word in
+// ordinary prose. When the root's page is a README section (`sectionRe`, and no
+// packet pointer named the file), only that section is the page. Returns the
+// first line that names it, or null.
+function rootMention(dir, rootCheck, loc, sectionRe = null) {
+  if (!rootCheck || rootCheck.status !== 'pass') return null;
+  const file = String(rootCheck.evidence?.[0] || '').replace(/:\d+$/, '');
+  let text = file && safeRead(join(dir, file));
+  if (!text) return null;
+  let offset = 0;
+  if (sectionRe && !rootCheck.detail?.pointer && file === findReadme(dir)) {
+    const sec = findMdSection(text, sectionRe);
+    if (!sec) return null;
+    text = sec.text; offset = sec.startLine - 1;
+  }
+  const pkgName = (() => { try { return JSON.parse(readFileSync(join(dir, loc, 'package.json'), 'utf8')).name; } catch { return null; } })();
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const tokens = [loc, ...(typeof pkgName === 'string' && /^@[^/\s]+\/[^/\s]+$/.test(pkgName) ? [pkgName] : [])];
+  const re = new RegExp(`(?:^|[^\\w@./-])(?:\\./)?(?:${tokens.map(esc).join('|')})(?![\\w-]|\\.\\w)`);
+  const lines = text.split('\n');
+  const i = lines.findIndex((l) => re.test(l));
+  return i === -1 ? null : { file, line: offset + i + 1 };
+}
+const creditedPass = (name, detail, loc, what, credit) => ({
+  name, status: 'pass', detail: { ...detail, coveredBy: credit.file },
+  evidence: [`${credit.file}:${credit.line}`],
+  observation: `${loc} has no ${what} of its own; the root's ${credit.file} names it at line ${credit.line} and passes, so the root covers it.`,
+});
+
 // ── architecture-page ────────────────────────────────────────────────────────
 const EXTERNAL_RE = /\b(database|queue|api|service|store|bucket|provider)\b/i;
 const DIAGRAM_RE = /```\s*mermaid\b|\bdiagram\b/i;
-function checkArchitecturePage(dir, loc, pointerPath) {
+function checkArchitecturePage(dir, loc, pointerPath, credit = null) {
   const base = loc === '.' ? dir : join(dir, loc);
   const relPath = (p) => (loc === '.' ? p : `${loc}/${p}`);
   const name = 'architecture-page';
@@ -267,6 +300,7 @@ function checkArchitecturePage(dir, loc, pointerPath) {
   }
 
   if (!content) {
+    if (credit) return creditedPass(name, detail, loc, 'architecture page', credit);
     return {
       name, status: 'gap', detail,
       evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
@@ -287,7 +321,7 @@ function checkArchitecturePage(dir, loc, pointerPath) {
 // ── agent-contract ───────────────────────────────────────────────────────────
 const AGENT_HEADING_RE = /^#+\s*(status|history|changelog|todo|backlog)\b/i;
 const DATED_LINE_RE = /^(?:\d{4}-\d{2}-\d{2}\b|-\s*\d{4}-)/;
-function checkAgentContract(dir, loc, pointerPath) {
+function checkAgentContract(dir, loc, pointerPath, credit = null) {
   const base = loc === '.' ? dir : join(dir, loc);
   const relPath = (p) => (loc === '.' ? p : `${loc}/${p}`);
   const name = 'agent-contract';
@@ -310,6 +344,7 @@ function checkAgentContract(dir, loc, pointerPath) {
     let file = ciFindFile(base, ['AGENTS.md']);
     if (!file) file = ciFindFile(base, ['CLAUDE.md']);
     if (!file) {
+      if (credit) return creditedPass(name, detail, loc, 'agent contract', credit);
       return {
         name, status: 'gap', detail,
         evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
@@ -1016,15 +1051,22 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   const locations = mono.detected ? ['.', ...mono.locations] : ['.'];
 
   const checks = [];
+  // the root ('.') is checked first; a workspace with no file of its own is
+  // credited to the root's passing document when that document names it
+  let rootArch = null, rootAgent = null;
   for (const loc of locations) {
     const p = pointerForLocation(pointers.architecture, locations, loc);
     if (p) note('architecture');
-    checks.push(checkArchitecturePage(dir, loc, p));
+    const c = checkArchitecturePage(dir, loc, p, loc === '.' ? null : rootMention(dir, rootArch, loc, /^architecture\b/i));
+    if (loc === '.') rootArch = c;
+    checks.push(c);
   }
   for (const loc of locations) {
     const p = pointerForLocation(pointers.agent_contract, locations, loc);
     if (p) note('agent_contract');
-    checks.push(checkAgentContract(dir, loc, p));
+    const c = checkAgentContract(dir, loc, p, loc === '.' ? null : rootMention(dir, rootAgent, loc));
+    if (loc === '.') rootAgent = c;
+    checks.push(c);
   }
   if (pointers.runbook) note('runbook');
   checks.push(checkRunbook(dir, pointers.runbook || null));
