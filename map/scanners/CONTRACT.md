@@ -398,8 +398,9 @@ tree checks:
   rule, root cover included: a passing root contract that names the location). `pass` only when it is **present-tense**: no heading matching
   `/^#+\s*(status|history|changelog|todo|backlog)\b/i` and no dated changelog line
   (a line starting with a date like `2026-09-01`, or a `- 2026-…` bullet).
-- **runbook** — RUNBOOK.md / docs/RUNBOOK.md / docs/runbook*.md, or a README/doc
-  section headed "Runbook" or "Operations". `pass` only when it carries a heading
+- **runbook** — RUNBOOK.md or RUNBOOKS.md at the root or in docs/, docs/runbook*.md,
+  a runbook(s)/ or docs/runbook(s)/ directory (every `.md` in it, read together and
+  cited file by file), or a README/doc section headed "Runbook" or "Operations". `pass` only when it carries a heading
   or paragraph for **each** of restart, roll back, rotate (a key/secret/credential),
   and restore (a backup). Presence of the words is what this decides — whether a
   procedure was ever actually **run** is a separate claim, one only the owner's
