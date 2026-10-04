@@ -1141,3 +1141,22 @@ what the public engine learned.
   are the whole of its reach. No assertion added: the harness holds `ci.yml` to
   the template's invariants (`tests/blocks/ci-workflow.mjs`) and this workflow
   carries the same pin, read-only permissions and timeout by hand.
+- **2026-10-04 — enumerate lists Next.js route handlers; its secret candidates
+  carry a shape filter** (#33). An intake over a Next.js app-router project found
+  enumerate listing a deploy script as the only live surface: the exported
+  `GET`/`POST`/… functions in `app/**/route.*` were no candidate class, so the
+  coverage gate passed over the application's whole HTTP surface. Each exported
+  method of an app-router route file, and each pages-router `pages/api/**` route,
+  is now a `routeHandlers` member (`METHOD /url`, route groups and slots dropped),
+  and the gate counts every route file; a route file exporting no recognised
+  method is listed as `? /url`, never left off. The gate's citation reader now
+  reads a bracketed `[id]` or grouped `(name)` path segment and the
+  `mjs`/`cjs`/`jsx`/`tsx` extensions, so a census can cover a route file. The
+  secret candidates had also listed pricing constants and key-value key names: a
+  credential-suffixed name that code assigns a number, or (for `*_KEY`/`*_TOKEN`)
+  an identifier-shaped string, and that no site reads from the environment, is
+  now printed apart as a secret-named constant, never dropped; a
+  PASSWORD/SECRET/CREDENTIAL name assigned any string stays a candidate. The
+  `enumerate-nextjs` block and its fixture were confirmed red against the
+  current enumerate (19 failures) and against each rule reverted in turn.
+  Goldens untouched.
