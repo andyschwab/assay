@@ -26,6 +26,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname, basename } from 'node:path';
 import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
+import { secretShape } from '../yardstick/packet.mjs';
 
 const target = process.argv[2];
 if (!target || target.startsWith('--')) {
@@ -72,6 +73,8 @@ function lines(f) { try { return readFileSync(f, 'utf8').split('\n'); } catch { 
 // found in many files collapses to one row with all its evidence.
 const pops = {
   secrets: new Map(),        // credential names → credential census
+  secretConstants: new Map(),// credential-named identifiers/constants the shape filter set apart
+  routeHandlers: new Map(),  // Next.js app-router handlers / pages-router API routes → HTTP surface
   socketMounts: new Map(),   // docker.sock / privilege → blast-scope / escapes
   contracts: new Map(),      // frozen dataclass / __post_init__ / schema → interface contracts
   reportPaths: new Map(),    // delivered=True / success on a failure branch → effect-vs-report
@@ -98,7 +101,7 @@ function gateable(path) {
 // Structural populations key per-FILE so covering one instance never hides another
 // (the webhook-vs-cron success-on-failure case). Secrets key by NAME (a recall list
 // the credential census curates), so the same secret across files is one row.
-const PER_FILE = new Set(['socketMounts', 'contracts', 'reportPaths', 'egressControls', 'containerClasses', 'effectSites']);
+const PER_FILE = new Set(['socketMounts', 'contracts', 'reportPaths', 'egressControls', 'containerClasses', 'effectSites', 'routeHandlers']);
 function hit(pop, key, path, i, note) {
   const m = pops[pop];
   const k = PER_FILE.has(pop) ? `${key} @ ${path}` : key;
@@ -109,6 +112,65 @@ function hit(pop, key, path, i, note) {
 }
 
 const SECRET_NAME = /\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*(?:_(?:KEY|SECRET|TOKEN|PASSWORD|PASSPHRASE|CREDENTIAL|PEM))S?)\b/g;
+// The secret shape filter (#33). A credential-suffixed name is an identifier or a
+// constant, not a credential, when code assigns it a number or boolean (MAX_OUTPUT_TOKENS
+// = 4096), or, for a *_KEY / *_TOKEN name, a string that reads as an identifier
+// ('price_pro_monthly', 'pricing:v2'). It stays a credential when any site reads it from
+// the environment or declares it in env/config, and a PASSWORD/SECRET/CREDENTIAL/
+// PASSPHRASE/PEM name assigned a string literal is a hardcoded credential whatever the
+// value looks like. A set-apart name is printed in its own section, never dropped.
+const CONST_LITERAL = (name) => new RegExp(`\\b${name}\\b\\s*(?::\\s*[A-Za-z_][\\w.<>\\[\\]| ]*?)?\\s*(?:=(?!=)|:)\\s*(?:(['"\`])((?:(?!\\1).){0,200})\\1|(-?\\d[\\d_.]*|true|false)\\b)`);
+const ENV_READ = (name) => new RegExp(`\\benv\\b|environ|getenv|\\bsecrets\\.|\\$\\{?${name}\\b`, 'i');
+const CREDENTIAL_PREFIX = /^(?:sk|pk|rk)_(?:live|test)_|^whsec_|^xox[abpr]-|^gh[pousr]_|^AKIA|^sk-/;
+const IDENTIFIER_VALUE = /^(?:[a-z][a-z0-9]*(?:[-_.:/][a-z0-9]+)*|[A-Z][A-Z0-9]*(?:[-_.:][A-Z0-9]+)*)$/;
+const secretSites = new Map();   // name → { env: bool, constAt: "path:line" | null }
+function secretSite(name, r, i, line, isEnvOrCfg, isCode) {
+  if (!secretSites.has(name)) secretSites.set(name, { env: false, constAt: null });
+  const s = secretSites.get(name);
+  if (isEnvOrCfg || ENV_READ(name).test(line)) { s.env = true; return; }
+  if (!isCode) return;
+  const m = line.match(CONST_LITERAL(name));
+  if (!m) return;
+  const isNumberish = m[3] !== undefined;
+  const v = m[2];
+  const keyish = /_(?:KEY|TOKEN)S?$/.test(name);
+  const ident = !isNumberish && keyish && v.length > 0 && v.length <= 64 && IDENTIFIER_VALUE.test(v) && !CREDENTIAL_PREFIX.test(v) && !secretShape(v);
+  if ((isNumberish || ident) && !s.constAt) s.constAt = `${r}:${i + 1}`;
+}
+
+// Next.js route handlers (#33): the app router's `app/**/route.{js,ts,…}` exporting HTTP
+// method functions, and the pages router's `pages/api/**` default-exported handler. Each
+// exported method is one member (`METHOD /url`); a route group `(name)` and a parallel
+// slot `@name` are not URL segments. A route file exporting no recognisable method is
+// listed anyway (`? /url`) — a file Next serves is never left off the list.
+const HTTP_METHODS = 'GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS';
+const routeUrl = (segs) => '/' + segs.split('/').filter((x) => x && !/^\(.*\)$/.test(x) && !x.startsWith('@')).join('/');
+function routeHandlers(r, ls) {
+  const app = r.match(/(?:^|\/)app\/((?:.+\/)?)route\.[mc]?[jt]sx?$/);
+  const pages = !app && r.match(/(?:^|\/)pages\/(api(?:\/.+)?)\.[mc]?[jt]sx?$/);
+  if (!app && !pages) return;
+  if (pages) {
+    const url = routeUrl(pages[1].replace(/(?:^|\/)index$/, ''));
+    const at = Math.max(0, ls.findIndex((l) => /\bexport\s+default\b/.test(l)));
+    hit('routeHandlers', `route: ANY ${url}`, r, at, 'a pages-router API route (every method) — HTTP surface; assess its auth, input and effects');
+    return;
+  }
+  const url = routeUrl(app[1]);
+  let found = 0;
+  for (let i = 0; i < ls.length; i++) {
+    const methods = [];
+    const decl = ls[i].match(new RegExp(`\\bexport\\s+(?:(?:async\\s+)?function\\s*\\*?|(?:const|let|var)\\s+)(${HTTP_METHODS})\\b`));
+    if (decl) methods.push(decl[1]);
+    const reexp = ls[i].match(/\bexport\s*\{([^}]*)\}/);
+    if (reexp) for (const part of reexp[1].split(',')) {
+      const nm = part.trim().split(/\s+as\s+/).pop();
+      if (nm && new RegExp(`^(?:${HTTP_METHODS})$`).test(nm)) methods.push(nm);
+    }
+    for (const m of methods) { hit('routeHandlers', `route: ${m} ${url}`, r, i, 'an app-router route handler — HTTP surface; assess its auth, input and effects'); found++; }
+  }
+  if (!found) hit('routeHandlers', `route: ? ${url}`, r, 0, 'an app-router route file with no recognised method export — read it');
+}
+
 const EFFECT = [
   [/\bsubprocess\.(?:run|call|Popen|check_output)\b|\bos\.system\b|\bos\.popen\b/, 'shell exec'],
   [/\brequests\.(?:post|put|delete|patch)\b|\bhttpx\.(?:post|put|delete)\b|\burllib\b.*urlopen/, 'http write'],
@@ -123,6 +185,8 @@ for (const f of files) {
   const base = basename(f);
   const ls = lines(f);
   const isEnvOrCfg = /\.(env|ini|cfg|conf|ya?ml|toml|json)$/.test(base) || /\.env/.test(base) || base.startsWith('.env');
+  const isCode = /\.(?:[mc]?[jt]sx?|py|rb|go|java|kt|rs|php)$/.test(base);
+  routeHandlers(r, ls);
   for (let i = 0; i < ls.length; i++) {
     const line = ls[i];
     if (line.length > 2000) continue;
@@ -132,6 +196,7 @@ for (const f of files) {
     SECRET_NAME.lastIndex = 0;
     while ((m = SECRET_NAME.exec(line))) {
       hit('secrets', m[1], r, i, isEnvOrCfg ? 'declared in env/config' : 'referenced in code');
+      secretSite(m[1], r, i, line, isEnvOrCfg, isCode);
     }
 
     // 2. socket / privilege mounts
@@ -165,6 +230,15 @@ for (const f of files) {
     if (/docker\s+(?:run|create)\b/.test(line)) hit('containerClasses', 'docker run/create site', r, i, 'a container is launched here — enumerate its class');
     if (/\bROLE(?:=|\s*==|\s*:)\s*["']?admin/.test(line) || /"admin"|'admin'/.test(line) && /role/i.test(line)) hit('containerClasses', 'admin-role branch', r, i, 'a distinct agent class');
   }
+}
+
+// the secret shape filter: set apart a name assigned an identifier or constant and never
+// read from the environment; it is printed in its own section, never dropped
+for (const [name, s] of secretSites) {
+  if (s.env || !s.constAt || !pops.secrets.has(name)) continue;
+  const e = pops.secrets.get(name);
+  pops.secrets.delete(name);
+  pops.secretConstants.set(name, { ...e, note: `assigned a non-credential literal at ${s.constAt}, never read from env — out of the credential census unless a site says otherwise` });
 }
 
 // 8. channel candidates — the AGENT'S INVOCABLE SURFACE (file-level, not line-level). The
@@ -220,6 +294,8 @@ for (const f of files) {
 // ── output ──
 const LABEL = {
   secrets: 'SECRETS (→ credential census: each below/above the prompt boundary?)',
+  secretConstants: 'SECRET-NAMED CONSTANTS (shape filter: an identifier or constant, not a credential — recall only)',
+  routeHandlers: 'ROUTE HANDLERS (→ HTTP surface: assess each handler\'s auth, input and effects)',
   socketMounts: 'SOCKET / PRIVILEGE MOUNTS (→ blast-scope: does it escape the tenant ceiling?)',
   contracts: 'INTERFACE CONTRACTS (→ deterministic-gates/verification: does it fail loud?)',
   reportPaths: 'EFFECT-vs-REPORT PATHS (→ verification: is success asserted over a failed effect?)',
@@ -228,7 +304,7 @@ const LABEL = {
   containerClasses: 'CONTAINER / AGENT CLASSES (→ assess EACH class separately — admin ≠ user)',
   channelCandidates: 'CHANNEL CANDIDATES (→ terrain effect inventory: derive it from THIS, not memory)',
 };
-const order = ['channelCandidates', 'secrets', 'socketMounts', 'containerClasses', 'effectSites', 'egressControls', 'contracts', 'reportPaths'];
+const order = ['channelCandidates', 'routeHandlers', 'secrets', 'secretConstants', 'socketMounts', 'containerClasses', 'effectSites', 'egressControls', 'contracts', 'reportPaths'];
 
 const JSON_MODE = process.argv.includes('--json');   // suppress the pretty enumeration; emit only JSON
 if (!JSON_MODE) console.log(`\nassay enumerate — ${rel(target) || target}  (${files.length} files scanned)\n`);
@@ -258,7 +334,8 @@ if (runDir) {
   // The gate hard-checks only the low-noise structural populations that have no
   // dedicated census. Secrets → the credential census; container-classes and
   // effect-sites → many-to-few channel mappings. Those stay recall-only (printed).
-  const GATE_POPS = new Set(['socketMounts', 'contracts', 'reportPaths', 'egressControls']);
+  // Route handlers are the HTTP surface, one file each, so they gate too (#33).
+  const GATE_POPS = new Set(['routeHandlers', 'socketMounts', 'contracts', 'reportPaths', 'egressControls']);
 
   // A member is "covered" if any of its evidence files appears anywhere the run
   // ASSESSED it: a finding's evidence (map/findings/), the counted populations
@@ -277,7 +354,9 @@ if (runDir) {
     walkMd(vd);
     for (const p of srcs) {
       const txt = readFileSync(p, 'utf8');
-      for (const m of txt.matchAll(/([A-Za-z0-9_./-]+?\.(?:py|sh|js|ts|json|ya?ml|txt|example|service)):\d/g)) cited.add(m[1].split(':')[0]);
+      // a path segment may be a Next.js route group `(name)` or a dynamic `[id]`/`[[...slug]]`
+      // (#33); a bracket or paren only counts closed around a word, so `(app/x.ts:3)` cites app/x.ts
+      for (const m of txt.matchAll(/((?:[A-Za-z0-9_.@-]|\/|\([A-Za-z0-9_.@-]+\)|\[{1,2}(?:\.{3})?[A-Za-z0-9_-]+\]{1,2})+?\.(?:py|sh|[mc]?[jt]sx?|json|ya?ml|txt|example|service)):\d/g)) cited.add(m[1].split(':')[0]);
     }
     // a finding's evidence list, parsed (a quoted element may hold a comma)
     if (existsSync(fd)) for (const f of readdirSync(fd)) if (f.endsWith('.yaml')) {

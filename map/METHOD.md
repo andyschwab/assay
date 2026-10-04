@@ -118,6 +118,13 @@ populations that leak when left implicit — enumerate each as a closed list:
 - **container / agent classes** (per-user, admin, cron, webhook) — assess each
  class *separately*; an admin-only privilege must never hide behind the common class.
 - **credentials / secrets** — the credential census (below), enumerate-before-assess.
+ The enumerated candidates carry a shape filter: a credential-suffixed name that code
+ assigns a number, or (for a `*_KEY`/`*_TOKEN` name) an identifier-shaped string, and
+ that no site reads from the environment, is listed apart as a secret-named constant,
+ not a candidate.
+- **HTTP route handlers** — each exported method of a Next.js app-router
+ `app/**/route.*` file and each pages-router `pages/api/**` route; the coverage gate
+ counts every route file as live surface.
 - **network-egress controls** (iptables/DOCKER-USER rules, metadata blocks, URL policy).
 - **interface contracts** (frozen dataclasses / schema validators / lockstep tests).
 - **delivery / effect-vs-report paths** (every place a job reports success — verify

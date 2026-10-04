@@ -1141,3 +1141,53 @@ what the public engine learned.
   are the whole of its reach. No assertion added: the harness holds `ci.yml` to
   the template's invariants (`tests/blocks/ci-workflow.mjs`) and this workflow
   carries the same pin, read-only permissions and timeout by hand.
+- **2026-10-04 — repo-census finds a plural or directory runbook** (issue #28).
+  A root `RUNBOOKS.md` read as "No runbook found": the runbook check looked only
+  at `RUNBOOK.md`, `docs/RUNBOOK.md`, `docs/runbook*.md` and a README/doc section.
+  It now also reads `RUNBOOKS.md` at the root and in `docs/`, and a `runbook(s)/`
+  or `docs/runbook(s)/` directory (every `.md` in it, read together, cited file
+  by file); once found, the content still decides, so a file without restart
+  gaps naming the file and restart. Pinned by `tests/blocks/repo-census-runbooks.mjs`
+  over `tests/instruments/repo-census-runbooks-target`, confirmed red against the
+  old discovery (all four new cases read "No runbook found").
+- **2026-10-04 — repo-census credits the root for a workspace it names** (#27).
+  A monorepo whose root architecture page and root agent contract already
+  describe every workspace filed two Medium gaps per workspace, libraries
+  included. Now a location with no page or contract of its own reads `pass`,
+  citing the root document's line, when that root document itself passes and
+  names the location by path (`apps/api`) or scoped package name (`@org/ui`); a
+  bare package name is never matched, a root README counts only its
+  Architecture section, and a location's own file is still what is checked when
+  it has one. `tests/blocks/repo-census-root-covers.mjs` pins it (root names
+  all three workspaces → no per-workspace gap; drop `apps/api` from the page →
+  exactly one architecture gap, for `apps/api`; a failing root contract credits
+  nothing; a bare name credits nothing). Confirmed red before the change, and
+  each guard confirmed red against its own mutation. The same covered-by-root
+  rule for fresh-clone stays with #26.
+- **2026-10-04 — the report's lead carries every Critical no chain carries** (#32,
+  folding #38 item 3). §3 drew only from the chain walk, which starts at
+  untrusted-input capabilities, so a Critical access gap with nothing model-driven
+  on its path read only in §5. `views/improve/report.mjs` now adds, after the
+  chains, each exposure or control gap rated Critical or worse that no live chain
+  carries; SCHEMA §6d states the rule. `tests/blocks/lead-exposures.mjs` pins it
+  over notesbox with F-050 rated Critical, confirmed red before the change. Goldens
+  untouched.
+- **2026-10-04 — enumerate lists Next.js route handlers; its secret candidates
+  carry a shape filter** (#33). An intake over a Next.js app-router project found
+  enumerate listing a deploy script as the only live surface: the exported
+  `GET`/`POST`/… functions in `app/**/route.*` were no candidate class, so the
+  coverage gate passed over the application's whole HTTP surface. Each exported
+  method of an app-router route file, and each pages-router `pages/api/**` route,
+  is now a `routeHandlers` member (`METHOD /url`, route groups and slots dropped),
+  and the gate counts every route file; a route file exporting no recognised
+  method is listed as `? /url`, never left off. The gate's citation reader now
+  reads a bracketed `[id]` or grouped `(name)` path segment and the
+  `mjs`/`cjs`/`jsx`/`tsx` extensions, so a census can cover a route file. The
+  secret candidates had also listed pricing constants and key-value key names: a
+  credential-suffixed name that code assigns a number, or (for `*_KEY`/`*_TOKEN`)
+  an identifier-shaped string, and that no site reads from the environment, is
+  now printed apart as a secret-named constant, never dropped; a
+  PASSWORD/SECRET/CREDENTIAL name assigned any string stays a candidate. The
+  `enumerate-nextjs` block and its fixture were confirmed red against the
+  current enumerate (19 failures) and against each rule reverted in turn.
+  Goldens untouched.
