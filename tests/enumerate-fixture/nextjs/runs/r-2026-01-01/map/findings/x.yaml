@@ -4,5 +4,5 @@
   subject_type: control
   observation: >
     A finding that cites the config module and none of the route handlers.
-  evidence: [lib/config.ts:2]
+  evidence: [lib/config.ts:3]
   confidence: confirmed

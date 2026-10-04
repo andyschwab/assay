@@ -41,7 +41,7 @@ export async function run() {
 
   // secrets: credential names stay; identifier- and number-valued names move apart
   const creds = sec['SECRETS'] || '';
-  for (const need of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'ADMIN_PASSWORD', 'LEGACY_API_KEY']) {
+  for (const need of ['STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'ADMIN_PASSWORD', 'LEGACY_API_KEY', 'SEARCH_API_KEY']) {
     if (!creds.includes(`• ${need} `) && !creds.includes(`• ${need}\n`)) fail(`the credential name ${need} must stay a secret candidate`);
   }
   const consts = sec['SECRET-NAMED'] || '';
