@@ -713,6 +713,17 @@ no per-run judgment (determinism). Entry, sink, and cut render from each finding
 optional `label:` (a short human name), falling back to the channel's human label — so the
 sentence stays plain without the model writing it.
 
+**What enters the lead.** The lead is the ranked chains, **plus** every exposure or control
+gap rated **Critical or worse** (`Blocker`, `Critical`; the severity a view reads,
+`views/severity.mjs`) that no live chain carries — its id is on no chain's path, sink or
+cut. The chain walk starts only where outside text meets the ability to act, so without
+this a Critical access gap with nothing model-driven on its path (a stranger reaching an
+unauthenticated route) would read only in §5. An exposure (§6a, not `standing_watch`)
+enters when one of its findings is at the bar and off every chain; a `subject_type: control`
+gap at the bar that no such exposure names enters on its own. They render after the chains,
+worst first; the bar is `LEAD_SEVERITY` in `views/improve/report.mjs`. Below it, an
+exposure stays in §5 only.
+
 **Honesty — the report never claims a chain does not exist, only that none was identified**
 (the outputs-are-claims principle). `buildChains` returns four computed states:
 

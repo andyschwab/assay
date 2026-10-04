@@ -1164,3 +1164,11 @@ what the public engine learned.
   nothing; a bare name credits nothing). Confirmed red before the change, and
   each guard confirmed red against its own mutation. The same covered-by-root
   rule for fresh-clone stays with #26.
+- **2026-10-04 — the report's lead carries every Critical no chain carries** (#32,
+  folding #38 item 3). §3 drew only from the chain walk, which starts at
+  untrusted-input capabilities, so a Critical access gap with nothing model-driven
+  on its path read only in §5. `views/improve/report.mjs` now adds, after the
+  chains, each exposure or control gap rated Critical or worse that no live chain
+  carries; SCHEMA §6d states the rule. `tests/blocks/lead-exposures.mjs` pins it
+  over notesbox with F-050 rated Critical, confirmed red before the change. Goldens
+  untouched.
