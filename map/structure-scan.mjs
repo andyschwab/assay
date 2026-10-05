@@ -158,6 +158,7 @@ function listFiles(root) {
   })(root);
   return files.sort();
 }
+/** @type {Array<[string, RegExp]>} */
 const STALE_NAME = [
   ['_old', /_old/i],
   ['.bak', /\.bak$/i],

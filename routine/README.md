@@ -30,7 +30,8 @@ That artifact can be downloaded by anyone who can read the repository's
 workflow runs (on a public repository, anyone), for as long as
 `retention-days` keeps it, and the upload step does not filter it. So nothing
 in a run carries what an instrument's output could have echoed: ingest drops
-fresh-clone's step output tails and dependency-scan's stderr tails before
+fresh-clone's step output tails, dependency-scan's stderr tails and the code
+text of structure-scan's duplicated blocks before
 archiving to `map/raw/`, keeps gitleaks' locations only, and records a URL
 target with its userinfo stripped. A failing step's cause is read from the
 workflow's own log, not from the artifact.
@@ -84,7 +85,9 @@ re-loading the baseline and re-running the comparison a second time.
 ## What it runs, and what it never does
 
 The routine runs the instruments assay runs offline on its own — `repo-census`,
-`fresh-clone`, `dependency-scan` — plus `gitleaks` when that binary happens to
+`fresh-clone`, `dependency-scan`, `structure-scan` (whose knip step, which imports
+the target's own tool configs, is skipped with that reason in the two-job
+template's gate job, since that job never executes the target) — plus `gitleaks` when that binary happens to
 be on the runner's `PATH` and the checkout is the repository's own top level
 (never a subdirectory of a larger checkout, whose history is not this
 repository's); when either fails, the run record carries it `skipped`, with

@@ -47,9 +47,12 @@ adapter and keeps its native report as an appendix. **Instruments** are
 deterministic and run offline against the checkout (offline as defined below): `gitleaks`; `fresh-clone`,
 which installs, builds, lints, typechecks, tests and migrates from a clean
 checkout and replays the README's commands, once per workspace in a monorepo;
-`dependency-scan`, npm, pnpm or yarn audit over every lockfile; and `repo-census`, which
+`dependency-scan`, npm, pnpm or yarn audit over every lockfile; `repo-census`, which
 checks for an architecture page, a present-tense agent contract, a runbook, a
-CI gate on the default branch, and the owner's evidence transcripts.
+CI gate on the default branch, and the owner's evidence transcripts; and
+`structure-scan`, which finds duplicated blocks (jscpd), unused files, exports
+and dependencies (knip), stale artifacts and per-file churn, installing both
+tools from the npm registry into its own scratch for each run.
 **Two instruments execute the target's code.** `fresh-clone` runs the target's
 own install (lifecycle scripts included), build, lint, typecheck, test and
 migrate-dry scripts, and `dependency-scan` runs the target's package manager.
@@ -58,7 +61,9 @@ settings, never the evaluator's environment or credentials, and every audit
 runs from a scratch copy of one lockfile and its manifest, so the target's own
 `.npmrc`, `.yarnrc` or `.pnpmfile.cjs` never loads. That is not a sandbox: run
 them in a disposable container or VM. `assay start` runs fresh-clone only
-when given `--allow-exec` and otherwise records it skipped, with the reason. Every run
+when given `--allow-exec` and otherwise records it skipped, with the reason;
+structure-scan's knip step imports the target's own tool configuration files,
+so it too runs only under `--allow-exec` and otherwise reads skipped, with the reason. Every run
 carries a **run record** (`map/scanners.yaml`) saying, for each adopted
 scanner, that it ran, or was skipped or failed and why. The validator refuses a
 run without one, and a scanner that did not run reads **not measured**, never
