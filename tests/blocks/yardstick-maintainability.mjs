@@ -1,0 +1,100 @@
+// ── two code-maintainability rows a structure-scan run decides (#110) ─────────
+// d-no-drifting-duplicates (structure-scan `duplicate`) and d-no-dead-code
+// (structure-scan `unused` and `stale-artifact`) are instrument rows on the
+// code-maintainability topic, floor and fleet. Pinned on synthetic rows shaped like
+// map/ingest.mjs's structure-scan profile:
+//   (a) the register carries both, as instrument rows of structure-scan, with
+//       owner.risk / owner.fix; d-one-home-per-fact stays a claim and its check names
+//       the row that now carries its code half;
+//   (b) a gap reads unmet, citing it; a clean run reads met; a tool not run reads
+//       not-measured with its own reason (never met); no package.json reads
+//       d-no-dead-code not-applicable; a stale artifact joins d-no-dead-code's
+//       population and governs over a knip that did not run; structure-scan absent
+//       from the run record reads not-measured;
+//   (c) Owner renders each row's risk and fix, and Intake lists each with its check.
+import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
+
+export const label = 'yardstick-maintainability';
+
+export async function run() {
+  const fail = (m) => negFailures.push('yardstick-maintainability: ' + m);
+  const reg = loadYardstick();
+  const byId = Object.fromEntries(reg.requirements.map((d) => [d.id, d]));
+  const want = { 'd-no-drifting-duplicates': ['duplicate'], 'd-no-dead-code': ['unused', 'stale-artifact'] };
+  // (a) the rows themselves
+  for (const [id, cats] of Object.entries(want)) {
+    const d = byId[id];
+    if (!d) { fail(`the register must carry ${id}`); continue; }
+    const got = (Array.isArray(d.decide.category) ? d.decide.category : [d.decide.category]).map(String);
+    if (d.decide.kind !== 'instrument' || d.decide.scanner !== 'structure-scan' || got.join(',') !== cats.join(','))
+      fail(`${id} must be decided by structure-scan category ${cats.join(' + ')} (got ${d.decide.kind} ${d.decide.scanner} ${got.join(',')})`);
+    if (d.tier !== 'legibility' || d.topic !== 'code-maintainability') fail(`${id} must be tier legibility, topic code-maintainability (got ${d.tier}, ${d.topic})`);
+    if (!['floor', 'fleet'].every((t) => (d.tags || []).includes(t))) fail(`${id} must be tagged floor and fleet (got ${(d.tags || []).join(',')})`);
+    if (!String(d.owner?.risk || '').trim() || !String(d.owner?.fix || '').trim()) fail(`${id} must carry owner.risk and owner.fix`);
+  }
+  if (!/50 tokens/.test(String(byId['d-no-drifting-duplicates']?.check || ''))) fail('d-no-drifting-duplicates states its own clone threshold (50 tokens) in check');
+  const home = byId['d-one-home-per-fact'];
+  if (home?.decide.kind !== 'claim' || !/d-no-drifting-duplicates/.test(String(home?.check || ''))) fail('d-one-home-per-fact stays a claim and its check names d-no-drifting-duplicates as its code half');
+  if (!byId['d-no-drifting-duplicates'] || !byId['d-no-dead-code']) return;
+
+  // (b) the four readings, from rows shaped like the structure-scan ingest profile
+  const ran = [{ scanner: 'structure-scan', status: 'ran' }];
+  const r = (id, cat, polarity, observation = 'x') => ({ id, source: 'structure-scan', native_category: cat, polarity, observation, evidence: ['a.js:1'], axis: 'code-maintainability' });
+  const measure = (findings, manifest = ran) => Object.fromEntries(measureRun({ findings, manifest, inputs: null, coverage: {} }, reg).map((x) => [x.id, x]));
+  const expect = (m, id, status, why, re) => {
+    if (m[id]?.status !== status) fail(`${why}: ${id} must read ${status} (got ${m[id]?.status}: ${m[id]?.note})`);
+    else if (re && !re.test(String(m[id].note || ''))) fail(`${why}: ${id}'s note must carry ${re} (got ${m[id].note})`);
+  };
+  const gaps = measure([r('F-1', 'duplicate', 'gap'), r('F-2', 'unused', 'gap')]);
+  expect(gaps, 'd-no-drifting-duplicates', 'unmet', 'a clone pair');
+  expect(gaps, 'd-no-dead-code', 'unmet', 'an unused export');
+  if (!gaps['d-no-drifting-duplicates']?.findings.includes('F-1') || !gaps['d-no-dead-code']?.findings.includes('F-2')) fail('an unmet row cites the gap that unmet it');
+  const clean = measure([]);
+  expect(clean, 'd-no-drifting-duplicates', 'met', 'a clean structure-scan run');
+  expect(clean, 'd-no-dead-code', 'met', 'a clean structure-scan run');
+  const notRun = measure([r('F-3', 'duplicate-not-run', 'fact', 'jscpd failed: exit 3.'), r('F-4', 'unused-not-run', 'fact', 'knip skipped: no exec permission.')]);
+  expect(notRun, 'd-no-drifting-duplicates', 'not-measured', 'jscpd not run', /jscpd failed/);
+  expect(notRun, 'd-no-dead-code', 'not-measured', 'knip not run', /knip skipped/);
+  const noPkg = measure([r('F-5', 'unused-not-applicable', 'fact', 'No package.json at the root.')]);
+  expect(noPkg, 'd-no-dead-code', 'not-applicable', 'no package.json', /No package\.json/);
+  expect(noPkg, 'd-no-drifting-duplicates', 'met', 'no package.json but jscpd ran clean');
+  const staleBesideSkip = measure([r('F-6', 'stale-artifact', 'gap'), r('F-4', 'unused-not-run', 'fact', 'knip skipped.')]);
+  expect(staleBesideSkip, 'd-no-dead-code', 'unmet', 'a stale artifact beside a knip not run');
+  if (!staleBesideSkip['d-no-dead-code']?.findings.includes('F-6')) fail('a stale artifact joins d-no-dead-code\'s population');
+  const absent = measure([], []);
+  expect(absent, 'd-no-drifting-duplicates', 'not-measured', 'structure-scan absent from the run record');
+  expect(absent, 'd-no-dead-code', 'not-measured', 'structure-scan absent from the run record');
+
+  // (c) the notesbox fixture records structure-scan skipped: measured and compiled, both
+  // rows read not-measured with that reason; Owner carries each row's risk and fix and
+  // renders them when the row is open; Intake lists each under To run with its check
+  const tmp = join(HERE, 'tmp-yardstick-maintainability'); rmSync(tmp, { recursive: true, force: true });
+  copyFixtureFindings('notesbox', tmp);
+  copyFixtureScanners('notesbox', tmp);
+  try {
+    execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' });
+    execFileSync(process.execPath, [join(ROOT, 'views', 'intake.mjs'), tmp], { stdio: 'pipe' });
+  } catch (e) { fail(`measure --write and intake must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  const ownerView = await import('../../views/owner.mjs');
+  const built = ownerView.buildOwner(tmp);
+  const intakePage = existsSync(join(tmp, 'INTAKE.md')) ? readFileSync(join(tmp, 'INTAKE.md'), 'utf8') : '';
+  const toRun = intakePage.split('## To run')[1]?.split('\n## ')[0] || '';
+  for (const id of Object.keys(want)) {
+    const o = built?.floor.not_measured.find((x) => x.id === id);
+    if (!o || !/structure-scan skipped/.test(String(o.reason))) fail(`Owner must read ${id} could-not-tell with the run record's reason (got ${o ? o.reason : 'no row'})`);
+    else if (o.risk !== byId[id].owner.risk || o.fix !== byId[id].owner.fix) fail(`Owner must carry ${id}'s risk and fix from the register`);
+    const line = toRun.split('\n').find((l) => l.includes(`**${id}**`)) || '';
+    if (!line.includes(`Proving check: ${byId[id].check}`)) fail(`INTAKE.md must list ${id} under To run with its proving check (got: ${line || 'no line'})`);
+  }
+  if (built) {
+    const open = Object.keys(want).map((id) => ({ ...built.floor.not_measured.find((x) => x.id === id), status: 'unmet' })).filter((x) => x.id);
+    const empty = { open: [], not_measured: [], met: [], not_applicable: [] };
+    const page = ownerView.renderMd('run', { floor: { ...empty, open }, beyond_floor: empty, not_looked_at: [] }, { name: 'app', date: '2026-10-05' });
+    for (const id of Object.keys(want)) if (!page.includes(`What could happen: ${byId[id].owner.risk}`) || !page.includes(`What to do: ${byId[id].owner.fix}`)) fail(`OWNER.md must render ${id}'s risk and fix when it is open`);
+  }
+  rmSync(tmp, { recursive: true, force: true });
+}
