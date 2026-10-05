@@ -24,6 +24,7 @@ const GROUPS = [
     'enumerate': ['map/enumerate.mjs', 'list the populations a run must cover, and gate on coverage'],
     'fresh-clone': ['map/fresh-clone.mjs', "EXECUTES THE TARGET'S CODE: install, build, lint, typecheck, test, migrate from a clean checkout"],
     'dependency-scan': ['map/dependency-scan.mjs', "RUNS THE TARGET'S PACKAGE MANAGER: npm, pnpm and yarn audit over every lockfile, from scratch copies"],
+    'structure-scan': ['map/structure-scan.mjs', 'duplication (jscpd), unused code (knip, which loads the target\'s own tool configs: --no-exec skips it), stale artifacts and churn; installs both tools from the npm registry into scratch'],
     'repo-census': ['map/repo-census.mjs', 'architecture page, agent contract, runbook, CI gate, owner evidence'],
     'variance': ['map/variance.mjs', 'repeatability across runs of one target'],
     'score': ['map/score.mjs', "grade a run against a fixture's known answers"],

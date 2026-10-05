@@ -5,7 +5,9 @@
 // the identical path).
 //
 // Draws the map with the instruments assay runs offline on its own — repo-census,
-// fresh-clone, dependency-scan; gitleaks only when its binary is present — records
+// fresh-clone, dependency-scan, structure-scan (knip skipped in the gate job of the
+// two-job template, which never executes the target); gitleaks only when its
+// binary is present — records
 // every adopted scanner that did NOT run as skipped or failed with a reason
 // (CLAUDE.md rule 3: fail loud, never empty; nothing compiles without a reason),
 // validates, compiles the package (folding in the repository's own packet/
@@ -209,7 +211,7 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, 
   // With a handoff (the two-job template's gate step), fresh-clone already ran in
   // the target step and this step only ingests its report — it never executes the
   // target (routine/README.md "Two jobs").
-  const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true, freshCloneHandoff: handoff ? resolve(handoff) : null }, say);
+  const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true, freshCloneHandoff: handoff ? resolve(handoff) : null, structureScanNoExec: !!handoff }, say);
 
   writeFileSync(scannersPath(outDir), toScannersYaml(engineCommit(), scanners));
 

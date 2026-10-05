@@ -13,10 +13,11 @@
 // stands in for npm and yarn offline, recording every call (cwd, files, env names).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync, cpSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { planWorkspace, runStep as runFreshCloneStep, resolveWorkspaces as resolveFreshCloneWorkspaces, claimPresent as freshCloneClaimPresent } from '../../map/fresh-clone.mjs';
 import { run as runDependencyScan } from '../../map/dependency-scan.mjs';
+import { TOOLS as STRUCTURE_TOOLS } from '../../map/structure-scan.mjs';
 import { scannersPath as runScannersPath } from '../../lib/run-layout.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
@@ -107,7 +108,12 @@ export async function run() {
     const fc = rows['fresh-clone'];
     if (fc?.status !== 'skipped' || !/--allow-exec/.test(fc.reason || '') || !/target's own/.test(fc.reason || '')) fail(`without --allow-exec, start must record fresh-clone skipped, saying it runs the target's own code and naming --allow-exec (got ${JSON.stringify(fc)})`);
     if (rows['dependency-scan']?.status !== 'ran') fail(`start still runs dependency-scan (scratch-only, no target code) without --allow-exec (got ${JSON.stringify(rows['dependency-scan'])})`);
-    const ranTarget = records().filter((r) => r.args[0] !== 'audit' && r.args[0] !== '--version');
+    // structure-scan's own tools (#108) are the one install allowed: the pinned jscpd / knip specs
+    // only, scripts off, into a prefix outside the target — never the target's own dependencies
+    const toolSpecs = Object.entries(STRUCTURE_TOOLS).map(([n, v]) => `${n}@${v}`);
+    const toolInstall = (a) => a[0] === 'install' && a.includes('--ignore-scripts') && a.indexOf('--prefix') > 0 && !resolve(a[a.indexOf('--prefix') + 1]).startsWith(resolve(target))
+      && a.filter((x) => !x.startsWith('--') && x !== 'install' && x !== a[a.indexOf('--prefix') + 1]).every((x) => toolSpecs.includes(x));
+    const ranTarget = records().filter((r) => r.args[0] !== 'audit' && r.args[0] !== '--version' && !toolInstall(r.args));
     if (ranTarget.length) fail(`start without --allow-exec ran the target's own install or scripts (${ranTarget.map((r) => `${r.tool} ${r.args.join(' ')}`).join(' | ')})`);
     if (markers(target).length) fail(`start without --allow-exec ran planted code (${markers(target).join(', ')})`);
     if (!/✓ assay validate/.test(startOut)) fail(`a start that skipped fresh-clone must still validate green (got:\n${startOut})`);

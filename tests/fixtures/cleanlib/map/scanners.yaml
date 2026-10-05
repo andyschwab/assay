@@ -15,3 +15,6 @@ scanners:
   repo-census:
     status: skipped
     reason: "repo-scoped: run at the fixture repository root and scored there (tests/fixtures/fixtures-root)"
+  structure-scan:
+    status: skipped
+    reason: "fixture run: structure-scan was not executed over this public target"
