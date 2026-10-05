@@ -29,6 +29,8 @@ import { isMain } from '../map/doctrine.mjs';
 import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
 import { viewPath, ownerPagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
 import { mdText, mdCode } from '../lib/display.mjs';
+import { severityOf } from './severity.mjs';
+import { HOTSPOT_AXIS, hotspotOrder, hotspotNote } from './hotspot.mjs';
 
 // Plain-language gloss for each tier, used only in the lead paragraph — never
 // a substitute for the tier id, which still rides at the end (yardstick/README.md
@@ -46,13 +48,24 @@ const TIER_GLOSS = {
 // `where` is what the owner can open: each deciding finding's evidence paths
 // (file:line, from the map), never the finding id alone — an id means nothing to
 // a person who did not write the engine. Ids ride beside it in `findings` for
-// anyone technical who wants the map row.
-function ownerRow(r, status, byId, evidenceById) {
+// anyone technical who wants the map row. On the code-maintainability topic the
+// findings (and so the places) take the hotspot lens's order, and the row carries
+// the lens's note (views/hotspot.mjs).
+export function ownerRow(r, status, byId, findingById) {
   const d = byId.get(r.id);
   const o = (d && d.owner) || {};
-  const findings = r.findings || [];
-  const where = [...new Set(findings.flatMap((id) => evidenceById.get(id) || []))];
+  let findings = r.findings || [], lens = null;
+  if (r.topic === HOTSPOT_AXIS) {
+    const known = findings.filter((id) => findingById.has(id)).map((id) => { const f = findingById.get(id); return { ...f, severity: severityOf(f) }; });
+    if (known.length) {
+      findings = [...hotspotOrder(known).map((f) => f.id), ...findings.filter((id) => !findingById.has(id))];
+      lens = hotspotNote(known);
+    }
+  }
+  const evidenceOf = (id) => { const f = findingById.get(id); return f && Array.isArray(f.evidence) ? f.evidence.map(String) : []; };
+  const where = [...new Set(findings.flatMap(evidenceOf))];
   const out = { id: r.id, tier: r.tier, topic: r.topic, title: r.title, status, risk: o.risk || '', fix: o.fix || '', where, findings, check: r.check };
+  if (lens) out.lens = lens;
   if (r.decided_by) out.decided_by = r.decided_by;
   out.reason = r.note;
   return out;
@@ -65,18 +78,18 @@ function ownerRow(r, status, byId, evidenceById) {
 export function buildOwner(runDir) {
   const reg = loadYardstick();
   const byId = new Map(reg.requirements.map((d) => [d.id, d]));
-  const evidenceById = new Map(loadFindings(runDir).map((f) => [f.id, Array.isArray(f.evidence) ? f.evidence.map(String) : []]));
+  const findingById = new Map(loadFindings(runDir).map((f) => [f.id, f]));
   const floorBuilt = buildRows(runDir, 'floor');
   const beyondBuilt = buildRows(runDir, (d) => !(d.tags || []).includes('floor'));
   if (!floorBuilt || !beyondBuilt) return null;
   const group = (built) => ({
-    open: built.open.map((r) => ownerRow(r, r.status, byId, evidenceById)),
-    not_measured: built.to_run.map((r) => ownerRow(r, 'not-measured', byId, evidenceById)),
-    met: built.met.map((r) => ownerRow(r, 'met', byId, evidenceById)),
+    open: built.open.map((r) => ownerRow(r, r.status, byId, findingById)),
+    not_measured: built.to_run.map((r) => ownerRow(r, 'not-measured', byId, findingById)),
+    met: built.met.map((r) => ownerRow(r, 'met', byId, findingById)),
     // decided from the map as not applying to this repository (no database, so nothing
     // to migrate); listed, never folded into met, never dropped — the same bucket
     // Intake carries, so the two views cannot disagree on a row
-    not_applicable: (built.not_applicable || []).map((r) => ownerRow(r, 'not-applicable', byId, evidenceById)),
+    not_applicable: (built.not_applicable || []).map((r) => ownerRow(r, 'not-applicable', byId, findingById)),
   });
   return { floor: group(floorBuilt), beyond_floor: group(beyondBuilt), not_looked_at: floorBuilt.not_seen, reg };
 }
@@ -111,7 +124,7 @@ export function toYaml(runId, yardstickVersion, built) {
 }
 
 // ── the page ──────────────────────────────────────────────────────────────────
-const whereText = (r) => (r.where && r.where.length ? r.where.map(mdCode).join(', ')
+const whereText = (r) => (r.where && r.where.length ? r.where.map(mdCode).join(', ') + (r.lens ? ` (${r.lens})` : '')
   : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : mdText(r.reason));
 
 export function renderMd(runId, built, { confidential = false, name, date, commit } = /** @type {any} */ ({})) {

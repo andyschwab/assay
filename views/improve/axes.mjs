@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { AXIS_ORDER, loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, axisTitle, registryAxes as registryAxesOf, loadManifest, scannerLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
 import { buildChains } from '../../map/chains.mjs';
+import { HOTSPOT_AXIS, hotspotOrder, hotspotNote } from '../hotspot.mjs';
 import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { prosePath as runProsePath, axesPath } from '../../lib/run-layout.mjs';
@@ -172,7 +173,11 @@ for (const a of roster) {
     if (!crossN) continue;
   }
   const strengths = prim.filter((p) => p.f.polarity === 'strength');
-  const gaps = prim.filter((p) => p.f.polarity === 'gap').sort((x, y) => sevRank(x.f.severity) - sevRank(y.f.severity));
+  const open = prim.filter((p) => p.f.polarity === 'gap');
+  // the maintainability axis ranks by churn within severity (the hotspot lens, views/hotspot.mjs)
+  const gaps = a === HOTSPOT_AXIS
+    ? hotspotOrder(open.map((p) => p.f)).map((f) => open.find((p) => p.f === f))
+    : open.sort((x, y) => sevRank(x.f.severity) - sevRank(y.f.severity));
   const facts = prim.filter((p) => p.f.polarity === 'fact');
   if (prim.length) out.push(`**${prim.length} findings** — ${strengths.length} held · ${gaps.length} open · ${facts.length} facts${crossN ? ` · +${crossN} cross-listed` : ''}.`, '');
 
@@ -192,7 +197,7 @@ for (const a of roster) {
     out.push('');
   }
   if (gaps.length) {
-    out.push('**Risks open** _(severity-ranked)_:');
+    out.push(a === HOTSPOT_AXIS ? `**Risks open** _(severity-ranked; within a severity, ${hotspotNote(gaps.map((p) => p.f))})_:` : '**Risks open** _(severity-ranked)_:');
     for (const p of gaps) {
       const sev = p.f.severity ? ` _(${p.f.severity})_` : '';
       const src = p.source !== 'repo-eval' ? ` [${p.source}]` : '';
