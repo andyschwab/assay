@@ -1217,3 +1217,17 @@ what the public engine learned.
   isolation block allows exactly the pinned tool install. The new assertions
   (`structure-scan` block, `instrument-port`) were confirmed red against each
   rule reverted in turn. Goldens untouched.
+- **2026-10-05 — yardstick: a maintainability topic with two instrument-decided
+  rows** (#110). The only maintainability row was `d-one-home-per-fact`, a claim
+  no run could read. Two floor-and-fleet rows on `code-maintainability` are now
+  decided by structure-scan: `d-no-drifting-duplicates` (`duplicate`, no clone
+  pair of 50 tokens or more) and `d-no-dead-code` (`[unused, stale-artifact]`).
+  Each reads not-measured on its pass's own not-run fact with the reason, never
+  met; a tree with no package.json reads `d-no-dead-code` not-applicable; a stale
+  file governs over a knip that did not run. `d-one-home-per-fact` keeps the docs
+  half and names the new row as its code half. The register grows from 55 to 57
+  rows, so the two negative fixtures that pin its id set carry the two rows (as
+  the skipped structure-scan their run record names). The
+  `yardstick-maintainability` block was confirmed red before the rows existed,
+  and red again with each row's `not_measured_when`, `not_applicable_when` and
+  `stale-artifact` member reverted in turn. Goldens untouched.

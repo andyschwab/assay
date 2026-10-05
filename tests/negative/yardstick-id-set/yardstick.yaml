@@ -12,10 +12,10 @@ summary:
   met: 0
   unmet: 0
   mixed: 0
-  not-measured: 55
+  not-measured: 57
   not-applicable: 0
   decided: 0
-  of: 55
+  of: 57
 requirements:
   - id: d-accounts-enumerated
     status: not-measured
@@ -227,6 +227,18 @@ requirements:
     basis: run
     findings: []
     note: "claim-only: decided by the owner, never inferred from a run"
+  - id: d-no-drifting-duplicates
+    status: not-measured
+    how: instrument
+    basis: run
+    findings: []
+    note: "structure-scan skipped: fixture run: structure-scan was not executed over this public target"
+  - id: d-no-dead-code
+    status: not-measured
+    how: instrument
+    basis: run
+    findings: []
+    note: "structure-scan skipped: fixture run: structure-scan was not executed over this public target"
   - id: d-errors-reach-a-person
     status: not-measured
     how: instrument
