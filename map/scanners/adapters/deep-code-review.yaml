@@ -1,7 +1,7 @@
 # Adapter: deep-code-review (external scanner) -> the axis roster
 # (map/scanners/CONTRACT.md). Keyed by the stable Area CODE (A-R). We
 # consume its findings as data; we never reimplement its checks. It CONTRIBUTES
-# the two code axes (its own methodology lives there) and FEEDS four native axes
+# the three code axes (its own methodology lives there) and FEEDS four native axes
 # where its areas measure the same property the native passes do — testing gates,
 # proof-of-effect, AI/agent security, docs — so independent convergence lands on
 # one shared axis instead of two chapters. A finding needing finer routing than
@@ -15,7 +15,7 @@ severity_scale: [Blocker, Critical, High, Medium, Low, Nit]
 # release this adapter was last checked against (domain map, report shape, field
 # rules): bump it after re-reading those three upstream, never on faith.
 min_version: "1.128.0"
-verified_against: "1.471.0"
+verified_against: "1.479.0"
 # The scanner's full domain set (A–T and W since 1.60.0; U, V and X–Z
 # unassigned). Its machine report carries one coverage row per domain; ingest and
 # validate use this list to require completeness — a report missing a row for any
@@ -24,6 +24,7 @@ coverage_domains: [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, W
 
 contributes:
   - code-correctness
+  - code-maintainability
   - code-security
 
 map:
@@ -37,8 +38,8 @@ map:
     axis: code-correctness
   G:                          # Concurrency & shared state
     axis: code-correctness
-  H:                          # Tech debt, dead code, maintainability
-    axis: code-correctness
+  H:                          # Tech debt, dead code, maintainability -> its own axis (#109)
+    axis: code-maintainability
   R:                          # i18n / encoding / localization
     axis: code-correctness
   P:                          # Frontend / UI / a11y

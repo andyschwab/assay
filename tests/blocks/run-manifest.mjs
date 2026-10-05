@@ -7,7 +7,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadAdapters, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase } from '../../map/project.mjs';
+import { loadAdapters, adoptedAdapters, registryAxes, dispositions, scannerLine, notRunPhrase, AXIS_ORDER, orderAxes, axisTitle } from '../../map/project.mjs';
+import { TOPICS } from '../../yardstick/measure.mjs';
 import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
 
 export const label = 'run-manifest';
@@ -23,7 +24,11 @@ export async function run() {
   // dependency-scan and repo-census adopted 2026-09-24)
   if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'repo-census', 'repo-eval'])) fail(`adopted roster must be deep-code-review, dependency-scan, fresh-clone, gitleaks, repo-census, repo-eval (got ${adopted.join(', ')})`);
   const reg = registryAxes(adapters);
-  if (!reg.includes('code-security') || !reg.includes('multiplayer') || reg.length !== 9) fail(`registry must be the 9 axes the adopted scanners contribute — an instrument adds none (got ${reg.length}: ${reg.join(', ')})`);
+  // code-maintainability joined 2026-10-05 (#109): deep-code-review's domain H contributes it
+  if (!reg.includes('code-security') || !reg.includes('multiplayer') || !reg.includes('code-maintainability') || reg.length !== 10) fail(`registry must be the 10 axes the adopted scanners contribute — an instrument adds none (got ${reg.length}: ${reg.join(', ')})`);
+  if (orderAxes(reg).join() !== AXIS_ORDER.join()) fail(`AXIS_ORDER must name every registry axis, code-maintainability between code-correctness and code-security (got ${orderAxes(reg).join(', ')})`);
+  if (axisTitle('code-maintainability') === 'code-maintainability') fail('code-maintainability must carry a label in AXIS_META');
+  if (!TOPICS.includes('code-maintainability')) fail('the yardstick TOPICS must accept code-maintainability (the axis roster plus three)');
   const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'dependency-scan': { status: 'skipped', reason: 'no registry reach here' }, 'repo-census': { status: 'skipped', reason: 'no filesystem access here' } } };
   const d = dispositions(m, adapters);
   if (d.ran.join() !== 'repo-eval' || d.skipped[0]?.reason !== 'out of scope' || d.failed[0]?.id !== 'gitleaks' || d.missing.length) fail('dispositions must group ran / skipped / failed with reasons and report nothing missing');

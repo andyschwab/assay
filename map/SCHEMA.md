@@ -109,7 +109,7 @@ evidence-backed edge is what makes the lead risk deterministic.
 | `blast_scope` | user · tenant · fleet · cross-tenant |
 | `fail_mode` | open · closed |
 | `preconditions` | prompt-injection · stolen-credential · malicious-dependency · network-position · insider · zero-day · physical |
-| `axis` (overlay, optional) | open by design — any axis a present adapter `contributes:` or maps to (the seven native dimension axes; deep-code-review adds code-correctness · code-security) |
+| `axis` (overlay, optional) | open by design — any axis a present adapter `contributes:` or maps to (the seven native dimension axes; deep-code-review adds code-correctness · code-maintainability · code-security) |
 
 `channel` (inside `effect`) is a free short slug, deliberately **not** closed — it
 names the concrete effect surface.
