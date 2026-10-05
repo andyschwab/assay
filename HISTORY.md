@@ -1231,3 +1231,13 @@ what the public engine learned.
   `yardstick-maintainability` block was confirmed red before the rows existed,
   and red again with each row's `not_measured_when`, `not_applicable_when` and
   `stale-artifact` member reverted in turn. Goldens untouched.
+- **2026-10-05 — maintainability rows ranked by churn within severity** (#111).
+  The Improve walk and Owner order `code-maintainability` rows by severity, then
+  structure-scan's `detail.churn_90d` descending, then id (unrated rows after the
+  rated ones, a row with no churn last in its band), computed once in
+  `views/hotspot.mjs`; the axis names the lens ("ranked by how often the team
+  changes the file"), or says the history was not read when a row carries
+  `history: shallow | none`. No severity moves (SCHEMA §6d). The
+  `maintainability-churn` block over `tests/fixtures/churn-rank` was confirmed red
+  before the views changed (the walk listed by id and named no lens). Goldens
+  untouched.

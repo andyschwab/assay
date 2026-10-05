@@ -1,0 +1,23 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
+engine: fixture
+scanners:
+  repo-eval:
+    status: skipped
+    reason: "fixture run: only structure-scan's rows are planted (#111)"
+  deep-code-review:
+    status: skipped
+    reason: "fixture run: only structure-scan's rows are planted (#111)"
+  gitleaks:
+    status: skipped
+    reason: "fixture run: only structure-scan's rows are planted (#111)"
+  fresh-clone:
+    status: skipped
+    reason: "fixture run: only structure-scan's rows are planted (#111)"
+  dependency-scan:
+    status: skipped
+    reason: "fixture run: only structure-scan's rows are planted (#111)"
+  repo-census:
+    status: skipped
+    reason: "fixture run: only structure-scan's rows are planted (#111)"
+  structure-scan:
+    status: ran

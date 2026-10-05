@@ -751,6 +751,12 @@ there as things to answer.
 `views/improve/chains.json` (schema `assay.chains/1`, `lib/run-data.mjs` `checkChains`, shape
 in `views/README.md`) so an agent reads the chains without parsing the page.
 
+**The hotspot lens.** On the `code-maintainability` axis the Improve walk and Owner rank
+rows by severity, then by `detail.churn_90d` descending (how often the team changes the
+file), then id, computed in `views/hotspot.mjs` and never authored; a row with no churn
+(`history: shallow | none`) sorts last in its band and the axis says the history was not
+read, and the lens only orders within a band: it never promotes a row or moves a severity.
+
 **Fail-closed discovery** (`validate.mjs`): an unheld-halt effect (a chain sink) **must**
 state its `preconditions` — its difficulty is chain-critical and read-only-discoverable, so
 absence is an eval defect, not a default. Genuinely-runtime unknowns (is signup open? does
