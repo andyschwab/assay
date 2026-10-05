@@ -24,7 +24,7 @@ present adapters**, never hardcoded:
 - Every scanner — the native seven-dimension method included — **contributes**
   axes through its adapter's `contributes:` list: the axes its own methodology
   measures. repo-eval contributes the seven dimension axes; deep-code-review
-  contributes *code-correctness* and *code-security*.
+  contributes *code-correctness*, *code-maintainability* and *code-security*.
 - **Axes are shared.** Any scanner may **feed** an axis it does not contribute
   (deep-code-review's testing findings land on `deterministic-gates`, its
   AI/agent-security findings on `delegation`). Two scanners measuring one

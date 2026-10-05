@@ -29,6 +29,9 @@ export async function run() {
   if (proj.projected.find((p) => p.f.native_id === 'F2')?.axis !== 'code-security') fail('domain T (multi-tenancy) must land on code-security');
   if (proj.projected.find((p) => p.f.native_id === 'F3')?.axis !== 'code-correctness') fail('domain W (workflows/jobs) must land on code-correctness');
   const sRow = projectMulti([{ id: 'F-899', source: 'deep-code-review', native_id: 'S1', native_category: 'S', polarity: 'gap', severity: 'Low', observation: 'x', evidence: ['a:1'], fix: 'y' }], adaptersOnce());
+  const hRow = projectMulti([{ id: 'F-898', source: 'deep-code-review', native_id: 'H1', native_category: 'H', polarity: 'gap', severity: 'Medium', observation: 'x', evidence: ['a:1'], fix: 'y' }], adaptersOnce());
+  if (hRow.projected[0]?.axis !== 'code-maintainability') fail('domain H (tech debt, dead code, maintainability) must land on code-maintainability');
+  if (adaptersOnce()['deep-code-review']?.verified_against !== '1.479.0') fail('the deep-code-review adapter must be re-verified against 1.479.0');
   if (sRow.projected[0]?.axis !== 'improvement-loop') fail('domain S (branches/open-work triage) must land on improvement-loop');
   mustThrow('a flow-map report (not block YAML)', () => convert('deep-code-review', 'coverage: {A: {status: scanned}}\nfindings: []\n', null));
   mustThrow('a report with no coverage map', () => convert('deep-code-review', 'findings: []\n', null));

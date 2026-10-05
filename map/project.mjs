@@ -33,7 +33,7 @@ export { axisTitle };
 export const AXIS_ORDER = [
   'artifact-legibility', 'context-economy', 'deterministic-gates', 'verification',
   'delegation', 'improvement-loop', 'multiplayer',
-  'code-correctness', 'code-security',
+  'code-correctness', 'code-maintainability', 'code-security',
 ];
 export function orderAxes(axes) {
   const set = new Set(axes);

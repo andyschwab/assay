@@ -1191,6 +1191,17 @@ what the public engine learned.
   `enumerate-nextjs` block and its fixture were confirmed red against the
   current enumerate (19 failures) and against each rule reverted in turn.
   Goldens untouched.
+- **2026-10-05 — deep-code-review contributes code-maintainability** (#109).
+  Domain H (tech debt, dead code, maintainability) leaves `code-correctness`,
+  where it sat with seven other domains, for an axis of its own:
+  the adapter contributes `code-maintainability` and maps H to it; `AXIS_ORDER`
+  and `AXIS_META` place it between code-correctness and code-security, and the
+  yardstick's `TOPICS` accepts it. The adapter is re-verified against 1.479.0
+  (the 1.472.0–1.479.0 changelog touches neither domain H, the domain map nor
+  the machine report; the A–T + W domain set and report fields read unchanged).
+  The roster and H-routing assertions were confirmed red (5 failures) before the
+  change, and the AXIS_ORDER assertion red again with the axis dropped from the
+  order. Goldens untouched.
 - **2026-10-05 — structure-scan: a native instrument for duplication, unused
   code, stale artifacts and churn** (#108). Nothing in assay measured how code is
   built to be changed. `map/structure-scan.mjs` installs jscpd 5.4.0 and knip
