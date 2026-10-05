@@ -33,3 +33,6 @@ scanners:
   gitleaks:
     status: skipped
     reason: "gitleaks not run: the target is not its git repository's top level, so a git-mode scan would read the enclosing repository's history — scan the repository's own checkout, or a copy outside any repository"
+  structure-scan:
+    status: skipped
+    reason: "frozen run: drawn before the structure-scan instrument existed"

@@ -16,3 +16,6 @@ scanners:
     reason: "fixture: the dependency-scan run was not executed over this base"
   repo-census:
     status: ran
+  structure-scan:
+    status: skipped
+    reason: "fixture run: structure-scan was not executed over this public target"

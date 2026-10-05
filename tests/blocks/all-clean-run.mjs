@@ -21,7 +21,8 @@ export async function run() {
     '  deep-code-review:', '    status: skipped', '    reason: "not run for this test"',
     '  gitleaks:', '    status: ran', '  fresh-clone:', '    status: ran',
     '  dependency-scan:', '    status: ran',
-    '  repo-census:', '    status: skipped', '    reason: "not run for this test"', '',
+    '  repo-census:', '    status: skipped', '    reason: "not run for this test"',
+    '  structure-scan:', '    status: skipped', '    reason: "not run for this test"', '',
   ].join('\n'));
   for (const f of ['repo-eval', 'gitleaks', 'fresh-clone', 'dependency-scan']) writeFileSync(join(tmp, 'map', 'findings', `${f}.yaml`), '[]\n');
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); }

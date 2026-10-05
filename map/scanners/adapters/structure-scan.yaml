@@ -1,0 +1,45 @@
+# Adapter: structure-scan (INSTRUMENT — map/structure-scan.mjs) -> the axis roster
+# (map/scanners/CONTRACT.md, instrument role, §3e). It installs jscpd and knip from
+# the npm registry into its own scratch at run time (neither is a dependency of
+# assay), runs them over the checkout, and reads the tree and git history itself.
+# map/ingest.mjs (profile structure-scan) turns each clone pair jscpd finds into one
+# `duplicate` gap (both locations as evidence), each unused file, export or
+# dependency knip finds into one `unused` gap, each tracked file whose name says it
+# is abandoned into one `stale-artifact` gap; a tool that did not run (skipped, or
+# failed) into one `<category>-not-run` fact, and a tree with no package.json into
+# one `unused-not-applicable` fact — never silence, never clean. Every finding
+# row's detail carries churn_90d (or `history: shallow | none`), never a severity.
+# All of it lands on the one property this instrument measures: how the code is
+# built to be changed (code-maintainability, the axis deep-code-review
+# contributes). A category this map does not know halts loud.
+scanner: structure-scan
+targets_taxonomy: 3
+role: instrument
+
+contributes: []
+
+map:
+  duplicate:                    # a clone pair (jscpd)
+    axis: code-maintainability
+  unused:                       # an unused file, export or dependency (knip)
+    axis: code-maintainability
+  stale-artifact:               # a tracked file named as abandoned (the tree)
+    axis: code-maintainability
+  duplicate-not-run:            # a fact row: jscpd skipped or failed, with the reason
+    axis: code-maintainability
+  unused-not-run:               # a fact row: knip skipped or failed, with the reason
+    axis: code-maintainability
+  unused-not-applicable:        # a fact row: no package.json, nothing for knip to read
+    axis: code-maintainability
+
+default: FAIL
+
+# handoff (map/scanners/CONTRACT.md §3, block style only): the default unit (finding)
+# — each clone pair, unused item and stale file is its own change. client_proof needs
+# nothing this repository's own team does not already have: npx and the registry.
+handoff:
+  client_proof: "Run `npx jscpd@5 .` and `npx knip@6` at the repository root; the finding's location no longer appears."
+
+capabilities:
+  - id: verify-fix
+    invoke: "re-run map/structure-scan.mjs against the target and confirm the row is gone"

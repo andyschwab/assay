@@ -1202,3 +1202,18 @@ what the public engine learned.
   The roster and H-routing assertions were confirmed red (5 failures) before the
   change, and the AXIS_ORDER assertion red again with the axis dropped from the
   order. Goldens untouched.
+- **2026-10-05 — structure-scan: a native instrument for duplication, unused
+  code, stale artifacts and churn** (#108). Nothing in assay measured how code is
+  built to be changed. `map/structure-scan.mjs` installs jscpd 5.4.0 and knip
+  6.39.0 from the npm registry into its own scratch per run (never dependencies of
+  assay), records the version each ran, and reads stale-named tracked files and
+  90-day churn from the tree and git; ingest turns clone pairs, unused items and
+  stale files into gaps with `file:line` and counts, a tool skipped or failed into
+  a not-run fact, a tree with no package.json into an `unused` not-applicable
+  fact, and archives the report less code text. knip imports the target's own
+  tool configs, so it runs only under `--allow-exec` and never in the routine's
+  gate job. The rows feed `code-maintainability` (contract §3e). Adopting it
+  grew the roster by one, so every committed run record names it, and the
+  isolation block allows exactly the pinned tool install. The new assertions
+  (`structure-scan` block, `instrument-port`) were confirmed red against each
+  rule reverted in turn. Goldens untouched.

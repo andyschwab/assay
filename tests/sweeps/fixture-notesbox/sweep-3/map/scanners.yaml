@@ -19,3 +19,6 @@ scanners:
   repo-census:
     status: skipped
     reason: "a repeatability sweep measures the repo-eval passes only"
+  structure-scan:
+    status: skipped
+    reason: "frozen run: drawn before the structure-scan instrument existed"

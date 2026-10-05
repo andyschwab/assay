@@ -40,8 +40,13 @@
 // and halts. A failed lockfile is a gap row; a lockfile nothing audited (failed,
 // or not run) is also a lockfile-not-audited fact — never silence, never clean.
 //
+// The STRUCTURE-SCAN instrument (map/structure-scan.mjs, CONTRACT §3e) also comes in
+// here: its JSON document records each tool's status and version and the locations
+// and counts read out of their reports; exits 0 and 1 are both successful runs, 2
+// halts. A tool skipped or failed is a <category>-not-run fact, never 0 rows.
+//
 // Usage:
-//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan|repo-census> --raw <file> --exit <code> [--start F-7xx]
+//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx]
 //   node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
 // <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
@@ -57,6 +62,7 @@ import { setScannerRow, updateRunRecord } from './record.mjs';
 import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
 import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS } from './fresh-clone.mjs';
 import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs';
+import { TOOL_STATUS as SS_TOOL_STATUS, UNUSED_KINDS as SS_UNUSED_KINDS, HISTORY as SS_HISTORY } from './structure-scan.mjs';
 
 // The routine uploads the whole run, map/raw/ included, as a workflow artifact
 // (routine/README.md), so a raw archive is minimised like gitleaks': a tail of a
@@ -579,6 +585,105 @@ const PROFILES = {
       return rows;
     },
   },
+  'structure-scan': {
+    startId: 970,
+    // the document already holds each tool's report less code text; a failed tool's own
+    // reason stays, and nothing else is copied out of it into a row
+    archive: (raw) => JSON.stringify(dropKeys(raw, ['fragment']), null, 2) + '\n',
+    // 0 = every tool ran (or is not-applicable) and nothing was found; 1 = a finding, or a
+    // tool skipped or failed. Both are successful RUNS. A crash of the runner exits 2 and halts.
+    // jscpd itself is run with no --threshold / --exit-code, so its findings never change
+    // its exit (its success set is 0); knip's is 0 clean, 1 issues — the runner holds both.
+    okExits: [0, 1],
+    // Rows: one gap per clone pair (`duplicate`, both locations as evidence, line and token
+    // counts in detail), one gap per unused file / export / dependency (`unused`), one gap
+    // per stale artifact (`stale-artifact`); one FACT per tool that did not run
+    // (`duplicate-not-run`, `unused-not-run`: skipped or failed, with the reason), and one
+    // FACT when there is no package.json (`unused-not-applicable`) — never silence, never
+    // clean. Every finding row's detail carries churn_90d (commits touching its file, the
+    // larger of a pair's two) or, with no history to read, `history: shallow | none`.
+    // Rows carry locations and counts only, never a severity (the views band) and never code.
+    convert(raw, startId, exitCode) {
+      const rep = parseJson(raw, 'structure-scan');
+      if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('structure-scan report must be a JSON object');
+      if (rep.tool !== 'structure-scan') throw new Error(`structure-scan report carries tool "${rep.tool}" (truncated or not a structure-scan report?)`);
+      if (![0, 1].includes(rep.exit)) throw new Error(`structure-scan report exit "${rep.exit}" is not 0 | 1 (truncated report?)`);
+      if (exitCode !== undefined && exitCode !== null && Number(exitCode) !== rep.exit) throw new Error(`structure-scan report says exit ${rep.exit} but the runner exited ${exitCode} — the document does not describe the run it is filed under`);
+      if (!rep.tools || typeof rep.tools !== 'object') throw new Error('structure-scan report has no tools record (truncated report?)');
+      for (const k of ['duplicates', 'unused', 'stale']) if (!Array.isArray(rep[k])) throw new Error(`structure-scan report has no ${k}[] (truncated report?)`);
+      if (!SS_HISTORY.includes(rep.history)) throw new Error(`structure-scan report history "${rep.history}" is not one of ${SS_HISTORY.join(' | ')}`);
+      for (const t of ['jscpd', 'knip']) {
+        const s = rep.tools[t];
+        if (!s || !SS_TOOL_STATUS.includes(s.status)) throw new Error(`structure-scan tool ${t}: status "${s && s.status}" is not one of ${SS_TOOL_STATUS.join(' | ')}`);
+        if (s.status !== 'ran' && !(typeof s.reason === 'string' && s.reason.trim())) throw new Error(`structure-scan tool ${t} is ${s.status} with no reason — a skip without one is indistinguishable from an omission`);
+      }
+      if (rep.tools.jscpd.status !== 'ran' && rep.duplicates.length) throw new Error('structure-scan report lists duplicates from a jscpd that did not run');
+      if (rep.tools.knip.status !== 'ran' && rep.unused.length) throw new Error('structure-scan report lists unused items from a knip that did not run');
+      const found = rep.duplicates.length + rep.unused.length + rep.stale.length;
+      const notRun = ['jscpd', 'knip'].some((t) => ['skipped', 'failed'].includes(rep.tools[t].status));
+      if ((found > 0 || notRun) !== (rep.exit === 1)) throw new Error(`structure-scan report exit ${rep.exit} disagrees with its own content (${found} finding(s), ${notRun ? 'a tool not run' : 'every tool ran'})`);
+      const churn = (rep.churn && typeof rep.churn === 'object') ? rep.churn : {};
+      const detailFor = (files, extra) => ({ ...extra, ...(rep.history === 'full' ? { churn_90d: Math.max(0, ...files.map((f) => Number.isInteger(churn[f]) ? churn[f] : 0)) } : { history: rep.history }) });
+      const loc = (x, at) => {
+        if (!x || typeof x.file !== 'string' || !x.file || !Number.isInteger(x.start)) throw new Error(`structure-scan ${at} missing file / start line (truncated report?)`);
+        return x;
+      };
+      const rows = []; let n = 0;
+      for (const d of rep.duplicates) {
+        const a = loc(d && d.a, 'duplicate first location'), b = loc(d && d.b, 'duplicate second location');
+        rows.push({
+          id: fid(startId + n++), source: 'structure-scan',
+          native_id: `duplicate@${a.file}:${a.start}-${a.end}@${b.file}:${b.start}-${b.end}`, native_category: 'duplicate', polarity: 'gap',
+          observation: `${a.file}:${a.start}-${a.end} and ${b.file}:${b.start}-${b.end} carry the same block${Number.isInteger(d.lines) ? ` (${d.lines} lines` + (Number.isInteger(d.tokens) ? `, ${d.tokens} tokens)` : ')') : ''}, found by jscpd ${rep.tools.jscpd.version || ''}`.trimEnd() + '; a change to one copy has to be made twice.',
+          evidence: [`${a.file}:${a.start}`, `${b.file}:${b.start}`],
+          fix: 'Extract the duplicated block into one function or module both locations call (or delete the copy that is not used); re-run structure-scan and confirm the pair is gone.',
+          detail: detailFor([a.file, b.file], { lines: d.lines, tokens: d.tokens }),
+        });
+      }
+      for (const u of rep.unused) {
+        if (!u || typeof u.file !== 'string' || !u.file || typeof u.name !== 'string' || !SS_UNUSED_KINDS.includes(u.kind)) throw new Error('structure-scan unused item missing file / name / a known kind (truncated report?)');
+        const line = Number.isInteger(u.line) ? u.line : 1;
+        rows.push({
+          id: fid(startId + n++), source: 'structure-scan',
+          native_id: `unused-${u.kind}@${u.file}:${u.name}`, native_category: 'unused', polarity: 'gap',
+          observation: `${SS_UNUSED_NOUN[u.kind]} \`${oneLine(u.name)}\` in ${u.file} is not used anywhere in the project, found by knip ${rep.tools.knip.version || ''}`.trimEnd() + '.',
+          evidence: [`${u.file}:${line}`],
+          fix: `Remove the unused ${SS_UNUSED_NOUN[u.kind].toLowerCase()} (or, when it is a public entry point, declare it in knip's configuration); re-run structure-scan and confirm it no longer reads unused.`,
+          detail: detailFor([u.file], { kind: u.kind, name: u.name }),
+        });
+      }
+      for (const s of rep.stale) {
+        if (!s || typeof s.file !== 'string' || !s.file || typeof s.pattern !== 'string') throw new Error('structure-scan stale artifact missing file / pattern (truncated report?)');
+        rows.push({
+          id: fid(startId + n++), source: 'structure-scan',
+          native_id: `stale-artifact@${s.file}`, native_category: 'stale-artifact', polarity: 'gap',
+          observation: `${s.file} is tracked under a name that says it is abandoned (${s.pattern}${s.newer ? `, beside ${s.newer}` : ''}).`,
+          evidence: [`${s.file}:1`],
+          fix: 'Delete the stale file (version history keeps it), or rename it if it is still live; re-run structure-scan and confirm it is gone.',
+          detail: detailFor([s.file], { pattern: s.pattern, ...(s.newer ? { newer: s.newer } : {}) }),
+        });
+      }
+      for (const [t, cat, what] of [['jscpd', 'duplicate', 'duplicated code'], ['knip', 'unused', 'unused files, exports and dependencies']]) {
+        const s = rep.tools[t];
+        if (s.status === 'skipped' || s.status === 'failed') {
+          rows.push({
+            id: fid(startId + n++), source: 'structure-scan',
+            native_id: `${cat}-not-run`, native_category: `${cat}-not-run`, polarity: 'fact',
+            observation: `${t} ${s.status}: ${oneLine(s.reason)}. Nothing measured ${what} in this run, so none found is not none present.`,
+            evidence: ['map/raw/structure-scan.json:1'],
+          });
+        } else if (s.status === 'not-applicable') {
+          rows.push({
+            id: fid(startId + n++), source: 'structure-scan',
+            native_id: `${cat}-not-applicable`, native_category: `${cat}-not-applicable`, polarity: 'fact',
+            observation: `No package.json at the root — there is no JavaScript project for ${t} to read ${what} from.`,
+            evidence: ['./:1'],
+          });
+        }
+      }
+      return rows;
+    },
+  },
 };
 const RC_FIX = {
   'architecture-page': 'Add a page (ARCHITECTURE.md, docs/ARCHITECTURE.md, or a README "Architecture" section) that names every external service and data store the target depends on (database, queue, API, service, store, bucket, provider); a diagram is a bonus, not a substitute. Re-run repo-census and confirm it reads pass.',
@@ -594,6 +699,7 @@ const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'En
 // the instruments' closed vocabularies are imported from the producers above (#80); a report
 // outside them is truncated or foreign. not-supported: dependency-scan documents from before 0.2.0
 const DS_STATUS = [...LOCK_STATUS, 'not-supported'];
+const SS_UNUSED_NOUN = { files: 'File', dependencies: 'Dependency', devDependencies: 'Dev dependency', optionalPeerDependencies: 'Optional peer dependency', exports: 'Export', types: 'Exported type', enumMembers: 'Enum member', namespaceMembers: 'Namespace member', classMembers: 'Class member' };
 // not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
 // already held — undeclared meant met for build alone until this fixed the
 // inconsistency); migrate only where the tree carries database signals (see
@@ -665,7 +771,7 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
 
 // ── id allocation: above the base's highest id, never inside another block ──
 // Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
-// 800, fresh-clone 900, dependency-scan 950, repo-census 960). A real history scan can run past the next floor (a real
+// 800, fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
 // history scan's gitleaks block ran F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same
@@ -713,6 +819,8 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
     out.push(`  observation: >`, `    ${esc(r.observation)}`);
     out.push(`  evidence: [${r.evidence.map((e) => q(esc(e))).join(', ')}]`);   // quoted: a path may hold a comma or a ` #`
     if (r.fix) out.push(`  fix: >`, `    ${esc(r.fix)}`);
+    // instrument facts beside the row (counts, churn), block style, scalars only
+    if (r.detail) { out.push('  detail:'); for (const [k, v] of Object.entries(r.detail)) if (v !== null && v !== undefined) out.push(`    ${k}: ${typeof v === 'number' ? v : q(esc(v))}`); }
     // peer-scanner extension fields (the port keeps the scanner's own labels beside the mapped ones)
     if (r.title) out.push(`  title: ${q(esc(r.title))}`);
     if (r.native_tag) out.push(`  native_tag: ${q(esc(r.native_tag))}`);
@@ -763,7 +871,7 @@ if (isMain(import.meta.url)) {
   const exitless = tool && PROFILES[tool] && PROFILES[tool].exitless;
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
     console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--model <id>]');
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--model <id>]');
+    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--model <id>]');
     console.error('       node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
     process.exit(2);
   }

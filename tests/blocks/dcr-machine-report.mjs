@@ -53,7 +53,7 @@ export async function run() {
   // the sidecar: written block-style, loadable, and it turns a contributed axis "partially measured"
   const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('notesbox', tmp);
-  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: ran\n  dependency-scan:\n    status: ran\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: ran\n  dependency-scan:\n    status: ran\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n  structure-scan:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }

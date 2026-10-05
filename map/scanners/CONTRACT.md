@@ -184,8 +184,9 @@ directory mode, and every reported path is relative to the target; its exit
 code must agree with its report, 1 with leaks and 0 with none, or the intake
 halts),
 **fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
-**dependency-scan** (`adapters/dependency-scan.yaml`, §3c), and **repo-census**
-(`adapters/repo-census.yaml`, §3d). **OpenSSF Scorecard**
+**dependency-scan** (`adapters/dependency-scan.yaml`, §3c), **repo-census**
+(`adapters/repo-census.yaml`, §3d), and **structure-scan**
+(`adapters/structure-scan.yaml`, §3e). **OpenSSF Scorecard**
 (`adapters/scorecard.yaml`) is integrated but not part of the adopted roster:
 its checks are remote repository-configuration reads that need direct GitHub
 API access at run time, which an offline run does not have. The wider
@@ -524,6 +525,75 @@ and widening it is a reviewed change here, never a silent one.
 ```sh
 node assay.mjs repo-census <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90] [--packet <dir|manifest.yaml>]
 node assay.mjs ingest <run-dir> --tool repo-census --raw repo-census.json --exit <its exit code>
+```
+
+### 3e. The structure-scan instrument (`map/structure-scan.mjs`)
+
+**What it measures.** How the code is built to be changed, on the shared
+`code-maintainability` axis: duplicated blocks, unused files / exports /
+dependencies, files named as abandoned, and how often each file changes. Two
+tools do the first two and the instrument does the rest from the tree:
+
+- **jscpd** (MIT) — duplicated blocks, its JSON reporter, run over the checkout
+  with `node_modules/` and `.git/` ignored. It only reads files.
+- **knip** (ISC) — unused files, exports, types, enum / namespace / class
+  members and dependencies, its JSON reporter, run in the checkout. It imports
+  the target's own tool configuration files (`vite.config.*`,
+  `eslint.config.*`, …) to find entry points, which runs the target's code, so
+  it runs only where fresh-clone may (§3a, "What runs, and with what"): `assay
+  start` passes `--no-exec` unless given `--allow-exec`, and the routine passes
+  it in the two-job template's gate job; knip then reads `skipped` with that
+  reason. A repository with no `package.json` at its root reads knip
+  `not-applicable`, never clean.
+- **stale artifacts** — every tracked file (`git ls-files`, else a walk
+  skipping `node_modules/` and `.git/`) named `*_old*`, `*.bak`, `*.orig`, with
+  a copy suffix (`x copy.js`, `x-copy 2.js`, `Copy of x`), or a `*-vN*` beside
+  a higher `-vM` of the same name in the same directory.
+- **churn** — commits touching each file in the last 90 days (`git log
+  --since=90.days.ago --format= --name-only --relative`), or, with a shallow
+  checkout or no history, the fact `history: shallow | none`, never a guess.
+
+Both tools are installed **at run time** from the npm registry, at the
+versions pinned in `TOOLS`, into a private scratch directory (`npm install
+--prefix <scratch> --ignore-scripts`), with the allow-listed environment of
+`map/child-env.mjs`, and removed afterward; neither is ever a dependency of
+assay. The registry is the reach fresh-clone's install already needs (§3a,
+"offline"). Each tool's record in the document carries the version it ran.
+
+**Success set.** jscpd is run with no `--threshold` or `--exit-code`, so its
+findings never change its exit: `0` is its one success. knip exits `0` clean
+and `1` with issues; both are successes. Any other exit, a timeout, or a report
+that does not parse into its shape reads that tool `failed`, with the exit in
+the reason; npm absent from PATH, or an install that fails (no registry
+reach), reads it `skipped`, with the reason. The runner's own `exit` is `0`
+when every tool ran (or is not-applicable) and nothing was found, `1` when
+anything was found or any tool did not run; both are successful runs and
+`ingest.mjs --tool structure-scan` accepts both, checking the document's exit
+agrees with its content. A crash of the runner itself exits `2` and halts.
+
+**Rows.** One `duplicate` gap per clone pair (evidence: both copies' first
+lines; `detail.lines` and `detail.tokens`), one `unused` gap per unused item
+(`file:line` where knip gives one, else `:1`; `detail.kind` and `detail.name`),
+one `stale-artifact` gap per stale file (`detail.pattern`). Every such row's
+`detail` carries `churn_90d` (for a pair, the larger of its two files) or
+`history: shallow | none`. A tool `skipped` or `failed` yields one fact,
+`duplicate-not-run` or `unused-not-run`, citing the archived raw report and
+saying which and why; a tree with no `package.json` yields one
+`unused-not-applicable` fact. So a tool that did not run never reads as zero
+rows, and a run record's `structure-scan: ran` means the instrument ran, with
+each tool's own disposition on these facts and in the archive. Rows carry no
+severity (the views band; until they do, these gaps are unrated) and no code:
+the document drops jscpd's duplicated `fragment`, and ingest drops it again
+from `map/raw/structure-scan.json`, which keeps both tools' reports otherwise.
+A clean run is the explicit empty `map/findings/structure-scan.yaml`.
+
+**What it deliberately does not do.** It measures no cycles and no complexity
+(madge and lizard are listed second-line in `CANDIDATES.md`), asserts no
+threshold on any count, and never runs knip where the target's code may not run.
+
+```sh
+node assay.mjs structure-scan <target-dir> --out structure-scan.json [--timeout 300] [--no-exec]
+node assay.mjs ingest <run-dir> --tool structure-scan --raw structure-scan.json --exit <its exit code>
 ```
 
 ## 4. The fail-closed rule (the coherence guarantee)

@@ -21,21 +21,21 @@ export async function run() {
   if (!adapters.scorecard) fail('the retired scorecard adapter must still LOAD (frozen runs carrying its rows must project)');
   // the adopted roster is pinned by name: adopting or retiring a scanner is a reviewed
   // change to this line in the same commit (fresh-clone adopted 2026-09-22;
-  // dependency-scan and repo-census adopted 2026-09-24)
-  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'repo-census', 'repo-eval'])) fail(`adopted roster must be deep-code-review, dependency-scan, fresh-clone, gitleaks, repo-census, repo-eval (got ${adopted.join(', ')})`);
+  // dependency-scan and repo-census adopted 2026-09-24; structure-scan adopted 2026-10-05, #108)
+  if (JSON.stringify(adopted) !== JSON.stringify(['deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'repo-census', 'repo-eval', 'structure-scan'])) fail(`adopted roster must be deep-code-review, dependency-scan, fresh-clone, gitleaks, repo-census, repo-eval, structure-scan (got ${adopted.join(', ')})`);
   const reg = registryAxes(adapters);
   // code-maintainability joined 2026-10-05 (#109): deep-code-review's domain H contributes it
   if (!reg.includes('code-security') || !reg.includes('multiplayer') || !reg.includes('code-maintainability') || reg.length !== 10) fail(`registry must be the 10 axes the adopted scanners contribute — an instrument adds none (got ${reg.length}: ${reg.join(', ')})`);
   if (orderAxes(reg).join() !== AXIS_ORDER.join()) fail(`AXIS_ORDER must name every registry axis, code-maintainability between code-correctness and code-security (got ${orderAxes(reg).join(', ')})`);
   if (axisTitle('code-maintainability') === 'code-maintainability') fail('code-maintainability must carry a label in AXIS_META');
   if (!TOPICS.includes('code-maintainability')) fail('the yardstick TOPICS must accept code-maintainability (the axis roster plus three)');
-  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'dependency-scan': { status: 'skipped', reason: 'no registry reach here' }, 'repo-census': { status: 'skipped', reason: 'no filesystem access here' } } };
+  const m = { engine: 'x', scanners: { 'repo-eval': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'dependency-scan': { status: 'skipped', reason: 'no registry reach here' }, 'repo-census': { status: 'skipped', reason: 'no filesystem access here' }, 'structure-scan': { status: 'skipped', reason: 'no registry reach here' } } };
   const d = dispositions(m, adapters);
   if (d.ran.join() !== 'repo-eval' || d.skipped[0]?.reason !== 'out of scope' || d.failed[0]?.id !== 'gitleaks' || d.missing.length) fail('dispositions must group ran / skipped / failed with reasons and report nothing missing');
   const line = scannerLine(m, ['repo-eval'], adapters);
   if (!line.includes('skipped: deep-code-review (out of scope)') || !line.includes('failed: gitleaks (binary missing)') || !line.includes('fresh-clone (no scratch clone here)')) fail(`the scanners line must name skipped and failed scanners with their reasons (got "${line}")`);
   if (!scannerLine(null, ['repo-eval'], adapters).includes('no run manifest')) fail('a missing manifest must be named on the scanners line, never silently omitted');
-  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,dependency-scan,fresh-clone,gitleaks,repo-census') fail('adopted scanners without a row must be reported missing');
+  if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,dependency-scan,fresh-clone,gitleaks,repo-census,structure-scan') fail('adopted scanners without a row must be reported missing');
   if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
   // the walk prints the reason on the not-measured register
   const walk = execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
