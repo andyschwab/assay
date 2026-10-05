@@ -19,3 +19,6 @@ scanners:
     reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib)"
   repo-census:
     status: ran
+  structure-scan:
+    status: skipped
+    reason: "fixture run: structure-scan was not executed over this public target"

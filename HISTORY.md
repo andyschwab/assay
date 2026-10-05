@@ -1191,3 +1191,53 @@ what the public engine learned.
   `enumerate-nextjs` block and its fixture were confirmed red against the
   current enumerate (19 failures) and against each rule reverted in turn.
   Goldens untouched.
+- **2026-10-05 — deep-code-review contributes code-maintainability** (#109).
+  Domain H (tech debt, dead code, maintainability) leaves `code-correctness`,
+  where it sat with seven other domains, for an axis of its own:
+  the adapter contributes `code-maintainability` and maps H to it; `AXIS_ORDER`
+  and `AXIS_META` place it between code-correctness and code-security, and the
+  yardstick's `TOPICS` accepts it. The adapter is re-verified against 1.479.0
+  (the 1.472.0–1.479.0 changelog touches neither domain H, the domain map nor
+  the machine report; the A–T + W domain set and report fields read unchanged).
+  The roster and H-routing assertions were confirmed red (5 failures) before the
+  change, and the AXIS_ORDER assertion red again with the axis dropped from the
+  order. Goldens untouched.
+- **2026-10-05 — structure-scan: a native instrument for duplication, unused
+  code, stale artifacts and churn** (#108). Nothing in assay measured how code is
+  built to be changed. `map/structure-scan.mjs` installs jscpd 5.4.0 and knip
+  6.39.0 from the npm registry into its own scratch per run (never dependencies of
+  assay), records the version each ran, and reads stale-named tracked files and
+  90-day churn from the tree and git; ingest turns clone pairs, unused items and
+  stale files into gaps with `file:line` and counts, a tool skipped or failed into
+  a not-run fact, a tree with no package.json into an `unused` not-applicable
+  fact, and archives the report less code text. knip imports the target's own
+  tool configs, so it runs only under `--allow-exec` and never in the routine's
+  gate job. The rows feed `code-maintainability` (contract §3e). Adopting it
+  grew the roster by one, so every committed run record names it, and the
+  isolation block allows exactly the pinned tool install. The new assertions
+  (`structure-scan` block, `instrument-port`) were confirmed red against each
+  rule reverted in turn. Goldens untouched.
+- **2026-10-05 — yardstick: a maintainability topic with two instrument-decided
+  rows** (#110). The only maintainability row was `d-one-home-per-fact`, a claim
+  no run could read. Two floor-and-fleet rows on `code-maintainability` are now
+  decided by structure-scan: `d-no-drifting-duplicates` (`duplicate`, no clone
+  pair of 50 tokens or more) and `d-no-dead-code` (`[unused, stale-artifact]`).
+  Each reads not-measured on its pass's own not-run fact with the reason, never
+  met; a tree with no package.json reads `d-no-dead-code` not-applicable; a stale
+  file governs over a knip that did not run. `d-one-home-per-fact` keeps the docs
+  half and names the new row as its code half. The register grows from 55 to 57
+  rows, so the two negative fixtures that pin its id set carry the two rows (as
+  the skipped structure-scan their run record names). The
+  `yardstick-maintainability` block was confirmed red before the rows existed,
+  and red again with each row's `not_measured_when`, `not_applicable_when` and
+  `stale-artifact` member reverted in turn. Goldens untouched.
+- **2026-10-05 — maintainability rows ranked by churn within severity** (#111).
+  The Improve walk and Owner order `code-maintainability` rows by severity, then
+  structure-scan's `detail.churn_90d` descending, then id (unrated rows after the
+  rated ones, a row with no churn last in its band), computed once in
+  `views/hotspot.mjs`; the axis names the lens ("ranked by how often the team
+  changes the file"), or says the history was not read when a row carries
+  `history: shallow | none`. No severity moves (SCHEMA §6d). The
+  `maintainability-churn` block over `tests/fixtures/churn-rank` was confirmed red
+  before the views changed (the walk listed by id and named no lens). Goldens
+  untouched.

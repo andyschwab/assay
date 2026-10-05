@@ -15,7 +15,10 @@
 // Usage: node assay.mjs start --out <run> [<target>] [--allow-exec]
 //   <target> given  — runs repo-census, dependency-scan (from scratch copies of
 //                      each lockfile, never the target's own configuration),
-//                      and gitleaks when its binary is on PATH; and fresh-clone
+//                      structure-scan (jscpd and knip installed into its own
+//                      scratch; knip only under --allow-exec, since it imports
+//                      the target's own tool configs), and gitleaks when its
+//                      binary is on PATH; and fresh-clone
 //                      (from a scratch clone of the target's committed head,
 //                      never in place: the routine's CI checkout is the only
 //                      in-place caller) ONLY under --allow-exec, because it
@@ -166,9 +169,9 @@ export function toScannersYaml(engine, rows, header = '# scanners.yaml — GENER
 const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
 
 // drawOfflineMap — runs every instrument assay can run on its own (repo-census,
-// fresh-clone, dependency-scan, gitleaks-if-present) against repoDir/outDir,
-// and records the two judgment scanners skipped with the caller's own
-// pendingReason. Returns the six scanner rows (not yet written to disk — the
+// fresh-clone, dependency-scan, gitleaks-if-present, structure-scan) against
+// repoDir/outDir, and records the two judgment scanners skipped with the caller's
+// own pendingReason. Returns the seven scanner rows (not yet written to disk — the
 // caller decides the file's full roster and writes it).
 //   pendingReason(id)     — the reason text for a judgment scanner (a function
 //                           of the scanner id, or a plain string used as-is).
@@ -186,11 +189,17 @@ const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
 //   freshCloneSkipReason  — when set, fresh-clone is not run and is recorded
 //                           skipped with this reason: `assay start` without
 //                           --allow-exec. The routine never sets it.
+//   structureScanNoExec   — pass `--no-exec` to structure-scan: knip, which imports
+//                           the target's own tool configuration files, is then
+//                           recorded skipped with that reason (jscpd and the tree
+//                           pass still run). `assay start` without --allow-exec
+//                           and the routine's gate job (which never executes the
+//                           target) set it.
 //   freshCloneHandoff     — a directory another step wrote with
 //                           writeFreshCloneHandoff: fresh-clone is not run here,
 //                           its handed-forward report is ingested instead (the
 //                           routine's gate job, which never executes the target).
-export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null, freshCloneHandoff = null } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null, freshCloneHandoff = null, structureScanNoExec = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of JUDGMENT_SCANNERS) rows[id] = { status: 'skipped', reason: reasonFor(id) };
@@ -201,6 +210,7 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentR
   else rows['fresh-clone'] = runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log });
   rows['dependency-scan'] = runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log });
   rows['gitleaks'] = runGitleaks(repoDir, outDir, log, gitleaksAbsentReason);
+  rows['structure-scan'] = runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log });
   return rows;
 }
 
@@ -287,9 +297,9 @@ function runCli() {
   if (target) {
     const repoDir = resolve(target);
     const freshCloneSkipReason = !args.includes('--allow-exec') ? NO_EXEC_REASON : isRepoTopLevel(repoDir) ? null : NOT_A_REPO_REASON;
-    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), gitleaksAbsentReason: GITLEAKS_ABSENT_HERE, freshCloneSkipReason }, log);
+    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), gitleaksAbsentReason: GITLEAKS_ABSENT_HERE, freshCloneSkipReason, structureScanNoExec: !args.includes('--allow-exec') }, log);
   }
-  // Every OTHER adopted scanner (today: none beyond the six drawOfflineMap
+  // Every OTHER adopted scanner (today: none beyond the seven drawOfflineMap
   // already covers; a future adapter falls here automatically) is recorded
   // skipped — never silently coverage-by-omission.
   for (const id of Object.keys(adopted)) {

@@ -29,6 +29,9 @@ export async function run() {
   if (proj.projected.find((p) => p.f.native_id === 'F2')?.axis !== 'code-security') fail('domain T (multi-tenancy) must land on code-security');
   if (proj.projected.find((p) => p.f.native_id === 'F3')?.axis !== 'code-correctness') fail('domain W (workflows/jobs) must land on code-correctness');
   const sRow = projectMulti([{ id: 'F-899', source: 'deep-code-review', native_id: 'S1', native_category: 'S', polarity: 'gap', severity: 'Low', observation: 'x', evidence: ['a:1'], fix: 'y' }], adaptersOnce());
+  const hRow = projectMulti([{ id: 'F-898', source: 'deep-code-review', native_id: 'H1', native_category: 'H', polarity: 'gap', severity: 'Medium', observation: 'x', evidence: ['a:1'], fix: 'y' }], adaptersOnce());
+  if (hRow.projected[0]?.axis !== 'code-maintainability') fail('domain H (tech debt, dead code, maintainability) must land on code-maintainability');
+  if (adaptersOnce()['deep-code-review']?.verified_against !== '1.479.0') fail('the deep-code-review adapter must be re-verified against 1.479.0');
   if (sRow.projected[0]?.axis !== 'improvement-loop') fail('domain S (branches/open-work triage) must land on improvement-loop');
   mustThrow('a flow-map report (not block YAML)', () => convert('deep-code-review', 'coverage: {A: {status: scanned}}\nfindings: []\n', null));
   mustThrow('a report with no coverage map', () => convert('deep-code-review', 'findings: []\n', null));
@@ -50,7 +53,7 @@ export async function run() {
   // the sidecar: written block-style, loadable, and it turns a contributed axis "partially measured"
   const tmp = join(HERE, 'tmp-dcr'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('notesbox', tmp);
-  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: ran\n  dependency-scan:\n    status: ran\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n');
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: ran\n  dependency-scan:\n    status: ran\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n  structure-scan:\n    status: skipped\n    reason: "fixture: not executed"\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, sample);
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' }); }
   catch (e) { fail(`ingest CLI must accept a machine report without --exit (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }

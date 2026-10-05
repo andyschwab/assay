@@ -540,12 +540,45 @@ requirements:
     tags: [fleet]
     decide:
       kind: claim
-    check: a docs guard refuses a second account of a list; in code, one store per remembered fact
+    check: a docs guard refuses a second account of a list; in code, one store per remembered fact (a duplicated block of code is d-no-drifting-duplicates, which structure-scan decides)
     sources: [foundation/where-things-are-written, takeover-eval/one-fact-many-memories]
     status: draft
     owner:
       risk: "If the same fact, a list of accounts, a set of rules, is written down in two places, they will eventually disagree, and nobody will know which one is true."
       fix: "Have your AI find every fact that is duplicated across the docs or code and consolidate each one to a single authoritative place."
+  - id: d-no-drifting-duplicates
+    title: No block of code is carried in two copies that can drift apart
+    tier: legibility
+    topic: code-maintainability
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: structure-scan
+      category: duplicate
+      not_measured_when: duplicate-not-run
+    check: structure-scan ran its duplication pass and found no clone pair of 50 tokens or more; a pass that was skipped or failed reads not-measured with its reason, never met
+    sources: [issue/110, scanner-candidates/structure-scan]
+    status: draft
+    owner:
+      risk: "When the same block of code lives in two places, a fix made in one copy misses the other, and every change costs more than it should."
+      fix: "Have your AI find each duplicated block and keep one copy, or add a test that fails when the copies drift."
+  - id: d-no-dead-code
+    title: No file, export, dependency or abandoned copy remains that nothing uses
+    tier: legibility
+    topic: code-maintainability
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+      scanner: structure-scan
+      category: [unused, stale-artifact]
+      not_applicable_when: unused-not-applicable
+      not_measured_when: unused-not-run
+    check: structure-scan ran its unused-code pass and found no unused file, export or dependency, and its tree pass found no tracked file named as abandoned; an unused-code pass that was skipped or failed reads not-measured with its reason, and a tree with no package.json reads not-applicable, unless a stale file was found
+    sources: [issue/110, scanner-candidates/structure-scan]
+    status: draft
+    owner:
+      risk: "Code nobody uses still has to be understood, updated and secured, so it costs time and attention without doing anything for the app."
+      fix: "Have your AI remove what nothing references, one change at a time, with the tests green after each."
 
   # ── operability: we can see it and afford it ─────────────────────────────
   - id: d-errors-reach-a-person

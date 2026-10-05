@@ -1,0 +1,32 @@
+# churn-rank (#111): two structure-scan rows of equal severity (both unrated: the
+# instrument carries none) on code-maintainability, with different churn. The lower id
+# carries the lower churn, so an id-only order and the churn order disagree. Planted,
+# not a real run; tests/blocks/maintainability-churn.mjs derives the shallow-history run.
+- id: F-970
+  source: structure-scan
+  native_id: "unused-export@src/quiet.js:unusedHelper"
+  native_category: unused
+  polarity: gap
+  observation: >
+    Export `unusedHelper` in src/quiet.js is not used anywhere in the project, found by knip 6.0.0.
+  evidence: ["src/quiet.js:3"]
+  fix: >
+    Remove the unused export; re-run structure-scan and confirm it no longer reads unused.
+  detail:
+    kind: export
+    name: unusedHelper
+    churn_90d: 3
+- id: F-971
+  source: structure-scan
+  native_id: "unused-export@src/busy.js:oldParser"
+  native_category: unused
+  polarity: gap
+  observation: >
+    Export `oldParser` in src/busy.js is not used anywhere in the project, found by knip 6.0.0.
+  evidence: ["src/busy.js:7"]
+  fix: >
+    Remove the unused export; re-run structure-scan and confirm it no longer reads unused.
+  detail:
+    kind: export
+    name: oldParser
+    churn_90d: 12

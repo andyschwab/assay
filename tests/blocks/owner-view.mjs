@@ -22,7 +22,7 @@ export async function run() {
   const fail = (m) => negFailures.push('owner-view: ' + m);
   const reg = loadYardstick();
 
-  // (a) every one of the 55 rows carries owner.risk / owner.fix
+  // (a) every one of the 57 rows carries owner.risk / owner.fix
   const missingOwner = reg.requirements.filter((d) => !d.owner || !String(d.owner.risk || '').trim() || !String(d.owner.fix || '').trim());
   if (missingOwner.length) fail(`every requirement row must carry non-empty owner.risk and owner.fix (missing on ${missingOwner.map((d) => d.id).join(', ')})`);
 

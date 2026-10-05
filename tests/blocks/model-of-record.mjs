@@ -18,7 +18,8 @@ export async function run() {
     'engine: fixture', 'scanners:', '  repo-eval:', '    status: ran', ...repoEvalRow,
     '  deep-code-review:', '    status: skipped', '    reason: "fixture: not executed"',
     '  gitleaks:', '    status: ran', '  fresh-clone:', '    status: ran', '  dependency-scan:', '    status: ran',
-    '  repo-census:', '    status: skipped', '    reason: "fixture: not executed"', '',
+    '  repo-census:', '    status: skipped', '    reason: "fixture: not executed"',
+    '  structure-scan:', '    status: skipped', '    reason: "fixture: not executed"', '',
   ].join('\n');
   const tmp = join(HERE, 'tmp-model-of-record'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('cleanlib', tmp);

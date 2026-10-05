@@ -109,7 +109,7 @@ evidence-backed edge is what makes the lead risk deterministic.
 | `blast_scope` | user · tenant · fleet · cross-tenant |
 | `fail_mode` | open · closed |
 | `preconditions` | prompt-injection · stolen-credential · malicious-dependency · network-position · insider · zero-day · physical |
-| `axis` (overlay, optional) | open by design — any axis a present adapter `contributes:` or maps to (the seven native dimension axes; deep-code-review adds code-correctness · code-security) |
+| `axis` (overlay, optional) | open by design — any axis a present adapter `contributes:` or maps to (the seven native dimension axes; deep-code-review adds code-correctness · code-maintainability · code-security) |
 
 `channel` (inside `effect`) is a free short slug, deliberately **not** closed — it
 names the concrete effect surface.
@@ -750,6 +750,12 @@ there as things to answer.
 **The chains as data.** `views/improve/report.mjs` writes the same ranking to
 `views/improve/chains.json` (schema `assay.chains/1`, `lib/run-data.mjs` `checkChains`, shape
 in `views/README.md`) so an agent reads the chains without parsing the page.
+
+**The hotspot lens.** On the `code-maintainability` axis the Improve walk and Owner rank
+rows by severity, then by `detail.churn_90d` descending (how often the team changes the
+file), then id, computed in `views/hotspot.mjs` and never authored; a row with no churn
+(`history: shallow | none`) sorts last in its band and the axis says the history was not
+read, and the lens only orders within a band: it never promotes a row or moves a severity.
 
 **Fail-closed discovery** (`validate.mjs`): an unheld-halt effect (a chain sink) **must**
 state its `preconditions` — its difficulty is chain-critical and read-only-discoverable, so

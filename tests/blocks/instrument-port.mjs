@@ -71,6 +71,26 @@ export async function run() {
     if (!/"RuleID"/.test(archived) || !/"File"/.test(archived) || !/"StartLine"/.test(archived)) fail('the archived gitleaks report must keep rule, file and line');
     rmSync(tmp, { recursive: true, force: true });
   }
+  // structure-scan (#108): the runner's document halts on anything but a complete, agreeing report
+  {
+    const ran = { status: 'ran', version: '1' };
+    const doc = (o = {}) => JSON.stringify({ tool: 'structure-scan', version: '0.1.0', exit: 0, history: 'full', tools: { jscpd: ran, knip: ran }, duplicates: [], unused: [], stale: [], churn: {}, ...o });
+    const dup = { a: { file: 'a.js', start: 1, end: 9 }, b: { file: 'b.js', start: 3, end: 11 }, lines: 9, tokens: 80 };
+    mustThrow('a structure-scan crash exit (2)', () => convert('structure-scan', doc(), 2));
+    mustThrow('a structure-scan report whose exit disagrees with the runner', () => convert('structure-scan', doc({ exit: 1 }), 0));
+    mustThrow('a structure-scan report that is not JSON', () => convert('structure-scan', 'not json {', 0));
+    mustThrow('a structure-scan report from another tool', () => convert('structure-scan', doc({ tool: 'jscpd' }), 0));
+    mustThrow('a structure-scan report with no tools record', () => convert('structure-scan', doc({ tools: undefined }), 0));
+    mustThrow('a structure-scan tool status outside the closed set', () => convert('structure-scan', doc({ exit: 1, tools: { jscpd: { status: 'maybe' }, knip: ran } }), 1));
+    mustThrow('a structure-scan tool not run with no reason', () => convert('structure-scan', doc({ exit: 1, tools: { jscpd: { status: 'skipped' }, knip: ran } }), 1));
+    mustThrow('a structure-scan duplicate with no second location', () => convert('structure-scan', doc({ exit: 1, duplicates: [{ ...dup, b: undefined }] }), 1));
+    mustThrow('a structure-scan report with findings but exit 0', () => convert('structure-scan', doc({ duplicates: [dup] }), 0));
+    if (convert('structure-scan', doc(), 0).length !== 0) fail('a verified-clean structure-scan run (every tool ran, nothing found) converts to zero rows');
+    const failedKnip = convert('structure-scan', doc({ exit: 1, tools: { jscpd: ran, knip: { status: 'failed', reason: 'knip exited 2' } } }), 1);
+    if (failedKnip.length !== 1 || failedKnip[0].native_category !== 'unused-not-run' || failedKnip[0].polarity !== 'fact') fail(`a failed knip with nothing else found must still read one unused-not-run fact, never 0 rows (got ${failedKnip.map((r) => r.native_category).join(', ')})`);
+    const dupRows = convert('structure-scan', doc({ exit: 1, duplicates: [dup] }), 1);
+    if (dupRows[0]?.evidence.join(' ') !== 'a.js:1 b.js:3' || dupRows[0]?.detail?.lines !== 9 || dupRows[0]?.detail?.tokens !== 80) fail(`a duplicate row cites both copies and carries their counts (got ${JSON.stringify(dupRows[0])})`);
+  }
   const proj = projectMulti([...gl, ...sc], adaptersOnce());
   if (proj.unmapped.length) fail(`instrument rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   if (proj.projected.find((p) => p.f.id === gl[0].id)?.axis !== 'code-security') fail('a gitleaks secret must land on code-security');

@@ -18,3 +18,6 @@ scanners:
   repo-census:
     status: skipped
     reason: "fixture: not executed"
+  structure-scan:
+    status: skipped
+    reason: "fixture run: structure-scan was not executed over this public target"

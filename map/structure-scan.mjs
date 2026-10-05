@@ -1,0 +1,271 @@
+#!/usr/bin/env node
+// structure-scan.mjs — the STRUCTURE-SCAN instrument: how is the code itself
+// built? Duplicated blocks, unused files / exports / dependencies, stale
+// artifacts, and how often each file changes. Its rows come in through
+// map/ingest.mjs (profile `structure-scan`) and land on the shared
+// code-maintainability axis via adapters/structure-scan.yaml
+// (map/scanners/CONTRACT.md §3e).
+//
+// What it does, in order:
+//   1. INSTALL the two tools it drives from the npm registry, at the pinned
+//      versions in TOOLS, into a private scratch directory (`npm install
+//      --prefix <scratch> --ignore-scripts`): jscpd (duplication) and knip
+//      (unused code). Neither is ever a dependency of this repository. The
+//      registry is the same reach fresh-clone's install already needs (§3a,
+//      "offline"); npm absent from PATH, or an install that fails, reads the tool
+//      `skipped` with the reason — never clean.
+//   2. RUN jscpd over the checkout (its JSON reporter; it only reads files) and
+//      knip in it (its JSON reporter). knip imports the target's own tool
+//      configuration files (vite.config.*, eslint.config.*, …) to find entry
+//      points, which is executing the target's code: with `noExec` (`assay
+//      start` without --allow-exec, the routine's gate job) it is `skipped` with
+//      that reason. A repository with no package.json has nothing knip can read:
+//      `not-applicable`, never clean. A tool that exits outside its success set
+//      (jscpd: 0 — no --threshold or --exit-code is passed, so findings never
+//      change its exit; knip: 0 clean, 1 issues) or whose report does not parse
+//      reads `failed` with its exit — a crashed tool never reads as 0 findings.
+//   3. READ the tree itself: every tracked file (`git ls-files`, else a walk
+//      skipping node_modules/ and .git/) whose name says it is abandoned —
+//      `*_old*`, `*.bak`, `*.orig`, a `copy` suffix (`x copy.js`, `x-copy.js`,
+//      `Copy of x`), and a `*-v1*` beside a `*-v2*` (every lower version of a
+//      name a higher one exists beside).
+//   4. COUNT churn: commits touching each file in the last 90 days (`git log
+//      --since=90.days.ago --format= --name-only --relative`). A shallow
+//      checkout, or no git history at all, records `history: shallow | none`
+//      instead, so a view never guesses a count that was not read.
+//
+// The document keeps each tool's own report (less any code text: jscpd's
+// `fragment` is dropped) under `raw`, and the locations and counts read out of
+// them under `duplicates`, `unused` and `stale`; rows are built from those only.
+//
+// Exit: 0 when every tool ran (or is not-applicable) and nothing was found; 1
+// when anything was found or any tool did not run (skipped or failed); a crash
+// of the runner itself exits 2 (uncaught at the CLI boundary), so ingest.mjs
+// (success set [0, 1]) halts on it.
+//
+// Usage:
+//   node assay.mjs structure-scan <target-dir> --out <file.json> [--timeout <seconds per tool, default 300>] [--no-exec]
+// Zero dependencies of its own (node: modules only); the tools are fetched per run.
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { join, resolve, isAbsolute, relative, dirname, basename } from 'node:path';
+import { tmpdir } from 'node:os';
+import { isMain } from './doctrine.mjs';
+import { childEnv, proxyDropNote } from './child-env.mjs';
+
+export const VERSION = '0.1.0';
+// the pinned tool versions this instrument installs, and records, per run
+export const TOOLS = { jscpd: '5.4.0', knip: '6.39.0' };
+export const TOOL_STATUS = ['ran', 'skipped', 'failed', 'not-applicable'];
+// knip's issue types that say "unused"; unlisted / unresolved / binaries are missing things, not unused ones
+export const UNUSED_KINDS = ['files', 'dependencies', 'devDependencies', 'optionalPeerDependencies', 'exports', 'types', 'enumMembers', 'namespaceMembers', 'classMembers'];
+export const HISTORY = ['full', 'shallow', 'none'];
+const MAX_BUFFER = 256 * 1024 * 1024;
+const SKIP_DIRS = new Set(['node_modules', '.git']);
+const CHURN_DAYS = 90;
+const NO_EXEC_REASON = "knip not run: it imports the target's own tool configuration files (vite.config.*, eslint.config.*, …) to find entry points, which runs the target's code; re-run with --allow-exec in a disposable container or VM";
+
+const oneLine = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+const lastLine = (s) => oneLine(String(s || '').trim().split('\n').filter(Boolean).pop() || '').slice(0, 240);
+const toolEnv = () => childEnv({ npm_config_fund: 'false', npm_config_audit: 'false', npm_config_update_notifier: 'false' });
+const posix = (p) => p.split('\\').join('/');
+
+// ── install the pinned tools into a scratch prefix ──────────────────────────
+function install(names, prefix, timeoutSec) {
+  const specs = names.map((n) => `${n}@${TOOLS[n]}`);
+  const r = spawnSync('npm', ['install', '--prefix', prefix, '--no-save', '--no-package-lock', '--ignore-scripts', '--no-audit', '--no-fund', ...specs], {
+    encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: toolEnv(),
+  });
+  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ENOENT') return { ok: false, reason: `npm is not on PATH, so ${specs.join(' and ')} could not be installed from the npm registry` };
+  if (r.error) return { ok: false, reason: `npm install ${specs.join(' ')} did not complete: ${oneLine(r.error.message)}` };
+  if (r.status !== 0) return { ok: false, reason: `npm could not install ${specs.join(' ')} from the registry (exit ${r.status}): ${lastLine(r.stderr) || 'no output'}` };
+  return { ok: true };
+}
+// the installed package's own bin, run with this node (never a shebang lookup on PATH)
+function binOf(prefix, name) {
+  const dir = join(prefix, 'node_modules', name);
+  let pkg;
+  try { pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')); } catch { return null; }
+  const bin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin && pkg.bin[name];
+  return bin ? { file: join(dir, bin), version: String(pkg.version || '') } : null;
+}
+function runTool(bin, args, cwd, timeoutSec) {
+  return spawnSync(process.execPath, [bin.file, ...args], { cwd, encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: toolEnv() });
+}
+function failure(name, r) {
+  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ETIMEDOUT') return `${name} timed out`;
+  if (r.error) return `could not spawn ${name}: ${oneLine(r.error.message)}`;
+  if (r.signal) return `${name} was killed by ${r.signal}`;
+  return `${name} exited ${r.status}: ${lastLine(r.stderr) || lastLine(r.stdout) || 'no output'}`;
+}
+
+// ── jscpd: one entry per clone pair, locations and counts only ──────────────
+function runJscpd(bin, root, scratch, timeoutSec) {
+  const out = join(scratch, 'jscpd-out');
+  const r = runTool(bin, ['--reporters', 'json', '--output', out, '--ignore', '**/node_modules/**,**/.git/**', '.'], root, timeoutSec);
+  if (r.status !== 0 || r.error || r.signal) return { status: 'failed', reason: failure('jscpd', r), exit_code: r.status ?? null };
+  let rep;
+  try { rep = JSON.parse(readFileSync(join(out, 'jscpd-report.json'), 'utf8')); } catch { rep = null; }
+  if (!rep || !Array.isArray(rep.duplicates)) return { status: 'failed', reason: 'jscpd exited 0 but wrote no readable jscpd-report.json with a duplicates list', exit_code: r.status };
+  const loc = (f) => (f && typeof f.name === 'string' && Number.isInteger(f.start)) ? { file: posix(f.name), start: f.start, end: Number.isInteger(f.end) ? f.end : f.start } : null;
+  const duplicates = [];
+  for (const d of rep.duplicates) {
+    const a = loc(d && d.firstFile), b = loc(d && d.secondFile);
+    if (!a || !b) return { status: 'failed', reason: 'jscpd reported a duplicate without both locations (truncated report?)', exit_code: r.status };
+    duplicates.push({ a, b, lines: Number.isInteger(d.lines) ? d.lines : null, tokens: Number.isInteger(d.tokens) ? d.tokens : null });
+  }
+  for (const d of rep.duplicates) delete d.fragment;   // never carry the duplicated code itself
+  return { status: 'ran', exit_code: r.status, duplicates, raw: rep };
+}
+
+// ── knip: one entry per unused item, file:line where knip gives one ─────────
+function runKnip(bin, root, timeoutSec) {
+  const r = runTool(bin, ['--reporter', 'json', '--no-progress'], root, timeoutSec);
+  if (r.error || r.signal || (r.status !== 0 && r.status !== 1)) return { status: 'failed', reason: failure('knip', r), exit_code: r.status ?? null };
+  let rep;
+  try { rep = JSON.parse(r.stdout); } catch { rep = null; }
+  if (!rep || !Array.isArray(rep.issues)) return { status: 'failed', reason: `knip exited ${r.status} but printed no JSON report with an issues list`, exit_code: r.status };
+  const unused = [];
+  for (const iss of rep.issues) {
+    if (!iss || typeof iss.file !== 'string') return { status: 'failed', reason: 'knip reported an issue without its file (truncated report?)', exit_code: r.status };
+    for (const kind of UNUSED_KINDS) {
+      const list = Array.isArray(iss[kind]) ? iss[kind] : [];
+      for (const item of list) {
+        if (!item || typeof item.name !== 'string') continue;
+        unused.push({ kind, file: posix(iss.file), line: Number.isInteger(item.line) ? item.line : 1, name: item.name });
+      }
+    }
+  }
+  return { status: 'ran', exit_code: r.status, unused, raw: rep };
+}
+
+// ── the tree: tracked files, stale names ─────────────────────────────────────
+function git(root, args) {
+  const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: MAX_BUFFER, env: toolEnv() });
+  return (!r.error && r.status === 0) ? String(r.stdout) : null;
+}
+function listFiles(root) {
+  const out = git(root, ['ls-files', '-z']);
+  if (out !== null) return out.split('\0').filter(Boolean).map(posix).sort();
+  const files = [];
+  (function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name)); continue; }
+      if (e.isFile()) files.push(posix(relative(root, join(dir, e.name))));
+    }
+  })(root);
+  return files.sort();
+}
+/** @type {Array<[string, RegExp]>} */
+const STALE_NAME = [
+  ['_old', /_old/i],
+  ['.bak', /\.bak$/i],
+  ['.orig', /\.orig$/i],
+  ['copy', /[ _-]copy( \d+)?(\.[^.]+)?$|^copy of /i],
+];
+function staleArtifacts(files) {
+  const out = [];
+  for (const f of files) {
+    const hit = STALE_NAME.find(([, re]) => re.test(basename(f)));
+    if (hit) out.push({ file: f, pattern: hit[0] });
+  }
+  // a lower -vN beside a higher one of the same name, in the same directory
+  const groups = new Map();
+  for (const f of files) {
+    const m = basename(f).match(/^(.*)-v(\d+)(.*)$/i);
+    if (!m) continue;
+    const key = `${dirname(f)}\0${m[1].toLowerCase()}\0${m[3].toLowerCase()}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push({ file: f, v: Number(m[2]) });
+  }
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const top = list.reduce((a, b) => (b.v > a.v ? b : a));
+    for (const x of list) if (x.v < top.v && !out.some((o) => o.file === x.file)) out.push({ file: x.file, pattern: '-vN', newer: top.file });
+  }
+  return out.sort((a, b) => (a.file < b.file ? -1 : 1));
+}
+
+// ── churn: commits per file over the last 90 days, or the fact there is no history ─
+function churn(root) {
+  if (git(root, ['rev-parse', '--git-dir']) === null) return { history: 'none', counts: {} };
+  if (String(git(root, ['rev-parse', '--is-shallow-repository']) || '').trim() === 'true') return { history: 'shallow', counts: {} };
+  const out = git(root, ['log', `--since=${CHURN_DAYS}.days.ago`, '--format=', '--name-only', '--relative', '--', '.']);
+  if (out === null) return { history: 'none', counts: {} };
+  const counts = {};
+  for (const l of out.split('\n').map((x) => x.trim()).filter(Boolean)) counts[posix(l)] = (counts[posix(l)] || 0) + 1;
+  return { history: 'full', counts };
+}
+
+// ── the run ──────────────────────────────────────────────────────────────────
+export function run({ target, timeout = 300, noExec = false, log = /** @type {(msg: string) => void} */ (() => {}) }) {
+  const startedAt = new Date().toISOString();
+  if (!existsSync(target) || !statSync(target).isDirectory()) throw new Error(`target is not a directory: ${target}`);
+  const root = resolve(target);
+  const tools = /** @type {Record<string, any>} */ ({});
+  const raw = /** @type {Record<string, any>} */ ({});
+  let duplicates = [], unused = [];
+
+  const hasManifest = existsSync(join(root, 'package.json'));
+  if (!hasManifest) tools.knip = { status: 'not-applicable', reason: 'no package.json at the root: knip has no project to read' };
+  else if (noExec) tools.knip = { status: 'skipped', reason: NO_EXEC_REASON };
+  const want = ['jscpd', 'knip'].filter((t) => !tools[t]);
+
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-structure-scan-'));
+  try {
+    const inst = install(want, scratch, timeout);
+    log(`  → npm install ${want.map((t) => `${t}@${TOOLS[t]}`).join(' ')}: ${inst.ok ? 'installed' : inst.reason}`);
+    for (const t of want) {
+      if (!inst.ok) { tools[t] = { status: 'skipped', reason: inst.reason }; continue; }
+      const bin = binOf(scratch, t);
+      if (!bin) { tools[t] = { status: 'skipped', reason: `npm reported ${t}@${TOOLS[t]} installed, but its package carries no ${t} bin` }; continue; }
+      const res = t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, timeout);
+      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(res.reason ? { reason: res.reason } : {}) };
+      if (res.status === 'ran') {
+        raw[t] = res.raw;
+        if (t === 'jscpd') duplicates = res.duplicates; else unused = res.unused;
+      }
+      log(`  → ${t} ${bin.version}: ${res.status}${res.reason ? ` (${res.reason})` : ''}`);
+    }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+  const envNote = proxyDropNote();
+  if (envNote) for (const t of Object.values(tools)) t.env_note = envNote;
+
+  const { history, counts } = churn(root);
+  const stale = staleArtifacts(listFiles(root));
+  log(`  → tree: ${stale.length} stale artifact(s); history ${history}`);
+
+  const found = duplicates.length + unused.length + stale.length;
+  const notRun = Object.values(tools).some((t) => t.status === 'skipped' || t.status === 'failed');
+  return {
+    tool: 'structure-scan', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
+    target: { path: target }, timeout_seconds: timeout, churn_days: CHURN_DAYS, history,
+    tools, duplicates, unused, stale, churn: counts, raw,
+    exit: (found || notRun) ? 1 : 0,
+  };
+}
+
+// ── CLI ──────────────────────────────────────────────────────────────────────
+if (isMain(import.meta.url)) {
+  const args = process.argv.slice(2);
+  const opt = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
+  const target = args.find((a, i) => !a.startsWith('--') && (i === 0 || !['--out', '--timeout'].includes(args[i - 1])));
+  const out = opt('--out');
+  const timeout = opt('--timeout') ? Number(opt('--timeout')) : 300;
+  if (!target || !out || !Number.isFinite(timeout) || timeout <= 0) {
+    console.error('usage: node assay.mjs structure-scan <target-dir> --out <file.json> [--timeout <seconds per tool, default 300>] [--no-exec]');
+    process.exit(2);
+  }
+  try {
+    const doc = run({ target, timeout, noExec: args.includes('--no-exec'), log: (m) => console.error(m) });
+    writeFileSync(isAbsolute(out) ? out : resolve(out), JSON.stringify(doc, null, 2) + '\n');
+    const t = Object.entries(doc.tools).map(([k, v]) => `${k} ${v.status}`).join(' · ');
+    console.error(`${doc.exit === 0 ? '✓' : '✗'} structure-scan: ${doc.duplicates.length} duplicate(s) · ${doc.unused.length} unused · ${doc.stale.length} stale · ${t} · history ${doc.history} → ${out}`);
+    process.exit(doc.exit);
+  } catch (e) {
+    console.error(`✗ structure-scan crashed: ${e.message}`);
+    process.exit(2);
+  }
+}
