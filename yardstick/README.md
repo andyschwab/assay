@@ -105,6 +105,17 @@ The instruments that decide rows:
   transcript format is `owner/evidence/README.md`. A tree with no deployment
   signal anywhere (contract §3d) reads the six transcript rows
   **not-applicable** — nothing is deployed to prove — never met.
+- `structure-scan` (`map/structure-scan.mjs`, contract §3e): how the code is built
+  to be changed, on the `code-maintainability` topic. It decides
+  `d-no-drifting-duplicates` (`duplicate`: no clone pair of 50 tokens or more,
+  the threshold the row states) and `d-no-dead-code` (`[unused, stale-artifact]`:
+  no unused file, export or dependency, and no tracked file named as abandoned).
+  A pass that was skipped or failed reads its row **not-measured** on its own
+  `duplicate-not-run` / `unused-not-run` fact, with the reason (knip runs only
+  under `--allow-exec`, so in the routine's gate job `d-no-dead-code` reads
+  not-measured unless a stale file is found); a tree with no `package.json`
+  reads `d-no-dead-code` **not-applicable** on `unused-not-applicable`, unless a
+  stale file is found. `d-one-home-per-fact` keeps the docs half as a claim.
 
 Prose is never read. An observation that mentions a topic is not a measurement.
 Census names are accepted as a list per requirement; a new run uses the first.
