@@ -554,9 +554,13 @@ tools do the first two and the instrument does the rest from the tree:
   reason. A repository with no `package.json` at its root reads knip
   `not-applicable`, never clean.
 - **stale artifacts** — every tracked file (`git ls-files`, else a walk
-  skipping `node_modules/` and `.git/`) named `*_old*`, `*.bak`, `*.orig`, with
-  a copy suffix (`x copy.js`, `x-copy 2.js`, `Copy of x`), or a `*-vN*` beside
-  a higher `-vM` of the same name in the same directory.
+  skipping `node_modules/` and `.git/`) whose last token before the extension
+  is `old` (`x_old.ts`, `x-old.ts`, `x.old.js`, `x.old`; never a word inside a
+  name, as in `retire_old_roles.sql`), named `*.bak` or `*.orig`, with a copy
+  suffix (`x copy.js`, `x-copy 2.js`, `Copy of x`), or a `*-vN*` beside a
+  higher `-vM` of the same name in the same directory. A file under a
+  `migrations/` directory is never a stale artifact, whatever its name: a
+  migration's name is history by design.
 - **churn** — commits touching each file in the last 90 days (`git log
   --since=90.days.ago --format= --name-only --relative`), or, with a shallow
   checkout or no history, the fact `history: shallow | none`, never a guess.
