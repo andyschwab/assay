@@ -597,7 +597,10 @@ agrees with its content. A crash of the runner itself exits `2` and halts.
 
 **Rows.** One `duplicate` gap per clone pair (evidence: both copies' first
 lines; `detail.lines` and `detail.tokens`), one `unused` gap per unused item
-(`file:line` where knip gives one, else `:1`; `detail.kind` and `detail.name`),
+(`file:line` where knip gives one, else `:1`; `detail.kind` and `detail.name`;
+a file, export, type or member row says `unconfigured: true` when the run
+recorded no knip configuration in the target, `tools.knip.config: null` — knip
+then cannot see a module reached by path, #121),
 one `stale-artifact` gap per stale file (`detail.pattern`). Every such row's
 `detail` carries `churn_90d` (for a pair, the larger of its two files) or
 `history: shallow | none`; a pair whose two copies both sit under a test path

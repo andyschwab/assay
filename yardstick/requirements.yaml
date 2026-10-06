@@ -573,12 +573,13 @@ requirements:
       category: [unused, stale-artifact]
       not_applicable_when: unused-not-applicable
       not_measured_when: unused-not-run
-    check: structure-scan ran its unused-code pass and found no unused file, export or dependency, and its tree pass found no tracked file named as abandoned; an unused-code pass that was skipped or failed reads not-measured with its reason, and a tree with no package.json reads not-applicable, unless a stale file was found
+      excluding: unconfigured
+    check: structure-scan ran its unused-code pass and found no unused dependency, and no unused file, export, type or member where the target carries a knip configuration naming its entry points (without one, knip cannot see a module reached by path, so those rows stay in the map flagged unconfigured and never decide this), and its tree pass found no tracked file named as abandoned; an unused-code pass that was skipped or failed reads not-measured with its reason, and a tree with no package.json reads not-applicable, unless a stale file was found
     sources: [issue/110, scanner-candidates/structure-scan]
     status: draft
     owner:
-      risk: "Code nobody uses still has to be understood, updated and secured, so it costs time and attention without doing anything for the app."
-      fix: "Have your AI remove what nothing references, one change at a time, with the tests green after each."
+      risk: "Code and packages nobody uses still have to be understood, updated and secured, so they cost time and attention without doing anything for the app."
+      fix: "Have your AI remove the packages and code nothing uses, one change at a time with the tests green after each; if the app loads parts of itself by name, first have it list those starting points for the unused-code checker so it can tell what is really unused."
 
   # ── operability: we can see it and afford it ─────────────────────────────
   - id: d-errors-reach-a-person
