@@ -14,8 +14,11 @@
 //      registry is the same reach fresh-clone's install already needs (§3a,
 //      "offline"); npm absent from PATH, or an install that fails, reads the tool
 //      `skipped` with the reason — never clean.
-//   2. RUN jscpd over the checkout (its JSON reporter; it only reads files) and
-//      knip in it (its JSON reporter). knip imports the target's own tool
+//   2. RUN jscpd over the checkout's source (its JSON reporter, scoped by --format
+//      to the code languages in JSCPD_FORMATS and by --ignore to JSCPD_IGNORE:
+//      lockfiles, generated snapshots, build output, vendored code; it only reads
+//      files), recording its totals (lines, duplicated lines, percentage, source
+//      files) as facts, and knip in it (its JSON reporter). knip imports the target's own tool
 //      configuration files (vite.config.*, eslint.config.*, …) to find entry
 //      points, which is executing the target's code: with `noExec` (`assay
 //      start` without --allow-exec, the routine's gate job) it is `skipped` with
@@ -62,6 +65,13 @@ export const UNUSED_KINDS = ['files', 'dependencies', 'devDependencies', 'option
 export const HISTORY = ['full', 'shallow', 'none'];
 const MAX_BUFFER = 256 * 1024 * 1024;
 const SKIP_DIRS = new Set(['node_modules', '.git']);
+// jscpd reads source code only (#117): a clone pair in a lockfile, a data file, a prose page
+// or generated output is not the maintainability claim a duplicate row makes. Its own format
+// names (`jscpd --list`); test and fixture directories stay in scope (TEST_PATH flags them).
+const JSCPD_FORMATS = ['javascript', 'typescript', 'jsx', 'tsx', 'python', 'go', 'ruby', 'java', 'kotlin', 'rust', 'php', 'csharp', 'swift', 'css', 'scss', 'sql', 'bash', 'vue', 'svelte'];
+const JSCPD_IGNORE = ['**/node_modules/**', '**/.git/**', '**/package-lock.json', '**/pnpm-lock.yaml', '**/yarn.lock', '**/migrations/meta/**', '**/*.min.*', '**/dist/**', '**/build/**', '**/.next/**', '**/coverage/**', '**/vendor/**', '**/__snapshots__/**'];
+// a path under a test or fixture directory, or a *.test.* / *.spec.* file
+export const TEST_PATH = /(^|\/)(tests?|__tests__|specs?|e2e|fixtures|__fixtures__|__mocks__)\/|\.(test|spec)\.[^/]+$/i;
 const CHURN_DAYS = 90;
 const NO_EXEC_REASON = "knip not run: it imports the target's own tool configuration files (vite.config.*, eslint.config.*, …) to find entry points, which runs the target's code; re-run with --allow-exec in a disposable container or VM";
 
@@ -102,11 +112,15 @@ function failure(name, r) {
 // ── jscpd: one entry per clone pair, locations and counts only ──────────────
 function runJscpd(bin, root, scratch, timeoutSec) {
   const out = join(scratch, 'jscpd-out');
-  const r = runTool(bin, ['--reporters', 'json', '--output', out, '--ignore', '**/node_modules/**,**/.git/**', '.'], root, timeoutSec);
+  const r = runTool(bin, ['--reporters', 'json', '--output', out, '--format', JSCPD_FORMATS.join(','), '--ignore', JSCPD_IGNORE.join(','), '.'], root, timeoutSec);
   if (r.status !== 0 || r.error || r.signal) return { status: 'failed', reason: failure('jscpd', r), exit_code: r.status ?? null };
   let rep;
   try { rep = JSON.parse(readFileSync(join(out, 'jscpd-report.json'), 'utf8')); } catch { rep = null; }
   if (!rep || !Array.isArray(rep.duplicates)) return { status: 'failed', reason: 'jscpd exited 0 but wrote no readable jscpd-report.json with a duplicates list', exit_code: r.status };
+  const tot = rep.statistics && rep.statistics.total;
+  const num = (k) => (tot && typeof tot[k] === 'number' && Number.isFinite(tot[k]) ? tot[k] : null);
+  if ([num('lines'), num('duplicatedLines'), num('percentage'), num('sources')].includes(null)) return { status: 'failed', reason: 'jscpd exited 0 but its report carries no statistics.total (lines, duplicatedLines, percentage, sources)', exit_code: r.status };
+  const statistics = { lines: num('lines'), duplicated_lines: num('duplicatedLines'), percentage: Math.round(num('percentage') * 100) / 100, sources: num('sources') };
   const loc = (f) => (f && typeof f.name === 'string' && Number.isInteger(f.start)) ? { file: posix(f.name), start: f.start, end: Number.isInteger(f.end) ? f.end : f.start } : null;
   const duplicates = [];
   for (const d of rep.duplicates) {
@@ -115,7 +129,7 @@ function runJscpd(bin, root, scratch, timeoutSec) {
     duplicates.push({ a, b, lines: Number.isInteger(d.lines) ? d.lines : null, tokens: Number.isInteger(d.tokens) ? d.tokens : null });
   }
   for (const d of rep.duplicates) delete d.fragment;   // never carry the duplicated code itself
-  return { status: 'ran', exit_code: r.status, duplicates, raw: rep };
+  return { status: 'ran', exit_code: r.status, duplicates, statistics, raw: rep };
 }
 
 // ── knip: one entry per unused item, file:line where knip gives one ─────────
@@ -222,7 +236,7 @@ export function run({ target, timeout = 300, noExec = false, log = /** @type {(m
       const bin = binOf(scratch, t);
       if (!bin) { tools[t] = { status: 'skipped', reason: `npm reported ${t}@${TOOLS[t]} installed, but its package carries no ${t} bin` }; continue; }
       const res = t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, timeout);
-      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(res.reason ? { reason: res.reason } : {}) };
+      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}) };
       if (res.status === 'ran') {
         raw[t] = res.raw;
         if (t === 'jscpd') duplicates = res.duplicates; else unused = res.unused;

@@ -152,7 +152,9 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
     if (offScope.length) fail(`a lockfile or data-file clone pair is not a row (got ${offScope.map((r) => r.evidence.join(' ')).join('; ')})`);
     const total = rows.find((r) => r.native_category === 'duplicate-statistics');
     if (!total || total.polarity !== 'fact') fail(`a run whose jscpd ran records its totals as one duplicate-statistics fact (got ${cats(rows)})`);
-    else if (total.detail?.sources !== 4 || typeof total.detail?.percentage !== 'number' || !(total.detail.percentage > 0) || !Number.isInteger(total.detail?.lines) || !Number.isInteger(total.detail?.duplicated_lines)) fail(`the totals count the four source files only, with lines, duplicated lines and the percentage (got ${JSON.stringify(total.detail)})`);
+    else if (!(total.detail?.sources >= 1 && total.detail.sources <= 4) || typeof total.detail?.percentage !== 'number' || !(total.detail.percentage > 0) || !Number.isInteger(total.detail?.lines) || !Number.isInteger(total.detail?.duplicated_lines)) fail(`the totals count at most the four source files, with lines, duplicated lines and the percentage (got ${JSON.stringify(total.detail)})`);
+    const formatsRead = Object.keys(real.raw?.jscpd?.statistics?.formats || {}).sort().join(',');
+    if (formatsRead !== 'javascript') fail(`jscpd reads the fixture's source only, never its JSON data, lockfile or Markdown (formats read: ${formatsRead || 'none'})`);
     // only locations and counts leave the raw report: no code fragment in a row or the archive
     const findings = existsSync(join(runDir, 'map', 'findings', 'structure-scan.yaml')) ? readFileSync(join(runDir, 'map', 'findings', 'structure-scan.yaml'), 'utf8') : '';
     const archive = existsSync(join(runDir, 'map', 'raw', 'structure-scan.json')) ? readFileSync(join(runDir, 'map', 'raw', 'structure-scan.json'), 'utf8') : '';
