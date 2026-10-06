@@ -552,11 +552,27 @@ tools do the first two and the instrument does the rest from the tree:
   start` passes `--no-exec` unless given `--allow-exec`, and the routine passes
   it in the two-job template's gate job; knip then reads `skipped` with that
   reason. A repository with no `package.json` at its root reads knip
-  `not-applicable`, never clean.
+  `not-applicable`, never clean. Those configuration files import the
+  target's dependencies, so knip needs them installed (#118): with
+  `node_modules` at the root it runs in place (the routine runs structure-scan
+  after fresh-clone's in-place install); with none, dependencies declared and a
+  lockfile naming the package manager (`package-lock.json` → `npm ci`,
+  `pnpm-lock.yaml` → `pnpm install --frozen-lockfile`, `yarn.lock` → `yarn
+  install --frozen-lockfile`, each with `--ignore-scripts`), they install into a
+  scratch copy of the tree, never into the target, and knip runs there; that
+  package manager absent from PATH or its install failing reads knip `skipped`
+  with the reason. With no lockfile knip runs in place, and a configuration
+  file it cannot load for a module that is not installed reads `skipped`, the
+  module named. A failure with the dependencies present stays `failed`; either
+  reason keeps the first three `ERROR:` lines knip printed, not only its last.
 - **stale artifacts** — every tracked file (`git ls-files`, else a walk
-  skipping `node_modules/` and `.git/`) named `*_old*`, `*.bak`, `*.orig`, with
-  a copy suffix (`x copy.js`, `x-copy 2.js`, `Copy of x`), or a `*-vN*` beside
-  a higher `-vM` of the same name in the same directory.
+  skipping `node_modules/` and `.git/`) whose last token before the extension
+  is `old` (`x_old.ts`, `x-old.ts`, `x.old.js`, `x.old`; never a word inside a
+  name, as in `retire_old_roles.sql`), named `*.bak` or `*.orig`, with a copy
+  suffix (`x copy.js`, `x-copy 2.js`, `Copy of x`), or a `*-vN*` beside a
+  higher `-vM` of the same name in the same directory. A file under a
+  `migrations/` directory is never a stale artifact, whatever its name: a
+  migration's name is history by design.
 - **churn** — commits touching each file in the last 90 days (`git log
   --since=90.days.ago --format= --name-only --relative`), or, with a shallow
   checkout or no history, the fact `history: shallow | none`, never a guess.

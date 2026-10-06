@@ -23,6 +23,9 @@
 //      (vite.config.*, eslint.config.*, …) to find entry points, which is
 //      executing the target's code: with `noExec` (`assay start` without
 //      --allow-exec, the routine's gate job) it is `skipped` with that reason.
+//      Those configs import the target's dependencies: with no node_modules at
+//      the root, a lockfile's package manager installs them into a scratch copy
+//      first (knipDeps, #118), or knip reads `skipped` with why it could not.
 //      A repository with no package.json has nothing knip can read:
 //      `not-applicable`, never clean. A tool that exits outside its success set
 //      (jscpd: 0 — no --threshold or --exit-code is passed, so findings never
@@ -30,9 +33,11 @@
 //      reads `failed` with its exit — a crashed tool never reads as 0 findings.
 //   3. READ the tree itself: every tracked file (`git ls-files`, else a walk
 //      skipping node_modules/ and .git/) whose name says it is abandoned —
-//      `*_old*`, `*.bak`, `*.orig`, a `copy` suffix (`x copy.js`, `x-copy.js`,
-//      `Copy of x`), and a `*-v1*` beside a `*-v2*` (every lower version of a
-//      name a higher one exists beside).
+//      `old` as the last token before the extension (`x_old.ts`, `x-old.ts`,
+//      `x.old.js`, `x.old`), `*.bak`, `*.orig`, a `copy` suffix (`x copy.js`,
+//      `x-copy.js`, `Copy of x`), and a `*-v1*` beside a `*-v2*` (every lower
+//      version of a name a higher one exists beside). A file under a
+//      `migrations/` directory is never stale: its name is history by design.
 //   4. COUNT churn: commits touching each file in the last 90 days (`git log
 //      --since=90.days.ago --format= --name-only --relative`). A shallow
 //      checkout, or no git history at all, records `history: shallow | none`
@@ -50,12 +55,13 @@
 // Usage:
 //   node assay.mjs structure-scan <target-dir> --out <file.json> [--timeout <seconds per tool, default 300>] [--no-exec]
 // Zero dependencies of its own (node: modules only); the tools are fetched per run.
-import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync, cpSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, relative, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
+import { detectToolchain } from './fresh-clone.mjs';
 
 export const VERSION = '0.1.0';
 // the pinned tool versions this instrument installs, and records, per run
@@ -145,10 +151,49 @@ export function knipConfig(dir) {
   return null;
 }
 
+// ── knip's dependencies: the target's own, installed before knip reads it (#118) ──
+// knip loads the target's tool configuration files, which import the target's
+// dependencies, so it needs them installed. node_modules at the root: knip runs in
+// place. None, with dependencies declared and a lockfile naming the package manager:
+// they install (frozen, scripts ignored) into a scratch copy of the tree, never into
+// the target, and knip runs there; that package manager absent or its install failing
+// reads knip skipped with the reason. Otherwise (no lockfile, or nothing declared) knip
+// runs in place, and a config it cannot load for a missing module reads skipped
+// (knipVerdict) rather than failed.
+const NOT_INSTALLED = "the target's dependencies are not installed (no node_modules at the root)";
+const LOCK_INSTALL = { npm: ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], pnpm: ['install', '--frozen-lockfile', '--ignore-scripts'], yarn: ['install', '--frozen-lockfile', '--ignore-scripts'] };
+// the first ERROR lines knip printed: they say what it could not load; its last line only says "Please fix"
+const knipErrors = (s) => String(s || '').split('\n').map(oneLine).filter((l) => /^ERROR:/.test(l)).slice(0, 3).join(' | ').slice(0, 600);
+const errLines = (s) => String(s || '').split('\n').map(oneLine).filter((l) => /\bERR/.test(l)).slice(0, 3).join(' | ').slice(0, 600);
+function knipDeps(root, scratch, timeoutSec) {
+  if (existsSync(join(root, 'node_modules'))) return { cwd: root, installed: true };
+  const tc = /** @type {Record<string, any>} */ (detectToolchain(root).toolchain || {});
+  if (!tc.has_dependencies || !tc.lockfile || !LOCK_INSTALL[tc.package_manager]) return { cwd: root, installed: !tc.has_dependencies };
+  const pm = tc.package_manager, args = LOCK_INSTALL[pm], cmd = `${pm} ${args.join(' ')}`;
+  const copy = join(scratch, 'knip-target');
+  const lead = `${NOT_INSTALLED}; knip loads the target's tool configuration files, which import them`;
+  try { cpSync(root, copy, { recursive: true, filter: (src) => !SKIP_DIRS.has(basename(src)) }); }
+  catch (e) { return { skip: `${lead}, and the tree could not be copied to install them into scratch: ${oneLine(e.message)}` }; }
+  const r = spawnSync(pm, args, { cwd: copy, encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: toolEnv() });
+  if (r.error && /** @type {NodeJS.ErrnoException} */ (r.error).code === 'ENOENT') return { skip: `${lead}, and ${pm} (named by ${tc.lockfile}) is not on PATH to install them` };
+  if (r.error || r.signal || r.status !== 0) return { skip: `${lead}, and \`${cmd}\` in a scratch copy did not complete (${r.error ? oneLine(r.error.message) : r.signal ? `killed by ${r.signal}` : `exit ${r.status}`}): ${errLines(r.stderr) || lastLine(r.stderr) || lastLine(r.stdout) || 'no output'}` };
+  return { cwd: copy, installed: true, note: `installed the target's dependencies with \`${cmd}\` into a scratch copy` };
+}
+// a knip that could not load a config for a module that was never installed did not
+// measure the tree (skipped, the module named); any other exit outside 0/1 is a crash
+function knipVerdict(r, installed) {
+  const errors = knipErrors(r.stderr);
+  if (!installed && !r.error && !r.signal && /Cannot find (module|package)/.test(errors)) return { status: 'skipped', reason: `${NOT_INSTALLED}: ${errors}`, exit_code: r.status };
+  const why = r.error || r.signal || !errors ? failure('knip', r) : `knip exited ${r.status}: ${errors}`;
+  return { status: 'failed', reason: why, exit_code: r.status ?? null };
+}
+
 // ── knip: one entry per unused item, file:line where knip gives one ─────────
-function runKnip(bin, root, timeoutSec) {
-  const r = runTool(bin, ['--reporter', 'json', '--no-progress'], root, timeoutSec);
-  if (r.error || r.signal || (r.status !== 0 && r.status !== 1)) return { status: 'failed', reason: failure('knip', r), exit_code: r.status ?? null };
+function runKnip(bin, root, scratch, timeoutSec) {
+  const deps = knipDeps(root, scratch, timeoutSec);
+  if (deps.skip) return { status: 'skipped', reason: deps.skip, exit_code: null };
+  const r = runTool(bin, ['--reporter', 'json', '--no-progress'], deps.cwd, timeoutSec);
+  if (r.error || r.signal || (r.status !== 0 && r.status !== 1)) { const v = knipVerdict(r, deps.installed); return { status: v.status, reason: v.reason, exit_code: v.exit_code }; }
   let rep;
   try { rep = JSON.parse(r.stdout); } catch { rep = null; }
   if (!rep || !Array.isArray(rep.issues)) return { status: 'failed', reason: `knip exited ${r.status} but printed no JSON report with an issues list`, exit_code: r.status };
@@ -163,7 +208,7 @@ function runKnip(bin, root, timeoutSec) {
       }
     }
   }
-  return { status: 'ran', exit_code: r.status, unused, raw: rep };
+  return { status: 'ran', exit_code: r.status, unused, raw: rep, note: deps.note };
 }
 
 // ── the tree: tracked files, stale names ─────────────────────────────────────
@@ -187,12 +232,17 @@ function listFiles(root) {
 }
 /** @type {Array<[string, RegExp]>} */
 const STALE_NAME = [
-  ['_old', /_old/i],
+  // `old` only as the last token before the extension (`x_old.ts`, `x-old.ts`,
+  // `x.old.js`, `x.old`), never a word inside a name (`retire_old_roles.sql`)
+  ['old', /[._-]old(\.[^.]+)?$/i],
   ['.bak', /\.bak$/i],
   ['.orig', /\.orig$/i],
   ['copy', /[ _-]copy( \d+)?(\.[^.]+)?$|^copy of /i],
 ];
-function staleArtifacts(files) {
+// a migration's name is history by design: never a stale artifact, whatever it says
+const MIGRATION_PATH = /(^|\/)migrations\//i;
+function staleArtifacts(all) {
+  const files = all.filter((f) => !MIGRATION_PATH.test(f));
   const out = [];
   for (const f of files) {
     const hit = STALE_NAME.find(([, re]) => re.test(basename(f)));
@@ -248,8 +298,8 @@ export function run({ target, timeout = 300, noExec = false, log = /** @type {(m
       if (!inst.ok) { tools[t] = { status: 'skipped', reason: inst.reason }; continue; }
       const bin = binOf(scratch, t);
       if (!bin) { tools[t] = { status: 'skipped', reason: `npm reported ${t}@${TOOLS[t]} installed, but its package carries no ${t} bin` }; continue; }
-      const res = t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, timeout);
-      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}) };
+      const res = t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, scratch, timeout);
+      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}), ...(res.note ? { note: res.note } : {}) };
       if (res.status === 'ran') {
         raw[t] = res.raw;
         if (t === 'jscpd') duplicates = res.duplicates; else unused = res.unused;

@@ -1257,6 +1257,35 @@ what the public engine learned.
   assertions were confirmed red before the change, and red again with the old
   jscpd arguments, the test flag, the statistics fact and its adapter row each
   reverted in turn. Goldens untouched.
+- **2026-10-06 — structure-scan's stale names read `old` as a suffix only, and
+  never a migration** (#120). The `_old` pattern matched `old` anywhere in a
+  base name, so a migration named `retire_old_roles.sql` read as a stale
+  artifact on a real repository. `old` now counts only as the last token
+  before the extension (`x_old.ts`, `x-old.ts`, `x.old.js`, `x.old`; the
+  pattern is recorded as `old`), and nothing under a `migrations/` directory
+  is ever stale, by name or by `-vN` (contract §structure-scan). A new
+  `structure-stale-target` fixture, read by the tree pass alone, must yield
+  exactly `src/routes_old.ts` and `src/handler.old.js`. The `structure-scan`
+  assertion was confirmed red before the change, and red again with the old
+  pattern and the migration exemption each reverted in turn. Goldens untouched.
+- **2026-10-06 — structure-scan: knip reads the target's installed dependencies**
+  (#118). knip loads the target's own tool configuration files, which import its
+  dependencies, so over a bare pnpm monorepo it exited 2 and read `failed` with
+  only its last stderr line ("Please fix or visit …"). With no `node_modules` at
+  the root, dependencies declared and a lockfile naming the package manager, the
+  dependencies now install (frozen, `--ignore-scripts`) into a scratch copy of the
+  tree, never into the target, and knip runs there; that package manager absent
+  or its install failing reads knip `skipped` with the reason. With no lockfile,
+  a configuration file knip cannot load for a module that is not installed reads
+  `skipped`, the module named. A crash with the dependencies present stays
+  `failed`, and every reason keeps knip's first three `ERROR:` lines (contract
+  §3e). The routine's order (fresh-clone's in-place install before
+  structure-scan) is pinned in the `routine` block. The new
+  `structure-scan-knip` block over `tests/instruments/structure-monorepo` was
+  confirmed red before the change (the issue's own reason), and red again with
+  the install, the scratch copy, the missing-module skip and the first-ERROR
+  reason each reverted in turn; the routine order assertion was confirmed red
+  with structure-scan moved ahead of fresh-clone. Goldens untouched.
 - **2026-10-06 — d-no-dead-code: knip's unused exports and files decide it only
   under a knip configuration** (#121). knip finds entry points from the manifest
   and its plugins and cannot see a module reached by path, so over a repository
