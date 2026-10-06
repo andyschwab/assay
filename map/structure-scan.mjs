@@ -18,11 +18,11 @@
 //      to the code languages in JSCPD_FORMATS and by --ignore to JSCPD_IGNORE:
 //      lockfiles, generated snapshots, build output, vendored code; it only reads
 //      files), recording its totals (lines, duplicated lines, percentage, source
-//      files) as facts, and knip in it (its JSON reporter). knip imports the target's own tool
-//      configuration files (vite.config.*, eslint.config.*, …) to find entry
-//      points, which is executing the target's code: with `noExec` (`assay
-//      start` without --allow-exec, the routine's gate job) it is `skipped` with
-//      that reason. A repository with no package.json has nothing knip can read:
+//      files) as facts, and knip in it (its JSON reporter). knip imports the
+//      target's own tool configuration files (vite.config.*, eslint.config.*, …)
+//      to find entry points, which is executing the target's code: with
+//      `noExec` (`assay start` without --allow-exec, the routine's gate job) it
+//      is `skipped` with that reason. A repository with no package.json has nothing knip can read:
 //      `not-applicable`, never clean. A tool that exits outside its success set
 //      (jscpd: 0 — no --threshold or --exit-code is passed, so findings never
 //      change its exit; knip: 0 clean, 1 issues) or whose report does not parse
