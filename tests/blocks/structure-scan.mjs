@@ -10,7 +10,10 @@
 //   (d) the real tools over tests/instruments/structure-target find exactly the planted
 //       duplicate pair, unused export and stale file, with file:line, and the archived
 //       raw report carries no code text. A registry this run cannot reach is a SKIPPED
-//       case that says so on stderr, never a pass.
+//       case that says so on stderr, never a pass;
+//   (e) jscpd is scoped to source (#117): the fixture's planted lockfile pair and
+//       data-file pair produce no row, a pair with both copies under a test path says
+//       `test: true`, and the run's duplication totals land as one fact, never a severity.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, cpSync, existsSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
@@ -97,8 +100,24 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
   if (toolOf(noExec, 'knip').status !== 'skipped' || !/--allow-exec/.test(toolOf(noExec, 'knip').reason || '')) fail(`without exec permission knip must read skipped naming --allow-exec (got ${JSON.stringify(toolOf(noExec, 'knip'))})`);
   if (toolOf(noExec, 'jscpd').status !== 'failed') fail('without exec permission jscpd (it only reads files) still runs');
 
+  // (e) from a document alone (no registry): a pair under a test path on both sides says
+  // test: true, a pair with one copy in source does not, and the totals are one fact
+  const statsDoc = { tool: 'structure-scan', version: SS.VERSION, exit: 1, history: 'none', churn: {}, unused: [], stale: [],
+    tools: { jscpd: { status: 'ran', version: SS.TOOLS.jscpd, statistics: { lines: 400, duplicated_lines: 30, percentage: 7.5, sources: 6 } }, knip: { status: 'not-applicable', reason: 'no package.json at the root' } },
+    duplicates: [
+      { a: { file: 'tests/fixtures/run-a/findings.yaml', start: 1, end: 12 }, b: { file: 'src/__tests__/b.test.js', start: 4, end: 15 }, lines: 12, tokens: 60 },
+      { a: { file: 'src/a.js', start: 1, end: 12 }, b: { file: 'tests/a.test.js', start: 4, end: 15 }, lines: 12, tokens: 60 },
+    ] };
+  const statsRows = convert('structure-scan', JSON.stringify(statsDoc), 1);
+  const dups = statsRows.filter((r) => r.native_category === 'duplicate');
+  if (dups[0]?.detail?.test !== true) fail(`a pair with both copies under a test path says detail.test: true (got ${JSON.stringify(dups[0]?.detail)})`);
+  if (dups[1] && 'test' in (dups[1].detail || {})) fail(`a pair with a copy in source carries no test flag (got ${JSON.stringify(dups[1].detail)})`);
+  const statsFact = statsRows.find((r) => r.native_category === 'duplicate-statistics');
+  if (!statsFact || statsFact.polarity !== 'fact' || 'severity' in statsFact) fail(`jscpd's totals land as one duplicate-statistics fact with no severity (got ${JSON.stringify(statsFact)})`);
+  else if (JSON.stringify(statsFact.detail) !== JSON.stringify({ lines: 400, duplicated_lines: 30, percentage: 7.5, sources: 6 }) || !/7\.5%/.test(statsFact.observation)) fail(`the statistics fact carries lines, duplicated lines, percentage and sources (got ${JSON.stringify(statsFact.detail)}: ${statsFact.observation})`);
+
   // every category a run can emit projects onto the shared code-maintainability axis
-  const proj = projectMulti([...absentRows, ...crashRows, ...naRows], adaptersOnce());
+  const proj = projectMulti([...absentRows, ...crashRows, ...naRows, ...statsRows], adaptersOnce());
   if (proj.unmapped.length) fail(`every structure-scan row must map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   if (proj.projected.some((p) => p.axis !== 'code-maintainability')) fail(`structure-scan rows feed code-maintainability (got ${[...new Set(proj.projected.map((p) => p.axis))].join(', ')})`);
 
@@ -128,6 +147,12 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
     if (stale && stale.evidence.join() !== 'src/invoice.js.bak:1') fail(`the planted stale file cites src/invoice.js.bak:1 (got ${stale.evidence.join()})`);
     for (const r of gaps) if (!(Number.isInteger(r.detail?.churn_90d) || ['shallow', 'none'].includes(r.detail?.history))) fail(`every row's detail carries churn_90d, or the history fact when there is none to read (got ${JSON.stringify(r.detail)} on ${r.native_id})`);
     if (gaps.some((r) => 'severity' in r)) fail('a structure-scan row records counts as facts, never a severity');
+    // (e) jscpd reads source only: the planted lockfile and data-file pairs are not rows
+    const offScope = gaps.filter((r) => r.evidence.some((e) => /^(package-lock\.json|data\/)/.test(e)));
+    if (offScope.length) fail(`a lockfile or data-file clone pair is not a row (got ${offScope.map((r) => r.evidence.join(' ')).join('; ')})`);
+    const total = rows.find((r) => r.native_category === 'duplicate-statistics');
+    if (!total || total.polarity !== 'fact') fail(`a run whose jscpd ran records its totals as one duplicate-statistics fact (got ${cats(rows)})`);
+    else if (total.detail?.sources !== 4 || typeof total.detail?.percentage !== 'number' || !(total.detail.percentage > 0) || !Number.isInteger(total.detail?.lines) || !Number.isInteger(total.detail?.duplicated_lines)) fail(`the totals count the four source files only, with lines, duplicated lines and the percentage (got ${JSON.stringify(total.detail)})`);
     // only locations and counts leave the raw report: no code fragment in a row or the archive
     const findings = existsSync(join(runDir, 'map', 'findings', 'structure-scan.yaml')) ? readFileSync(join(runDir, 'map', 'findings', 'structure-scan.yaml'), 'utf8') : '';
     const archive = existsSync(join(runDir, 'map', 'raw', 'structure-scan.json')) ? readFileSync(join(runDir, 'map', 'raw', 'structure-scan.json'), 'utf8') : '';
