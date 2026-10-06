@@ -1257,3 +1257,19 @@ what the public engine learned.
   assertions were confirmed red before the change, and red again with the old
   jscpd arguments, the test flag, the statistics fact and its adapter row each
   reverted in turn. Goldens untouched.
+- **2026-10-06 — d-no-dead-code: knip's unused exports and files decide it only
+  under a knip configuration** (#121). knip finds entry points from the manifest
+  and its plugins and cannot see a module reached by path, so over a repository
+  whose commands are dispatched from a table of module paths and that carries no
+  knip configuration, its unused files and exports were noise and read
+  `d-no-dead-code` unmet on code that is used. structure-scan now records the
+  configuration file it found (`tools.knip.config`: `knip.json`, `knip.ts`, … or
+  `package.json` for a `knip` key; `null` for none); ingest flags each unused
+  file, export, type and member row `detail.unconfigured: true` when there is
+  none, and halts on a report that lists unused items without saying. A
+  requirement may name `decide.excluding: <detail-flag>`: rows carrying it stay
+  in the map and the views and are set aside from the requirement, the note
+  counting them. `d-no-dead-code` names `unconfigured`, so an unused dependency
+  decides it either way. The `yardstick-maintainability` block was confirmed red
+  before the change, and red again with the row's `excluding` reverted. Goldens
+  untouched.
