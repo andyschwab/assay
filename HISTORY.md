@@ -1257,3 +1257,14 @@ what the public engine learned.
   assertions were confirmed red before the change, and red again with the old
   jscpd arguments, the test flag, the statistics fact and its adapter row each
   reverted in turn. Goldens untouched.
+- **2026-10-06 — structure-scan's stale names read `old` as a suffix only, and
+  never a migration** (#120). The `_old` pattern matched `old` anywhere in a
+  base name, so a migration named `retire_old_roles.sql` read as a stale
+  artifact on a real repository. `old` now counts only as the last token
+  before the extension (`x_old.ts`, `x-old.ts`, `x.old.js`, `x.old`; the
+  pattern is recorded as `old`), and nothing under a `migrations/` directory
+  is ever stale, by name or by `-vN` (contract §structure-scan). A new
+  `structure-stale-target` fixture, read by the tree pass alone, must yield
+  exactly `src/routes_old.ts` and `src/handler.old.js`. The `structure-scan`
+  assertion was confirmed red before the change, and red again with the old
+  pattern and the migration exemption each reverted in turn. Goldens untouched.
