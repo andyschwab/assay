@@ -534,8 +534,16 @@ node assay.mjs ingest <run-dir> --tool repo-census --raw repo-census.json --exit
 dependencies, files named as abandoned, and how often each file changes. Two
 tools do the first two and the instrument does the rest from the tree:
 
-- **jscpd** (MIT) — duplicated blocks, its JSON reporter, run over the checkout
-  with `node_modules/` and `.git/` ignored. It only reads files.
+- **jscpd** (MIT) — duplicated blocks, its JSON reporter, run over the
+  checkout's source only: `--format` names the code languages (JavaScript,
+  TypeScript, JSX / TSX, Python, Go, Ruby, Java, Kotlin, Rust, PHP, C#, Swift,
+  CSS / SCSS, SQL, shell, Vue, Svelte) and `--ignore` drops lockfiles
+  (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`), generated migration
+  snapshots (`**/migrations/meta/**`), minified files and `dist/`, `build/`,
+  `.next/`, `coverage/`, `vendor/`, `__snapshots__/`, `node_modules/` and
+  `.git/`, because a clone pair in a lockfile, a data file, a prose page or
+  generated output is not the claim a `duplicate` row makes. Test and fixture
+  directories stay in scope, flagged on the row. It only reads files.
 - **knip** (ISC) — unused files, exports, types, enum / namespace / class
   members and dependencies, its JSON reporter, run in the checkout. It imports
   the target's own tool configuration files (`vite.config.*`,
@@ -576,16 +584,24 @@ lines; `detail.lines` and `detail.tokens`), one `unused` gap per unused item
 (`file:line` where knip gives one, else `:1`; `detail.kind` and `detail.name`),
 one `stale-artifact` gap per stale file (`detail.pattern`). Every such row's
 `detail` carries `churn_90d` (for a pair, the larger of its two files) or
-`history: shallow | none`. A tool `skipped` or `failed` yields one fact,
-`duplicate-not-run` or `unused-not-run`, citing the archived raw report and
-saying which and why; a tree with no `package.json` yields one
-`unused-not-applicable` fact. So a tool that did not run never reads as zero
-rows, and a run record's `structure-scan: ran` means the instrument ran, with
-each tool's own disposition on these facts and in the archive. Rows carry no
-severity (the views band; until they do, these gaps are unrated) and no code:
-the document drops jscpd's duplicated `fragment`, and ingest drops it again
-from `map/raw/structure-scan.json`, which keeps both tools' reports otherwise.
-A clean run is the explicit empty `map/findings/structure-scan.yaml`.
+`history: shallow | none`; a pair whose two copies both sit under a test path
+(a `test`, `tests`, `__tests__`, `spec`, `specs`, `e2e`, `fixtures`,
+`__fixtures__` or `__mocks__` directory, or a `*.test.*` / `*.spec.*` file)
+also says `test: true`, so a view or a row can treat it apart. A jscpd that ran
+yields one `duplicate-statistics` fact whose `detail` records its totals over
+the source it read (`lines`, `duplicated_lines`, `percentage`, `sources`): the
+denominator, never a severity; a jscpd report without them reads jscpd
+`failed`. A tool `skipped` or `failed` yields one fact, `duplicate-not-run` or
+`unused-not-run`, citing the archived raw report and saying which and why; a
+tree with no `package.json` yields one `unused-not-applicable` fact. So a tool
+that did not run never reads as zero rows, and a run record's
+`structure-scan: ran` means the instrument ran, with each tool's own
+disposition on these facts and in the archive. Rows carry no severity (the
+views band; until they do, these gaps are unrated) and no code: the document
+drops jscpd's duplicated `fragment`, and ingest drops it again from
+`map/raw/structure-scan.json`, which keeps both tools' reports otherwise. A
+clean run is the explicit `map/findings/structure-scan.yaml` holding that
+statistics fact alone.
 
 **What it deliberately does not do.** It measures no cycles and no complexity
 (madge and lizard are listed second-line in `CANDIDATES.md`), asserts no

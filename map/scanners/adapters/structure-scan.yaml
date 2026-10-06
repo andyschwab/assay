@@ -2,10 +2,11 @@
 # (map/scanners/CONTRACT.md, instrument role, §3e). It installs jscpd and knip from
 # the npm registry into its own scratch at run time (neither is a dependency of
 # assay), runs them over the checkout, and reads the tree and git history itself.
-# map/ingest.mjs (profile structure-scan) turns each clone pair jscpd finds into one
-# `duplicate` gap (both locations as evidence), each unused file, export or
-# dependency knip finds into one `unused` gap, each tracked file whose name says it
-# is abandoned into one `stale-artifact` gap; a tool that did not run (skipped, or
+# map/ingest.mjs (profile structure-scan) turns each clone pair jscpd finds in source
+# into one `duplicate` gap (both locations as evidence; `test: true` when both sit
+# under a test path) and jscpd's totals into one `duplicate-statistics` fact, each
+# unused file, export or dependency knip finds into one `unused` gap, each tracked
+# file whose name says it is abandoned into one `stale-artifact` gap; a tool that did not run (skipped, or
 # failed) into one `<category>-not-run` fact, and a tree with no package.json into
 # one `unused-not-applicable` fact — never silence, never clean. Every finding
 # row's detail carries churn_90d (or `history: shallow | none`), never a severity.
@@ -24,6 +25,8 @@ map:
   unused:                       # an unused file, export or dependency (knip)
     axis: code-maintainability
   stale-artifact:               # a tracked file named as abandoned (the tree)
+    axis: code-maintainability
+  duplicate-statistics:         # a fact row: jscpd's totals over source (lines, duplicated lines, percentage, files)
     axis: code-maintainability
   duplicate-not-run:            # a fact row: jscpd skipped or failed, with the reason
     axis: code-maintainability

@@ -1241,3 +1241,19 @@ what the public engine learned.
   `maintainability-churn` block over `tests/fixtures/churn-rank` was confirmed red
   before the views changed (the walk listed by id and named no lens). Goldens
   untouched.
+- **2026-10-06 — structure-scan reads source only for duplication** (#117).
+  jscpd ran over every file type, so on real repositories its clone counts were
+  dominated by lockfiles, generated migration snapshots, data files and prose,
+  none of which is the claim a `duplicate` row makes. It now runs with
+  `--format` naming the code languages and `--ignore` dropping lockfiles,
+  `**/migrations/meta/**`, minified files and build, coverage, vendor and
+  snapshot directories. Test and fixture directories stay in scope: a pair
+  whose two copies both sit under a test path says `detail.test: true`. jscpd's
+  totals over the source it read (`lines`, `duplicated_lines`, `percentage`,
+  `sources`) land as one `duplicate-statistics` fact on `code-maintainability`,
+  never a severity, so a clean run's findings file holds that fact alone
+  (contract §3e). The `structure-target` fixture gains a planted lockfile pair
+  and a planted data-file pair that must produce no row. The new `structure-scan`
+  assertions were confirmed red before the change, and red again with the old
+  jscpd arguments, the test flag, the statistics fact and its adapter row each
+  reverted in turn. Goldens untouched.
