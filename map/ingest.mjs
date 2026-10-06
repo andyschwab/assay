@@ -599,7 +599,7 @@ const PROFILES = {
     // counts in detail), one gap per unused file / export / dependency (`unused`), one gap
     // per stale artifact (`stale-artifact`); one FACT per tool that did not run
     // (`duplicate-not-run`, `unused-not-run`: skipped or failed, with the reason), and one
-    // FACT when there is no package.json (`unused-not-applicable`) — never silence, never
+    // FACT when there is no package.json knip can run in (`unused-not-applicable`, its reason) — never silence, never
     // clean. Every finding row's detail carries churn_90d (commits touching its file, the
     // larger of a pair's two) or, with no history to read, `history: shallow | none`; a pair
     // with both copies under a test path says `test: true`. A jscpd that ran with its totals
@@ -693,7 +693,7 @@ const PROFILES = {
           rows.push({
             id: fid(startId + n++), source: 'structure-scan',
             native_id: `${cat}-not-applicable`, native_category: `${cat}-not-applicable`, polarity: 'fact',
-            observation: `No package.json at the root — there is no JavaScript project for ${t} to read ${what} from.`,
+            observation: `${t} not applicable: ${oneLine(s.reason)}. There is no JavaScript project for it to read ${what} from.`,
             evidence: ['./:1'],
           });
         }
