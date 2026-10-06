@@ -643,6 +643,9 @@ const PROFILES = {
           detail: detailFor([a.file, b.file], { lines: d.lines, tokens: d.tokens, ...(SS_TEST_PATH.test(a.file) && SS_TEST_PATH.test(b.file) ? { test: true } : {}) }),
         });
       }
+      // knip's files, exports, types and members are evidence only where the target names its
+      // entry points (#121): with no knip configuration the row stays, flagged unconfigured.
+      if (rep.unused.length && !(rep.tools.knip.config === null || (typeof rep.tools.knip.config === 'string' && rep.tools.knip.config))) throw new Error('structure-scan report lists unused items but its knip record does not say whether the target configures knip (config: a file name or null)');
       for (const u of rep.unused) {
         if (!u || typeof u.file !== 'string' || !u.file || typeof u.name !== 'string' || !SS_UNUSED_KINDS.includes(u.kind)) throw new Error('structure-scan unused item missing file / name / a known kind (truncated report?)');
         const line = Number.isInteger(u.line) ? u.line : 1;
@@ -652,7 +655,7 @@ const PROFILES = {
           observation: `${SS_UNUSED_NOUN[u.kind]} \`${oneLine(u.name)}\` in ${u.file} is not used anywhere in the project, found by knip ${rep.tools.knip.version || ''}`.trimEnd() + '.',
           evidence: [`${u.file}:${line}`],
           fix: `Remove the unused ${SS_UNUSED_NOUN[u.kind].toLowerCase()} (or, when it is a public entry point, declare it in knip's configuration); re-run structure-scan and confirm it no longer reads unused.`,
-          detail: detailFor([u.file], { kind: u.kind, name: u.name }),
+          detail: detailFor([u.file], { kind: u.kind, name: u.name, ...(rep.tools.knip.config === null && SS_ENTRY_KINDS.includes(u.kind) ? { unconfigured: true } : {}) }),
         });
       }
       for (const s of rep.stale) {
@@ -713,6 +716,9 @@ const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'En
 // the instruments' closed vocabularies are imported from the producers above (#80); a report
 // outside them is truncated or foreign. not-supported: dependency-scan documents from before 0.2.0
 const DS_STATUS = [...LOCK_STATUS, 'not-supported'];
+// the unused kinds knip can only read right when it knows the entry points; a declared
+// dependency nothing imports is unused whatever the dispatch style
+const SS_ENTRY_KINDS = ['files', 'exports', 'types', 'enumMembers', 'namespaceMembers', 'classMembers'];
 const SS_UNUSED_NOUN = { files: 'File', dependencies: 'Dependency', devDependencies: 'Dev dependency', optionalPeerDependencies: 'Optional peer dependency', exports: 'Export', types: 'Exported type', enumMembers: 'Enum member', namespaceMembers: 'Namespace member', classMembers: 'Class member' };
 // not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
 // already held — undeclared meant met for build alone until this fixed the

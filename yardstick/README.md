@@ -20,7 +20,12 @@ run-decided row (see "Claims and a run, compared" below). A `facet`/`census`/
 `decide.not_measured_when: <fact-category>`, for "the evidence to decide this
 was never gathered" rather than "this does not apply"): the name of a
 `polarity: fact` row the same scanner records when it looked for something and
-found none, or a list of such names (any one fires it). The condition only fires when the row's own decided category
+found none, or a list of such names (any one fires it). An `instrument` row may
+also name `decide.excluding: <detail-flag>`: a row whose `detail` carries that
+flag `true` is set aside from the requirement's population (it stays in the map
+and the views, and the note counts it) — the scanner says its own evidence cannot
+carry the requirement there, as structure-scan's `unconfigured` does for
+`d-no-dead-code`. The condition only fires when the row's own decided category
 carries **no** rows this run — real evidence (a gap, a strength) always governs
 over it, the same "a list is an AND, never overridden by a side fact" rule a
 joint category already holds. `d-schema-versioned` was the first row to use it: `fresh-clone` records a `no-database-signal` fact when it finds no
@@ -109,7 +114,15 @@ The instruments that decide rows:
   to be changed, on the `code-maintainability` topic. It decides
   `d-no-drifting-duplicates` (`duplicate`: no clone pair of 50 tokens or more,
   the threshold the row states) and `d-no-dead-code` (`[unused, stale-artifact]`:
-  no unused file, export or dependency, and no tracked file named as abandoned).
+  no unused dependency, no unused file, export, type or member where the target
+  configures knip, and no tracked file named as abandoned). knip finds entry
+  points from the manifest and its plugins and cannot see a module reached by
+  path (a command table of module paths), so without a knip configuration
+  (`knip.json`, `knip.ts`, … or a `knip` key in `package.json`, recorded as
+  `tools.knip.config`) its unused files, exports, types and members stay rows,
+  flagged `detail.unconfigured: true`, and the row's `decide.excluding:
+  unconfigured` sets them aside (#121); an unused dependency decides it either
+  way.
   A pass that was skipped or failed reads its row **not-measured** on its own
   `duplicate-not-run` / `unused-not-run` fact, with the reason (knip runs only
   under `--allow-exec`, so in the routine's gate job `d-no-dead-code` reads

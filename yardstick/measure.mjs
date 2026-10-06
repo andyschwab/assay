@@ -78,6 +78,10 @@ export function validateYardstick(reg) {
         const okName = (x) => typeof x === 'string' && x.length > 0;
         if (v !== undefined && !(okName(v) || (Array.isArray(v) && v.length > 0 && v.every(okName)))) errors.push(`${at}: decide.${k} must be a non-empty string, or a non-empty list of them (a fact row's native_category)`);
       }
+      // optional population rule: the name of a detail flag the scanner sets on rows its own
+      // evidence cannot carry (e.g. structure-scan's `unconfigured`, #121); such rows stay in
+      // the map and the views and never decide this requirement
+      if (d.decide.excluding !== undefined && !(typeof d.decide.excluding === 'string' && d.decide.excluding.length > 0)) errors.push(`${at}: decide.excluding must be a non-empty string (a detail flag the scanner sets)`);
     }
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
     if (!Array.isArray(d.sources) || !d.sources.length) errors.push(`${at}: sources required (extracted, not designed)`);
@@ -180,6 +184,9 @@ function categoryVerdict(scanner, category, rows, coverage) {
   return { status: 'not-measured', note: `category ${category} ${cov.status}${cov.note ? ': ' + cov.note : ''}` };
 }
 
+// a row the requirement's `decide.excluding` flag sets aside (its detail carries the flag true)
+const excluded = (d, f) => Boolean(d.decide.excluding) && f.detail?.[d.decide.excluding] === true;
+
 function byInstrument(d, fs, disp, coverage) {
   const { scanner, category } = d.decide;
   // category may be one native_category or a list of them (two rows the decider must
@@ -187,17 +194,20 @@ function byInstrument(d, fs, disp, coverage) {
   // native_category is ANY listed value; met requires EVERY listed category to be met.
   const categories = (Array.isArray(category) ? category : [category]).map(String);
   const catLabel = categories.length > 1 ? `[${categories.join(', ')}]` : categories[0];
-  const rows = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')));
+  const all = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')));
+  const rows = all.filter((f) => !excluded(d, f));
+  const aside = all.length - rows.length;
+  const asideNote = aside ? `; ${aside} row(s) flagged ${d.decide.excluding} set aside, not evidence for this requirement` : '';
   const dp = disp[scanner];
   if (!dp) return row(rows.length ? 'unmet' : 'not-measured', 'instrument', rows.map((f) => f.id), rows.length ? `${rows.length} row(s) from ${scanner} (no manifest disposition recorded)` : `${scanner} has no disposition in the run manifest`);
   if (dp.status !== 'ran') return row('not-measured', 'instrument', [], `${scanner} ${dp.status}${dp.reason ? ': ' + dp.reason : ''}`);
   const gaps = rows.filter((f) => f.polarity === 'gap'), strengths = rows.filter((f) => f.polarity === 'strength');
-  if (gaps.length) return row(strengths.length ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${catLabel}${strengths.length ? ', ' + strengths.length + ' strength' : ''}`);
+  if (gaps.length) return row(strengths.length ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${catLabel}${strengths.length ? ', ' + strengths.length + ' strength' : ''}${asideNote}`);
   // no gap rows anywhere in the listed categories: met only where every listed category
   // independently clears categoryVerdict — a list is an AND, never decided by one member alone.
   const perCat = categories.map((c) => ({ c, ...categoryVerdict(scanner, c, rows.filter((f) => String(f.native_category) === c), coverage) }));
   const unmet = perCat.filter((p) => p.status !== 'met');
-  if (!unmet.length) return row('met', 'instrument', rows.map((f) => f.id), `${scanner} ${perCat.map((p) => p.note).join('; ')}`);
+  if (!unmet.length) return row('met', 'instrument', rows.map((f) => f.id), `${scanner} ${perCat.map((p) => p.note).join('; ')}${asideNote}`);
   return row('not-measured', 'instrument', rows.map((f) => f.id), `${scanner} ${unmet.map((p) => `${p.c}: ${p.note}`).join('; ')}`);
 }
 
@@ -217,7 +227,7 @@ function evidenceCondition(d, fs, disp, key) {
   const { scanner, category } = d.decide;
   if (disp[scanner]?.status !== 'ran') return null;   // not decidable from a run that did not happen
   const categories = (Array.isArray(category) ? category : [category]).map(String);
-  const inCategory = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')));
+  const inCategory = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')) && !excluded(d, f));
   if (inCategory.length) return null;
   const conds = (Array.isArray(cond) ? cond : [cond]).map(String);   // any one of the named facts fires it
   const hits = fs.filter((f) => f.source === scanner && conds.includes(String(f.native_category)) && f.polarity === 'fact');

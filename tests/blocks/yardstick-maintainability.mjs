@@ -11,11 +11,16 @@
 //       d-no-dead-code not-applicable; a stale artifact joins d-no-dead-code's
 //       population and governs over a knip that did not run; structure-scan absent
 //       from the run record reads not-measured;
+//   (d) knip's unused files, exports, types and members decide d-no-dead-code only
+//       when the target configures knip (#121); unconfigured they stay rows flagged
+//       detail.unconfigured, and an unused dependency decides it either way;
 //   (c) Owner renders each row's risk and fix, and Intake lists each with its check.
 import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { convert } from '../../map/ingest.mjs';
+import * as SS from '../../map/structure-scan.mjs';
 import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
 
 export const label = 'yardstick-maintainability';
@@ -68,6 +73,44 @@ export async function run() {
   const absent = measure([], []);
   expect(absent, 'd-no-drifting-duplicates', 'not-measured', 'structure-scan absent from the run record');
   expect(absent, 'd-no-dead-code', 'not-measured', 'structure-scan absent from the run record');
+
+  // (d) knip's unused exports and files are evidence only where the target names its entry
+  // points (#121): a notesbox-style target whose cli.mjs dispatches commands/*.mjs by path
+  // and carries no knip configuration keeps those rows (flagged detail.unconfigured) but
+  // reads d-no-dead-code met on them alone; the same target with a knip.json reads unmet;
+  // an unused dependency reads unmet either way
+  const ssDoc = (config, unused) => JSON.stringify({ tool: 'structure-scan', version: SS.VERSION, exit: 1, history: 'none', churn: {}, duplicates: [], stale: [],
+    tools: { jscpd: { status: 'ran', version: SS.TOOLS.jscpd }, knip: { status: 'ran', version: SS.TOOLS.knip, exit_code: 1, ...(config === undefined ? {} : { config }) } }, unused });
+  const dispatched = [{ kind: 'files', file: 'commands/export.mjs', line: 1, name: 'commands/export.mjs' }, { kind: 'exports', file: 'commands/export.mjs', line: 4, name: 'exportNotes' }, { kind: 'types', file: 'lib/note.ts', line: 2, name: 'Note' }];
+  const dep = { kind: 'dependencies', file: 'package.json', line: 7, name: 'left-pad' };
+  const readDoc = (config, unused) => { try { return convert('structure-scan', ssDoc(config, unused), 1); } catch (e) { fail(`ingest must read a structure-scan document whose knip config is ${JSON.stringify(config)} (${e.message})`); return []; } };
+  const bare = readDoc(null, dispatched);
+  const flags = bare.filter((x) => x.native_category === 'unused').map((x) => x.detail?.unconfigured === true);
+  if (flags.length !== 3 || !flags.every(Boolean)) fail(`with no knip configuration every unused file, export and type row stays a row, flagged detail.unconfigured (got ${JSON.stringify(bare.map((x) => x.detail))})`);
+  const bareM = measure(bare);
+  expect(bareM, 'd-no-dead-code', 'met', 'unused exports and files of a path-dispatched target with no knip configuration', /unconfigured/);
+  const configured = readDoc('knip.json', dispatched);
+  if (configured.some((x) => 'unconfigured' in (x.detail || {}))) fail('with a knip configuration no unused row is flagged unconfigured');
+  expect(measure(configured), 'd-no-dead-code', 'unmet', 'the same unused exports and files with a knip.json');
+  for (const config of [null, 'knip.json']) {
+    const withDep = readDoc(config, [...dispatched, dep]);
+    if (withDep.find((x) => x.detail?.kind === 'dependencies')?.detail?.unconfigured) fail('an unused dependency is never flagged unconfigured');
+    const m = measure(withDep);
+    expect(m, 'd-no-dead-code', 'unmet', `an unused dependency (knip config ${config})`);
+    if (config === null && JSON.stringify(m['d-no-dead-code']?.findings) !== JSON.stringify(withDep.filter((x) => x.detail?.kind === 'dependencies').map((x) => x.id))) fail(`with no knip configuration d-no-dead-code cites the unused dependency alone (got ${m['d-no-dead-code']?.findings})`);
+  }
+  let threw = false; try { convert('structure-scan', ssDoc(undefined, dispatched), 1); } catch { threw = true; }
+  if (!threw) fail('a report listing unused items whose knip record does not say whether the target configured knip must halt ingest, never guess');
+  if (!/knip configuration/.test(String(byId['d-no-dead-code'].check))) fail('d-no-dead-code\'s check states that unused exports and files decide it only under a knip configuration');
+  // the instrument reads the configuration from the target's tree, the files knip itself reads
+  const cfgDir = join(HERE, 'tmp-yardstick-knip-config'); rmSync(cfgDir, { recursive: true, force: true }); mkdirSync(cfgDir, { recursive: true });
+  writeFileSync(join(cfgDir, 'package.json'), JSON.stringify({ name: 'notesbox' }));
+  if (SS.knipConfig(cfgDir) !== null) fail(`a package.json with no knip key and no knip file reads no configuration (got ${SS.knipConfig(cfgDir)})`);
+  writeFileSync(join(cfgDir, 'package.json'), JSON.stringify({ name: 'notesbox', knip: { entry: ['commands/*.mjs'] } }));
+  if (SS.knipConfig(cfgDir) !== 'package.json') fail(`a knip key in package.json reads as the configuration (got ${SS.knipConfig(cfgDir)})`);
+  writeFileSync(join(cfgDir, 'package.json'), JSON.stringify({ name: 'notesbox' })); writeFileSync(join(cfgDir, 'knip.ts'), 'export default {};\n');
+  if (SS.knipConfig(cfgDir) !== 'knip.ts') fail(`a knip.ts reads as the configuration (got ${SS.knipConfig(cfgDir)})`);
+  rmSync(cfgDir, { recursive: true, force: true });
 
   // (c) the notesbox fixture records structure-scan skipped: measured and compiled, both
   // rows read not-measured with that reason; Owner carries each row's risk and fix and

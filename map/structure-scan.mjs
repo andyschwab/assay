@@ -142,6 +142,18 @@ function runJscpd(bin, root, scratch, timeoutSec) {
   return { status: 'ran', exit_code: r.status, duplicates, statistics, raw: rep };
 }
 
+// ── knip's configuration: the file that names the target's entry points, or null ─
+// Without one knip cannot see a dispatch by path (a command table of module paths), so
+// its unused files, exports, types and members are not evidence there (#121); the run
+// records which file it found so ingest can say so on each such row. The names knip reads.
+const KNIP_CONFIG_FILES = ['knip.json', 'knip.jsonc', '.knip.json', '.knip.jsonc', 'knip.ts', 'knip.js', 'knip.mts', 'knip.cts', 'knip.mjs', 'knip.cjs', 'knip.config.ts', 'knip.config.js', 'knip.config.mts', 'knip.config.cts', 'knip.config.mjs', 'knip.config.cjs'];
+export function knipConfig(dir) {
+  const file = KNIP_CONFIG_FILES.find((f) => existsSync(join(dir, f)));
+  if (file) return file;
+  try { const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')); if (pkg && typeof pkg === 'object' && pkg.knip !== undefined) return 'package.json'; } catch { /* no readable manifest: no configuration in it */ }
+  return null;
+}
+
 // ── knip's dependencies: the target's own, installed before knip reads it (#118) ──
 // knip loads the target's tool configuration files, which import the target's
 // dependencies, so it needs them installed. node_modules at the root: knip runs in
@@ -314,6 +326,7 @@ export function run({ target, timeout = 300, noExec = false, log = /** @type {(m
       log(`  → ${t} ${bin.version}: ${res.status}${res.reason ? ` (${res.reason})` : ''}`);
     }
   } finally { rmSync(scratch, { recursive: true, force: true }); }
+  if (tools.knip.status === 'ran') tools.knip.config = knipConfig(kr.dir === '.' ? root : join(root, kr.dir));
   const envNote = proxyDropNote();
   if (envNote) for (const t of Object.values(tools)) t.env_note = envNote;
 

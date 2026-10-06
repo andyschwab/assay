@@ -129,6 +129,7 @@ ${pnpm === 'fail' ? "process.stderr.write(' ERR_PNPM_FETCH_404  GET https://regi
   const e = withPath(pE, () => SS.run({ target: tE }));
   if (knipOf(e).status !== 'ran') fail(`a lone app/package.json runs knip in app/ and reads ran (got ${JSON.stringify(knipOf(e))})`);
   if (knipOf(e).root !== 'app') fail(`the report records where knip ran: knip.root app (got ${JSON.stringify(knipOf(e).root)})`);
+  if (knipOf(e).config !== 'knip.json') fail(`knip's configuration is read where knip ran, app/knip.json, not at the root (got ${JSON.stringify(knipOf(e).config)})`);
   const eHit = (e.unused || []).find((u) => u.name === 'unusedHelper');
   if (!eHit || eHit.file !== 'app/src/util.js' || eHit.line !== 3) fail(`knip's rows are written relative to the repository root: unusedHelper at app/src/util.js:3 (got ${JSON.stringify(e.unused)})`);
   let npmCi = null;
