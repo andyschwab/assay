@@ -39,19 +39,24 @@ export async function run() {
   const savedPath = process.env.PATH;
   const withPath = (p, fn) => { process.env.PATH = p; try { return fn(); } finally { process.env.PATH = savedPath; } };
   const knipOf = (doc) => (doc && doc.tools && doc.tools.knip) || {};
-  const copyOf = (name) => { const d = join(tmp, name); cpSync(fixture, d, { recursive: true }); return d; };
+  const copyOf = (name, from = fixture) => { const d = join(tmp, name); cpSync(from, d, { recursive: true }); return d; };
 
   // a PATH holding a fake npm (its knip either needs node_modules/vitest in its cwd, or
-  // always crashes) and, unless pnpm is 'absent', a fake pnpm that installs or fails
+  // always crashes, or needs a package.json and node_modules/vitest in its cwd and then
+  // reports src/util.js's unused export; its `ci` installs vitest into its cwd) and,
+  // unless pnpm is 'absent', a fake pnpm that installs or fails
   const fakePath = (name, { knip, pnpm }) => {
     const dir = join(tmp, `path-${name}`); mkdirSync(dir, { recursive: true });
     const knipBin = knip === 'crash'
       ? `process.stderr.write(${JSON.stringify(CRASH.join('\n') + '\n')}); process.exit(2);\n`
+      : knip === 'reports'
+      ? `import { existsSync } from 'node:fs';\nif (!existsSync('package.json')) { process.stderr.write('ERROR: no package.json in ' + process.cwd() + '\\n'); process.exit(2); }\nif (!existsSync('node_modules/vitest')) { process.stderr.write(${JSON.stringify(MISSING.join('\n') + '\n')}); process.exit(2); }\nprocess.stdout.write(JSON.stringify({ issues: [{ file: 'src/util.js', exports: [{ name: 'unusedHelper', line: 3, col: 14 }] }] })); process.exit(1);\n`
       : `import { existsSync } from 'node:fs';\nif (!existsSync('node_modules/vitest')) { process.stderr.write(${JSON.stringify(MISSING.join('\n') + '\n')}); process.exit(2); }\nprocess.stdout.write(JSON.stringify({ issues: [] })); process.exit(0);\n`;
     writeFileSync(join(dir, 'npm'), `#!${process.execPath}
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 const args = process.argv.slice(2);
+if (args[0] === 'ci') { writeFileSync(${JSON.stringify(join(dir, 'npm-ci.json'))}, JSON.stringify({ args, cwd: process.cwd() })); mkdirSync('node_modules/vitest', { recursive: true }); process.exit(0); }
 if (args[0] !== 'install') process.exit(1);
 const prefix = args[args.indexOf('--prefix') + 1];
 for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
@@ -116,6 +121,34 @@ ${pnpm === 'fail' ? "process.stderr.write(' ERR_PNPM_FETCH_404  GET https://regi
     for (const l of CRASH.slice(0, 3)) if (!dr.includes(l.replace(/^ERROR: /, ''))) fail(`the failed reason keeps the first three ERROR lines (missing "${l}" in: ${dr})`);
     if (dr.includes('RangeError')) fail(`the failed reason keeps only the first three ERROR lines (got ${dr})`);
   }
+
+  // (e) a lone application directory: knip runs in app/, after app/'s dependencies install
+  const lone = join(HERE, 'instruments', 'structure-lone-app');
+  const tE = copyOf('e', lone);
+  const pE = fakePath('e', { knip: 'reports', pnpm: 'absent' });
+  const e = withPath(pE, () => SS.run({ target: tE }));
+  if (knipOf(e).status !== 'ran') fail(`a lone app/package.json runs knip in app/ and reads ran (got ${JSON.stringify(knipOf(e))})`);
+  if (knipOf(e).root !== 'app') fail(`the report records where knip ran: knip.root app (got ${JSON.stringify(knipOf(e).root)})`);
+  const eHit = (e.unused || []).find((u) => u.name === 'unusedHelper');
+  if (!eHit || eHit.file !== 'app/src/util.js' || eHit.line !== 3) fail(`knip's rows are written relative to the repository root: unusedHelper at app/src/util.js:3 (got ${JSON.stringify(e.unused)})`);
+  let npmCi = null;
+  try { npmCi = JSON.parse(readFileSync(join(pE, 'npm-ci.json'), 'utf8')); } catch {}
+  if (!npmCi) fail('app/\'s dependencies install with its lockfile\'s package manager (npm ci was never called)');
+  else {
+    if (npmCi.args.join(' ') !== 'ci --ignore-scripts --no-audit --no-fund') fail(`npm installs from app/'s lockfile with scripts ignored (got npm ${npmCi.args.join(' ')})`);
+    if (npmCi.cwd === tE || npmCi.cwd === join(tE, 'app')) fail('the install runs in a scratch copy, never in the target itself');
+  }
+  if (existsSync(join(tE, 'app', 'node_modules'))) fail('structure-scan never writes node_modules into the target\'s app/');
+  const eRows = convert('structure-scan', JSON.stringify(e), e.exit);
+  if (!eRows.some((r) => r.native_category === 'unused' && (r.evidence || []).includes('app/src/util.js:3'))) fail(`the unused export ingests with evidence app/src/util.js:3 (got ${JSON.stringify(eRows.map((r) => r.evidence))})`);
+
+  // (f) two application directories, no root manifest: not-applicable, both named
+  const tF = copyOf('f', lone); cpSync(join(tF, 'app'), join(tF, 'web'), { recursive: true });
+  const f = withPath(fakePath('f', { knip: 'reports', pnpm: 'absent' }), () => SS.run({ target: tF }));
+  const fr = knipOf(f).reason || '';
+  if (knipOf(f).status !== 'not-applicable' || !/\bapp\b/.test(fr) || !/\bweb\b/.test(fr)) fail(`two application directories and no root package.json read knip not-applicable naming both (got ${JSON.stringify(knipOf(f))})`);
+  const fFact = convert('structure-scan', JSON.stringify(f), f.exit).find((r) => r.native_category === 'unused-not-applicable');
+  if (!fFact || !/\bapp\b/.test(fFact.observation) || !/\bweb\b/.test(fFact.observation)) fail(`the not-applicable fact names both application directories (got ${fFact ? fFact.observation : 'no row'})`);
 
   rmSync(tmp, { recursive: true, force: true });
 }
