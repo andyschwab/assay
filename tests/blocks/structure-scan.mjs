@@ -100,6 +100,13 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
   if (toolOf(noExec, 'knip').status !== 'skipped' || !/--allow-exec/.test(toolOf(noExec, 'knip').reason || '')) fail(`without exec permission knip must read skipped naming --allow-exec (got ${JSON.stringify(toolOf(noExec, 'knip'))})`);
   if (toolOf(noExec, 'jscpd').status !== 'failed') fail('without exec permission jscpd (it only reads files) still runs');
 
+  // (f) stale names (#120): `old` counts only as the last token before the extension, and a
+  // migration is never stale whatever its name — the tree pass alone, no tools on PATH
+  const staleTarget = join(HERE, 'instruments', 'structure-stale-target');
+  const staleRun = withPath(empty, () => SS.run({ target: staleTarget }));
+  const staleFiles = (staleRun.stale || []).map((s) => s.file).sort().join(',');
+  if (staleFiles !== 'src/handler.old.js,src/routes_old.ts') fail(`the stale-name fixture reads exactly src/handler.old.js and src/routes_old.ts — never a migration, never old inside a name (got ${staleFiles || 'none'})`);
+
   // (e) from a document alone (no registry): a pair under a test path on both sides says
   // test: true, a pair with one copy in source does not, and the totals are one fact
   const statsDoc = { tool: 'structure-scan', version: SS.VERSION, exit: 1, history: 'none', churn: {}, unused: [], stale: [],
