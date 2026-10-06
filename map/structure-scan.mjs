@@ -33,9 +33,11 @@
 //      reads `failed` with its exit — a crashed tool never reads as 0 findings.
 //   3. READ the tree itself: every tracked file (`git ls-files`, else a walk
 //      skipping node_modules/ and .git/) whose name says it is abandoned —
-//      `*_old*`, `*.bak`, `*.orig`, a `copy` suffix (`x copy.js`, `x-copy.js`,
-//      `Copy of x`), and a `*-v1*` beside a `*-v2*` (every lower version of a
-//      name a higher one exists beside).
+//      `old` as the last token before the extension (`x_old.ts`, `x-old.ts`,
+//      `x.old.js`, `x.old`), `*.bak`, `*.orig`, a `copy` suffix (`x copy.js`,
+//      `x-copy.js`, `Copy of x`), and a `*-v1*` beside a `*-v2*` (every lower
+//      version of a name a higher one exists beside). A file under a
+//      `migrations/` directory is never stale: its name is history by design.
 //   4. COUNT churn: commits touching each file in the last 90 days (`git log
 //      --since=90.days.ago --format= --name-only --relative`). A shallow
 //      checkout, or no git history at all, records `history: shallow | none`
@@ -218,12 +220,17 @@ function listFiles(root) {
 }
 /** @type {Array<[string, RegExp]>} */
 const STALE_NAME = [
-  ['_old', /_old/i],
+  // `old` only as the last token before the extension (`x_old.ts`, `x-old.ts`,
+  // `x.old.js`, `x.old`), never a word inside a name (`retire_old_roles.sql`)
+  ['old', /[._-]old(\.[^.]+)?$/i],
   ['.bak', /\.bak$/i],
   ['.orig', /\.orig$/i],
   ['copy', /[ _-]copy( \d+)?(\.[^.]+)?$|^copy of /i],
 ];
-function staleArtifacts(files) {
+// a migration's name is history by design: never a stale artifact, whatever it says
+const MIGRATION_PATH = /(^|\/)migrations\//i;
+function staleArtifacts(all) {
+  const files = all.filter((f) => !MIGRATION_PATH.test(f));
   const out = [];
   for (const f of files) {
     const hit = STALE_NAME.find(([, re]) => re.test(basename(f)));
