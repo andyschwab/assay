@@ -1268,3 +1268,21 @@ what the public engine learned.
   exactly `src/routes_old.ts` and `src/handler.old.js`. The `structure-scan`
   assertion was confirmed red before the change, and red again with the old
   pattern and the migration exemption each reverted in turn. Goldens untouched.
+- **2026-10-06 — structure-scan: knip reads the target's installed dependencies**
+  (#118). knip loads the target's own tool configuration files, which import its
+  dependencies, so over a bare pnpm monorepo it exited 2 and read `failed` with
+  only its last stderr line ("Please fix or visit …"). With no `node_modules` at
+  the root, dependencies declared and a lockfile naming the package manager, the
+  dependencies now install (frozen, `--ignore-scripts`) into a scratch copy of the
+  tree, never into the target, and knip runs there; that package manager absent
+  or its install failing reads knip `skipped` with the reason. With no lockfile,
+  a configuration file knip cannot load for a module that is not installed reads
+  `skipped`, the module named. A crash with the dependencies present stays
+  `failed`, and every reason keeps knip's first three `ERROR:` lines (contract
+  §3e). The routine's order (fresh-clone's in-place install before
+  structure-scan) is pinned in the `routine` block. The new
+  `structure-scan-knip` block over `tests/instruments/structure-monorepo` was
+  confirmed red before the change (the issue's own reason), and red again with
+  the install, the scratch copy, the missing-module skip and the first-ERROR
+  reason each reverted in turn; the routine order assertion was confirmed red
+  with structure-scan moved ahead of fresh-clone. Goldens untouched.
