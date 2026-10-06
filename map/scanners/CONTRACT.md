@@ -551,8 +551,11 @@ tools do the first two and the instrument does the rest from the tree:
   it runs only where fresh-clone may (§3a, "What runs, and with what"): `assay
   start` passes `--no-exec` unless given `--allow-exec`, and the routine passes
   it in the two-job template's gate job; knip then reads `skipped` with that
-  reason. A repository with no `package.json` at its root reads knip
-  `not-applicable`, never clean. Those configuration files import the
+  reason. knip runs at the root when it holds a `package.json`, else in the one
+  directory directly beneath it that does (an application kept whole in
+  `app/`, #119), its rows' paths written relative to the repository root and
+  `knip.root` recording where it ran; with no such directory, or more than one,
+  knip reads `not-applicable`, the candidates named, never clean. Those configuration files import the
   target's dependencies, so knip needs them installed (#118): with
   `node_modules` at the root it runs in place (the routine runs structure-scan
   after fresh-clone's in-place install); with none, dependencies declared and a
@@ -609,7 +612,8 @@ the source it read (`lines`, `duplicated_lines`, `percentage`, `sources`): the
 denominator, never a severity; a jscpd report without them reads jscpd
 `failed`. A tool `skipped` or `failed` yields one fact, `duplicate-not-run` or
 `unused-not-run`, citing the archived raw report and saying which and why; a
-tree with no `package.json` yields one `unused-not-applicable` fact. So a tool
+tree with no `package.json` for knip to run in yields one `unused-not-applicable`
+fact, carrying the reason. So a tool
 that did not run never reads as zero rows, and a run record's
 `structure-scan: ran` means the instrument ran, with each tool's own
 disposition on these facts and in the archive. Rows carry no severity (the

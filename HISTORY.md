@@ -1286,3 +1286,18 @@ what the public engine learned.
   the install, the scratch copy, the missing-module skip and the first-ERROR
   reason each reverted in turn; the routine order assertion was confirmed red
   with structure-scan moved ahead of fresh-clone. Goldens untouched.
+- **2026-10-06 — structure-scan: knip runs in a lone application directory** (#119).
+  Over an application kept whole in `app/` (its `package.json` and lockfile
+  there, none at the root) knip read `not-applicable`, so `d-no-dead-code`
+  read not-applicable on a repository with plenty for knip to read. knip now
+  runs at the root when it holds a `package.json`, else in the one directory
+  directly beneath it that does, with #118's install step applied there (a
+  scratch copy of that directory); its rows' paths are written relative to the
+  repository root and the report records `knip.root`. No such directory, or
+  more than one, still reads `not-applicable`, every candidate named, and the
+  ingested `unused-not-applicable` fact now carries that reason (contract §3e).
+  The `structure-scan-knip` block gains (e) and (f) over the new
+  `tests/instruments/structure-lone-app` fixture; it was confirmed red before
+  the change (knip `not-applicable` on `app/`), and red again with the path
+  prefix, `knip.root`, the one-candidate rule and the fact's reason each
+  reverted in turn. Goldens untouched.

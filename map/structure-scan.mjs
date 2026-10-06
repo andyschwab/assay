@@ -26,8 +26,11 @@
 //      Those configs import the target's dependencies: with no node_modules at
 //      the root, a lockfile's package manager installs them into a scratch copy
 //      first (knipDeps, #118), or knip reads `skipped` with why it could not.
-//      A repository with no package.json has nothing knip can read:
-//      `not-applicable`, never clean. A tool that exits outside its success set
+//      knip runs at the root when it holds a package.json, else in the one
+//      directory directly beneath it that does (an application kept whole in
+//      app/, #119; its rows' paths written relative to the root, `knip.root`
+//      recording where it ran); none, or more than one such directory, leaves
+//      knip nothing it can read: `not-applicable`, the candidates named, never clean. A tool that exits outside its success set
 //      (jscpd: 0 — no --threshold or --exit-code is passed, so findings never
 //      change its exit; knip: 0 clean, 1 issues) or whose report does not parse
 //      reads `failed` with its exit — a crashed tool never reads as 0 findings.
@@ -176,9 +179,25 @@ function knipVerdict(r, installed) {
   return { status: 'failed', reason: why, exit_code: r.status ?? null };
 }
 
+// ── where knip runs (#119): the root when it holds a package.json, else the one
+// directory directly beneath it that does (an application kept whole in app/), else
+// nowhere: not-applicable, every candidate named ──────────────────────────────
+function knipRoot(root) {
+  if (existsSync(join(root, 'package.json'))) return { dir: '.' };
+  let dirs = [];
+  try { dirs = readdirSync(root, { withFileTypes: true }).filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name) && existsSync(join(root, e.name, 'package.json'))).map((e) => e.name).sort(); } catch { /* unreadable: none */ }
+  if (dirs.length === 1) return { dir: dirs[0] };
+  return { reason: dirs.length
+    ? `no package.json at the root, and ${dirs.length} directories directly beneath it hold one (${dirs.join(', ')}): knip has no one project to read`
+    : 'no package.json at the root or in a directory directly beneath it: knip has no project to read' };
+}
+
 // ── knip: one entry per unused item, file:line where knip gives one ─────────
-function runKnip(bin, root, scratch, timeoutSec) {
-  const deps = knipDeps(root, scratch, timeoutSec);
+// knip runs in `dir` (knipRoot) and names files relative to it; rows name them
+// relative to the repository root
+function runKnip(bin, root, dir, scratch, timeoutSec) {
+  const at = (f) => (dir === '.' ? posix(f) : `${dir}/${posix(f)}`);
+  const deps = knipDeps(dir === '.' ? root : join(root, dir), scratch, timeoutSec);
   if (deps.skip) return { status: 'skipped', reason: deps.skip, exit_code: null };
   const r = runTool(bin, ['--reporter', 'json', '--no-progress'], deps.cwd, timeoutSec);
   if (r.error || r.signal || (r.status !== 0 && r.status !== 1)) { const v = knipVerdict(r, deps.installed); return { status: v.status, reason: v.reason, exit_code: v.exit_code }; }
@@ -192,7 +211,7 @@ function runKnip(bin, root, scratch, timeoutSec) {
       const list = Array.isArray(iss[kind]) ? iss[kind] : [];
       for (const item of list) {
         if (!item || typeof item.name !== 'string') continue;
-        unused.push({ kind, file: posix(iss.file), line: Number.isInteger(item.line) ? item.line : 1, name: item.name });
+        unused.push({ kind, file: at(iss.file), line: Number.isInteger(item.line) ? item.line : 1, name: item.name });
       }
     }
   }
@@ -273,8 +292,8 @@ export function run({ target, timeout = 300, noExec = false, log = /** @type {(m
   const raw = /** @type {Record<string, any>} */ ({});
   let duplicates = [], unused = [];
 
-  const hasManifest = existsSync(join(root, 'package.json'));
-  if (!hasManifest) tools.knip = { status: 'not-applicable', reason: 'no package.json at the root: knip has no project to read' };
+  const kr = knipRoot(root);
+  if (kr.reason) tools.knip = { status: 'not-applicable', reason: kr.reason };
   else if (noExec) tools.knip = { status: 'skipped', reason: NO_EXEC_REASON };
   const want = ['jscpd', 'knip'].filter((t) => !tools[t]);
 
@@ -286,8 +305,8 @@ export function run({ target, timeout = 300, noExec = false, log = /** @type {(m
       if (!inst.ok) { tools[t] = { status: 'skipped', reason: inst.reason }; continue; }
       const bin = binOf(scratch, t);
       if (!bin) { tools[t] = { status: 'skipped', reason: `npm reported ${t}@${TOOLS[t]} installed, but its package carries no ${t} bin` }; continue; }
-      const res = t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, scratch, timeout);
-      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}), ...(res.note ? { note: res.note } : {}) };
+      const res = t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, kr.dir, scratch, timeout);
+      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(t === 'knip' ? { root: kr.dir } : {}), ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}), ...(res.note ? { note: res.note } : {}) };
       if (res.status === 'ran') {
         raw[t] = res.raw;
         if (t === 'jscpd') duplicates = res.duplicates; else unused = res.unused;
