@@ -14,7 +14,7 @@ title: "assay maintainer report — structural template"
   {{...}} markers are replaced by the compiler; HTML comments below are section source-rules
   and are stripped from the output.
 -->
-# AI-Native Readiness Report — {{TARGET}}
+# AI-Native Readiness Report: {{TARGET}}
 
 **Prepared for:** {{MAINTAINER}}  ·  **Date:** {{DATE}}  ·  **Run:** `{{RUN_ID}}`
 

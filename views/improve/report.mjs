@@ -96,7 +96,7 @@ function securityRisks() {
   const out = [];
   if (!active.length && !watch.length) return '_No security exposures identified in this review._';
   if (active.length) {
-    out.push('The security review\'s exposures, most likely first. Each is a decision, not a verdict — ' +
+    out.push('The security review\'s exposures, most likely first. Each is a decision, not a verdict: ' +
              'fix it, accept the risk, or investigate.\n');
     for (const e of active) {
       const ids = (e.findings || []).map((id) => byId.has(id) ? id : `${id}⚠`).join(', ');
@@ -109,7 +109,7 @@ function securityRisks() {
   if (watch.length) {
     out.push(`### Standing watch (lower priority)\n`);
     for (const e of watch)
-      out.push(`- **${cell(e.title || e.name)}** (${(e.findings || []).join(', ')}) — _${cell(e.what)}_  \n  · **watch:** ${cell(e.fix)}`);
+      out.push(`- **${cell(e.title || e.name)}** (${(e.findings || []).join(', ')}): _${cell(e.what)}_  \n  · **watch:** ${cell(e.fix)}`);
     out.push('');
   }
   // dispositions (§6c): unsupervised kinds deliberately not gated, with the reason. Surfaced so
@@ -119,7 +119,7 @@ function securityRisks() {
     out.push(`### Accepted or deferred\n`);
     out.push(`These actions can act without a stop and are left that way on purpose. Each has a recorded reason, so no gap is dropped silently:\n`);
     for (const d of dispo)
-      out.push(`- **${cell(channelLabel(d.channel, prose.channel_notes || {}))}** (_${cell(d.reason)}_) — ${cell(d.note)}`);
+      out.push(`- **${cell(channelLabel(d.channel, prose.channel_notes || {}))}** (_${cell(d.reason)}_): ${cell(d.note)}`);
     out.push('');
   }
   return out.join('\n');
@@ -452,7 +452,7 @@ if (unfilled) { console.error(`unfilled markers remain: ${[...new Set(unfilled)]
 // or self-eval run stays unmarked). A downstream renderer, where one exists,
 // reads from the first `## ` heading, so this frontmatter never reaches it.
 const fmTitle = String(prose.target || app).replace(/"/g, "'");
-const frontmatter = `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "AI-Native Readiness Report — ${fmTitle}"\n---\n\n`;
+const frontmatter = `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "AI-Native Readiness Report: ${fmTitle}"\n---\n\n`;
 const outPath = improvePagePath(runDir);
 writeFileSync(outPath, frontmatter + body);
 
