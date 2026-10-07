@@ -1317,3 +1317,18 @@ what the public engine learned.
   the change (knip `not-applicable` on `app/`), and red again with the path
   prefix, `knip.root`, the one-candidate rule and the fact's reason each
   reverted in turn. Goldens untouched.
+- **2026-10-07 — dependency-scan keeps to the repository's own files** (#100).
+  When the routine runs on a working tree, fresh-clone builds in place and its
+  output lands in the checkout; dependency-scan then walked that output and read
+  the `package.json` files a framework's standalone build emits as manifests no
+  lockfile covers, so `d-dependencies-known-clean` read not measured on a
+  repository where nothing had changed. The walk now covers the files a git top
+  level tracks, or, for any other directory, what its `.gitignore` files do not
+  exclude, and the document records `scope.rule` (`tracked`, `gitignore`, or
+  `all` with the reason git could not be run); instrument version 0.3.0
+  (contract §3c). The `dependency-scan-manifests` block plants `dist/` and
+  `web/.next/standalone/` output under `.gitignore` in a repository and in a
+  plain directory, plus an untracked manifest in the repository; it was
+  confirmed red before the change (the ignored lockfile audited, the untracked
+  manifest recorded uncovered, no scope), and red again with the tracked rule
+  and the `.gitignore` rule each reverted in turn. Goldens untouched.

@@ -8,7 +8,11 @@
 //
 // What it does, in order:
 //   1. ENUMERATE every package-lock.json / npm-shrinkwrap.json, pnpm-lock.yaml
-//      and yarn.lock in the tree (node_modules/ and .git/ excluded).
+//      and yarn.lock in the tree (node_modules/ and .git/ excluded), over the
+//      repository's own files only (#100): a git top level is walked over what it
+//      tracks, any other directory skips what its .gitignore files exclude, so a
+//      build run in place (fresh-clone --no-clone) never puts its output's
+//      package.json files on the record. The document's `scope` says which.
 //   1a. AUDIT each pnpm-lock.yaml with `pnpm audit --json` and each yarn
 //      classic yarn.lock with `yarn audit --json`, both read from the lockfile
 //      alone (no install), from a scratch copy (step 2). Both report npm's v6
@@ -61,7 +65,7 @@
 // Usage:
 //   node assay.mjs dependency-scan <target-dir> --out <file.json> [--timeout <seconds per lockfile, default 300>]
 // Zero dependencies (node: modules only).
-import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync, copyFileSync, realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, dirname, relative, basename } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -69,7 +73,7 @@ import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
 import { readPnpmWorkspace, workspaceGlobRe } from './fresh-clone.mjs';
 
-export const VERSION = '0.2.0';   // 0.2.0: pnpm + yarn classic audited; `not-supported` became `not-run`
+export const VERSION = '0.3.0';   // 0.3.0: the walk keeps to the repository's own files (`scope`, #100); 0.2.0: pnpm + yarn classic audited
 export const LOCK_STATUS = ['audited', 'failed', 'not-run'];
 export const SEVERITIES = ['critical', 'high', 'moderate', 'low', 'info'];
 const MAX_BUFFER = 64 * 1024 * 1024;
@@ -91,19 +95,63 @@ function inScratch(lockPath, fn) {
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 }
 
-// ── enumerate lockfiles ──────────────────────────────────────────────────────
-function findLockfiles(root) {
-  const npm = [], other = [];
+// ── the repository's own files (#100) ───────────────────────────────────────
+// A build run in place writes package.json files (and sometimes lockfiles) into its
+// gitignored output — dist/, a framework's .next/standalone/ — and those are the
+// evaluation's side effect, not the repository's manifests. A git top level is
+// walked over the files it tracks (ignored and untracked paths are not the
+// repository's); any other directory skips what its own .gitignore files exclude,
+// read by git against a scratch repository so neither an enclosing repository nor
+// the evaluator's global excludes decide it. Without a working git the whole tree
+// is walked and `scope.reason` says why: more manifests counted reads not
+// measured, never a clean that was not earned.
+const KEEP_ALL = () => true;
+function gitOut(args) {
+  const r = spawnSync('git', args, { encoding: 'utf8', maxBuffer: MAX_BUFFER, env: childEnv() });
+  return (!r.error && r.status === 0) ? String(r.stdout) : null;
+}
+const nulList = (out) => out.split('\0').filter(Boolean);
+function repositoryScope(root) {
+  const top = gitOut(['-C', root, 'rev-parse', '--show-toplevel']);
+  let isTop = false;
+  try { isTop = top !== null && realpathSync(top.trim()) === realpathSync(root); } catch { /* not comparable: not a top level */ }
+  if (isTop) {
+    const out = gitOut(['-C', root, 'ls-files', '-z', '--cached', '--recurse-submodules']);
+    if (out === null) return { rule: 'all', reason: 'git ls-files failed on the repository, so the whole tree was walked', keep: KEEP_ALL };
+    const files = new Set(nulList(out)), dirs = new Set();
+    for (const f of files) for (let d = dirname(f); d !== '.'; d = dirname(d)) dirs.add(d);
+    return { rule: 'tracked', keep: (rel, isDir) => (isDir ? dirs : files).has(rel) };
+  }
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-dependency-scan-git-'));
+  try {
+    if (gitOut(['init', '-q', scratch]) === null) return { rule: 'all', reason: 'git is not available on the runner, so .gitignore was not read and the whole tree was walked', keep: KEEP_ALL };
+    const out = gitOut(['--git-dir', join(scratch, '.git'), '--work-tree', root, 'ls-files', '-z', '--others', '--ignored', '--exclude-per-directory=.gitignore', '--directory']);
+    if (out === null) return { rule: 'all', reason: 'git could not read the tree\'s .gitignore files, so the whole tree was walked', keep: KEEP_ALL };
+    const ignored = new Set(nulList(out));
+    return { rule: 'gitignore', keep: (rel, isDir) => !ignored.has(isDir ? rel + '/' : rel) };
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+}
+// walk the tree under root, calling visit(dir, name) for each file the scope keeps
+function walkFiles(root, keep, visit) {
   (function walk(dir) {
     let entries;
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const e of entries.sort((a, b) => a.name < b.name ? -1 : 1)) {
-      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name)); continue; }
-      if (e.name === 'package-lock.json' || e.name === 'npm-shrinkwrap.json') npm.push(join(dir, e.name));
-      else if (e.name === 'pnpm-lock.yaml') other.push({ path: join(dir, e.name), manager: 'pnpm' });
-      else if (e.name === 'yarn.lock') other.push({ path: join(dir, e.name), manager: 'yarn' });
+      const rel = relative(root, join(dir, e.name)).split('\\').join('/');
+      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name) && keep(rel, true)) walk(join(dir, e.name)); continue; }
+      if (keep(rel, false)) visit(dir, e.name);
     }
   })(root);
+}
+
+// ── enumerate lockfiles ──────────────────────────────────────────────────────
+function findLockfiles(root, keep = KEEP_ALL) {
+  const npm = [], other = [];
+  walkFiles(root, keep, (dir, name) => {
+    if (name === 'package-lock.json' || name === 'npm-shrinkwrap.json') npm.push(join(dir, name));
+    else if (name === 'pnpm-lock.yaml') other.push({ path: join(dir, name), manager: 'pnpm' });
+    else if (name === 'yarn.lock') other.push({ path: join(dir, name), manager: 'yarn' });
+  });
   return { npm: npm.sort(), other: other.sort((a, b) => a.path < b.path ? -1 : 1) };
 }
 
@@ -113,24 +161,19 @@ function findLockfiles(root) {
 // no lockfile": the former is not-applicable (there is no dependency graph to
 // speak of); the latter is not-measured (there is one, but nothing audited it).
 const nonEmptyDeps = (pkg) => !!(pkg && typeof pkg === 'object' && ['dependencies', 'devDependencies', 'optionalDependencies'].some((k) => pkg[k] && typeof pkg[k] === 'object' && Object.keys(pkg[k]).length));
-export function findManifests(root) {
+export function findManifests(root, keep = KEEP_ALL) {
   const manifests = [];
-  (function walk(dir) {
-    let entries;
-    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
-    for (const e of entries.sort((a, b) => a.name < b.name ? -1 : 1)) {
-      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(join(dir, e.name)); continue; }
-      if (e.name !== 'package.json') continue;
-      const p = join(dir, e.name);
-      // a leading BOM is stripped; a manifest that still does not parse is counted as
-      // one that may declare dependencies — never skipped, or a tree whose only
-      // manifest is malformed would read no-manifest (not applicable)
-      let pkg = null;
-      try { pkg = JSON.parse(readFileSync(p, 'utf8').replace(/^\uFEFF/, '')); }
-      catch { manifests.push({ dir, path: p, hasDependencies: true, unparseable: true }); continue; }
-      manifests.push({ dir, path: p, hasDependencies: nonEmptyDeps(pkg) });
-    }
-  })(root);
+  walkFiles(root, keep, (dir, name) => {
+    if (name !== 'package.json') return;
+    const p = join(dir, name);
+    // a leading BOM is stripped; a manifest that still does not parse is counted as
+    // one that may declare dependencies — never skipped, or a tree whose only
+    // manifest is malformed would read no-manifest (not applicable)
+    let pkg = null;
+    try { pkg = JSON.parse(readFileSync(p, 'utf8').replace(/^\uFEFF/, '')); }
+    catch { manifests.push({ dir, path: p, hasDependencies: true, unparseable: true }); return; }
+    manifests.push({ dir, path: p, hasDependencies: nonEmptyDeps(pkg) });
+  });
   return manifests.sort((a, b) => a.path < b.path ? -1 : 1);
 }
 // A manifest is "covered" when a lockfile (npm or otherwise — any lockfile is
@@ -369,7 +412,9 @@ export function run({ target, timeout = 300, log = /** @type {(msg: string) => v
   const startedAt = new Date().toISOString();
   if (!existsSync(target) || !statSync(target).isDirectory()) throw new Error(`target is not a directory: ${target}`);
   const root = resolve(target);
-  const { npm, other } = findLockfiles(root);
+  const { keep, ...scope } = repositoryScope(root);
+  if (scope.reason) log(`  → scope: ${scope.reason}`);
+  const { npm, other } = findLockfiles(root, keep);
   const lockfiles = /** @type {any[]} */ ([]);
   for (const lp of npm) lockfiles.push({ manager: 'npm', ...auditLockfile(lp, root, timeout, log) });
   for (const o of other) lockfiles.push(auditOtherLockfile(o, root, timeout, log));
@@ -383,7 +428,7 @@ export function run({ target, timeout = 300, log = /** @type {(msg: string) => v
   // Zero manifests anywhere in the tree is the distinct not-applicable fact:
   // there is no dependency graph at all to audit.
   const lockDirs = new Set([...npm.map((p) => dirname(p)), ...other.map((o) => dirname(o.path))]);
-  const allManifests = findManifests(root);
+  const allManifests = findManifests(root, keep);
   const uncovered = allManifests.filter((m) => m.hasDependencies && !isCoveredByLockfile(m.dir, root, lockDirs));
   const manifests = uncovered.map((m) => ({ path: relative(root, m.path).split('\\').join('/'), status: 'no-lockfile', ...(m.unparseable ? { unparseable: true } : {}) }));
   const noManifest = allManifests.length === 0;
@@ -396,7 +441,7 @@ export function run({ target, timeout = 300, log = /** @type {(msg: string) => v
   const anyUncovered = manifests.length > 0;
   return {
     tool: 'dependency-scan', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
-    target: { path: target }, timeout_seconds: timeout, lockfiles, manifests, noManifest,
+    target: { path: target }, timeout_seconds: timeout, scope, lockfiles, manifests, noManifest,
     exit: (anyAdvisory || anyFailed || anyNotRun || anyUncovered) ? 1 : 0,
   };
 }

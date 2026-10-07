@@ -320,7 +320,15 @@ target's npm dependency graph — the floor the yardstick asks a
 dependency scanner to clear (`d-dependencies-known-clean`, decided on its
 `critical` category). It walks the tree (skipping `node_modules/` and `.git/`)
 for every `package-lock.json` / `npm-shrinkwrap.json` and runs `npm audit
---json` against each, with no install. Every lockfile — npm, pnpm or yarn — is
+--json` against each, with no install. The walk keeps to the repository's own
+files (#100): a git top level is walked over the files it tracks, and any other
+directory skips what its own `.gitignore` files exclude (read by git against a
+scratch repository, never an enclosing one's rules or the evaluator's global
+excludes), so the output of a build fresh-clone ran in place (`dist/`, a
+framework's `.next/standalone/`) is never a manifest or a lockfile on the
+record. The document's `scope.rule` says which (`tracked`, `gitignore`, or
+`all` with a `reason` when git could not be run: the whole tree walked, which
+can only add manifests nothing audited, never a clean that was not earned). Every lockfile — npm, pnpm or yarn — is
 audited from a scratch directory holding only it and its `package.json`
 (`method: scratch-copy`; documents from before #47 also carry `in-place`),
 never in the target's tree (§3a, "What runs, and with what").
