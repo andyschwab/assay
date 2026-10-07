@@ -1241,3 +1241,79 @@ what the public engine learned.
   `maintainability-churn` block over `tests/fixtures/churn-rank` was confirmed red
   before the views changed (the walk listed by id and named no lens). Goldens
   untouched.
+- **2026-10-06 — structure-scan reads source only for duplication** (#117).
+  jscpd ran over every file type, so on real repositories its clone counts were
+  dominated by lockfiles, generated migration snapshots, data files and prose,
+  none of which is the claim a `duplicate` row makes. It now runs with
+  `--format` naming the code languages and `--ignore` dropping lockfiles,
+  `**/migrations/meta/**`, minified files and build, coverage, vendor and
+  snapshot directories. Test and fixture directories stay in scope: a pair
+  whose two copies both sit under a test path says `detail.test: true`. jscpd's
+  totals over the source it read (`lines`, `duplicated_lines`, `percentage`,
+  `sources`) land as one `duplicate-statistics` fact on `code-maintainability`,
+  never a severity, so a clean run's findings file holds that fact alone
+  (contract §3e). The `structure-target` fixture gains a planted lockfile pair
+  and a planted data-file pair that must produce no row. The new `structure-scan`
+  assertions were confirmed red before the change, and red again with the old
+  jscpd arguments, the test flag, the statistics fact and its adapter row each
+  reverted in turn. Goldens untouched.
+- **2026-10-06 — structure-scan's stale names read `old` as a suffix only, and
+  never a migration** (#120). The `_old` pattern matched `old` anywhere in a
+  base name, so a migration named `retire_old_roles.sql` read as a stale
+  artifact on a real repository. `old` now counts only as the last token
+  before the extension (`x_old.ts`, `x-old.ts`, `x.old.js`, `x.old`; the
+  pattern is recorded as `old`), and nothing under a `migrations/` directory
+  is ever stale, by name or by `-vN` (contract §structure-scan). A new
+  `structure-stale-target` fixture, read by the tree pass alone, must yield
+  exactly `src/routes_old.ts` and `src/handler.old.js`. The `structure-scan`
+  assertion was confirmed red before the change, and red again with the old
+  pattern and the migration exemption each reverted in turn. Goldens untouched.
+- **2026-10-06 — structure-scan: knip reads the target's installed dependencies**
+  (#118). knip loads the target's own tool configuration files, which import its
+  dependencies, so over a bare pnpm monorepo it exited 2 and read `failed` with
+  only its last stderr line ("Please fix or visit …"). With no `node_modules` at
+  the root, dependencies declared and a lockfile naming the package manager, the
+  dependencies now install (frozen, `--ignore-scripts`) into a scratch copy of the
+  tree, never into the target, and knip runs there; that package manager absent
+  or its install failing reads knip `skipped` with the reason. With no lockfile,
+  a configuration file knip cannot load for a module that is not installed reads
+  `skipped`, the module named. A crash with the dependencies present stays
+  `failed`, and every reason keeps knip's first three `ERROR:` lines (contract
+  §3e). The routine's order (fresh-clone's in-place install before
+  structure-scan) is pinned in the `routine` block. The new
+  `structure-scan-knip` block over `tests/instruments/structure-monorepo` was
+  confirmed red before the change (the issue's own reason), and red again with
+  the install, the scratch copy, the missing-module skip and the first-ERROR
+  reason each reverted in turn; the routine order assertion was confirmed red
+  with structure-scan moved ahead of fresh-clone. Goldens untouched.
+- **2026-10-06 — d-no-dead-code: knip's unused exports and files decide it only
+  under a knip configuration** (#121). knip finds entry points from the manifest
+  and its plugins and cannot see a module reached by path, so over a repository
+  whose commands are dispatched from a table of module paths and that carries no
+  knip configuration, its unused files and exports were noise and read
+  `d-no-dead-code` unmet on code that is used. structure-scan now records the
+  configuration file it found (`tools.knip.config`: `knip.json`, `knip.ts`, … or
+  `package.json` for a `knip` key; `null` for none); ingest flags each unused
+  file, export, type and member row `detail.unconfigured: true` when there is
+  none, and halts on a report that lists unused items without saying. A
+  requirement may name `decide.excluding: <detail-flag>`: rows carrying it stay
+  in the map and the views and are set aside from the requirement, the note
+  counting them. `d-no-dead-code` names `unconfigured`, so an unused dependency
+  decides it either way. The `yardstick-maintainability` block was confirmed red
+  before the change, and red again with the row's `excluding` reverted. Goldens
+  untouched.
+- **2026-10-06 — structure-scan: knip runs in a lone application directory** (#119).
+  Over an application kept whole in `app/` (its `package.json` and lockfile
+  there, none at the root) knip read `not-applicable`, so `d-no-dead-code`
+  read not-applicable on a repository with plenty for knip to read. knip now
+  runs at the root when it holds a `package.json`, else in the one directory
+  directly beneath it that does, with #118's install step applied there (a
+  scratch copy of that directory); its rows' paths are written relative to the
+  repository root and the report records `knip.root`. No such directory, or
+  more than one, still reads `not-applicable`, every candidate named, and the
+  ingested `unused-not-applicable` fact now carries that reason (contract §3e).
+  The `structure-scan-knip` block gains (e) and (f) over the new
+  `tests/instruments/structure-lone-app` fixture; it was confirmed red before
+  the change (knip `not-applicable` on `app/`), and red again with the path
+  prefix, `knip.root`, the one-candidate rule and the fact's reason each
+  reverted in turn. Goldens untouched.

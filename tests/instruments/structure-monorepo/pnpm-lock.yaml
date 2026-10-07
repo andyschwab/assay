@@ -1,0 +1,3 @@
+lockfileVersion: '9.0'
+# a stand-in lockfile: the regression harness's fake pnpm never reads it; its presence
+# is what tells structure-scan which package manager installs the dependencies (#118)

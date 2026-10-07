@@ -51,6 +51,10 @@ export async function run() {
         && (rows['gitleaks']?.status !== 'skipped' || !/not its git repository's top level/.test(rows['gitleaks']?.reason || '')))
         fail(`a target inside an enclosing repository must read gitleaks skipped with the not-a-top-level reason, whatever is on PATH (got ${JSON.stringify(rows['gitleaks'])})`);
     }
+    // knip (in structure-scan) loads the target's tool configs, which import its
+    // dependencies: the routine runs structure-scan after fresh-clone's in-place install (#118)
+    const fcAt = logs.findIndex((l) => /^· fresh-clone\b/.test(l)), ssAt = logs.findIndex((l) => /^· structure-scan\b/.test(l));
+    if (fcAt < 0 || ssAt < 0 || fcAt > ssAt) fail(`the routine runs fresh-clone (its in-place install) before structure-scan, so knip reads installed dependencies (fresh-clone at line ${fcAt}, structure-scan at ${ssAt})`);
     if (!existsSync(join(runDir, 'INDEX.md'))) fail('runRoutine must compile the package (INDEX.md missing)');
     if (!logs.some((l) => /no packet\/baseline\.yaml committed yet/.test(l))) fail('with no baseline, runRoutine must print a visible warning, never silence');
 

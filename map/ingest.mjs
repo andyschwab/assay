@@ -62,7 +62,7 @@ import { setScannerRow, updateRunRecord } from './record.mjs';
 import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
 import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS } from './fresh-clone.mjs';
 import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs';
-import { TOOL_STATUS as SS_TOOL_STATUS, UNUSED_KINDS as SS_UNUSED_KINDS, HISTORY as SS_HISTORY } from './structure-scan.mjs';
+import { TOOL_STATUS as SS_TOOL_STATUS, UNUSED_KINDS as SS_UNUSED_KINDS, HISTORY as SS_HISTORY, TEST_PATH as SS_TEST_PATH } from './structure-scan.mjs';
 
 // The routine uploads the whole run, map/raw/ included, as a workflow artifact
 // (routine/README.md), so a raw archive is minimised like gitleaks': a tail of a
@@ -599,9 +599,12 @@ const PROFILES = {
     // counts in detail), one gap per unused file / export / dependency (`unused`), one gap
     // per stale artifact (`stale-artifact`); one FACT per tool that did not run
     // (`duplicate-not-run`, `unused-not-run`: skipped or failed, with the reason), and one
-    // FACT when there is no package.json (`unused-not-applicable`) — never silence, never
+    // FACT when there is no package.json knip can run in (`unused-not-applicable`, its reason) — never silence, never
     // clean. Every finding row's detail carries churn_90d (commits touching its file, the
-    // larger of a pair's two) or, with no history to read, `history: shallow | none`.
+    // larger of a pair's two) or, with no history to read, `history: shallow | none`; a pair
+    // with both copies under a test path says `test: true`. A jscpd that ran with its totals
+    // recorded yields one FACT (`duplicate-statistics`: lines, duplicated lines, percentage,
+    // source files) — the denominator, never a verdict.
     // Rows carry locations and counts only, never a severity (the views band) and never code.
     convert(raw, startId, exitCode) {
       const rep = parseJson(raw, 'structure-scan');
@@ -637,9 +640,12 @@ const PROFILES = {
           observation: `${a.file}:${a.start}-${a.end} and ${b.file}:${b.start}-${b.end} carry the same block${Number.isInteger(d.lines) ? ` (${d.lines} lines` + (Number.isInteger(d.tokens) ? `, ${d.tokens} tokens)` : ')') : ''}, found by jscpd ${rep.tools.jscpd.version || ''}`.trimEnd() + '; a change to one copy has to be made twice.',
           evidence: [`${a.file}:${a.start}`, `${b.file}:${b.start}`],
           fix: 'Extract the duplicated block into one function or module both locations call (or delete the copy that is not used); re-run structure-scan and confirm the pair is gone.',
-          detail: detailFor([a.file, b.file], { lines: d.lines, tokens: d.tokens }),
+          detail: detailFor([a.file, b.file], { lines: d.lines, tokens: d.tokens, ...(SS_TEST_PATH.test(a.file) && SS_TEST_PATH.test(b.file) ? { test: true } : {}) }),
         });
       }
+      // knip's files, exports, types and members are evidence only where the target names its
+      // entry points (#121): with no knip configuration the row stays, flagged unconfigured.
+      if (rep.unused.length && !(rep.tools.knip.config === null || (typeof rep.tools.knip.config === 'string' && rep.tools.knip.config))) throw new Error('structure-scan report lists unused items but its knip record does not say whether the target configures knip (config: a file name or null)');
       for (const u of rep.unused) {
         if (!u || typeof u.file !== 'string' || !u.file || typeof u.name !== 'string' || !SS_UNUSED_KINDS.includes(u.kind)) throw new Error('structure-scan unused item missing file / name / a known kind (truncated report?)');
         const line = Number.isInteger(u.line) ? u.line : 1;
@@ -649,7 +655,7 @@ const PROFILES = {
           observation: `${SS_UNUSED_NOUN[u.kind]} \`${oneLine(u.name)}\` in ${u.file} is not used anywhere in the project, found by knip ${rep.tools.knip.version || ''}`.trimEnd() + '.',
           evidence: [`${u.file}:${line}`],
           fix: `Remove the unused ${SS_UNUSED_NOUN[u.kind].toLowerCase()} (or, when it is a public entry point, declare it in knip's configuration); re-run structure-scan and confirm it no longer reads unused.`,
-          detail: detailFor([u.file], { kind: u.kind, name: u.name }),
+          detail: detailFor([u.file], { kind: u.kind, name: u.name, ...(rep.tools.knip.config === null && SS_ENTRY_KINDS.includes(u.kind) ? { unconfigured: true } : {}) }),
         });
       }
       for (const s of rep.stale) {
@@ -661,6 +667,17 @@ const PROFILES = {
           evidence: [`${s.file}:1`],
           fix: 'Delete the stale file (version history keeps it), or rename it if it is still live; re-run structure-scan and confirm it is gone.',
           detail: detailFor([s.file], { pattern: s.pattern, ...(s.newer ? { newer: s.newer } : {}) }),
+        });
+      }
+      const st = rep.tools.jscpd.status === 'ran' ? rep.tools.jscpd.statistics : undefined;
+      if (st !== undefined) {
+        if (!st || !['lines', 'duplicated_lines', 'percentage', 'sources'].every((k) => typeof st[k] === 'number' && Number.isFinite(st[k]))) throw new Error('structure-scan jscpd statistics missing lines / duplicated_lines / percentage / sources (truncated report?)');
+        rows.push({
+          id: fid(startId + n++), source: 'structure-scan',
+          native_id: 'duplicate-statistics', native_category: 'duplicate-statistics', polarity: 'fact',
+          observation: `jscpd ${rep.tools.jscpd.version || ''}`.trimEnd() + ` read ${st.sources} source file(s), ${st.lines} line(s), of which ${st.duplicated_lines} (${st.percentage}%) sit in a clone pair; lockfiles, data files, prose and generated output are out of its scope.`,
+          evidence: ['map/raw/structure-scan.json:1'],
+          detail: { lines: st.lines, duplicated_lines: st.duplicated_lines, percentage: st.percentage, sources: st.sources },
         });
       }
       for (const [t, cat, what] of [['jscpd', 'duplicate', 'duplicated code'], ['knip', 'unused', 'unused files, exports and dependencies']]) {
@@ -676,7 +693,7 @@ const PROFILES = {
           rows.push({
             id: fid(startId + n++), source: 'structure-scan',
             native_id: `${cat}-not-applicable`, native_category: `${cat}-not-applicable`, polarity: 'fact',
-            observation: `No package.json at the root — there is no JavaScript project for ${t} to read ${what} from.`,
+            observation: `${t} not applicable: ${oneLine(s.reason)}. There is no JavaScript project for it to read ${what} from.`,
             evidence: ['./:1'],
           });
         }
@@ -699,6 +716,9 @@ const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'En
 // the instruments' closed vocabularies are imported from the producers above (#80); a report
 // outside them is truncated or foreign. not-supported: dependency-scan documents from before 0.2.0
 const DS_STATUS = [...LOCK_STATUS, 'not-supported'];
+// the unused kinds knip can only read right when it knows the entry points; a declared
+// dependency nothing imports is unused whatever the dispatch style
+const SS_ENTRY_KINDS = ['files', 'exports', 'types', 'enumMembers', 'namespaceMembers', 'classMembers'];
 const SS_UNUSED_NOUN = { files: 'File', dependencies: 'Dependency', devDependencies: 'Dev dependency', optionalPeerDependencies: 'Optional peer dependency', exports: 'Export', types: 'Exported type', enumMembers: 'Enum member', namespaceMembers: 'Namespace member', classMembers: 'Class member' };
 // not declared ⇒ a gap (absence is not clean, the same rule lint/typecheck/test
 // already held — undeclared meant met for build alone until this fixed the

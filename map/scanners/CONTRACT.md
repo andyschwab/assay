@@ -534,8 +534,16 @@ node assay.mjs ingest <run-dir> --tool repo-census --raw repo-census.json --exit
 dependencies, files named as abandoned, and how often each file changes. Two
 tools do the first two and the instrument does the rest from the tree:
 
-- **jscpd** (MIT) — duplicated blocks, its JSON reporter, run over the checkout
-  with `node_modules/` and `.git/` ignored. It only reads files.
+- **jscpd** (MIT) — duplicated blocks, its JSON reporter, run over the
+  checkout's source only: `--format` names the code languages (JavaScript,
+  TypeScript, JSX / TSX, Python, Go, Ruby, Java, Kotlin, Rust, PHP, C#, Swift,
+  CSS / SCSS, SQL, shell, Vue, Svelte) and `--ignore` drops lockfiles
+  (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`), generated migration
+  snapshots (`**/migrations/meta/**`), minified files and `dist/`, `build/`,
+  `.next/`, `coverage/`, `vendor/`, `__snapshots__/`, `node_modules/` and
+  `.git/`, because a clone pair in a lockfile, a data file, a prose page or
+  generated output is not the claim a `duplicate` row makes. Test and fixture
+  directories stay in scope, flagged on the row. It only reads files.
 - **knip** (ISC) — unused files, exports, types, enum / namespace / class
   members and dependencies, its JSON reporter, run in the checkout. It imports
   the target's own tool configuration files (`vite.config.*`,
@@ -543,12 +551,31 @@ tools do the first two and the instrument does the rest from the tree:
   it runs only where fresh-clone may (§3a, "What runs, and with what"): `assay
   start` passes `--no-exec` unless given `--allow-exec`, and the routine passes
   it in the two-job template's gate job; knip then reads `skipped` with that
-  reason. A repository with no `package.json` at its root reads knip
-  `not-applicable`, never clean.
+  reason. knip runs at the root when it holds a `package.json`, else in the one
+  directory directly beneath it that does (an application kept whole in
+  `app/`, #119), its rows' paths written relative to the repository root and
+  `knip.root` recording where it ran; with no such directory, or more than one,
+  knip reads `not-applicable`, the candidates named, never clean. Those configuration files import the
+  target's dependencies, so knip needs them installed (#118): with
+  `node_modules` at the root it runs in place (the routine runs structure-scan
+  after fresh-clone's in-place install); with none, dependencies declared and a
+  lockfile naming the package manager (`package-lock.json` → `npm ci`,
+  `pnpm-lock.yaml` → `pnpm install --frozen-lockfile`, `yarn.lock` → `yarn
+  install --frozen-lockfile`, each with `--ignore-scripts`), they install into a
+  scratch copy of the tree, never into the target, and knip runs there; that
+  package manager absent from PATH or its install failing reads knip `skipped`
+  with the reason. With no lockfile knip runs in place, and a configuration
+  file it cannot load for a module that is not installed reads `skipped`, the
+  module named. A failure with the dependencies present stays `failed`; either
+  reason keeps the first three `ERROR:` lines knip printed, not only its last.
 - **stale artifacts** — every tracked file (`git ls-files`, else a walk
-  skipping `node_modules/` and `.git/`) named `*_old*`, `*.bak`, `*.orig`, with
-  a copy suffix (`x copy.js`, `x-copy 2.js`, `Copy of x`), or a `*-vN*` beside
-  a higher `-vM` of the same name in the same directory.
+  skipping `node_modules/` and `.git/`) whose last token before the extension
+  is `old` (`x_old.ts`, `x-old.ts`, `x.old.js`, `x.old`; never a word inside a
+  name, as in `retire_old_roles.sql`), named `*.bak` or `*.orig`, with a copy
+  suffix (`x copy.js`, `x-copy 2.js`, `Copy of x`), or a `*-vN*` beside a
+  higher `-vM` of the same name in the same directory. A file under a
+  `migrations/` directory is never a stale artifact, whatever its name: a
+  migration's name is history by design.
 - **churn** — commits touching each file in the last 90 days (`git log
   --since=90.days.ago --format= --name-only --relative`), or, with a shallow
   checkout or no history, the fact `history: shallow | none`, never a guess.
@@ -573,19 +600,31 @@ agrees with its content. A crash of the runner itself exits `2` and halts.
 
 **Rows.** One `duplicate` gap per clone pair (evidence: both copies' first
 lines; `detail.lines` and `detail.tokens`), one `unused` gap per unused item
-(`file:line` where knip gives one, else `:1`; `detail.kind` and `detail.name`),
+(`file:line` where knip gives one, else `:1`; `detail.kind` and `detail.name`;
+a file, export, type or member row says `unconfigured: true` when the run
+recorded no knip configuration in the target, `tools.knip.config: null` — knip
+then cannot see a module reached by path, #121),
 one `stale-artifact` gap per stale file (`detail.pattern`). Every such row's
 `detail` carries `churn_90d` (for a pair, the larger of its two files) or
-`history: shallow | none`. A tool `skipped` or `failed` yields one fact,
-`duplicate-not-run` or `unused-not-run`, citing the archived raw report and
-saying which and why; a tree with no `package.json` yields one
-`unused-not-applicable` fact. So a tool that did not run never reads as zero
-rows, and a run record's `structure-scan: ran` means the instrument ran, with
-each tool's own disposition on these facts and in the archive. Rows carry no
-severity (the views band; until they do, these gaps are unrated) and no code:
-the document drops jscpd's duplicated `fragment`, and ingest drops it again
-from `map/raw/structure-scan.json`, which keeps both tools' reports otherwise.
-A clean run is the explicit empty `map/findings/structure-scan.yaml`.
+`history: shallow | none`; a pair whose two copies both sit under a test path
+(a `test`, `tests`, `__tests__`, `spec`, `specs`, `e2e`, `fixtures`,
+`__fixtures__` or `__mocks__` directory, or a `*.test.*` / `*.spec.*` file)
+also says `test: true`, so a view or a row can treat it apart. A jscpd that ran
+yields one `duplicate-statistics` fact whose `detail` records its totals over
+the source it read (`lines`, `duplicated_lines`, `percentage`, `sources`): the
+denominator, never a severity; a jscpd report without them reads jscpd
+`failed`. A tool `skipped` or `failed` yields one fact, `duplicate-not-run` or
+`unused-not-run`, citing the archived raw report and saying which and why; a
+tree with no `package.json` for knip to run in yields one `unused-not-applicable`
+fact, carrying the reason. So a tool
+that did not run never reads as zero rows, and a run record's
+`structure-scan: ran` means the instrument ran, with each tool's own
+disposition on these facts and in the archive. Rows carry no severity (the
+views band; until they do, these gaps are unrated) and no code: the document
+drops jscpd's duplicated `fragment`, and ingest drops it again from
+`map/raw/structure-scan.json`, which keeps both tools' reports otherwise. A
+clean run is the explicit `map/findings/structure-scan.yaml` holding that
+statistics fact alone.
 
 **What it deliberately does not do.** It measures no cycles and no complexity
 (madge and lizard are listed second-line in `CANDIDATES.md`), asserts no
