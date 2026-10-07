@@ -1317,3 +1317,16 @@ what the public engine learned.
   the change (knip `not-applicable` on `app/`), and red again with the path
   prefix, `knip.root`, the one-candidate rule and the fact's reason each
   reverted in turn. Goldens untouched.
+- **2026-10-07 — assay start: a tool an instrument skipped or failed gets its own
+  log line** (#129). When structure-scan recorded knip skipped (the target's
+  dependencies not installed, its package manager absent, `--no-exec`), `assay
+  start` logged structure-scan as ran and said nothing about knip; the reason
+  was only in the run record and the raw report. `map/start.mjs`'s
+  `ingestInstrumentRaw` now reads the ingested report's `tools` record and logs
+  one line per tool recorded `skipped` or `failed`, with the reason's first
+  sentence (`· structure-scan: knip skipped — …`). It is generic over the record
+  (`tools.<name>.status`, `.reason`), so any instrument with one gets the same
+  line. The `start` block runs start over a copy of
+  `tests/instruments/structure-monorepo` with pnpm off PATH and a fake npm whose
+  jscpd exits 3, asserting both lines; it was confirmed red before the change
+  and red again with the logging call reverted. Goldens untouched.
