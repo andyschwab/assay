@@ -1360,3 +1360,24 @@ what the public engine learned.
   confirmed red before the change (the ignored lockfile audited, the untracked
   manifest recorded uncovered, no scope), and red again with the tracked rule
   and the `.gitignore` rule each reverted in turn. Goldens untouched.
+- **2026-10-07 — a fixture that gives dependency-scan something to find** (#17).
+  No fixture target had a lockfile, so the stored runs recorded dependency-scan as
+  a clean run with no rows: a recall miss, an advisory homed on the wrong axis,
+  or a failed-lockfile row regressing could not show. A new target,
+  `lockfiles`, carries two planted lockfiles: `legacy/package-lock.json`,
+  truncated so npm refuses it before reaching the registry (ENOLOCK, a
+  `lockfile-failed` gap and a `lockfile-not-audited` fact on any runner, the
+  deterministic answer), and `app/package-lock.json`, pinning minimist 1.2.5
+  (critical GHSA-xvch-5gv4-984h, the advisory answer, whose sheet says how to
+  re-check it when the feed changes). The two sit in separate directories
+  because the scorer's suffix rule would match a root `package-lock.json:1`
+  against `legacy/package-lock.json:1`. The stored run
+  `tests/fixtures/lockfiles` is dependency-scan's real output over the target;
+  the target's files wait in `tests/fixtures/pending-assay-fixtures/` (as
+  `.pending`, so this repository's dependency graph does not alert on them)
+  until assay-fixtures carries them. The `dependency-scan-fixture` block scores
+  the run against its sheet and scans the truncated lockfile end to end,
+  offline; it was confirmed red with the `lockfile-failed` axis moved off
+  code-security, with a failed npm audit read as a clean lockfile, and with
+  ingest dropping the `lockfile-failed` gap. Not pinned in `tests/golden.json`;
+  goldens and the yardstick untouched.

@@ -1,0 +1,23 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
+engine: fixture
+scanners:
+  repo-eval:
+    status: skipped
+    reason: "fixture run: this target exists for dependency-scan alone (tests/fixtures/README.md)"
+  deep-code-review:
+    status: skipped
+    reason: "fixture run: the code scanner was not executed over this public target"
+  gitleaks:
+    status: skipped
+    reason: "fixture run: this target exists for dependency-scan alone (tests/fixtures/README.md)"
+  fresh-clone:
+    status: skipped
+    reason: "fixture run: this target exists for dependency-scan alone (tests/fixtures/README.md)"
+  dependency-scan:
+    status: ran
+  repo-census:
+    status: skipped
+    reason: "repo-scoped: run at the fixture repository root and scored there (tests/fixtures/fixtures-root)"
+  structure-scan:
+    status: skipped
+    reason: "fixture run: structure-scan was not executed over this public target"
