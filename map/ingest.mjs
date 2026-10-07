@@ -52,8 +52,8 @@
 // <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
 // the next hundred above the run's highest existing id, whichever is higher (nextStart).
 // Library: convert(tool, rawText, exitCode, startId), nextStart(runDir, tool).
-import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync, realpathSync } from 'node:fs';
+import { join, resolve, relative, sep, isAbsolute } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapter } from './project.mjs';
@@ -260,6 +260,11 @@ const PROFILES = {
       if (![0, 1].includes(rep.exit)) throw new Error(`fresh-clone report exit "${rep.exit}" is not 0 | 1 (truncated report?)`);
       if (exitCode !== undefined && exitCode !== null && Number(exitCode) !== rep.exit) throw new Error(`fresh-clone report says exit ${rep.exit} but the runner exited ${exitCode} — the document does not describe the run it is filed under`);
       if (rep.workspaces !== undefined && !Array.isArray(rep.workspaces)) throw new Error('fresh-clone report workspaces must be a list (truncated report?)');
+      // app (#35): the directory the runner ran in, relative to its root — every path the
+      // document names for that entry (manifest, test config, workspaces) is relative to
+      // it, so rows prefix it; `readme` is already named from the root
+      if (rep.app !== undefined && !(rep.app && typeof rep.app.path === 'string' && rep.app.path && !rep.app.path.split('/').includes('..'))) throw new Error('fresh-clone report app must carry a path inside the tree (truncated report?)');
+      const appDir = rep.app ? `${rep.app.path}/` : '';
 
       const rows = []; let n = 0;
 
@@ -371,8 +376,8 @@ const PROFILES = {
       const hasSignals = (tc) => Array.isArray(tc && tc.database_signals) && tc.database_signals.length > 0;
       const rootDbSignals = hasSignals(rep.toolchain) || (Array.isArray(rep.workspaces) && rep.workspaces.some((w) => w && hasSignals(w.toolchain)));
       emitEntry(rep.steps, rep.readme_claims, {
-        idPrefix: '', inLabel: '', errLabel: '', dir: '',
-        manifest: (rep.toolchain && rep.toolchain.manifest) ? `${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
+        idPrefix: '', inLabel: rep.app ? ` in ${rep.app.path}` : '', errLabel: '', dir: appDir,
+        manifest: (rep.toolchain && rep.toolchain.manifest) ? `${appDir}${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
         readme: rep.readme || 'README.md',
         hasDbSignals: rootDbSignals,
       });
@@ -381,11 +386,12 @@ const PROFILES = {
         if (!w || typeof w.path !== 'string' || !w.path) throw new Error('fresh-clone workspace entry missing path (truncated report?)');
         if (!Array.isArray(w.steps)) throw new Error(`fresh-clone workspace ${w.path} has no steps[] (truncated report?)`);
         if (!Array.isArray(w.readme_claims)) throw new Error(`fresh-clone workspace ${w.path} has no readme_claims[] (truncated report?)`);
+        const wp = `${appDir}${w.path}`;
         const wDbSignals = Array.isArray(w.toolchain && w.toolchain.database_signals) && w.toolchain.database_signals.length > 0;
         emitEntry(w.steps, w.readme_claims, {
-          idPrefix: `${w.path}:`, inLabel: ` in workspace ${w.path}`, errLabel: ` workspace ${w.path}`, dir: `${w.path}/`,
-          manifest: (w.toolchain && w.toolchain.manifest) ? `${w.path}/${w.toolchain.manifest}:1` : `${w.path}/package.json:1`,
-          readme: `${w.path}/${w.readme || 'README.md'}`,
+          idPrefix: `${wp}:`, inLabel: ` in workspace ${wp}`, errLabel: ` workspace ${wp}`, dir: `${wp}/`,
+          manifest: (w.toolchain && w.toolchain.manifest) ? `${wp}/${w.toolchain.manifest}:1` : `${wp}/package.json:1`,
+          readme: `${wp}/${w.readme || 'README.md'}`,
           hasDbSignals: wDbSignals,
         });
       }
@@ -765,9 +771,35 @@ function firstPath(details) {
   return null;
 }
 
+// ── scope (#35, from #37): the root an instrument ran at, against the run's target ──
+// fresh-clone, dependency-scan and repo-census name their root (`target.path`) and cite
+// paths relative to it. Run in a directory inside the run's target (fresh-clone
+// <target>/app), their evidence is rebased onto the target (`package.json:1` →
+// `app/package.json:1`), which is what `validate --target` reads. Run at a root that is
+// neither the target nor inside it, the rows are kept as written and the scope is
+// returned `outside` for the caller to warn on: a component-scoped run over a subtree
+// is normal, so this never halts. A URL root names no place here and is not compared.
+const SCOPED = ['fresh-clone', 'dependency-scan', 'repo-census'];
+function scopeOf(tool, rawText, target) {
+  if (!target || !SCOPED.includes(tool)) return null;
+  let root = null;
+  try { root = JSON.parse(rawText).target.path; } catch { return null; }
+  if (typeof root !== 'string' || !root || /^(?:[a-z][\w+.-]*:\/\/|[\w.-]+@[\w.-]+:)/i.test(root)) return null;
+  const real = (p) => { try { return realpathSync(p); } catch { return resolve(p); } };
+  const rel = relative(real(target), real(root)).split(sep).join('/');
+  const at = { root: resolve(root), target: resolve(target) };
+  if (!rel) return { ...at, relation: 'same', prefix: null };
+  if (rel === '..' || rel.startsWith('../') || isAbsolute(rel)) return { ...at, relation: 'outside', prefix: null };
+  return { ...at, relation: 'inside', prefix: rel };
+}
+// a run-relative raw-report citation stays; the instrument's own root (`./:1`) becomes the prefix's
+const rebase = (prefix) => (e) => String(e).startsWith('map/raw/') ? e : String(e).startsWith('./:') ? `${prefix}/${String(e).slice(2)}` : `${prefix}/${String(e).replace(/^\.\//, '')}`;
+
 // ── convert (library) ────────────────────────────────────────────────────────
 // opts.stripPrefix: an absolute target-root prefix to strip from tool-reported
 // paths, so evidence lands target-relative (what `validate.mjs --target` checks).
+// opts.target: the run's target root; the rows carry `scope` (scopeOf) and are rebased
+// when the instrument ran inside it.
 export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
   const p = PROFILES[tool];
   if (!p) throw new Error(`unknown instrument "${tool}" (profiles: ${Object.keys(PROFILES).join(', ')})`);
@@ -785,6 +817,11 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
     const pre = opts.stripPrefix.endsWith('/') ? opts.stripPrefix : opts.stripPrefix + '/';
     const strip = (s) => String(s).split(pre).join('');
     for (const r of rows) { r.evidence = r.evidence.map(strip); r.native_id = strip(r.native_id); }
+  }
+  const scope = scopeOf(tool, rawText, opts.target);
+  if (scope) {
+    rows.scope = scope;
+    if (scope.relation === 'inside') for (const r of rows) r.evidence = r.evidence.map(rebase(scope.prefix));
   }
   return rows;
 }
@@ -888,10 +925,13 @@ if (isMain(import.meta.url)) {
   const runDir = args[0];
   const opt = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
   const tool = opt('--tool'), rawPath = opt('--raw'), exit = opt('--exit'), start = opt('--start'), stripPrefix = opt('--strip-prefix'), model = opt('--model');
+  // the run's target root: --target, else the one the run record holds (`assay start` writes it)
+  let target = opt('--target');
+  if (!target && existsSync(scannersPath(runDir))) { try { const t = parseYaml(readFileSync(scannersPath(runDir), 'utf8')).target; if (typeof t === 'string' && t) target = t; } catch { /* validate reports a malformed record */ } }
   const exitless = tool && PROFILES[tool] && PROFILES[tool].exitless;
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--model <id>]');
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--model <id>]');
+    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
+    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
     console.error('       node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
     process.exit(2);
   }
@@ -903,8 +943,10 @@ if (isMain(import.meta.url)) {
     startId = `F-${ns.start}`;
     startNote = `F-${ns.start}: ${ns.reason}`;
   } else startNote = `${startId}: given on the command line (--start)`;
-  try { rows = convert(tool, rawText, exit, startId, { stripPrefix }); }
+  try { rows = convert(tool, rawText, exit, startId, { stripPrefix, target }); }
   catch (e) { console.error(`✗ ingest halted: ${e.message}`); process.exit(1); }
+  if (rows.scope && rows.scope.relation === 'outside') console.error(`⚠ ingest: ${tool} ran at ${rows.scope.root}, which is not the run's target (${rows.scope.target}) nor inside it — its rows are ingested as the instrument wrote them, and a result drawn over another scope can be confidently wrong; re-run ${tool} at the target, or at a directory inside it, unless this scope was intended.`);
+  if (rows.scope && rows.scope.relation === 'inside') console.log(`· ${tool} ran at ${rows.scope.prefix}/ inside the run's target: evidence rebased onto the target (${rows.scope.prefix}/…)`);
   mkdirSync(findingsDir(runDir), { recursive: true });
   mkdirSync(rawDir(runDir), { recursive: true });
   const rawDst = rawArtifactPath(runDir, PROFILES[tool].raw || `${tool}.json`);

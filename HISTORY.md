@@ -1408,6 +1408,38 @@ what the public engine learned.
   code-security, with a failed npm audit read as a clean lockfile, and with
   ingest dropping the `lockfile-failed` gap. Not pinned in `tests/golden.json`;
   goldens and the yardstick untouched.
+- **2026-10-07 — fresh-clone and ingest find a lone app directory** (#35, with #37
+  item 3). A repository keeping its whole application in `app/`, with nothing at the
+  root, read "no package.json in the tree": six steps not declared and every README
+  claim missing, and the workaround (fresh-clone run in `app/`) ingested
+  `package.json:1`, which `validate --target` rejected. fresh-clone now runs in the
+  lone directory beneath the root holding the only `package.json` (structure-scan's
+  knipRoot rule) or in `--app <dir>`, replays the root README there, and records
+  `app` (0.5.0) and an absolute local root; ingest cites the app's files from the
+  repository root, and places the root fresh-clone, dependency-scan and repo-census
+  name against the run's target, which `assay start` now records (`target:` in
+  `map/scanners.yaml`) and passes: a root inside the target is rebased onto it, one
+  outside it is kept and warned on with both paths. The `fresh-clone-lone-app` block
+  and its fixture pin it; confirmed red before the change, and with the rebase, the
+  warning and the app prefix each reverted on its own. Goldens untouched.
+- **2026-10-07 — SCHEMA stops leaving the map lane guessing** (#34). A map-only
+  lane can now write a canon and a base from SCHEMA alone. §8's canon example is in
+  block style and parses with `lib/yaml-min` (it used flow maps the reader refuses),
+  and §8 says block style binds canons. The drift check runs from
+  `validate <run> --canon <name>` with no view file (it activated only from
+  `views/improve/prose.yaml`). §8 lists the census names, kept equal to the
+  yardstick's census `measures` by the harness. It states a polarity rule for an
+  effect (`gap` when no gate holds on an irreversible or external effect, `fact`
+  otherwise, gated or not; a gate worth crediting is its own `control` strength),
+  chosen because it matches the repository's own fixtures best. It defines
+  `external: false` for an org-owned store on third-party infrastructure. Every
+  census population in a canon now carries a membership `rule`, and validate
+  refuses one without a rule or with an unknown `subject_type`. §7 states that the
+  base holds facts about the target only, with a fact about the run going to
+  `map/scanners.yaml` or a view. The generated Improve title and §5 lose their
+  em-dashes. The `schema-map-lane` block pins all eight; it was confirmed red for
+  each item's own reason before the change (item 8's `--target` refusal already
+  held and is pinned as it stands). Goldens untouched.
 - **2026-10-07 — known answers for the yardstick** (#18). The fixtures graded
   the map and nothing graded the measurement. Each scored sheet now carries a
   `requirements:` list (the status a run over the target should read, with a
