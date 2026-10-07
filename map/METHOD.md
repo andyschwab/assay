@@ -134,7 +134,9 @@ Run **`node assay.mjs enumerate <target>`** at terrain time: it
 mechanically lists the grep-detectable members of these populations so the passes
 assess a closed list. Once the base is written, run it again with
 `--run <run-dir>` for the **coverage gate** — which enumerated live-surface members
-no finding cites; verdict each or record why it is out of scope. And when a **prior
+no finding cites; verdict each or record why it is out of scope. A finding's `evidence`
+(any file type, block or flow form) and its `covers` list count; one finding may cover a
+byte-identical family through `covers` (SCHEMA §6b), members that vary get one each. And when a **prior
 run of the same target exists**, diff the new base against it (matching on *fact*,
 not id) and re-verify any prior-only fact — a cheap, deterministic completeness
 check that recovers real misses.
