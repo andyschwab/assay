@@ -3,8 +3,10 @@
 // dependencies and no lockfile in its own directory, nor in an ancestor whose workspaces include it, is uncovered
 // (never silently clean); zero package.json anywhere is the distinct
 // not-applicable fact.
-import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync, mkdtempSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { run as runDependencyScan } from '../../map/dependency-scan.mjs';
 import { HERE, negFailures, convert } from '../harness.mjs';
 
@@ -88,4 +90,47 @@ export async function run() {
   if (!commaFact || !/could not be parsed/.test(commaFact.observation)) fail(`ingest must say the unparseable manifest could not be parsed (got ${JSON.stringify(commaFact?.observation)})`);
   if (badRows.some((r) => r.native_category === 'no-manifest')) fail('ingest must write no no-manifest row for a tree that has manifests');
   rmSync(tmpBad, { recursive: true, force: true });
+
+  // (#100) the repository's manifests only: a build run in place (fresh-clone --no-clone)
+  // writes package.json files into gitignored output (dist/, .next/standalone/); those are
+  // the instrument's own side effect, never manifests nothing audited. A git top level
+  // counts only what it tracks (ignored and untracked paths are not the repository's); a
+  // plain directory skips what its .gitignore files exclude. A tracked manifest with
+  // dependencies and no lockfile still reads uncovered, so the filter hides nothing else.
+  const plant = (dir) => {
+    mkdirSync(join(dir, 'dist'), { recursive: true });
+    mkdirSync(join(dir, 'app'), { recursive: true });
+    mkdirSync(join(dir, 'web', '.next', 'standalone'), { recursive: true });
+    writeFileSync(join(dir, '.gitignore'), 'dist/\n.next/\n');
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'root' }));
+    writeFileSync(join(dir, 'app', 'package.json'), JSON.stringify({ name: 'app', dependencies: { left: '1.0.0' } }));
+    writeFileSync(join(dir, 'dist', 'package.json'), JSON.stringify({ name: 'built', dependencies: { right: '1.0.0' } }));
+    writeFileSync(join(dir, 'dist', 'package-lock.json'), JSON.stringify({ name: 'built', lockfileVersion: 3, packages: {} }));
+    writeFileSync(join(dir, 'web', '.next', 'standalone', 'package.json'), JSON.stringify({ name: 'standalone', dependencies: { next: '1.0.0' } }));
+  };
+  const built = (p) => p.startsWith('dist/') || p.includes('/.next/');
+  const outside = (doc, where) => {
+    const lockPaths = doc.lockfiles.map((l) => l.path), manPaths = doc.manifests.map((m) => m.path);
+    if (lockPaths.some(built)) fail(`${where}: a lockfile under a gitignored path must never be audited (got ${JSON.stringify(lockPaths)})`);
+    if (manPaths.some(built)) fail(`${where}: a manifest under a gitignored path must never be recorded uncovered (got ${JSON.stringify(manPaths)})`);
+    if (!manPaths.includes('app/package.json')) fail(`${where}: a manifest the repository keeps, with dependencies and no lockfile, must still read uncovered (got ${JSON.stringify(manPaths)})`);
+  };
+  const repo = mkdtempSync(join(tmpdir(), 'assay-dep-ignored-repo-'));
+  plant(repo);
+  mkdirSync(join(repo, 'scratch'), { recursive: true });
+  const git = (args) => spawnSync('git', ['-c', 'user.email=test@example.com', '-c', 'user.name=assay regression', ...args], { cwd: repo, encoding: 'utf8' });
+  git(['init', '-q']); git(['add', '-A']);
+  if (git(['commit', '-q', '-m', 'planted']).status !== 0) fail('test setup: could not commit the scratch repository');
+  writeFileSync(join(repo, 'scratch', 'package.json'), JSON.stringify({ name: 'untracked', dependencies: { up: '1.0.0' } }));
+  const docRepo = runDependencyScan({ target: repo, timeout: 5, log: () => {} });
+  outside(docRepo, 'a git top level');
+  if (docRepo.manifests.some((m) => m.path.startsWith('scratch/'))) fail(`a git top level: an untracked manifest is not the repository's and must never be recorded uncovered (got ${JSON.stringify(docRepo.manifests)})`);
+  if (docRepo.scope?.rule !== 'tracked') fail(`a git top level must record the walk's scope as tracked (got ${JSON.stringify(docRepo.scope)})`);
+  rmSync(repo, { recursive: true, force: true });
+  const loose = mkdtempSync(join(tmpdir(), 'assay-dep-ignored-dir-'));
+  plant(loose);
+  const docLoose = runDependencyScan({ target: loose, timeout: 5, log: () => {} });
+  outside(docLoose, 'a plain directory');
+  if (docLoose.scope?.rule !== 'gitignore') fail(`a directory that is not a git top level must record the walk's scope as gitignore (got ${JSON.stringify(docLoose.scope)})`);
+  rmSync(loose, { recursive: true, force: true });
 }
