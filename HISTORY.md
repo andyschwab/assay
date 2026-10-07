@@ -1483,4 +1483,4 @@ what the public engine learned.
   enters scope and is recovered; recall stays 100); notesbox stays 12/12. Confirmed
   red: the new block with no report ingested, with the adapter's K moved off
   code-security (R-02 mis-homed) and with F moved to verification (the P-07 pin);
-  run-manifest with the skip reason dropped from `notRunPhrase`.
+  run-manifest with the skip reason dropped from `notRunPhrase`. **Levelled on the integration branch after #18 (reviewed re-bless, same commit):** with deep-code-review recorded `ran` on both stored runs, two requirement grades #18 had pinned out of scope come into scope. fixtures-root `d-dependencies-pinned` now agrees (33 agree, 0 out of scope). notesbox `d-routes-authorized` is a new, pinned disagreement (4 disagree, 0 out of scope): the sheet reads unmet (F-1001 fails open to admin, F-1004 no check on POST /sync), the decider reads `mixed` because F-1015 (the admin gate refuses a non-admin) is a strength row in the same category (`yardstick/measure.mjs`, the instrument rule). Whether a safety-tier instrument requirement may read mixed is an issue, not settled here.
