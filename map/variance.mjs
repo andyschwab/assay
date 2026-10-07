@@ -167,8 +167,8 @@ const DESCRIPTOR_FIELDS = ['reversibility', 'external', 'gate_type', 'fail_mode'
 const RANK = {
   reversibility: { irreversible: 0, 'reversible-with-window': 1, reversible: 2 },
   external: { true: 0, false: 1 },
-  gate_type: { none: 0, 'disclosure-only': 1, 'rate-throttle': 2, 'scope-bound': 2, 'staged-reversible': 3, 'external-halt': 3, 'deterministic-halt': 4 },
-  fail_mode: { open: 0, closed: 1 },
+  gate_type: { none: 0, 'disclosure-only': 1, 'rate-throttle': 2, 'scope-bound': 2, 'initiated-by-person': 3, 'staged-reversible': 3, 'external-halt': 3, 'deterministic-halt': 4 },
+  fail_mode: { open: 0, unterminated: 0, closed: 1 },
   telemetry: { none: 0, unstructured: 1, 'structured-event': 2, audited: 3 },
   blast_scope: { 'cross-tenant': 0, fleet: 1, tenant: 2, user: 3 },
 };

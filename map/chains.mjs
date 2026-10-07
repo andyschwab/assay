@@ -53,6 +53,7 @@ function holdReason(e) {
   const g = {
     'deterministic-halt': 'a hard stop', 'staged-reversible': 'a reversible step',
     'scope-bound': 'a scoped boundary', 'rate-throttle': 'a rate limit',
+    'initiated-by-person': 'a person\'s own recorded act',
   }[e.gate_type] || 'a control in the way';
   return e.reversibility !== 'irreversible' ? `${g}, and it is reversible` : g;
 }

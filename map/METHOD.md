@@ -298,8 +298,10 @@ attached only when relevant.
  reversibility: irreversible # reversible | reversible-with-window | irreversible
  external: true # does the effect leave the trust boundary?
  gate_type: none # deterministic-halt | staged-reversible | scope-bound |
- # rate-throttle | disclosure-only | external-halt | none
- fail_mode: closed # open | closed — how the gate behaves if a dependency is absent.
+ # rate-throttle | disclosure-only | external-halt |
+ # initiated-by-person (one authenticated person's own recorded act) | none
+ fail_mode: closed # open | closed | unterminated — how the gate behaves if a dependency
+ # is absent; unterminated = the check can run without ever reaching a verdict.
  # A `fail_mode: open` gate is gate_type:none under that condition
  # (e.g. an egress hook that allows everything if `jq` is missing).
  # Required whenever gate_type is not none.
@@ -339,10 +341,11 @@ far does its damage reach?"
 | subject_type | effect · control · artifact · contract · process · capability |
 | confidence | confirmed · plausible · unverified |
 | reversibility | reversible · reversible-with-window · irreversible |
-| gate_type | deterministic-halt · staged-reversible · scope-bound · rate-throttle · disclosure-only · external-halt · none |
+| gate_type | deterministic-halt · staged-reversible · scope-bound · rate-throttle · disclosure-only · external-halt · initiated-by-person · none |
 | telemetry | none · unstructured · structured-event · audited |
 | blast_scope | user · tenant · fleet · cross-tenant |
-| fail_mode | open · closed (how a gate behaves when a dependency is absent; open ⇒ gate_type:none under that condition) |
+| fail_mode | open · closed · unterminated (how a gate behaves when a dependency is absent; open ⇒ gate_type:none under that condition; unterminated = the check never reaches a verdict, and holds no more than open) |
+| verified_as.privilege | bound · elevated (optional `verified_as`: the principal a gate check ran as; elevated ⇒ confidence plausible, see SCHEMA.md §1) |
 | preconditions | prompt-injection · stolen-credential · malicious-dependency · network-position · insider · zero-day · physical |
 
 (`escapes` is a link, not an enum — a list of the strength-finding ids whose
@@ -429,7 +432,7 @@ Run the frame stack in order; lead the artifact with the posture headline.
 2. **Halt inventory** — table every `effect` finding: channel · reversibility ·
  external · gate_type · fail_mode · telemetry · blast_scope. Flag each that is
  (irreversible OR external) AND gate_type ∈ {none, disclosure-only}. **Treat a
- gate with `fail_mode: open` as `gate_type: none` under its failure condition** —
+ gate with `fail_mode: open` or `unterminated` as `gate_type: none` under its failure condition** —
  flag it as an effective-none and name the triggering condition (e.g. "missing
  `jq` → hook allows all"). Separately flag `telemetry: none` effects (no trigger
  can be built on them yet).

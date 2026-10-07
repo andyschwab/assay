@@ -13,10 +13,19 @@ import { fileURLToPath } from 'node:url';
 // ── the gate doctrine ────────────────────────────────────────────────────────
 // A REAL gate is one that can actually stop an action; `none` and
 // `disclosure-only` do not hold (telling someone afterwards is not a stop).
-export const REAL_GATES = new Set(['deterministic-halt', 'staged-reversible', 'scope-bound', 'rate-throttle', 'external-halt']);
+// `initiated-by-person` is one authenticated person's own explicit act causing the
+// effect; it is a stop only while that act is recorded (#38).
+export const REAL_GATES = new Set(['deterministic-halt', 'staged-reversible', 'scope-bound', 'rate-throttle', 'external-halt', 'initiated-by-person']);
 
-// A gate HOLDS iff it is real and does not fail open. Takes the effect facet.
-export const gateHolds = (e) => REAL_GATES.has(e.gate_type) && e.fail_mode !== 'open';
+// A gate's check must END with a verdict: `open` lets the action through when a
+// dependency is absent, and `unterminated` never reaches a verdict at all, so
+// neither holds (#38).
+const NO_VERDICT_FAIL_MODES = new Set(['open', 'unterminated']);
+
+// A gate HOLDS iff it is real, its check terminates without failing open, and, for a
+// person's own act, the act leaves a record. Takes the effect facet.
+export const gateHolds = (e) => REAL_GATES.has(e.gate_type) && !NO_VERDICT_FAIL_MODES.has(e.fail_mode)
+  && (e.gate_type !== 'initiated-by-person' || (!!e.telemetry && e.telemetry !== 'none'));
 
 // The HALT population: an effect that is irreversible or reaches outside the
 // trust boundary — the actions that need oversight. Takes the effect facet.
@@ -25,7 +34,8 @@ export const isHaltClass = (e) => e.reversibility === 'irreversible' || e.extern
 // An UNHELD HALT (⚑): a halt-class effect with no working stop. Derived, not
 // restated — the supervised/unsupervised split, the maturity halts-gated
 // numerator, and the chain sinks are all this one rule. (Under the closed
-// gate_type vocab, !gateHolds ⇔ gate none/disclosure-only or fail-open.)
+// gate_type vocab, !gateHolds ⇔ gate none/disclosure-only, fail-open or unterminated,
+// or a person's act that leaves no record.)
 export const isHalt = (e) => isHaltClass(e) && !gateHolds(e);
 
 // ── severity ─────────────────────────────────────────────────────────────────

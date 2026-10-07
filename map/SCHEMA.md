@@ -38,10 +38,15 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
     reversibility: irreversible   # reversible | reversible-with-window | irreversible
     external: true                # does the effect leave the trust boundary? (bool)
     gate_type: none               # deterministic-halt | staged-reversible | scope-bound |
-                                  #   rate-throttle | disclosure-only | external-halt | none
-    fail_mode: closed             # open | closed — REQUIRED iff gate_type != none
+                                  #   rate-throttle | disclosure-only | external-halt |
+                                  #   initiated-by-person | none
+    fail_mode: closed             # open | closed | unterminated — REQUIRED iff gate_type != none
     telemetry: unstructured       # none | unstructured | structured-event | audited
     blast_scope: tenant           # user | tenant | fleet | cross-tenant
+    verified_as:                  # OPTIONAL; never on gate_type none. Who the gate check ran as:
+      principal: app-user         #   free short slug, REQUIRED when verified_as is present
+      privilege: bound            #   bound | elevated — elevated forbids confidence: confirmed
+      triggered_by: ci            #   optional free slug: who or what started the check
   capabilities:                # REQUIRED iff subject_type == capability (all three bools)
     untrusted_input: true
     private_data: true
@@ -57,6 +62,23 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
 
 **Mandatory keys on every finding:** `id`, `dimension`, `polarity`,
 `subject_type`, `observation`, `evidence` (non-empty), `confidence`.
+
+**The gate descriptors (#38).** A gate must terminate with a verdict, and who it runs
+under is part of the gate:
+
+- `gate_type: initiated-by-person` — the effect is caused by one named, authenticated
+  person's own explicit act (a Save, a Send, a Merge they click). It holds only while
+  that act is recorded (`telemetry` is not `none`); an unattended job that performs the
+  same write is not this gate. `map/doctrine.mjs` is the rule.
+- `fail_mode: unterminated` — the gate's check can run without ever reaching a verdict
+  (no timeout, or a timeout that is neither a refusal nor a pass). It is its own case,
+  never defaulted to `open` or `closed`: the gate does not hold, and
+  `d-gates-fail-closed` counts it apart from fail-open.
+- `verified_as` — the principal a check of the gate ran as (`principal`), whether that
+  is the privilege the gate binds or more (`privilege: bound | elevated`), and
+  optionally what triggered it (`triggered_by`). A gate verified as a superuser, a
+  bypass role or an admin key proves nothing about the policy it names, so `elevated`
+  must carry `confidence: plausible` (or `unverified`), never `confirmed`.
 
 **Optional keys:** `preconditions`, `reaches`, `explained_by`, `escapes`, `label`,
 the two facets (which become mandatory under §4), and the **overlay** fields
@@ -104,10 +126,11 @@ evidence-backed edge is what makes the lead risk deterministic.
 | `subject_type` | effect · control · artifact · contract · process · capability |
 | `confidence` | confirmed · plausible · unverified |
 | `reversibility` | reversible · reversible-with-window · irreversible |
-| `gate_type` | deterministic-halt · staged-reversible · scope-bound · rate-throttle · disclosure-only · external-halt · none |
+| `gate_type` | deterministic-halt · staged-reversible · scope-bound · rate-throttle · disclosure-only · external-halt · initiated-by-person · none |
 | `telemetry` | none · unstructured · structured-event · audited |
 | `blast_scope` | user · tenant · fleet · cross-tenant |
-| `fail_mode` | open · closed |
+| `fail_mode` | open · closed · unterminated |
+| `verified_as.privilege` | bound · elevated (optional `verified_as` only) |
 | `preconditions` | prompt-injection · stolen-credential · malicious-dependency · network-position · insider · zero-day · physical |
 | `axis` (overlay, optional) | open by design — any axis a present adapter `contributes:` or maps to (the seven native dimension axes; deep-code-review adds code-correctness · code-maintainability · code-security) |
 

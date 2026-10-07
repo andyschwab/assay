@@ -1360,3 +1360,16 @@ what the public engine learned.
   confirmed red before the change (the ignored lockfile audited, the untracked
   manifest recorded uncovered, no scope), and red again with the tracked rule
   and the `.gitignore` rule each reverted in turn. Goldens untouched.
+- **2026-10-07 — gate vocabulary: a person's own act, an unterminated check, the
+  identity a gate was verified under** (#38). `gate_type` gains
+  `initiated-by-person` (one authenticated person's own explicit act causes the
+  effect; `map/doctrine.mjs` holds it only while the act is recorded, telemetry not
+  `none`), so a deliberate act and an unattended job no longer read the same on
+  `d-effects-gated`. `fail_mode` gains `unterminated` (a check that never reaches a
+  verdict): it does not hold, and `d-gates-fail-closed` counts it apart from
+  fail-open. The effect facet gains an optional `verified_as` (`principal`,
+  `privilege: bound | elevated`, `triggered_by`); validate refuses `confirmed` on an
+  elevated verification. SCHEMA §1/§2, METHOD, the glossary, the variance ranks and
+  the owner wording follow. The `tests/blocks/gate-vocabulary.mjs` block was
+  confirmed red against each reverted rule. Listing `verified_as` in the credential
+  census is left to the census work (SCHEMA §6b/§8).
