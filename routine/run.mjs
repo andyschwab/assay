@@ -5,8 +5,9 @@
 // the identical path).
 //
 // Draws the map with the instruments assay runs offline on its own — repo-census,
-// fresh-clone, dependency-scan, structure-scan (knip skipped in the gate job of the
-// two-job template, which never executes the target); gitleaks only when its
+// fresh-clone, dependency-scan, structure-scan (in the two-job template, fresh-clone
+// and structure-scan run in the target job and the gate ingests their reports);
+// gitleaks only when its
 // binary is present — records
 // every adopted scanner that did NOT run as skipped or failed with a reason
 // (CLAUDE.md rule 3: fail loud, never empty; nothing compiles without a reason),
@@ -51,12 +52,14 @@
 //   --since      fold a previous run's SINCE view into the compile (views/README.md).
 //                No default: the workflow decides which prior run, if any, it has.
 //   --handoff    the gate step of the two-job routine (routine/README.md "Two
-//                jobs"): fresh-clone is not run here; the report the target step
-//                handed forward in this directory is ingested instead.
+//                jobs"): fresh-clone and structure-scan are not run here; the
+//                reports the target step handed forward in this directory are
+//                ingested instead.
 //
 //        node routine/run.mjs <repo-dir> --target-steps --handoff <dir>
 //   the target step: runs fresh-clone in place (the target's own install and
-//   scripts) and writes only its raw report and exit into <dir> — no validate,
+//   scripts), then structure-scan with knip over that install, and writes only
+//   their raw reports and exits into <dir> — no validate,
 //   compile or ratchet, which run in the gate step from a checkout that never
 //   executed the target.
 // A repository's own packet/manifest.yaml (owner/PACKET.md), when present at
@@ -71,7 +74,7 @@ import { catGitFile, resolveGitRef } from '../yardstick/ratchet.mjs';
 import { gitHead, gitRemote } from '../map/repo-census.mjs';
 import { loadContradictions } from '../yardstick/measure.mjs';
 import { routinePath, scannersPath, mapDir } from '../lib/run-layout.mjs';
-import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit, writeFreshCloneHandoff } from '../map/start.mjs';
+import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit, writeTargetHandoff } from '../map/start.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // routine/
@@ -151,13 +154,14 @@ export function toRoutineYaml(rec) {
 }
 
 // runTargetSteps — the target step of the two-job routine: the ONLY part that
-// executes the repository's own code. It runs fresh-clone in place and hands its
-// raw report forward; it never validates, compiles or ratchets. Exit 0 once the
+// executes the repository's own code. It runs fresh-clone in place, then
+// structure-scan (knip loads the target's tool configs over that install, #128),
+// and hands their raw reports forward; it never validates, compiles or ratchets. Exit 0 once the
 // handoff is written, whatever fresh-clone found — the gate step records that.
 export function runTargetSteps({ repoDir, handoffDir } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const lines = [];
   const say = (s) => { lines.push(s); log(s); };
-  writeFreshCloneHandoff({ repoDir: resolve(repoDir), handoffDir: resolve(handoffDir) }, say);
+  writeTargetHandoff({ repoDir: resolve(repoDir), handoffDir: resolve(handoffDir) }, say);
   return { ok: true, exitCode: 0, log: lines };
 }
 
@@ -208,10 +212,10 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, 
   // before this sequencing moved to map/start.mjs (drawOfflineMap's
   // freshCloneNoClone param; `assay start`, run against a person's own working
   // tree, leaves it false and lets fresh-clone clone repoDir itself instead).
-  // With a handoff (the two-job template's gate step), fresh-clone already ran in
-  // the target step and this step only ingests its report — it never executes the
+  // With a handoff (the two-job template's gate step), fresh-clone and structure-scan
+  // already ran in the target step and this step only ingests their reports — it never executes the
   // target (routine/README.md "Two jobs").
-  const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true, freshCloneHandoff: handoff ? resolve(handoff) : null, structureScanNoExec: !!handoff }, say);
+  const scanners = drawOfflineMap({ repoDir, outDir, pendingReason: NOT_RUN_BY_ROUTINE, gitleaksAbsentReason: GITLEAKS_ABSENT_IN_ROUTINE, freshCloneNoClone: true, handoff: handoff ? resolve(handoff) : null }, say);
 
   writeFileSync(scannersPath(outDir), toScannersYaml(engineCommit(), scanners));
 

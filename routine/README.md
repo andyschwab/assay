@@ -85,9 +85,10 @@ re-loading the baseline and re-running the comparison a second time.
 ## What it runs, and what it never does
 
 The routine runs the instruments assay runs offline on its own — `repo-census`,
-`fresh-clone`, `dependency-scan`, `structure-scan` (whose knip step, which imports
-the target's own tool configs, is skipped with that reason in the two-job
-template's gate job, since that job never executes the target) — plus `gitleaks` when that binary happens to
+`fresh-clone`, `dependency-scan`, `structure-scan` (whose knip step imports the
+target's own tool configs, so in the two-job template it runs in the `target` job
+after fresh-clone's install, never in the gate job, which never executes the
+target) — plus `gitleaks` when that binary happens to
 be on the runner's `PATH` and the checkout is the repository's own top level
 (never a subdirectory of a larger checkout, whose history is not this
 repository's); when either fails, the run record carries it `skipped`, with
@@ -122,20 +123,24 @@ own gate read held. The template therefore splits the routine in two:
 
 - **`target`** checks out the repository and the pinned engine, runs
   `node routine/run.mjs <repo> --target-steps --handoff <dir>` — `fresh-clone`
-  in place, nothing else — and uploads only `<dir>` (its raw report
-  `fresh-clone.json` and `fresh-clone.status.json`, the exit and the last
-  lines of its output) as a short-lived artifact. It never validates,
-  compiles or ratchets.
+  in place, then `structure-scan` over the dependencies that install left
+  (knip, which imports the target's tool configs, runs in this job and
+  nowhere else, #128), nothing else — and uploads only `<dir>` (each one's raw
+  report, `fresh-clone.json` and `structure-scan.json`, and its
+  `.status.json`, the exit and the last lines of its output) as a
+  short-lived artifact. It never validates, compiles or ratchets.
 - **`routine`** (`needs: target`; the required status check) checks out the
   repository and the pinned engine afresh, downloads the handoff, and runs
   `node routine/run.mjs <repo> --out <run> --handoff <dir>`: every other
-  instrument, then `ingest` of the handed-forward report (validated like any
-  other — it is data, never code), validate, compile and ratchet. Nothing in
+  instrument, then `ingest` of the handed-forward reports (validated like any
+  other — they are data, never code), validate, compile and ratchet. Nothing in
   this job ever executes the change. A missing or unreadable handoff records
-  `fresh-clone` failed with the reason, never runs it and never reads clean.
+  that instrument failed with the reason, never runs it and never reads clean.
 
-The report itself is the change's own account of its install and tests,
-which the change controls in any case; what it can no longer reach is the
+The reports themselves are the change's own account of its install, its tests
+and its structure (a change can rewrite what jscpd and knip report, as it can
+what its tests report), which the change controls in any case once its code
+runs beside them; what it can no longer reach is the
 engine, the baseline, the packet and the run the gate reads. Both jobs check
 out with `persist-credentials: false`, so no job token (and no
 `ASSAY_READ_TOKEN`, when uncommented) is left in a `.git/config`; the gate

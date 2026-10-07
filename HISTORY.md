@@ -1317,6 +1317,33 @@ what the public engine learned.
   the change (knip `not-applicable` on `app/`), and red again with the path
   prefix, `knip.root`, the one-candidate rule and the fact's reason each
   reverted in turn. Goldens untouched.
+- **2026-10-07 — assay start: a tool an instrument skipped or failed gets its own
+  log line** (#129). When structure-scan recorded knip skipped (the target's
+  dependencies not installed, its package manager absent, `--no-exec`), `assay
+  start` logged structure-scan as ran and said nothing about knip; the reason
+  was only in the run record and the raw report. `map/start.mjs`'s
+  `ingestInstrumentRaw` now reads the ingested report's `tools` record and logs
+  one line per tool recorded `skipped` or `failed`, with the reason's first
+  sentence (`· structure-scan: knip skipped — …`). It is generic over the record
+  (`tools.<name>.status`, `.reason`), so any instrument with one gets the same
+  line. The `start` block runs start over a copy of
+  `tests/instruments/structure-monorepo` with pnpm off PATH and a fake npm whose
+  jscpd exits 3, asserting both lines; it was confirmed red before the change
+  and red again with the logging call reverted. Goldens untouched.
+- **2026-10-07 — the two-job routine runs structure-scan in its target job**
+  (#128). The two-job workflow template ran structure-scan in the gate job with
+  `--no-exec`, so knip read `skipped` on every run and `d-no-dead-code` read
+  not measured on files and exports, however the target was laid out. The
+  target step (`routine/run.mjs --target-steps`) now runs structure-scan after
+  fresh-clone's in-place install and hands its raw report forward beside
+  fresh-clone's (`map/start.mjs` `writeTargetHandoff`); the gate ingests both
+  and never runs either, and a missing structure-scan handoff reads failed with
+  the reason. The template's target step names it, `routine/README.md` ("What
+  it runs", "Two jobs") names the job knip runs in and says the structure
+  report is now the change's own account too, and contract §3e says which job
+  runs it. `routine-handoff` and `routine-workflow` pin the order and the job;
+  both were confirmed red before the change (knip `skipped` for `--no-exec` in
+  the gate). Goldens untouched.
 - **2026-10-07 — dependency-scan keeps to the repository's own files** (#100).
   When the routine runs on a working tree, fresh-clone builds in place and its
   output lands in the checkout; dependency-scan then walked that output and read

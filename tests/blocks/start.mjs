@@ -9,8 +9,8 @@
 // this wraps a throwaway copy of the fixture in `git init` once, in the temp
 // dir, so the clone stays a same-machine, no-network filesystem clone.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, existsSync, mkdirSync, rmSync, cpSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync, chmodSync } from 'node:fs';
+import { join, delimiter } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { loadAdapters, adoptedAdapters } from '../../map/project.mjs';
 import { scannersPath as runScannersPath } from '../../lib/run-layout.mjs';
@@ -81,6 +81,37 @@ export async function run() {
     else if (r.reason !== 'not yet run: ingesting its report records it ran') fail(`with no target, ${id}'s reason must be the generic one, verbatim (got ${JSON.stringify(r.reason)})`);
   }
   if (!/✓ assay validate/.test(startNT)) fail(`start with no target must still validate green (got:\n${startNT})`);
+
+  // an instrument that recorded one of its own tools skipped or failed says so on
+  // the console, with the reason's first sentence (#129): structure-scan over
+  // tests/instruments/structure-monorepo, its pnpm lockfile's package manager off
+  // PATH, reads knip skipped. A fake npm installs a knip and a jscpd that are never
+  // reached or exit 3; every PATH directory holding a pnpm is dropped (start runs
+  // its instruments with this node, never one from PATH).
+  const ssTarget = join(tmp, 'structure-monorepo');
+  cpSync(join(HERE, 'instruments', 'structure-monorepo'), ssTarget, { recursive: true });
+  const fakeBin = join(tmp, 'path-no-pnpm'); mkdirSync(fakeBin, { recursive: true });
+  writeFileSync(join(fakeBin, 'npm'), `#!${process.execPath}
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, delimiter } from 'node:path';
+const args = process.argv.slice(2);
+if (args[0] !== 'install') process.exit(1);
+const prefix = args[args.indexOf('--prefix') + 1];
+for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
+  const [name, version] = spec.split('@');
+  const d = join(prefix, 'node_modules', name); mkdirSync(d, { recursive: true });
+  writeFileSync(join(d, 'package.json'), JSON.stringify({ name, version, bin: { [name]: 'bin.mjs' } }));
+  writeFileSync(join(d, 'bin.mjs'), "process.exit(3);\\n");
+}
+`);
+  chmodSync(join(fakeBin, 'npm'), 0o755);
+  const noPnpm = (process.env.PATH || '').split(delimiter).filter((d) => d && !existsSync(join(d, 'pnpm')));
+  const ssStart = spawnSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', join(tmp, 'run-structure'), ssTarget, '--allow-exec'], { encoding: 'utf8', env: { ...process.env, PATH: [fakeBin, ...noPnpm].join(delimiter) } });
+  const ssOut = String(ssStart.stdout || '');
+  const knipLine = ssOut.split('\n').find((l) => /structure-scan: knip skipped/.test(l));
+  if (!knipLine) fail(`start must log structure-scan's knip skipped on its own line (got:\n${ssOut}${ssStart.stderr || ''})`);
+  else if (!/· structure-scan: knip skipped — the target's dependencies are not installed \(no node_modules at the root\);.* pnpm \(named by pnpm-lock\.yaml\) is not on PATH/.test(knipLine)) fail(`the knip line must carry the reason's first sentence (got: ${knipLine})`);
+  if (!/· structure-scan: jscpd failed — jscpd exited 3/.test(ssOut)) fail(`start must log every tool an instrument recorded failed, not only knip (got:\n${ssOut})`);
 
   rmSync(tmp, { recursive: true, force: true });
 }
