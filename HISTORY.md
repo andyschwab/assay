@@ -1408,3 +1408,24 @@ what the public engine learned.
   code-security, with a failed npm audit read as a clean lockfile, and with
   ingest dropping the `lockfile-failed` gap. Not pinned in `tests/golden.json`;
   goldens and the yardstick untouched.
+- **2026-10-07 — known answers for the yardstick** (#18). The fixtures graded
+  the map and nothing graded the measurement. Each scored sheet now carries a
+  `requirements:` list (the status a run over the target should read, with a
+  reason tied to an item on the sheet; contract in `yardstick/README.md`,
+  "Known answers"); `map/score.mjs`'s `gradeRequirements` grades a run's
+  measurement on it (agree, disagree, out of scope when the deciding method did
+  not run), grades every claim row as not-measured from a run alone, and refuses
+  a sheet that answers a claim row anything else. `score` prints the grade beside
+  recall, its exit unchanged. The `yardstick-known-answers` block grades the
+  three stored runs and pins the counts in `tests/golden.json` under
+  `<run>/requirements` (a reviewed re-bless adding those keys; recall's pins
+  unchanged). Five disagreements are pinned in plain sight: the notesbox and
+  cleanlib fresh-clone rows predate the converter's build floor and its
+  `no-database-signal` fact, so both runs read `d-fresh-clone-runs` and
+  `d-schema-versioned` met where the contract reads unmet and not-applicable;
+  and the notesbox map never enumerates the `/admin/purge` effect, so
+  `d-gates-fail-closed` reads not-measured where P-02 opens its gate. The lists
+  wait in `tests/fixtures/pending-assay-fixtures/` for the fixtures repository.
+  Confirmed red with the grader never disagreeing, with the claim refusal
+  removed, with claim rows reading met from a run, with the out-of-scope rule
+  removed, and with a pending list drifting from its frozen copy.

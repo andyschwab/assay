@@ -156,6 +156,40 @@ node assay.mjs compile <run> [--packet <dir>]        # measures, then writes eve
 facet rules; every row sourced), and the harness pins each decider's behaviour on
 a synthetic map.
 
+## Known answers: grading the measurement on the fixtures
+
+`node assay.mjs score` grades the **map** against a fixture's planted items; a
+fixture's sheet (`ANSWERS.yaml`) can also carry the status the **measurement** of a
+run over that target should read, so a change to a decider, a tier or a topic that
+moves a fixture's status is caught (#18):
+
+```yaml
+requirements:                    # requirement id → the status a run should read
+  - id: d-secrets-out-of-history
+    status: unmet                # met | unmet | mixed | not-measured | not-applicable
+    reason: "P-01: a backup-service API key is hardcoded in config/settings.mjs."
+```
+
+- Each entry states what the target **is**, tied to an item on the same sheet, read
+  through the requirement's own `check:`; never copied from a run's output. The
+  sheet is the floor, not the ceiling: a requirement it does not answer is not graded.
+- **Claim rows read `not-measured` from a run alone, never met.** Every claim-kind
+  row is graded with that expectation whether the sheet lists it or not, and a sheet
+  that answers one anything else is refused.
+- A sheet naming a requirement the yardstick does not carry, a status outside the
+  five, an id answered twice or an entry with no reason is refused, never graded.
+- Each answer grades **agree**, **disagree**, or **out of scope**: the row reads
+  `not-measured` because its deciding method did not run (an instrument the run
+  record marks skipped or failed, or a census no run authored), the same scope rule
+  `score` applies to a planted item. A facet row is always in scope.
+
+`score` prints the grade (expected vs measured per requirement) beside recall, and
+`--json` carries it as `requirements`; the exit code stays recall's verdict. The
+harness (`tests/blocks/yardstick-known-answers.mjs`) grades the stored fixture runs
+and pins each one's agree / disagree / out-of-scope counts and its disagreeing ids
+in `tests/golden.json` under `<run>/requirements`, as `_score` pins recall: a known
+disagreement is pinned in plain sight, and any move is a reviewed re-bless.
+
 ## Comparing two measurements: `since` and `ratchet`
 
 `compare.mjs` is the pure core both of the below build on: `compare(previous,

@@ -30,6 +30,13 @@
 // `max_gaps_above.severity` that matches no known answer (a planted or strength
 // evidence path, or an instrument answer) is a FALSE POSITIVE.
 //
+// A sheet may also carry a `requirements:` list (#18): the status the yardstick's
+// measurement of a run over the target should read, per requirement id, with its
+// reason (yardstick/README.md, "Known answers"). gradeRequirements grades the run's
+// measurement against it: agree, disagree, or out of scope (the deciding scanner did
+// not run, or no census of that name did, and the row reads not-measured). Every
+// claim-kind row is graded as well, expected not-measured from a run alone.
+//
 // Usage:
 //   node assay.mjs score <run-dir> --answers <ANSWERS.yaml> [--json]
 import { readFileSync, existsSync } from 'node:fs';
@@ -37,6 +44,7 @@ import { basename } from 'node:path';
 import { isMain, sevRank } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadFindings, loadAdapters, projectMulti, loadManifest } from './project.mjs';
+import { STATUSES, loadYardstick, projectRun } from '../yardstick/measure.mjs';
 
 const SOURCE_METHOD = { 'repo-eval': 'eval-pass', 'deep-code-review': 'dcr' };   // anything else: its own id
 const methodOf = (source) => SOURCE_METHOD[source] || source;
@@ -120,6 +128,42 @@ export function score(findings, adapters, answers, manifest = null) {
   };
 }
 
+// Grade a run's measurement (measureRun's rows) against a sheet's `requirements:`
+// list. A sheet the contract refuses (an unknown id or status, an id answered twice,
+// no reason, a claim row answered anything but not-measured) throws: it is never
+// graded. A non-claim requirement the sheet does not answer is not graded (the sheet
+// is the floor, not the ceiling); every claim row is, expected not-measured.
+export function gradeRequirements(rows, answers, reg, manifest = null) {
+  const list = answers.requirements;
+  if (!Array.isArray(list)) throw new Error('the sheet carries no requirements: list');
+  const byId = new Map(reg.requirements.map((d) => [d.id, d]));
+  const expected = new Map();
+  for (const a of list) {
+    const at = `requirements: ${a && a.id}`;
+    if (!a || !byId.has(a.id)) throw new Error(`${at}: names no requirement in the yardstick`);
+    if (expected.has(a.id)) throw new Error(`${at}: answered twice`);
+    if (!STATUSES.includes(a.status)) throw new Error(`${at}: status "${a.status}" is not one of ${STATUSES.join(' | ')}`);
+    if (typeof a.reason !== 'string' || !a.reason.trim()) throw new Error(`${at}: a reason is required`);
+    if (byId.get(a.id).decide.kind === 'claim' && a.status !== 'not-measured') throw new Error(`${at}: a claim row reads not-measured from a run alone, never ${a.status}`);
+    expected.set(a.id, a.status);
+  }
+  for (const d of reg.requirements) if (d.decide.kind === 'claim' && !expected.has(d.id)) expected.set(d.id, 'not-measured');
+  const recorded = manifest && manifest.scanners && typeof manifest.scanners === 'object' ? manifest.scanners : {};
+  const results = [];
+  for (const [id, want] of expected) {
+    const d = byId.get(id);
+    const r = rows.find((x) => x.id === id);
+    const actual = r ? r.status : null;
+    // the deciding method did not run: the row reads not-measured, which grades nothing
+    const notRun = d.decide.kind === 'instrument' ? !(recorded[d.decide.scanner] && recorded[d.decide.scanner].status === 'ran')
+      : d.decide.kind === 'census' ? !(r && r.measure) : false;
+    const grade = actual === want ? 'agree' : notRun && actual === 'not-measured' ? 'out-of-scope' : 'disagree';
+    results.push({ id, kind: d.decide.kind, expected: want, actual, grade, note: r ? r.note : 'not measured at all' });
+  }
+  const count = (g) => results.filter((x) => x.grade === g).length;
+  return { results, agree: count('agree'), disagree: count('disagree'), out_of_scope: count('out-of-scope') };
+}
+
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
   const runDir = process.argv[2];
@@ -131,8 +175,14 @@ if (isMain(import.meta.url)) {
   const findings = loadFindings(runDir);
   if (!findings.length) { console.error(`no findings under ${runDir}`); process.exit(2); }
   const r = score(findings, loadAdapters(), answers, loadManifest(runDir));
+  if (answers.requirements) {
+    const reg = loadYardstick();
+    r.requirements = gradeRequirements(projectRun(runDir, reg), answers, reg, loadManifest(runDir));
+  }
 
-  // the verdict, the same in both modes: a miss, a mis-homing or a control false positive fails
+  // the verdict, the same in both modes: a miss, a mis-homing or a control false positive
+  // fails. The requirement grade is reported beside it, never folded in: its
+  // disagreements are pinned by the harness (tests/golden.json), as recall is.
   const verdict = r.results.some((x) => x.status === 'missed' || x.status === 'mis-homed') || (r.isControl && r.falsePositives.length) ? 1 : 0;
   if (process.argv.includes('--json')) { console.log(JSON.stringify(r, null, 2)); process.exit(verdict); }
 
@@ -150,6 +200,12 @@ if (isMain(import.meta.url)) {
     for (const fp of r.falsePositives) console.log(`    ✗ ${fp.id} (${fp.severity}, ${fp.axis}, ${fp.source}) ${fp.evidence}`);
   } else if (r.falsePositives.length) {
     console.log(`  Findings off the planted set at/above tolerance: ${r.falsePositives.length} (not necessarily wrong — the sheet is the floor, not the ceiling)`);
+  }
+  if (r.requirements) {
+    const g = r.requirements, gm = { agree: '✓', disagree: '✗', 'out-of-scope': '·' };
+    console.log(`\n# Requirements — expected vs measured\n`);
+    for (const x of g.results) console.log(`  ${gm[x.grade]} ${x.id} (${x.kind}) expected ${x.expected}, measured ${x.actual}` + (x.grade === 'agree' ? '' : ` — ${x.note}`));
+    console.log(`\n  Agree ${g.agree}, disagree ${g.disagree}, out of scope ${g.out_of_scope} (of ${g.results.length} graded)`);
   }
   process.exit(verdict);
 }
