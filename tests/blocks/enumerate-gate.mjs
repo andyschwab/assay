@@ -65,5 +65,30 @@ export async function run() {
   if (gapsCiting('[deploy:1]').includes('deploy/prod.yaml')) fail('a citation of the directory "deploy" must cover deploy/prod.yaml');
   if (gapsCiting('[./deploy/prod.yaml:3]').includes('deploy/prod.yaml')) fail('a "./"-prefixed citation of the exact file must cover it');
   if (gapsCiting('["deploy/prod.yaml:3", ".ci/prod.yaml:1"]').length !== 1) fail('quoted flow-list citations (as ingest writes them) must each cover their file');
+
+  // (#36) the gate reads a finding's citations with the YAML parser, never a regex over its
+  // text: block-form evidence covers a member of any file type, and a path named only in
+  // an observation covers nothing
+  for (const f of ['src/a.mjs', 'app/page.tsx', 'bin/deploy', 'guards/one/g.py', 'other/two/g.py']) {
+    mkdirSync(join(tmp, 'target', f, '..'), { recursive: true });
+    writeFileSync(join(tmp, 'target', f), '# guard\n# lockstep: byte-equal across the family\n');
+  }
+  const gapsFor36 = (yaml) => {
+    writeFileSync(join(tRun, 'map', 'findings', 'y.yaml'), yaml);
+    const r = spawnSync(process.execPath, [join(ROOT, 'map', 'enumerate.mjs'), join(tmp, 'target'), '--run', tRun, '--json'], { encoding: 'utf8' });
+    try { return JSON.parse(r.stdout).coverageGaps.map((g) => g.file); } catch { return [`unparseable output (exit ${r.status}): ${String(r.stderr).slice(0, 120)}`]; }
+  };
+  const head = '- id: F-002\n  source: repo-census\n';
+  const block = gapsFor36(`${head}  evidence:\n    - src/a.mjs:2\n    - app/page.tsx:2\n    - bin/deploy:2\n`);
+  for (const f of ['src/a.mjs', 'app/page.tsx', 'bin/deploy']) if (block.includes(f)) fail(`a block-form evidence entry citing ${f} must cover it, whatever its extension`);
+  if (!block.includes('guards/one/g.py')) fail('a member no finding cites must stay a gap beside block-form citations');
+  const prose = gapsFor36(`${head}  observation: The guard at deploy/prod.yaml:3 is assessed elsewhere.\n  evidence: [src/a.mjs:2]\n`);
+  if (!prose.includes('deploy/prod.yaml')) fail('a path named only in a finding\'s observation must not cover a member (evidence is the citation, not the prose)');
+  // a byte-identical family spread across directories, pinned by one test: the finding
+  // declares the members it assessed in `covers:` (SCHEMA §6b); only those are covered
+  const fam = gapsFor36(`${head}  evidence: [tests/test_guards.py:1]\n  covers:\n    - guards/one/g.py\n    - other/two/g.py\n`);
+  for (const f of ['guards/one/g.py', 'other/two/g.py']) if (fam.includes(f)) fail(`a family finding's covers: entry must cover ${f}`);
+  if (!fam.includes('deploy/prod.yaml') || !fam.includes('src/a.mjs')) fail('covers: must cover only the members it names');
+  if (!gapsFor36(`${head}  evidence: [tests/test_guards.py:1]\n  covers: [".", "./"]\n`).includes('guards/one/g.py')) fail('a covers: entry of "." must cover nothing, as an evidence citation of "." covers nothing');
   rmSync(tmp, { recursive: true, force: true });
 }
