@@ -1360,3 +1360,17 @@ what the public engine learned.
   confirmed red before the change (the ignored lockfile audited, the untracked
   manifest recorded uncovered, no scope), and red again with the tracked rule
   and the `.gitignore` rule each reverted in turn. Goldens untouched.
+- **2026-10-07 — the coverage gate sees every cited file and pattern-assessed
+  families** (#36, merged item 1 of #37). `enumerate --run` reads a finding's
+  citations only through the YAML parser (`lib/yaml-min`): block- and flow-form
+  `evidence` of any file type counts, and a path named only in a finding's prose
+  no longer covers a member (the raw-text regex still reads the censuses and
+  views). The owner chose the scoped mix: members that vary get one finding
+  each; a byte-identical family under one directory is covered by citing the
+  directory; one spread across directories or pinned by a test is covered by a
+  finding's new optional `covers: [path, …]` list (SCHEMA §1, §6b; METHOD).
+  The `enumerate-gate` block pins block-form `.mjs`/`.tsx`/extensionless
+  citations, the prose non-citation, and `covers` (named members only, `.`
+  covers nothing); it was confirmed red before the change (prose covered,
+  `covers` unread) and the block-form assertion red with parsed `evidence`
+  reverted. Goldens untouched.
