@@ -1,0 +1,33 @@
+# map/findings/dependency-scan.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: dependency-scan · exit code 1 (verified in its success set) · 3 row(s).
+# Ids start at F-950: the profile floor (highest existing id F-0 is below it).
+# Raw report archived at map/raw/dependency-scan.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-950
+  source: dependency-scan
+  native_id: "GHSA-xvch-5gv4-984h@minimist@app/package-lock.json"
+  native_category: "critical"
+  polarity: gap
+  observation: >
+    minimist (installed 1.2.5) in app/package-lock.json is vulnerable to GHSA-xvch-5gv4-984h (critical, range >=1.0.0 <1.2.6) — https://github.com/advisories/GHSA-xvch-5gv4-984h.
+  evidence: ["app/package-lock.json:1"]
+  fix: >
+    Upgrade minimist to a version outside >=1.0.0 <1.2.6 (npm audit reports a fix available: yes) and regenerate app/package-lock.json; re-run dependency-scan and confirm the advisory is gone.
+- id: F-951
+  source: dependency-scan
+  native_id: "lockfile-failed@legacy/package-lock.json"
+  native_category: "lockfile-failed"
+  polarity: gap
+  observation: >
+    dependency-scan could not audit legacy/package-lock.json (npm audit exited 1): npm audit error ENOLOCK: This command requires an existing lockfile.; a tool error is never read as a clean lockfile.
+  evidence: ["legacy/package-lock.json:1"]
+  fix: >
+    Fix what is blocking npm audit against legacy/package-lock.json (registry reachability, a malformed lockfile, or a workspace root the package manager cannot resolve) and re-run dependency-scan until it reads audited.
+- id: F-952
+  source: dependency-scan
+  native_id: "lockfile-not-audited@legacy/package-lock.json"
+  native_category: "lockfile-not-audited"
+  polarity: fact
+  observation: >
+    legacy/package-lock.json (npm) was not audited: the npm audit failed (npm audit error ENOLOCK: This command requires an existing lockfile.). Nothing read it for advisories, so it is not known clean.
+  evidence: ["legacy/package-lock.json:1"]
