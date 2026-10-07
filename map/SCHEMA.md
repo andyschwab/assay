@@ -30,7 +30,7 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
   subject_type: effect         # effect | control | artifact | contract | process | capability
   observation: >               # ONE grounded sentence — the fact, not the interpretation
     The agent sends email as the user with no draft/confirm step.
-  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo
+  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo (an instrument run inside it is rebased onto it at ingest)
   confidence: confirmed        # confirmed | plausible | unverified
   # ── facets (conditional-required — see §4) ──
   effect:                      # REQUIRED iff subject_type == effect
@@ -841,10 +841,16 @@ a pass (the run's own CI-1 lesson, applied to the checker):
    says what the observation claims. Off without the flag so the validator stays
    portable; `assay start`, the routine and `compile --target` pass it wherever the
    target is present. A confirmed-absence finding cites what it inspected, not the
-   missing path.
-11. **If the run declares a canon (§8):** `views/improve/prose.yaml`'s `canon:` names a
-   `canon/<name>.yaml`. If the file is named but missing, that is an **error**
-   (fail-closed — you referenced a contract that is not there). If present, the run's
+   missing path. The base holds facts about the target only, so a finding whose natural
+   evidence is a run-relative path (a fact about the run itself: what ran, what was
+   skipped, a tool's version) fails this check by design. Such a fact goes in the run
+   record (`map/scanners.yaml`, §5a) or in a view, never in `map/findings/`.
+11. **If the run declares a canon (§8):** `validate <run> --canon <name>`, or
+   `views/improve/prose.yaml`'s `canon:` (the flag wins), names a `canon/<name>.yaml`.
+   If the file is named but missing, that is an **error**
+   (fail-closed — you referenced a contract that is not there), and so is a canon that
+   does not parse (flow maps included) or a census population with no membership
+   `rule` or an unknown `subject_type`. If present, the run's
    effect-channel population is checked against it and any drift is surfaced as
    **advisory warnings** (non-fatal, exit stays 0): a run effect channel not in the
    canon, or a canon channel with no finding. Divergence is surfaced, not blocked,
@@ -898,19 +904,90 @@ ai_surfaces:                # a capability = an LLM call site. A scheduled job's
     untrusted_input: true
     private_data: true
     external_effect: false
-census_populations:         # the fixed subject_type per census population (§2 table)
-  decision-legibility: {subject_type: artifact}
-  module: {subject_type: artifact}
-  effect-provability: {subject_type: control}
-  gates-coverage: {subject_type: contract}
-  credential: {subject_type: control}
-  incident-lesson: {subject_type: process}
+census_populations:         # population name: its subject_type (§2) and membership rule
+  decision-reconstruction:  #   a census the yardstick reads takes its census name (below)
+    subject_type: artifact
+    rule: >
+      every ADR under docs/adr/; patch headers and agent instruction files are excluded
+  modules-standalone:
+    subject_type: artifact
+    rule: >
+      every workspace package under packages/; generated and vendored code is excluded
+  effect-provability:
+    subject_type: control
+    rule: >
+      every effect channel this canon lists
+  gates-coverage:
+    subject_type: contract
+    rule: >
+      every CI job that runs on pull_request to the default branch
+  credential:
+    subject_type: control
+    rule: >
+      every secret credential_population lists
+  incidents-became-mechanisms:
+    subject_type: process
+    rule: >
+      every incident or lesson recorded under docs/incidents/
 credential_population:      # the runtime secrets the credential census traces; state the rule
   rule: >
     <inclusion rule — which env/config secrets count, what is excluded>
   secrets: [ ... ]
   count: N
 ```
+
+**Block style.** A canon is written in block style, like an adapter
+(`map/scanners/CONTRACT.md`): one key per line, nested maps indented. The validator's
+YAML reader (`lib/yaml-min.mjs`) refuses a flow map (`{subject_type: artifact}`), and a
+canon that does not parse fails the check closed. A flow list of scalars
+(`evidence: [path:line]`) is fine.
+
+**Every census population states its membership rule.** `subject_type` fixes what a
+member *is*; `rule` fixes *which* members count: what is included and what is excluded.
+Without it two runs over a byte-identical target can enumerate different populations
+(ADRs only, against ADRs plus patch headers plus instruction files), and the cross-run
+diff reports facts dropped that were never there. The validator refuses a population
+with no `rule` or with a `subject_type` outside §2. `credential_population` carries the
+same rule for the secrets it lists.
+
+**Census names.** A census the yardstick decides is read from `map/censuses.yaml` by its
+`sampled[].name`, which must match one of the requirement's `measures` in
+`yardstick/requirements.yaml` exactly; any other name reads not measured. Name the
+canon's population and the census by one of these (the harness keeps this list equal to
+the yardstick's):
+
+| requirement | census names |
+|---|---|
+| `d-credentials-enumerated` | `credentials-below-boundary` · `credential-boundary` · `credential` |
+| `d-readme-true` | `doc-freshness` |
+| `d-decisions-reconstruct` | `decision-reconstruction` · `decision-rationale` · `patch-rationale` |
+| `d-modules-standalone` | `modules-standalone` · `module-standalone` · `module-loadability` · `control-plane-modules-standalone` |
+| `d-agent-consumable-surface` | `agent-access-surface` · `agent-consumable-surface` |
+| `d-corrections-become-mechanisms` | `incidents-became-mechanisms` · `incident-lesson` · `lessons-mechanized` |
+
+A population no requirement reads by census (`effect-provability`, `gates-coverage`) keeps
+a descriptive name; it still carries `subject_type` and `rule`.
+
+**Polarity of an effect.** An effect finding's polarity follows its facet, in the terms
+`map/doctrine.mjs` computes (`isHaltClass`, `gateHolds`), so two runs that agree on the
+facet agree on the polarity. The facet already records the gate, and the views read it
+from there; polarity says only whether the effect is an open halt. A gate worth crediting
+on its own (a per-team spend cap enforced in one place) is a `subject_type: control`
+finding with polarity `strength`, not a strength on the effect it holds.
+
+| the effect facet | polarity |
+|---|---|
+| irreversible or external, and no gate that holds | `gap` |
+| irreversible or external, and a gate that holds | `fact` |
+| reversible and internal, gated or not | `fact` |
+
+**`external` for an org-owned store.** `external` asks whether the effect leaves the
+organization's trust boundary, which is drawn by who controls the data, not by whose
+hardware holds it. A store the organization owns and holds the credentials for on
+third-party infrastructure (a hosted key-value namespace, a managed database, a bucket in
+its own cloud account) is `external: false`. A write that reaches a party the
+organization does not control (a message delivered to a person, a post on a public
+service, a call that acts in another party's account) is `external: true`.
 
 **Scope default: exhaustive.** Every distinct authored effect surface is its own
 channel; merge only true shared-code-path families (e.g. ~20 provider integrations sharing one
@@ -925,7 +1002,8 @@ re-derive or pin from a prior run). **If no canon exists yet**, derive the popul
 — from `enumerate.mjs` + the enumeration rules, with no prior run in context — and propose a new
 canon as a reviewed diff; a run's determinism claim is only worth measuring by a pass that
 could not see the prior answer. A run activates the validator check (§7.11) by naming its canon
-in `views/improve/prose.yaml`: `canon: <name>` (the `<name>.yaml` under `canon/`).
+in `views/improve/prose.yaml`: `canon: <name>` (the `<name>.yaml` under `canon/`). A map-only
+lane, which writes no view file, runs the same check with `node assay.mjs validate <run> --canon <name>`.
 
 **Maintenance is a distinct function, not an in-run mechanism** (operator direction). The
 canon is revised deliberately — a reviewed diff, when the target's surface changes or the

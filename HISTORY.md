@@ -1408,6 +1408,59 @@ what the public engine learned.
   code-security, with a failed npm audit read as a clean lockfile, and with
   ingest dropping the `lockfile-failed` gap. Not pinned in `tests/golden.json`;
   goldens and the yardstick untouched.
+- **2026-10-07 — fresh-clone and ingest find a lone app directory** (#35, with #37
+  item 3). A repository keeping its whole application in `app/`, with nothing at the
+  root, read "no package.json in the tree": six steps not declared and every README
+  claim missing, and the workaround (fresh-clone run in `app/`) ingested
+  `package.json:1`, which `validate --target` rejected. fresh-clone now runs in the
+  lone directory beneath the root holding the only `package.json` (structure-scan's
+  knipRoot rule) or in `--app <dir>`, replays the root README there, and records
+  `app` (0.5.0) and an absolute local root; ingest cites the app's files from the
+  repository root, and places the root fresh-clone, dependency-scan and repo-census
+  name against the run's target, which `assay start` now records (`target:` in
+  `map/scanners.yaml`) and passes: a root inside the target is rebased onto it, one
+  outside it is kept and warned on with both paths. The `fresh-clone-lone-app` block
+  and its fixture pin it; confirmed red before the change, and with the rebase, the
+  warning and the app prefix each reverted on its own. Goldens untouched.
+- **2026-10-07 — SCHEMA stops leaving the map lane guessing** (#34). A map-only
+  lane can now write a canon and a base from SCHEMA alone. §8's canon example is in
+  block style and parses with `lib/yaml-min` (it used flow maps the reader refuses),
+  and §8 says block style binds canons. The drift check runs from
+  `validate <run> --canon <name>` with no view file (it activated only from
+  `views/improve/prose.yaml`). §8 lists the census names, kept equal to the
+  yardstick's census `measures` by the harness. It states a polarity rule for an
+  effect (`gap` when no gate holds on an irreversible or external effect, `fact`
+  otherwise, gated or not; a gate worth crediting is its own `control` strength),
+  chosen because it matches the repository's own fixtures best. It defines
+  `external: false` for an org-owned store on third-party infrastructure. Every
+  census population in a canon now carries a membership `rule`, and validate
+  refuses one without a rule or with an unknown `subject_type`. §7 states that the
+  base holds facts about the target only, with a fact about the run going to
+  `map/scanners.yaml` or a view. The generated Improve title and §5 lose their
+  em-dashes. The `schema-map-lane` block pins all eight; it was confirmed red for
+  each item's own reason before the change (item 8's `--target` refusal already
+  held and is pinned as it stands). Goldens untouched.
+- **2026-10-07 — known answers for the yardstick** (#18). The fixtures graded
+  the map and nothing graded the measurement. Each scored sheet now carries a
+  `requirements:` list (the status a run over the target should read, with a
+  reason tied to an item on the sheet; contract in `yardstick/README.md`,
+  "Known answers"); `map/score.mjs`'s `gradeRequirements` grades a run's
+  measurement on it (agree, disagree, out of scope when the deciding method did
+  not run), grades every claim row as not-measured from a run alone, and refuses
+  a sheet that answers a claim row anything else. `score` prints the grade beside
+  recall, its exit unchanged. The `yardstick-known-answers` block grades the
+  three stored runs and pins the counts in `tests/golden.json` under
+  `<run>/requirements` (a reviewed re-bless adding those keys; recall's pins
+  unchanged). Five disagreements are pinned in plain sight: the notesbox and
+  cleanlib fresh-clone rows predate the converter's build floor and its
+  `no-database-signal` fact, so both runs read `d-fresh-clone-runs` and
+  `d-schema-versioned` met where the contract reads unmet and not-applicable;
+  and the notesbox map never enumerates the `/admin/purge` effect, so
+  `d-gates-fail-closed` reads not-measured where P-02 opens its gate. The lists
+  wait in `tests/fixtures/pending-assay-fixtures/` for the fixtures repository.
+  Confirmed red with the grader never disagreeing, with the claim refusal
+  removed, with claim rows reading met from a run, with the out-of-scope rule
+  removed, and with a pending list drifting from its frozen copy.
 - **2026-10-07 — deep-code-review over the public fixtures** (#16). The fixture runs
   carry their first real deep-code-review machine reports (1.479.0, the adapter's
   `verified_against`, FULL scope): `tests/fixtures/notesbox` over

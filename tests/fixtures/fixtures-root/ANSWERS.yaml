@@ -114,3 +114,44 @@ instruments:
     axis: artifact-legibility
     polarity: gap
     note: No owner evidence transcript.
+
+# Expected requirement statuses (assay #18): what measuring a run of this target
+# against assay's yardstick (yardstick/requirements.yaml) should read, per requirement,
+# each tied to an item on this sheet. A row whose deciding method did not run reads
+# not-measured and is graded out of scope, never a miss; a claim-kind row reads
+# not-measured from a run alone and is never listed here as anything else. The
+# contract is assay's yardstick/README.md, "Known answers".
+requirements:
+  - id: d-ci-gate-on-default-branch
+    status: met
+    reason: "R-S1: .github/workflows/ci.yml runs the targets' tests on push and pull_request."
+  - id: d-dependencies-pinned
+    status: unmet
+    reason: "R-02: the CI workflow pins its actions by a mutable major tag, not a commit."
+  - id: d-architecture-page
+    status: unmet
+    reason: "R-I1: no architecture page."
+  - id: d-agent-contract
+    status: unmet
+    reason: "R-I2: no AGENTS.md or CLAUDE.md."
+  - id: d-runbook
+    status: unmet
+    reason: "R-I3: no runbook."
+  - id: d-backup-restore-exercised
+    status: unmet
+    reason: "R-I4: no transcript; targets/flawed-webapp carries a server entry point and a start script, a deployment signal, so the row is measured."
+  - id: d-rollback-exercised
+    status: unmet
+    reason: "R-I5: no transcript, with the same deployment signal."
+  - id: d-deploy-one-command
+    status: unmet
+    reason: "R-I6: no transcript, with the same deployment signal."
+  - id: d-smoke-on-deployed
+    status: unmet
+    reason: "R-I7: no transcript, with the same deployment signal."
+  - id: d-monitoring-with-alert
+    status: unmet
+    reason: "R-I8: no transcript, with the same deployment signal."
+  - id: d-cost-alerts
+    status: unmet
+    reason: "R-I9: no transcript, with the same deployment signal."

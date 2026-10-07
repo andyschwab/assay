@@ -14,8 +14,10 @@ meant to be an emergent property of a shared rule applied blind, never achieved 
 copy-forward.
 
 A run activates the validator's canon drift-check by naming its canon in
-`views/improve/prose.yaml` (`canon: <name>`), resolved as `canon/<name>.yaml` here (or
-beside the target's own record). A run with no canon yet derives the population
+`views/improve/prose.yaml` (`canon: <name>`), or a map-only lane passes
+`node assay.mjs validate <run> --canon <name>`; either resolves as `canon/<name>.yaml` here
+(or beside the target's own record). A canon is written in block style, and every census
+population in it states its `subject_type` and its membership `rule` (`SCHEMA.md` §8). A run with no canon yet derives the population
 blind and proposes a new canon as a reviewed diff.
 
 This directory ships empty; a target's canon is authored when it is first

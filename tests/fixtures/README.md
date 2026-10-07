@@ -25,6 +25,13 @@ reaching outside the repo — self-contained immutable copies, kept separate fro
   the repo-root sheet (`fixtures-root/ANSWERS.yaml`). Repo-scoped instruments are
   answered only there, so the per-target runs record repo-census skipped.
 
+Each scored sheet also carries a `requirements:` list (#18): the status the
+yardstick's measurement of the run should read, per requirement, with its reason
+(the contract is `yardstick/README.md`, "Known answers"). The
+`yardstick-known-answers` block grades each run on it and pins the agree,
+disagree and out-of-scope counts in `tests/golden.json` under
+`<run>/requirements`. The lists wait in `pending-assay-fixtures/` until the
+fixtures repository carries them (that README says how they are applied).
 Both `notesbox/` and `fixtures-root/` also carry a real deep-code-review machine
 report (FULL scope; `map/raw/deep-code-review.yaml`, its coverage sidecar under
 `map/coverage/`), ingested with `node assay.mjs ingest --tool deep-code-review`. Like

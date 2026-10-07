@@ -1,0 +1,11 @@
+{
+  "name": "fresh-clone-lone-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public known-answer fixture for map/fresh-clone.mjs (#35): the lone application directory of a repository with no root package.json; dependency-free, its build and test pass offline.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node -e \"process.exit(0)\"",
+    "build": "node -e \"console.log('built')\""
+  }
+}
