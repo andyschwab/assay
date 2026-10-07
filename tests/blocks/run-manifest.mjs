@@ -37,14 +37,14 @@ export async function run() {
   if (!scannerLine(null, ['repo-eval'], adapters).includes('no run manifest')) fail('a missing manifest must be named on the scanners line, never silently omitted');
   if (dispositions({ scanners: { 'repo-eval': { status: 'ran' } } }, adapters).missing.join() !== 'deep-code-review,dependency-scan,fresh-clone,gitleaks,repo-census,structure-scan') fail('adopted scanners without a row must be reported missing');
   if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
-  // the walk prints the reason on the not-measured register
-  const walk = execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'axes.mjs'), join(HERE, 'fixtures', 'notesbox'), '--stdout'], { stdio: 'pipe' }).toString();
-  if (!walk.includes('deep-code-review (skipped this run: fixture run')) fail('the walk must print the skipped scanner and its reason on the not-measured register');
   // the package: refuses without a manifest; lists this run's appendices only, and names the skip
   const tmp = join(HERE, 'tmp-manifest');
   rmSync(tmp, { recursive: true, force: true });
   const runA = join(tmp, 'runs', 'a-2026-01-01'), runB = join(tmp, 'runs', 'b-2026-01-02');
+  // run A is notesbox with deep-code-review recorded skipped (the stored run has it ran, #16):
+  // its rows dropped, so the code axes it measures read not measured, with the reason
   copyFixtureFindings('notesbox', runA);
+  rmSync(join(runA, 'map', 'findings', 'deep-code-review.yaml'), { force: true });
   mkdirSync(join(runB, 'map', 'native'), { recursive: true });
   writeFileSync(join(runB, 'map', 'native', 'deep-code-review.md'), '# a sibling run\'s native report — must never be listed by run A\n');
   let refused = false;
@@ -52,6 +52,14 @@ export async function run() {
   if (!refused) fail('compile-package must refuse to compile a run with no manifest (the package is what gets read)');
   if (existsSync(join(runA, 'INDEX.md'))) fail('a refused package must not have written INDEX.md');
   copyFixtureScanners('notesbox', runA);
+  const manifestA = join(runA, 'map', 'scanners.yaml');
+  const ranRow = '  deep-code-review:\n    status: ran\n';
+  const manifestText = readFileSync(manifestA, 'utf8');
+  if (!manifestText.includes(ranRow)) fail('the stored notesbox run record must say deep-code-review ran');
+  writeFileSync(manifestA, manifestText.replace(ranRow, '  deep-code-review:\n    status: skipped\n    reason: "fixture run: the code scanner was not executed over this public target"\n'));
+  // the walk prints the reason on the not-measured register
+  const walk = execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'axes.mjs'), runA, '--stdout'], { stdio: 'pipe' }).toString();
+  if (!walk.includes('deep-code-review (skipped this run: fixture run')) fail('the walk must print the skipped scanner and its reason on the not-measured register');
   try { execFileSync(process.execPath, [join(ROOT, 'views', 'compile.mjs'), runA], { stdio: 'pipe' }); }
   catch (e) { fail(`compile-package must compile a run with a valid manifest (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
   const index = existsSync(join(runA, 'INDEX.md')) ? readFileSync(join(runA, 'INDEX.md'), 'utf8') : '';

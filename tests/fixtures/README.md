@@ -33,6 +33,13 @@ disagree and out-of-scope counts in `tests/golden.json` under
 `<run>/requirements`. The lists wait in `pending-assay-fixtures/` until the
 fixtures repository carries them (that README says how they are applied).
 
+Both `notesbox/` and `fixtures-root/` also carry a real deep-code-review machine
+report (FULL scope; `map/raw/deep-code-review.yaml`, its coverage sidecar under
+`map/coverage/`), ingested with `node assay.mjs ingest --tool deep-code-review`. Like
+the other fixture runs it is **not blind**: the answers are published, so it proves
+the ingest → projection → scoring pipeline and the adapter mapping, not the
+reviewer's blind recall. The `dcr-fixture-runs` block pins it.
+
 The instrument rows are the instruments' real output over the public fixtures
 (`map/raw/` keeps each report), regenerated with `node assay.mjs <instrument>`
 and `node assay.mjs ingest`, never hand-written.

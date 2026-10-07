@@ -1,0 +1,245 @@
+review:
+  tool: deep-code-review
+  skill_version: "1.479.0"
+  date: 2026-10-07
+  scope: FULL
+  base_ref: null
+  start_sha: b1e5797
+  target: "assay-fixtures"
+  archetype: other
+  stage: UNVERIFIED
+  prior: null
+
+ground_truth:
+  build: ok
+  tests: ok
+  host_ci: unverified
+  gate_self_test: not-run
+  lint_type_scan: not-run
+  authz_posture: "N/A: the repository serves nothing; targets/flawed-webapp's 5 entry points are probed in its own run"
+  parity_coverage: "N/A"
+  pipeline_run: not-run
+  notes:
+    - "build: nothing to build at the root; node --check passes on every .mjs file"
+    - "tests: the two commands .github/workflows/ci.yml runs (clean-lib and flawed-webapp smoke) exit 0 locally"
+    - "host_ci: the workflow's run status on GitHub was not read"
+    - "gate_self_test: no planted-defect probe was run against the root workflow"
+    - "lint_type_scan: no lint, typecheck or scan is declared anywhere in the repository"
+    - "pipeline_run: no deploy pipeline"
+
+coverage:
+  A:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  B:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  C:
+    status: partial
+    note: "no AI surface outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+  D:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  E:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  F:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  G:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  H:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  I:
+    status: partial
+    note: "no API outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+  J:
+    status: partial
+    note: "the root workflow and targets/clean-lib's suite read; targets/flawed-webapp's suite is reviewed in its own FULL run at this sha"
+  K:
+    status: scanned
+  L:
+    status: not-applicable
+    note: "no IaC, containers, or cloud config in the repository"
+  M:
+    status: partial
+    note: "nothing runs unattended outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+  N:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp's config is reviewed in its own FULL run at this sha"
+  O:
+    status: partial
+    note: "the root README, targets/clean-lib and targets/lockfiles docs read; targets/flawed-webapp's docs are reviewed in its own FULL run at this sha"
+  P:
+    status: not-applicable
+    note: "no frontend or UI anywhere in the repository"
+  Q:
+    status: partial
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha"
+  R:
+    status: not-applicable
+    note: "clean-lib's accent fold is a documented design choice (its ADR-0001), not localization; no locale handling elsewhere"
+  S:
+    status: scanned
+    note: "three remote branches: main; fixtures/lockfiles-target, already merged into main (its head e24d527 is in main's history) and safe to delete; a dependabot bump of the planted minimist 1.2.5, which would erase the lockfiles target's planted answer and should be closed, not merged"
+  T:
+    status: not-applicable
+    note: "no tenant boundary anywhere in the repository"
+  W:
+    status: not-applicable
+    note: "the CI workflow is push and pull_request triggered only; no cron, queue, or multi-step workflow"
+
+findings:
+  - id: F1
+    title: "app lockfile pins minimist 1.2.5, which carries a known critical advisory"
+    area: K
+    tag: "A03 software supply chain; GHSA-xvch-5gv4-984h; planted per targets/lockfiles/README.md"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: true
+    mechanism_unproven: false
+    observation: >
+      targets/lockfiles/app resolves minimist 1.2.5, inside the range of a published critical prototype-pollution advisory; nothing in the repository imports it, so it is not reachable today.
+    evidence:
+      - targets/lockfiles/app/package-lock.json:15
+      - targets/lockfiles/app/package.json:7
+    fix: >
+      Pin minimist 1.2.6 or later and regenerate the lockfile; here the target's README states the pin is planted on purpose, so the owner's decision is to keep it.
+  - id: F2
+    title: "CI actions are pinned to a mutable major tag"
+    area: K
+    tag: "actions on a mutable tag; CWE-829"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      Both jobs use actions/checkout@v4 and actions/setup-node@v4, so the code CI runs can change under the same workflow file when the tag is moved.
+    evidence:
+      - .github/workflows/ci.yml:14
+      - .github/workflows/ci.yml:15
+      - .github/workflows/ci.yml:23
+      - .github/workflows/ci.yml:24
+    fix: >
+      Pin each action to a full commit SHA with the tag as a trailing comment, and let an update bot bump the SHAs through the same gate.
+  - id: F3
+    title: "legacy lockfile is truncated and unreadable"
+    area: K
+    tag: "lockfile not honored; planted per targets/lockfiles/README.md"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      targets/lockfiles/legacy/package-lock.json ends mid-object at line 8 and does not parse as JSON, so no package manager can install from it or audit it.
+    evidence:
+      - targets/lockfiles/legacy/package-lock.json:8
+    fix: >
+      Regenerate the lockfile with npm install; here the target's README states the truncation is planted on purpose, so the owner's decision is to keep it.
+  - id: F4
+    title: "Workflow declares no token permissions"
+    area: K
+    tag: "least privilege; GITHUB_TOKEN"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      ci.yml sets no permissions key, so its jobs get the repository's default GITHUB_TOKEN scope although they only read the checkout.
+    evidence:
+      - .github/workflows/ci.yml:10
+    fix: >
+      Add a top-level permissions block with contents read.
+  - id: F5
+    title: "Workflow sets no timeout or concurrency"
+    area: K
+    tag: "runner-minute cost"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      Neither job sets timeout-minutes and the workflow has no concurrency group, so a hung job runs to the platform ceiling and a superseded push keeps running.
+    evidence:
+      - .github/workflows/ci.yml:12
+      - .github/workflows/ci.yml:6
+    fix: >
+      Add timeout-minutes to each job and a concurrency group with cancel-in-progress for pull_request runs.
+  - id: F6
+    title: "README layout block attributes clean-lib's sheet to lockfiles"
+    area: O
+    tag: "docs drift"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The lockfiles entry was inserted between clean-lib and clean-lib's ANSWERS.yaml line, so the tree now shows clean-lib with no sheet and lockfiles with two.
+    evidence:
+      - README.md:19
+      - README.md:21
+    fix: >
+      Move clean-lib's "asserts the near-absence of findings" line directly under clean-lib.
+  - id: F7
+    title: "README's sheet example cites the wrong line for P-01"
+    area: O
+    tag: "docs drift"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The known-answer contract example gives P-01's evidence as config/settings.mjs:7; the planted key, and flawed-webapp's own sheet, are at line 6.
+    evidence:
+      - README.md:59
+      - targets/flawed-webapp/ANSWERS.yaml:16
+    fix: >
+      Change the example to config/settings.mjs:6.
+  - id: F8
+    title: "fold() comment says it returns '' but it returns a space"
+    area: H
+    tag: "comment drift"
+    severity: Nit
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      clean-lib's fold() is documented to return '' for a character with no ASCII base; it returns ' ', which the caller relies on as a separator.
+    evidence:
+      - targets/clean-lib/index.mjs:5
+      - targets/clean-lib/index.mjs:8
+    fix: >
+      Say it returns a space (a separator) for a character with no ASCII base.
+  - id: F9
+    title: "CI runs every target's suite on push and pull request"
+    area: J
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      The workflow triggers on push and pull_request and runs the clean-lib suite and the flawed-webapp smoke suite; both commands exit 0 locally.
+    evidence:
+      - .github/workflows/ci.yml:7
+      - .github/workflows/ci.yml:18
+      - .github/workflows/ci.yml:27
+  - id: F10
+    title: "clean-lib's tests assert behavior, edge cases included"
+    area: J
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      The suite asserts exact output for accents, punctuation, collapsing, trimming and the empty string, and that non-string input throws.
+    evidence:
+      - targets/clean-lib/test/slugify.test.mjs:7
+      - targets/clean-lib/test/slugify.test.mjs:13
+
+prior_not_rechecked: []

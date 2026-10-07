@@ -1,0 +1,83 @@
+# map/coverage/deep-code-review.yaml — the scanner's OWN coverage account, archived by assay.mjs ingest.
+# One row per domain in the scanner's taxonomy: scanned | partial | not-scanned | not-applicable.
+# Renderers read it: an axis this scanner contributes is fully measured only where every
+# mapped domain was scanned; otherwise the axis reads "partially measured", with the note.
+scanner: deep-code-review
+review:
+  tool: "deep-code-review"
+  skill_version: "1.479.0"
+  date: "2026-10-07"
+  scope: "FULL"
+  base_ref: null
+  start_sha: "b1e5797"
+  target: "flawed-webapp"
+  archetype: "api"
+  stage: "UNVERIFIED"
+  prior: null
+ground_truth:
+  build: "ok"
+  tests: "ok"
+  host_ci: "unverified"
+  gate_self_test: "not-proven"
+  lint_type_scan: "not-run"
+  authz_posture: "5 entry points · anon probed 5 · two-principal 2 (/notes, /admin/purge) · untested: none"
+  parity_coverage: "N/A"
+  pipeline_run: "not-run"
+  notes:
+    - "build: no build step declared; node --check passes on every .mjs file"
+    - "tests: node test/smoke.mjs exits 0; package.json declares no test script, and the README's npm run test:all does not exist"
+    - "host_ci: the target carries no CI of its own; the repository root's workflow runs the smoke suite, its run status was not read"
+    - "gate_self_test: the smoke suite stays green with the fail-open authenticate() (F2) in the tree, so the gate is proven not to catch it"
+    - "lint_type_scan: no lint, format, typecheck or scan is declared"
+    - "pipeline_run: no deploy pipeline in the target"
+coverage:
+  A:
+    status: "scanned"
+  B:
+    status: "scanned"
+  C:
+    status: "scanned"
+  D:
+    status: "scanned"
+  E:
+    status: "scanned"
+  F:
+    status: "scanned"
+  G:
+    status: "scanned"
+  H:
+    status: "scanned"
+  I:
+    status: "scanned"
+  J:
+    status: "scanned"
+  K:
+    status: "scanned"
+    note: "package.json and the absence of a lockfile read (zero dependencies); the CI workflow lives at the repository root, outside this target, and is reviewed in the root run"
+  L:
+    status: "not-applicable"
+    note: "no IaC, containers, or cloud config in the target"
+  M:
+    status: "scanned"
+  N:
+    status: "scanned"
+  O:
+    status: "scanned"
+  P:
+    status: "not-applicable"
+    note: "no frontend or UI; the target serves JSON only"
+  Q:
+    status: "scanned"
+  R:
+    status: "not-applicable"
+    note: "no locale, encoding or localized text handling beyond JSON strings"
+  S:
+    status: "not-applicable"
+    note: "the target is a subdirectory of the fixtures repository; branch and open-work triage is repository-level, read in the root run"
+  T:
+    status: "not-applicable"
+    note: "one workspace per deployment; no tenant boundary in the code"
+  W:
+    status: "not-applicable"
+    note: "no cron, queue, or multi-step workflow; /sync is a request-scoped call"
+prior_not_rechecked: []

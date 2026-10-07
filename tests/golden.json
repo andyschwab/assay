@@ -18,17 +18,18 @@
     },
     "fixtures-root": {
       "recall": 100,
-      "recovered": 10,
-      "in_scope": 10,
+      "recovered": 11,
+      "in_scope": 11,
       "missed": 0,
       "misHomed": 0,
       "falsePositives": 0
     },
     "notesbox/requirements": {
       "agree": 30,
-      "disagree": 3,
-      "out_of_scope": 1,
+      "disagree": 4,
+      "out_of_scope": 0,
       "disagreements": [
+        "d-routes-authorized",
         "d-gates-fail-closed",
         "d-fresh-clone-runs",
         "d-schema-versioned"
@@ -44,9 +45,9 @@
       ]
     },
     "fixtures-root/requirements": {
-      "agree": 32,
+      "agree": 33,
       "disagree": 0,
-      "out_of_scope": 1,
+      "out_of_scope": 0,
       "disagreements": []
     }
   }
