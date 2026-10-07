@@ -104,7 +104,22 @@ function ingestInstrumentRaw({ tool, exit, output, rawFile, okExits, outDir, log
     return { status: 'failed', reason };
   }
   log(`  ✓ ${tool} ran (exit ${exit})`);
+  for (const line of toolNotRunLines(tool, rawFile)) log(line);
   return { status: 'ran' };
+}
+// An instrument that drives tools of its own records each one under `tools.<name>`
+// ({ status, reason }); one it records skipped or failed gets its own console line
+// with the reason's first sentence (#129), so a person reading `start` learns that
+// pass did not happen without opening the run record. Generic over the record's
+// shape: any instrument with a `tools` record gets the same line. The raw report
+// already ingested, so one that cannot be read here simply adds no line.
+function toolNotRunLines(tool, rawFile) {
+  let tools;
+  try { tools = JSON.parse(readFileSync(rawFile, 'utf8')).tools; } catch { return []; }
+  if (!tools || typeof tools !== 'object') return [];
+  return Object.entries(tools)
+    .filter(([, t]) => t && (t.status === 'skipped' || t.status === 'failed'))
+    .map(([name, t]) => `  · ${tool}: ${name} ${t.status} — ${String(t.reason || 'no reason recorded').replace(/\s+/g, ' ').trim().split(/(?<=\.)\s/)[0]}`);
 }
 
 // gitleaks is an external binary, not part of assay's own CLI — run it directly
