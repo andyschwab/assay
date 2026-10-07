@@ -169,3 +169,47 @@ instruments:
     axis: deterministic-gates
     polarity: gap
     note: No typecheck script is declared.
+
+# Expected requirement statuses (assay #18): what measuring a run of this target
+# against assay's yardstick (yardstick/requirements.yaml) should read, per requirement,
+# each tied to an item on this sheet. A row whose deciding method did not run reads
+# not-measured and is graded out of scope, never a miss; a claim-kind row reads
+# not-measured from a run alone and is never listed here as anything else. The
+# contract is assay's yardstick/README.md, "Known answers".
+requirements:
+  - id: d-secrets-out-of-history
+    status: unmet
+    reason: "P-01: a backup-service API key is hardcoded in config/settings.mjs."
+  - id: d-routes-authorized
+    status: unmet
+    reason: "P-02 authenticates every unknown token as admin, and P-04 serves POST /sync with no authorization check."
+  - id: d-dependencies-known-clean
+    status: met
+    reason: "package.json declares no dependencies, so no advisory can apply (dependency-scan: no lockfile, a recorded clean run)."
+  - id: d-effects-gated
+    status: unmet
+    reason: "P-03 sends the assistant's email and P-04 pushes the backup with no halt before either effect."
+  - id: d-effects-traced
+    status: unmet
+    reason: "P-04/P-07: the backup push is fired and forgotten, its failure swallowed, and leaves no record."
+  - id: d-gates-fail-closed
+    status: unmet
+    reason: "C-02: the one gated effect, /admin/purge behind requireAdmin, opens for any caller because authentication fails open to admin (P-02)."
+  - id: d-capability-budget
+    status: unmet
+    reason: "P-03: the assistant holds untrusted input, private data and an external effect in one context, and reaches an ungated email send."
+  - id: d-effects-provable
+    status: unmet
+    reason: "P-03's email is only logged as text and P-07's backup push leaves nothing to check from outside."
+  - id: d-fresh-clone-runs
+    status: unmet
+    reason: "package.json declares no build step, and the requirement reads an undeclared build unmet (absence is not a pass)."
+  - id: d-schema-versioned
+    status: not-applicable
+    reason: "No database signal anywhere in the tree: lib/db.mjs is an in-memory Map, with no database dependency and no migrations."
+  - id: d-tests-execute-core
+    status: unmet
+    reason: "I-01: package.json declares no test script."
+  - id: d-lint-typecheck-gate
+    status: unmet
+    reason: "I-02 and I-03: no lint and no typecheck script is declared."
