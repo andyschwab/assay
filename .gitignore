@@ -1,3 +1,4 @@
+node_modules
 node_modules/
 *.log
 # rendered outputs (regenerated from the Markdown source of truth)
