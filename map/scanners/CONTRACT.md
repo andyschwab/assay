@@ -297,9 +297,21 @@ decides, and a `missing` claim is a gap; a `present` one is not proof the comman
 works. It does not run a migration against a live database, does not attempt a
 toolchain family it cannot exercise, and does not read step output into rows.
 
+**Where it runs (#35).** A repository with no root `package.json` and exactly one
+directory directly beneath the root holding one (`app/`) is that directory's
+project — structure-scan's rule for where knip runs — and `--app <dir>` declares it
+instead. The steps run there and the root README's commands are replayed as after
+`cd <dir>`; the document records `app: { path, from }`, and ingest cites the app's
+files from the repository root (`app/package.json:1`). Ingest also places the root
+any instrument names (`target.path`: fresh-clone, dependency-scan, repo-census)
+against the run's target (`--target`, else `target:` in `map/scanners.yaml`, which
+`assay start` writes): inside it, the evidence is rebased onto the target; neither
+the target nor inside it, the rows are kept as written and ingest warns with both
+paths, never halts (a component-scoped run over a subtree is normal).
+
 ```sh
-node assay.mjs fresh-clone <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone]
-node assay.mjs ingest <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
+node assay.mjs fresh-clone <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone] [--app <dir>]
+node assay.mjs ingest <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code> [--target <run target root>]
 ```
 
 **A requirement's `decide.category` as a list (`yardstick/requirements.yaml`).**

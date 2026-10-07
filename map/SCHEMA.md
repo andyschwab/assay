@@ -30,7 +30,7 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
   subject_type: effect         # effect | control | artifact | contract | process | capability
   observation: >               # ONE grounded sentence — the fact, not the interpretation
     The agent sends email as the user with no draft/confirm step.
-  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo
+  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo (an instrument run inside it is rebased onto it at ingest)
   confidence: confirmed        # confirmed | plausible | unverified
   # ── facets (conditional-required — see §4) ──
   effect:                      # REQUIRED iff subject_type == effect

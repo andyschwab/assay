@@ -58,6 +58,15 @@
 //      script that exists and fails stays a gap. Anything the rules cannot show stays
 //      not-declared: the reach is read from the command, never assumed.
 //      A workspace-free repo emits `workspaces: []` and nothing else changes.
+//   6. A LONE APPLICATION DIRECTORY (#35): a repository with no package.json at its
+//      root and exactly one directory directly beneath it holding one (`app/`, the
+//      shape apps built from a common starter kit take) is that directory's project —
+//      structure-scan's rule for where knip runs (knipRoot), the same rule here.
+//      `--app <dir>` declares it instead (a directory inside the tree holding a
+//      package.json; anything else crashes). The steps and workspaces run there; the
+//      README replayed is the root's (else the app's own), its commands checked as a
+//      reader runs them after `cd <dir>`. The document records `app: { path, from }`
+//      and names `readme` from the root; workspace paths stay relative to the app.
 //
 // The target's own code runs here — its install (lifecycle scripts included), build,
 // lint, typecheck, test and migrate-dry scripts — so every child gets the allow-listed
@@ -79,17 +88,17 @@
 //
 // Usage:
 //   node assay.mjs fresh-clone <target-dir | git URL> --out <file.json>
-//         [--timeout <seconds per step, default 600>] [--no-clone]
+//         [--timeout <seconds per step, default 600>] [--no-clone] [--app <dir>]
 // Zero dependencies (node: modules only).
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join, resolve, isAbsolute, sep } from 'node:path';
+import { join, resolve, isAbsolute, sep, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
 import { stripUserinfo } from './repo-census.mjs';
 
-export const VERSION = '0.4.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30)
+export const VERSION = '0.5.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 export const CLAIM_STATUS = ['present', 'missing'];
@@ -264,6 +273,23 @@ export function resolveWorkspaces(dir, pkg) {
   const seen = new Set();
   for (const pattern of patterns) for (const p of expandWorkspaceGlob(dir, String(pattern).replace(/^\.\//, ''))) if (!exclude.some((re) => re.test(p))) seen.add(p);
   return [...seen].sort();
+}
+
+// ── the application directory (#35): structure-scan's knipRoot rule, or --app ──
+// null when the root carries its own package.json (or nothing qualifies): the root runs.
+const SKIP_DIRS = new Set(['node_modules', '.git']);
+function resolveApp(dir, declared = null) {
+  if (declared !== null) {
+    const abs = resolve(dir, declared);
+    const rel = relative(dir, abs).split(sep).join('/');
+    if (!rel || rel.startsWith('..') || isAbsolute(rel)) throw new Error(`--app ${declared}: not a directory inside the target`);
+    if (!existsSync(join(abs, 'package.json'))) throw new Error(`--app ${declared}: no package.json there`);
+    return { path: rel, from: '--app' };
+  }
+  if (existsSync(join(dir, 'package.json'))) return null;
+  let dirs = [];
+  try { dirs = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name) && existsSync(join(dir, e.name, 'package.json'))).map((e) => e.name); } catch { /* unreadable: none */ }
+  return dirs.length === 1 ? { path: dirs[0], from: 'lone-directory' } : null;
 }
 
 // ── step planning: what is declared, and the command that runs it ────────────
@@ -582,10 +608,11 @@ export function claimPresent(claim, dir, pkg) {
   return false;
 }
 
-function replayReadme(dir, pkg) {
-  const readme = findReadme(dir);
-  if (!readme) return { readme: null, claims: [] };
-  const claims = parseReadmeClaims(readFileSync(join(dir, readme), 'utf8'));
+// file: a README outside dir (the root's, replayed in the app) — its claims checked in dir
+function replayReadme(dir, pkg, file = null) {
+  const readme = file ? null : findReadme(dir);
+  if (!readme && !file) return { readme: null, claims: [] };
+  const claims = parseReadmeClaims(readFileSync(file || join(dir, readme), 'utf8'));
   for (const c of claims) c.status = claimPresent(c, dir, pkg) ? 'present' : 'missing';
   return { readme, claims };
 }
@@ -597,10 +624,10 @@ function git(args, cwd) {
   return { ok: r.status === 0, out: String(r.stdout || '').trim(), err: String(r.stderr || '').trim() };
 }
 
-export function run({ target, timeout = 600, clone = true, log = /** @type {(msg: string) => void} */ (() => {}) }) {
+export function run({ target, timeout = 600, clone = true, app: declaredApp = null, log = /** @type {(msg: string) => void} */ (() => {}) }) {
   const startedAt = new Date().toISOString();
   let workDir, scratch = null;
-  const t = { path: isUrl(target) ? stripUserinfo(target) : target, head: null, cloned: false };
+  const t = { path: isUrl(target) ? stripUserinfo(target) : resolve(target), head: null, cloned: false };   // a local root absolute, so ingest can place it against the run's target (#35)
   if (clone) {
     const src = isUrl(target) ? target : `file://${resolve(target)}`;
     if (!isUrl(target) && !existsSync(target)) throw new Error(`target does not exist: ${target}`);
@@ -617,13 +644,19 @@ export function run({ target, timeout = 600, clone = true, log = /** @type {(msg
   try {
     const head = git(['rev-parse', 'HEAD'], workDir);
     t.head = head.ok ? head.out : null;
-    const { toolchain, pkg } = detectToolchain(workDir);
+    const app = resolveApp(workDir, declaredApp);
+    if (app) log(`→ application directory: ${app.path} (${app.from === '--app' ? 'declared with --app' : 'the lone directory holding a package.json'})`);
+    const appDir = app ? join(workDir, app.path) : workDir;
+    const { toolchain, pkg } = detectToolchain(appDir);
     const plan = planSteps(toolchain, pkg);
-    const steps = runSteps(plan, workDir, timeout, log);
-    const { readme, claims } = replayReadme(workDir, pkg);
+    const steps = runSteps(plan, appDir, timeout, log);
+    // the root's README is the front door; its commands are replayed in the app (`cd <dir>`)
+    const rootReadme = app ? findReadme(workDir) : null;
+    const { readme: appReadme, claims } = rootReadme ? replayReadme(appDir, pkg, join(workDir, rootReadme)) : replayReadme(appDir, pkg);
+    const readme = rootReadme || (app && appReadme ? `${app.path}/${appReadme}` : appReadme);
     const stepBad = steps.some((s) => s.status === 'failed' || s.status === 'timed-out');
     const claimBad = claims.some((c) => c.status === 'missing');
-    const wsPaths = pkg ? resolveWorkspaces(workDir, pkg) : [];
+    const wsPaths = pkg ? resolveWorkspaces(appDir, pkg) : [];
     if (wsPaths.length) log(`→ workspaces: ${wsPaths.join(', ')}`);
     // the root's context for coverage: its manifest, its step rows (already run), and
     // which package owns migrations (the root, else the first workspace declaring one)
@@ -631,16 +664,16 @@ export function run({ target, timeout = 600, clone = true, log = /** @type {(msg
     const rootMig = declaresMigrate(pkg);
     if (rootMig) migrateOwner = { path: '.', script: rootMig };
     else for (const p of wsPaths) {
-      const wm = declaresMigrate(detectToolchain(join(workDir, p)).pkg);
+      const wm = declaresMigrate(detectToolchain(join(appDir, p)).pkg);
       if (wm) { migrateOwner = { path: p, script: wm }; break; }
     }
     const rootCtx = { pkg, steps, migrateOwner };
-    const workspaces = wsPaths.map((p) => runWorkspace(p, workDir, toolchain, timeout, log, rootCtx));
+    const workspaces = wsPaths.map((p) => runWorkspace(p, appDir, toolchain, timeout, log, rootCtx));
     const wsBad = workspaces.some((w) => w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing'));
     return {
       tool: 'fresh-clone', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
-      target: t, toolchain, timeout_seconds: timeout, steps, readme, readme_claims: claims,
-      ...(wsPaths.length ? { workspaces_from: workspaceSource(workDir, pkg) } : {}), workspaces,
+      target: t, ...(app ? { app } : {}), toolchain, timeout_seconds: timeout, steps, readme, readme_claims: claims,
+      ...(wsPaths.length ? { workspaces_from: workspaceSource(appDir, pkg) } : {}), workspaces,
       exit: stepBad || claimBad || wsBad ? 1 : 0,
     };
   } finally {
@@ -653,14 +686,14 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
   const target = args.find((a, i) => !a.startsWith('--') && (i === 0 || !args[i - 1].startsWith('--') || args[i - 1] === '--no-clone'));
-  const out = opt('--out');
+  const out = opt('--out'), app = opt('--app');
   const timeout = opt('--timeout') ? Number(opt('--timeout')) : 600;
   if (!target || !out || !Number.isFinite(timeout) || timeout <= 0) {
-    console.error('usage: node assay.mjs fresh-clone <target-dir | git URL> --out <file.json> [--timeout <seconds per step, default 600>] [--no-clone]');
+    console.error('usage: node assay.mjs fresh-clone <target-dir | git URL> --out <file.json> [--timeout <seconds per step, default 600>] [--no-clone] [--app <dir>]');
     process.exit(2);
   }
   try {
-    const doc = run({ target, timeout, clone: !args.includes('--no-clone'), log: (m) => console.error(m) });
+    const doc = run({ target, timeout, clone: !args.includes('--no-clone'), app, log: (m) => console.error(m) });
     writeFileSync(isAbsolute(out) ? out : resolve(out), JSON.stringify(doc, null, 2) + '\n');
     const failed = doc.steps.filter((s) => s.status === 'failed' || s.status === 'timed-out').map((s) => s.name);
     const undeclared = doc.steps.filter((s) => s.status === 'not-declared').map((s) => s.name);
