@@ -208,57 +208,66 @@ const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
 //                           the target's own tool configuration files, is then
 //                           recorded skipped with that reason (jscpd and the tree
 //                           pass still run). `assay start` without --allow-exec
-//                           and the routine's gate job (which never executes the
-//                           target) set it.
-//   freshCloneHandoff     — a directory another step wrote with
-//                           writeFreshCloneHandoff: fresh-clone is not run here,
-//                           its handed-forward report is ingested instead (the
-//                           routine's gate job, which never executes the target).
-export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null, freshCloneHandoff = null, structureScanNoExec = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+//                           sets it.
+//   handoff               — a directory another step wrote with
+//                           writeTargetHandoff: fresh-clone and structure-scan are
+//                           not run here, their handed-forward reports are
+//                           ingested instead (the routine's gate job, which never
+//                           executes the target; knip ran in the target job,
+//                           after fresh-clone's install — #128).
+export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null, handoff = null, structureScanNoExec = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of JUDGMENT_SCANNERS) rows[id] = { status: 'skipped', reason: reasonFor(id) };
   rows['repo-census'] = runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log });
   const fcArgs = freshCloneNoClone ? [repoDir, '--no-clone'] : [repoDir];
   if (freshCloneSkipReason) { log(`· fresh-clone — not run: ${freshCloneSkipReason}`); rows['fresh-clone'] = { status: 'skipped', reason: freshCloneSkipReason }; }
-  else if (freshCloneHandoff) rows['fresh-clone'] = ingestFreshCloneHandoff(freshCloneHandoff, outDir, log);
+  else if (handoff) rows['fresh-clone'] = ingestHandoff('fresh-clone', handoff, outDir, log);
   else rows['fresh-clone'] = runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log });
   rows['dependency-scan'] = runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log });
   rows['gitleaks'] = runGitleaks(repoDir, outDir, log, gitleaksAbsentReason);
-  rows['structure-scan'] = runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log });
+  if (handoff) rows['structure-scan'] = ingestHandoff('structure-scan', handoff, outDir, log);
+  else rows['structure-scan'] = runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log });
   return rows;
 }
 
-// ── fresh-clone handed from one step to another ─────────────────────────────
+// ── the target's instruments handed from one step to another ────────────────
 // The routine runs the target's own code in one job and gates in another
-// (routine/README.md "Two jobs"). The first writes, into a handoff directory,
-// fresh-clone's raw report and a status file ({ exit, output }); the second
-// ingests them. The handoff is the target job's output, read as data: ingest
-// validates the report like any other, and a missing or unreadable handoff
-// records fresh-clone failed with the reason — never run here, never clean.
-const HANDOFF_REPORT = 'fresh-clone.json';
-const HANDOFF_STATUS = 'fresh-clone.status.json';
-const FRESH_CLONE_OK_EXITS = [0, 1];
-export function writeFreshCloneHandoff({ repoDir, handoffDir }, log = /** @type {(msg: string) => void} */ (() => {})) {
+// (routine/README.md "Two jobs"). The first runs fresh-clone in place, then
+// structure-scan with knip enabled over the dependencies that install left
+// (#118, #128), and writes, into a handoff directory, each one's raw report and a
+// status file ({ exit, output }); the second ingests them. The handoff is the
+// target job's output, read as data: ingest validates each report like any other,
+// and a missing or unreadable one records that instrument failed with the
+// reason — never run here, never clean.
+const HANDED_OFF = { 'fresh-clone': ['--no-clone'], 'structure-scan': [] };   // in this order: knip reads fresh-clone's install
+const HANDOFF_OK_EXITS = [0, 1];
+const handoffReport = (tool) => `${tool}.json`;
+const handoffStatus = (tool) => `${tool}.status.json`;
+export function writeTargetHandoff({ repoDir, handoffDir }, log = /** @type {(msg: string) => void} */ (() => {})) {
   mkdirSync(handoffDir, { recursive: true });
-  log('· fresh-clone (in place; its report is handed to the gate) …');
-  const r = assay(['fresh-clone', repoDir, '--no-clone', '--out', join(handoffDir, HANDOFF_REPORT)]);
-  const output = String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join('\n');
-  writeFileSync(join(handoffDir, HANDOFF_STATUS), JSON.stringify({ tool: 'fresh-clone', exit: r.status, output }) + '\n');
-  log(`  ${r.status != null && FRESH_CLONE_OK_EXITS.includes(r.status) ? '✓' : '✗'} fresh-clone exited ${r.status == null ? '(no exit code — process error)' : r.status}`);
-  return { exit: r.status };
+  const exits = {};
+  for (const [tool, extra] of Object.entries(HANDED_OFF)) {
+    log(`· ${tool} (in place; its report is handed to the gate) …`);
+    const r = assay([tool, repoDir, ...extra, '--out', join(handoffDir, handoffReport(tool))]);
+    const output = String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join('\n');
+    writeFileSync(join(handoffDir, handoffStatus(tool)), JSON.stringify({ tool, exit: r.status, output }) + '\n');
+    log(`  ${r.status != null && HANDOFF_OK_EXITS.includes(r.status) ? '✓' : '✗'} ${tool} exited ${r.status == null ? '(no exit code — process error)' : r.status}`);
+    exits[tool] = r.status;
+  }
+  return { exits };
 }
-function ingestFreshCloneHandoff(handoffDir, outDir, log) {
-  log(`· fresh-clone — from the target step's handoff (${HANDOFF_STATUS}) …`);
+function ingestHandoff(tool, handoffDir, outDir, log) {
+  log(`· ${tool} — from the target step's handoff (${handoffStatus(tool)}) …`);
   let status;
-  try { status = JSON.parse(readFileSync(join(handoffDir, HANDOFF_STATUS), 'utf8')); }
+  try { status = JSON.parse(readFileSync(join(handoffDir, handoffStatus(tool)), 'utf8')); }
   catch (e) {
-    const reason = `the target step handed no readable fresh-clone result forward (${e.message.split('\n')[0]})`;
-    log(`  ✗ fresh-clone failed: ${reason}`);
+    const reason = `the target step handed no readable ${tool} result forward (${e.message.split('\n')[0]})`;
+    log(`  ✗ ${tool} failed: ${reason}`);
     return { status: 'failed', reason };
   }
   const exit = Number.isInteger(status && status.exit) ? status.exit : null;
-  return ingestInstrumentRaw({ tool: 'fresh-clone', exit, output: status && status.output, rawFile: join(handoffDir, HANDOFF_REPORT), okExits: FRESH_CLONE_OK_EXITS, outDir, log });
+  return ingestInstrumentRaw({ tool, exit, output: status && status.output, rawFile: join(handoffDir, handoffReport(tool)), okExits: HANDOFF_OK_EXITS, outDir, log });
 }
 
 // the reason a `start` run gives for a judgment scanner it never runs, naming

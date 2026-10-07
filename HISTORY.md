@@ -1330,3 +1330,17 @@ what the public engine learned.
   `tests/instruments/structure-monorepo` with pnpm off PATH and a fake npm whose
   jscpd exits 3, asserting both lines; it was confirmed red before the change
   and red again with the logging call reverted. Goldens untouched.
+- **2026-10-07 — the two-job routine runs structure-scan in its target job**
+  (#128). The two-job workflow template ran structure-scan in the gate job with
+  `--no-exec`, so knip read `skipped` on every run and `d-no-dead-code` read
+  not measured on files and exports, however the target was laid out. The
+  target step (`routine/run.mjs --target-steps`) now runs structure-scan after
+  fresh-clone's in-place install and hands its raw report forward beside
+  fresh-clone's (`map/start.mjs` `writeTargetHandoff`); the gate ingests both
+  and never runs either, and a missing structure-scan handoff reads failed with
+  the reason. The template's target step names it, `routine/README.md` ("What
+  it runs", "Two jobs") names the job knip runs in and says the structure
+  report is now the change's own account too, and contract §3e says which job
+  runs it. `routine-handoff` and `routine-workflow` pin the order and the job;
+  both were confirmed red before the change (knip `skipped` for `--no-exec` in
+  the gate). Goldens untouched.

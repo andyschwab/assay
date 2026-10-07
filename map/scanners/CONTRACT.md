@@ -549,9 +549,11 @@ tools do the first two and the instrument does the rest from the tree:
   the target's own tool configuration files (`vite.config.*`,
   `eslint.config.*`, …) to find entry points, which runs the target's code, so
   it runs only where fresh-clone may (§3a, "What runs, and with what"): `assay
-  start` passes `--no-exec` unless given `--allow-exec`, and the routine passes
-  it in the two-job template's gate job; knip then reads `skipped` with that
-  reason. knip runs at the root when it holds a `package.json`, else in the one
+  start` passes `--no-exec` unless given `--allow-exec`, and knip then reads
+  `skipped` with that reason. The two-job routine template runs structure-scan
+  in its target job, the one job that executes the target, after fresh-clone's
+  install there, and hands the report to the gate job, which never runs it
+  (#128). knip runs at the root when it holds a `package.json`, else in the one
   directory directly beneath it that does (an application kept whole in
   `app/`, #119), its rows' paths written relative to the repository root and
   `knip.root` recording where it ran; with no such directory, or more than one,
