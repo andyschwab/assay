@@ -1408,3 +1408,17 @@ what the public engine learned.
   code-security, with a failed npm audit read as a clean lockfile, and with
   ingest dropping the `lockfile-failed` gap. Not pinned in `tests/golden.json`;
   goldens and the yardstick untouched.
+- **2026-10-07 — fresh-clone and ingest find a lone app directory** (#35, with #37
+  item 3). A repository keeping its whole application in `app/`, with nothing at the
+  root, read "no package.json in the tree": six steps not declared and every README
+  claim missing, and the workaround (fresh-clone run in `app/`) ingested
+  `package.json:1`, which `validate --target` rejected. fresh-clone now runs in the
+  lone directory beneath the root holding the only `package.json` (structure-scan's
+  knipRoot rule) or in `--app <dir>`, replays the root README there, and records
+  `app` (0.5.0) and an absolute local root; ingest cites the app's files from the
+  repository root, and places the root fresh-clone, dependency-scan and repo-census
+  name against the run's target, which `assay start` now records (`target:` in
+  `map/scanners.yaml`) and passes: a root inside the target is rebased onto it, one
+  outside it is kept and warned on with both paths. The `fresh-clone-lone-app` block
+  and its fixture pin it; confirmed red before the change, and with the rebase, the
+  warning and the app prefix each reverted on its own. Goldens untouched.
