@@ -1,0 +1,96 @@
+# map/coverage/deep-code-review.yaml — the scanner's OWN coverage account, archived by assay.mjs ingest.
+# One row per domain in the scanner's taxonomy: scanned | partial | not-scanned | not-applicable.
+# Renderers read it: an axis this scanner contributes is fully measured only where every
+# mapped domain was scanned; otherwise the axis reads "partially measured", with the note.
+scanner: deep-code-review
+review:
+  tool: "deep-code-review"
+  skill_version: "1.479.0"
+  date: "2026-10-07"
+  scope: "FULL"
+  base_ref: null
+  start_sha: "b1e5797"
+  target: "assay-fixtures"
+  archetype: "other"
+  stage: "UNVERIFIED"
+  prior: null
+ground_truth:
+  build: "ok"
+  tests: "ok"
+  host_ci: "unverified"
+  gate_self_test: "not-run"
+  lint_type_scan: "not-run"
+  authz_posture: "N/A: the repository serves nothing; targets/flawed-webapp's 5 entry points are probed in its own run"
+  parity_coverage: "N/A"
+  pipeline_run: "not-run"
+  notes:
+    - "build: nothing to build at the root; node --check passes on every .mjs file"
+    - "tests: the two commands .github/workflows/ci.yml runs (clean-lib and flawed-webapp smoke) exit 0 locally"
+    - "host_ci: the workflow's run status on GitHub was not read"
+    - "gate_self_test: no planted-defect probe was run against the root workflow"
+    - "lint_type_scan: no lint, typecheck or scan is declared anywhere in the repository"
+    - "pipeline_run: no deploy pipeline"
+coverage:
+  A:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  B:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  C:
+    status: "partial"
+    note: "no AI surface outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+  D:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  E:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  F:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  G:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  H:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+  I:
+    status: "partial"
+    note: "no API outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+  J:
+    status: "partial"
+    note: "the root workflow and targets/clean-lib's suite read; targets/flawed-webapp's suite is reviewed in its own FULL run at this sha"
+  K:
+    status: "scanned"
+  L:
+    status: "not-applicable"
+    note: "no IaC, containers, or cloud config in the repository"
+  M:
+    status: "partial"
+    note: "nothing runs unattended outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+  N:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp's config is reviewed in its own FULL run at this sha"
+  O:
+    status: "partial"
+    note: "the root README, targets/clean-lib and targets/lockfiles docs read; targets/flawed-webapp's docs are reviewed in its own FULL run at this sha"
+  P:
+    status: "not-applicable"
+    note: "no frontend or UI anywhere in the repository"
+  Q:
+    status: "partial"
+    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha"
+  R:
+    status: "not-applicable"
+    note: "clean-lib's accent fold is a documented design choice (its ADR-0001), not localization; no locale handling elsewhere"
+  S:
+    status: "scanned"
+    note: "three remote branches: main; fixtures/lockfiles-target, already merged into main (its head e24d527 is in main's history) and safe to delete; a dependabot bump of the planted minimist 1.2.5, which would erase the lockfiles target's planted answer and should be closed, not merged"
+  T:
+    status: "not-applicable"
+    note: "no tenant boundary anywhere in the repository"
+  W:
+    status: "not-applicable"
+    note: "the CI workflow is push and pull_request triggered only; no cron, queue, or multi-step workflow"
+prior_not_rechecked: []

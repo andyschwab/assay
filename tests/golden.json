@@ -18,8 +18,8 @@
     },
     "fixtures-root": {
       "recall": 100,
-      "recovered": 10,
-      "in_scope": 10,
+      "recovered": 11,
+      "in_scope": 11,
       "missed": 0,
       "misHomed": 0,
       "falsePositives": 0

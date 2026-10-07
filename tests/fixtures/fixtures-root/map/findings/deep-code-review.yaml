@@ -1,0 +1,148 @@
+# map/findings/deep-code-review.yaml — peer-scanner rows ingested by assay.mjs ingest from the scanner's machine report.
+# Scanner: deep-code-review · 10 row(s) · coverage archived at map/coverage/deep-code-review.yaml (one row per domain).
+# Ids start at F-1000: the next hundred above the base's highest id F-969 (in repo-census.yaml); the profile floor is F-800.
+# Raw report archived at map/raw/deep-code-review.yaml. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-1000
+  source: deep-code-review
+  native_id: "F1"
+  native_category: "K"
+  polarity: gap
+  severity: High
+  observation: >
+    targets/lockfiles/app resolves minimist 1.2.5, inside the range of a published critical prototype-pollution advisory; nothing in the repository imports it, so it is not reachable today.
+  evidence: ["targets/lockfiles/app/package-lock.json:15", "targets/lockfiles/app/package.json:7"]
+  fix: >
+    Pin minimist 1.2.6 or later and regenerate the lockfile; here the target's README states the pin is planted on purpose, so the owner's decision is to keep it.
+  title: "app lockfile pins minimist 1.2.5, which carries a known critical advisory"
+  native_tag: "A03 software supply chain; GHSA-xvch-5gv4-984h; planted per targets/lockfiles/README.md"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+  latent: true
+- id: F-1001
+  source: deep-code-review
+  native_id: "F2"
+  native_category: "K"
+  polarity: gap
+  severity: Medium
+  observation: >
+    Both jobs use actions/checkout@v4 and actions/setup-node@v4, so the code CI runs can change under the same workflow file when the tag is moved.
+  evidence: [".github/workflows/ci.yml:14", ".github/workflows/ci.yml:15", ".github/workflows/ci.yml:23", ".github/workflows/ci.yml:24"]
+  fix: >
+    Pin each action to a full commit SHA with the tag as a trailing comment, and let an update bot bump the SHAs through the same gate.
+  title: "CI actions are pinned to a mutable major tag"
+  native_tag: "actions on a mutable tag; CWE-829"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1002
+  source: deep-code-review
+  native_id: "F3"
+  native_category: "K"
+  polarity: gap
+  severity: Medium
+  observation: >
+    targets/lockfiles/legacy/package-lock.json ends mid-object at line 8 and does not parse as JSON, so no package manager can install from it or audit it.
+  evidence: ["targets/lockfiles/legacy/package-lock.json:8"]
+  fix: >
+    Regenerate the lockfile with npm install; here the target's README states the truncation is planted on purpose, so the owner's decision is to keep it.
+  title: "legacy lockfile is truncated and unreadable"
+  native_tag: "lockfile not honored; planted per targets/lockfiles/README.md"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1003
+  source: deep-code-review
+  native_id: "F4"
+  native_category: "K"
+  polarity: gap
+  severity: Low
+  observation: >
+    ci.yml sets no permissions key, so its jobs get the repository's default GITHUB_TOKEN scope although they only read the checkout.
+  evidence: [".github/workflows/ci.yml:10"]
+  fix: >
+    Add a top-level permissions block with contents read.
+  title: "Workflow declares no token permissions"
+  native_tag: "least privilege; GITHUB_TOKEN"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1004
+  source: deep-code-review
+  native_id: "F5"
+  native_category: "K"
+  polarity: gap
+  severity: Low
+  observation: >
+    Neither job sets timeout-minutes and the workflow has no concurrency group, so a hung job runs to the platform ceiling and a superseded push keeps running.
+  evidence: [".github/workflows/ci.yml:12", ".github/workflows/ci.yml:6"]
+  fix: >
+    Add timeout-minutes to each job and a concurrency group with cancel-in-progress for pull_request runs.
+  title: "Workflow sets no timeout or concurrency"
+  native_tag: "runner-minute cost"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1005
+  source: deep-code-review
+  native_id: "F6"
+  native_category: "O"
+  polarity: gap
+  severity: Low
+  observation: >
+    The lockfiles entry was inserted between clean-lib and clean-lib's ANSWERS.yaml line, so the tree now shows clean-lib with no sheet and lockfiles with two.
+  evidence: ["README.md:19", "README.md:21"]
+  fix: >
+    Move clean-lib's "asserts the near-absence of findings" line directly under clean-lib.
+  title: "README layout block attributes clean-lib's sheet to lockfiles"
+  native_tag: "docs drift"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1006
+  source: deep-code-review
+  native_id: "F7"
+  native_category: "O"
+  polarity: gap
+  severity: Low
+  observation: >
+    The known-answer contract example gives P-01's evidence as config/settings.mjs:7; the planted key, and flawed-webapp's own sheet, are at line 6.
+  evidence: ["README.md:59", "targets/flawed-webapp/ANSWERS.yaml:16"]
+  fix: >
+    Change the example to config/settings.mjs:6.
+  title: "README's sheet example cites the wrong line for P-01"
+  native_tag: "docs drift"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1007
+  source: deep-code-review
+  native_id: "F8"
+  native_category: "H"
+  polarity: gap
+  severity: Nit
+  observation: >
+    clean-lib's fold() is documented to return '' for a character with no ASCII base; it returns ' ', which the caller relies on as a separator.
+  evidence: ["targets/clean-lib/index.mjs:5", "targets/clean-lib/index.mjs:8"]
+  fix: >
+    Say it returns a space (a separator) for a character with no ASCII base.
+  title: "fold() comment says it returns '' but it returns a space"
+  native_tag: "comment drift"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1008
+  source: deep-code-review
+  native_id: "F9"
+  native_category: "J"
+  polarity: strength
+  observation: >
+    The workflow triggers on push and pull_request and runs the clean-lib suite and the flawed-webapp smoke suite; both commands exit 0 locally.
+  evidence: [".github/workflows/ci.yml:7", ".github/workflows/ci.yml:18", ".github/workflows/ci.yml:27"]
+  title: "CI runs every target's suite on push and pull request"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1009
+  source: deep-code-review
+  native_id: "F10"
+  native_category: "J"
+  polarity: strength
+  observation: >
+    The suite asserts exact output for accents, punctuation, collapsing, trimming and the empty string, and that non-string input throws.
+  evidence: ["targets/clean-lib/test/slugify.test.mjs:7", "targets/clean-lib/test/slugify.test.mjs:13"]
+  title: "clean-lib's tests assert behavior, edge cases included"
+  confidence: confirmed
+  native_confidence: CONFIRMED

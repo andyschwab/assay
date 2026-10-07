@@ -1408,3 +1408,26 @@ what the public engine learned.
   code-security, with a failed npm audit read as a clean lockfile, and with
   ingest dropping the `lockfile-failed` gap. Not pinned in `tests/golden.json`;
   goldens and the yardstick untouched.
+- **2026-10-07 — deep-code-review over the public fixtures** (#16). The fixture runs
+  carry their first real deep-code-review machine reports (1.479.0, the adapter's
+  `verified_against`, FULL scope): `tests/fixtures/notesbox` over
+  `targets/flawed-webapp` and `tests/fixtures/fixtures-root` over the fixture
+  repository root (assay-fixtures `b1e5797`), ingested with `assay ingest --tool
+  deep-code-review`, run records flipped to ran, raw reports and coverage sidecars
+  archived. Both validate against their targets. A new block, `dcr-fixture-runs`,
+  pins the archives, the header (public target, no local path), the stored rows as
+  the converter's output, and the scanner's own recall: P-02, P-03, P-04 and R-02
+  recovered on their axes. **P-07 reads mis-homed from the scanner's rows alone**:
+  the review files the swallowed, unawaited backup push in domain F (reliability),
+  which the adapter routes to code-correctness, while the sheet homes P-07 on
+  verification only. The run still recovers P-07 through the built-in method; the
+  adapter's field rules were left alone (a domain-F row is code-correctness by the
+  domain map), and whether the sheet should list code-correctness in P-07's
+  `also_axes` is raised as an open question, not settled here. The `run-manifest`
+  block's skipped-scanner example now builds its own skipped run from notesbox (it
+  had read the stored notesbox's dcr skip, which this change removes); its
+  assertions are unchanged. Reviewed re-bless: `fixtures-root` 10/10 → 11/11 (R-02
+  enters scope and is recovered; recall stays 100); notesbox stays 12/12. Confirmed
+  red: the new block with no report ingested, with the adapter's K moved off
+  code-security (R-02 mis-homed) and with F moved to verification (the P-07 pin);
+  run-manifest with the skip reason dropped from `notRunPhrase`.

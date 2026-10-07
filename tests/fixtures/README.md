@@ -25,6 +25,13 @@ reaching outside the repo — self-contained immutable copies, kept separate fro
   the repo-root sheet (`fixtures-root/ANSWERS.yaml`). Repo-scoped instruments are
   answered only there, so the per-target runs record repo-census skipped.
 
+Both `notesbox/` and `fixtures-root/` also carry a real deep-code-review machine
+report (FULL scope; `map/raw/deep-code-review.yaml`, its coverage sidecar under
+`map/coverage/`), ingested with `node assay.mjs ingest --tool deep-code-review`. Like
+the other fixture runs it is **not blind**: the answers are published, so it proves
+the ingest → projection → scoring pipeline and the adapter mapping, not the
+reviewer's blind recall. The `dcr-fixture-runs` block pins it.
+
 The instrument rows are the instruments' real output over the public fixtures
 (`map/raw/` keeps each report), regenerated with `node assay.mjs <instrument>`
 and `node assay.mjs ingest`, never hand-written.
