@@ -1317,6 +1317,7 @@ what the public engine learned.
   the change (knip `not-applicable` on `app/`), and red again with the path
   prefix, `knip.root`, the one-candidate rule and the fact's reason each
   reverted in turn. Goldens untouched.
+- **2026-10-07** · CLAUDE.md § Checks says a new harness block is a new file under `tests/blocks/`, the line #101 proposed and the owner accepted; the runner already enforced it (#94).
 - **2026-10-07 — assay start: a tool an instrument skipped or failed gets its own
   log line** (#129). When structure-scan recorded knip skipped (the target's
   dependencies not installed, its package manager absent, `--no-exec`), `assay
