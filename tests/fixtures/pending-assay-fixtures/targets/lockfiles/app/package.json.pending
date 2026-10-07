@@ -1,0 +1,9 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "assay fixture: a dependency graph with one known advisory (minimist 1.2.5).",
+  "dependencies": {
+    "minimist": "1.2.5"
+  }
+}

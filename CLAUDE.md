@@ -44,6 +44,9 @@ A change that moves a pinned score is a **reviewed** re-bless of
 `tests/golden.json` in the same commit, never a silent drift. A unit or negative
 assertion that fails is always a real regression, never re-blessed.
 
+A new harness block is a new file under `tests/blocks/` (`tests/README.md`); no existing
+file is edited to add one.
+
 ## How a change lands
 
 - **Red, then green.** Before trusting a new assertion, revert the rule it pins

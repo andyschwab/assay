@@ -1,0 +1,53 @@
+{
+  "tool": "dependency-scan",
+  "version": "0.3.0",
+  "started_at": "2026-10-07T10:24:30.607Z",
+  "finished_at": "2026-10-07T10:24:31.285Z",
+  "target": {
+    "path": "targets/lockfiles"
+  },
+  "timeout_seconds": 300,
+  "scope": {
+    "rule": "gitignore"
+  },
+  "lockfiles": [
+    {
+      "manager": "npm",
+      "path": "app/package-lock.json",
+      "status": "audited",
+      "method": "scratch-copy",
+      "npm_exit_code": 1,
+      "counts": {
+        "critical": 1,
+        "high": 0,
+        "moderate": 0,
+        "low": 0,
+        "info": 0
+      },
+      "dependencies_audited": 1,
+      "advisories": [
+        {
+          "id": "GHSA-xvch-5gv4-984h",
+          "package": "minimist",
+          "installed": "1.2.5",
+          "range": ">=1.0.0 <1.2.6",
+          "severity": "critical",
+          "fix_available": true,
+          "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h",
+          "title": "Prototype Pollution in minimist"
+        }
+      ]
+    },
+    {
+      "manager": "npm",
+      "path": "legacy/package-lock.json",
+      "status": "failed",
+      "method": "scratch-copy",
+      "npm_exit_code": 1,
+      "reason": "npm audit error ENOLOCK: This command requires an existing lockfile."
+    }
+  ],
+  "manifests": [],
+  "noManifest": false,
+  "exit": 1
+}

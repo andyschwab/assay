@@ -81,6 +81,10 @@ export async function run() {
       if (!/^\s{4}needs:\s*\[?\s*target\s*\]?\s*$/m.test(gateJob)) fail('the routine job must need the target job');
       if (/--target-steps/.test(gateJob)) fail('the routine (gate) job must never run the target\'s steps');
       if (!/download-artifact/.test(gateJob) || !/--handoff/.test(gateJob)) fail('the routine job must ingest the target job\'s handoff (download-artifact, --handoff)');
+      // #128: structure-scan (knip) runs in the target job, after fresh-clone's install; the
+      // template names it there and never in the gate job, which runs nothing of the target's
+      if (!/name:[^\n]*fresh-clone[^\n]*structure-scan/.test(targetJob)) fail('the target job\'s step must name structure-scan, after fresh-clone (#128)');
+      if (/structure-scan/.test(gateJob)) fail('the routine (gate) job must not name structure-scan as its own step: it runs in the target job (#128)');
     }
   }
   // #48 (F-1222, F-428, F-429): no checkout leaves the job token (or a read token) in .git/config.
@@ -115,5 +119,9 @@ export async function run() {
 
   const readme = readFileSync(join(ROOT, 'routine', 'README.md'), 'utf8');
   if (!/required status check/i.test(readme)) fail('routine/README.md must say to make the routine job a required status check');
+  // #128: the handoff text names the job knip runs in
+  if (!/knip[^.]*\bin the (?:two-job template's )?`?target`? job/i.test(readme.replace(/\s+/g, ' '))) fail('routine/README.md must say knip runs in the target job (#128)');
+  const contract = readFileSync(join(ROOT, 'map', 'scanners', 'CONTRACT.md'), 'utf8').replace(/\s+/g, ' ');
+  if (!/structure-scan[^.]*\btarget job\b/.test(contract) || /passes it in the two-job template's gate job/.test(contract)) fail('CONTRACT.md §3e must say the two-job template runs structure-scan in the target job (#128)');
   if (!/CODEOWNERS/.test(readme) || !/packet\//.test(readme) || !/\.github\/workflows\//.test(readme)) fail('routine/README.md must say to add CODEOWNERS entries for packet/ and .github/workflows/');
 }

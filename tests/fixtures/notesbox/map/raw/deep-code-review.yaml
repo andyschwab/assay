@@ -1,0 +1,340 @@
+review:
+  tool: deep-code-review
+  skill_version: "1.479.0"
+  date: 2026-10-07
+  scope: FULL
+  base_ref: null
+  start_sha: b1e5797
+  target: "flawed-webapp"
+  archetype: api
+  stage: UNVERIFIED
+  prior: null
+
+ground_truth:
+  build: ok
+  tests: ok
+  host_ci: unverified
+  gate_self_test: not-proven
+  lint_type_scan: not-run
+  authz_posture: "5 entry points · anon probed 5 · two-principal 2 (/notes, /admin/purge) · untested: none"
+  parity_coverage: "N/A"
+  pipeline_run: not-run
+  notes:
+    - "build: no build step declared; node --check passes on every .mjs file"
+    - "tests: node test/smoke.mjs exits 0; package.json declares no test script, and the README's npm run test:all does not exist"
+    - "host_ci: the target carries no CI of its own; the repository root's workflow runs the smoke suite, its run status was not read"
+    - "gate_self_test: the smoke suite stays green with the fail-open authenticate() (F2) in the tree, so the gate is proven not to catch it"
+    - "lint_type_scan: no lint, format, typecheck or scan is declared"
+    - "pipeline_run: no deploy pipeline in the target"
+
+coverage:
+  A:
+    status: scanned
+  B:
+    status: scanned
+  C:
+    status: scanned
+  D:
+    status: scanned
+  E:
+    status: scanned
+  F:
+    status: scanned
+  G:
+    status: scanned
+  H:
+    status: scanned
+  I:
+    status: scanned
+  J:
+    status: scanned
+  K:
+    status: scanned
+    note: "package.json and the absence of a lockfile read (zero dependencies); the CI workflow lives at the repository root, outside this target, and is reviewed in the root run"
+  L:
+    status: not-applicable
+    note: "no IaC, containers, or cloud config in the target"
+  M:
+    status: scanned
+  N:
+    status: scanned
+  O:
+    status: scanned
+  P:
+    status: not-applicable
+    note: "no frontend or UI; the target serves JSON only"
+  Q:
+    status: scanned
+  R:
+    status: not-applicable
+    note: "no locale, encoding or localized text handling beyond JSON strings"
+  S:
+    status: not-applicable
+    note: "the target is a subdirectory of the fixtures repository; branch and open-work triage is repository-level, read in the root run"
+  T:
+    status: not-applicable
+    note: "one workspace per deployment; no tenant boundary in the code"
+  W:
+    status: not-applicable
+    note: "no cron, queue, or multi-step workflow; /sync is a request-scoped call"
+
+findings:
+  - id: F1
+    title: "Documented test command does not exist"
+    area: O
+    tag: "docs drift; won't test as documented"
+    severity: Blocker
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The README's Testing section says to run npm run test:all, but package.json declares only a start script, so the documented test command fails.
+    evidence:
+      - README.md:32
+      - package.json:6
+    fix: >
+      Declare "test": "node test/smoke.mjs" in package.json and document npm test.
+  - id: F2
+    title: "authenticate() fails open to an admin identity"
+    area: B
+    tag: "A07 identification and authentication failures; CWE-287; fail-open"
+    severity: Critical
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      Any request with a missing or unknown bearer token resolves to a default identity with role admin; probed, POST /admin/purge with a bogus token returned 200 and cleared every note.
+    evidence:
+      - lib/auth.mjs:12
+      - lib/auth.mjs:8
+      - routes/admin.mjs:7
+    fix: >
+      Return null for an unknown or missing token and answer 401 in the server before any route runs; never synthesize an identity, least of all an admin one.
+    compounds: [F5, F6]
+  - id: F3
+    title: "Assistant sends email on a directive parsed from untrusted note content"
+    area: C
+    tag: "LLM01 prompt injection; LLM06 excessive agency; lethal trifecta"
+    severity: Critical
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      ask() parses a TOOL:send_email line out of the model's reply and sends the whole workspace's notes to the named recipient with no confirmation; probed, a note planted by an anonymous caller made a member's /assistant call email every note to the injected address.
+    evidence:
+      - lib/agent.mjs:39
+      - lib/agent.mjs:35
+      - lib/agent.mjs:19
+    fix: >
+      Do not act on directives in model output: return a drafted email for the user to confirm, restrict recipients to the asker's own address or an allow-list, and keep untrusted note text out of the instruction channel.
+    compounds: [F2, F6]
+  - id: F4
+    title: "Backup service API key committed in source"
+    area: N
+    tag: "secret in source; CWE-798; S0"
+    severity: Critical
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      config/settings.mjs carries a literal backup-service bearer credential in a public repository (value not echoed here).
+    evidence:
+      - config/settings.mjs:6
+    fix: >
+      Rotate the key, read it from the environment or a secret manager at boot, and fail closed when it is absent.
+  - id: F5
+    title: "POST /sync has no authorization check"
+    area: B
+    tag: "A01 broken access control; CWE-862"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      Any caller, authenticated or not, can make the server push every user's notes to the external backup service under the service's own key; probed, an anonymous POST /sync triggered the outbound push of all notes.
+    evidence:
+      - lib/sync.mjs:8
+      - server.mjs:47
+    fix: >
+      Require an authenticated admin (after F2 is fixed) before pushBackup runs, and rate-limit the route.
+    compounds: [F2, F4]
+  - id: F6
+    title: "Assistant prompt and email body carry every user's notes"
+    area: C
+    tag: "LLM02 sensitive information disclosure; A01 broken access control"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      buildPrompt() and the email body read all notes in the workspace, not the asker's, so any member's question puts other members' private notes and email addresses into the model context and any outbound email.
+    evidence:
+      - lib/agent.mjs:12
+      - lib/agent.mjs:38
+    fix: >
+      Scope the prompt and the email body to notes the asking user owns.
+    compounds: [F3]
+  - id: F7
+    title: "Backup push reports success without awaiting or checking the effect"
+    area: F
+    tag: "silent swallow; effects vs reports; no failure signal (M)"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      pushBackup() fires the POST without awaiting it, swallows every failure with .catch(() => {}), and returns ok true unconditionally; probed with the network refused, /sync still answered ok true with the push count, and nothing was logged.
+    evidence:
+      - lib/sync.mjs:12
+      - lib/sync.mjs:8
+      - lib/sync.mjs:13
+    fix: >
+      Await the fetch with a timeout, check response.ok, return ok false (and a 502) on failure, and log the failure in its own class.
+  - id: F8
+    title: "Smoke suite never asserts a bad token is rejected"
+    area: J
+    tag: "false-green test; missing negative authorization test"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The only assertion is that a valid token resolves a user; no test checks that a missing or invalid token is refused or that a member cannot reach /admin/purge or /sync, so the suite is green while F2 and F5 stand.
+    evidence:
+      - test/smoke.mjs:9
+    fix: >
+      Add negative tests: no token and a bogus token get 401, a member gets 403 on /admin/purge and /sync; confirm them red against the current authenticate().
+  - id: F9
+    title: "README's endpoint list and coverage claim are wrong"
+    area: O
+    tag: "docs drift"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The README says the API exposes 4 endpoints and that every endpoint is covered by the smoke suite; the server also routes POST /admin/purge, and the smoke suite calls no endpoint at all.
+    evidence:
+      - README.md:14
+      - README.md:35
+      - server.mjs:52
+    fix: >
+      List all five routes, including the admin purge, and state what the smoke suite actually checks.
+  - id: F10
+    title: "Request body is unbounded and malformed JSON reads as empty"
+    area: F
+    tag: "CWE-400; silent parse failure"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      readBody() buffers the whole request with no size limit and resolves {} on a parse error, so a large body exhausts memory and a malformed POST /notes silently creates an empty note with 201.
+    evidence:
+      - server.mjs:14
+      - server.mjs:16
+    fix: >
+      Cap the body size (413 above it) and answer 400 on invalid JSON instead of substituting {}.
+  - id: F11
+    title: "Note ids are short Math.random strings that can overwrite on collision"
+    area: D
+    tag: "identity; silent overwrite"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: true
+    mechanism_unproven: false
+    observation: >
+      A new note's id is six base-36 characters from Math.random and notes.set() overwrites without checking, so a collision silently replaces another user's note.
+    evidence:
+      - server.mjs:37
+      - server.mjs:38
+    fix: >
+      Use crypto.randomUUID() for ids and refuse to set an id that already exists.
+  - id: F12
+    title: "Server never listens when its path needs URL encoding"
+    area: A
+    tag: "entry-point guard; file URL vs path"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The main-module guard compares import.meta.url to a hand-built file:// string, so from a directory whose path contains a space node server.mjs exits 0 without listening (reproduced).
+    evidence:
+      - server.mjs:59
+    fix: >
+      Compare with pathToFileURL(process.argv[1]).href, or fileURLToPath(import.meta.url) === process.argv[1].
+  - id: F13
+    title: "Mailer logs recipient addresses"
+    area: Q
+    tag: "PII in logs"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      sendEmail() writes the recipient address and subject of every message to stdout.
+    evidence:
+      - lib/mailer.mjs:7
+    fix: >
+      Log a message id and recipient domain only, at debug level.
+  - id: F14
+    title: "Admin route comment names the wrong method"
+    area: H
+    tag: "comment drift"
+    severity: Nit
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The handler's comment says DELETE /admin/purge; the server routes it as POST.
+    evidence:
+      - routes/admin.mjs:5
+      - server.mjs:52
+    fix: >
+      Correct the comment to POST /admin/purge.
+  - id: F15
+    title: "Storage sits behind one narrow module"
+    area: H
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      Every store read and write goes through lib/db.mjs's exports (users, notes, sessions, purgeAll), matching ADR-0001's swap-the-adapter decision.
+    evidence:
+      - lib/db.mjs:1
+      - docs/adr/0001-storage-choice.md:1
+  - id: F16
+    title: "The admin gate refuses a non-admin principal"
+    area: B
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      requireAdmin() is checked before purgeAll() runs; probed, a member token got 403 on POST /admin/purge (the gate holds; F2 walks around it).
+    evidence:
+      - routes/admin.mjs:7
+      - lib/auth.mjs:16
+  - id: F17
+    title: "No third-party dependencies"
+    area: K
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      package.json declares no dependencies, so the target ships no third-party code to audit or pin.
+    evidence:
+      - package.json:1
+
+prior_not_rechecked: []

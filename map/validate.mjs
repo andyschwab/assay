@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // assay findings validator — the format contract, enforced.
-// Usage:  node assay.mjs validate <run-dir>
+// Usage:  node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>]
 //   <run-dir> is a run root (…/runs/<slug>-<date>/) — findings live under its map/findings/.
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
@@ -29,10 +29,11 @@ const POLARITY = new Set(['strength','gap','fact']);
 const SUBJECT = new Set(['effect','control','artifact','contract','process','capability']);
 const CONFIDENCE = new Set(['confirmed','plausible','unverified']);
 const REVERSIBILITY = new Set(['reversible','reversible-with-window','irreversible']);
-const GATE_TYPE = new Set(['deterministic-halt','staged-reversible','scope-bound','rate-throttle','disclosure-only','external-halt','none']);
+const GATE_TYPE = new Set(['deterministic-halt','staged-reversible','scope-bound','rate-throttle','disclosure-only','external-halt','initiated-by-person','none']);
 const TELEMETRY = new Set(['none','unstructured','structured-event','audited']);
 const BLAST = new Set(['user','tenant','fleet','cross-tenant']);
-const FAIL_MODE = new Set(['open','closed']);
+const FAIL_MODE = new Set(['open','closed','unterminated']);
+const VERIFIED_PRIVILEGE = new Set(['bound','elevated']);
 const PRECONDITIONS = new Set(['prompt-injection','stolen-credential','malicious-dependency','network-position','insider','zero-day','physical']);
 // overlay layer (SCHEMA.md §2a) — a finding may carry an explicit `axis`;
 // absent is valid (the adapter projects it). The valid set is DERIVED from the
@@ -76,7 +77,7 @@ function emptyCites(f, at) {
 
 // ── load findings ───────────────────────────────────────────────────────────
 const arg = process.argv[2];
-if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <target-repo>]'); process.exit(2); }
+if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>]'); process.exit(2); }
 // Optional: verify every evidence path resolves to a real file in the TARGET repo.
 // Off by default so the validator stays portable (a run may be checked without the
 // target present); when --target is given it fails closed on a cited path that does
@@ -149,6 +150,19 @@ function checkFinding(f, fileLabel, expectDim) {
       if (e.gate_type && e.gate_type !== 'none') {
         if (e.fail_mode === undefined) err(at, `effect.fail_mode required when gate_type != none`);
         else if (!FAIL_MODE.has(e.fail_mode)) err(at, `bad effect.fail_mode "${e.fail_mode}"`);
+      }
+      // the identity a gate check ran under (optional; SCHEMA.md §1): a check run with more
+      // privilege than the gate binds proves nothing about the gate, so it cannot be confirmed
+      if (e.verified_as !== undefined) {
+        const v = e.verified_as;
+        if (!v || typeof v !== 'object' || Array.isArray(v)) err(at, `effect.verified_as must be a mapping`);
+        else {
+          if (e.gate_type === 'none') err(at, `verified_as on an effect whose gate_type is none (there is no gate to verify)`);
+          for (const k of ['principal','privilege']) if (v[k] === undefined || v[k] === null || v[k] === '') err(at, `effect.verified_as.${k} missing`);
+          if (v.privilege && !VERIFIED_PRIVILEGE.has(v.privilege)) err(at, `bad effect.verified_as.privilege "${v.privilege}"`);
+          if (v.privilege === 'elevated' && f.confidence === 'confirmed')
+            err(at, `verified_as.privilege elevated (the check ran with more privilege than the gate binds) needs confidence plausible, not confirmed`);
+        }
       }
       // fail-closed discovery: an unheld halt is a chain sink, and its difficulty is
       // chain-critical, so its preconditions must be determined, never left to default.
@@ -457,33 +471,50 @@ if (existsSync(prosePath)) {
     const unsup = new Set(sup.kinds.map((k) => k.channel));
     for (const ch of dispo.keys()) if (!unsup.has(ch)) warn('views/improve/prose.yaml:dispositions', `disposition for "${ch}" but it is not an unsupervised kind (stale — the gap it excused is closed or gone)`);
   }
-  // ── canon check (SCHEMA.md §8) — advisory drift against the declared enumeration contract.
-  // Opt-in: the run names its canon in the prose (`canon: <name>`). A named-but-missing
-  // canon is an ERROR (a declared contract must be present); a present one surfaces effect-channel
-  // drift as non-fatal WARNINGS — a run may lead or lag its canon, and closing the drift is a
-  // canon-maintenance decision (a reviewed diff), never a per-run gate.
-  if (prose && prose.canon) {
-    // Resolution order (SCHEMA.md §8): (1) the run's instance entry — runs live at
-    // <entry>/runs/<run>/ with the target's canon at <entry>/canon/<name>.yaml
-    // (custody layout, reorganization 2026-08-11); (2) canon/ next to this tool
-    // (portable layout — repo-eval copied into a target repo).
-    const candidates = [
-      join(arg, '..', '..', 'canon', `${prose.canon}.yaml`),
-      join(HERE, 'canon', `${prose.canon}.yaml`),
-    ];
-    const canonPath = candidates.find((p) => existsSync(p));
-    if (!canonPath) {
-      err('views/improve/prose.yaml', `canon: "${prose.canon}" names canon/${prose.canon}.yaml, which exists neither in the run's instance entry nor beside the tool (fail-closed — a declared contract must be present)`);
-    } else {
-      let canon = null;
-      try { canon = parseYaml(readFileSync(canonPath, 'utf8')); }
-      catch (e) { err(`canon/${prose.canon}.yaml`, `YAML parse failed (fail-closed): ${e.message}`); }
-      if (canon) {
-        const canonCh = new Set((Array.isArray(canon.effect_channels) ? canon.effect_channels : []).map((c) => c && c.slug).filter(Boolean));
-        const runCh = new Set([...allById.values()].map((v) => v.f).filter((f) => f.subject_type === 'effect' && f.effect && f.effect.channel).map((f) => f.effect.channel));
-        for (const ch of runCh) if (!canonCh.has(ch)) warn(`canon/${prose.canon}.yaml`, `run effect channel "${ch}" is not in the canon (drift — add it to the canon, or fix the finding's channel)`);
-        for (const ch of canonCh) if (!runCh.has(ch)) warn(`canon/${prose.canon}.yaml`, `canon channel "${ch}" has no effect finding in this run (declared population member not assessed)`);
+}
+
+// ── canon check (SCHEMA.md §8) — advisory drift against the declared enumeration contract.
+// Opt-in: the run names its canon in the prose (`canon: <name>`), or a map-only lane passes
+// `--canon <name>` (the flag wins over the prose). A named-but-missing canon is an ERROR (a
+// declared contract must be present), and so is a census population with no membership rule
+// or an unknown subject_type (two runs would enumerate different members); a present canon
+// surfaces effect-channel drift as non-fatal WARNINGS — a run may lead or lag its canon, and
+// closing the drift is a canon-maintenance decision (a reviewed diff), never a per-run gate.
+const cIdx = process.argv.indexOf('--canon');
+let canonName = cIdx > -1 ? process.argv[cIdx + 1] : null;
+if (!canonName && existsSync(prosePath)) {
+  try { canonName = (parseYaml(readFileSync(prosePath, 'utf8')) || {}).canon || null; } catch { /* reported above */ }
+}
+if (cIdx > -1 && !canonName) err('--canon', 'names no canon (usage: --canon <name>)');
+if (canonName) {
+  // Resolution order (SCHEMA.md §8): (1) the run's instance entry — runs live at
+  // <entry>/runs/<run>/ with the target's canon at <entry>/canon/<name>.yaml
+  // (custody layout, reorganization 2026-08-11); (2) canon/ next to this tool
+  // (portable layout — repo-eval copied into a target repo).
+  const candidates = [
+    join(arg, '..', '..', 'canon', `${canonName}.yaml`),
+    join(HERE, 'canon', `${canonName}.yaml`),
+  ];
+  const canonPath = candidates.find((p) => existsSync(p));
+  const at = `canon/${canonName}.yaml`;
+  if (!canonPath) {
+    err(cIdx > -1 ? '--canon' : 'views/improve/prose.yaml', `canon: "${canonName}" names canon/${canonName}.yaml, which exists neither in the run's instance entry nor beside the tool (fail-closed — a declared contract must be present)`);
+  } else {
+    let canon = null;
+    try { canon = parseYaml(readFileSync(canonPath, 'utf8')); }
+    catch (e) { err(at, `YAML parse failed (fail-closed; a canon is written in block style): ${e.message}`); }
+    if (canon) {
+      const pops = canon.census_populations;
+      if (pops !== undefined && (!pops || typeof pops !== 'object' || Array.isArray(pops))) err(at, `census_populations must be a map of population name → {subject_type, rule}`);
+      else for (const [name, p] of Object.entries(pops || {})) {
+        if (!p || typeof p !== 'object' || Array.isArray(p)) { err(at, `census population "${name}" must be a map with subject_type and rule`); continue; }
+        if (!SUBJECT.has(p.subject_type)) err(at, `census population "${name}" has subject_type "${p.subject_type}" (want one of ${[...SUBJECT].join(' | ')})`);
+        if (typeof p.rule !== 'string' || !p.rule.trim()) err(at, `census population "${name}" states no membership rule (rule: which members count, what is excluded) — two runs would enumerate different populations`);
       }
+      const canonCh = new Set((Array.isArray(canon.effect_channels) ? canon.effect_channels : []).map((c) => c && c.slug).filter(Boolean));
+      const runCh = new Set([...allById.values()].map((v) => v.f).filter((f) => f.subject_type === 'effect' && f.effect && f.effect.channel).map((f) => f.effect.channel));
+      for (const ch of runCh) if (!canonCh.has(ch)) warn(at, `run effect channel "${ch}" is not in the canon (drift — add it to the canon, or fix the finding's channel)`);
+      for (const ch of canonCh) if (!runCh.has(ch)) warn(at, `canon channel "${ch}" has no effect finding in this run (declared population member not assessed)`);
     }
   }
 }

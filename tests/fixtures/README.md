@@ -15,9 +15,30 @@ reaching outside the repo — self-contained immutable copies, kept separate fro
 - `cleanlib/` — a run over the `clean-lib` control target (the same methods).
   Scored against `cleanlib/ANSWERS.yaml`; the assertion is 0 false positives, with
   the instruments' known absences answered on the sheet rather than counted.
+- `lockfiles/` — dependency-scan's run over the `lockfiles` target (#17): one
+  lockfile pinning a package with a known critical advisory, one truncated so npm
+  refuses it offline (ENOLOCK). Scored against `lockfiles/ANSWERS.yaml` by the
+  `dependency-scan-fixture` block, not pinned in `tests/golden.json`. Until the
+  fixtures repository carries the target, its files wait in
+  `pending-assay-fixtures/` (that README says how they are applied).
 - `fixtures-root/` — repo-census over the fixture repository's root, scored against
   the repo-root sheet (`fixtures-root/ANSWERS.yaml`). Repo-scoped instruments are
   answered only there, so the per-target runs record repo-census skipped.
+
+Each scored sheet also carries a `requirements:` list (#18): the status the
+yardstick's measurement of the run should read, per requirement, with its reason
+(the contract is `yardstick/README.md`, "Known answers"). The
+`yardstick-known-answers` block grades each run on it and pins the agree,
+disagree and out-of-scope counts in `tests/golden.json` under
+`<run>/requirements`. The lists wait in `pending-assay-fixtures/` until the
+fixtures repository carries them (that README says how they are applied).
+
+Both `notesbox/` and `fixtures-root/` also carry a real deep-code-review machine
+report (FULL scope; `map/raw/deep-code-review.yaml`, its coverage sidecar under
+`map/coverage/`), ingested with `node assay.mjs ingest --tool deep-code-review`. Like
+the other fixture runs it is **not blind**: the answers are published, so it proves
+the ingest → projection → scoring pipeline and the adapter mapping, not the
+reviewer's blind recall. The `dcr-fixture-runs` block pins it.
 
 The instrument rows are the instruments' real output over the public fixtures
 (`map/raw/` keeps each report), regenerated with `node assay.mjs <instrument>`

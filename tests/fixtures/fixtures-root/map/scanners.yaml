@@ -6,8 +6,7 @@ scanners:
     status: skipped
     reason: "fixture: the root sheet carries no method-pass item; the targets' runs cover repo-eval"
   deep-code-review:
-    status: skipped
-    reason: "fixture run: the code scanner was not executed over this public target"
+    status: ran
   gitleaks:
     status: skipped
     reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib)"

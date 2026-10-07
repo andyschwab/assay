@@ -1,0 +1,9 @@
+{
+  "name": "legacy-export",
+  "version": "0.1.0",
+  "private": true,
+  "description": "assay fixture: a package whose lockfile is truncated, so no package manager can read it.",
+  "dependencies": {
+    "minimist": "1.2.8"
+  }
+}

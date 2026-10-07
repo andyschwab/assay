@@ -4,8 +4,7 @@ scanners:
   repo-eval:
     status: ran
   deep-code-review:
-    status: skipped
-    reason: "fixture run: the code scanner was not executed over this public target"
+    status: ran
   gitleaks:
     status: ran
   fresh-clone:

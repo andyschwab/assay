@@ -1317,3 +1317,170 @@ what the public engine learned.
   the change (knip `not-applicable` on `app/`), and red again with the path
   prefix, `knip.root`, the one-candidate rule and the fact's reason each
   reverted in turn. Goldens untouched.
+- **2026-10-07** · CLAUDE.md § Checks says a new harness block is a new file under `tests/blocks/`, the line #101 proposed and the owner accepted; the runner already enforced it (#94).
+- **2026-10-07 — assay start: a tool an instrument skipped or failed gets its own
+  log line** (#129). When structure-scan recorded knip skipped (the target's
+  dependencies not installed, its package manager absent, `--no-exec`), `assay
+  start` logged structure-scan as ran and said nothing about knip; the reason
+  was only in the run record and the raw report. `map/start.mjs`'s
+  `ingestInstrumentRaw` now reads the ingested report's `tools` record and logs
+  one line per tool recorded `skipped` or `failed`, with the reason's first
+  sentence (`· structure-scan: knip skipped — …`). It is generic over the record
+  (`tools.<name>.status`, `.reason`), so any instrument with one gets the same
+  line. The `start` block runs start over a copy of
+  `tests/instruments/structure-monorepo` with pnpm off PATH and a fake npm whose
+  jscpd exits 3, asserting both lines; it was confirmed red before the change
+  and red again with the logging call reverted. Goldens untouched.
+- **2026-10-07 — the two-job routine runs structure-scan in its target job**
+  (#128). The two-job workflow template ran structure-scan in the gate job with
+  `--no-exec`, so knip read `skipped` on every run and `d-no-dead-code` read
+  not measured on files and exports, however the target was laid out. The
+  target step (`routine/run.mjs --target-steps`) now runs structure-scan after
+  fresh-clone's in-place install and hands its raw report forward beside
+  fresh-clone's (`map/start.mjs` `writeTargetHandoff`); the gate ingests both
+  and never runs either, and a missing structure-scan handoff reads failed with
+  the reason. The template's target step names it, `routine/README.md` ("What
+  it runs", "Two jobs") names the job knip runs in and says the structure
+  report is now the change's own account too, and contract §3e says which job
+  runs it. `routine-handoff` and `routine-workflow` pin the order and the job;
+  both were confirmed red before the change (knip `skipped` for `--no-exec` in
+  the gate). Goldens untouched.
+- **2026-10-07 — dependency-scan keeps to the repository's own files** (#100).
+  When the routine runs on a working tree, fresh-clone builds in place and its
+  output lands in the checkout; dependency-scan then walked that output and read
+  the `package.json` files a framework's standalone build emits as manifests no
+  lockfile covers, so `d-dependencies-known-clean` read not measured on a
+  repository where nothing had changed. The walk now covers the files a git top
+  level tracks, or, for any other directory, what its `.gitignore` files do not
+  exclude, and the document records `scope.rule` (`tracked`, `gitignore`, or
+  `all` with the reason git could not be run); instrument version 0.3.0
+  (contract §3c). The `dependency-scan-manifests` block plants `dist/` and
+  `web/.next/standalone/` output under `.gitignore` in a repository and in a
+  plain directory, plus an untracked manifest in the repository; it was
+  confirmed red before the change (the ignored lockfile audited, the untracked
+  manifest recorded uncovered, no scope), and red again with the tracked rule
+  and the `.gitignore` rule each reverted in turn. Goldens untouched.
+- **2026-10-07 — the coverage gate sees every cited file and pattern-assessed
+  families** (#36, merged item 1 of #37). `enumerate --run` reads a finding's
+  citations only through the YAML parser (`lib/yaml-min`): block- and flow-form
+  `evidence` of any file type counts, and a path named only in a finding's prose
+  no longer covers a member (the raw-text regex still reads the censuses and
+  views). The owner chose the scoped mix: members that vary get one finding
+  each; a byte-identical family under one directory is covered by citing the
+  directory; one spread across directories or pinned by a test is covered by a
+  finding's new optional `covers: [path, …]` list (SCHEMA §1, §6b; METHOD).
+  The `enumerate-gate` block pins block-form `.mjs`/`.tsx`/extensionless
+  citations, the prose non-citation, and `covers` (named members only, `.`
+  covers nothing); it was confirmed red before the change (prose covered,
+  `covers` unread) and the block-form assertion red with parsed `evidence`
+  reverted. Goldens untouched.
+- **2026-10-07 — gate vocabulary: a person's own act, an unterminated check, the
+  identity a gate was verified under** (#38). `gate_type` gains
+  `initiated-by-person` (one authenticated person's own explicit act causes the
+  effect; `map/doctrine.mjs` holds it only while the act is recorded, telemetry not
+  `none`), so a deliberate act and an unattended job no longer read the same on
+  `d-effects-gated`. `fail_mode` gains `unterminated` (a check that never reaches a
+  verdict): it does not hold, and `d-gates-fail-closed` counts it apart from
+  fail-open. The effect facet gains an optional `verified_as` (`principal`,
+  `privilege: bound | elevated`, `triggered_by`); validate refuses `confirmed` on an
+  elevated verification. SCHEMA §1/§2, METHOD, the glossary, the variance ranks and
+  the owner wording follow. The `tests/blocks/gate-vocabulary.mjs` block was
+  confirmed red against each reverted rule. Listing `verified_as` in the credential
+  census is left to the census work (SCHEMA §6b/§8).
+- **2026-10-07 — a fixture that gives dependency-scan something to find** (#17).
+  No fixture target had a lockfile, so the stored runs recorded dependency-scan as
+  a clean run with no rows: a recall miss, an advisory homed on the wrong axis,
+  or a failed-lockfile row regressing could not show. A new target,
+  `lockfiles`, carries two planted lockfiles: `legacy/package-lock.json`,
+  truncated so npm refuses it before reaching the registry (ENOLOCK, a
+  `lockfile-failed` gap and a `lockfile-not-audited` fact on any runner, the
+  deterministic answer), and `app/package-lock.json`, pinning minimist 1.2.5
+  (critical GHSA-xvch-5gv4-984h, the advisory answer, whose sheet says how to
+  re-check it when the feed changes). The two sit in separate directories
+  because the scorer's suffix rule would match a root `package-lock.json:1`
+  against `legacy/package-lock.json:1`. The stored run
+  `tests/fixtures/lockfiles` is dependency-scan's real output over the target;
+  the target's files wait in `tests/fixtures/pending-assay-fixtures/` (as
+  `.pending`, so this repository's dependency graph does not alert on them)
+  until assay-fixtures carries them. The `dependency-scan-fixture` block scores
+  the run against its sheet and scans the truncated lockfile end to end,
+  offline; it was confirmed red with the `lockfile-failed` axis moved off
+  code-security, with a failed npm audit read as a clean lockfile, and with
+  ingest dropping the `lockfile-failed` gap. Not pinned in `tests/golden.json`;
+  goldens and the yardstick untouched.
+- **2026-10-07 — fresh-clone and ingest find a lone app directory** (#35, with #37
+  item 3). A repository keeping its whole application in `app/`, with nothing at the
+  root, read "no package.json in the tree": six steps not declared and every README
+  claim missing, and the workaround (fresh-clone run in `app/`) ingested
+  `package.json:1`, which `validate --target` rejected. fresh-clone now runs in the
+  lone directory beneath the root holding the only `package.json` (structure-scan's
+  knipRoot rule) or in `--app <dir>`, replays the root README there, and records
+  `app` (0.5.0) and an absolute local root; ingest cites the app's files from the
+  repository root, and places the root fresh-clone, dependency-scan and repo-census
+  name against the run's target, which `assay start` now records (`target:` in
+  `map/scanners.yaml`) and passes: a root inside the target is rebased onto it, one
+  outside it is kept and warned on with both paths. The `fresh-clone-lone-app` block
+  and its fixture pin it; confirmed red before the change, and with the rebase, the
+  warning and the app prefix each reverted on its own. Goldens untouched.
+- **2026-10-07 — SCHEMA stops leaving the map lane guessing** (#34). A map-only
+  lane can now write a canon and a base from SCHEMA alone. §8's canon example is in
+  block style and parses with `lib/yaml-min` (it used flow maps the reader refuses),
+  and §8 says block style binds canons. The drift check runs from
+  `validate <run> --canon <name>` with no view file (it activated only from
+  `views/improve/prose.yaml`). §8 lists the census names, kept equal to the
+  yardstick's census `measures` by the harness. It states a polarity rule for an
+  effect (`gap` when no gate holds on an irreversible or external effect, `fact`
+  otherwise, gated or not; a gate worth crediting is its own `control` strength),
+  chosen because it matches the repository's own fixtures best. It defines
+  `external: false` for an org-owned store on third-party infrastructure. Every
+  census population in a canon now carries a membership `rule`, and validate
+  refuses one without a rule or with an unknown `subject_type`. §7 states that the
+  base holds facts about the target only, with a fact about the run going to
+  `map/scanners.yaml` or a view. The generated Improve title and §5 lose their
+  em-dashes. The `schema-map-lane` block pins all eight; it was confirmed red for
+  each item's own reason before the change (item 8's `--target` refusal already
+  held and is pinned as it stands). Goldens untouched.
+- **2026-10-07 — known answers for the yardstick** (#18). The fixtures graded
+  the map and nothing graded the measurement. Each scored sheet now carries a
+  `requirements:` list (the status a run over the target should read, with a
+  reason tied to an item on the sheet; contract in `yardstick/README.md`,
+  "Known answers"); `map/score.mjs`'s `gradeRequirements` grades a run's
+  measurement on it (agree, disagree, out of scope when the deciding method did
+  not run), grades every claim row as not-measured from a run alone, and refuses
+  a sheet that answers a claim row anything else. `score` prints the grade beside
+  recall, its exit unchanged. The `yardstick-known-answers` block grades the
+  three stored runs and pins the counts in `tests/golden.json` under
+  `<run>/requirements` (a reviewed re-bless adding those keys; recall's pins
+  unchanged). Five disagreements are pinned in plain sight: the notesbox and
+  cleanlib fresh-clone rows predate the converter's build floor and its
+  `no-database-signal` fact, so both runs read `d-fresh-clone-runs` and
+  `d-schema-versioned` met where the contract reads unmet and not-applicable;
+  and the notesbox map never enumerates the `/admin/purge` effect, so
+  `d-gates-fail-closed` reads not-measured where P-02 opens its gate. The lists
+  wait in `tests/fixtures/pending-assay-fixtures/` for the fixtures repository.
+  Confirmed red with the grader never disagreeing, with the claim refusal
+  removed, with claim rows reading met from a run, with the out-of-scope rule
+  removed, and with a pending list drifting from its frozen copy.
+- **2026-10-07 — deep-code-review over the public fixtures** (#16). The fixture runs
+  carry their first real deep-code-review machine reports (1.479.0, the adapter's
+  `verified_against`, FULL scope): `tests/fixtures/notesbox` over
+  `targets/flawed-webapp` and `tests/fixtures/fixtures-root` over the fixture
+  repository root (assay-fixtures `b1e5797`), ingested with `assay ingest --tool
+  deep-code-review`, run records flipped to ran, raw reports and coverage sidecars
+  archived. Both validate against their targets. A new block, `dcr-fixture-runs`,
+  pins the archives, the header (public target, no local path), the stored rows as
+  the converter's output, and the scanner's own recall: P-02, P-03, P-04 and R-02
+  recovered on their axes. **P-07 reads mis-homed from the scanner's rows alone**:
+  the review files the swallowed, unawaited backup push in domain F (reliability),
+  which the adapter routes to code-correctness, while the sheet homes P-07 on
+  verification only. The run still recovers P-07 through the built-in method; the
+  adapter's field rules were left alone (a domain-F row is code-correctness by the
+  domain map), and whether the sheet should list code-correctness in P-07's
+  `also_axes` is raised as an open question, not settled here. The `run-manifest`
+  block's skipped-scanner example now builds its own skipped run from notesbox (it
+  had read the stored notesbox's dcr skip, which this change removes); its
+  assertions are unchanged. Reviewed re-bless: `fixtures-root` 10/10 → 11/11 (R-02
+  enters scope and is recovered; recall stays 100); notesbox stays 12/12. Confirmed
+  red: the new block with no report ingested, with the adapter's K moved off
+  code-security (R-02 mis-homed) and with F moved to verification (the P-07 pin);
+  run-manifest with the skip reason dropped from `notRunPhrase`. **Levelled on the integration branch after #18 (reviewed re-bless, same commit):** with deep-code-review recorded `ran` on both stored runs, two requirement grades #18 had pinned out of scope come into scope. fixtures-root `d-dependencies-pinned` now agrees (33 agree, 0 out of scope). notesbox `d-routes-authorized` is a new, pinned disagreement (4 disagree, 0 out of scope): the sheet reads unmet (F-1001 fails open to admin, F-1004 no check on POST /sync), the decider reads `mixed` because F-1015 (the admin gate refuses a non-admin) is a strength row in the same category (`yardstick/measure.mjs`, the instrument rule). Whether a safety-tier instrument requirement may read mixed is an issue, not settled here.

@@ -1,0 +1,68 @@
+# Known-answer sheet for the lockfiles target — dependency-scan's fixture (assay #17).
+# Two planted lockfiles give the dependency-scan instrument something to find; no
+# other method has anything to say here. Matching is by evidence path + class (an
+# instrument answer: by check name). Method classes: dependency-scan.
+target: lockfiles
+
+# Two answers of different kinds:
+#   P-01 is DETERMINISTIC and offline: legacy/package-lock.json is truncated JSON, so
+#        npm refuses it before it reaches the registry (`npm audit` exits 1 with
+#        ENOLOCK). It reads failed on any runner, network or not, and is always in
+#        scope.
+#   P-02 is an ADVISORY answer and depends on npm's advisory feed at run time: it can
+#        drift if GitHub withdraws or re-scores the advisory. To re-check it when the
+#        feed changes, from this target's app/ directory:
+#          npm audit --package-lock-only --json
+#        and confirm minimist 1.2.5 still reports GHSA-xvch-5gv4-984h at severity
+#        critical. If it does not, re-run `node assay.mjs dependency-scan` and
+#        `node assay.mjs ingest` over this target, update P-02 / I-01 to what the feed
+#        now says (or pin another long-standing advisory), and refresh the frozen copy
+#        in assay's tests/fixtures/lockfiles in the same reviewed change.
+# Both lockfiles sit in their own directory: the scorer matches a path by suffix, so
+# a root package-lock.json:1 would also match legacy/package-lock.json:1.
+planted:
+  - id: P-01
+    class: unreadable-lockfile
+    axis: code-security
+    polarity: gap
+    evidence: legacy/package-lock.json:1
+    detectable_by: [dependency-scan]
+    note: >
+      A lockfile cut off mid-document. No package manager can read it, so nothing
+      audits the legacy-export package's dependencies. A tool that cannot audit a
+      lockfile must say so, never read it as clean.
+
+  - id: P-02
+    class: known-advisory
+    axis: code-security
+    polarity: gap
+    evidence: app/package-lock.json:1
+    detectable_by: [dependency-scan]
+    note: >
+      app/package-lock.json pins minimist 1.2.5, inside the range of the long-standing
+      critical prototype-pollution advisory GHSA-xvch-5gv4-984h (fixed in 1.2.6).
+
+# What dependency-scan records over this target, keyed by its native category.
+instruments:
+  - id: I-01
+    check: critical
+    detectable_by: [dependency-scan]
+    axis: code-security
+    polarity: gap
+    note: The advisory on P-02, at its own severity (critical).
+
+  - id: I-02
+    check: lockfile-failed
+    detectable_by: [dependency-scan]
+    axis: code-security
+    polarity: gap
+    note: P-01's failed audit, a gap against the target (its lockfile is unreadable).
+
+  - id: I-03
+    check: lockfile-not-audited
+    detectable_by: [dependency-scan]
+    axis: code-security
+    polarity: fact
+    note: >
+      P-01 again, as the fact that holds d-dependencies-known-clean at not-measured
+      when no critical advisory decides it (here I-01 does, so it reads unmet).

@@ -297,9 +297,21 @@ decides, and a `missing` claim is a gap; a `present` one is not proof the comman
 works. It does not run a migration against a live database, does not attempt a
 toolchain family it cannot exercise, and does not read step output into rows.
 
+**Where it runs (#35).** A repository with no root `package.json` and exactly one
+directory directly beneath the root holding one (`app/`) is that directory's
+project — structure-scan's rule for where knip runs — and `--app <dir>` declares it
+instead. The steps run there and the root README's commands are replayed as after
+`cd <dir>`; the document records `app: { path, from }`, and ingest cites the app's
+files from the repository root (`app/package.json:1`). Ingest also places the root
+any instrument names (`target.path`: fresh-clone, dependency-scan, repo-census)
+against the run's target (`--target`, else `target:` in `map/scanners.yaml`, which
+`assay start` writes): inside it, the evidence is rebased onto the target; neither
+the target nor inside it, the rows are kept as written and ingest warns with both
+paths, never halts (a component-scoped run over a subtree is normal).
+
 ```sh
-node assay.mjs fresh-clone <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone]
-node assay.mjs ingest <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code>
+node assay.mjs fresh-clone <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone] [--app <dir>]
+node assay.mjs ingest <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code> [--target <run target root>]
 ```
 
 **A requirement's `decide.category` as a list (`yardstick/requirements.yaml`).**
@@ -320,7 +332,15 @@ target's npm dependency graph — the floor the yardstick asks a
 dependency scanner to clear (`d-dependencies-known-clean`, decided on its
 `critical` category). It walks the tree (skipping `node_modules/` and `.git/`)
 for every `package-lock.json` / `npm-shrinkwrap.json` and runs `npm audit
---json` against each, with no install. Every lockfile — npm, pnpm or yarn — is
+--json` against each, with no install. The walk keeps to the repository's own
+files (#100): a git top level is walked over the files it tracks, and any other
+directory skips what its own `.gitignore` files exclude (read by git against a
+scratch repository, never an enclosing one's rules or the evaluator's global
+excludes), so the output of a build fresh-clone ran in place (`dist/`, a
+framework's `.next/standalone/`) is never a manifest or a lockfile on the
+record. The document's `scope.rule` says which (`tracked`, `gitignore`, or
+`all` with a `reason` when git could not be run: the whole tree walked, which
+can only add manifests nothing audited, never a clean that was not earned). Every lockfile — npm, pnpm or yarn — is
 audited from a scratch directory holding only it and its `package.json`
 (`method: scratch-copy`; documents from before #47 also carry `in-place`),
 never in the target's tree (§3a, "What runs, and with what").
@@ -549,9 +569,11 @@ tools do the first two and the instrument does the rest from the tree:
   the target's own tool configuration files (`vite.config.*`,
   `eslint.config.*`, …) to find entry points, which runs the target's code, so
   it runs only where fresh-clone may (§3a, "What runs, and with what"): `assay
-  start` passes `--no-exec` unless given `--allow-exec`, and the routine passes
-  it in the two-job template's gate job; knip then reads `skipped` with that
-  reason. knip runs at the root when it holds a `package.json`, else in the one
+  start` passes `--no-exec` unless given `--allow-exec`, and knip then reads
+  `skipped` with that reason. The two-job routine template runs structure-scan
+  in its target job, the one job that executes the target, after fresh-clone's
+  install there, and hands the report to the gate job, which never runs it
+  (#128). knip runs at the root when it holds a `package.json`, else in the one
   directory directly beneath it that does (an application kept whole in
   `app/`, #119), its rows' paths written relative to the repository root and
   `knip.root` recording where it ran; with no such directory, or more than one,
