@@ -39,7 +39,8 @@ env:
 jobs:
   # Two jobs (routine/README.md "Two jobs"): `target` is the ONLY job that executes
   # this repository's own code (fresh-clone runs its install, lifecycle scripts and
-  # tests in place), and it hands forward only fresh-clone's raw report. `routine` —
+  # tests in place; structure-scan's knip then loads its tool configs over that
+  # install), and it hands forward only those two raw reports. `routine` —
   # the required status check — validates, compiles and ratchets from its own fresh
   # checkouts of this repository and the pinned engine, which never executed the
   # change, so nothing the change runs can rewrite the engine, the run or the base ref
@@ -68,12 +69,12 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run the change's own install and tests (fresh-clone, in place)
+      - name: Run the change's own install and tests, then knip (fresh-clone, structure-scan, in place)
         run: |
           node "$GITHUB_WORKSPACE/assay/routine/run.mjs" "$GITHUB_WORKSPACE/repo" \
             --target-steps --handoff "$RUNNER_TEMP/handoff"
 
-      - name: Hand fresh-clone's report to the gate
+      - name: Hand the reports to the gate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: assay-handoff-${{ github.run_id }}
@@ -148,9 +149,9 @@ jobs:
       #     sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
 
       - name: Take the target job's handoff
-        # data, never code: only fresh-clone's raw report and exit, which the gate
-        # ingests and validates like any other report. A missing handoff is recorded
-        # fresh-clone failed with the reason, so this step never fails the job itself.
+        # data, never code: only fresh-clone's and structure-scan's raw reports and
+        # exits, which the gate ingests and validates like any other report. A missing
+        # handoff is recorded failed with the reason, so this step never fails the job itself.
         continue-on-error: true
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
