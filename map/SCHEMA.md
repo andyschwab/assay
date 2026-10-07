@@ -53,12 +53,14 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
   reaches: [F-055]             # findings reachable from here in one context (the chain graph)
   explained_by: [F-090]        # links UP to a systemic finding (feeds fan-out + chain cuts)
   escapes: [F-081]             # strength-finding ids whose containment this effect pierces
+  covers: [path, path]         # optional; the members of a byte-identical family this
+                               #   finding assessed as one pattern (§6b, the coverage gate)
 ```
 
 **Mandatory keys on every finding:** `id`, `dimension`, `polarity`,
 `subject_type`, `observation`, `evidence` (non-empty), `confidence`.
 
-**Optional keys:** `preconditions`, `reaches`, `explained_by`, `escapes`, `label`,
+**Optional keys:** `preconditions`, `reaches`, `explained_by`, `escapes`, `covers`, `label`,
 the two facets (which become mandatory under §4), and the **overlay** fields
 `axis` / `also_axes` / `source` (§2a).
 
@@ -557,6 +559,22 @@ The finding set becomes deterministic because both runs walk the same enumerated
 cite the same per-item paths, rather than each noticing a different subset. Use this mode
 when repeatability of the *findings* (not just the verdict) matters; a base sweep remains
 fine for a one-off client read.
+
+**Per member, or one finding for a family — what the coverage gate counts.** The
+`enumerate --run` gate (`map/enumerate.mjs`, §8) reads a finding's `evidence` and `covers` lists
+with the YAML parser, block or flow form, whatever the cited file's type; a path named
+only in the observation cites nothing. A cited file covers that member; a cited
+directory covers every member under it on a segment boundary; `.` covers nothing.
+Which to emit:
+- **Members that vary** — one finding per member, citing the member's own file. This is
+  the rule; the census-augmented mode above is it applied to every observational
+  dimension.
+- **A byte-identical family under one directory** — one finding citing the directory.
+- **A byte-identical family spread across directories, or pinned by a test rather than
+  by its own paths** — one finding whose `evidence` cites the guard or test that pins
+  the family and whose `covers: [path, …]` names every member it assessed. `covers` is
+  for members identical by construction only; a member that differs from the pattern
+  gets its own finding, and a member left out of `covers` stays a gap.
 
 ```yaml
 # map/censuses.yaml (authored)

@@ -338,13 +338,13 @@ if (runDir) {
   const GATE_POPS = new Set(['routeHandlers', 'socketMounts', 'contracts', 'reportPaths', 'egressControls']);
 
   // A member is "covered" if any of its evidence files appears anywhere the run
-  // ASSESSED it: a finding's evidence (map/findings/), the counted populations
-  // (map/censuses.yaml), or a view (views/**, e.g. the axis walk). Read all of them.
+  // ASSESSED it: a finding's evidence or covers list (map/findings/, parsed, never
+  // read as text), the counted populations (map/censuses.yaml), or a view (views/**,
+  // e.g. the axis walk). Read all of them.
   let cited = new Set();
   try {
     const srcs = [];
     const fd = findingsDir(runDir);
-    if (existsSync(fd)) for (const f of readdirSync(fd)) if (f.endsWith('.yaml')) srcs.push(join(fd, f));
     if (existsSync(censusesPath(runDir))) srcs.push(censusesPath(runDir));
     const vd = viewsDir(runDir);
     const walkMd = (dir) => { if (!existsSync(dir)) return; for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -358,10 +358,13 @@ if (runDir) {
       // (#33); a bracket or paren only counts closed around a word, so `(app/x.ts:3)` cites app/x.ts
       for (const m of txt.matchAll(/((?:[A-Za-z0-9_.@-]|\/|\([A-Za-z0-9_.@-]+\)|\[{1,2}(?:\.{3})?[A-Za-z0-9_-]+\]{1,2})+?\.(?:py|sh|[mc]?[jt]sx?|json|ya?ml|txt|example|service)):\d/g)) cited.add(m[1].split(':')[0]);
     }
-    // a finding's evidence list, parsed (a quoted element may hold a comma)
+    // a finding's evidence list, parsed in block or flow form whatever the cited file's
+    // type (#36), plus its `covers:` list: the members of a byte-identical family it
+    // assessed as one pattern (SCHEMA §6b). A path in the observation prose cites nothing.
     if (existsSync(fd)) for (const f of readdirSync(fd)) if (f.endsWith('.yaml')) {
       const doc = parseYaml(readFileSync(join(fd, f), 'utf8'));
-      for (const row of Array.isArray(doc) ? doc : []) for (const e of Array.isArray(row?.evidence) ? row.evidence : []) cited.add(String(e).split(':')[0]);
+      for (const row of Array.isArray(doc) ? doc : []) for (const k of ['evidence', 'covers'])
+        for (const e of Array.isArray(row?.[k]) ? row[k] : []) cited.add(String(e).split(':')[0]);
     }
   } catch (e) { console.error(`--run: could not read findings in ${runDir}: ${e.message}`); process.exit(2); }
 
