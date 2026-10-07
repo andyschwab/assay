@@ -1360,6 +1360,33 @@ what the public engine learned.
   confirmed red before the change (the ignored lockfile audited, the untracked
   manifest recorded uncovered, no scope), and red again with the tracked rule
   and the `.gitignore` rule each reverted in turn. Goldens untouched.
+- **2026-10-07 — the coverage gate sees every cited file and pattern-assessed
+  families** (#36, merged item 1 of #37). `enumerate --run` reads a finding's
+  citations only through the YAML parser (`lib/yaml-min`): block- and flow-form
+  `evidence` of any file type counts, and a path named only in a finding's prose
+  no longer covers a member (the raw-text regex still reads the censuses and
+  views). The owner chose the scoped mix: members that vary get one finding
+  each; a byte-identical family under one directory is covered by citing the
+  directory; one spread across directories or pinned by a test is covered by a
+  finding's new optional `covers: [path, …]` list (SCHEMA §1, §6b; METHOD).
+  The `enumerate-gate` block pins block-form `.mjs`/`.tsx`/extensionless
+  citations, the prose non-citation, and `covers` (named members only, `.`
+  covers nothing); it was confirmed red before the change (prose covered,
+  `covers` unread) and the block-form assertion red with parsed `evidence`
+  reverted. Goldens untouched.
+- **2026-10-07 — gate vocabulary: a person's own act, an unterminated check, the
+  identity a gate was verified under** (#38). `gate_type` gains
+  `initiated-by-person` (one authenticated person's own explicit act causes the
+  effect; `map/doctrine.mjs` holds it only while the act is recorded, telemetry not
+  `none`), so a deliberate act and an unattended job no longer read the same on
+  `d-effects-gated`. `fail_mode` gains `unterminated` (a check that never reaches a
+  verdict): it does not hold, and `d-gates-fail-closed` counts it apart from
+  fail-open. The effect facet gains an optional `verified_as` (`principal`,
+  `privilege: bound | elevated`, `triggered_by`); validate refuses `confirmed` on an
+  elevated verification. SCHEMA §1/§2, METHOD, the glossary, the variance ranks and
+  the owner wording follow. The `tests/blocks/gate-vocabulary.mjs` block was
+  confirmed red against each reverted rule. Listing `verified_as` in the credential
+  census is left to the census work (SCHEMA §6b/§8).
 - **2026-10-07 — a fixture that gives dependency-scan something to find** (#17).
   No fixture target had a lockfile, so the stored runs recorded dependency-scan as
   a clean run with no rows: a recall miss, an advisory homed on the wrong axis,
