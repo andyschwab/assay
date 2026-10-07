@@ -29,10 +29,11 @@ const POLARITY = new Set(['strength','gap','fact']);
 const SUBJECT = new Set(['effect','control','artifact','contract','process','capability']);
 const CONFIDENCE = new Set(['confirmed','plausible','unverified']);
 const REVERSIBILITY = new Set(['reversible','reversible-with-window','irreversible']);
-const GATE_TYPE = new Set(['deterministic-halt','staged-reversible','scope-bound','rate-throttle','disclosure-only','external-halt','none']);
+const GATE_TYPE = new Set(['deterministic-halt','staged-reversible','scope-bound','rate-throttle','disclosure-only','external-halt','initiated-by-person','none']);
 const TELEMETRY = new Set(['none','unstructured','structured-event','audited']);
 const BLAST = new Set(['user','tenant','fleet','cross-tenant']);
-const FAIL_MODE = new Set(['open','closed']);
+const FAIL_MODE = new Set(['open','closed','unterminated']);
+const VERIFIED_PRIVILEGE = new Set(['bound','elevated']);
 const PRECONDITIONS = new Set(['prompt-injection','stolen-credential','malicious-dependency','network-position','insider','zero-day','physical']);
 // overlay layer (SCHEMA.md §2a) — a finding may carry an explicit `axis`;
 // absent is valid (the adapter projects it). The valid set is DERIVED from the
@@ -149,6 +150,19 @@ function checkFinding(f, fileLabel, expectDim) {
       if (e.gate_type && e.gate_type !== 'none') {
         if (e.fail_mode === undefined) err(at, `effect.fail_mode required when gate_type != none`);
         else if (!FAIL_MODE.has(e.fail_mode)) err(at, `bad effect.fail_mode "${e.fail_mode}"`);
+      }
+      // the identity a gate check ran under (optional; SCHEMA.md §1): a check run with more
+      // privilege than the gate binds proves nothing about the gate, so it cannot be confirmed
+      if (e.verified_as !== undefined) {
+        const v = e.verified_as;
+        if (!v || typeof v !== 'object' || Array.isArray(v)) err(at, `effect.verified_as must be a mapping`);
+        else {
+          if (e.gate_type === 'none') err(at, `verified_as on an effect whose gate_type is none (there is no gate to verify)`);
+          for (const k of ['principal','privilege']) if (v[k] === undefined || v[k] === null || v[k] === '') err(at, `effect.verified_as.${k} missing`);
+          if (v.privilege && !VERIFIED_PRIVILEGE.has(v.privilege)) err(at, `bad effect.verified_as.privilege "${v.privilege}"`);
+          if (v.privilege === 'elevated' && f.confidence === 'confirmed')
+            err(at, `verified_as.privilege elevated (the check ran with more privilege than the gate binds) needs confidence plausible, not confirmed`);
+        }
       }
       // fail-closed discovery: an unheld halt is a chain sink, and its difficulty is
       // chain-critical, so its preconditions must be determined, never left to default.

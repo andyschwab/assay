@@ -135,12 +135,12 @@ requirements:
     decide:
       kind: facet
       rule: halts-gated
-    check: the effect inventory shows zero halt-class effects without a gate that holds (doctrine.mjs)
+    check: the effect inventory shows zero halt-class effects without a gate that holds (doctrine.mjs); one authenticated person's own recorded act (gate_type initiated-by-person) holds, an unattended job doing the same write does not
     sources: [floor/s-effects-gated, manifest/d5-halt-tripwire, foundation/halts, takeover-eval/weekly-publish-unrecallable]
     status: draft
     owner:
       risk: "An action that cannot be undone or that reaches outside the app, sending an email, charging a card, deleting data, running with nothing standing in front of it means one bug or one bad input performs it for real, with no chance to catch it first."
-      fix: "Have your AI list every action that sends, charges, deletes, or otherwise cannot be undone, and add a check in front of each one that must pass before it runs."
+      fix: "Have your AI list every action that sends, charges, deletes, or otherwise cannot be undone, and add a check in front of each one that must pass before it runs. An action a signed-in person starts on purpose, like clicking Save, already counts if the click is recorded; the ones to fix run on their own."
   - id: d-effects-traced
     title: Every irreversible or outward effect leaves a durable record
     tier: safety
@@ -163,12 +163,12 @@ requirements:
     decide:
       kind: facet
       rule: gates-fail-closed
-    check: zero gated effects with fail_mode open; a gate whose secret or tool is missing goes red, never green
+    check: zero gated effects with fail_mode open or unterminated, each counted apart; a gate whose secret or tool is missing goes red, never green, and a gate check that never finishes is no verdict
     sources: [foundation/never-skip-a-test, takeover-eval/privacy-gate-passes-unset, manifest/d3-guards-bite]
     status: draft
     owner:
-      risk: "If a safety check quietly turns itself off when something it needs is missing, a setting, a key, a connection, instead of blocking the action, the app can look protected while actually running wide open, at the moment it is most likely to matter."
-      fix: "Have your AI test each safety check with its setting or key removed, and confirm the check blocks the action instead of letting it through."
+      risk: "If a safety check quietly turns itself off when something it needs is missing, a setting, a key, a connection, instead of blocking the action, the app can look protected while actually running wide open, at the moment it is most likely to matter. A check that can hang forever without an answer is no safer."
+      fix: "Have your AI test each safety check with its setting or key removed, and confirm the check blocks the action instead of letting it through. Make sure each check also gives up and blocks after a set time, instead of waiting forever."
   - id: d-capability-budget
     title: No single AI context holds untrusted input, private data, and an outward effect at once
     tier: safety

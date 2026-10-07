@@ -141,7 +141,17 @@ function byFacet(d, fs) {
     let bad = [], of = halts, what = '';
     if (r === 'halts-gated') { bad = halts.filter((f) => isHalt(f.effect)); what = 'halt-class effects with no gate that holds'; }
     if (r === 'halts-traced') { bad = halts.filter((f) => f.effect.telemetry === 'none'); what = 'halt-class effects leaving no record'; }
-    if (r === 'gates-fail-closed') { of = effects.filter((f) => f.effect.gate_type && f.effect.gate_type !== 'none'); bad = of.filter((f) => f.effect.fail_mode === 'open'); what = 'gated effects whose gate fails open'; }
+    if (r === 'gates-fail-closed') {
+      // fail-open and a check that never terminates are each counted, and named apart (#38)
+      of = effects.filter((f) => f.effect.gate_type && f.effect.gate_type !== 'none');
+      const open = of.filter((f) => f.effect.fail_mode === 'open'), unt = of.filter((f) => f.effect.fail_mode === 'unterminated');
+      bad = of.filter((f) => open.includes(f) || unt.includes(f));
+      if (!of.length) return row('not-measured', 'facet', [], 'population empty (gated effects)');
+      const ch = (xs) => xs.length ? ': ' + xs.map((f) => f.effect.channel).filter(Boolean).join(', ') : '';
+      return row(bad.length ? 'unmet' : 'met', 'facet', bad.map((f) => f.id),
+        `${bad.length} of ${of.length} gated effects whose gate does not end in a refusal: ${open.length} fails open${ch(open)}; ${unt.length} never terminates${ch(unt)}`,
+        { met: of.length - bad.length, of: of.length, open: open.length, unterminated: unt.length });
+    }
     if (r === 'effects-provable') { of = effects; bad = effects.filter((f) => !STRUCTURED.has(f.effect.telemetry)); what = 'effects with no structured or audited record'; }
     if (!of.length) return row('not-measured', 'facet', [], `population empty (${what.split(' with')[0]})`);
     return row(bad.length ? 'unmet' : 'met', 'facet', bad.map((f) => f.id), `${bad.length} of ${of.length} ${what}${bad.length ? ': ' + bad.map((f) => f.effect.channel).filter(Boolean).join(', ') : ''}`, { met: of.length - bad.length, of: of.length });

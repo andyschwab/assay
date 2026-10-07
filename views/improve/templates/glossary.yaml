@@ -38,11 +38,17 @@ gate_type:
   rate-throttle: A limit on volume or speed, not a stop.
   disclosure-only: The action is announced, not actually stopped.
   external-halt: The stop lives in a system outside this codebase.
+  initiated-by-person: One signed-in person's own deliberate act, like clicking Save, causes the action, and that act is recorded. Not an unattended job.
   none: Nothing stops the action.
 
 fail_mode:
   open: If the gate's dependency is missing, the action still runs. The gate fails open and is no gate under that condition.
   closed: If the gate's dependency is missing, the action is refused. The gate fails safe.
+  unterminated: The gate's check can run without ever reaching a verdict, like a check with no timeout. It is no stop.
+
+verified_as:
+  bound: The gate was checked as the same kind of user it is meant to restrict.
+  elevated: The gate was checked with more privilege than it restricts, like an admin or superuser, so the check proves little about the gate.
 
 telemetry:
   none: The action leaves no record. You cannot tell it happened.
