@@ -23,6 +23,31 @@
       "missed": 0,
       "misHomed": 0,
       "falsePositives": 0
+    },
+    "notesbox/requirements": {
+      "agree": 30,
+      "disagree": 3,
+      "out_of_scope": 1,
+      "disagreements": [
+        "d-gates-fail-closed",
+        "d-fresh-clone-runs",
+        "d-schema-versioned"
+      ]
+    },
+    "cleanlib/requirements": {
+      "agree": 31,
+      "disagree": 2,
+      "out_of_scope": 0,
+      "disagreements": [
+        "d-fresh-clone-runs",
+        "d-schema-versioned"
+      ]
+    },
+    "fixtures-root/requirements": {
+      "agree": 32,
+      "disagree": 0,
+      "out_of_scope": 1,
+      "disagreements": []
     }
   }
 }

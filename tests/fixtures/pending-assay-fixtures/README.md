@@ -31,3 +31,21 @@ bump it (it would erase the answer).
 `tests/fixtures/lockfiles/` is dependency-scan's real output over these files, laid
 out as `targets/lockfiles` (`node assay.mjs dependency-scan` then
 `node assay.mjs ingest`).
+
+## Expected requirement statuses (assay #18)
+
+Each answer sheet in assay-fixtures gains a `requirements:` list (the contract is
+`yardstick/README.md`, "Known answers"). **The parent appends each file below to the
+end of the named sheet**, unchanged (each starts with a blank line and its own
+comment):
+
+| here | append to, in assay-fixtures |
+|---|---|
+| `targets/flawed-webapp/ANSWERS.requirements.yaml` | `targets/flawed-webapp/ANSWERS.yaml` |
+| `targets/clean-lib/ANSWERS.requirements.yaml` | `targets/clean-lib/ANSWERS.yaml` |
+| `ANSWERS.requirements.yaml` | `ANSWERS.yaml` (the repo-root sheet) |
+
+The frozen copies here (`tests/fixtures/notesbox`, `cleanlib` and `fixtures-root`,
+each `ANSWERS.yaml`) already end with these lists, and the `yardstick-known-answers`
+block checks that each frozen list is the one waiting here. Once assay-fixtures
+carries them, these three files can go in a follow-up change with that check.
