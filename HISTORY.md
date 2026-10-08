@@ -1484,3 +1484,15 @@ what the public engine learned.
   red: the new block with no report ingested, with the adapter's K moved off
   code-security (R-02 mis-homed) and with F moved to verification (the P-07 pin);
   run-manifest with the skip reason dropped from `notRunPhrase`. **Levelled on the integration branch after #18 (reviewed re-bless, same commit):** with deep-code-review recorded `ran` on both stored runs, two requirement grades #18 had pinned out of scope come into scope. fixtures-root `d-dependencies-pinned` now agrees (33 agree, 0 out of scope). notesbox `d-routes-authorized` is a new, pinned disagreement (4 disagree, 0 out of scope): the sheet reads unmet (F-1001 fails open to admin, F-1004 no check on POST /sync), the decider reads `mixed` because F-1015 (the admin gate refuses a non-admin) is a strength row in the same category (`yardstick/measure.mjs`, the instrument rule). Whether a safety-tier instrument requirement may read mixed is an issue, not settled here.
+- **2026-10-08 — a safety-tier instrument requirement reads unmet on one gap** (#141).
+  The instrument decider (`yardstick/measure.mjs`) read `mixed` whenever a category
+  had gap rows and at least one strength row. A `safety`-tier requirement's check is
+  a cleanliness claim, so a strength row beside a gap no longer makes it partly met:
+  it reads `unmet`; every other tier keeps `mixed`. `yardstick/README.md` states the
+  rule in the decider table. A new block, `yardstick-safety-instrument`, pins both
+  sides on a synthetic gap-plus-strength run. Reviewed re-bless: notesbox
+  `d-routes-authorized` moves from a pinned disagreement to agreement (the sheet's
+  unmet: F-1001, F-1004 gaps beside the F-1015 strength), `notesbox/requirements`
+  30 agree / 4 disagree → 31 / 3; no other scored fixture had a mixed safety row.
+  Confirmed red: the new block with the rule absent (the safety row read mixed),
+  and the pinned grade with the rule present before the re-bless.

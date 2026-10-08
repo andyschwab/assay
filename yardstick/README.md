@@ -74,7 +74,7 @@ finding, never silently overwritten.
 |---|---|---|
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`) | met or unmet with the population; not-measured when the map has no effects |
 | `census` | an authored, enumerated population in the run's `map/censuses.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
-| `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows; met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
+| `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). The claim rows a packet never speaks to are the list of instruments still to build |
 
 `decide.category` on an `instrument` row may be a **list**: categories one scanner
