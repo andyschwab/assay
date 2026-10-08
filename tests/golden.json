@@ -25,11 +25,10 @@
       "falsePositives": 0
     },
     "notesbox/requirements": {
-      "agree": 30,
-      "disagree": 4,
+      "agree": 31,
+      "disagree": 3,
       "out_of_scope": 0,
       "disagreements": [
-        "d-routes-authorized",
         "d-gates-fail-closed",
         "d-fresh-clone-runs",
         "d-schema-versioned"
