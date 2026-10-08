@@ -1484,3 +1484,14 @@ what the public engine learned.
   red: the new block with no report ingested, with the adapter's K moved off
   code-security (R-02 mis-homed) and with F moved to verification (the P-07 pin);
   run-manifest with the skip reason dropped from `notRunPhrase`. **Levelled on the integration branch after #18 (reviewed re-bless, same commit):** with deep-code-review recorded `ran` on both stored runs, two requirement grades #18 had pinned out of scope come into scope. fixtures-root `d-dependencies-pinned` now agrees (33 agree, 0 out of scope). notesbox `d-routes-authorized` is a new, pinned disagreement (4 disagree, 0 out of scope): the sheet reads unmet (F-1001 fails open to admin, F-1004 no check on POST /sync), the decider reads `mixed` because F-1015 (the admin gate refuses a non-admin) is a strength row in the same category (`yardstick/measure.mjs`, the instrument rule). Whether a safety-tier instrument requirement may read mixed is an issue, not settled here.
+- **2026-10-08 — retire `tests/fixtures/pending-assay-fixtures/`** (#142). The
+  public fixtures repository now carries the `lockfiles` target and the three
+  `requirements:` lists (assay-fixtures #2 and #4), so the staging directory was a
+  second copy of files that repository owns; it is gone. `dependency-scan-fixture`
+  drops its pending path and the frozen-versus-pending sheet check; its offline
+  end-to-end check now reads a frozen copy of the truncated lockfile, moved
+  byte-for-byte to `tests/fixtures/lockfiles/legacy/` (still `<name>.pending`).
+  `yardstick-known-answers` drops its pending lists and the check that each frozen
+  list matches one. The frozen copies under `tests/fixtures/` stay the fixtures; no
+  pinned score moves. Confirmed red with the pending directory removed before the
+  blocks were changed, and with the frozen `legacy/` copy missing.
