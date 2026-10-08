@@ -7,9 +7,8 @@
 // row is graded too, expected not-measured from a run alone, never met. The counts and
 // the disagreeing ids are pinned in tests/golden.json under `<run>/requirements`, so a
 // change to a decider, a tier or a topic that moves a fixture's status reads as drift.
-// Pinned: (a) the grades, (b) the frozen sheets carry exactly the lists waiting in
-// pending-assay-fixtures, (c) a status hand-edited to the wrong one turns the verdict
-// red, (d) a sheet that answers a claim row met, names no requirement, or carries an
+// Pinned: (a) the grades, (b) a status hand-edited to the wrong one turns the verdict
+// red, (c) a sheet that answers a claim row met, names no requirement, or carries an
 // unknown status is refused, never graded.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -22,13 +21,6 @@ import { SCORED } from './fixture-recall.mjs';
 
 export const label = 'yardstick-known-answers';
 
-const PENDING = join(HERE, 'fixtures', 'pending-assay-fixtures');
-// each scored run → where its sheet's list waits for the fixtures repository
-const PENDING_LIST = {
-  notesbox: join(PENDING, 'targets', 'flawed-webapp', 'ANSWERS.requirements.yaml'),
-  cleanlib: join(PENDING, 'targets', 'clean-lib', 'ANSWERS.requirements.yaml'),
-  'fixtures-root': join(PENDING, 'ANSWERS.requirements.yaml'),
-};
 const pinned = (g) => ({ agree: g.agree, disagree: g.disagree, out_of_scope: g.out_of_scope, disagreements: g.results.filter((r) => r.grade === 'disagree').map((r) => r.id) });
 
 export async function run() {
@@ -39,9 +31,6 @@ export async function run() {
     const at = `${key}/requirements`;
     try {
       const answers = parseYaml(readFileSync(join(dir, 'ANSWERS.yaml'), 'utf8'));
-      // (b) the frozen sheet's list is the one waiting for the fixtures repository
-      const pending = parseYaml(readFileSync(PENDING_LIST[key], 'utf8')).requirements;
-      if (JSON.stringify(answers.requirements) !== JSON.stringify(pending)) fail(`${key}: the frozen sheet's requirements: list differs from ${PENDING_LIST[key].slice(HERE.length + 1)}`);
       const rows = projectRun(dir, reg);
       const g = gradeRequirements(rows, answers, reg, loadManifest(dir));
       graded[key] = { answers, rows, manifest: loadManifest(dir), g };
@@ -57,7 +46,7 @@ export async function run() {
     for (const r of claimGrades) if (r.expected !== 'not-measured' || r.grade !== 'agree') fail(`${key}: claim row ${r.id} must read not-measured from a run alone (expected ${r.expected}, read ${r.actual})`);
   }
 
-  // (c) a status hand-edited to the wrong one is a disagreement, and the verdict goes red
+  // (b) a status hand-edited to the wrong one is a disagreement, and the verdict goes red
   const nb = graded.notesbox;
   if (!nb) fail('the notesbox run must grade');
   else {
@@ -71,7 +60,7 @@ export async function run() {
     if (v.exit !== 1 || !v.err.some((l) => l.includes('notesbox/requirements'))) fail('a sheet edited to the wrong status must turn the harness red on notesbox/requirements');
   }
 
-  // (d) a sheet the contract refuses is never graded
+  // (c) a sheet the contract refuses is never graded
   if (nb) {
     const refused = (what, mutate, re) => {
       const a = structuredClone(nb.answers); mutate(a);

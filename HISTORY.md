@@ -1496,3 +1496,14 @@ what the public engine learned.
   30 agree / 4 disagree → 31 / 3; no other scored fixture had a mixed safety row.
   Confirmed red: the new block with the rule absent (the safety row read mixed),
   and the pinned grade with the rule present before the re-bless.
+- **2026-10-08 — retire `tests/fixtures/pending-assay-fixtures/`** (#142). The
+  public fixtures repository now carries the `lockfiles` target and the three
+  `requirements:` lists (assay-fixtures #2 and #4), so the staging directory was a
+  second copy of files that repository owns; it is gone. `dependency-scan-fixture`
+  drops its pending path and the frozen-versus-pending sheet check; its offline
+  end-to-end check now reads a frozen copy of the truncated lockfile, moved
+  byte-for-byte to `tests/fixtures/lockfiles/legacy/` (still `<name>.pending`).
+  `yardstick-known-answers` drops its pending lists and the check that each frozen
+  list matches one. The frozen copies under `tests/fixtures/` stay the fixtures; no
+  pinned score moves. Confirmed red with the pending directory removed before the
+  blocks were changed, and with the frozen `legacy/` copy missing.

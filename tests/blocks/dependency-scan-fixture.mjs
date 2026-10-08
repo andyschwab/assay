@@ -1,7 +1,7 @@
 // ── dependency-scan over a fixture that gives it something to find (#17) ─────
 // The stored run tests/fixtures/lockfiles is dependency-scan's real output over the
-// assay-fixtures `targets/lockfiles` target (its files wait in
-// tests/fixtures/pending-assay-fixtures/ until the fixtures repository carries them).
+// assay-fixtures `targets/lockfiles` target; legacy/ keeps a frozen copy of the target's
+// truncated lockfile for the offline end-to-end check (f).
 // Two planted lockfiles, two kinds of answer:
 //   • legacy/package-lock.json is truncated JSON: npm refuses it before it reaches the
 //     registry (ENOLOCK), so it reads failed on any runner, network or not — the
@@ -25,7 +25,6 @@ import { HERE, negFailures, convert, adaptersOnce } from '../harness.mjs';
 export const label = 'dependency-scan-fixture';
 
 const RUN = join(HERE, 'fixtures', 'lockfiles');
-const PENDING = join(HERE, 'fixtures', 'pending-assay-fixtures', 'targets', 'lockfiles');
 
 export async function run() {
   const fail = (m) => negFailures.push('dependency-scan-fixture: ' + m);
@@ -71,16 +70,11 @@ export async function run() {
   const d = measureRun({ findings, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, loadYardstick()).find((x) => x.id === 'd-dependencies-known-clean');
   if (d?.status !== 'unmet') fail(`the stored run reads d-dependencies-known-clean unmet (got ${d?.status})`);
 
-  // (f) the frozen sheet is the sheet the fixtures repository is to carry
-  try {
-    if (readFileSync(join(PENDING, 'ANSWERS.yaml'), 'utf8') !== readFileSync(join(RUN, 'ANSWERS.yaml'), 'utf8')) fail('tests/fixtures/lockfiles/ANSWERS.yaml must be a frozen copy of the pending target\'s sheet');
-  } catch (e) { fail(`the pending target's sheet must exist (${e.message.split('\n')[0]})`); }
-
-  // (g) end to end, offline: the pending truncated lockfile reads failed (ENOLOCK) on this runner too.
+  // (f) end to end, offline: the frozen truncated lockfile reads failed (ENOLOCK) on this runner too.
   // Files are stored as <name>.pending so this repository's own dependency graph never parses them.
   const tmp = join(HERE, 'tmp-dep-fixture'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp, { recursive: true });
   try {
-    for (const f of ['package.json', 'package-lock.json']) copyFileSync(join(PENDING, 'legacy', f + '.pending'), join(tmp, f));
+    for (const f of ['package.json', 'package-lock.json']) copyFileSync(join(RUN, 'legacy', f + '.pending'), join(tmp, f));
     writeFileSync(join(tmp, '.npmrc'), 'registry=http://127.0.0.1:9/\n');   // the scratch copy never reads it; npm refuses before the network either way
     const doc = runDependencyScan({ target: tmp, timeout: 60, log: () => {} });
     const l = doc.lockfiles[0] || {};
