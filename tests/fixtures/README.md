@@ -18,9 +18,10 @@ reaching outside the repo — self-contained immutable copies, kept separate fro
 - `lockfiles/` — dependency-scan's run over the `lockfiles` target (#17): one
   lockfile pinning a package with a known critical advisory, one truncated so npm
   refuses it offline (ENOLOCK). Scored against `lockfiles/ANSWERS.yaml` by the
-  `dependency-scan-fixture` block, not pinned in `tests/golden.json`. Until the
-  fixtures repository carries the target, its files wait in
-  `pending-assay-fixtures/` (that README says how they are applied).
+  `dependency-scan-fixture` block, not pinned in `tests/golden.json`.
+  `lockfiles/legacy/` keeps a frozen copy of the target's truncated lockfile
+  (stored as `<name>.pending`, so this repository's dependency graph never parses
+  it) for the block's offline end-to-end check.
 - `fixtures-root/` — repo-census over the fixture repository's root, scored against
   the repo-root sheet (`fixtures-root/ANSWERS.yaml`). Repo-scoped instruments are
   answered only there, so the per-target runs record repo-census skipped.
@@ -30,8 +31,7 @@ yardstick's measurement of the run should read, per requirement, with its reason
 (the contract is `yardstick/README.md`, "Known answers"). The
 `yardstick-known-answers` block grades each run on it and pins the agree,
 disagree and out-of-scope counts in `tests/golden.json` under
-`<run>/requirements`. The lists wait in `pending-assay-fixtures/` until the
-fixtures repository carries them (that README says how they are applied).
+`<run>/requirements`.
 
 Both `notesbox/` and `fixtures-root/` also carry a real deep-code-review machine
 report (FULL scope; `map/raw/deep-code-review.yaml`, its coverage sidecar under
