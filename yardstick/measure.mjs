@@ -212,7 +212,9 @@ function byInstrument(d, fs, disp, coverage) {
   if (!dp) return row(rows.length ? 'unmet' : 'not-measured', 'instrument', rows.map((f) => f.id), rows.length ? `${rows.length} row(s) from ${scanner} (no manifest disposition recorded)` : `${scanner} has no disposition in the run manifest`);
   if (dp.status !== 'ran') return row('not-measured', 'instrument', [], `${scanner} ${dp.status}${dp.reason ? ': ' + dp.reason : ''}`);
   const gaps = rows.filter((f) => f.polarity === 'gap'), strengths = rows.filter((f) => f.polarity === 'strength');
-  if (gaps.length) return row(strengths.length ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${catLabel}${strengths.length ? ', ' + strengths.length + ' strength' : ''}${asideNote}`);
+  // a safety-tier check is a cleanliness claim: a strength row never makes it partly met
+  // (yardstick/README.md, the instrument rule); any other tier reads a strength beside a gap mixed.
+  if (gaps.length) return row(strengths.length && d.tier !== 'safety' ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${catLabel}${strengths.length ? ', ' + strengths.length + ' strength' : ''}${asideNote}`);
   // no gap rows anywhere in the listed categories: met only where every listed category
   // independently clears categoryVerdict — a list is an AND, never decided by one member alone.
   const perCat = categories.map((c) => ({ c, ...categoryVerdict(scanner, c, rows.filter((f) => String(f.native_category) === c), coverage) }));
