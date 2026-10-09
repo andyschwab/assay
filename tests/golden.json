@@ -1,5 +1,13 @@
 {
   "_score": {
+    "notesbox/corroboration": {
+      "corroborated": 3,
+      "facts": [
+        "artifact-legibility::gap::files:README.md|package.json:: <- F-002,F-1000",
+        "code-security::gap::files:config/settings.mjs:: <- F-1003,F-700",
+        "delegation::gap::files:lib/agent.mjs:: <- F-051,F-1002,F-1005"
+      ]
+    },
     "notesbox": {
       "recall": 100,
       "recovered": 12,
@@ -23,6 +31,99 @@
       "missed": 0,
       "misHomed": 0,
       "falsePositives": 0
+    },
+    "roster": {
+      "deep-code-review": {
+        "status": "adopted",
+        "ran_in": 2,
+        "decides_alone": 6,
+        "unique_recoveries": [
+          "fixtures-root/R-02"
+        ],
+        "corroborated": 4,
+        "fails_loud": "dcr-machine-report"
+      },
+      "dependency-scan": {
+        "status": "adopted",
+        "ran_in": 2,
+        "decides_alone": 1,
+        "unique_recoveries": [],
+        "corroborated": 0,
+        "fails_loud": "dependency-scan"
+      },
+      "fresh-clone": {
+        "status": "adopted",
+        "ran_in": 2,
+        "decides_alone": 4,
+        "unique_recoveries": [
+          "notesbox/I-01",
+          "notesbox/I-02",
+          "notesbox/I-03",
+          "cleanlib/I-01",
+          "cleanlib/I-02"
+        ],
+        "corroborated": 0,
+        "fails_loud": "fresh-clone"
+      },
+      "gitleaks": {
+        "status": "adopted",
+        "ran_in": 2,
+        "decides_alone": 1,
+        "unique_recoveries": [],
+        "corroborated": 1,
+        "fails_loud": "instrument-port"
+      },
+      "repo-census": {
+        "status": "adopted",
+        "ran_in": 1,
+        "decides_alone": 10,
+        "unique_recoveries": [
+          "fixtures-root/R-I1",
+          "fixtures-root/R-I2",
+          "fixtures-root/R-I3",
+          "fixtures-root/R-I4",
+          "fixtures-root/R-I5",
+          "fixtures-root/R-I6",
+          "fixtures-root/R-I7",
+          "fixtures-root/R-I8",
+          "fixtures-root/R-I9",
+          "fixtures-root/R-S1"
+        ],
+        "corroborated": 1,
+        "fails_loud": "repo-census"
+      },
+      "repo-eval": {
+        "status": "adopted",
+        "ran_in": 2,
+        "decides_alone": 0,
+        "unique_recoveries": [
+          "notesbox/P-06",
+          "notesbox/P-07",
+          "notesbox/S-01",
+          "notesbox/S-02",
+          "cleanlib/S-01",
+          "cleanlib/S-02",
+          "cleanlib/S-03"
+        ],
+        "corroborated": 2,
+        "fails_loud": "negative-fixtures"
+      },
+      "scorecard": {
+        "status": "retired",
+        "ran_in": 0,
+        "decides_alone": 0,
+        "unique_recoveries": null,
+        "corroborated": null,
+        "fails_loud": "instrument-port"
+      },
+      "structure-scan": {
+        "status": "adopted",
+        "ran_in": 0,
+        "decides_alone": 2,
+        "unique_recoveries": null,
+        "corroborated": null,
+        "fails_loud": "instrument-port"
+      }
     },
     "notesbox/requirements": {
       "agree": 31,

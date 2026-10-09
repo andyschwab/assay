@@ -22,13 +22,10 @@ Pass 9 — the lead deliverable). The scanner method runs in two layers:
  **security** (always-on; exposures ranked by likelihood, no deploy verdict) —
  reconciled by a **meta-synthesis** into one roadmap.
 
-The one rule that makes this work: **the base states *what is*; the views compute
-*how good / how bad / how urgent*.** A base finding may say "this effect is
-irreversible and has no gate"; it may not say "critical." Severity and priority are
-view outputs, computed from the
-descriptors. This keeps the evidence honest and reusable, and stops a
-strengths-first framing from muting a critical finding (the failure this
-architecture exists to prevent).
+The one rule is `README.md`'s, and the base is where it binds: a base finding never
+asserts a severity or a priority; the views compute both from its descriptors. That
+keeps the evidence reusable, and stops a strengths-first framing from muting a
+critical finding (the failure this architecture exists to prevent).
 
 ## Ground rules
 
@@ -562,9 +559,9 @@ finding). The **external, maintainer-facing** deliverable is Pass 9.
 The detail layer under the axis model (`map/scanners/CONTRACT.md`):
 `node views/improve/axes.mjs <run-dir> [--base <dir>]...` projects the base
 through each scanner's adapter onto the **flat axis roster** — the seven native
-dimension axes plus each peer scanner's contributed axes (deep-code-review adds
-*code-correctness*, *code-maintainability* and *code-security*; its 1.128+ machine report is ingested with
-`node assay.mjs ingest <run-dir> --tool deep-code-review --raw <file>`, which also
+dimension axes plus each peer scanner's contributed axes (the code reviewer adds
+*code-correctness*, *code-maintainability* and *code-security*; a reviewer's machine report is ingested with
+`node assay.mjs ingest <run-dir> --tool <scanner> --raw <file>`, the format its adapter's `ingest:` names, which also
 archives the scanner's per-domain coverage so an axis reads **partially measured**
 where the scanner itself said it looked partially), **property-named and shared**, so two
 scanners measuring one property corroborate in one section. Each axis carries its
@@ -626,7 +623,7 @@ One command assembles the whole deliverable over the projected base:
 - **`INDEX.md`** — the front door: the roster at a glance (per-axis open/held
  counts + the not-measured honesty line, which names the scanner that did not run
  and the reason the manifest recorded), the artifact table, and the
- **scanner-native appendices** (deep-code-review's own report, from **this run
+ **scanner-native appendices** (a peer reviewer's own report, from **this run
  only** — a sibling run's report is never listed) — listed as provenance, in each
  scanner's own voice, never merged; a scanner that was skipped or failed is listed
  there with its reason.
