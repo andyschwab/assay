@@ -86,6 +86,10 @@ targets_taxonomy: 3
 role: judgment         # judgment (run by a session; the default) | instrument (§3a)
 method: dcr            # optional — the method class a known-answer sheet's detectable_by
                        #   names (map/score.mjs); without one, the scanner id
+fails_loud: <block>    # the harness block (tests/blocks/<block>.mjs) holding its
+                       #   fail-loud halts; an adopted scanner names one (INTAKE.md)
+adopted: false         # optional — a candidate, or with retired: "<why>" a retired
+                       #   scanner (§4a); absent, it is adopted
 ingest:                # optional — how map/ingest.mjs reads this scanner's report when
   format: machine-report   #   no built-in profile does: the format,
   tool: <reviewer>     #   the review.tool value a report must carry,

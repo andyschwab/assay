@@ -387,7 +387,11 @@ scanners:
 
 A row may carry `model:`, the model id a judgment scanner ran on (repo-eval,
 a peer reviewer, a census authored by a model), and `spend:`, what its inference spent,
-with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. The `repo-eval` row may
+with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. Any row, an instrument's
+included, may carry `duration:`, how long the scanner ran, with the unit (`"4m10s"`) or
+as a whole number of seconds (`node assay.mjs record <run> <scanner> ran --duration
+"<text>"`); `node assay.mjs roster` reads it and `spend:` as the scanner's cost
+(`map/scanners/INTAKE.md`). An empty `duration:` is an error. The `repo-eval` row may
 also carry `passes:`, the same two fields per pass, keyed by the pass's file name
 (`map/findings/repo-eval-<pass>.yaml`), so a run can say which model wrote each pass:
 

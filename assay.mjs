@@ -29,6 +29,7 @@ const GROUPS = [
     'variance': ['map/variance.mjs', 'repeatability across runs of one target'],
     'score': ['map/score.mjs', "grade a run against a fixture's known answers"],
     'backlog': ['map/backlog.mjs', "the determinism and coverage gaps a run exposed in the method"],
+    'roster': ['map/roster.mjs', 'per scanner: what it alone decides, what would read not measured if retired, and over runs its unique recoveries, corroborations and cost'],
   }],
   ['Yardstick: measuring the map against the requirements', {
     'measure': ['yardstick/measure.mjs', 'per requirement: met, unmet, mixed or not measured'],

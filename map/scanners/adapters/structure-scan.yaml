@@ -16,6 +16,8 @@
 scanner: structure-scan
 targets_taxonomy: 3
 role: instrument
+# the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
+fails_loud: instrument-port
 
 contributes: []
 
