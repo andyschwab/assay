@@ -213,6 +213,17 @@ does not. A finding in `no_longer_found` reads **"no longer found"**, never
 **"fixed"** — the absence is absence of re-detection this run, not proof the
 underlying fact is gone; `SINCE.md` and every renderer say it that way.
 
+Beside it sits a **scanner-free fingerprint** (`yardstick/compare.mjs`'s
+`factFingerprint`), for counting one fact two scanners found rather than for Since:
+`(projected axis, polarity, the effect channel or else the evidence file set with
+the `:line` suffix stripped, the effect descriptors)`. The axis is the one the
+projection reads off the scanner's adapter, never the scanner's own category, so
+two scanners measuring one property meet on it (`CLAUDE.md` rule 5); the schema
+carries no symbol, so the file set is the finest identity every scanner records.
+`corroboratedFacts` returns the facts two or more scanners recorded; two rows of
+one scanner on one fact are never corroboration. Since keeps the scanner-keyed
+fingerprint: a fact's custody stays with its scanner.
+
 `SINCE.md`'s headline line is **counts only** — no verdict, no severity the
 views do not already compute (`CLAUDE.md` rule 1) — and its sections run most
 useful first: regressed, improved, newly/no-longer measured, then the findings

@@ -1558,3 +1558,16 @@ what the public engine learned.
   in start. At level: the README's one naming of the reviewer's project (#148,
   merged first) is dropped, since the block refuses it; the adapter names the tool
   and its release.
+- **2026-10-09 — a scanner-free fingerprint, so corroboration is counted** (#151).
+  `fingerprintFinding` keys a fact to its scanner, so the same fact found by two
+  scanners never matched and the shared axes' corroboration was designed in but never
+  counted. `yardstick/compare.mjs` gains `factFingerprint` (projected axis, polarity,
+  effect channel or else the evidence files, the effect descriptors; no scanner) and
+  `corroboratedFacts`; `map/variance.mjs` exports its `DESCRIPTOR_FIELDS` as the one
+  home of the descriptor set. Since keeps the scanner-keyed fingerprint, unchanged.
+  `views/README.md` documents the new key beside the old. The `corroboration` block
+  pins its unit rules and a new golden, `notesbox/corroboration`: 3 facts two scanners
+  recorded (the documented test command, the committed credential, the assistant's
+  untrusted-content email). No existing golden moves. Confirmed red: the block before
+  the exports existed, the golden key absent, and the scanner put back into the key
+  (a unit failure and the count 3 → 0).
