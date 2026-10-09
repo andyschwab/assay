@@ -21,7 +21,10 @@ seen. No view prices work or issues a verdict.
 
 Every list is in tier order (custody, safety, reproducibility, verification,
 legibility, operability), then in `requirements.yaml` order. Each data file is
-the contract a publisher builds on; each page is its plain rendering.
+the contract a publisher builds on; each page is its plain rendering. A view field
+that exists because one operator's tooling reads it names that consumer in its own
+text (a `consumer:` key or a sentence) and is phrased for any operator; the core
+names no operator (`CLAUDE.md` rule 7).
 
 ## Intake: can it be carried?
 

@@ -31,6 +31,15 @@ requirements contract, and `views/README.md` the views' data formats.
    target names, no run history, no real credentials, no links into private
    repositories. Fixtures are the public known-answer targets only; anything
    shaped like a secret in `tests/` is an inert planted string.
+7. **Scanners arrive as adapters, operators as consumers.** The core (`map/`
+   outside `map/scanners/adapters/` and `map/scanners/CANDIDATES.md`,
+   `yardstick/`, `views/`, `lib/`, `routine/`) names no external scanner: what it
+   needs to know about one (its role, its ingest format and the tool value it
+   accepts, its scoring method) is a field of that scanner's adapter. A yardstick
+   row or view field that exists because one operator's tooling reads it names
+   that consumer on the row, phrased for any operator. assay depends on no
+   operator's repository and pins an integration only through its adapter's
+   `verified_against`. `tests/blocks/core-names-no-scanner.mjs` holds it.
 
 ## Checks
 

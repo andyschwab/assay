@@ -20,8 +20,8 @@
 // which `validate.mjs --target` knows to skip (instrument evidence lives in the
 // run, not the target).
 //
-// A PEER SCANNER with a machine report also comes in here: deep-code-review 1.128+
-// (references/machine-report.md; the adapter's min_version) writes findings-YYYY-MM-DD.yaml (block YAML: review / ground_truth / coverage /
+// A PEER SCANNER with a machine report also comes in here, by the format its adapter's
+// `ingest:` names (FORMATS below; the adapter's min_version): a reviewer writes findings-YYYY-MM-DD.yaml (block YAML: review / ground_truth / coverage /
 // findings). It has no exit code — its fail-loud property is COMPLETENESS: the
 // coverage map must carry a row for every domain the adapter's coverage_domains
 // lists, every gap row a fix, every non-scanned row a note; anything less halts.
@@ -47,7 +47,7 @@
 //
 // Usage:
 //   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx]
-//   node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
+//   node assay.mjs ingest <run-dir> --tool <reviewer> --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
 // <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
 // the next hundred above the run's highest existing id, whichever is higher (nextStart).
@@ -835,7 +835,7 @@ const FORMATS = {
 
 // The profile `tool` is ingested by: a built-in instrument profile, else the format
 // its adapter's `ingest:` selects. Unknown is an error, listing what is known.
-export function profileOf(tool) {
+function profileOf(tool) {
   if (Object.hasOwn(PROFILES, tool)) return PROFILES[tool];
   const adapter = loadAdapters()[tool];
   const spec = adapter && adapter.ingest;
@@ -851,8 +851,8 @@ export function profileOf(tool) {
 }
 
 // ── id allocation: above the base's highest id, never inside another block ──
-// Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
-// 800, fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
+// Each profile has a documented floor (gitleaks 700, scorecard 750, a reviewer's adapter
+// ingest.start_id (800 for the code reviewer), fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
 // history scan's gitleaks block ran F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same
@@ -957,7 +957,7 @@ if (isMain(import.meta.url)) {
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
     console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
     console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
-    console.error('       node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
+    console.error('       node assay.mjs ingest <run-dir> --tool <reviewer, an adapter with ingest:> --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
     process.exit(2);
   }
   const rawText = readFileSync(rawPath, 'utf8');
