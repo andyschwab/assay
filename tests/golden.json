@@ -1,5 +1,13 @@
 {
   "_score": {
+    "notesbox/corroboration": {
+      "corroborated": 3,
+      "facts": [
+        "artifact-legibility::gap::files:README.md|package.json:: <- F-002,F-1000",
+        "code-security::gap::files:config/settings.mjs:: <- F-1003,F-700",
+        "delegation::gap::files:lib/agent.mjs:: <- F-051,F-1002,F-1005"
+      ]
+    },
     "notesbox": {
       "recall": 100,
       "recovered": 12,
