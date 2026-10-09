@@ -9,6 +9,16 @@
 # which projection honors over this map.
 scanner: deep-code-review
 targets_taxonomy: 3
+# What the core reads about this scanner (CONTRACT.md §3): a judgment scanner, run
+# by a session, never by assay; its machine report is read by ingest's
+# machine-report format, which accepts a report whose review.tool is `tool` and
+# numbers its rows from `start_id`; a known-answer sheet names it by `method`.
+role: judgment
+method: dcr
+ingest:
+  format: machine-report
+  tool: deep-code-review
+  start_id: 800
 severity_scale: [Blocker, Critical, High, Medium, Low, Nit]
 # The machine report (references/machine-report.md) arrived in 1.128.0; ingest
 # halts on a report whose review.skill_version is older. verified_against is the

@@ -181,15 +181,16 @@ export function toScannersYaml(engine, rows, header = '# scanners.yaml — GENER
   return L.join('\n') + '\n';
 }
 
-// The two judgment-bearing (LLM-driven) scanners: this file never runs them —
-// a steward session runs those (map/scanners/CONTRACT.md §3a: instrument vs
-// peer scanner). Kept as an explicit pair, exactly as the routine has always
-// hard-coded them, so drawOfflineMap's callers stay byte-identical.
-const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
+// The judgment-bearing (LLM-driven) scanners: this file never runs them — a
+// steward session runs those (map/scanners/CONTRACT.md §3a: instrument vs peer
+// scanner). Read off the adopted adapters (every one whose role is not
+// instrument), in the adapters directory's order, so a reviewer joins as a file.
+export const judgmentScanners = (adapters = loadAdapters()) =>
+  Object.keys(adoptedAdapters(adapters)).filter((id) => adapters[id].role !== 'instrument');
 
 // drawOfflineMap — runs every instrument assay can run on its own (repo-census,
 // fresh-clone, dependency-scan, gitleaks-if-present, structure-scan) against
-// repoDir/outDir, and records the two judgment scanners skipped with the caller's
+// repoDir/outDir, and records the judgment scanners skipped with the caller's
 // own pendingReason. Returns the seven scanner rows (not yet written to disk — the
 // caller decides the file's full roster and writes it).
 //   pendingReason(id)     — the reason text for a judgment scanner (a function
@@ -222,7 +223,7 @@ const JUDGMENT_SCANNERS = ['repo-eval', 'deep-code-review'];
 export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null, handoff = null, structureScanNoExec = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
-  for (const id of JUDGMENT_SCANNERS) rows[id] = { status: 'skipped', reason: reasonFor(id) };
+  for (const id of judgmentScanners()) rows[id] = { status: 'skipped', reason: reasonFor(id) };
   rows['repo-census'] = runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir });
   const fcArgs = freshCloneNoClone ? [repoDir, '--no-clone'] : [repoDir];
   if (freshCloneSkipReason) { log(`· fresh-clone — not run: ${freshCloneSkipReason}`); rows['fresh-clone'] = { status: 'skipped', reason: freshCloneSkipReason }; }
