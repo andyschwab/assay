@@ -21,11 +21,25 @@ for the person who built the app with an AI. Each writes a data file with a
 schema and a plain page; anything fancier (a branded report, a deck) is a
 template over the data file and lives with whoever publishes it.
 
+**Who runs it, and for whom.** Three roles, each named once here. The
+**operator** runs the engine on a repository: makes the run, records what did
+not run and why, and compiles the views. (Someone who stands behind a
+repository may call that role a steward; assay does not.) The **owner** is the
+person whose repository it is, and supplies what no scan can show (`owner/`).
+The **maintainer** is whoever changes the code next. The operator reads Intake
+and Maintain, the maintainer reads Improve, and the owner reads Owner.
+
 **The one rule that makes it honest: the map states what is; the views compute
 how good, how bad, how urgent.** A finding may record "this effect is
 irreversible and has no gate"; it may not record "critical". assay issues no
 verdict and prices nothing. It shows what is met, what is open with the check
-that would prove it closed, and what nobody measured.
+that would prove it closed, and what nobody measured. This paragraph is the
+rule's one home; every other page cites it here.
+
+**What assay is not.**
+- Not a code reviewer: it takes one as input, as one peer scanner among others.
+- Not a verdict or a price: whether to take a repository on, and what the work costs, are the reader's to decide.
+- Not a service: it runs no server and keeps no database (below).
 
 ## Architecture: the three layers
 
@@ -43,7 +57,17 @@ repository ─ scanners and instruments ─▶ map/ ─▶ yardstick/ ─▶ vie
 **The map** (`map/`). Scanners of two kinds draw it. **Peer scanners** bring
 judgment and their own taxonomy: `repo-eval`, the built-in method
 (`map/METHOD.md`), and `deep-code-review`, an external code reviewer. Each has an
-adapter and keeps its native report as an appendix. **Instruments** are
+adapter and keeps its native report as an appendix. A code reviewer is **one
+peer scanner**: its findings enter through its adapter
+(`map/scanners/adapters/deep-code-review.yaml`, whose `verified_against` names
+the reviewer release it was last checked against) as facts, its severity kept as
+a property and never recomputed into a verdict (`map/scanners/CONTRACT.md` §6),
+and they land on the shared, property-named axes beside every other scanner's,
+where two scanners measuring one property corroborate (§1). They decide a
+requirement only where the yardstick routes it to one of the reviewer's domains,
+read through the same measurement as every other scanner's rows; the reviewer's
+own verdict decides nothing. The current reviewer skill comes from the Perun
+project. **Instruments** are
 deterministic and run offline against the checkout (offline as defined below): `gitleaks`; `fresh-clone`,
 which installs, builds, lints, typechecks, tests and migrates from a clean
 checkout and replays the README's commands, once per workspace in a monorepo;
@@ -53,9 +77,10 @@ CI gate on the default branch, and the owner's evidence transcripts; and
 `structure-scan`, which finds duplicated blocks (jscpd), unused files, exports
 and dependencies (knip), stale artifacts and per-file churn, installing both
 tools from the npm registry into its own scratch for each run.
-**Two instruments execute the target's code.** `fresh-clone` runs the target's
+**Three instruments execute the target's code.** `fresh-clone` runs the target's
 own install (lifecycle scripts included), build, lint, typecheck, test and
-migrate-dry scripts, and `dependency-scan` runs the target's package manager.
+migrate-dry scripts, `dependency-scan` runs the target's package manager, and
+`structure-scan`'s knip step imports the target's own tool configuration files.
 Each child sees only `PATH`, `HOME`, `CI` and the runner's own `npm_config_*`
 settings, never the evaluator's environment or credentials, and every audit
 runs from a scratch copy of one lockfile and its manifest, so the target's own
@@ -75,7 +100,8 @@ repository must meet to be stood behind, stated without naming a stack. Each has
 a **tier** (the order to fix things when taking a repository on: custody,
 safety, reproducibility, verification, legibility, operability), a **topic**
 (what part of the code it is about), tags saying which view reads it (`floor`
-for Intake, `fleet` for Maintain), and the mechanism that **decides** it from
+for Intake, `fleet` for Maintain: what the routines read to keep a repository
+healthy once it is taken on), and the mechanism that **decides** it from
 the map. A requirement no run can decide is a **claim** only the owner can make,
 and reads not measured until the owner does. `yardstick/README.md` is the
 contract.
@@ -102,7 +128,7 @@ pre-filled with what that run already shows.
 
 **External services and data stores.** assay runs no service and keeps no
 database, queue or bucket: its only data store is the run directory on disk
-(laid out by `lib/run-layout.mjs`), plus the files a stewarded repository
+(laid out by `lib/run-layout.mjs`), plus the files a repository it runs on
 commits (`packet/`). It reaches outside the checkout in three places, and only
 these. **The package registry** (npm's, or the one a lockfile names):
 `fresh-clone`'s install step runs the target's own package manager, and
@@ -150,8 +176,8 @@ node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
 ```
 
-Once a steward accepts a repository, `routine/` is a GitHub Actions template the
-stewarded repository runs on its own schedule — it runs the offline instruments,
+Once an operator takes a repository on, `routine/` is a GitHub Actions template
+that repository runs on its own schedule — it runs the offline instruments,
 compiles the package, and ratchets against a committed baseline; `routine/README.md`
 is the contract.
 
@@ -169,7 +195,10 @@ fact about the same thing; **descriptor agreement** asks whether the runs judged
 it the same way (reversibility, gate type and the other finding descriptors the
 views compute from). `node assay.mjs variance <run> <run> …` reports both, with a
 direction for each divergence: all one way is consistent with the target having
-changed; both ways at once is judgment drift.
+changed; both ways at once is judgment drift. `npm test` measures every sweep
+set committed under `tests/sweeps/` and fails when either number falls below the
+set's threshold; the blind set there is the repeatability figure the gate holds
+(`tests/sweeps/README.md`).
 
 ## Layout
 
@@ -179,9 +208,9 @@ map/             drawing the map: the finding format, the built-in method, scann
 yardstick/       the requirements, the measurement of one map against them, and comparing two (since/ratchet)
 views/           Intake, Maintain, Improve, Owner and Since, and the one compile that writes them
 owner/           what a repository's owner supplies that no scan can
-routine/         the routine a stewarded repository runs on its own schedule (GitHub Actions template + driver)
+routine/         the routine a repository taken on runs on its own schedule (GitHub Actions template + driver)
 lib/             shared helpers
-tests/           the regression harness and the public scored fixtures
+tests/           the regression harness, the public scored fixtures, and the committed sweep sets
 RUNBOOK.md       releasing, re-blessing, restarting a routine, rolling back, the read token, restoring a baseline
 HISTORY.md       how the engine got here
 ```
