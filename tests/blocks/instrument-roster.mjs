@@ -63,7 +63,7 @@ export async function run() {
     if (row.role !== a.role) fail(`${id}: role must be the adapter's (got ${row.role})`);
     const axes = new Set([...(a.contributes || []), ...Object.values(a.map || {}).flatMap((m) => [m?.axis, ...(m?.also_axes || [])]).filter(Boolean)]);
     if (JSON.stringify([...row.feeds].sort()) !== JSON.stringify([...axes].sort())) fail(`${id}: feeds must be every axis its adapter maps to or contributes (got ${row.feeds.join(',')})`);
-    if (row.unique_recoveries !== null || row.corroborated !== null || row.cost !== null) fail(`${id}: with no run given, the run-derived fields read not measured (null), never zero`);
+    if (row.ran_in !== null || row.unique_recoveries !== null || row.corroborated !== null || row.cost !== null) fail(`${id}: with no run given, the run-derived fields read not measured (null), never zero`);
     if (row.status === 'adopted' && !row.fails_loud) fail(`${id}: an adopted scanner's adapter must name the harness block that holds its fail-loud halts (fails_loud:)`);
     if (row.fails_loud && !existsSync(join(HERE, 'blocks', row.fails_loud + '.mjs'))) fail(`${id}: fails_loud names ${row.fails_loud}, which is no harness block`);
   }
@@ -96,12 +96,19 @@ export async function run() {
   const fullBy = Object.fromEntries(full.map((r) => [r.scanner, r]));
   const notesFacts = corroboratedFacts(projectMulti(loadFindings(fixtureDir('notesbox')), adapters).projected);
   for (const row of full) {
+    const ran = runs.filter((r) => r.manifest.scanners[row.scanner]?.status === 'ran').map((r) => r.name);
+    if (JSON.stringify(row.ran_in) !== JSON.stringify(ran)) fail(`${row.scanner}: ran_in must name the runs whose record says it ran (got ${JSON.stringify(row.ran_in)})`);
+    if (!ran.length) {
+      if (row.unique_recoveries !== null || row.corroborated !== null || row.cost !== null) fail(`${row.scanner}: a scanner that ran in none of the runs reads not measured (null), never an empty list or zero`);
+      continue;
+    }
     if (!Array.isArray(row.unique_recoveries) || typeof row.corroborated !== 'number') { fail(`${row.scanner}: over runs, unique_recoveries is a list and corroborated a count`); continue; }
     const inNotes = notesFacts.filter((f) => f.sources.includes(row.scanner)).length;
     if (row.corroborated < inNotes) fail(`${row.scanner}: corroborated must count every fact it shares with another scanner (notesbox alone has ${inNotes}, got ${row.corroborated})`);
   }
-  if (!full.some((r) => r.unique_recoveries.length)) fail('over the fixture runs some scanner must recover an answer nothing else does');
-  for (const row of full) for (const u of row.unique_recoveries) if (!/^[^/]+\/\S+$/.test(u)) fail(`${row.scanner}: a unique recovery names its run and answer id (<run>/<id>), got ${u}`);
+  if (!full.some((r) => r.ran_in.length === 0)) fail('some adapter (the retired one) ran in none of the fixture runs, and the roster must say so');
+  if (!full.some((r) => r.unique_recoveries?.length)) fail('over the fixture runs some scanner must recover an answer nothing else does');
+  for (const row of full) for (const u of row.unique_recoveries || []) if (!/^[^/]+\/\S+$/.test(u)) fail(`${row.scanner}: a unique recovery names its run and answer id (<run>/<id>), got ${u}`);
   if (fullBy['repo-eval'] && fullBy['repo-eval'].cost?.spend?.length) fail('no committed fixture run records spend, so cost must read empty lists there');
 
   // the CLI prints the report; a run with no record halts, never an empty roster
@@ -163,8 +170,8 @@ export async function run() {
         if (cand.unique_recoveries.length) fail(`every answer the candidate hits on notesbox, another scanner recovers too (got ${cand.unique_recoveries.join(',')})`);
         if (cand.fails_loud !== 'second-reviewer-adapter') fail(`the candidate's fails_loud names the block holding its halts (got ${cand.fails_loud})`);
       }
-      const notes = full.map((r) => [r.scanner, r.decides_alone.length, r.unique_recoveries.filter((u) => u.startsWith('notesbox/')).join(',')].join(':'));
-      const notesWith = withCand.filter((r) => r.scanner !== CANDIDATE).map((r) => [r.scanner, r.decides_alone.length, r.unique_recoveries.map((u) => u.replace(/^[^/]+/, 'notesbox')).join(',')].join(':'));
+      const notes = full.filter((r) => r.ran_in.includes('notesbox')).map((r) => [r.scanner, r.decides_alone.length, r.unique_recoveries.filter((u) => u.startsWith('notesbox/')).join(',')].join(':'));
+      const notesWith = withCand.filter((r) => r.scanner !== CANDIDATE && r.ran_in.length).map((r) => [r.scanner, r.decides_alone.length, r.unique_recoveries.map((u) => u.replace(/^[^/]+/, 'notesbox')).join(',')].join(':'));
       if (JSON.stringify(notes) !== JSON.stringify(notesWith)) fail(`a candidate that recovers nothing alone moves no adopted scanner's unique recoveries (before ${notes.join(' ')}, after ${notesWith.join(' ')})`);
     } finally {
       rmSync(adapterPath, { force: true });
@@ -173,6 +180,6 @@ export async function run() {
   }
 
   // ── the pin: the roster's counts over the committed fixture runs ──
-  current._score.roster = Object.fromEntries(full.map((r) => [r.scanner, { status: r.status, decides_alone: r.decides_alone.length, unique_recoveries: r.unique_recoveries, corroborated: r.corroborated, fails_loud: r.fails_loud }]));
+  current._score.roster = Object.fromEntries(full.map((r) => [r.scanner, { status: r.status, ran_in: r.ran_in.length, decides_alone: r.decides_alone.length, unique_recoveries: r.unique_recoveries, corroborated: r.corroborated, fails_loud: r.fails_loud }]));
   if (!readdirSync(join(ROOT, 'map', 'scanners', 'adapters')).every((f) => f !== `${CANDIDATE}.yaml`)) fail('the candidate adapter must be gone after the block');
 }

@@ -1571,3 +1571,26 @@ what the public engine learned.
   untrusted-content email). No existing golden moves. Confirmed red: the block before
   the exports existed, the golden key absent, and the scanner put back into the key
   (a unit failure and the count 3 → 0).
+- **2026-10-09 — instrument intake: a roster report per scanner, and the procedure a
+  candidate goes through** (#150). Nothing answered "what did this scanner find that
+  nothing else did" or "what reads not measured if it is retired". `map/roster.mjs`
+  (`node assay.mjs roster [<run>…]`) joins it per adapter, adopted, retired or
+  candidate (`adopted: false` with no `retired:`): the requirements it alone decides
+  and so would leave the measured scale if retired (static, off the yardstick's
+  `decide.scanner`), the axes it feeds, and over the runs given the runs it ran in,
+  the known answers only it recovers (`map/score.mjs` with its rows taken out), the
+  facts it corroborates (#151's `corroboratedFacts`) and its cost off the run record.
+  A scanner that ran in none of the runs reads not measured, never zero. Every adapter
+  names the harness block holding its fail-loud halts (`fails_loud:`); the run record
+  takes `duration:` on any row (`record --duration`, kept by later records, its shape
+  validated). `map/scanners/INTAKE.md` is the procedure and the adoption and
+  retirement criteria; `CONTRACT.md` §3 and `SCHEMA.md` §5a name the new fields. The
+  invented reviewer of #147 goes through it end to end as the candidate
+  (`tests/instruments/quill-review/`: its adapter and a synthetic report over
+  notesbox), deciding and recovering nothing alone and corroborating two facts. The
+  `instrument-roster` block pins it, and a new golden, `roster`, the adopted roster's
+  counts over the three scored fixture runs; no existing golden moves. Confirmed red
+  six ways, each for its own reason: unique recoveries computed against the full set,
+  the ran-in-none guard removed, record dropping `duration:`, validate accepting an
+  empty one, `decides_alone` reading nothing (the retirement probe over notesbox
+  disagreeing too), and corroboration not counted.
