@@ -8,11 +8,10 @@ requirements contract, and `views/README.md` the views' data formats.
 
 ## Ground rules
 
-1. **The map states what is; the views compute how good, bad or urgent.** A
-   finding records a fact with `file:line` evidence. It never asserts a severity,
-   a priority, a price or a verdict. Views compute severity from the finding's
-   descriptors; nothing in assay prices work or decides whether to take a
-   repository on.
+1. **The map states what is: the one rule, whose home is `README.md`.** A
+   finding records a fact with `file:line` evidence, never a severity, a
+   priority, a price or a verdict; nothing in assay prices work or decides
+   whether to take a repository on.
 2. **No claim without evidence.** Every finding cites real file paths and line
    numbers. `node assay.mjs validate` fails closed; run it before compiling.
 3. **Fail loud, never empty.** A tool that errored never reads as "0 findings";

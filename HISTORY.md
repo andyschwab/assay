@@ -1507,3 +1507,21 @@ what the public engine learned.
   list matches one. The frozen copies under `tests/fixtures/` stay the fixtures; no
   pinned score moves. Confirmed red with the pending directory removed before the
   blocks were changed, and with the frozen `legacy/` copy missing.
+- **2026-10-09 — the README says who runs assay, what it is not, and how a code
+  reviewer fits; the one rule has one home** (#148). The README names the three
+  roles once (operator, owner, maintainer) and which view each reads, drops
+  "steward" from its own voice, defines the `fleet` tag, adds a three-line "What
+  assay is not", and says a code reviewer is one peer scanner: its findings enter
+  through an adapter as facts, its severity kept as a property, on shared axes,
+  and it decides a requirement only where the yardstick routes one to its domain
+  (six do, `yardstick/requirements.yaml`). Perun is named once, as the project the
+  current reviewer skill comes from. Three instruments execute the target's code,
+  not two: structure-scan's knip step is the third (README, CONTRACT §3a, `assay
+  help`; the `isolation` block's pin moves with the count). The README's one-rule
+  paragraph is the rule's one home; CLAUDE.md rule 1 and `map/METHOD.md` cite it.
+  The README names the committed sweep sets and the gate they hold. No view
+  computes anything differently; no pinned score moves. `doc-consistency` pins the
+  one home and the count, the count read off which `map/` instruments spawn under
+  `map/child-env.mjs`. Confirmed red: the new pins against the previous wording
+  (three homes, "Two instruments" in README and CONTRACT, help without
+  structure-scan).
