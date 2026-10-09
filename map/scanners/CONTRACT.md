@@ -711,6 +711,9 @@ so a run that carries its rows still projects.
   are displayed; the engine issues no deploy/no-deploy gate — it reports
   properties and risks per axis and leaves the go/no-go to the owner
   (illuminate over enforce: severity is a property, the go/no-go is the reader's).
+  Likewise stage and urgency: a scanner's `not-applicable` is an observation, and
+  what is demanded now is a reader's lens above the measurement; the engine takes
+  no stage input (`yardstick/README.md`, "Stage and urgency are a reader's lens").
 - **No collapse.** Two scanners reporting one fact are recorded as independent
   corroboration, never merged (independent convergence is the strongest signal) —
   and the shared axis is where that corroboration becomes visible.
