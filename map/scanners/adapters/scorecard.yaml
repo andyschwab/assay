@@ -17,6 +17,8 @@ role: instrument
 # so frozen runs that carry its rows still project; no run must record it.
 adopted: false
 retired: "2026-09-15 — needs direct GitHub API access at run time; cannot run against a local checkout"
+# the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
+fails_loud: instrument-port
 
 contributes: []
 

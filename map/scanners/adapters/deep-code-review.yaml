@@ -14,6 +14,8 @@ targets_taxonomy: 3
 # machine-report format, which accepts a report whose review.tool is `tool` and
 # numbers its rows from `start_id`; a known-answer sheet names it by `method`.
 role: judgment
+# the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
+fails_loud: dcr-machine-report
 method: dcr
 ingest:
   format: machine-report

@@ -236,6 +236,7 @@ for (const file of passFiles) {
             err(at, `model must be the model id the scanner ran on (a string), or absent`);
           const spendOk = (v) => v === undefined || (typeof v === 'string' && v.trim()) || (Number.isInteger(v) && v >= 0);
           if (!spendOk(row.spend)) err(at, `spend must be what the scanner's inference spent (a string with its unit, or a whole number), or absent`);
+          if (!spendOk(row.duration)) err(at, `duration must be how long the scanner ran (a string with its unit, or a whole number of seconds), or absent`);
           if (row.passes !== undefined) {
             if (id !== 'repo-eval') err(at, `passes: is the built-in scanner's per-pass record; ${id} has no passes`);
             else if (!row.passes || typeof row.passes !== 'object' || Array.isArray(row.passes)) err(at, `passes: must be a map of pass → { model, spend }`);

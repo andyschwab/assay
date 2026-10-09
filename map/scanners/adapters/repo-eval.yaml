@@ -8,6 +8,8 @@ targets_taxonomy: 3
 # built-in method (map/METHOD.md) a session runs, whose passes write port rows
 # directly, so it has no ingest: profile; a known-answer sheet names it by `method`.
 role: judgment
+# the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
+fails_loud: negative-fixtures
 method: eval-pass
 
 # The axes this scanner contributes: its own measure exists there (the seven
