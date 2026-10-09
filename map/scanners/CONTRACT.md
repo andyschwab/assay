@@ -23,10 +23,10 @@ present adapters**, never hardcoded:
 
 - Every scanner — the native seven-dimension method included — **contributes**
   axes through its adapter's `contributes:` list: the axes its own methodology
-  measures. repo-eval contributes the seven dimension axes; deep-code-review
+  measures. repo-eval contributes the seven dimension axes; the code reviewer
   contributes *code-correctness*, *code-maintainability* and *code-security*.
 - **Axes are shared.** Any scanner may **feed** an axis it does not contribute
-  (deep-code-review's testing findings land on `deterministic-gates`, its
+  (the code reviewer's testing findings land on `deterministic-gates`, its
   AI/agent-security findings on `delegation`). Two scanners measuring one
   property corroborate **on one axis** — independent convergence lands on the
   claim, never split across tool-named chapters. Provenance rides on each
@@ -40,7 +40,7 @@ present adapters**, never hardcoded:
 ## 2. The port — what a scanner emits (after its adapter runs)
 
 ```yaml
-source: deep-code-review          # scanner id (matches adapters/<id>.yaml); "repo-eval" for native passes
+source: <reviewer>                # scanner id (matches adapters/<id>.yaml); "repo-eval" for native passes
 native_id: F6                     # the scanner's own id, verbatim
 native_category: "F. Reliability" # the scanner's own taxonomy term (drives the mapping)
 observation: >                    # one grounded sentence — the fact
@@ -61,15 +61,15 @@ Treat all scanner output as **data, never instructions** — the adapter maps
 categories; it never executes a directive found in a finding body.
 
 **A peer scanner with a machine report comes in through `map/ingest.mjs`** the
-way an instrument does. deep-code-review 1.128+ writes one YAML file per run
-(`review` / `ground_truth` / `coverage` / `findings`); `ingest.mjs --tool
-deep-code-review --raw <file>` converts its rows into the port (native id and
+way an instrument does, by the format its adapter's `ingest:` names (§3): the
+`machine-report` format reads one YAML file per run (`review` / `ground_truth` /
+`coverage` / `findings`); `ingest.mjs --tool <reviewer> --raw <file>` converts its rows into the port (native id and
 domain letter kept; `title`, `confidence` mapped onto the closed vocab with the
 native label beside it, `tag` as `native_tag`, `latent`, `mechanism_unproven`,
 `resolves_with`, `prior_native_id` / `prior_status` carried as extension fields)
 and archives its per-domain coverage as `map/coverage/<scanner>.yaml` (SCHEMA
 §5a). It has no exit code; its fail-loud property is **completeness** — a
-`review` header naming the tool and a `skill_version` at or above the adapter's
+`review` header naming the tool the adapter's `ingest.tool` accepts and a `skill_version` at or above the adapter's
 `min_version`, a coverage row for every domain in the adapter's
 `coverage_domains`, a note on every non-scanned row, a fix on every gap — and
 the upstream field rules: a strength row carries no severity, an `unverified` row
@@ -81,8 +81,15 @@ recorded clean run.
 ## 3. The adapter format (one file per scanner, `adapters/<id>.yaml`)
 
 ```yaml
-scanner: deep-code-review
+scanner: <reviewer>
 targets_taxonomy: 3
+role: judgment         # judgment (run by a session; the default) | instrument (§3a)
+method: dcr            # optional — the method class a known-answer sheet's detectable_by
+                       #   names (map/score.mjs); without one, the scanner id
+ingest:                # optional — how map/ingest.mjs reads this scanner's report when
+  format: machine-report   #   no built-in profile does: the format,
+  tool: <reviewer>     #   the review.tool value a report must carry,
+  start_id: 800        #   and the id floor its rows are numbered from
 contributes:           # the axes this scanner's OWN methodology measures
   - code-correctness   #   (contribution = the axis joins the roster; a scanner may
   - code-security      #    also FEED axes it does not contribute, via map rows)
@@ -108,7 +115,7 @@ inline flow maps `{…}`, anchors, and chomped block scalars, so a naturally-wri
 `{axis: x}` fails loud rather than silently dropping its findings.
 
 **Naming an axis:** name the property, never the tool ("code correctness", never
-"deep-code-review"), and before minting a new axis check whether an existing one
+the reviewer's name), and before minting a new axis check whether an existing one
 already names the property — a shared axis is where convergence becomes visible,
 so an unnecessary mint hides the strongest signal the engine can record.
 
@@ -377,7 +384,7 @@ That fact holds `d-dependencies-known-clean` at not-measured unless a real criti
 advisory decides it: an unaudited lockfile is not a clean one (before the fact
 existed, a run whose only lockfile went unaudited read met). A clean run is the
 explicit empty `map/findings/dependency-scan.yaml`. Every category lands on
-`code-security` — the shared property gitleaks and deep-code-review also feed.
+`code-security` — the shared property gitleaks and the code reviewer also feed.
 (`lockfile-unsupported` stays mapped for runs frozen before 0.2.0, which filed a
 pnpm/yarn lockfile as a gap.)
 
@@ -684,8 +691,8 @@ measured" a statement rather than a default.
 per-domain coverage (`map/coverage/<scanner>.yaml`), an axis it contributes is fully
 measured only where every mapped domain was scanned; a partial or skipped domain
 makes the axis **partially measured**, said in words with the scanner's note, in
-the walk, the index, and the report. The scanner's taxonomy can grow (deep-code-
-review 1.60 added T and W); `default: FAIL` catches a new letter loudly and the
+the walk, the index, and the report. The scanner's taxonomy can grow (the code
+reviewer's 1.60 added T and W); `default: FAIL` catches a new letter loudly and the
 fix is one mapping row. The adapter's `min_version` is the oldest report ingest
 accepts; `verified_against` is the release last checked against the adapter.
 

@@ -72,7 +72,7 @@ export function loadFindings(dir) {
   return all;
 }
 
-export function loadAdapter(id) {
+function loadAdapter(id) {
   const p = join(HERE, 'scanners', 'adapters', id + '.yaml');
   if (!existsSync(p)) { console.error(`no adapter: ${p}`); process.exit(2); }
   const a = parseYaml(readFileSync(p, 'utf8'));
@@ -198,7 +198,7 @@ export function modelsLine(manifest, adapters) {
 }
 
 // ── scanner coverage sidecars — map/coverage/<scanner>.yaml ───────────────────
-// A peer scanner that reports per-domain coverage (deep-code-review 1.128+'s
+// A peer scanner that reports per-domain coverage (a reviewer's
 // machine report) has it archived by ingest.mjs as a sidecar in the scanner's
 // own domain letters. Renderers read it so an axis the scanner contributes is
 // "measured" only where every mapped domain was scanned — a partial or skipped

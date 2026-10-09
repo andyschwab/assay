@@ -1535,3 +1535,26 @@ what the public engine learned.
   `map/child-env.mjs`. Confirmed red: the new pins against the previous wording
   (three homes, "Two instruments" in README and CONTRACT, help without
   structure-scan).
+- **2026-10-09 — scanners are data, operators are consumers** (#147). Three core
+  sites named the code reviewer: ingest's machine-report profile (its `review.tool`
+  check and the rows' `source`), score's method table and start's judgment pair.
+  The reviewer's adapter now declares `role: judgment`, `method: dcr` and an
+  `ingest:` block (`format: machine-report`, the `tool` value it accepts, its
+  `start_id`), and `repo-eval`'s declares `role` and `method`; `map/ingest.mjs`
+  reads the format off the adapter (`profileOf`), `map/score.mjs` the method,
+  `map/start.mjs` the roster (`judgmentScanners`, adapters-directory order). What
+  each adapter contributes and feeds is unchanged; no pinned score moves. The docs
+  and comments under `map/`, `views/` and `routine/` name the reviewer by role, not
+  id. `CLAUDE.md` gains rule 7; `yardstick/README.md` and `views/README.md` state
+  the consumer convention. Two blocks: `core-names-no-scanner` (no core file names
+  an external scanner, read from the adapters; no file outside the history, the
+  security contact and the fixtures names an operator, held as digests) with a
+  stale-checked residue list (the yardstick's `decide.scanner` rows, the gitleaks
+  and scorecard profiles, the cleanup workflow's secret name), and
+  `second-reviewer-adapter` (an invented reviewer's two-finding report ingests,
+  projects and scores from one dropped adapter file). Confirmed red: both blocks
+  before the change (the three sites named; an unknown instrument), the method read
+  reverted in score (the planted item out of scope) and a reviewer literal restored
+  in start. At level: the README's one naming of the reviewer's project (#148,
+  merged first) is dropped, since the block refuses it; the adapter names the tool
+  and its release.

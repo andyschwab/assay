@@ -82,6 +82,10 @@ finding, never silently overwritten.
 | `status` | draft, stable or deprecated: the row's own lifecycle |
 | `owner` | a nested `{ risk, fix }` block for the Owner view (`views/owner.mjs`, `OWNER.md`): `risk` is what could happen to the app's owner if the requirement stays unmet — consequence to a person first, plain words, a term explained in a short clause the first time, no stack names, no tool names, one or two sentences; `fix` is the next thing to do, one sentence, actionable by the owner's own AI. Never a score, a grade, or a severity word — the tier already carries the priority. Required on every row |
 
+A row that exists because one operator's tooling reads it names that consumer in
+its own text (a `consumer:` field or a sentence) and is phrased for any operator;
+the core names no operator (`CLAUDE.md` rule 7).
+
 ## The four deciding kinds
 
 | Kind | Decided from | Reads |

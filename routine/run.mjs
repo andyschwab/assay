@@ -13,7 +13,7 @@
 // (CLAUDE.md rule 3: fail loud, never empty; nothing compiles without a reason),
 // validates, compiles the package (folding in the repository's own packet/
 // when it carries one), then ratchets the result against a committed baseline
-// when one exists. repo-eval and deep-code-review are judgment-bearing, LLM-driven
+// when one exists. The judgment scanners (map/start.mjs judgmentScanners) are LLM-driven
 // scanners; the routine never runs them — it records them skipped, always, with the
 // same reason: a steward session runs those.
 //

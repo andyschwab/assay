@@ -66,8 +66,7 @@ and they land on the shared, property-named axes beside every other scanner's,
 where two scanners measuring one property corroborate (§1). They decide a
 requirement only where the yardstick routes it to one of the reviewer's domains,
 read through the same measurement as every other scanner's rows; the reviewer's
-own verdict decides nothing. The current reviewer skill comes from the Perun
-project. **Instruments** are
+own verdict decides nothing. **Instruments** are
 deterministic and run offline against the checkout (offline as defined below): `gitleaks`; `fresh-clone`,
 which installs, builds, lints, typechecks, tests and migrates from a clean
 checkout and replays the README's commands, once per workspace in a monorepo;
