@@ -1507,6 +1507,16 @@ what the public engine learned.
   list matches one. The frozen copies under `tests/fixtures/` stay the fixtures; no
   pinned score moves. Confirmed red with the pending directory removed before the
   blocks were changed, and with the frozen `legacy/` copy missing.
+- **2026-10-09 — stage and urgency are a reader's lens; the engine takes no stage
+  input** (#149). `yardstick/README.md` gains one paragraph: on a run-decided row
+  `not-applicable` is a scanner's positive observation; what is demanded now (stage,
+  urgency, scope) is a reader's lens above the measurement, and a consumer that
+  defers rows by stage shows them as deferred, never as not-applicable or met. No
+  `stage:` on the run record, no `--stage` on compile, no `not_applicable_at:` on a
+  row. `map/scanners/CONTRACT.md` §6 points to it. `doc-consistency` pins the
+  sentences, the §6 pointer, and the code's lack of a stage input. No code, flag or
+  fixture moves; no pinned score moves. Confirmed red with the paragraph absent,
+  with the §6 pointer absent, and with a `--stage` string planted in `assay.mjs`.
 - **2026-10-09 — the README says who runs assay, what it is not, and how a code
   reviewer fits; the one rule has one home** (#148). The README names the three
   roles once (operator, owner, maintainer) and which view each reads, drops
