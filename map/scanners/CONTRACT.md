@@ -157,10 +157,11 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   lockfile it cannot reach is recorded `failed`, never silently skipped.
   This is what **offline** means wherever assay says an instrument runs
   offline: no repo-hosting platform's API; a package registry may be reached.
-- **What runs, and with what (#47).** Two adopted instruments execute the
+- **What runs, and with what (#47).** Three adopted instruments execute the
   target's code: fresh-clone runs its install (lifecycle scripts included) and
-  its declared scripts; dependency-scan runs its package manager's audit. Every
-  child either spawns gets the environment of `map/child-env.mjs` — `PATH`,
+  its declared scripts; dependency-scan runs its package manager's audit;
+  structure-scan's knip step imports the target's own tool configuration files
+  (§3e). Every child any of them spawns gets the environment of `map/child-env.mjs` — `PATH`,
   `HOME`, `CI`, the `npm_config_*` values the instrument itself sets and the
   network plumbing (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`,
   `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`; #65) — and nothing else: no token,
@@ -718,6 +719,9 @@ so a run that carries its rows still projects.
   are displayed; the engine issues no deploy/no-deploy gate — it reports
   properties and risks per axis and leaves the go/no-go to the owner
   (illuminate over enforce: severity is a property, the go/no-go is the reader's).
+  Likewise stage and urgency: a scanner's `not-applicable` is an observation, and
+  what is demanded now is a reader's lens above the measurement; the engine takes
+  no stage input (`yardstick/README.md`, "Stage and urgency are a reader's lens").
 - **No collapse.** Two scanners reporting one fact are recorded as independent
   corroboration, never merged (independent convergence is the strongest signal) —
   and the shared axis is where that corroboration becomes visible.

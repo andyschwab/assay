@@ -48,6 +48,20 @@ and an alert for something it never deploys. A `claim`-kind row's own state can 
 (the owner is the only decider a claim row ever has, same as `satisfied`): see
 below.
 
+**Stage and urgency are a reader's lens, never an input.** On a run-decided row,
+`not-applicable` is a scanner's positive observation: it looked and found nothing
+to apply the row to (the deployment signal above is the evidence-based proxy for
+"nothing deployed yet"). What is demanded of a repository now — its stage, the
+urgency of a gap, the scope of an engagement — is a reader's lens applied to the
+measurement above the line, never a fact the map records. A consumer that defers
+rows by stage (every row carries a `topic`, so the operating rows are one
+`topic: operability` away) shows them as deferred, never as not-applicable or met.
+The engine takes no stage input: no `stage:` on the run record, no `--stage` on
+compile, no `not_applicable_at:` on a row. A stage-driven `not-applicable` would be
+a claim on a run-decided row by another name; stages move both ways, so the
+ratchet would release held rows on a downgrade, and `since` would read the move as
+unchanged (not-measured ↔ not-applicable).
+
 A repository may also state its own **claims** per requirement, in a **packet**
 (`/owner/PACKET.md` is the one home of its format). Claims and a run's
 measurement are compared, never merged: a claim the run contradicts is a

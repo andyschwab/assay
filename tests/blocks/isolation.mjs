@@ -138,9 +138,9 @@ export async function run() {
   mkdirSync(join(tmp, 'ws-sibling'), { recursive: true });
   writeFileSync(join(tmp, 'ws-sibling', 'x.js'), '');
   if (freshCloneClaimPresent({ kind: 'node-file', name: '../ws-sibling/x.js' }, ws, {})) fail('a README node-file claim resolving to a sibling directory that shares the tree\'s prefix must read missing, never present');
-  // (e) the front door and the help banner say the two instruments execute the target's code
-  if (!/\*\*Two instruments execute the target's code\.\*\*/.test(readFileSync(join(ROOT, 'README.md'), 'utf8'))) fail('README must say plainly that fresh-clone and dependency-scan execute the target\'s code');
+  // (e) the front door and the help banner say the three instruments execute the target's code (#148: structure-scan's knip step is the third)
+  if (!/\*\*Three instruments execute the target's code\.\*\*/.test(readFileSync(join(ROOT, 'README.md'), 'utf8'))) fail('README must say plainly that fresh-clone, dependency-scan and structure-scan execute the target\'s code');
   const helpOut = execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'help'], { encoding: 'utf8' });
-  if (!/fresh-clone and dependency-scan execute the target's code/.test(helpOut) || !/--allow-exec/.test(helpOut)) fail('`assay help` must say fresh-clone and dependency-scan execute the target\'s code, and name --allow-exec');
+  if (!/fresh-clone, dependency-scan and structure-scan execute the target's code/.test(helpOut) || !/--allow-exec/.test(helpOut)) fail('`assay help` must say fresh-clone, dependency-scan and structure-scan execute the target\'s code, and name --allow-exec');
   rmSync(tmp, { recursive: true, force: true });
 }

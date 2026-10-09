@@ -22,13 +22,10 @@ Pass 9 — the lead deliverable). The scanner method runs in two layers:
  **security** (always-on; exposures ranked by likelihood, no deploy verdict) —
  reconciled by a **meta-synthesis** into one roadmap.
 
-The one rule that makes this work: **the base states *what is*; the views compute
-*how good / how bad / how urgent*.** A base finding may say "this effect is
-irreversible and has no gate"; it may not say "critical." Severity and priority are
-view outputs, computed from the
-descriptors. This keeps the evidence honest and reusable, and stops a
-strengths-first framing from muting a critical finding (the failure this
-architecture exists to prevent).
+The one rule is `README.md`'s, and the base is where it binds: a base finding never
+asserts a severity or a priority; the views compute both from its descriptors. That
+keeps the evidence reusable, and stops a strengths-first framing from muting a
+critical finding (the failure this architecture exists to prevent).
 
 ## Ground rules
 
