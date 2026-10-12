@@ -103,7 +103,7 @@ full contract, adapter format, and fail-closed rule live in
 ```yaml
 axis: code-correctness               # a contributed axis (the roster is adapter-derived)
 also_axes: [delegation]              # optional compound cross-links (a finding touching >1 axis)
-source: deep-code-review             # which scanner produced it (repo-eval for native passes)
+source: <reviewer>                   # which scanner produced it, its adapter's id (repo-eval for native passes)
 ```
 
 A finding's `also_axes` place it in every section it truly touches (the seam is
@@ -134,7 +134,7 @@ evidence-backed edge is what makes the lead risk deterministic.
 | `fail_mode` | open · closed · unterminated |
 | `verified_as.privilege` | bound · elevated (optional `verified_as` only) |
 | `preconditions` | prompt-injection · stolen-credential · malicious-dependency · network-position · insider · zero-day · physical |
-| `axis` (overlay, optional) | open by design — any axis a present adapter `contributes:` or maps to (the seven native dimension axes; deep-code-review adds code-correctness · code-maintainability · code-security) |
+| `axis` (overlay, optional) | open by design — any axis a present adapter `contributes:` or maps to (the seven native dimension axes; the code reviewer adds code-correctness · code-maintainability · code-security) |
 
 `channel` (inside `effect`) is a free short slug, deliberately **not** closed — it
 names the concrete effect surface.
@@ -292,7 +292,7 @@ runs/<slug>-<date>/
 │   │   ├── repo-eval-improvement.yaml    # Pass 6  │
 │   │   ├── repo-eval-multiplayer.yaml    # Pass 7  ┘
 │   │   └── <scanner>.yaml                # one per peer scanner / instrument
-│   │                                      #   (gitleaks.yaml, deep-code-review.yaml,
+│   │                                      #   (gitleaks.yaml, <reviewer>.yaml,
 │   │                                      #   fresh-clone.yaml, dependency-scan.yaml,
 │   │                                      #   repo-census.yaml, …)
 │   ├── scanners.yaml                # §5a — the RUN MANIFEST: every adopted scanner's disposition (REQUIRED)
@@ -377,7 +377,7 @@ engine: 759240a               # the engine commit the run executed under (warned
 scanners:
   repo-eval:
     status: ran
-  deep-code-review:
+  <reviewer>:                 # a peer reviewer's adapter id
     status: skipped           # ran | skipped | failed
     reason: "out of this engagement's scope; decided by the lead"   # required unless ran
   gitleaks:
@@ -386,8 +386,12 @@ scanners:
 ```
 
 A row may carry `model:`, the model id a judgment scanner ran on (repo-eval,
-deep-code-review, a census authored by a model), and `spend:`, what its inference spent,
-with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. The `repo-eval` row may
+a peer reviewer, a census authored by a model), and `spend:`, what its inference spent,
+with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. Any row, an instrument's
+included, may carry `duration:`, how long the scanner ran, with the unit (`"4m10s"`) or
+as a whole number of seconds (`node assay.mjs record <run> <scanner> ran --duration
+"<text>"`); `node assay.mjs roster` reads it and `spend:` as the scanner's cost
+(`map/scanners/INTAKE.md`). An empty `duration:` is an error. The `repo-eval` row may
 also carry `passes:`, the same two fields per pass, keyed by the pass's file name
 (`map/findings/repo-eval-<pass>.yaml`), so a run can say which model wrote each pass:
 
@@ -437,11 +441,11 @@ recorded reason — on the scanners line, on the not-measured register, and in t
 appendix list — never "did not run" alone, never silence.
 
 **Coverage sidecars — `map/coverage/<scanner>.yaml`.** A peer scanner that reports its
-own per-domain coverage (deep-code-review 1.128+'s machine report) has it archived by
+own per-domain coverage (a reviewer's machine report, its adapter's `ingest:` format) has it archived by
 `map/ingest.mjs` alongside its rows, in the scanner's own domain letters:
 
 ```yaml
-scanner: deep-code-review
+scanner: <reviewer>
 review: { … }                 # (block style in the file) the scanner's run header
 ground_truth: { … }           # what it ran and what it did not, with reasons
 coverage:

@@ -97,9 +97,9 @@ that reason, never silently as clean
 install and scripts; the routine runs it in place because its checkout is a
 fresh, disposable CI job, with the allow-listed environment of
 `map/child-env.mjs` only (§3a, "What runs, and with what"), and in a job of
-its own (below, "Two jobs"). `repo-eval` and `deep-code-review` are
-judgment-bearing, LLM-driven scanners; the routine never runs them — every
-run's record carries both `skipped: "not run by the routine; a steward
+its own (below, "Two jobs"). The judgment scanners (every adopted adapter
+whose role is not instrument) are LLM-driven; the routine never runs them — every
+run's record carries each `skipped: "not run by the routine; a steward
 session runs them"`, so a repository's own scheduled runs never masquerade as
 the fuller evaluation a steward session performs. It then validates, compiles
 the package (folding in the repository's own `packet/` when one is committed —

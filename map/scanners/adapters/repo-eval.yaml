@@ -4,6 +4,13 @@
 # identity; an axis is the property the pass measures, so no routing is needed.
 scanner: repo-eval
 targets_taxonomy: 3
+# What the core reads about this scanner (CONTRACT.md §3): a judgment scanner, the
+# built-in method (map/METHOD.md) a session runs, whose passes write port rows
+# directly, so it has no ingest: profile; a known-answer sheet names it by `method`.
+role: judgment
+# the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
+fails_loud: negative-fixtures
+method: eval-pass
 
 # The axes this scanner contributes: its own measure exists there (the seven
 # dimension passes, each with its census/coverage machinery). It contributes no

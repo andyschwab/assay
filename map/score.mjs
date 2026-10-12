@@ -13,8 +13,8 @@
 //     recovery; a path match on the WRONG axis is reported as MIS-HOMED, not a
 //     clean recovery (the projection put a real finding in the wrong area).
 //   • detectable_by gates scope: a planted item is only counted for/against recall
-//     if at least one of its expected method classes actually ran (repo-eval →
-//     eval-pass, deep-code-review → dcr, an instrument → its own id). "Ran" is read
+//     if at least one of its expected method classes actually ran (a scanner's
+//     adapter names its class as `method:`; without one, its own id). "Ran" is read
 //     from the run record (map/scanners.yaml) when there is one, so an instrument
 //     that ran clean and missed an item reads MISSED, not out of scope; without a
 //     record, a method ran if it left rows. An item no method that ran could find is
@@ -46,8 +46,8 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadFindings, loadAdapters, projectMulti, loadManifest } from './project.mjs';
 import { STATUSES, loadYardstick, projectRun } from '../yardstick/measure.mjs';
 
-const SOURCE_METHOD = { 'repo-eval': 'eval-pass', 'deep-code-review': 'dcr' };   // anything else: its own id
-const methodOf = (source) => SOURCE_METHOD[source] || source;
+// the method class a known-answer sheet's detectable_by names: the adapter's `method:`, else the id
+const methodOf = (adapters, source) => (adapters[source] && adapters[source].method) || source;
 
 // path matching: the file portion (before any :line), compared by FULL PATH with
 // a suffix rule so a run recorded relative to the target root and a sheet written
@@ -62,9 +62,9 @@ const lineOf = (p) => { const m = String(p).match(/:(\d+)/); return m ? Number(m
 
 export function score(findings, adapters, answers, manifest = null) {
   const { projected } = projectMulti(findings, adapters);
-  const runMethods = new Set(projected.map((p) => methodOf(p.source)));
+  const runMethods = new Set(projected.map((p) => methodOf(adapters, p.source)));
   const recorded = manifest && manifest.scanners && typeof manifest.scanners === 'object' ? manifest.scanners : {};
-  for (const [id, r] of Object.entries(recorded)) if (r && r.status === 'ran') runMethods.add(methodOf(id));
+  for (const [id, r] of Object.entries(recorded)) if (r && r.status === 'ran') runMethods.add(methodOf(adapters, id));
 
   // index run findings by evidence file
   const byFile = new Map();
@@ -85,7 +85,7 @@ export function score(findings, adapters, answers, manifest = null) {
     const wantAxes = new Set([it.axis, ...(Array.isArray(it.also_axes) ? it.also_axes : [])].filter(Boolean));
     const wantPath = stripLine(it.evidence || '');
     const hits = it.check
-      ? projected.filter((p) => String(p.f.native_category) === String(it.check) && p.f.polarity === it.polarity && expectMethods.includes(methodOf(p.source))).map((p) => ({ p }))
+      ? projected.filter((p) => String(p.f.native_category) === String(it.check) && p.f.polarity === it.polarity && expectMethods.includes(methodOf(adapters, p.source))).map((p) => ({ p }))
       : (byFile.get(fileKey(it.evidence || '')) || []).filter((h) => samePath(h.path, wantPath));
     if (it.check) for (const h of hits) answeredIds.add(h.p.f.id);
     const axisHit = hits.find((h) => wantAxes.has(h.p.axis));

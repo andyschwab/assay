@@ -1507,3 +1507,90 @@ what the public engine learned.
   list matches one. The frozen copies under `tests/fixtures/` stay the fixtures; no
   pinned score moves. Confirmed red with the pending directory removed before the
   blocks were changed, and with the frozen `legacy/` copy missing.
+- **2026-10-09 — stage and urgency are a reader's lens; the engine takes no stage
+  input** (#149). `yardstick/README.md` gains one paragraph: on a run-decided row
+  `not-applicable` is a scanner's positive observation; what is demanded now (stage,
+  urgency, scope) is a reader's lens above the measurement, and a consumer that
+  defers rows by stage shows them as deferred, never as not-applicable or met. No
+  `stage:` on the run record, no `--stage` on compile, no `not_applicable_at:` on a
+  row. `map/scanners/CONTRACT.md` §6 points to it. `doc-consistency` pins the
+  sentences, the §6 pointer, and the code's lack of a stage input. No code, flag or
+  fixture moves; no pinned score moves. Confirmed red with the paragraph absent,
+  with the §6 pointer absent, and with a `--stage` string planted in `assay.mjs`.
+- **2026-10-09 — the README says who runs assay, what it is not, and how a code
+  reviewer fits; the one rule has one home** (#148). The README names the three
+  roles once (operator, owner, maintainer) and which view each reads, drops
+  "steward" from its own voice, defines the `fleet` tag, adds a three-line "What
+  assay is not", and says a code reviewer is one peer scanner: its findings enter
+  through an adapter as facts, its severity kept as a property, on shared axes,
+  and it decides a requirement only where the yardstick routes one to its domain
+  (six do, `yardstick/requirements.yaml`). Perun is named once, as the project the
+  current reviewer skill comes from. Three instruments execute the target's code,
+  not two: structure-scan's knip step is the third (README, CONTRACT §3a, `assay
+  help`; the `isolation` block's pin moves with the count). The README's one-rule
+  paragraph is the rule's one home; CLAUDE.md rule 1 and `map/METHOD.md` cite it.
+  The README names the committed sweep sets and the gate they hold. No view
+  computes anything differently; no pinned score moves. `doc-consistency` pins the
+  one home and the count, the count read off which `map/` instruments spawn under
+  `map/child-env.mjs`. Confirmed red: the new pins against the previous wording
+  (three homes, "Two instruments" in README and CONTRACT, help without
+  structure-scan).
+- **2026-10-09 — scanners are data, operators are consumers** (#147). Three core
+  sites named the code reviewer: ingest's machine-report profile (its `review.tool`
+  check and the rows' `source`), score's method table and start's judgment pair.
+  The reviewer's adapter now declares `role: judgment`, `method: dcr` and an
+  `ingest:` block (`format: machine-report`, the `tool` value it accepts, its
+  `start_id`), and `repo-eval`'s declares `role` and `method`; `map/ingest.mjs`
+  reads the format off the adapter (`profileOf`), `map/score.mjs` the method,
+  `map/start.mjs` the roster (`judgmentScanners`, adapters-directory order). What
+  each adapter contributes and feeds is unchanged; no pinned score moves. The docs
+  and comments under `map/`, `views/` and `routine/` name the reviewer by role, not
+  id. `CLAUDE.md` gains rule 7; `yardstick/README.md` and `views/README.md` state
+  the consumer convention. Two blocks: `core-names-no-scanner` (no core file names
+  an external scanner, read from the adapters; no file outside the history, the
+  security contact and the fixtures names an operator, held as digests) with a
+  stale-checked residue list (the yardstick's `decide.scanner` rows, the gitleaks
+  and scorecard profiles, the cleanup workflow's secret name), and
+  `second-reviewer-adapter` (an invented reviewer's two-finding report ingests,
+  projects and scores from one dropped adapter file). Confirmed red: both blocks
+  before the change (the three sites named; an unknown instrument), the method read
+  reverted in score (the planted item out of scope) and a reviewer literal restored
+  in start. At level: the README's one naming of the reviewer's project (#148,
+  merged first) is dropped, since the block refuses it; the adapter names the tool
+  and its release.
+- **2026-10-09 — a scanner-free fingerprint, so corroboration is counted** (#151).
+  `fingerprintFinding` keys a fact to its scanner, so the same fact found by two
+  scanners never matched and the shared axes' corroboration was designed in but never
+  counted. `yardstick/compare.mjs` gains `factFingerprint` (projected axis, polarity,
+  effect channel or else the evidence files, the effect descriptors; no scanner) and
+  `corroboratedFacts`; `map/variance.mjs` exports its `DESCRIPTOR_FIELDS` as the one
+  home of the descriptor set. Since keeps the scanner-keyed fingerprint, unchanged.
+  `views/README.md` documents the new key beside the old. The `corroboration` block
+  pins its unit rules and a new golden, `notesbox/corroboration`: 3 facts two scanners
+  recorded (the documented test command, the committed credential, the assistant's
+  untrusted-content email). No existing golden moves. Confirmed red: the block before
+  the exports existed, the golden key absent, and the scanner put back into the key
+  (a unit failure and the count 3 → 0).
+- **2026-10-09 — instrument intake: a roster report per scanner, and the procedure a
+  candidate goes through** (#150). Nothing answered "what did this scanner find that
+  nothing else did" or "what reads not measured if it is retired". `map/roster.mjs`
+  (`node assay.mjs roster [<run>…]`) joins it per adapter, adopted, retired or
+  candidate (`adopted: false` with no `retired:`): the requirements it alone decides
+  and so would leave the measured scale if retired (static, off the yardstick's
+  `decide.scanner`), the axes it feeds, and over the runs given the runs it ran in,
+  the known answers only it recovers (`map/score.mjs` with its rows taken out), the
+  facts it corroborates (#151's `corroboratedFacts`) and its cost off the run record.
+  A scanner that ran in none of the runs reads not measured, never zero. Every adapter
+  names the harness block holding its fail-loud halts (`fails_loud:`); the run record
+  takes `duration:` on any row (`record --duration`, kept by later records, its shape
+  validated). `map/scanners/INTAKE.md` is the procedure and the adoption and
+  retirement criteria; `CONTRACT.md` §3 and `SCHEMA.md` §5a name the new fields. The
+  invented reviewer of #147 goes through it end to end as the candidate
+  (`tests/instruments/quill-review/`: its adapter and a synthetic report over
+  notesbox), deciding and recovering nothing alone and corroborating two facts. The
+  `instrument-roster` block pins it, and a new golden, `roster`, the adopted roster's
+  counts over the three scored fixture runs; no existing golden moves. Confirmed red
+  six ways, each for its own reason: unique recoveries computed against the full set,
+  the ran-in-none guard removed, record dropping `duration:`, validate accepting an
+  empty one, `decides_alone` reading nothing (the retirement probe over notesbox
+  disagreeing too), and corroboration not counted.

@@ -12,7 +12,7 @@
 // views. Improve's lead page (IMPROVE.md) compiles only when the run carries
 // its authored inputs (views/improve/prose.yaml); a raw base still gets the
 // walk + handoff + Intake + Maintain + Owner, and the INDEX says which lead is
-// present. Scanner-native reports (deep-code-review's own) are listed as
+// present. Scanner-native reports (a peer reviewer's own) are listed as
 // APPENDICES — provenance in each scanner's own voice, never merged.
 // Branded/PDF output lives outside assay (Andy's decision, 2026-09-24) — this
 // writes Markdown + YAML only.

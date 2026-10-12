@@ -121,4 +121,36 @@ export async function run() {
   else if (!testsReadme.includes('tests/blocks/')) fail('tests/README.md must say a block is a file under tests/blocks/');
   if (!harness?.BLOCK_FIELDS) fail('tests/harness.mjs must export BLOCK_FIELDS, the exports the runner reads off a block');
   else for (const f of harness.BLOCK_FIELDS) if (testsReadme && !new RegExp(`export (?:const|async function) ${f}\\b`).test(testsReadme)) fail(`tests/README.md does not say how a block exports ${f}, which the runner reads`);
+
+  // (g) not-applicable is the scanner's observation; stage and urgency are a reader's
+  // lens above the measurement, and the engine takes no stage input (#149).
+  const ys = flat(read('yardstick/README.md'));
+  if (!/not-applicable is a scanner's positive observation/i.test(ys)) fail('yardstick/README.md must say not-applicable is a scanner\'s positive observation, never a declaration');
+  if (!/reader's lens/i.test(ys) || !/shows? them as deferred, never as not-applicable or met/i.test(ys)) fail('yardstick/README.md must say stage is a reader\'s lens above the measurement, and deferred rows show as deferred, never as not-applicable or met');
+  if (!/engine takes no stage input/i.test(ys)) fail('yardstick/README.md must say the engine takes no stage input');
+  const c6 = flat(read('map/scanners/CONTRACT.md')).split(/6\. What the engine guarantees back/)[1]?.split(/7\. Handoff/)[0] ?? '';
+  if (!/reader's lens/i.test(c6) || !c6.includes('yardstick/README.md')) fail('map/scanners/CONTRACT.md §6 must point to yardstick/README.md for stage as a reader\'s lens');
+  // and the code agrees: no stage on the run record, the CLI or a requirement row
+  for (const [f, re] of [['assay.mjs', /--stage\b/], ['views/compile.mjs', /--stage\b/], ['map/record.mjs', /\bstage\b/], ['map/templates/scanners.yaml', /\bstage:/], ['yardstick/requirements.yaml', /not_applicable_at\b/], ['yardstick/measure.mjs', /\bstage\b/]]) {
+    if (re.test(read(f))) fail(`${f} matches ${re.source}: the engine takes no stage input (yardstick/README.md)`);
+  }
+  // (h) the one rule has one home, README.md; CLAUDE.md and map/METHOD.md cite it there (#148).
+  // The instruments that execute the target's code are the ones that spawn it under
+  // map/child-env.mjs, and every page that counts them says that many and names each.
+  const ONE_RULE = /\b(?:map|base) states,? what is;? the views compute how good/i;
+  const ruleHomes = tracked.filter((f) => !isHarness(f) && !f.startsWith('tests/sweeps/') && ONE_RULE.test(flat(read(f))));
+  if (ruleHomes.join() !== 'README.md') fail(`the one rule's sentence must have one home, README.md; it is stated in ${ruleHomes.join(', ') || 'no file'}`);
+  for (const f of ['CLAUDE.md', 'map/METHOD.md']) if (!/one rule[^.]*README\.md/i.test(flat(read(f)))) fail(`${f} must cite README.md as the one rule's home in place of restating it`);
+  const execs = tracked.filter((f) => /^map\/[^/]+\.mjs$/.test(f) && !['map/child-env.mjs', 'map/start.mjs'].includes(f) && /from '\.\/child-env\.mjs'/.test(read(f)))
+    .map((f) => f.replace(/^map\/|\.mjs$/g, ''));
+  const execWord = NUM[execs.length];
+  const cap = (w) => w[0].toUpperCase() + w.slice(1);
+  for (const [f, re] of [['README.md', new RegExp(`${cap(execWord)} instruments execute the target's code`)], ['map/scanners/CONTRACT.md', new RegExp(`${cap(execWord)} adopted instruments execute the target's code`)]]) {
+    const t = flat(read(f));
+    if (!re.test(t)) fail(`${f} must say ${execWord} instruments execute the target's code (${execs.join(', ')} spawn it under map/child-env.mjs)`);
+    for (const m of t.matchAll(/\b(two|three|four|five)( adopted)? instruments execute\b/gi)) if (m[1].toLowerCase() !== execWord) fail(`${f} says "${m[0]}"; ${execs.length} do (${execs.join(', ')})`);
+  }
+  const help = execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'help'], { encoding: 'utf8' });
+  const helpLine = help.split('\n').find((l) => /execute the target's code/.test(l)) || '';
+  for (const e of execs) if (!helpLine.includes(e)) fail(`\`assay help\` does not name ${e} among the instruments that execute the target's code`);
 }

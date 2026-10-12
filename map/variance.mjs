@@ -158,7 +158,7 @@ export function varianceFromSweeps(sweeps, names, models) {
 // ── measure 2: descriptor agreement ──────────────────────────────────────────
 // The effect facet fields the views compute from. `external` is included: it is a
 // descriptor a run judges (does this leave the trust boundary), and it feeds the halt flag.
-const DESCRIPTOR_FIELDS = ['reversibility', 'external', 'gate_type', 'fail_mode', 'telemetry', 'blast_scope'];
+export const DESCRIPTOR_FIELDS = ['reversibility', 'external', 'gate_type', 'fail_mode', 'telemetry', 'blast_scope'];
 
 // Safety ordering per field, low = riskier. Used ONLY to give a divergence a direction;
 // it never scores anything. gate_type's order follows doctrine.mjs's REAL_GATES split

@@ -17,7 +17,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // supervision and decisions are libraries the views compute from, not commands.
 const GROUPS = [
   ['Map: drawing the map', {
-    'start': ['map/start.mjs', 'make a run, draw it with every offline instrument, and record the rest (fresh-clone only with --allow-exec, and it needs a git repository: over a plain tree it is recorded skipped)'],
+    'start': ['map/start.mjs', 'make a run, draw it with every offline instrument, and record the rest (fresh-clone, and structure-scan\'s knip step, only with --allow-exec; fresh-clone needs a git repository: over a plain tree it is recorded skipped)'],
     'validate': ['map/validate.mjs', 'check a run: schema, ids, citations, the run record; fails closed'],
     'ingest': ['map/ingest.mjs', "turn a scanner's output into findings in a run"],
     'record': ['map/record.mjs', "set one scanner's disposition in the run record"],
@@ -29,6 +29,7 @@ const GROUPS = [
     'variance': ['map/variance.mjs', 'repeatability across runs of one target'],
     'score': ['map/score.mjs', "grade a run against a fixture's known answers"],
     'backlog': ['map/backlog.mjs', "the determinism and coverage gaps a run exposed in the method"],
+    'roster': ['map/roster.mjs', 'per scanner: what it alone decides, what would read not measured if retired, and over runs its unique recoveries, corroborations and cost'],
   }],
   ['Yardstick: measuring the map against the requirements', {
     'measure': ['yardstick/measure.mjs', 'per requirement: met, unmet, mixed or not measured'],
@@ -51,7 +52,7 @@ const COMMANDS = Object.fromEntries(GROUPS.flatMap(([, cmds]) => Object.entries(
 function help() {
   console.log('assay: a map, a yardstick, four views (plus Since).\n');
   console.log('Usage: node assay.mjs <command> [args]\n');
-  console.log("fresh-clone and dependency-scan execute the target's code (install, scripts, its package manager)");
+  console.log("fresh-clone, dependency-scan and structure-scan execute the target's code (install, scripts, its package manager, knip's load of its tool config)");
   console.log('with an allow-listed environment only; run them in a disposable container or VM.\n');
   for (const [label, cmds] of GROUPS) {
     console.log(label);

@@ -5,7 +5,7 @@
 // projection (map/project.mjs projectMulti) hands every view the row with the band
 // computed here, so each view reads one severity for one row.
 //
-// A peer scanner's own label (deep-code-review's `severity`) is a property it
+// A peer scanner's own label (a reviewer's `severity`) is a property it
 // reports, kept as-is (map/scanners/CONTRACT.md §2); an analyst's repo-eval row
 // likewise. Only the instruments below are banded here, and for them the band is
 // the only severity a view reads.

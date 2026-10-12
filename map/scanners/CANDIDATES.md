@@ -23,7 +23,8 @@ the instrument role in §3a):
   instrument thickens denominators and risk lists in existing report areas; it
   never adds a chapter. An instrument earns its place only
   by demonstrating it fails loud — a tool that errors into "0 findings" lowers
-  total assurance.
+  total assurance. The procedure a candidate goes through, and the criteria
+  for adopting and retiring one, are `INTAKE.md`.
 
 ## Adopted
 

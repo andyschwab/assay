@@ -35,6 +35,7 @@
 // previous run and findings no longer found — never "fixed": absence of a
 // finding is absence of re-detection, not proof the underlying fact is gone.
 import { STATUSES } from './measure.mjs';
+import { DESCRIPTOR_FIELDS } from '../map/variance.mjs';
 
 // ── requirement-status comparison ───────────────────────────────────────────
 const STATUS_RANK = { unmet: 1, mixed: 2, met: 3 }; // not-measured, not-applicable: off-scale, see above
@@ -133,4 +134,51 @@ export function compareFindings(previousFindings, currentFindings) {
     new: (currentFindings || []).filter((f) => !prevFp.has(fingerprintFinding(f))).map(pick),
     no_longer_found: (previousFindings || []).filter((f) => !currFp.has(fingerprintFinding(f))).map(pick),
   };
+}
+
+// ── fact fingerprint: the same key WITHOUT the scanner (#151; views/README.md) ──
+// fingerprintFinding keys a fact to the scanner that recorded it, so Since keeps a
+// fact's custody with its scanner and the same fact found by two scanners never
+// matches. factFingerprint drops the scanner, so two scanners' readings of one fact
+// meet: the corroboration rule 5 promises (shared axes, CONTRACT.md §1 and §6). Its
+// parts:
+//
+//   axis              the projected axis (map/project.mjs projectMulti), read off
+//                      the scanner's adapter or the finding's explicit `axis`, never
+//                      the scanner's own category, which no other scanner shares
+//   polarity          as above: a strength and a gap are two facts
+//   identity          the effect channel when the finding names one, else the
+//                      evidence files (`:line` stripped, each once): the schema
+//                      carries no symbol field, so the file is the finest key every
+//                      scanner records
+//   descriptors       the effect descriptors (map/variance.mjs DESCRIPTOR_FIELDS);
+//                      empty on a finding that is not an effect
+//
+// The same coarsening as fingerprintFinding: two facts on one axis, polarity and
+// file set collide and count once, toward under-reporting corroboration.
+const lc = (v) => (v === undefined || v === null ? '' : String(v).trim().toLowerCase());
+export function factFingerprint(f, axis) {
+  const channel = lc((f.effect && f.effect.channel) || f.channel);
+  const paths = [...new Set((Array.isArray(f.evidence) ? f.evidence : []).map((e) => String(e).split(':')[0]))].sort();
+  const identity = channel ? `channel:${channel}` : `files:${paths.join('|')}`;
+  const descriptors = f.effect ? DESCRIPTOR_FIELDS.map((k) => `${k}=${lc(f.effect[k])}`).join(',') : '';
+  return `${axis}::${f.polarity || ''}::${identity}::${descriptors}`;
+}
+
+// corroboratedFacts(projected) — pure. `projected` is projectMulti's rows
+// ({ f, axis, source }). Returns the facts two or more scanners recorded, sorted by
+// fingerprint: { fingerprint, sources: [...], findings: [ids] }. Two rows of one
+// scanner on one fact are a granularity choice, never corroboration.
+export function corroboratedFacts(projected) {
+  const by = new Map();
+  for (const p of projected || []) {
+    const fp = factFingerprint(p.f, p.axis);
+    if (!by.has(fp)) by.set(fp, { fingerprint: fp, sources: new Set(), findings: [] });
+    const e = by.get(fp);
+    e.sources.add(p.source || p.f.source || 'repo-eval');
+    e.findings.push(p.f.id);
+  }
+  return [...by.values()].filter((e) => e.sources.size >= 2)
+    .map((e) => ({ fingerprint: e.fingerprint, sources: [...e.sources].sort(), findings: e.findings.sort() }))
+    .sort((a, b) => a.fingerprint.localeCompare(b.fingerprint));
 }

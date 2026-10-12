@@ -1,0 +1,31 @@
+# A synthetic machine report from the invented quill-review over the notesbox fixture
+# target (tests/fixtures/notesbox): test data only, no real tool wrote it. Both are facts
+# another scanner already recorded on the same axis, file and polarity: Q1 the committed
+# key the secrets instrument and the code reviewer found, Q2 the unbounded sync retry the
+# code reviewer found. It recovers no known answer the others do not.
+review:
+  tool: quill-review
+  skill_version: "2.3.0"
+ground_truth:
+  commit: "0000000"
+coverage:
+  K1:
+    status: scanned
+  K2:
+    status: scanned
+findings:
+  - id: Q1
+    area: K2
+    polarity: gap
+    severity: High
+    observation: A service API key is written into the settings module.
+    evidence: ["config/settings.mjs:6"]
+    fix: Read the key from the environment and rotate the committed one.
+  - id: Q2
+    area: K1
+    polarity: gap
+    severity: Medium
+    observation: The sync loop retries a failed push without a bound.
+    evidence: ["lib/sync.mjs:8"]
+    fix: Bound the retries and surface the last error.
+prior_not_rechecked: []

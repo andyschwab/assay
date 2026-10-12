@@ -1,0 +1,24 @@
+# Adapter: quill-review — an INVENTED reviewer, test data only. The candidate
+# map/scanners/INTAKE.md takes through its procedure (tests/blocks/instrument-roster.mjs
+# drops this file into map/scanners/adapters/ and removes it again). The same invented
+# reviewer as tests/blocks/second-reviewer-adapter.mjs, here as a candidate: not
+# adopted and not retired, so no run must record it and the roster reports it as one.
+scanner: quill-review
+targets_taxonomy: 3
+role: judgment
+method: quill
+ingest:
+  format: machine-report
+  tool: quill-review
+  start_id: 880
+min_version: "2.0.0"
+adopted: false
+fails_loud: second-reviewer-adapter
+coverage_domains: [K1, K2]
+contributes: []
+map:
+  K1:
+    axis: code-correctness
+  K2:
+    axis: code-security
+default: FAIL

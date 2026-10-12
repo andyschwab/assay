@@ -20,8 +20,8 @@
 // which `validate.mjs --target` knows to skip (instrument evidence lives in the
 // run, not the target).
 //
-// A PEER SCANNER with a machine report also comes in here: deep-code-review 1.128+
-// (references/machine-report.md; the adapter's min_version) writes findings-YYYY-MM-DD.yaml (block YAML: review / ground_truth / coverage /
+// A PEER SCANNER with a machine report also comes in here, by the format its adapter's
+// `ingest:` names (FORMATS below; the adapter's min_version): a reviewer writes findings-YYYY-MM-DD.yaml (block YAML: review / ground_truth / coverage /
 // findings). It has no exit code — its fail-loud property is COMPLETENESS: the
 // coverage map must carry a row for every domain the adapter's coverage_domains
 // lists, every gap row a fix, every non-scanned row a note; anything less halts.
@@ -47,7 +47,7 @@
 //
 // Usage:
 //   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx]
-//   node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx]
+//   node assay.mjs ingest <run-dir> --tool <reviewer> --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
 // <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
 // the next hundred above the run's highest existing id, whichever is higher (nextStart).
@@ -56,7 +56,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readd
 import { join, resolve, relative, sep, isAbsolute } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
-import { loadAdapter } from './project.mjs';
+import { loadAdapters } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow, updateRunRecord } from './record.mjs';
 import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
@@ -137,83 +137,6 @@ const PROFILES = {
         rows.push(row);
       }
       rows.skipped = skipped;
-      return rows;
-    },
-  },
-  'deep-code-review': {
-    raw: 'deep-code-review.yaml',
-    startId: 800,
-    exitless: true,      // an LLM skill's machine report: completeness, not an exit code, is the fail-loud property
-    convert(raw, startId) {
-      let rep;
-      try { rep = parseYaml(raw); }
-      catch (e) { throw new Error(`deep-code-review machine report is not block-style YAML (fail-closed): ${e.message.slice(0, 80)}`); }
-      if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error('deep-code-review machine report must be a top-level map (review / ground_truth / coverage / findings)');
-      const adapter = loadAdapter('deep-code-review');
-      const domains = adapter.coverage_domains || [];
-      if (!domains.length) throw new Error('adapters/deep-code-review.yaml carries no coverage_domains — cannot judge completeness (fail-closed)');
-      // the run header says which scanner and which contract wrote the file; a report
-      // from another tool, or from before the machine-report format existed, halts
-      const head = (rep.review && typeof rep.review === 'object') ? rep.review : null;
-      if (!head) throw new Error('machine report has no review: header — the file does not say which scanner or skill version wrote it');
-      if (head.tool !== 'deep-code-review') throw new Error(`machine report review.tool is "${head.tool}", not deep-code-review`);
-      if (!head.skill_version) throw new Error('machine report review.skill_version is missing — the contract a report follows is read from its version');
-      if (adapter.min_version && versionBelow(String(head.skill_version), String(adapter.min_version))) throw new Error(`machine report skill_version ${head.skill_version} predates the machine-report contract (${adapter.min_version}+)`);
-      const cov = rep.coverage;
-      if (!cov || typeof cov !== 'object' || Array.isArray(cov)) throw new Error('machine report has no coverage: map — a report that does not say what it looked at is not a report (a public committed copy withholds coverage; ingest the out-of-tree report)');
-      const missing = domains.filter((l) => !cov[l] || typeof cov[l] !== 'object');
-      if (missing.length) throw new Error(`coverage incomplete: no row for domain(s) ${missing.join(', ')} — absence of a row is not clean`);
-      for (const [l, row] of Object.entries(cov)) {
-        if (!COVERAGE_STATUS.includes(row.status)) throw new Error(`coverage.${l}: bad status "${row.status}" (scanned | partial | not-scanned | not-applicable)`);
-        if (row.status !== 'scanned' && !(row.note && String(row.note).trim())) throw new Error(`coverage.${l}: ${row.status} needs a note — a skip without one is indistinguishable from an omission`);
-      }
-      if (!Array.isArray(rep.findings)) throw new Error('machine report findings: must be a list (an empty list with full coverage is a recorded clean run)');
-      const rows = /** @type {any} */ ([]); let n = 0;
-      for (const f of rep.findings) {
-        const at = `finding ${(f && f.id) || '#' + (n + 1)}`;
-        if (!f || typeof f !== 'object') throw new Error(`${at}: not a map`);
-        for (const k of ['id', 'area', 'polarity', 'observation', 'evidence']) if (f[k] === undefined || f[k] === null || f[k] === '') throw new Error(`${at}: missing ${k}`);
-        if (!['gap', 'strength'].includes(f.polarity)) throw new Error(`${at}: bad polarity "${f.polarity}" (gap | strength)`);
-        if (!Array.isArray(f.evidence) || !f.evidence.length) throw new Error(`${at}: evidence must be a non-empty list of file:line`);
-        if (f.polarity === 'gap' && !f.severity) throw new Error(`${at}: a gap row needs a severity`);
-        if (f.polarity === 'gap' && !(f.fix && String(f.fix).trim())) throw new Error(`${at}: a gap row needs a fix — a gap without one cannot be acted on`);
-        if (f.polarity === 'strength' && f.severity) throw new Error(`${at}: a strength row carries no severity (never file a strength as a ${f.severity})`);
-        if (String(f.confidence) === 'unverified' && !(f.resolves_with && String(f.resolves_with).trim())) throw new Error(`${at}: an unverified row needs resolves_with — the artifact that would settle it`);
-        if (f.prior_status && !f.prior_id) throw new Error(`${at}: prior_status without prior_id — the row it re-verifies is not named`);
-        if (f.prior_status && !DCR_PRIOR_STATUS.includes(String(f.prior_status))) throw new Error(`${at}: bad prior_status "${f.prior_status}" (${DCR_PRIOR_STATUS.join(' | ')})`);
-        if (f.prior_status === 'fixed' && f.polarity !== 'strength') throw new Error(`${at}: a prior finding re-verified fixed is filed as a strength row, not a ${f.polarity}`);
-        const row = {
-          id: fid(startId + n++),
-          source: 'deep-code-review',
-          native_id: String(f.id),
-          native_category: String(f.area),
-          polarity: f.polarity,
-          observation: oneLine(f.observation),
-          evidence: f.evidence.map((e) => String(e)),
-        };
-        if (f.title) row.title = oneLine(f.title);
-        if (f.tag) row.native_tag = oneLine(f.tag);
-        if (f.severity) row.severity = String(f.severity);
-        if (f.fix) row.fix = oneLine(f.fix);
-        if (f.confidence) {
-          const c = String(f.confidence);
-          row.confidence = DCR_CONFIDENCE[c] || 'unverified';   // the port vocab; unknown labels read as unverified, never confirmed
-          row.native_confidence = c;
-        }
-        if (f.latent === true) row.latent = true;
-        if (f.mechanism_unproven === true) row.mechanism_unproven = true;
-        if (f.resolves_with) row.resolves_with = oneLine(f.resolves_with);
-        if (f.prior_id) { row.prior_native_id = String(f.prior_id); if (f.prior_status) row.prior_status = String(f.prior_status); }
-        if (Array.isArray(f.compounds) && f.compounds.length) row.compounds_native = f.compounds.map(String);
-        rows.push(row);
-      }
-      rows.coverage = {
-        scanner: 'deep-code-review',
-        review: (rep.review && typeof rep.review === 'object') ? rep.review : {},
-        ground_truth: (rep.ground_truth && typeof rep.ground_truth === 'object') ? rep.ground_truth : {},
-        coverage: cov,
-        prior_not_rechecked: Array.isArray(rep.prior_not_rechecked) ? rep.prior_not_rechecked.map(String) : [],
-      };
       return rows;
     },
   },
@@ -801,8 +724,7 @@ const rebase = (prefix) => (e) => String(e).startsWith('map/raw/') ? e : String(
 // opts.target: the run's target root; the rows carry `scope` (scopeOf) and are rebased
 // when the instrument ran inside it.
 export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
-  const p = PROFILES[tool];
-  if (!p) throw new Error(`unknown instrument "${tool}" (profiles: ${Object.keys(PROFILES).join(', ')})`);
+  const p = profileOf(tool);
   if (!p.exitless) {
     // the raw digits only (F-1215): Number('') and Number(' ') are 0, so `--exit "$code"` with
     // an unset variable would file an empty report as a verified-clean run; 0x1, 1e0, 1.0 and
@@ -826,16 +748,117 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
   return rows;
 }
 
+// ── ingest formats a scanner's adapter selects (CONTRACT.md §3) ───────────────
+// A scanner with no built-in profile above is ingested by the format its adapter's
+// `ingest:` names; the adapter supplies what the format needs to know about the
+// scanner (the review.tool value it accepts, the id floor), so the core names none.
+// machine-report: a reviewer's machine report (block YAML: review / ground_truth /
+// coverage / findings), checked complete against the adapter's coverage_domains.
+const FORMATS = {
+  'machine-report': (id, adapter) => ({
+    raw: `${id}.yaml`,
+    startId: Number(adapter.ingest.start_id),
+    exitless: true,      // an LLM skill's machine report: completeness, not an exit code, is the fail-loud property
+    convert(raw, startId) {
+      let rep;
+      try { rep = parseYaml(raw); }
+      catch (e) { throw new Error(`${id} machine report is not block-style YAML (fail-closed): ${e.message.slice(0, 80)}`); }
+      if (!rep || typeof rep !== 'object' || Array.isArray(rep)) throw new Error(`${id} machine report must be a top-level map (review / ground_truth / coverage / findings)`);
+      const domains = adapter.coverage_domains || [];
+      if (!domains.length) throw new Error(`adapters/${id}.yaml carries no coverage_domains — cannot judge completeness (fail-closed)`);
+      // the run header says which scanner and which contract wrote the file; a report
+      // from another tool, or from before the machine-report format existed, halts
+      const head = (rep.review && typeof rep.review === 'object') ? rep.review : null;
+      if (!head) throw new Error('machine report has no review: header — the file does not say which scanner or skill version wrote it');
+      if (head.tool !== adapter.ingest.tool) throw new Error(`machine report review.tool is "${head.tool}", not ${adapter.ingest.tool} (adapters/${id}.yaml ingest.tool)`);
+      if (!head.skill_version) throw new Error('machine report review.skill_version is missing — the contract a report follows is read from its version');
+      if (adapter.min_version && versionBelow(String(head.skill_version), String(adapter.min_version))) throw new Error(`machine report skill_version ${head.skill_version} predates the machine-report contract (${adapter.min_version}+)`);
+      const cov = rep.coverage;
+      if (!cov || typeof cov !== 'object' || Array.isArray(cov)) throw new Error('machine report has no coverage: map — a report that does not say what it looked at is not a report (a public committed copy withholds coverage; ingest the out-of-tree report)');
+      const missing = domains.filter((l) => !cov[l] || typeof cov[l] !== 'object');
+      if (missing.length) throw new Error(`coverage incomplete: no row for domain(s) ${missing.join(', ')} — absence of a row is not clean`);
+      for (const [l, row] of Object.entries(cov)) {
+        if (!COVERAGE_STATUS.includes(row.status)) throw new Error(`coverage.${l}: bad status "${row.status}" (scanned | partial | not-scanned | not-applicable)`);
+        if (row.status !== 'scanned' && !(row.note && String(row.note).trim())) throw new Error(`coverage.${l}: ${row.status} needs a note — a skip without one is indistinguishable from an omission`);
+      }
+      if (!Array.isArray(rep.findings)) throw new Error('machine report findings: must be a list (an empty list with full coverage is a recorded clean run)');
+      const rows = /** @type {any} */ ([]); let n = 0;
+      for (const f of rep.findings) {
+        const at = `finding ${(f && f.id) || '#' + (n + 1)}`;
+        if (!f || typeof f !== 'object') throw new Error(`${at}: not a map`);
+        for (const k of ['id', 'area', 'polarity', 'observation', 'evidence']) if (f[k] === undefined || f[k] === null || f[k] === '') throw new Error(`${at}: missing ${k}`);
+        if (!['gap', 'strength'].includes(f.polarity)) throw new Error(`${at}: bad polarity "${f.polarity}" (gap | strength)`);
+        if (!Array.isArray(f.evidence) || !f.evidence.length) throw new Error(`${at}: evidence must be a non-empty list of file:line`);
+        if (f.polarity === 'gap' && !f.severity) throw new Error(`${at}: a gap row needs a severity`);
+        if (f.polarity === 'gap' && !(f.fix && String(f.fix).trim())) throw new Error(`${at}: a gap row needs a fix — a gap without one cannot be acted on`);
+        if (f.polarity === 'strength' && f.severity) throw new Error(`${at}: a strength row carries no severity (never file a strength as a ${f.severity})`);
+        if (String(f.confidence) === 'unverified' && !(f.resolves_with && String(f.resolves_with).trim())) throw new Error(`${at}: an unverified row needs resolves_with — the artifact that would settle it`);
+        if (f.prior_status && !f.prior_id) throw new Error(`${at}: prior_status without prior_id — the row it re-verifies is not named`);
+        if (f.prior_status && !DCR_PRIOR_STATUS.includes(String(f.prior_status))) throw new Error(`${at}: bad prior_status "${f.prior_status}" (${DCR_PRIOR_STATUS.join(' | ')})`);
+        if (f.prior_status === 'fixed' && f.polarity !== 'strength') throw new Error(`${at}: a prior finding re-verified fixed is filed as a strength row, not a ${f.polarity}`);
+        const row = {
+          id: fid(startId + n++),
+          source: id,
+          native_id: String(f.id),
+          native_category: String(f.area),
+          polarity: f.polarity,
+          observation: oneLine(f.observation),
+          evidence: f.evidence.map((e) => String(e)),
+        };
+        if (f.title) row.title = oneLine(f.title);
+        if (f.tag) row.native_tag = oneLine(f.tag);
+        if (f.severity) row.severity = String(f.severity);
+        if (f.fix) row.fix = oneLine(f.fix);
+        if (f.confidence) {
+          const c = String(f.confidence);
+          row.confidence = DCR_CONFIDENCE[c] || 'unverified';   // the port vocab; unknown labels read as unverified, never confirmed
+          row.native_confidence = c;
+        }
+        if (f.latent === true) row.latent = true;
+        if (f.mechanism_unproven === true) row.mechanism_unproven = true;
+        if (f.resolves_with) row.resolves_with = oneLine(f.resolves_with);
+        if (f.prior_id) { row.prior_native_id = String(f.prior_id); if (f.prior_status) row.prior_status = String(f.prior_status); }
+        if (Array.isArray(f.compounds) && f.compounds.length) row.compounds_native = f.compounds.map(String);
+        rows.push(row);
+      }
+      rows.coverage = {
+        scanner: id,
+        review: (rep.review && typeof rep.review === 'object') ? rep.review : {},
+        ground_truth: (rep.ground_truth && typeof rep.ground_truth === 'object') ? rep.ground_truth : {},
+        coverage: cov,
+        prior_not_rechecked: Array.isArray(rep.prior_not_rechecked) ? rep.prior_not_rechecked.map(String) : [],
+      };
+      return rows;
+    },
+  }),
+};
+
+// The profile `tool` is ingested by: a built-in instrument profile, else the format
+// its adapter's `ingest:` selects. Unknown is an error, listing what is known.
+function profileOf(tool) {
+  if (Object.hasOwn(PROFILES, tool)) return PROFILES[tool];
+  const adapter = loadAdapters()[tool];
+  const spec = adapter && adapter.ingest;
+  if (spec) {
+    const make = Object.hasOwn(FORMATS, spec.format) ? FORMATS[spec.format] : null;
+    if (!make) throw new Error(`adapters/${tool}.yaml ingest.format "${spec.format}" is not a format ingest reads (${Object.keys(FORMATS).join(', ')})`);
+    if (!spec.tool) throw new Error(`adapters/${tool}.yaml ingest: needs tool, the report's review.tool value it accepts`);
+    if (!/^\d+$/.test(String(spec.start_id ?? ''))) throw new Error(`adapters/${tool}.yaml ingest: needs start_id, the id floor, as digits`);
+    return make(tool, adapter);
+  }
+  const known = [...Object.keys(PROFILES), ...Object.values(loadAdapters()).filter((a) => a.ingest).map((a) => a.scanner)];
+  throw new Error(`unknown instrument "${tool}" (profiles: ${known.join(', ')})`);
+}
+
 // ── id allocation: above the base's highest id, never inside another block ──
-// Each profile has a documented floor (gitleaks 700, scorecard 750, deep-code-review
-// 800, fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
+// Each profile has a documented floor (gitleaks 700, scorecard 750, a reviewer's adapter
+// ingest.start_id (800 for the code reviewer), fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
 // history scan's gitleaks block ran F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same
 // tool lands where it did before instead of drifting upward on every run.
 export function nextStart(runDir, tool) {
-  const p = PROFILES[tool];
-  if (!p) throw new Error(`unknown instrument "${tool}"`);
+  const p = profileOf(tool);
   const fd = findingsDir(runDir);
   const ownFile = `${tool}.yaml`;
   let max = 0; const seenIn = [];
@@ -855,7 +878,7 @@ export function nextStart(runDir, tool) {
 // ── YAML emit (the schema's constrained subset: block style, folded scalars) ─
 function toYaml(rows, tool, exitCode, skipped, startNote) {
   const esc = (s) => oneLine(s);
-  const p = PROFILES[tool];
+  const p = profileOf(tool);
   const file = `map/findings/${tool}.yaml`;
   const out = p.exitless
     ? [`# ${file} — peer-scanner rows ingested by assay.mjs ingest from the scanner's machine report.`,
@@ -928,11 +951,13 @@ if (isMain(import.meta.url)) {
   // the run's target root: --target, else the one the run record holds (`assay start` writes it)
   let target = opt('--target');
   if (!target && existsSync(scannersPath(runDir))) { try { const t = parseYaml(readFileSync(scannersPath(runDir), 'utf8')).target; if (typeof t === 'string' && t) target = t; } catch { /* validate reports a malformed record */ } }
-  const exitless = tool && PROFILES[tool] && PROFILES[tool].exitless;
+  let profile = null;
+  try { profile = tool ? profileOf(tool) : null; } catch { /* convert reports an unknown tool */ }
+  const exitless = !!(profile && profile.exitless);
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
     console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
     console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
-    console.error('       node assay.mjs ingest <run-dir> --tool deep-code-review --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
+    console.error('       node assay.mjs ingest <run-dir> --tool <reviewer, an adapter with ingest:> --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
     process.exit(2);
   }
   const rawText = readFileSync(rawPath, 'utf8');
@@ -949,8 +974,8 @@ if (isMain(import.meta.url)) {
   if (rows.scope && rows.scope.relation === 'inside') console.log(`· ${tool} ran at ${rows.scope.prefix}/ inside the run's target: evidence rebased onto the target (${rows.scope.prefix}/…)`);
   mkdirSync(findingsDir(runDir), { recursive: true });
   mkdirSync(rawDir(runDir), { recursive: true });
-  const rawDst = rawArtifactPath(runDir, PROFILES[tool].raw || `${tool}.json`);
-  if (PROFILES[tool].archive) writeFileSync(rawDst, PROFILES[tool].archive(rawText));
+  const rawDst = rawArtifactPath(runDir, profile.raw || `${tool}.json`);
+  if (profile.archive) writeFileSync(rawDst, profile.archive(rawText));
   else copyFileSync(rawPath, rawDst);
   const dst = findingsPath(runDir, tool);
   writeFileSync(dst, toYaml(rows, tool, exit, rows.skipped, startNote));

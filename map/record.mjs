@@ -9,7 +9,7 @@
 // the ONE row's own block, leaving every other row, the file's comments, and
 // its `engine:` line exactly as they were. Never a reformat.
 //
-// Usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--pass <pass>]
+// Usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>]
 //   ran      — `--reason` is allowed too (a note on how it ran); a prior
 //              skip/failed reason is DROPPED unless a new one is given here.
 //   skipped  — needs --reason (a skip with no reason is indistinguishable
@@ -19,6 +19,9 @@
 //              kept when this is omitted, whatever the new status.
 //   --spend  — what its inference spent, with the unit ("41k tokens"); kept
 //              like model:.
+//   --duration — how long the scanner ran, with the unit ("4m10s"), any
+//              scanner, instruments included; kept like model:. Always on the
+//              row, never on a pass.
 //   --pass   — repo-eval only: --model/--spend land on that one pass
 //              (`passes: <pass>:` in the row) instead of the row. Recorded
 //              passes are kept by every edit.
@@ -37,11 +40,12 @@ export const STATUSES = ['ran', 'skipped', 'failed'];
 
 const spendScalar = (v) => (Number.isInteger(v) ? String(v) : q(v));
 
-function renderRow(id, status, reason, model, spend, passes) {
+function renderRow(id, status, reason, model, spend, passes, duration) {
   const lines = [`  ${id}:`, `    status: ${status}`];
   if (reason) lines.push(`    reason: ${q(reason)}`);
   if (model) lines.push(`    model: ${q(model)}`);
   if (spend !== undefined && spend !== null) lines.push(`    spend: ${spendScalar(spend)}`);
+  if (duration !== undefined && duration !== null) lines.push(`    duration: ${spendScalar(duration)}`);
   const ps = Object.entries(passes || {});
   if (ps.length) {
     lines.push('    passes:');
@@ -62,7 +66,7 @@ function renderRow(id, status, reason, model, spend, passes) {
 // after it, and outside the scanners: map (the header comment, `engine:`) is
 // carried through byte-for-byte. A row this scanner has none of yet is
 // appended after the last existing row.
-export function setScannerRow(text, scanner, status, { reason, model, spend, pass } = /** @type {any} */ ({})) {
+export function setScannerRow(text, scanner, status, { reason, model, spend, duration, pass } = /** @type {any} */ ({})) {
   if (!STATUSES.includes(status)) throw new Error(`bad status "${status}" (${STATUSES.join(' | ')})`);
   if (pass !== undefined && scanner !== 'repo-eval') throw new Error(`--pass is the built-in scanner's per-pass record; ${scanner} has no passes`);
   if (pass !== undefined && !REPO_EVAL_PASSES[pass]) throw new Error(`unknown pass "${pass}" (${Object.keys(REPO_EVAL_PASSES).join(' | ')})`);
@@ -91,12 +95,13 @@ export function setScannerRow(text, scanner, status, { reason, model, spend, pas
   const onRow = pass === undefined;
   const finalModel = onRow && model !== undefined ? model : (current ? current.model : undefined);
   const finalSpend = onRow && spend !== undefined ? spend : (current ? current.spend : undefined);
+  const finalDuration = duration !== undefined ? duration : (current ? current.duration : undefined);
   const passes = { ...(current && current.passes && typeof current.passes === 'object' ? current.passes : {}) };
   if (!onRow) {
     const was = passes[pass] && typeof passes[pass] === 'object' ? passes[pass] : {};
     passes[pass] = { model: model !== undefined ? model : was.model, spend: spend !== undefined ? spend : was.spend };
   }
-  const row = renderRow(scanner, status, finalReason, finalModel, finalSpend, passes);
+  const row = renderRow(scanner, status, finalReason, finalModel, finalSpend, passes, finalDuration);
 
   const at = rowStarts.find((r) => r.id === scanner);
   let out;
@@ -144,7 +149,7 @@ if (isMain(import.meta.url)) {
   const [runDir, scanner, status, ...rest] = process.argv.slice(2);
   const opt = (name) => { const i = rest.indexOf(name); return i > -1 ? rest[i + 1] : undefined; };
   if (!runDir || !scanner || !status) {
-    console.error('usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--pass <pass>]');
+    console.error('usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>]');
     process.exit(2);
   }
   if (!STATUSES.includes(status)) {
@@ -154,6 +159,7 @@ if (isMain(import.meta.url)) {
   const reason = opt('--reason');
   const model = opt('--model');
   const spend = opt('--spend');
+  const duration = opt('--duration');
   const pass = opt('--pass');
   const mPath = scannersPath(runDir);
   if (!existsSync(mPath)) {
@@ -170,7 +176,7 @@ if (isMain(import.meta.url)) {
     process.exit(2);
   }
   let row = /** @type {string[]} */ ([]);
-  try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model, spend, pass }); row = r.row; return r.text; }); }
+  try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model, spend, duration, pass }); row = r.row; return r.text; }); }
   catch (e) { console.error(`✗ record: ${e.message}`); process.exit(2); }
   console.log(row.join('\n'));
 }
