@@ -1594,3 +1594,18 @@ what the public engine learned.
   the ran-in-none guard removed, record dropping `duration:`, validate accepting an
   empty one, `decides_alone` reading nothing (the retirement probe over notesbox
   disagreeing too), and corroboration not counted.
+- **2026-10-14 — branch-cleanup plans by merged pull requests and deletes with the run's
+  token** (#162). The workflow deleted any `work/` or `sweep/` branch whose tip the
+  default branch held, so a just-cut integration branch read as merged, and it deleted
+  with the automation identity's secret, which cannot write refs here: a real dispatch
+  that day planned 20 branches and deleted none (HTTP 404 on the first). Now a branch
+  under `PREFIXES` (`work/`, `sweep/`, and `claude/`, the branches agent sessions leave)
+  is planned only when the default branch holds its tip, a merged pull request came from
+  it, and no open pull request uses it as head or base; the plan reads with the run's
+  token and only the delete job holds `contents: write` (the owner chose the run's token).
+  No action and no checkout. The `branch-cleanup` block runs the file's own plan and
+  delete steps against a fake GitHub CLI over recorded branch states; `OPERATOR_PENDING`
+  empties, since the file no longer names an operator. Confirmed red on the old file and
+  seven ways, each for its own reason: the merged-PR rule, the open-as-base rule, the
+  dry-run default, a write on the plan job, the delete guard, a branch read that fails
+  open, and the `claude/` prefix dropped.

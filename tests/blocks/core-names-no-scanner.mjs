@@ -40,10 +40,10 @@ const OPERATOR_DIGESTS = [
   '8275a2bcaf0ec5ca798d4292ef1dad3f89bb98eb0196bdc723e4b0996d98fb5c',
 ];
 const SELF = 'tests/blocks/core-names-no-scanner.mjs';
-// Known residue for (b), stale-checked like PENDING: the branch-cleanup workflow reads
-// the automation identity's secret by its name; renaming the secret is a workflow and
-// settings change outside #147.
-const OPERATOR_PENDING = ['.github/workflows/branch-cleanup.yml'];
+// Known residue for (b), stale-checked like PENDING: empty since #162, when the
+// branch-cleanup workflow stopped reading the automation identity's secret and took the
+// run's own token.
+const OPERATOR_PENDING = [];
 
 const walk = (dir) => readdirSync(join(ROOT, dir)).flatMap((n) => {
   const p = join(dir, n);
