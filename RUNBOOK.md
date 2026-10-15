@@ -9,10 +9,10 @@ person runs; nothing here runs on its own.
 ## Release
 
 1. The change is merged to `main` through a pull request whose `ci` check
-   (`npm test`) is green, with its `HISTORY.md` entry.
+   (`npm test`) is green.
 2. A release that changes what the engine computes bumps `version` in
    `package.json` (and an instrument's own `VERSION` when its output changed)
-   and says so in that `HISTORY.md` entry.
+   and says so in the pull request body and the commit message.
 3. Tag the merge commit `v<version>` so a consumer can name it.
 4. A stewarded repository adopts it by setting `ASSAY_REF` in its
    `.github/workflows/assay-routine.yml` to that commit's full SHA — never a
@@ -52,8 +52,8 @@ node routine/run.mjs <repo-dir> --out <run-dir>
   run uses it. Nothing else needs undoing: the routine never writes to the
   repository.
 - **A change to assay itself.** Revert the commit on `main` through a pull
-  request with green CI, with a `HISTORY.md` entry saying what was rolled back
-  and why. Never rewrite `main`'s history.
+  request with green CI, whose commit subject says what was rolled back and
+  why. Never rewrite `main`'s history.
 
 ## Rotate or revoke the read token
 
