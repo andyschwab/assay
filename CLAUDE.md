@@ -59,11 +59,15 @@ file is edited to add one.
 
 - **Red, then green.** Before trusting a new assertion, revert the rule it pins
   and confirm it red for its own reason, then restore the rule and confirm the
-  suite green. An assertion never seen failing proves nothing. The change's
-  `HISTORY.md` entry says it was confirmed red.
+  suite green. An assertion never seen failing proves nothing. The pull
+  request body and the commit message that lands the assertion say it was
+  confirmed red.
 - **Engine learnings go to the issue tracker.** A gap a run exposes in the
   method, a scanner, the yardstick or a contract becomes an issue on this
   repository's issue tracker, stated with public evidence only (rule 6), and
-  lands as a reviewed change that cites it and adds a `HISTORY.md` entry.
+  lands as a reviewed change that cites it.
   Taste the code relies on is written here or in the contract that owns it,
   never only in a code comment.
+- **The change record is git.** No history file or dated log is kept beside
+  it (`tests/blocks/no-history-file.mjs`). A commit that removes something
+  says in its subject what went and why.
