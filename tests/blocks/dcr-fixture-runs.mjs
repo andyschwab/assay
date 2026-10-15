@@ -14,7 +14,7 @@
 //     push in domain F, which the adapter routes to code-correctness, while the sheet
 //     homes the item on verification only. The run still recovers P-07 through the
 //     built-in method; whether the sheet should list code-correctness in P-07's
-//     also_axes is an open question raised on #16, not papered over.
+//     also_axes is an open question (#168), not papered over.
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
