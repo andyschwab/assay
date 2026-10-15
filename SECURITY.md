@@ -14,8 +14,8 @@ one that holds.
 ## What to expect
 
 - An acknowledgement.
-- A fix as a reviewed change that cites the report, with a `HISTORY.md` entry,
-  the way every change here lands (`CLAUDE.md` § How a change lands).
+- A fix as a reviewed change that cites the report, the way every change here
+  lands (`CLAUDE.md` § How a change lands).
 - No public disclosure before the fix is on `main`; the report is credited there
   if you want it to be.
 

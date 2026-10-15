@@ -15,7 +15,7 @@ export async function run() {
   const fail = (m) => negFailures.push('doc-consistency: ' + m);
   const read = (p) => readFileSync(join(ROOT, p), 'utf8');
   const tracked = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
-    .filter((f) => /\.(mjs|md|yaml|json)$/.test(f) && f !== 'HISTORY.md' && !f.startsWith('tests/fixtures/') && !f.startsWith('tests/instruments/'));
+    .filter((f) => /\.(mjs|md|yaml|json)$/.test(f) && !f.startsWith('tests/fixtures/') && !f.startsWith('tests/instruments/'));
   // the harness's own files quote the strings these checks hunt for, as test data (#87: once one file)
   const isHarness = (f) => f === 'tests/regression.mjs' || f === 'tests/harness.mjs' || f.startsWith('tests/blocks/');
   const flat = (t) => t.replace(/\n\s*(?:\/\/|#)?\s*/g, ' ').replace(/[`*]/g, '').replace(/\s+/g, ' ');

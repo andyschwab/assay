@@ -211,7 +211,6 @@ routine/         the routine a repository taken on runs on its own schedule (Git
 lib/             shared helpers
 tests/           the regression harness, the public scored fixtures, and the committed sweep sets
 RUNBOOK.md       releasing, re-blessing, restarting a routine, rolling back, the read token, restoring a baseline
-HISTORY.md       how the engine got here
 ```
 
 assay carries no client data, no run history and no confidential fixtures: only
