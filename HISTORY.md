@@ -1609,3 +1609,21 @@ what the public engine learned.
   seven ways, each for its own reason: the merged-PR rule, the open-as-base rule, the
   dry-run default, a write on the plan job, the delete guard, a branch read that fails
   open, and the `claude/` prefix dropped.
+- **2026-10-15 — branch-cleanup plans by fact, not by name; squash merges included**
+  (#170). The repository's own "Automatically delete head branches" setting is the everyday
+  path; the workflow is the baseline sweep for what that misses, run a few times under a
+  person's watch. A branch of any name is planned when it is not the default branch, not
+  protected and not under `KEEP` (glob patterns, default `gh-pages release/*`); a merged pull
+  request came from it; it has nothing new since that merge (its tip is a merged pull
+  request's head, which a squash merge leaves true, or the default branch holds its tip,
+  today's rule kept for a branch reset to the default); and no open pull request uses it as
+  head or base. `PREFIXES` is gone. The plan names `branch@sha`; the delete reads each
+  branch again and skips one that moved or became protected since the plan, and refuses the
+  default branch, a `KEEP` name or an entry with no tip before deleting anything. The
+  `branch-cleanup` block pins it over a recorded GitHub that adds a squash-merged branch, a
+  branch with a commit after its merge, one merged into its integration branch, a
+  protected one, two `KEEP` names and a file that would match `KEEP`'s glob if it were
+  expanded. Confirmed red on the old file and nine ways, each for its own reason: the
+  merged-head rule, the reset-to-default fallback, `set -f`, the protected skip, the
+  default branch read past the listing, the open-as-base rule, the delete's tip re-check,
+  its default/`KEEP` refusal, and its no-tip refusal.

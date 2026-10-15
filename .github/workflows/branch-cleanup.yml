@@ -1,13 +1,18 @@
-# Deletes the merged branches agents leave behind: the work lane's `work/<date>[letter]` (one integration branch per
-# slice) and `work/<date>[letter]-<issue>-<slug>` (one per item), the sweep set's `sweep/<date>[-n]`, and an agent
-# session's `claude/<name>`. A session cannot delete a ref, so a person dispatches this, by hand only. `dry_run`
-# (default true) prints the plan and deletes nothing; a person reads it, then runs it again with dry_run off.
+# Deletes merged branches that carry nothing new since their merge, whatever their names (#170). The everyday path is
+# the repository's own "Automatically delete head branches" setting; this is the baseline sweep for what that misses
+# (branches merged before it was on, or merged some other way), run a few times under a person's watch. A session
+# cannot delete a ref, so a person dispatches this, by hand only. `dry_run` (default true) prints the plan and deletes
+# nothing; a person reads it, then runs it again with dry_run off.
 #
-# Planned for deletion: a branch under PREFIXES whose tip the default branch holds, that a merged pull request came
-# from, and that no open pull request still uses as its head or its base, so a slice in flight (an integration branch
-# just cut, an item branch with no commit yet) is kept. Everything else is listed as kept. A failed read fails the run.
-# The plan reads with the run's own token; only the delete job holds `contents: write`, and it runs only with dry_run
-# off. No action and no checkout: the GitHub CLI on the runner calls the REST API, and nothing of the branches' code runs.
+# Planned for deletion: a branch that is not the default branch, not protected and not under KEEP; that a merged pull
+# request came from; that has nothing new since that merge (its tip is the head of a merged pull request from it, which
+# holds after a squash, or the default branch holds its tip); and that no open pull request uses as its head or base.
+# Everything else is listed as kept, with why; a branch with a commit after its merge has moved off the merged head and
+# is kept. The plan names branch@sha: the delete reads each branch again and skips one that moved or became protected
+# since the plan (the API has no conditional delete), and refuses the default branch or a KEEP name before deleting
+# anything. A failed read fails the run. The plan reads with the run's own token; only the delete job holds
+# `contents: write`, and it runs only with dry_run off. No action and no checkout: the GitHub CLI on the runner calls
+# the REST API, and nothing of the branches' code runs.
 name: branch-cleanup
 on:
   workflow_dispatch:
@@ -19,7 +24,7 @@ on:
 permissions: { contents: read }
 concurrency: { group: branch-cleanup, cancel-in-progress: false }
 env:
-  PREFIXES: work/ sweep/ claude/
+  KEEP: gh-pages release/*   # glob patterns of long-lived branches the sweep never reads past the listing
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -33,25 +38,36 @@ jobs:
         env: { DRY_RUN: '${{ inputs.dry_run }}' }
         run: |
           set -euo pipefail
+          set -f   # KEEP's patterns are matched by case, never expanded against files
           repo="$GITHUB_REPOSITORY"
-          ours() { for p in $PREFIXES; do case "$1" in "$p"?*) return 0;; esac; done; return 1; }
           default=$(gh api "repos/$repo" --jq .default_branch)
+          keep() { [ "$1" = "$default" ] && return 0; for p in $KEEP; do case "$1" in $p) return 0;; esac; done; return 1; }
           merged=() kept=()
-          branches=$(gh api --paginate "repos/$repo/branches?per_page=100" --jq '.[].name')   # a failed read fails the run
-          for b in $branches; do
-            ours "$b" || continue
-            # behind or identical: every commit on the branch is in the default branch
-            status=$(gh api "repos/$repo/compare/$default...$b" --jq .status)
-            done_prs=$(gh api --paginate "repos/$repo/pulls?state=closed&head=${repo%%/*}:$b&per_page=100" --jq '.[] | select(.merged_at) | .number' | wc -l)
+          listing=$(gh api --paginate "repos/$repo/branches?per_page=100" --jq '.[] | "\(.name) \(.protected) \(.commit.sha)"')   # a failed read fails the run
+          while read -r b protected tip <&3; do   # fd 3, so nothing in the loop can read the listing
+            [ -n "$b" ] || continue
+            if keep "$b"; then kept+=("$b (the default branch or under KEEP)"); continue; fi
+            if [ "$protected" = true ]; then kept+=("$b (protected)"); continue; fi
+            heads=$(gh api --paginate "repos/$repo/pulls?state=closed&head=${repo%%/*}:$b&per_page=100" --jq '.[] | select(.merged_at) | .head.sha')
             open_head=$(gh api --paginate "repos/$repo/pulls?state=open&head=${repo%%/*}:$b&per_page=100" --jq '.[].number' | wc -l)
             open_base=$(gh api --paginate "repos/$repo/pulls?state=open&base=$b&per_page=100" --jq '.[].number' | wc -l)
-            if { [ "$status" = behind ] || [ "$status" = identical ]; } && [ "$done_prs" -gt 0 ] && [ "$open_head" -eq 0 ] && [ "$open_base" -eq 0 ]; then
-              merged+=("$b")
-            else
-              kept+=("$b ($status from $default; merged PRs $done_prs, open as head $open_head, as base $open_base)")
+            done_prs=$(grep -c . <<< "$heads" || true)
+            # nothing new since the merge: the tip is a merged pull request's head (a squash too), or the default branch holds it
+            since=moved
+            if [ "$done_prs" -gt 0 ]; then
+              if grep -qx "$tip" <<< "$heads"; then since=merged-head
+              else
+                status=$(gh api "repos/$repo/compare/$default...$b" --jq .status)
+                { [ "$status" = behind ] || [ "$status" = identical ]; } && since="$status"
+              fi
             fi
-          done
-          echo "default branch: $default; prefixes: $PREFIXES"
+            if [ "$done_prs" -gt 0 ] && [ "$since" != moved ] && [ "$open_head" -eq 0 ] && [ "$open_base" -eq 0 ]; then
+              merged+=("$b@$tip")
+            else
+              kept+=("$b (merged PRs $done_prs; since the merge: $since; open as head $open_head, as base $open_base)")
+            fi
+          done 3<<< "$listing"
+          echo "default branch: $default; kept by name: $KEEP"
           echo "merged, to delete (${#merged[@]}):"
           for b in "${merged[@]+"${merged[@]}"}"; do echo "  $b"; done
           echo "kept (${#kept[@]}):"
@@ -70,12 +86,20 @@ jobs:
         env: { MERGED: '${{ needs.plan.outputs.merged }}' }
         run: |
           set -euo pipefail
-          ours() { for p in $PREFIXES; do case "$1" in "$p"?*) return 0;; esac; done; return 1; }
-          # the plan names branches under PREFIXES alone; anything else means the plan is not this workflow's: delete nothing
-          for b in $MERGED; do ours "$b" || { echo "::error::$b is under none of $PREFIXES; nothing deleted"; exit 1; }; done
-          n=0
-          for b in $MERGED; do
+          set -f   # KEEP's patterns are matched by case, never expanded against files
+          default=$(gh api "repos/$GITHUB_REPOSITORY" --jq .default_branch)
+          keep() { [ "$1" = "$default" ] && return 0; for p in $KEEP; do case "$1" in $p) return 0;; esac; done; return 1; }
+          # the plan names branch@sha and never the default branch or a KEEP name; anything else is not this workflow's plan: delete nothing
+          for e in $MERGED; do
+            case "$e" in *@*) ;; *) echo "::error::$e names no planned tip; nothing deleted"; exit 1;; esac
+            keep "${e%@*}" && { echo "::error::${e%@*} is the default branch or under KEEP; nothing deleted"; exit 1; }
+          done
+          n=0 skipped=0
+          for e in $MERGED; do
+            b=${e%@*} planned=${e##*@}
+            now=$(gh api "repos/$GITHUB_REPOSITORY/branches/$b" --jq '"\(.commit.sha) \(.protected)"')
+            if [ "$now" != "$planned false" ]; then echo "kept $b: it moved or became protected since the plan ($now)"; skipped=$((skipped + 1)); continue; fi
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$b" --silent
             echo "deleted $b"; n=$((n + 1))
           done
-          echo "deleted $n branch(es)"
+          echo "deleted $n branch(es); kept $skipped that changed since the plan"
