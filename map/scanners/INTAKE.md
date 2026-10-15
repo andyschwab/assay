@@ -88,7 +88,7 @@ A candidate is adopted (its `adopted: false` removed) when the roster shows all 
   scanner, so the roster states what it costs beside what it finds.
 
 Adoption is one change that removes `adopted: false`, adds the fixture runs and
-their answers, re-blesses the roster pin and adds a `HISTORY.md` entry.
+their answers and re-blesses the roster pin.
 
 ## Retirement
 

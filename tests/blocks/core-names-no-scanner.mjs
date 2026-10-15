@@ -4,7 +4,7 @@
 // accepts, its scoring method) is read off its adapter. The scanner ids come from
 // the adapters directory, adopted and retired alike; a scanner the core itself
 // implements (map/<id>.mjs, or the method map/METHOD.md names) is the core's own and
-// is exempt. (b) No file outside HISTORY.md, SECURITY.md and the fixtures names an
+// is exempt. (b) No file outside SECURITY.md and the fixtures names an
 // operator or an integration's project. The operator's organisation and repository
 // names are held as SHA-256 digests of the lowercased word, so this public file
 // does not name them either.
@@ -70,12 +70,12 @@ export async function run() {
     for (const f of allowed) if (!naming.includes(f)) fail(`PENDING lists ${f} for ${id}, which no longer names it: remove the entry`);
   }
 
-  // (b) no operator or integration project is named outside the history, the security
-  // contact and the fixtures
+  // (b) no operator or integration project is named outside the security contact and
+  // the fixtures
   let tracked;
   try { tracked = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n'); }
   catch (e) { fail(`git ls-files failed: ${e.message}`); return; }
-  const skip = (f) => f === 'HISTORY.md' || f === 'SECURITY.md' || f === SELF || f.startsWith('tests/fixtures/') || f === 'package-lock.json';
+  const skip = (f) => f === 'SECURITY.md' || f === SELF || f.startsWith('tests/fixtures/') || f === 'package-lock.json';
   const digest = (w) => createHash('sha256').update(w).digest('hex');
   const named = new Set();
   for (const f of tracked.filter((x) => x && !skip(x))) {

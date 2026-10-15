@@ -4,7 +4,8 @@
 - Run `npm test` before opening a pull request. It is the regression harness and
   it fails closed; `npm run lint` and `npm run typecheck` run in CI beside it.
 - A new assertion is confirmed red with its rule reverted before it is trusted,
-  and the change's `HISTORY.md` entry says so (`CLAUDE.md` § How a change lands).
+  and the pull request body and the commit message say so (`CLAUDE.md` § How a
+  change lands).
 - A change that moves a pinned score re-blesses `tests/golden.json` in the same
   commit, with the reason. A failing unit or negative assertion is never
   re-blessed.
