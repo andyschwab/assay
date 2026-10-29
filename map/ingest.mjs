@@ -58,7 +58,7 @@ import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapters } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
-import { setScannerRow, updateRunRecord } from './record.mjs';
+import { setScannerRow, updateRunRecord, remeasure } from './record.mjs';
 import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
 import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS } from './fresh-clone.mjs';
 import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs';
@@ -1180,4 +1180,5 @@ if (isMain(import.meta.url)) {
     updateRunRecord(mPath, (before) => setScannerRow(before, tool, 'ran', { model: model ?? undefined }).text);
     console.log(`✓ recorded ${tool} ran in map/scanners.yaml`);
   }
+  remeasure(runDir, 'ingest');
 }

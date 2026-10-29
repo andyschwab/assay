@@ -171,6 +171,7 @@ node assay.mjs ingest <run> --tool deep-code-review --raw dcr-report.yaml
 #   ingesting a report also flips that scanner's row to ran in map/scanners.yaml
 node assay.mjs record <run> repo-eval ran --model <id>             # or record one directly (no report to ingest)
 #   --pass <pass> records the model (and --spend) of one repo-eval pass
+#   either one measures an already-compiled run again (yardstick.yaml follows the map)
 node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed
 
 # measure and write every view from the same map
@@ -178,6 +179,7 @@ node assay.mjs compile <run> [--target <target>]
 
 # what changed since a previous run, and holding the line on it
 node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
+node assay.mjs migrate-run <prev-run> [--write]              # a baseline written before the strict YAML reader: quote what it refuses
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
 ```
 

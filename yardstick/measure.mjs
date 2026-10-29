@@ -443,6 +443,17 @@ export function toYaml(rows, runName) {
   return L.join('\n') + '\n';
 }
 
+// A run already measured is measured again when its map changes (#184): ingest and
+// record change the findings or the run record, and a stored measurement left as the
+// last compile wrote it reads as drift at the next compile's validate. A run never
+// measured stays unmeasured; a hand edit of the file is still drift (map/validate.mjs).
+export function remeasureIfMeasured(dir) {
+  const out = yardstickPath(dir);
+  if (!existsSync(out)) return null;
+  writeFileSync(out, toYaml(projectRun(dir), dir.split('/').filter(Boolean).pop()));
+  return out;
+}
+
 if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const packetIdx = args.indexOf('--packet');
