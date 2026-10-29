@@ -455,6 +455,9 @@ coverage:
     status: partial
     note: "mutating routes and webhook handlers only"
 prior_not_rechecked: []
+rejected:                     # present only when the reviewer withdrew a row (verdict rejected)
+  - id: "F7"
+    reason: "the router-level middleware covers it"
 ```
 
 The validator requires a row for every domain the adapter's `coverage_domains`

@@ -670,6 +670,10 @@ const FC_CLAIM_NOUN = { 'npm-script': 'package script', 'npx-bin': 'binary (a de
 // the scanner's confidence labels → the port's closed vocab (SCHEMA §2)
 const DCR_CONFIDENCE = { CONFIRMED: 'confirmed', CORROBORATED: 'confirmed', PLAUSIBLE: 'plausible', unverified: 'unverified' };
 const DCR_PRIOR_STATUS = ['fixed', 'still-open', 'changed'];
+// a gap row's optional strict verdict (1.609+): confirmed is ranked and carries the severity;
+// needs_validation is a question (blockers + validation_plan, no severity); rejected is the
+// reviewer's own withdrawal (reject_reason, no severity) and never becomes a row
+const DCR_VERDICT = ['confirmed', 'needs_validation', 'rejected'];
 // dotted numeric versions ("1.128.0"): true when a sorts before b
 const versionBelow = (a, b) => {
   const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
@@ -782,17 +786,37 @@ const FORMATS = {
         if (row.status !== 'scanned' && !(row.note && String(row.note).trim())) throw new Error(`coverage.${l}: ${row.status} needs a note — a skip without one is indistinguishable from an omission`);
       }
       if (!Array.isArray(rep.findings)) throw new Error('machine report findings: must be a list (an empty list with full coverage is a recorded clean run)');
+      // the skill's merge step moves needs_validation rows out of findings into their own
+      // top-level list; read there, they are the same questions and are never dropped
+      if (rep.needs_validation !== undefined && rep.needs_validation !== null && !Array.isArray(rep.needs_validation)) throw new Error('machine report needs_validation: must be a list of rows');
+      const asked = (rep.needs_validation || []).map((f) => (f && typeof f === 'object' && f.verdict === undefined) ? { ...f, verdict: 'needs_validation' } : f);
+      for (const f of asked) if (f && typeof f === 'object' && f.verdict !== 'needs_validation') throw new Error(`needs_validation row ${f.id || '?'}: verdict "${f.verdict}" in the needs_validation list`);
       const rows = /** @type {any} */ ([]); let n = 0;
-      for (const f of rep.findings) {
+      const rejected = /** @type {{id: string, reason: string}[]} */ ([]);
+      const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
+      for (const f of [...rep.findings, ...asked]) {
         const at = `finding ${(f && f.id) || '#' + (n + 1)}`;
         if (!f || typeof f !== 'object') throw new Error(`${at}: not a map`);
+        // the verdict is read on gap rows only, as upstream reads it
+        const verdict = f.polarity === 'strength' || f.verdict === undefined ? null : String(f.verdict);
+        if (verdict !== null && !DCR_VERDICT.includes(verdict)) throw new Error(`${at}: bad verdict "${verdict}" (${DCR_VERDICT.join(' | ')})`);
+        if (verdict !== null && verdict !== 'confirmed' && f.severity) throw new Error(`${at}: a ${verdict} row carries no severity (only a confirmed row is ranked)`);
+        if (verdict === 'rejected') {
+          if (!nonEmpty(String(f.id ?? ''))) throw new Error(`${at}: a rejected row needs its id, so the withdrawal is named`);
+          if (!nonEmpty(f.reject_reason)) throw new Error(`${at}: a rejected row needs reject_reason`);
+          rejected.push({ id: String(f.id), reason: oneLine(f.reject_reason) });
+          continue;
+        }
+        const question = verdict === 'needs_validation';
+        if (question && !(Array.isArray(f.blockers) && f.blockers.length && f.blockers.every(nonEmpty))) throw new Error(`${at}: a needs_validation row needs blockers, a non-empty list of what stands open`);
+        if (question && !nonEmpty(f.validation_plan)) throw new Error(`${at}: a needs_validation row needs validation_plan`);
         for (const k of ['id', 'area', 'polarity', 'observation', 'evidence']) if (f[k] === undefined || f[k] === null || f[k] === '') throw new Error(`${at}: missing ${k}`);
         if (!['gap', 'strength'].includes(f.polarity)) throw new Error(`${at}: bad polarity "${f.polarity}" (gap | strength)`);
         if (!Array.isArray(f.evidence) || !f.evidence.length) throw new Error(`${at}: evidence must be a non-empty list of file:line`);
-        if (f.polarity === 'gap' && !f.severity) throw new Error(`${at}: a gap row needs a severity`);
-        if (f.polarity === 'gap' && !(f.fix && String(f.fix).trim())) throw new Error(`${at}: a gap row needs a fix — a gap without one cannot be acted on`);
+        if (f.polarity === 'gap' && !question && !f.severity) throw new Error(`${at}: a gap row needs a severity`);
+        if (f.polarity === 'gap' && !question && !(f.fix && String(f.fix).trim())) throw new Error(`${at}: a gap row needs a fix — a gap without one cannot be acted on`);
         if (f.polarity === 'strength' && f.severity) throw new Error(`${at}: a strength row carries no severity (never file a strength as a ${f.severity})`);
-        if (String(f.confidence) === 'unverified' && !(f.resolves_with && String(f.resolves_with).trim())) throw new Error(`${at}: an unverified row needs resolves_with — the artifact that would settle it`);
+        if (!question && String(f.confidence) === 'unverified' && !(f.resolves_with && String(f.resolves_with).trim())) throw new Error(`${at}: an unverified row needs resolves_with — the artifact that would settle it`);
         if (f.prior_status && !f.prior_id) throw new Error(`${at}: prior_status without prior_id — the row it re-verifies is not named`);
         if (f.prior_status && !DCR_PRIOR_STATUS.includes(String(f.prior_status))) throw new Error(`${at}: bad prior_status "${f.prior_status}" (${DCR_PRIOR_STATUS.join(' | ')})`);
         if (f.prior_status === 'fixed' && f.polarity !== 'strength') throw new Error(`${at}: a prior finding re-verified fixed is filed as a strength row, not a ${f.polarity}`);
@@ -817,6 +841,15 @@ const FORMATS = {
         if (f.latent === true) row.latent = true;
         if (f.mechanism_unproven === true) row.mechanism_unproven = true;
         if (f.resolves_with) row.resolves_with = oneLine(f.resolves_with);
+        if (verdict) row.native_verdict = verdict;
+        // a question, not a ranked finding: unverified whatever its tier, settled by its own
+        // plan, its blockers stated in the observation, and its first act the validation
+        if (question) {
+          row.confidence = 'unverified';
+          row.observation = `${row.observation} Open before it can be ranked: ${f.blockers.map(oneLine).join('; ')}.`;
+          if (!row.resolves_with) row.resolves_with = oneLine(f.validation_plan);
+          if (!row.fix) row.fix = `Validate before changing anything: ${oneLine(f.validation_plan)}`;
+        }
         if (f.prior_id) { row.prior_native_id = String(f.prior_id); if (f.prior_status) row.prior_status = String(f.prior_status); }
         if (Array.isArray(f.compounds) && f.compounds.length) row.compounds_native = f.compounds.map(String);
         rows.push(row);
@@ -827,6 +860,7 @@ const FORMATS = {
         ground_truth: (rep.ground_truth && typeof rep.ground_truth === 'object') ? rep.ground_truth : {},
         coverage: cov,
         prior_not_rechecked: Array.isArray(rep.prior_not_rechecked) ? rep.prior_not_rechecked.map(String) : [],
+        rejected,
       };
       return rows;
     },
@@ -906,6 +940,7 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
     if (r.native_tag) out.push(`  native_tag: ${q(esc(r.native_tag))}`);
     if (r.confidence) out.push(`  confidence: ${r.confidence}`);
     if (r.native_confidence) out.push(`  native_confidence: ${r.native_confidence}`);
+    if (r.native_verdict) out.push(`  native_verdict: ${r.native_verdict}`);
     if (r.latent) out.push(`  latent: true`);
     if (r.mechanism_unproven) out.push(`  mechanism_unproven: true`);
     if (r.resolves_with) out.push(`  resolves_with: ${q(esc(r.resolves_with))}`);
@@ -939,6 +974,8 @@ function coverageYaml(c) {
   emitMap('ground_truth', c.ground_truth || {}, 0);
   emitMap('coverage', c.coverage || {}, 0);
   out.push(`prior_not_rechecked: [${(c.prior_not_rechecked || []).map((x) => q(oneLine(x))).join(', ')}]`);
+  // the rows the reviewer itself withdrew (verdict rejected): named here, never filed as gaps
+  if (c.rejected && c.rejected.length) { out.push('rejected:'); for (const r of c.rejected) out.push(`  - id: ${q(oneLine(r.id))}`, `    reason: ${q(oneLine(r.reason))}`); }
   return out.join('\n') + '\n';
 }
 
