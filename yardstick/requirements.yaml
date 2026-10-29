@@ -354,7 +354,8 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: ci-gate
-    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error, or a run script that swallows its own non-zero exit with `|| true` / `|| exit 0` / `|| :` / `set +e`); whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
+      not_measured_when: ci-gate-unverifiable
+    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error, or a run script that swallows its own non-zero exit with `|| true` / `|| exit 0` / `|| :` / `set +e`); a `set +e` that reads the exit status and exits non-zero on it, or hands it through $GITHUB_OUTPUT to a later step of the same job that exits non-zero under an if: on it, does not fail open, and one whose hand-on the census cannot follow reads not-measured, never met; whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
     sources: [floor/v-ci, foundation/branch-protection]
     status: draft
     owner:

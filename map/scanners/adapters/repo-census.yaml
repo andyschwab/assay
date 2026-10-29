@@ -41,6 +41,8 @@ map:
     axis: artifact-legibility
   ci-gate:                       # a verification gate exists on the default branch and holds
     axis: deterministic-gates
+  ci-gate-unverifiable:          # a FACT row: a gate's `set +e` reads the status, but where it goes the
+    axis: deterministic-gates    #   census cannot follow (#166); decides d-ci-gate-on-default-branch not-measured
   # The six owner-evidence checks decide requirements whose topic is operability or
   # reproducibility, which no axis measures; their rows land on the nearest axis so the
   # axis walk shows them, and the yardstick reports them under their own topic.

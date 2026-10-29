@@ -3,9 +3,9 @@
     "notesbox/corroboration": {
       "corroborated": 3,
       "facts": [
-        "artifact-legibility::gap::files:README.md|package.json:: <- F-002,F-1000",
-        "code-security::gap::files:config/settings.mjs:: <- F-1003,F-700",
-        "delegation::gap::files:lib/agent.mjs:: <- F-051,F-1002,F-1005"
+        "artifact-legibility::gap::files:README.md|package.json:: <- F-002,F-1007",
+        "code-security::gap::files:config/settings.mjs:: <- F-1011,F-700",
+        "delegation::gap::files:lib/agent.mjs:: <- F-051,F-1002"
       ]
     },
     "notesbox": {
@@ -40,7 +40,7 @@
         "unique_recoveries": [
           "fixtures-root/R-02"
         ],
-        "corroborated": 4,
+        "corroborated": 3,
         "fails_loud": "dcr-machine-report"
       },
       "dependency-scan": {
@@ -89,7 +89,7 @@
           "fixtures-root/R-I9",
           "fixtures-root/R-S1"
         ],
-        "corroborated": 1,
+        "corroborated": 0,
         "fails_loud": "repo-census"
       },
       "repo-eval": {
@@ -145,10 +145,12 @@
       ]
     },
     "fixtures-root/requirements": {
-      "agree": 33,
-      "disagree": 0,
+      "agree": 32,
+      "disagree": 1,
       "out_of_scope": 0,
-      "disagreements": []
+      "disagreements": [
+        "d-dependencies-pinned"
+      ]
     }
   }
 }

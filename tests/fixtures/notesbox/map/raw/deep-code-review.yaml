@@ -1,31 +1,36 @@
 review:
   tool: deep-code-review
-  skill_version: "1.479.0"
-  date: 2026-10-07
+  skill_version: "1.609.0"
+  date: 2026-10-29
   scope: FULL
   base_ref: null
-  start_sha: b1e5797
+  start_sha: 26ab0027c6d7e90f4e36a36bbcb692e5945bde89
   target: "flawed-webapp"
-  archetype: api
-  stage: UNVERIFIED
+  archetype: agent
+  stage: mvp
   prior: null
 
 ground_truth:
   build: ok
-  tests: ok
-  host_ci: unverified
+  install: ok
+  tests: failed
+  host_ci: no-ci
   gate_self_test: not-proven
   lint_type_scan: not-run
-  authz_posture: "5 entry points · anon probed 5 · two-principal 2 (/notes, /admin/purge) · untested: none"
+  authz_posture: "5 entry points · anon probed 5 · two-principal 1 (GET /notes) · untested: none"
   parity_coverage: "N/A"
-  pipeline_run: not-run
+  pipeline_run: ok
   notes:
-    - "build: no build step declared; node --check passes on every .mjs file"
-    - "tests: node test/smoke.mjs exits 0; package.json declares no test script, and the README's npm run test:all does not exist"
-    - "host_ci: the target carries no CI of its own; the repository root's workflow runs the smoke suite, its run status was not read"
-    - "gate_self_test: the smoke suite stays green with the fail-open authenticate() (F2) in the tree, so the gate is proven not to catch it"
-    - "lint_type_scan: no lint, format, typecheck or scan is declared"
-    - "pipeline_run: no deploy pipeline in the target"
+    - "build: no build step declared; zero dependencies; npm install exit 0 in a detached scratch worktree (it generated an uncommitted package-lock.json there; the tree under review has none)"
+    - "tests: the documented command (README.md:32, npm run test:all) fails with 'Missing script'; npm test also fails (no test script). Running the file directly (node test/smoke.mjs) prints 'smoke: ok', exit 0, 1 assertion"
+    - "gate_self_test: planted defect A (token lookup replaced by null in lib/auth.mjs) -> smoke stays green, exit 0, so the only test cannot detect an auth regression; planted defect B (throw in authenticate) -> exit 1. Both reverted and the revert confirmed with git status in the scratch worktree"
+    - "lint_type_scan: no linter, formatter, type checker or scanner is declared; node --check passed on all 8 .mjs files; gitleaks and semgrep are not installed, so secret detection was a manual read of every file (config/settings.mjs:6 found)"
+    - "host_ci: the target has no CI of its own; the repository-level workflow (outside this scope, not reviewed) does not mention targets/flawed-webapp (grep, 0 matches)"
+    - "pipeline_run: the server was imported in-process on an ephemeral port with globalThis.fetch stubbed, so POST /sync never sent the embedded key off-box; all 5 routes probed anonymously and with two member tokens"
+    - "route census: GET /notes (server.mjs:30), POST /notes (server.mjs:35), POST /assistant (server.mjs:42), POST /sync (server.mjs:47), POST /admin/purge (server.mjs:52); every route resolves identity via authenticate (server.mjs:27), which never rejects; the only authorization checks are the owner filter at server.mjs:31 and requireAdmin at routes/admin.mjs:7"
+    - "data-store census: users array with emails and roles (lib/db.mjs:2); notes Map with free text (lib/db.mjs:8); bearer token table (lib/db.mjs:13); assistant prompt carrying all notes and owner emails (lib/agent.mjs:12); outbound email body with all notes (lib/agent.mjs:38); stdout mail log with recipient and subject (lib/mailer.mjs:7); remote backup service holding every note (lib/sync.mjs:6); purgeAll (lib/db.mjs:27) reaches notes and users[].notes only"
+    - "stage: mvp named from evidence: version 0.3.1 (package.json:3), ADR-0001 'ship a demo this quarter', no CI, no deploy config; stage changes urgency only, no severity was relaxed"
+    - "evidence re-resolution: every evidence path:line resolved against the tree at start_sha; 0 dropped"
 
 coverage:
   A:
@@ -42,6 +47,7 @@ coverage:
     status: scanned
   G:
     status: scanned
+    note: "single Node event loop over module-level Maps; the only await before a write is readBody; races reduce to the id collision in F18"
   H:
     status: scanned
   I:
@@ -50,10 +56,12 @@ coverage:
     status: scanned
   K:
     status: scanned
-    note: "package.json and the absence of a lockfile read (zero dependencies); the CI workflow lives at the repository root, outside this target, and is reviewed in the root run"
+    note: "the target has no workflows, lockfile, engines field or update-bot config; repository-root .github/workflows is outside this scope and was not reviewed beyond a grep for the target's name"
   L:
     status: not-applicable
-    note: "no IaC, containers, or cloud config in the target"
+    probe: "git ls-files . | grep -iE 'docker|terraform|\\.tf$|k8s|helm|serverless'"
+    fact: "0 matches"
+    note: "no IaC, container or cloud config in the target; the VPC claim at lib/sync.mjs:7 is covered under F9"
   M:
     status: scanned
   N:
@@ -62,279 +70,644 @@ coverage:
     status: scanned
   P:
     status: not-applicable
-    note: "no frontend or UI; the target serves JSON only"
+    probe: "git grep -nIE '<html|\\.jsx|\\.tsx|aria-|innerHTML' -- . ':!ANSWERS.yaml'"
+    fact: "0 matches"
+    note: "JSON API only; no rendered UI, templates or static assets"
   Q:
     status: scanned
   R:
-    status: not-applicable
-    note: "no locale, encoding or localized text handling beyond JSON strings"
+    status: scanned
+    note: "small surface: free-text notes, email subject, a byte-count log label; no locale, formatting or normalization code (grep for Intl, toLocale, normalize: 0 matches)"
   S:
-    status: not-applicable
-    note: "the target is a subdirectory of the fixtures repository; branch and open-work triage is repository-level, read in the root run"
+    status: scanned
+    note: "branch triage is repository-wide: after git fetch --prune, main plus 2 remote branches, both 0 commits ahead of main and neither touches this target; open PRs were not queried"
   T:
     status: not-applicable
-    note: "one workspace per deployment; no tenant boundary in the code"
+    probe: "git grep -nIE 'tenant|org_id|orgId' -- . ':!ANSWERS.yaml'"
+    fact: "0 matches"
+    note: "one workspace per deployment; the isolation unit is the user, and cross-user leakage is covered under B (F1, F5, F16)"
   W:
     status: not-applicable
-    note: "no cron, queue, or multi-step workflow; /sync is a request-scoped call"
+    probe: "git grep -nIE 'cron|setInterval|setTimeout|queue|schedule' -- . ':!ANSWERS.yaml'"
+    fact: "0 matches"
+    note: "no scheduler, queue or worker; the backup push is a request-triggered call, reviewed under F (F9)"
 
 findings:
   - id: F1
-    title: "Documented test command does not exist"
-    area: O
-    tag: "docs drift; won't test as documented"
-    severity: Blocker
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      The README's Testing section says to run npm run test:all, but package.json declares only a start script, so the documented test command fails.
-    evidence:
-      - README.md:32
-      - package.json:6
-    fix: >
-      Declare "test": "node test/smoke.mjs" in package.json and document npm test.
-  - id: F2
-    title: "authenticate() fails open to an admin identity"
+    title: "Authentication fails open to an admin identity, so every route including the workspace purge is anonymous"
     area: B
-    tag: "A07 identification and authentication failures; CWE-287; fail-open"
+    tag: "A07/A01 · CWE-306 · CWE-636"
     severity: Critical
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      Any request with a missing or unknown bearer token resolves to a default identity with role admin; probed, POST /admin/purge with a bogus token returned 200 and cleared every note.
+      authenticate() returns a role 'admin' default identity for a missing or
+      unknown token, and requireAdmin() only checks that role. Probe: POST
+      /admin/purge with no Authorization header returned 200 {"purged":true}
+      and Dana's notes were then gone; anonymous POST /notes and POST
+      /assistant also succeed.
     evidence:
       - lib/auth.mjs:12
-      - lib/auth.mjs:8
+      - lib/auth.mjs:16
+      - server.mjs:27
       - routes/admin.mjs:7
+      - lib/db.mjs:28
+    snippet: "return { id: 'default', role: 'admin', email: 'unknown@notesbox.example', notes: [] };"
     fix: >
-      Return null for an unknown or missing token and answer 401 in the server before any route runs; never synthesize an identity, least of all an admin one.
-    compounds: [F5, F6]
-  - id: F3
-    title: "Assistant sends email on a directive parsed from untrusted note content"
-    area: C
-    tag: "LLM01 prompt injection; LLM06 excessive agency; lethal trifecta"
-    severity: Critical
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      ask() parses a TOOL:send_email line out of the model's reply and sends the whole workspace's notes to the named recipient with no confirmation; probed, a note planted by an anonymous caller made a member's /assistant call email every note to the injected address.
-    evidence:
-      - lib/agent.mjs:39
-      - lib/agent.mjs:35
-      - lib/agent.mjs:19
-    fix: >
-      Do not act on directives in model output: return a drafted email for the user to confirm, restrict recipients to the asker's own address or an allow-list, and keep untrusted note text out of the instruction channel.
-    compounds: [F2, F6]
-  - id: F4
-    title: "Backup service API key committed in source"
+      Make authenticate() return null on a missing or unknown token and have
+      the server answer 401 before any route runs (deny by default). If ops
+      tooling needs access, issue it a real admin token. Add negative tests:
+      no token gives 401 on every route; a member token gives 403 on
+      /admin/purge.
+    compounds: [F4, F3]
+  - id: F2
+    title: "Backup service API key is hard-coded in committed source"
     area: N
-    tag: "secret in source; CWE-798; S0"
+    tag: "secrets · CWE-798 · S0"
     severity: Critical
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      config/settings.mjs carries a literal backup-service bearer credential in a public repository (value not echoed here).
+      config/settings.mjs:6 holds a credential-shaped API key (prefixed
+      token, about 40 characters) under a 'move to env before launch' TODO,
+      and lib/sync.mjs sends it as a bearer header. It is in git history (1
+      commit touches the file), so deleting the line does not clean it up.
     evidence:
       - config/settings.mjs:6
+      - config/settings.mjs:5
+      - lib/sync.mjs:10
+    snippet: "backupApiKey:"
     fix: >
-      Rotate the key, read it from the environment or a secret manager at boot, and fail closed when it is absent.
-  - id: F5
-    title: "POST /sync has no authorization check"
-    area: B
-    tag: "A01 broken access control; CWE-862"
-    severity: High
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      Any caller, authenticated or not, can make the server push every user's notes to the external backup service under the service's own key; probed, an anonymous POST /sync triggered the outbound push of all notes.
-    evidence:
-      - lib/sync.mjs:8
-      - server.mjs:47
-    fix: >
-      Require an authenticated admin (after F2 is fixed) before pushBackup runs, and rate-limit the route.
-    compounds: [F2, F4]
-  - id: F6
-    title: "Assistant prompt and email body carry every user's notes"
+      Rotate the key at the backup provider now. Read it from
+      process.env.BACKUP_API_KEY, fail at startup when it is missing, and
+      commit a .env.example without a value. The owner decides whether to
+      rewrite history; rotation is required either way.
+  - id: F3
+    title: "Text in any note can make the assistant email every note in the workspace to an outside address"
     area: C
-    tag: "LLM02 sensitive information disclosure; A01 broken access control"
+    tag: "LLM01 indirect prompt injection · LLM02 · LLM06 excessive agency"
+    severity: Critical
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      buildPrompt puts every user's notes and the raw question into one
+      unfenced prompt; ask() parses a TOOL:send_email line out of the model's
+      output and emails all notes' text to the recipient it names, with no
+      recipient allowlist, no confirmation and no authorization check. Probe:
+      Dana saved a note containing the directive with an outside address; when
+      Sam then asked an innocent question, the response was
+      {"emailed":"<outside address>"} and the mailer logged the send.
+    evidence:
+      - lib/agent.mjs:35
+      - lib/agent.mjs:38
+      - lib/agent.mjs:39
+      - lib/agent.mjs:12
+      - lib/agent.mjs:19
+    snippet: "const tool = answer.match(/^TOOL:send_email (\\S+) (\\S+)$/m);"
+    fix: >
+      Treat model output as untrusted. Accept a tool call only as a
+      schema-validated structured value. Allow recipients only from the
+      workspace's users (or require the user to confirm the send). Build the
+      email body from the caller's own notes only, never the whole Map. Fence
+      note text and the question as data in the prompt. Add a test where a
+      note carries a directive and the send is refused.
+    compounds: [F1, F5]
+  - id: F4
+    title: "POST /sync has no authorization check and pushes every note to the backup host"
+    area: B
+    tag: "A01 · CWE-862"
     severity: High
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      buildPrompt() and the email body read all notes in the workspace, not the asker's, so any member's question puts other members' private notes and email addresses into the model context and any outbound email.
+      The handler calls pushBackup() with no identity or role check (its own
+      comment says so), and pushBackup serializes every note. Probe:
+      anonymous POST /sync returned 200 {"ok":true,"pushed":4} and made one
+      outbound call carrying the bearer key (fetch was stubbed).
+    evidence:
+      - server.mjs:49
+      - server.mjs:48
+      - lib/sync.mjs:6
+    snippet: "return send(res, 200, await pushBackup());"
+    fix: >
+      Gate /sync with requireAdmin once F1 is fixed, or remove the route and
+      run backups from a scheduled job. Add a test that member and anonymous
+      callers get 401 or 403.
+    compounds: [F1, F9]
+  - id: F5
+    title: "Assistant prompt and email body include other users' notes and email addresses"
+    area: B
+    tag: "A01 cross-user data exposure · LLM02 sensitive information disclosure"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      GET /notes filters by owner, but the assistant path reads the whole
+      notes Map and the users array without the caller's identity: ask(user,
+      ...) never uses user to scope anything. Any member's question sends
+      every note, tagged with its owner's email, to the model, and the
+      emailed summary carries all notes.
     evidence:
       - lib/agent.mjs:12
+      - lib/agent.mjs:14
       - lib/agent.mjs:38
+    snippet: "const allNotes = [...notes.values()].map((n) => {"
     fix: >
-      Scope the prompt and the email body to notes the asking user owns.
-    compounds: [F3]
-  - id: F7
-    title: "Backup push reports success without awaiting or checking the effect"
-    area: F
-    tag: "silent swallow; effects vs reports; no failure signal (M)"
+      Add a scoped accessor in lib/db.mjs (notesFor(userId)) and use it on
+      both the /notes and /assistant paths. Drop owner emails from the
+      prompt. Add a two-principal test: Sam's assistant prompt never contains
+      Dana's note text.
+    compounds: [F3, F16]
+  - id: F6
+    title: "Erasure does not reach every store holding personal data, and there is no per-person erasure"
+    area: Q
+    tag: "privacy · erasure · retention"
     severity: High
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      pushBackup() fires the POST without awaiting it, swallows every failure with .catch(() => {}), and returns ok true unconditionally; probed with the network refused, /sync still answered ok true with the push count, and nothing was logged.
+      The only deletion path is purgeAll, which clears the notes Map and
+      users[].notes. It leaves user emails and roles, the token table, copies
+      already pushed to the backup service, mail-log lines with recipient
+      addresses, and emailed summaries. No route deletes one note or one user,
+      and no retention period is stated for any store.
+    evidence:
+      - lib/db.mjs:27
+      - lib/db.mjs:29
+      - lib/db.mjs:2
+      - lib/sync.mjs:8
+      - lib/mailer.mjs:7
+    snippet: "export function purgeAll() {"
+    fix: >
+      Write a data-store inventory with a retention period for each store.
+      Add deleteNote and deleteUser (with token revocation) in lib/db.mjs.
+      Send a delete or tombstone to the backup service, or document a bounded
+      backup-retention window plus re-erase on restore. Stop logging
+      recipient addresses (F11).
+  - id: F7
+    title: "The only test passes when authentication is broken, and the README says every endpoint is covered"
+    area: J
+    tag: "decorative test · gate cannot fail"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The smoke suite makes one assertion, that authenticate returns a truthy
+      value for a valid token. The default identity is also truthy, so
+      replacing the token lookup with null kept the suite green (planted
+      defect, exit 0). No route, authorization, assistant or sync behavior is
+      tested.
+    evidence:
+      - test/smoke.mjs:9
+      - test/smoke.mjs:8
+      - README.md:35
+    snippet: "assert.ok(u, 'valid token resolves a user');"
+    fix: >
+      Assert identity (u.id === 'u1'), add an assertion that a missing token
+      is rejected, and add per-route tests over the in-process server: anon
+      401, member 403 on admin, the two-principal swap, prompt-injection
+      refusal, and sync auth. Correct README.md:35 until the tests exist.
+  - id: F8
+    title: "The documented test command does not exist"
+    area: O
+    tag: "one-command setup broken"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      README.md:32 says to run the full suite with npm run test:all;
+      package.json defines only start, so the command fails with 'Missing
+      script' (npm test fails the same way). The suite can run by hand (node
+      test/smoke.mjs), so this is rated High rather than the rubric's Blocker
+      for a test command that does not work as documented.
+    evidence:
+      - README.md:32
+      - package.json:7
+    snippet: "npm run test:all"
+    fix: >
+      Add "test": "node test/smoke.mjs" (and a test:all alias if the README
+      keeps that name) to package.json scripts, and wire it into CI (F15).
+  - id: F9
+    title: "Backup push is fire-and-forget: errors are swallowed and it always reports success"
+    area: F
+    tag: "A10 · fail-open · data loss"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      pushBackup does not await fetch, discards every failure with
+      .catch(() => {}), sets no timeout, and returns {ok:true, pushed:n}
+      before any response arrives. The store is in memory (lost on restart),
+      so a failed backup is silent data loss. The comment's claim that the
+      relay is inside the VPC does not match the public https backupUrl.
     evidence:
       - lib/sync.mjs:12
       - lib/sync.mjs:8
       - lib/sync.mjs:13
+      - lib/sync.mjs:7
+      - config/settings.mjs:4
+    snippet: "}).catch(() => {});"
     fix: >
-      Await the fetch with a timeout, check response.ok, return ok false (and a 502) on failure, and log the failure in its own class.
-  - id: F8
-    title: "Smoke suite never asserts a bad token is rejected"
-    area: J
-    tag: "false-green test; missing negative authorization test"
-    severity: High
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      The only assertion is that a valid token resolves a user; no test checks that a missing or invalid token is refused or that a member cannot reach /admin/purge or /sync, so the suite is green while F2 and F5 stand.
-    evidence:
-      - test/smoke.mjs:9
-    fix: >
-      Add negative tests: no token and a bogus token get 401, a member gets 403 on /admin/purge and /sync; confirm them red against the current authenticate().
-  - id: F9
-    title: "README's endpoint list and coverage claim are wrong"
-    area: O
-    tag: "docs drift"
-    severity: Medium
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      The README says the API exposes 4 endpoints and that every endpoint is covered by the smoke suite; the server also routes POST /admin/purge, and the smoke suite calls no endpoint at all.
-    evidence:
-      - README.md:14
-      - README.md:35
-      - server.mjs:52
-    fix: >
-      List all five routes, including the admin purge, and state what the smoke suite actually checks.
+      Await the fetch with an AbortSignal timeout, check response.ok, return
+      502 with an error class on failure, and log the failure in a distinct
+      class with a metric or alert. Correct or remove the VPC comment.
+    compounds: [F4, F10]
   - id: F10
-    title: "Request body is unbounded and malformed JSON reads as empty"
-    area: F
-    tag: "CWE-400; silent parse failure"
+    title: "No audit or security logging for purge, sync, outbound email or the auth fallback"
+    area: M
+    tag: "A09 · observability"
     severity: Medium
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      readBody() buffers the whole request with no size limit and resolves {} on a parse error, so a large body exhausts memory and a malformed POST /notes silently creates an empty note with 201.
+      The only log lines are the startup banner and the mailer line. A
+      workspace purge, a backup push, a fallback to the default identity and
+      a refused admin call all leave no record with an actor or a request id,
+      so the F1/F3 incidents above could not be reconstructed.
     evidence:
-      - server.mjs:14
-      - server.mjs:16
+      - server.mjs:60
+      - routes/admin.mjs:8
+      - lib/auth.mjs:12
+    snippet: "server.listen(settings.port, () => console.log(`notesbox on :${settings.port}`));"
     fix: >
-      Cap the body size (413 above it) and answer 400 on invalid JSON instead of substituting {}.
+      Add structured request logging with a request id and the resolved user
+      id. Write audit events for purge, sync, email send and authorization
+      denials. Count auth fallbacks and alert on them (zero after F1).
   - id: F11
-    title: "Note ids are short Math.random strings that can overwrite on collision"
-    area: D
-    tag: "identity; silent overwrite"
+    title: "Mailer logs recipient email addresses and subjects to stdout"
+    area: Q
+    tag: "PII in logs"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      Each send writes to=<address> and the subject to the console. When F3
+      fires, the log also keeps the attacker-chosen address and subject.
+      These lines are personal data with no redaction or retention.
+    evidence:
+      - lib/mailer.mjs:7
+    snippet: "console.log(`[mailer] to=${to} from=${settings.mailFrom} subject=${subject} bytes=${body.length}`);"
+    fix: >
+      Log a hashed or masked recipient (domain only) and a message id instead
+      of the address and subject; keep the full record only in the mail
+      provider.
+  - id: F12
+    title: "No environment configuration: port, endpoints and secrets are hard-coded and nothing reads process.env"
+    area: N
+    tag: "config"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      settings.mjs says values are 'read at boot; see README for environment
+      notes', but nothing reads the environment, the README has no
+      environment section, and there is no .env.example. Dev, staging and
+      production cannot differ without code edits, and nothing fails loudly
+      when a value is missing.
+    evidence:
+      - config/settings.mjs:1
+      - config/settings.mjs:3
+      - config/settings.mjs:4
+    snippet: "// Central settings. Values are read at boot; see README for environment notes."
+    fix: >
+      Read PORT, BACKUP_URL, BACKUP_API_KEY and MAIL_FROM from process.env,
+      validate them at startup (exit non-zero when a required one is
+      missing), commit .env.example, and document it in the README.
+  - id: F13
+    title: "Bearer tokens are static literals in source with no expiry or revocation"
+    area: B
+    tag: "A07 · CWE-798"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The session table maps short fixed strings to user ids in source.
+      Anyone who can read the repository holds every user's credential,
+      including the admin's, and no token can expire, rotate or be revoked.
+    evidence:
+      - lib/db.mjs:13
+      - lib/db.mjs:16
+    snippet: "const tokenTable = new Map(["
+    fix: >
+      Issue random tokens from a CSPRNG at login, store only a hash, set an
+      idle timeout and an absolute expiry, and support revocation. Keep demo
+      tokens out of production builds.
+  - id: F14
+    title: "Prompt assembly has no input budget, fencing or cost cap"
+    area: C
+    tag: "LLM06:2026 unbounded consumption · context-assembly seam"
     severity: Medium
     polarity: gap
     confidence: CONFIRMED
     latent: true
+    mechanism_unproven: true
+    observation: >
+      The prompt concatenates the instructions, every note in the workspace
+      and an unlimited user question, with no length cap, drop priority or
+      delimiter. /assistant has no rate or cost limit and, through F1,
+      accepts anonymous callers. Latent while the model is a stub; once a
+      paid model is wired, a large workspace overflows the context and pushes
+      out the system instructions, and a flood burns budget.
+    evidence:
+      - lib/agent.mjs:16
+      - lib/agent.mjs:19
+      - server.mjs:44
+    snippet: "return ["
+    fix: >
+      Cap question length and the notes included (caller's own, newest
+      first, within a token budget). Put the instructions last or pin them.
+      Fence untrusted text. Add a per-user rate and spend cap checked before
+      the model call.
+  - id: F15
+    title: "Nothing gates this target in CI, and the toolchain is not pinned"
+    area: K
+    tag: "build · CI · supply chain"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
     mechanism_unproven: false
     observation: >
-      A new note's id is six base-36 characters from Math.random and notes.set() overwrites without checking, so a collision silently replaces another user's note.
+      The target has no workflow of its own, and the repository-level
+      workflow does not reference it. package.json has no engines field
+      although server.mjs requires Node 20 or newer, there is no .nvmrc, and
+      no lockfile is committed. Zero dependencies today, so the lockfile is
+      cheap to add and protects the first one added.
+    evidence:
+      - package.json:6
+      - server.mjs:1
+    snippet: "\"scripts\": {"
+    fix: >
+      Add "engines": {"node": ">=20"} and .nvmrc, commit package-lock.json,
+      and add a CI job running npm ci and npm test on this directory, with
+      actions pinned to commit SHAs and a dependabot or renovate config.
+  - id: F16
+    title: "Owner scoping lives in the route handler, and callers bypass the ADR-0001 storage interface"
+    area: H
+    tag: "maintainability · data-layer authorization"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      ADR-0001 names the storage interface as lookup, the notes map surface
+      and purgeAll. lib/agent.mjs depends on the raw users array, which is
+      outside that interface, so an adapter built to the ADR breaks the
+      assistant. Because the interface hands out the unscoped Map, the owner
+      filter has to be re-typed by each caller (server.mjs does it, and the
+      assistant path in F5 does not). The verifier refuted an earlier wording
+      of this row that called agent.mjs a caller above lib/; it is inside
+      lib/.
+    evidence:
+      - server.mjs:31
+      - lib/agent.mjs:8
+      - docs/adr/0001-storage-choice.md:15
+    snippet: "const mine = [...notes.values()].filter((n) => n.owner === user.id);"
+    fix: >
+      Export only scoped functions from lib/db.mjs (notesFor, createNote,
+      userEmail) that require a principal and fail closed without one, stop
+      exporting the raw Map and array, and update the ADR to match.
+  - id: F17
+    title: "Malformed request JSON is swallowed and still creates an empty note"
+    area: A
+    tag: "input handling"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      readBody resolves {} on a parse error, so POST /notes with an invalid
+      body returns 201 with an empty-text note instead of a 400. The body also
+      has no size cap; that part is a lead, since the impact is DoS only.
+    evidence:
+      - server.mjs:16
+      - server.mjs:38
+    snippet: "try { resolve(data ? JSON.parse(data) : {}); } catch { resolve({}); }"
+    fix: >
+      Reject with 400 on a parse error or a non-JSON content type, require a
+      non-empty text, and cap the body size (413).
+  - id: F18
+    title: "Note ids are short Math.random strings with no collision check, so a collision overwrites another user's note"
+    area: D
+    tag: "identity · data loss"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: true
+    observation: >
+      Ids are at most 6 base36 characters from Math.random (fewer when the
+      random string is short), and notes.set replaces any existing entry with
+      the same id, including one owned by a different user.
     evidence:
       - server.mjs:37
       - server.mjs:38
+    snippet: "const id = 'n' + Math.random().toString(36).slice(2, 8);"
     fix: >
-      Use crypto.randomUUID() for ids and refuse to set an id that already exists.
-  - id: F12
-    title: "Server never listens when its path needs URL encoding"
-    area: A
-    tag: "entry-point guard; file URL vs path"
+      Use crypto.randomUUID() and refuse to overwrite an existing id (or let
+      the SQLite adapter assign keys).
+  - id: F19
+    title: "users[].notes is never updated when a note is created"
+    area: D
+    tag: "denormalized field drift"
     severity: Low
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      The main-module guard compares import.meta.url to a hand-built file:// string, so from a directory whose path contains a space node server.mjs exits 0 without listening (reproduced).
+      Each user record carries a notes id list that POST /notes never appends
+      to (only purgeAll touches it), so it goes stale after the first create.
+      Nothing reads it today, which makes it dead state that the SQLite
+      adapter could take as truth.
+    evidence:
+      - lib/db.mjs:3
+      - server.mjs:38
+    snippet: "{ id: 'u1', email: 'dana@notesbox.example', role: 'member', notes: ['n1'] },"
+    fix: >
+      Remove users[].notes and derive ownership from note.owner, or maintain
+      it inside a createNote accessor.
+  - id: F20
+    title: "Docs and contract drift: endpoint count, purge method, and an inconsistent 403 body"
+    area: I
+    tag: "API contract · docs"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The README says 4 endpoints, but the server routes 5 (POST /admin/purge
+      is undocumented). The admin route comment says DELETE /admin/purge,
+      while the server matches only POST (DELETE returned 404 in the probe).
+      The 403 reply is a plain-text body with no content type, unlike every
+      other JSON reply.
+    evidence:
+      - README.md:14
+      - routes/admin.mjs:5
+      - server.mjs:52
+      - routes/admin.mjs:7
+    snippet: "The API exposes 4 endpoints:"
+    fix: >
+      Document all routes (or generate the list from the router), make the
+      comment match POST, and return JSON errors with a content type.
+  - id: F21
+    title: "Server silently exits 0 without listening when started from a path with spaces or through a symlink"
+    area: I
+    tag: "portability · entry-point guard"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The main-module check compares import.meta.url (percent-encoded and
+      symlink-resolved) to a raw file:// string built from argv[1]. Probe: a
+      copy under a directory with a space ran node server.mjs and exited 0
+      without listening; the same command in a normal path kept running.
     evidence:
       - server.mjs:59
+    snippet: "if (import.meta.url === `file://${process.argv[1]}`) {"
     fix: >
-      Compare with pathToFileURL(process.argv[1]).href, or fileURLToPath(import.meta.url) === process.argv[1].
-  - id: F13
-    title: "Mailer logs recipient addresses"
-    area: Q
-    tag: "PII in logs"
+      Compare fileURLToPath(import.meta.url) with
+      fs.realpathSync(process.argv[1]), or move the listen call into a
+      separate bin entry.
+  - id: F22
+    title: "readBody ignores aborts and errors, and the async handler has no catch"
+    area: F
+    tag: "resource leak · unhandled rejection"
+    severity: Low
+    polarity: gap
+    confidence: PLAUSIBLE
+    latent: false
+    mechanism_unproven: true
+    observation: >
+      readBody only listens for data and end, so an aborted upload leaves its
+      promise pending for good. The async request callback has no try/catch,
+      so any future throw becomes an unhandled rejection, which ends the
+      process by default on Node 15 and later. Neither was reproduced.
+    evidence:
+      - server.mjs:14
+      - server.mjs:26
+    snippet: "req.on('data', (c) => (data += c));"
+    fix: >
+      Reject on 'error' and 'aborted' (or use for await over req with a size
+      cap), and wrap the handler body in try/catch that returns a 500 with an
+      error class.
+  - id: F23
+    title: "settings.adminEmails is dead configuration"
+    area: H
+    tag: "dead code"
     severity: Low
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      sendEmail() writes the recipient address and subject of every message to stdout.
+      Admin status comes only from user.role, and adminEmails is never read,
+      so an operator who edits it changes nothing.
     evidence:
-      - lib/mailer.mjs:7
+      - config/settings.mjs:8
+    snippet: "adminEmails: ['ops@notesbox.example'],"
     fix: >
-      Log a message id and recipient domain only, at debug level.
-  - id: F14
-    title: "Admin route comment names the wrong method"
-    area: H
-    tag: "comment drift"
+      Delete it, or make it the single source of the admin role.
+  - id: F24
+    title: "Only the first TOOL line is stripped from the assistant's answer"
+    area: A
+    tag: "output handling"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: true
+    mechanism_unproven: true
+    observation: >
+      replace() runs without the global flag, so when the model emits more
+      than one directive, only the first one runs and the rest are returned
+      to the caller in the answer text.
+    evidence:
+      - lib/agent.mjs:40
+    snippet: "return { answer: answer.replace(/^TOOL:.*$/m, '').trim(), emailed: to };"
+    fix: >
+      Parse tool calls structurally (F3) and strip every directive line
+      (/gm) from user-visible output.
+  - id: F25
+    title: "Nit: the mailer's bytes= label reports UTF-16 code units"
+    area: R
+    tag: "encoding"
     severity: Nit
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      The handler's comment says DELETE /admin/purge; the server routes it as POST.
+      body.length counts UTF-16 code units, so a note in a non-Latin script or
+      with emoji logs a smaller 'bytes' figure than its UTF-8 size.
     evidence:
-      - routes/admin.mjs:5
-      - server.mjs:52
+      - lib/mailer.mjs:7
+    snippet: "bytes=${body.length}"
     fix: >
-      Correct the comment to POST /admin/purge.
-  - id: F15
-    title: "Storage sits behind one narrow module"
-    area: H
-    polarity: strength
-    confidence: CONFIRMED
-    observation: >
-      Every store read and write goes through lib/db.mjs's exports (users, notes, sessions, purgeAll), matching ADR-0001's swap-the-adapter decision.
-    evidence:
-      - lib/db.mjs:1
-      - docs/adr/0001-storage-choice.md:1
-  - id: F16
-    title: "The admin gate refuses a non-admin principal"
+      Use Buffer.byteLength(body, 'utf8') or rename the label to chars.
+  - id: F26
+    title: "Per-owner filter on GET /notes holds across two principals"
     area: B
     polarity: strength
     confidence: CONFIRMED
     observation: >
-      requireAdmin() is checked before purgeAll() runs; probed, a member token got 403 on POST /admin/purge (the gate holds; F2 walks around it).
+      Two-principal probe: Dana's token returned only n1 and Sam's only n2. An
+      unknown token returned an empty list rather than another user's notes
+      (but see F1: it resolves to the admin default identity).
     evidence:
-      - routes/admin.mjs:7
-      - lib/auth.mjs:16
-  - id: F17
-    title: "No third-party dependencies"
-    area: K
+      - server.mjs:31
+  - id: F27
+    title: "requireAdmin denies member tokens"
+    area: B
     polarity: strength
     confidence: CONFIRMED
     observation: >
-      package.json declares no dependencies, so the target ships no third-party code to audit or pin.
+      POST /admin/purge with a member token returned 403 'admin only'; the
+      check is sound once authentication stops failing open.
     evidence:
-      - package.json:1
+      - lib/auth.mjs:16
+      - routes/admin.mjs:7
+  - id: F28
+    title: "No interpreter injection sinks"
+    area: B
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      No SQL, shell, eval, Function, child_process, template or HTML sink
+      (grep for eval, exec, child_process, Function: 0 matches). Untrusted
+      text reaches only the in-memory Map, JSON responses, the prompt (F3) and
+      the mail log.
+    evidence:
+      - server.mjs:23
 
 prior_not_rechecked: []

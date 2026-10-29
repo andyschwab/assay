@@ -7,6 +7,7 @@ scanners:
     reason: "fixture: the root sheet carries no method-pass item; the targets' runs cover repo-eval"
   deep-code-review:
     status: ran
+    model: "claude-opus-5-5"
   gitleaks:
     status: skipped
     reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib)"

@@ -1,245 +1,361 @@
 review:
   tool: deep-code-review
-  skill_version: "1.479.0"
-  date: 2026-10-07
+  skill_version: "1.609.0"
+  date: 2026-10-29
   scope: FULL
   base_ref: null
-  start_sha: b1e5797
+  start_sha: 26ab0027c6d7e90f4e36a36bbcb692e5945bde89
   target: "assay-fixtures"
   archetype: other
   stage: UNVERIFIED
   prior: null
 
 ground_truth:
-  build: ok
+  install: ok
+  build: not-run
   tests: ok
-  host_ci: unverified
-  gate_self_test: not-run
-  lint_type_scan: not-run
-  authz_posture: "N/A: the repository serves nothing; targets/flawed-webapp's 5 entry points are probed in its own run"
+  host_ci: pass
+  gate_self_test: proven-red
+  lint_type_scan: failed
+  authz_posture: "5 HTTP entry points, all in targets/flawed-webapp/server.mjs · reviewed in that target's own run · anon probed 0 here · two-principal 0 here · nothing networked outside that target"
   parity_coverage: "N/A"
   pipeline_run: not-run
   notes:
-    - "build: nothing to build at the root; node --check passes on every .mjs file"
-    - "tests: the two commands .github/workflows/ci.yml runs (clean-lib and flawed-webapp smoke) exit 0 locally"
-    - "host_ci: the workflow's run status on GitHub was not read"
-    - "gate_self_test: no planted-defect probe was run against the root workflow"
-    - "lint_type_scan: no lint, typecheck or scan is declared anywhere in the repository"
-    - "pipeline_run: no deploy pipeline"
+    - "checkout: branch main, HEAD 26ab0027c6d7e90f4e36a36bbcb692e5945bde89, commit date 2026-10-07T13:44:39+01:00, full clone (not shallow), 9 commits; working tree clean"
+    - "top-level apps: targets/clean-lib (slugify library, control), targets/flawed-webapp (reviewed in its own run, excluded here), targets/lockfiles (dependency-scan fixture: app/ and legacy/); plus .github/workflows/ci.yml and .gitignore"
+    - "install: targets/lockfiles/app npm ci --ignore-scripts exit 0 (scratch copy); targets/lockfiles/legacy npm ci exit 1 (EUSAGE: lockfile unreadable, see F5); clean-lib and flawed-webapp declare no dependencies"
+    - "build: no build step declared in any target"
+    - "tests: clean-lib node test/slugify.test.mjs exit 0 (7 assertions) and npm test exit 0; flawed-webapp test/smoke.mjs exit 0 (run only as CI's own step; it calls authenticate() in-process and probes no route)"
+    - "host_ci: workflow ci run 37623215709 on head_sha 26ab0027 (push to main) concluded success"
+    - "gate_self_test: in a detached scratch worktree, changed the slug separator in targets/clean-lib/index.mjs; clean-lib test exit went 0 -> 1; reverted, git status clean, worktree removed. The flawed-webapp smoke gate was not self-tested (that target belongs to its own run)"
+    - "lint_type_scan: no linter, formatter or type-checker declared anywhere (F8); npm audit on targets/lockfiles/app: exit 1, 1 critical (F1); gitleaks, semgrep, actionlint and zizmor are not installed in this container; history secret-pattern grep over all commits found no hit outside targets/flawed-webapp and the answer sheets"
+    - "pipeline_run: not applicable; nothing to run outside flawed-webapp"
+    - "answer-sheet hygiene: ANSWERS.yaml files and the root README.md were not opened. Two incidental exposures: ci.yml comments name planted-answer ids (ci.yml:3-5), and a git-history pattern grep printed some answer-sheet diff lines about flawed-webapp. No flawed-webapp finding is filed here, so neither touched the findings below"
+    - "evidence re-resolution: all 30 evidence lines re-resolved against the tree at start_sha before publishing; 0 dropped"
 
 coverage:
   A:
-    status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+    status: scanned
+    note: "clean-lib index.mjs and tests read in full and probed with 8 extra inputs; lockfiles has no logic; flawed-webapp excluded (own run)"
   B:
     status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+    note: "the only routes in the repo are the 5 in targets/flawed-webapp/server.mjs, reviewed in that target's own run and not re-probed (route census in the report lists them). Outside it: the CI workflow's trust surface (pull_request trigger, token permissions, third-party actions) was read in full, see F6 and F7; clean-lib has no network or untrusted-input sink beyond its string argument"
   C:
     status: partial
-    note: "no AI surface outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+    note: "the only LLM/agent surface is targets/flawed-webapp/lib/agent.mjs, reviewed in that target's own run and not opened here. Probe over the rest of the tree: git grep -ciE 'openai|anthropic|llm|prompt|model|embedding|agent' gave 0 hits"
   D:
-    status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+    status: scanned
+    note: "slug collisions (F3); lockfile integrity hashes checked; flawed-webapp data layer excluded (own run)"
   E:
-    status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+    status: scanned
+    note: "clean-lib is one linear pass over the input; CI cost settings read (no concurrency or timeout, part of F7); no finding beyond that"
   F:
-    status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+    status: scanned
+    note: "clean-lib error path (TypeError guard) read; truncated legacy lockfile makes install fail (F5); flawed-webapp excluded (own run)"
   G:
-    status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+    status: not-applicable
+    probe: "git grep -niE 'Promise\\.all|await|worker|lock|setInterval' outside targets/flawed-webapp, ANSWERS.yaml and README.md"
+    fact: "7 hits, all the word 'lock' in lockfile names and lockfileVersion; no concurrent code"
+    note: "no shared state or async code outside flawed-webapp; flawed-webapp's own run covers its in-memory stores"
   H:
-    status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha and not repeated here"
+    status: scanned
+    note: "doc comment contradicts code (F10); no dead code in clean-lib or lockfiles"
   I:
-    status: partial
-    note: "no API outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+    status: scanned
+    note: "clean-lib public API slugify(string) -> string: the JSDoc contract was checked against behaviour (F2, F3); package.json has main but no exports or engines field"
   J:
-    status: partial
-    note: "the root workflow and targets/clean-lib's suite read; targets/flawed-webapp's suite is reviewed in its own FULL run at this sha"
+    status: scanned
+    note: "clean-lib suite is behavioural and goes red on a planted defect (S1); it does not cover the uncovered accents or non-Latin input (fixes in F2, F3); the smoke gate's depth is flawed-webapp's own run"
   K:
     status: scanned
+    note: "ci.yml read in full; all four manifests and both lockfiles read; npm ci and npm audit run on scratch copies; Dependabot PR #3 (minimist 1.2.6) seen closed without merge; runtime EOL checked (F1, F4, F5, F6, F8)"
   L:
     status: not-applicable
-    note: "no IaC, containers, or cloud config in the repository"
+    probe: "git grep -ciE 'docker|terraform|helm|k8s|kubernetes|serverless' outside flawed-webapp and answer sheets; git ls-files | grep -iE 'Dockerfile|\\.tf$|chart'"
+    fact: "0 hits; no IaC, container or cloud files in the tree"
+    note: "the only infrastructure is GitHub-hosted Actions runners, covered under K"
   M:
     status: partial
-    note: "nothing runs unattended outside targets/flawed-webapp, which is reviewed in its own FULL run at this sha"
+    note: "the only service code that would log is targets/flawed-webapp, reviewed in its own run. Outside it: one console.log in the clean-lib test (targets/clean-lib/test/slugify.test.mjs:15), appropriate for a test; CI has no failure notification beyond GitHub's default; nothing unattended runs outside flawed-webapp"
   N:
     status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp's config is reviewed in its own FULL run at this sha"
+    note: "the only runtime config file is targets/flawed-webapp/config/settings.mjs, reviewed in its own run and not opened here. Outside it: git grep -ciE 'process\\.env|\\.env|secret|apikey|api_key|token' gave 0 hits; CI uses no secrets; .gitignore read (ignores node_modules, logs, run outputs)"
   O:
     status: partial
-    note: "the root README, targets/clean-lib and targets/lockfiles docs read; targets/flawed-webapp's docs are reviewed in its own FULL run at this sha"
+    note: "clean-lib README and ADR read (the ADR contradicts the code, F3); lockfiles README read; root README.md not opened because it may carry the answer list; no LICENSE (F9)"
   P:
     status: not-applicable
-    note: "no frontend or UI anywhere in the repository"
+    probe: "git grep -ciE '<(img|button|input|a|div)\\b|aria-|\\.tsx|\\.jsx|\\.html' outside flawed-webapp and answer sheets"
+    fact: "0 hits; no UI files"
+    note: "no rendered UI anywhere outside flawed-webapp, which serves JSON only"
   Q:
     status: partial
-    note: "root files, targets/clean-lib and targets/lockfiles read; targets/flawed-webapp is reviewed in its own FULL run at this sha"
+    note: "personal data stores exist only in targets/flawed-webapp (data-store census in the report: user records with emails, notes, the token table, outbound mail and backup egress), reviewed in its own run; erasure through purgeAll is not re-assessed here. Outside it: git grep for email-shaped strings gave 0 hits; minimist is MIT; the public repo has no LICENSE (F9); git history holds no file absent at HEAD, so erasure from the tree is not undone by history"
   R:
-    status: not-applicable
-    note: "clean-lib's accent fold is a documented design choice (its ADR-0001), not localization; no locale handling elsewhere"
+    status: scanned
+    note: "accent folding and non-Latin handling probed (F2, F3); the İ input lowercases to i plus a combining dot and slugs to i-stanbul (folded into F2)"
   S:
     status: scanned
-    note: "three remote branches: main; fixtures/lockfiles-target, already merged into main (its head e24d527 is in main's history) and safe to delete; a dependabot bump of the planted minimist 1.2.5, which would erase the lockfiles target's planted answer and should be closed, not merged"
+    note: "git fetch --all --prune: 3 remote branches; fixtures/lockfiles-target and fixtures/requirements-answers are 0 ahead and fully merged into main (delete-if-merged, triage table in report); all 4 PRs closed, 0 open"
   T:
     status: not-applicable
-    note: "no tenant boundary anywhere in the repository"
+    probe: "git grep -ciE 'tenant|org_id|workspace' outside flawed-webapp and answer sheets"
+    fact: "0 hits"
+    note: "no multi-tenant deployment outside flawed-webapp"
   W:
-    status: not-applicable
-    note: "the CI workflow is push and pull_request triggered only; no cron, queue, or multi-step workflow"
+    status: scanned
+    note: "the one workflow (.github/workflows/ci.yml) read in full: triggers, jobs, pins, permissions, timeouts (F4, F6, F7); no cron, queue or scheduled job (probe 'cron|schedule:|queue|setInterval|setTimeout': 0 hits)"
 
 findings:
   - id: F1
-    title: "app lockfile pins minimist 1.2.5, which carries a known critical advisory"
+    title: "Committed lockfile pins minimist 1.2.5 with a critical prototype-pollution advisory"
     area: K
-    tag: "A03 software supply chain; GHSA-xvch-5gv4-984h; planted per targets/lockfiles/README.md"
+    tag: "A03 supply chain · GHSA-xvch-5gv4-984h"
     severity: High
     polarity: gap
     confidence: CONFIRMED
     latent: true
     mechanism_unproven: false
     observation: >
-      targets/lockfiles/app resolves minimist 1.2.5, inside the range of a published critical prototype-pollution advisory; nothing in the repository imports it, so it is not reachable today.
+      targets/lockfiles/app resolves minimist 1.2.5. npm audit on a scratch install
+      reports 1 critical (GHSA-xvch-5gv4-984h, affects 1.0.0 - 1.2.5). Dependabot's fix PR #3
+      (to 1.2.6) was closed without merging, and CI runs no audit, so nothing blocks it.
+      No code in the repo imports minimist, so it is latent. The target's README says the
+      pin is planted on purpose; this report treats that as owner acceptance to record,
+      not as a fix.
     evidence:
       - targets/lockfiles/app/package-lock.json:15
       - targets/lockfiles/app/package.json:7
+    snippet: "\"version\": \"1.2.5\","
     fix: >
-      Pin minimist 1.2.6 or later and regenerate the lockfile; here the target's README states the pin is planted on purpose, so the owner's decision is to keep it.
+      If the fixture must keep the vulnerable pin, record the acceptance where a gate can
+      read it (an audit allowlist entry scoped to this path, with an expiry). Otherwise bump
+      to minimist 1.2.8 in package.json and regenerate the lockfile with npm install.
   - id: F2
-    title: "CI actions are pinned to a mutable major tag"
-    area: K
-    tag: "actions on a mutable tag; CWE-829"
+    title: "slugify mangles common Latin-1 accented letters it claims to fold"
+    area: A
+    tag: "correctness · i18n"
     severity: Medium
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      Both jobs use actions/checkout@v4 and actions/setup-node@v4, so the code CI runs can change under the same workflow file when the tag is moved.
+      ACCENTS has 16 entries and leaves out ì î ò ô õ ù û ý ÿ å ã æ ø ß. fold() maps any
+      letter missing from it to a separator. Run at start_sha: 'Crème brûlée' gives
+      'creme-br-lee', "Côte d'Ivoire" gives 'c-te-d-ivoire', 'São Paulo' gives
+      's-o-paulo', 'Ångström' gives 'ngstrom', 'Straße' gives 'stra-e'. The ADR says the
+      table covers the Latin-1 accents. The tests use only é, so they never see the gap.
+    evidence:
+      - targets/clean-lib/index.mjs:3
+      - targets/clean-lib/index.mjs:8
+      - targets/clean-lib/docs/adr/0001-fold-table-over-normalize.md:14
+    snippet: "const ACCENTS = { à: 'a', á: 'a', â: 'a', ä: 'a', ç: 'c',"
+    fix: >
+      Complete the table for the Latin-1 Supplement letters (à-ÿ, with ß to 'ss', æ to 'ae',
+      ø to 'o', å to 'a'). This keeps the ADR's no-normalize decision. Add assertions for
+      'Crème brûlée', "Côte d'Ivoire" and 'São Paulo' to test/slugify.test.mjs.
+  - id: F3
+    title: "All-non-Latin input slugs to the empty string, so distinct inputs share one key"
+    area: D
+    tag: "data integrity · key collision"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      fold() returns a space for non-ASCII letters, and trim() then removes all of them.
+      slugify('日本') and slugify('Привет') both return ''. The ADR says non-Latin scripts
+      'collapse to hyphens' and that slugs end up in URLs and primary keys. In fact every
+      such title gets the same empty key, and an empty path segment.
+    evidence:
+      - targets/clean-lib/index.mjs:8
+      - targets/clean-lib/index.mjs:22
+      - targets/clean-lib/docs/adr/0001-fold-table-over-normalize.md:22
+      - targets/clean-lib/docs/adr/0001-fold-table-over-normalize.md:28
+    snippet: "return /[a-z0-9]/.test(ch) ? ch : ' ';"
+    fix: >
+      Decide the contract and pin it with a test: either throw (or return null) when the
+      slug would be empty, so callers must supply a fallback key, or document that ''
+      is a possible result. Then correct the ADR's 'collapse to hyphens' line to match.
+  - id: F4
+    title: "CI runs on Node 20, which reached end of life on 2026-04-30"
+    area: K
+    tag: "EOL runtime"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      Both jobs set node-version '20'. Node 20 stopped getting security fixes on 2026-04-30,
+      so the gate tests a runtime nobody supports. No package.json declares engines, so
+      the supported range is not stated anywhere. This container runs Node 22, and the
+      clean-lib suite passes on it.
+    evidence:
+      - .github/workflows/ci.yml:17
+      - .github/workflows/ci.yml:26
+    snippet: "node-version: '20'"
+    fix: >
+      Set node-version to a supported LTS (22 or 24), or read it from a committed .nvmrc.
+      Add "engines": {"node": ">=22"} to each target's package.json.
+  - id: F5
+    title: "Legacy lockfile is truncated JSON, so npm ci cannot install"
+    area: K
+    tag: "reproducible build"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      targets/lockfiles/legacy/package-lock.json ends at line 8, inside the packages
+      object. JSON.parse fails and npm ci exits 1 with EUSAGE. So the minimist 1.2.8 the
+      manifest declares is never locked, and no scanner can confirm it. The README says
+      this is deliberate; CI never exercises it.
+    evidence:
+      - targets/lockfiles/legacy/package-lock.json:8
+      - targets/lockfiles/legacy/package.json:7
+    snippet: "\"name\": \"legacy-export\","
+    fix: >
+      Regenerate the lockfile with npm install --package-lock-only. If the truncation is the
+      fixture's point, rename the file or mark it in .gitattributes so a tool reading it
+      knows it is a fixture and not a real lock.
+  - id: F6
+    title: "Third-party actions are pinned to mutable major tags, not commit SHAs"
+    area: K
+    tag: "CICD-SEC-3 · supply chain"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      actions/checkout@v4 and actions/setup-node@v4 are each used twice. Whoever controls
+      a tag can move it, so the code CI executes can change without any commit to this
+      repository. No dependabot.yml or renovate config exists to keep SHA pins current.
     evidence:
       - .github/workflows/ci.yml:14
       - .github/workflows/ci.yml:15
       - .github/workflows/ci.yml:23
       - .github/workflows/ci.yml:24
+    snippet: "- uses: actions/checkout@v4"
     fix: >
-      Pin each action to a full commit SHA with the tag as a trailing comment, and let an update bot bump the SHAs through the same gate.
-  - id: F3
-    title: "legacy lockfile is truncated and unreadable"
-    area: K
-    tag: "lockfile not honored; planted per targets/lockfiles/README.md"
-    severity: Medium
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      targets/lockfiles/legacy/package-lock.json ends mid-object at line 8 and does not parse as JSON, so no package manager can install from it or audit it.
-    evidence:
-      - targets/lockfiles/legacy/package-lock.json:8
-    fix: >
-      Regenerate the lockfile with npm install; here the target's README states the truncation is planted on purpose, so the owner's decision is to keep it.
-  - id: F4
-    title: "Workflow declares no token permissions"
-    area: K
-    tag: "least privilege; GITHUB_TOKEN"
+      Pin each action to a full 40-character commit SHA with the version as a trailing
+      comment, and add .github/dependabot.yml with a github-actions ecosystem entry to
+      bump the pins.
+  - id: F7
+    title: "Workflow sets no token permissions, job timeouts or concurrency"
+    area: W
+    tag: "least privilege · CI cost"
     severity: Low
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      ci.yml sets no permissions key, so its jobs get the repository's default GITHUB_TOKEN scope although they only read the checkout.
+      ci.yml has no top-level permissions block, so GITHUB_TOKEN gets the repository default.
+      That default may be write on push events in this public repo. No job sets
+      timeout-minutes, and there is no concurrency group to cancel superseded runs. The
+      jobs only need read access.
+    evidence:
+      - .github/workflows/ci.yml:6
+      - .github/workflows/ci.yml:11
+    snippet: "on:"
+    fix: >
+      Add a top-level 'permissions: contents: read', 'timeout-minutes: 5' on each job, and a
+      concurrency group keyed on the workflow and ref with cancel-in-progress true.
+  - id: F8
+    title: "CI has no lint, format or dependency-scan step, and the lockfiles target has no job"
+    area: K
+    tag: "gate coverage"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    latent: false
+    mechanism_unproven: false
+    observation: >
+      The workflow runs two test scripts and nothing else. No linter or formatter is declared
+      anywhere, nothing runs npm audit, and targets/lockfiles is in no job. So the F1
+      advisory and the F5 broken lockfile never turn CI red, and a green CI says nothing
+      about them.
     evidence:
       - .github/workflows/ci.yml:10
+      - .github/workflows/ci.yml:18
+    snippet: "jobs:"
     fix: >
-      Add a top-level permissions block with contents read.
-  - id: F5
-    title: "Workflow sets no timeout or concurrency"
-    area: K
-    tag: "runner-minute cost"
+      Add a job that runs npm audit --audit-level=high in each target with a lockfile (the
+      F1 acceptance goes in an allowlist), and a lint step (eslint or node --check) over
+      targets/*/**/*.mjs.
+  - id: F9
+    title: "Public repository ships no LICENSE"
+    area: Q
+    tag: "licensing"
     severity: Low
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      Neither job sets timeout-minutes and the workflow has no concurrency group, so a hung job runs to the platform ceiling and a superseded push keeps running.
+      The repository is public on GitHub, but git ls-files shows no LICENSE, COPYING or
+      SECURITY file, and no package.json has a license field. With no licence, the default
+      is all rights reserved: others cannot legally reuse the fixtures.
     evidence:
-      - .github/workflows/ci.yml:12
-      - .github/workflows/ci.yml:6
+      - targets/clean-lib/package.json:4
+    snippet: "\"private\": true,"
     fix: >
-      Add timeout-minutes to each job and a concurrency group with cancel-in-progress for pull_request runs.
-  - id: F6
-    title: "README layout block attributes clean-lib's sheet to lockfiles"
-    area: O
-    tag: "docs drift"
-    severity: Low
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      The lockfiles entry was inserted between clean-lib and clean-lib's ANSWERS.yaml line, so the tree now shows clean-lib with no sheet and lockfiles with two.
-    evidence:
-      - README.md:19
-      - README.md:21
-    fix: >
-      Move clean-lib's "asserts the near-absence of findings" line directly under clean-lib.
-  - id: F7
-    title: "README's sheet example cites the wrong line for P-01"
-    area: O
-    tag: "docs drift"
-    severity: Low
-    polarity: gap
-    confidence: CONFIRMED
-    latent: false
-    mechanism_unproven: false
-    observation: >
-      The known-answer contract example gives P-01's evidence as config/settings.mjs:7; the planted key, and flawed-webapp's own sheet, are at line 6.
-    evidence:
-      - README.md:59
-      - targets/flawed-webapp/ANSWERS.yaml:16
-    fix: >
-      Change the example to config/settings.mjs:6.
-  - id: F8
-    title: "fold() comment says it returns '' but it returns a space"
+      Add a root LICENSE (for example MIT) and a license field in each package.json, if
+      reuse is intended.
+  - id: F10
+    title: "Nit: fold() doc comment says it returns '' but it returns a space"
     area: H
-    tag: "comment drift"
+    tag: "doc drift"
     severity: Nit
     polarity: gap
     confidence: CONFIRMED
     latent: false
     mechanism_unproven: false
     observation: >
-      clean-lib's fold() is documented to return '' for a character with no ASCII base; it returns ' ', which the caller relies on as a separator.
+      The comment on fold() says it returns '' when a character has no ASCII base. The code
+      returns ' ', and the slug's separator collapsing depends on that space.
     evidence:
       - targets/clean-lib/index.mjs:5
       - targets/clean-lib/index.mjs:8
+    snippet: "// Fold a single character to its ASCII base, or '' if it has none."
     fix: >
-      Say it returns a space (a separator) for a character with no ASCII base.
-  - id: F9
-    title: "CI runs every target's suite on push and pull request"
+      Change the comment to "or a space (a separator) if it has none".
+  - id: S1
+    title: "clean-lib tests are behavioural, wired into CI, and go red on a planted defect"
     area: J
     polarity: strength
     confidence: CONFIRMED
     observation: >
-      The workflow triggers on push and pull_request and runs the clean-lib suite and the flawed-webapp smoke suite; both commands exit 0 locally.
-    evidence:
-      - .github/workflows/ci.yml:7
-      - .github/workflows/ci.yml:18
-      - .github/workflows/ci.yml:27
-  - id: F10
-    title: "clean-lib's tests assert behavior, edge cases included"
-    area: J
-    polarity: strength
-    confidence: CONFIRMED
-    observation: >
-      The suite asserts exact output for accents, punctuation, collapsing, trimming and the empty string, and that non-string input throws.
+      Seven exact-output assertions, including the type guard. CI runs them on push and on
+      pull_request. Changing the separator in a scratch worktree made the suite exit 1.
     evidence:
       - targets/clean-lib/test/slugify.test.mjs:7
       - targets/clean-lib/test/slugify.test.mjs:13
+      - .github/workflows/ci.yml:18
+  - id: S2
+    title: "slugify rejects non-string input explicitly"
+    area: A
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      A non-string argument throws a TypeError instead of being coerced, and a test pins it.
+    evidence:
+      - targets/clean-lib/index.mjs:18
+  - id: S3
+    title: "The resolvable lockfile carries registry integrity hashes"
+    area: K
+    polarity: strength
+    confidence: CONFIRMED
+    observation: >
+      The app lockfile records a resolved URL and a sha512 integrity value. npm ci verified
+      the hash on install.
+    evidence:
+      - targets/lockfiles/app/package-lock.json:16
+      - targets/lockfiles/app/package-lock.json:17
 
 prior_not_rechecked: []

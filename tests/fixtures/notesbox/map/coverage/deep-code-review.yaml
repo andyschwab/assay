@@ -5,31 +5,36 @@
 scanner: deep-code-review
 review:
   tool: "deep-code-review"
-  skill_version: "1.479.0"
-  date: "2026-10-07"
+  skill_version: "1.609.0"
+  date: "2026-10-29"
   scope: "FULL"
   base_ref: null
-  start_sha: "b1e5797"
+  start_sha: "26ab0027c6d7e90f4e36a36bbcb692e5945bde89"
   target: "flawed-webapp"
-  archetype: "api"
-  stage: "UNVERIFIED"
+  archetype: "agent"
+  stage: "mvp"
   prior: null
 ground_truth:
   build: "ok"
-  tests: "ok"
-  host_ci: "unverified"
+  install: "ok"
+  tests: "failed"
+  host_ci: "no-ci"
   gate_self_test: "not-proven"
   lint_type_scan: "not-run"
-  authz_posture: "5 entry points · anon probed 5 · two-principal 2 (/notes, /admin/purge) · untested: none"
+  authz_posture: "5 entry points · anon probed 5 · two-principal 1 (GET /notes) · untested: none"
   parity_coverage: "N/A"
-  pipeline_run: "not-run"
+  pipeline_run: "ok"
   notes:
-    - "build: no build step declared; node --check passes on every .mjs file"
-    - "tests: node test/smoke.mjs exits 0; package.json declares no test script, and the README's npm run test:all does not exist"
-    - "host_ci: the target carries no CI of its own; the repository root's workflow runs the smoke suite, its run status was not read"
-    - "gate_self_test: the smoke suite stays green with the fail-open authenticate() (F2) in the tree, so the gate is proven not to catch it"
-    - "lint_type_scan: no lint, format, typecheck or scan is declared"
-    - "pipeline_run: no deploy pipeline in the target"
+    - "build: no build step declared; zero dependencies; npm install exit 0 in a detached scratch worktree (it generated an uncommitted package-lock.json there; the tree under review has none)"
+    - "tests: the documented command (README.md:32, npm run test:all) fails with 'Missing script'; npm test also fails (no test script). Running the file directly (node test/smoke.mjs) prints 'smoke: ok', exit 0, 1 assertion"
+    - "gate_self_test: planted defect A (token lookup replaced by null in lib/auth.mjs) -> smoke stays green, exit 0, so the only test cannot detect an auth regression; planted defect B (throw in authenticate) -> exit 1. Both reverted and the revert confirmed with git status in the scratch worktree"
+    - "lint_type_scan: no linter, formatter, type checker or scanner is declared; node --check passed on all 8 .mjs files; gitleaks and semgrep are not installed, so secret detection was a manual read of every file (config/settings.mjs:6 found)"
+    - "host_ci: the target has no CI of its own; the repository-level workflow (outside this scope, not reviewed) does not mention targets/flawed-webapp (grep, 0 matches)"
+    - "pipeline_run: the server was imported in-process on an ephemeral port with globalThis.fetch stubbed, so POST /sync never sent the embedded key off-box; all 5 routes probed anonymously and with two member tokens"
+    - "route census: GET /notes (server.mjs:30), POST /notes (server.mjs:35), POST /assistant (server.mjs:42), POST /sync (server.mjs:47), POST /admin/purge (server.mjs:52); every route resolves identity via authenticate (server.mjs:27), which never rejects; the only authorization checks are the owner filter at server.mjs:31 and requireAdmin at routes/admin.mjs:7"
+    - "data-store census: users array with emails and roles (lib/db.mjs:2); notes Map with free text (lib/db.mjs:8); bearer token table (lib/db.mjs:13); assistant prompt carrying all notes and owner emails (lib/agent.mjs:12); outbound email body with all notes (lib/agent.mjs:38); stdout mail log with recipient and subject (lib/mailer.mjs:7); remote backup service holding every note (lib/sync.mjs:6); purgeAll (lib/db.mjs:27) reaches notes and users[].notes only"
+    - "stage: mvp named from evidence: version 0.3.1 (package.json:3), ADR-0001 'ship a demo this quarter', no CI, no deploy config; stage changes urgency only, no severity was relaxed"
+    - "evidence re-resolution: every evidence path:line resolved against the tree at start_sha; 0 dropped"
 coverage:
   A:
     status: "scanned"
@@ -45,6 +50,7 @@ coverage:
     status: "scanned"
   G:
     status: "scanned"
+    note: "single Node event loop over module-level Maps; the only await before a write is readBody; races reduce to the id collision in F18"
   H:
     status: "scanned"
   I:
@@ -53,10 +59,12 @@ coverage:
     status: "scanned"
   K:
     status: "scanned"
-    note: "package.json and the absence of a lockfile read (zero dependencies); the CI workflow lives at the repository root, outside this target, and is reviewed in the root run"
+    note: "the target has no workflows, lockfile, engines field or update-bot config; repository-root .github/workflows is outside this scope and was not reviewed beyond a grep for the target's name"
   L:
     status: "not-applicable"
-    note: "no IaC, containers, or cloud config in the target"
+    probe: "git ls-files . | grep -iE 'docker|terraform|\\.tf$|k8s|helm|serverless'"
+    fact: "0 matches"
+    note: "no IaC, container or cloud config in the target; the VPC claim at lib/sync.mjs:7 is covered under F9"
   M:
     status: "scanned"
   N:
@@ -65,19 +73,25 @@ coverage:
     status: "scanned"
   P:
     status: "not-applicable"
-    note: "no frontend or UI; the target serves JSON only"
+    probe: "git grep -nIE '<html|\\.jsx|\\.tsx|aria-|innerHTML' -- . ':!ANSWERS.yaml'"
+    fact: "0 matches"
+    note: "JSON API only; no rendered UI, templates or static assets"
   Q:
     status: "scanned"
   R:
-    status: "not-applicable"
-    note: "no locale, encoding or localized text handling beyond JSON strings"
+    status: "scanned"
+    note: "small surface: free-text notes, email subject, a byte-count log label; no locale, formatting or normalization code (grep for Intl, toLocale, normalize: 0 matches)"
   S:
-    status: "not-applicable"
-    note: "the target is a subdirectory of the fixtures repository; branch and open-work triage is repository-level, read in the root run"
+    status: "scanned"
+    note: "branch triage is repository-wide: after git fetch --prune, main plus 2 remote branches, both 0 commits ahead of main and neither touches this target; open PRs were not queried"
   T:
     status: "not-applicable"
-    note: "one workspace per deployment; no tenant boundary in the code"
+    probe: "git grep -nIE 'tenant|org_id|orgId' -- . ':!ANSWERS.yaml'"
+    fact: "0 matches"
+    note: "one workspace per deployment; the isolation unit is the user, and cross-user leakage is covered under B (F1, F5, F16)"
   W:
     status: "not-applicable"
-    note: "no cron, queue, or multi-step workflow; /sync is a request-scoped call"
+    probe: "git grep -nIE 'cron|setInterval|setTimeout|queue|schedule' -- . ':!ANSWERS.yaml'"
+    fact: "0 matches"
+    note: "no scheduler, queue or worker; the backup push is a request-triggered call, reviewed under F (F9)"
 prior_not_rechecked: []

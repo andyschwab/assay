@@ -47,6 +47,45 @@ Every adopted scanner gets a disposition in every run's manifest
 |---|---|---|---|
 | OpenSSF Scorecard | instrument | `adapters/scorecard.yaml` (`adopted: false`) | Integrated via `map/ingest.mjs` (19 checks onto the native workspace axes, score-banded), but not part of the adopted roster: its checks are remote repository-configuration reads that need direct GitHub API access at run time — it cannot run against a local checkout, so in an environment without API reach it is a forever-fail every run would have to dispose of. The adapter stays loadable so a run carrying its rows still projects. Adoption needs an offline mode or a different environment |
 
+## The code reviewer's local analyzers (dispositions, #174)
+
+Since 1.609.0, deep-code-review's `scripts/review_checks.sh` runs local analyzers
+over the files **changed since a base** and hands their output to the reviewer as
+*leads* it verifies before filing. A tool that is missing reads `NOT CHECKED`, never
+clean. So whatever those analyzers find reaches the map only as the reviewer's own
+rows, in its own domains, over a diff.
+
+An assay instrument is a different thing: it enumerates the **whole tree**, it is
+deterministic, it fails loud, and it decides a requirement (`INTAKE.md`). Each
+analyzer therefore gets one of three dispositions:
+
+- **redundant:** an adopted instrument already measures the property over the whole tree;
+- **adopt:** assay should run it as an instrument;
+- **reviewer-only:** it stays a lead inside the review.
+
+Where assay adopts a tool, its rows decide. The same tool's findings arriving again
+through the reviewer's rows are one tool counted twice, not two scanners converging
+(`CLAUDE.md` rule 5).
+
+| Analyzer | License | Latest release | Disposition | Why |
+|---|---|---|---|---|
+| gitleaks | MIT | v8.30.1, 2026-02-21 | redundant | Adopted instrument over the whole tree and its history; the reviewer's copy is diff- or history-range-scoped |
+| [osv-scanner](https://github.com/google/osv-scanner) v2 | Apache-2.0 | v2.7.0, 2026-10-12 | **adopt** | dependency-scan audits only npm, pnpm and yarn lockfiles; osv-scanner reads the other ecosystems' lockfiles (pip, Poetry, Go, Cargo, Maven, Composer, …) and has an offline database mode. It would feed code-security beside dependency-scan, corroborating on npm lockfiles and closing the lockfile-not-audited facts on the rest |
+| [zizmor](https://github.com/zizmorcore/zizmor) | MIT | 1.31.1, 2026-10-15 | **adopt** | GitHub Actions security, deterministic and offline: unpinned `uses:`, template injection, excessive token permissions, credential persistence. Most targets ship workflows, and the reviewer filed two of them (tag-pinned actions, default token permissions) by hand at the fixtures root (#174). Its unpinned-action rule can decide `d-dependencies-pinned`'s "actions pinned by SHA" mechanically, which today rides on a whole reviewer domain (#177) |
+| [Checkov](https://github.com/bridgecrewio/checkov) | Apache-2.0 | 3.4.0, 2026-10-28 | **adopt** | IaC and container misconfiguration (Terraform, Kubernetes, Helm, Dockerfiles, GitHub Actions config) with a graph-based policy set; the one IaC instrument, chosen over Trivy's misconfiguration scanner (below). Only targets with IaC or containers carry rows; others read not-applicable |
+| [Trivy](https://github.com/aquasecurity/trivy) | Apache-2.0 | v0.76.1, 2026-10-21 | reviewer-only | Its four scanners split across tools assay has or is adopting: dependencies (osv-scanner), secrets (gitleaks), IaC (Checkov). Its release infrastructure was compromised twice in March 2026 (its core-candidate row below); adopting it would buy nothing the three do not, at that supply-chain risk |
+| [Grype](https://github.com/anchore/grype) | Apache-2.0 | v0.121.0, 2026-10-19 | reviewer-only | Dependency vulnerabilities from an SBOM, the same property as osv-scanner |
+| Semgrep CE | LGPL-2.1-or-later (engine) | 1.182.1, 2026-10-22 | reviewer-only | The engine is fine to run; the registry packs are the problem. The reviewer adds `p/default` unless `REVIEW_SEMGREP_REGISTRY=0`, and those rules were relicensed in Dec 2024 under terms that restrict their use and redistribution (the Opengrep row below). An operator running the reviewer on client work sets `REVIEW_SEMGREP_REGISTRY=0`, which leaves the reviewer's own bundled taint rules (MIT; JS/TS and Python injection sinks). An assay SAST instrument stays Opengrep (above), with a curated rule set; Opengrep's latest tag is v1.33.1, its last commit 2026-10-28 |
+| [Bandit](https://github.com/PyCQA/bandit) / [gosec](https://github.com/securego/gosec) | Apache-2.0 | 1.9.4, 2026-02-25 / v2.30.0, 2026-10-23 | reviewer-only | Language-scoped (Python / Go); adopt when a target's language mix warrants, as the second-line row below says |
+| [hadolint](https://github.com/hadolint/hadolint) | GPL-3.0 | 2.15.1, 2026-07-31 | reviewer-only | Dockerfile lint; Checkov covers Dockerfile misconfiguration. Run as a separate binary, GPL-3.0 is no bar; it is the overlap that decides |
+| [ShellCheck](https://github.com/koalaman/shellcheck) | GPL-3.0 | 0.11.0, 2025-08-04 | reviewer-only | Shell lint. The one shell property assay decides, a gate failing open, is repo-census's (`\|\| true`, `set +e`, #166) |
+| [Ruff](https://github.com/astral-sh/ruff) | MIT | 0.17.3, 2026-10-27 | reviewer-only | Lint; the inverted-mode note below stands |
+
+Licence and release facts verified 2026-10-29 from the package registries: PyPI,
+the Go module proxy with deps.dev, Hackage, and the repositories' tags. The
+reviewer's hub also names snyk-agent-scan (mcp-scan, below) as unverified and skips
+it; it stays a core candidate here.
+
 ## Core instrument candidates (license-clean, best coverage per integration cost)
 
 | Tool | License | Output | Feeds | Notes (verified 2026-08-18) |

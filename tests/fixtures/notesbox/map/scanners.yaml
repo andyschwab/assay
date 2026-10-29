@@ -5,6 +5,7 @@ scanners:
     status: ran
   deep-code-review:
     status: ran
+    model: "claude-opus-5-5"
   gitleaks:
     status: ran
   fresh-clone:

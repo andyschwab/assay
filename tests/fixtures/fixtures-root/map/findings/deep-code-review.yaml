@@ -1,5 +1,5 @@
 # map/findings/deep-code-review.yaml — peer-scanner rows ingested by assay.mjs ingest from the scanner's machine report.
-# Scanner: deep-code-review · 10 row(s) · coverage archived at map/coverage/deep-code-review.yaml (one row per domain).
+# Scanner: deep-code-review · 13 row(s) · coverage archived at map/coverage/deep-code-review.yaml (one row per domain).
 # Ids start at F-1000: the next hundred above the base's highest id F-969 (in repo-census.yaml); the profile floor is F-800.
 # Raw report archived at map/raw/deep-code-review.yaml. Regenerate with ingest.mjs; never hand-edit.
 
@@ -10,43 +10,43 @@
   polarity: gap
   severity: High
   observation: >
-    targets/lockfiles/app resolves minimist 1.2.5, inside the range of a published critical prototype-pollution advisory; nothing in the repository imports it, so it is not reachable today.
+    targets/lockfiles/app resolves minimist 1.2.5. npm audit on a scratch install reports 1 critical (GHSA-xvch-5gv4-984h, affects 1.0.0 - 1.2.5). Dependabot's fix PR #3 (to 1.2.6) was closed without merging, and CI runs no audit, so nothing blocks it. No code in the repo imports minimist, so it is latent. The target's README says the pin is planted on purpose; this report treats that as owner acceptance to record, not as a fix.
   evidence: ["targets/lockfiles/app/package-lock.json:15", "targets/lockfiles/app/package.json:7"]
   fix: >
-    Pin minimist 1.2.6 or later and regenerate the lockfile; here the target's README states the pin is planted on purpose, so the owner's decision is to keep it.
-  title: "app lockfile pins minimist 1.2.5, which carries a known critical advisory"
-  native_tag: "A03 software supply chain; GHSA-xvch-5gv4-984h; planted per targets/lockfiles/README.md"
+    If the fixture must keep the vulnerable pin, record the acceptance where a gate can read it (an audit allowlist entry scoped to this path, with an expiry). Otherwise bump to minimist 1.2.8 in package.json and regenerate the lockfile with npm install.
+  title: "Committed lockfile pins minimist 1.2.5 with a critical prototype-pollution advisory"
+  native_tag: "A03 supply chain · GHSA-xvch-5gv4-984h"
   confidence: confirmed
   native_confidence: CONFIRMED
   latent: true
 - id: F-1001
   source: deep-code-review
   native_id: "F2"
-  native_category: "K"
+  native_category: "A"
   polarity: gap
   severity: Medium
   observation: >
-    Both jobs use actions/checkout@v4 and actions/setup-node@v4, so the code CI runs can change under the same workflow file when the tag is moved.
-  evidence: [".github/workflows/ci.yml:14", ".github/workflows/ci.yml:15", ".github/workflows/ci.yml:23", ".github/workflows/ci.yml:24"]
+    ACCENTS has 16 entries and leaves out ì î ò ô õ ù û ý ÿ å ã æ ø ß. fold() maps any letter missing from it to a separator. Run at start_sha: 'Crème brûlée' gives 'creme-br-lee', "Côte d'Ivoire" gives 'c-te-d-ivoire', 'São Paulo' gives 's-o-paulo', 'Ångström' gives 'ngstrom', 'Straße' gives 'stra-e'. The ADR says the table covers the Latin-1 accents. The tests use only é, so they never see the gap.
+  evidence: ["targets/clean-lib/index.mjs:3", "targets/clean-lib/index.mjs:8", "targets/clean-lib/docs/adr/0001-fold-table-over-normalize.md:14"]
   fix: >
-    Pin each action to a full commit SHA with the tag as a trailing comment, and let an update bot bump the SHAs through the same gate.
-  title: "CI actions are pinned to a mutable major tag"
-  native_tag: "actions on a mutable tag; CWE-829"
+    Complete the table for the Latin-1 Supplement letters (à-ÿ, with ß to 'ss', æ to 'ae', ø to 'o', å to 'a'). This keeps the ADR's no-normalize decision. Add assertions for 'Crème brûlée', "Côte d'Ivoire" and 'São Paulo' to test/slugify.test.mjs.
+  title: "slugify mangles common Latin-1 accented letters it claims to fold"
+  native_tag: "correctness · i18n"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1002
   source: deep-code-review
   native_id: "F3"
-  native_category: "K"
+  native_category: "D"
   polarity: gap
   severity: Medium
   observation: >
-    targets/lockfiles/legacy/package-lock.json ends mid-object at line 8 and does not parse as JSON, so no package manager can install from it or audit it.
-  evidence: ["targets/lockfiles/legacy/package-lock.json:8"]
+    fold() returns a space for non-ASCII letters, and trim() then removes all of them. slugify('日本') and slugify('Привет') both return ''. The ADR says non-Latin scripts 'collapse to hyphens' and that slugs end up in URLs and primary keys. In fact every such title gets the same empty key, and an empty path segment.
+  evidence: ["targets/clean-lib/index.mjs:8", "targets/clean-lib/index.mjs:22", "targets/clean-lib/docs/adr/0001-fold-table-over-normalize.md:22", "targets/clean-lib/docs/adr/0001-fold-table-over-normalize.md:28"]
   fix: >
-    Regenerate the lockfile with npm install; here the target's README states the truncation is planted on purpose, so the owner's decision is to keep it.
-  title: "legacy lockfile is truncated and unreadable"
-  native_tag: "lockfile not honored; planted per targets/lockfiles/README.md"
+    Decide the contract and pin it with a test: either throw (or return null) when the slug would be empty, so callers must supply a fallback key, or document that '' is a possible result. Then correct the ADR's 'collapse to hyphens' line to match.
+  title: "All-non-Latin input slugs to the empty string, so distinct inputs share one key"
+  native_tag: "data integrity · key collision"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1003
@@ -54,14 +54,14 @@
   native_id: "F4"
   native_category: "K"
   polarity: gap
-  severity: Low
+  severity: Medium
   observation: >
-    ci.yml sets no permissions key, so its jobs get the repository's default GITHUB_TOKEN scope although they only read the checkout.
-  evidence: [".github/workflows/ci.yml:10"]
+    Both jobs set node-version '20'. Node 20 stopped getting security fixes on 2026-04-30, so the gate tests a runtime nobody supports. No package.json declares engines, so the supported range is not stated anywhere. This container runs Node 22, and the clean-lib suite passes on it.
+  evidence: [".github/workflows/ci.yml:17", ".github/workflows/ci.yml:26"]
   fix: >
-    Add a top-level permissions block with contents read.
-  title: "Workflow declares no token permissions"
-  native_tag: "least privilege; GITHUB_TOKEN"
+    Set node-version to a supported LTS (22 or 24), or read it from a committed .nvmrc. Add "engines": {"node": ">=22"} to each target's package.json.
+  title: "CI runs on Node 20, which reached end of life on 2026-04-30"
+  native_tag: "EOL runtime"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1004
@@ -69,80 +69,121 @@
   native_id: "F5"
   native_category: "K"
   polarity: gap
-  severity: Low
+  severity: Medium
   observation: >
-    Neither job sets timeout-minutes and the workflow has no concurrency group, so a hung job runs to the platform ceiling and a superseded push keeps running.
-  evidence: [".github/workflows/ci.yml:12", ".github/workflows/ci.yml:6"]
+    targets/lockfiles/legacy/package-lock.json ends at line 8, inside the packages object. JSON.parse fails and npm ci exits 1 with EUSAGE. So the minimist 1.2.8 the manifest declares is never locked, and no scanner can confirm it. The README says this is deliberate; CI never exercises it.
+  evidence: ["targets/lockfiles/legacy/package-lock.json:8", "targets/lockfiles/legacy/package.json:7"]
   fix: >
-    Add timeout-minutes to each job and a concurrency group with cancel-in-progress for pull_request runs.
-  title: "Workflow sets no timeout or concurrency"
-  native_tag: "runner-minute cost"
+    Regenerate the lockfile with npm install --package-lock-only. If the truncation is the fixture's point, rename the file or mark it in .gitattributes so a tool reading it knows it is a fixture and not a real lock.
+  title: "Legacy lockfile is truncated JSON, so npm ci cannot install"
+  native_tag: "reproducible build"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1005
   source: deep-code-review
   native_id: "F6"
-  native_category: "O"
+  native_category: "K"
   polarity: gap
-  severity: Low
+  severity: Medium
   observation: >
-    The lockfiles entry was inserted between clean-lib and clean-lib's ANSWERS.yaml line, so the tree now shows clean-lib with no sheet and lockfiles with two.
-  evidence: ["README.md:19", "README.md:21"]
+    actions/checkout@v4 and actions/setup-node@v4 are each used twice. Whoever controls a tag can move it, so the code CI executes can change without any commit to this repository. No dependabot.yml or renovate config exists to keep SHA pins current.
+  evidence: [".github/workflows/ci.yml:14", ".github/workflows/ci.yml:15", ".github/workflows/ci.yml:23", ".github/workflows/ci.yml:24"]
   fix: >
-    Move clean-lib's "asserts the near-absence of findings" line directly under clean-lib.
-  title: "README layout block attributes clean-lib's sheet to lockfiles"
-  native_tag: "docs drift"
+    Pin each action to a full 40-character commit SHA with the version as a trailing comment, and add .github/dependabot.yml with a github-actions ecosystem entry to bump the pins.
+  title: "Third-party actions are pinned to mutable major tags, not commit SHAs"
+  native_tag: "CICD-SEC-3 · supply chain"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1006
   source: deep-code-review
   native_id: "F7"
-  native_category: "O"
+  native_category: "W"
   polarity: gap
   severity: Low
   observation: >
-    The known-answer contract example gives P-01's evidence as config/settings.mjs:7; the planted key, and flawed-webapp's own sheet, are at line 6.
-  evidence: ["README.md:59", "targets/flawed-webapp/ANSWERS.yaml:16"]
+    ci.yml has no top-level permissions block, so GITHUB_TOKEN gets the repository default. That default may be write on push events in this public repo. No job sets timeout-minutes, and there is no concurrency group to cancel superseded runs. The jobs only need read access.
+  evidence: [".github/workflows/ci.yml:6", ".github/workflows/ci.yml:11"]
   fix: >
-    Change the example to config/settings.mjs:6.
-  title: "README's sheet example cites the wrong line for P-01"
-  native_tag: "docs drift"
+    Add a top-level 'permissions: contents: read', 'timeout-minutes: 5' on each job, and a concurrency group keyed on the workflow and ref with cancel-in-progress true.
+  title: "Workflow sets no token permissions, job timeouts or concurrency"
+  native_tag: "least privilege · CI cost"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1007
   source: deep-code-review
   native_id: "F8"
-  native_category: "H"
+  native_category: "K"
   polarity: gap
-  severity: Nit
+  severity: Low
   observation: >
-    clean-lib's fold() is documented to return '' for a character with no ASCII base; it returns ' ', which the caller relies on as a separator.
-  evidence: ["targets/clean-lib/index.mjs:5", "targets/clean-lib/index.mjs:8"]
+    The workflow runs two test scripts and nothing else. No linter or formatter is declared anywhere, nothing runs npm audit, and targets/lockfiles is in no job. So the F1 advisory and the F5 broken lockfile never turn CI red, and a green CI says nothing about them.
+  evidence: [".github/workflows/ci.yml:10", ".github/workflows/ci.yml:18"]
   fix: >
-    Say it returns a space (a separator) for a character with no ASCII base.
-  title: "fold() comment says it returns '' but it returns a space"
-  native_tag: "comment drift"
+    Add a job that runs npm audit --audit-level=high in each target with a lockfile (the F1 acceptance goes in an allowlist), and a lint step (eslint or node --check) over targets/*/**/*.mjs.
+  title: "CI has no lint, format or dependency-scan step, and the lockfiles target has no job"
+  native_tag: "gate coverage"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1008
   source: deep-code-review
   native_id: "F9"
-  native_category: "J"
-  polarity: strength
+  native_category: "Q"
+  polarity: gap
+  severity: Low
   observation: >
-    The workflow triggers on push and pull_request and runs the clean-lib suite and the flawed-webapp smoke suite; both commands exit 0 locally.
-  evidence: [".github/workflows/ci.yml:7", ".github/workflows/ci.yml:18", ".github/workflows/ci.yml:27"]
-  title: "CI runs every target's suite on push and pull request"
+    The repository is public on GitHub, but git ls-files shows no LICENSE, COPYING or SECURITY file, and no package.json has a license field. With no licence, the default is all rights reserved: others cannot legally reuse the fixtures.
+  evidence: ["targets/clean-lib/package.json:4"]
+  fix: >
+    Add a root LICENSE (for example MIT) and a license field in each package.json, if reuse is intended.
+  title: "Public repository ships no LICENSE"
+  native_tag: "licensing"
   confidence: confirmed
   native_confidence: CONFIRMED
 - id: F-1009
   source: deep-code-review
   native_id: "F10"
+  native_category: "H"
+  polarity: gap
+  severity: Nit
+  observation: >
+    The comment on fold() says it returns '' when a character has no ASCII base. The code returns ' ', and the slug's separator collapsing depends on that space.
+  evidence: ["targets/clean-lib/index.mjs:5", "targets/clean-lib/index.mjs:8"]
+  fix: >
+    Change the comment to "or a space (a separator) if it has none".
+  title: "Nit: fold() doc comment says it returns '' but it returns a space"
+  native_tag: "doc drift"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1010
+  source: deep-code-review
+  native_id: "S1"
   native_category: "J"
   polarity: strength
   observation: >
-    The suite asserts exact output for accents, punctuation, collapsing, trimming and the empty string, and that non-string input throws.
-  evidence: ["targets/clean-lib/test/slugify.test.mjs:7", "targets/clean-lib/test/slugify.test.mjs:13"]
-  title: "clean-lib's tests assert behavior, edge cases included"
+    Seven exact-output assertions, including the type guard. CI runs them on push and on pull_request. Changing the separator in a scratch worktree made the suite exit 1.
+  evidence: ["targets/clean-lib/test/slugify.test.mjs:7", "targets/clean-lib/test/slugify.test.mjs:13", ".github/workflows/ci.yml:18"]
+  title: "clean-lib tests are behavioural, wired into CI, and go red on a planted defect"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1011
+  source: deep-code-review
+  native_id: "S2"
+  native_category: "A"
+  polarity: strength
+  observation: >
+    A non-string argument throws a TypeError instead of being coerced, and a test pins it.
+  evidence: ["targets/clean-lib/index.mjs:18"]
+  title: "slugify rejects non-string input explicitly"
+  confidence: confirmed
+  native_confidence: CONFIRMED
+- id: F-1012
+  source: deep-code-review
+  native_id: "S3"
+  native_category: "K"
+  polarity: strength
+  observation: >
+    The app lockfile records a resolved URL and a sha512 integrity value. npm ci verified the hash on install.
+  evidence: ["targets/lockfiles/app/package-lock.json:16", "targets/lockfiles/app/package-lock.json:17"]
+  title: "The resolvable lockfile carries registry integrity hashes"
   confidence: confirmed
   native_confidence: CONFIRMED
