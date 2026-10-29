@@ -1,0 +1,93 @@
+# map/findings/checkov.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: checkov · exit code 1 (verified in its success set) · 11 row(s).
+# Ids start at F-990: the profile floor (highest existing id F-0 is below it).
+# Raw report archived at map/raw/checkov.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-990
+  source: checkov
+  native_id: "dockerfile-audited@Dockerfile"
+  native_category: "config-audited"
+  polarity: fact
+  observation: >
+    Dockerfile audited as dockerfile: 2 check(s) failed, 3 passed.
+  evidence: ["Dockerfile:1"]
+- id: F-991
+  source: checkov
+  native_id: "CKV_DOCKER_2@/Dockerfile.@Dockerfile"
+  native_category: "dockerfile"
+  polarity: gap
+  observation: >
+    Ensure that HEALTHCHECK instructions have been added to container images (CKV_DOCKER_2): /Dockerfile. in Dockerfile:1 fails it.
+  evidence: ["Dockerfile:1"]
+- id: F-992
+  source: checkov
+  native_id: "CKV_DOCKER_3@/Dockerfile.@Dockerfile"
+  native_category: "dockerfile"
+  polarity: gap
+  observation: >
+    Ensure that a user for the container has been created (CKV_DOCKER_3): /Dockerfile. in Dockerfile:1 fails it.
+  evidence: ["Dockerfile:1"]
+- id: F-993
+  source: checkov
+  native_id: "terraform-audited@main.tf"
+  native_category: "config-audited"
+  polarity: fact
+  observation: >
+    main.tf audited as terraform: 7 check(s) failed, 4 passed.
+  evidence: ["main.tf:1"]
+- id: F-994
+  source: checkov
+  native_id: "CKV2_AWS_6@aws_s3_bucket.backups@main.tf"
+  native_category: "terraform"
+  polarity: gap
+  observation: >
+    Ensure that S3 bucket has a Public Access block (CKV2_AWS_6): aws_s3_bucket.backups in main.tf:2 fails it.
+  evidence: ["main.tf:2"]
+- id: F-995
+  source: checkov
+  native_id: "CKV2_AWS_62@aws_s3_bucket.backups@main.tf"
+  native_category: "terraform"
+  polarity: gap
+  observation: >
+    Ensure S3 buckets should have event notifications enabled (CKV2_AWS_62): aws_s3_bucket.backups in main.tf:2 fails it.
+  evidence: ["main.tf:2"]
+- id: F-996
+  source: checkov
+  native_id: "CKV_AWS_18@aws_s3_bucket.backups@main.tf"
+  native_category: "terraform"
+  polarity: gap
+  observation: >
+    Ensure the S3 bucket has access logging enabled (CKV_AWS_18): aws_s3_bucket.backups in main.tf:2 fails it.
+  evidence: ["main.tf:2"]
+- id: F-997
+  source: checkov
+  native_id: "CKV2_AWS_61@aws_s3_bucket.backups@main.tf"
+  native_category: "terraform"
+  polarity: gap
+  observation: >
+    Ensure that an S3 bucket has a lifecycle configuration (CKV2_AWS_61): aws_s3_bucket.backups in main.tf:2 fails it.
+  evidence: ["main.tf:2"]
+- id: F-998
+  source: checkov
+  native_id: "CKV_AWS_144@aws_s3_bucket.backups@main.tf"
+  native_category: "terraform"
+  polarity: gap
+  observation: >
+    Ensure that S3 bucket has cross-region replication enabled (CKV_AWS_144): aws_s3_bucket.backups in main.tf:2 fails it.
+  evidence: ["main.tf:2"]
+- id: F-999
+  source: checkov
+  native_id: "CKV_AWS_21@aws_s3_bucket.backups@main.tf"
+  native_category: "terraform"
+  polarity: gap
+  observation: >
+    Ensure all data stored in the S3 bucket have versioning enabled (CKV_AWS_21): aws_s3_bucket.backups in main.tf:2 fails it.
+  evidence: ["main.tf:2"]
+- id: F-1000
+  source: checkov
+  native_id: "CKV_AWS_145@aws_s3_bucket.backups@main.tf"
+  native_category: "terraform"
+  polarity: gap
+  observation: >
+    Ensure that S3 buckets are encrypted with KMS by default (CKV_AWS_145): aws_s3_bucket.backups in main.tf:2 fails it.
+  evidence: ["main.tf:2"]

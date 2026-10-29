@@ -1,0 +1,83 @@
+# Adapter: checkov (external instrument) -> the axis roster (map/scanners/CONTRACT.md).
+# Infrastructure-as-code and container configuration against a graph-based policy set
+# (https://github.com/bridgecrewio/checkov, Apache-2.0): Terraform, CloudFormation,
+# Kubernetes, Helm, Kustomize, Dockerfiles, Serverless, ARM and Bicep. Adopted as #181 as
+# the one IaC instrument (map/scanners/CANDIDATES.md). Keyed by the framework a failed
+# check reports (its check_type). A tree with no such file reads not-applicable through
+# the no-input fact, never clean.
+scanner: checkov
+targets_taxonomy: 3
+role: instrument
+fails_loud: checkov-instrument
+verified_against: "3.4.0"
+run:
+  bin: checkov
+  # offline (no external module download, no results upload), passed checks kept (not
+  # --quiet: a file audited clean is on the record), IaC and container
+  # frameworks only: GitHub Actions is zizmor's, secrets gitleaks', dependencies the
+  # dependency instruments'
+  args:
+    - "--directory"
+    - "."
+    - "--output"
+    - "json"
+    - "--compact"
+    - "--skip-download"
+    - "--skip-results-upload"
+    - "--framework"
+    - "terraform"
+    - "cloudformation"
+    - "kubernetes"
+    - "helm"
+    - "kustomize"
+    - "dockerfile"
+    - "serverless"
+    - "arm"
+    - "bicep"
+  ok_exits: [0, 1]          # 0 every check passed, 1 at least one failed
+  version:
+    - "--version"
+  install: "uv tool install checkov==3.4.0 (or pipx install checkov==3.4.0)"
+  timeout_s: 1200
+ingest:
+  format: checks-report
+  start_id: 990
+# the open policy set reports no severity, so every failed check reads Medium
+bands:
+  default: Medium
+
+contributes: []
+
+map:
+  terraform:
+    axis: code-security
+  cloudformation:
+    axis: code-security
+  kubernetes:
+    axis: code-security
+  helm:
+    axis: code-security
+  kustomize:
+    axis: code-security
+  dockerfile:
+    axis: code-security
+  serverless:
+    axis: code-security
+  arm:
+    axis: code-security
+  bicep:
+    axis: code-security
+  config-audited:               # a FACT row per file a framework audited
+    axis: code-security
+  config-not-audited:           # a FACT row: a file a framework could not parse
+    axis: code-security
+  no-input:                     # a FACT row: no IaC or container file in the tree
+    axis: code-security
+
+default: FAIL
+
+decides:
+  - requirement: d-infrastructure-config-secure
+    category: [terraform, cloudformation, kubernetes, helm, kustomize, dockerfile, serverless, arm, bicep]
+    not_applicable_when: no-input
+    not_measured_when: config-not-audited

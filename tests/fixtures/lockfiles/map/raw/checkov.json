@@ -1,0 +1,9 @@
+{
+  "envelope": 1,
+  "scanner": "checkov",
+  "exit": 0,
+  "version": "3.4.0",
+  "no_input": false,
+  "report": "{\n    \"passed\": 0,\n    \"failed\": 0,\n    \"skipped\": 0,\n    \"parsing_errors\": 0,\n    \"resource_count\": 0,\n    \"checkov_version\": \"3.4.0\"\n}\n",
+  "stderr": []
+}

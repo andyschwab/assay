@@ -20,3 +20,12 @@ scanners:
   structure-scan:
     status: skipped
     reason: "fixture run: structure-scan was not executed over this public target"
+  zizmor:
+    status: skipped
+    reason: "fixture: not executed"
+  osv-scanner:
+    status: skipped
+    reason: "fixture: not executed"
+  checkov:
+    status: skipped
+    reason: "fixture: not executed"

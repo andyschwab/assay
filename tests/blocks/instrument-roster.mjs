@@ -20,7 +20,7 @@ import { HERE, ROOT, current, negFailures } from '../harness.mjs';
 
 export const label = 'instrument-roster';
 
-const FIXTURE_RUNS = ['notesbox', 'cleanlib', 'fixtures-root'];
+const FIXTURE_RUNS = ['notesbox', 'cleanlib', 'fixtures-root', 'lockfiles', 'infra'];
 const CANDIDATE = 'quill-review';
 
 export async function run() {
@@ -73,8 +73,9 @@ export async function run() {
   }
   if (!stat.some((r) => r.decides_alone.length)) fail('some adopted scanner must decide a requirement alone');
 
-  // not_measured_if_retired is a prediction: retire each scanner from a real run and the
-  // rows that leave the measured scale are exactly the ones it named
+  // not_measured_if_retired is a prediction: retire each scanner from a real run (its
+  // adapter marked retired, its rows and its disposition gone) and the rows that leave the
+  // measured scale are exactly the ones it named; a row it shares stays with the others
   {
     const dir = fixtureDir('notesbox');
     const findings = loadFindings(dir), manifest = loadManifest(dir), inputs = null;   // censuses decide no instrument row
@@ -83,12 +84,18 @@ export async function run() {
     const before = decided(measureRun({ findings, manifest, inputs, coverage }, reg));
     for (const id of Object.keys(manifest.scanners)) {
       if (manifest.scanners[id].status !== 'ran' || !byId[id]) continue;
-      const retired = { ...manifest, scanners: { ...manifest.scanners, [id]: { status: 'skipped', reason: 'retired (roster probe)' } } };
-      const after = decided(measureRun({ findings: findings.filter((f) => (f.source || 'repo-eval') !== id), manifest: retired, inputs, coverage }, reg));
+      const { [id]: _gone, ...rest } = manifest.scanners;
+      const retired = { ...manifest, scanners: rest };
+      const retiredAdapters = { ...adapters, [id]: { ...adapters[id], adopted: false, retired: 'roster probe' } };
+      const after = decided(measureRun({ findings: findings.filter((f) => (f.source || 'repo-eval') !== id), manifest: retired, inputs, coverage, adapters: retiredAdapters }, reg));
       const lost = [...before].filter((x) => !after.has(x)).sort();
       const predicted = byId[id].not_measured_if_retired.filter((x) => before.has(x)).sort();
+      const beside = (byId[id].decides_beside || []).filter((x) => before.has(x));
       const instrumentLost = lost.filter((x) => reg.requirements.find((d) => d.id === x)?.decide.kind === 'instrument');
-      if (JSON.stringify(instrumentLost) !== JSON.stringify(predicted)) fail(`retiring ${id} over notesbox must lose exactly the instrument rows the roster predicts (predicted ${predicted.join(',') || 'none'}, lost ${instrumentLost.join(',') || 'none'})`);
+      // every row it alone decides is lost; a row it decides beside another scanner is lost
+      // only where that scanner did not run this run, and nothing else is ever lost
+      const missed = predicted.filter((x) => !instrumentLost.includes(x)), extra = instrumentLost.filter((x) => !predicted.includes(x) && !beside.includes(x));
+      if (missed.length || extra.length) fail(`retiring ${id} over notesbox loses every row the roster names and none outside its shared rows (predicted ${predicted.join(',') || 'none'}, shared ${beside.join(',') || 'none'}, lost ${instrumentLost.join(',') || 'none'})`);
     }
   }
 

@@ -696,6 +696,53 @@ node assay.mjs structure-scan <target-dir> --out structure-scan.json [--timeout 
 node assay.mjs ingest <run-dir> --tool structure-scan --raw structure-scan.json --exit <its exit code>
 ```
 
+### 3f. Instruments run off their adapter (`run:`)
+
+An external instrument needs no runner of its own in the core (`CLAUDE.md` rule 7).
+Its adapter carries `run:`, and `assay start` (`map/start.mjs` runAdapterInstrument;
+the routine through the same offline draw) drives every adopted instrument that has one:
+
+```yaml
+run:
+  bin: <binary>              # found on PATH; absent → skipped, with `install`'s line
+  args: [ … ]                # run from inside the target
+  ok_exits: [0, 1]           # the exits that are a completed run; any other → failed
+  no_input_exits: [128]      # optional: the tool found nothing to read
+  inputs: [".github/workflows/*.yml", …]   # optional globs: none in the tree → not started
+  version: ["--version"]     # optional: recorded in the envelope
+  install: "<how to install it>"
+  timeout_s: 600
+```
+
+The child gets the allow-listed environment of `map/child-env.mjs` (§3a, "What
+runs"), never the evaluator's. The runner times it and writes `duration:` on the
+run record. It writes an **envelope**, `{ envelope: 1, scanner, exit, version,
+no_input, report, stderr }`: the tool's stdout and the tail of its stderr, with
+every path that names the target (absolutely, or relative to the filesystem root)
+made relative to it, so a failure a tool reports only on stderr still reaches the
+map and the archive names no machine. Ingest reads it by the format the adapter's
+`ingest.format` names, each named for a report's shape:
+
+- `sarif`: one gap per result, its `ruleId` (less the adapter's `rule_prefix`) the
+  native category, its first location the evidence, the property the adapter names
+  (`severity_property`) as `detail.tool_severity`. A run from another tool
+  (`ingest.tool`), no runs, or a run with no results list halts.
+- `osv-results`: the OSV schema's results by source, read with every package listed.
+  Each source scanned is a `source-audited` fact; each advisory group is a gap whose
+  category is its CVSS band (`critical`, `high`, `moderate`, `low`, or `unrated`
+  when unscored); a source the stderr reports unreadable (`ingest.source_failed_re`)
+  is a `source-failed` gap and a `source-not-audited` fact.
+- `checks-report`: a policy scanner's per-framework passed and failed checks. Each
+  failed check is a gap keyed by its framework; each file a framework read is a
+  `config-audited` fact; each file it could not parse is a `config-not-audited`
+  fact. A summary that counts resources but carries no framework report halts.
+
+A run that found nothing to read (its inputs absent, an exit in `no_input_exits`,
+or an empty summary) is one `no-input` fact, which a decider's
+`not_applicable_when` names. The views band the gaps from the adapter's `bands:`
+(a value to a band, read from `detail.tool_severity`, else the native category,
+with `default`). The rows an adapter's instrument decides are its `decides:` (§3).
+
 ## 4. The fail-closed rule (the coherence guarantee)
 
 A finding whose `native_category` matches **no** row in its adapter is a

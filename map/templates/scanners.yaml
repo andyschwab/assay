@@ -59,3 +59,6 @@ scanners:
     # skipped needs the reason (e.g. no registry reach to install jscpd and knip).
     status: skipped
     reason: "<why — e.g. the run environment has no registry reach to install jscpd and knip; decided by <role>>"
+  # … and one row per adopted instrument whose adapter carries run: (map/scanners/CONTRACT.md
+  # §3f), each by its adapter's scanner id: `assay start` writes ran (with duration:), or
+  # skipped with the binary's install line when it is not on PATH.

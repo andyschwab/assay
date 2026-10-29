@@ -172,6 +172,9 @@ export function factFingerprint(f, axis) {
 export function corroboratedFacts(projected) {
   const by = new Map();
   for (const p of projected || []) {
+    // a row citing only the repository root (a tree-wide fact: nothing to read, no
+    // deployment) names no file, so it cannot be the same fact as another scanner's
+    if (!(p.f.effect && p.f.effect.channel) && !p.f.channel && (p.f.evidence || []).every((e) => ['', '.', './'].includes(String(e).split(':')[0]))) continue;
     const fp = factFingerprint(p.f, p.axis);
     if (!by.has(fp)) by.set(fp, { fingerprint: fp, sources: new Set(), findings: [] });
     const e = by.get(fp);

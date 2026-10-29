@@ -1,0 +1,122 @@
+# map/findings/zizmor.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: zizmor · exit code 0 (verified in its success set) · 9 row(s).
+# Ids start at F-1100: the next hundred above the base's highest id F-1012 (in deep-code-review.yaml, repo-census.yaml); the profile floor is F-980.
+# Raw report archived at map/raw/zizmor.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-1100
+  source: zizmor
+  native_id: "artipacked@.github/workflows/ci.yml:14"
+  native_category: "artipacked"
+  polarity: gap
+  observation: >
+    credential persistence through GitHub Actions artifacts: does not set persist-credentials: false (.github/workflows/ci.yml:14)
+  evidence: [".github/workflows/ci.yml:14"]
+  fix: >
+    Set persist-credentials: false on actions/checkout unless a later step must push with that token.
+  detail:
+    tool_severity: "Medium"
+    level: "warning"
+- id: F-1101
+  source: zizmor
+  native_id: "artipacked@.github/workflows/ci.yml:23"
+  native_category: "artipacked"
+  polarity: gap
+  observation: >
+    credential persistence through GitHub Actions artifacts: does not set persist-credentials: false (.github/workflows/ci.yml:23)
+  evidence: [".github/workflows/ci.yml:23"]
+  fix: >
+    Set persist-credentials: false on actions/checkout unless a later step must push with that token.
+  detail:
+    tool_severity: "Medium"
+    level: "warning"
+- id: F-1102
+  source: zizmor
+  native_id: "excessive-permissions@.github/workflows/ci.yml:1"
+  native_category: "excessive-permissions"
+  polarity: gap
+  observation: >
+    overly broad permissions: default permissions used due to no permissions: block (.github/workflows/ci.yml:1)
+  evidence: [".github/workflows/ci.yml:1"]
+  fix: >
+    Set a top-level permissions: block (contents: read), and grant each job only the scopes it uses.
+  detail:
+    tool_severity: "Medium"
+    level: "warning"
+- id: F-1103
+  source: zizmor
+  native_id: "excessive-permissions@.github/workflows/ci.yml:11"
+  native_category: "excessive-permissions"
+  polarity: gap
+  observation: >
+    overly broad permissions: default permissions used due to no permissions: block (.github/workflows/ci.yml:11)
+  evidence: [".github/workflows/ci.yml:11"]
+  fix: >
+    Set a top-level permissions: block (contents: read), and grant each job only the scopes it uses.
+  detail:
+    tool_severity: "Medium"
+    level: "warning"
+- id: F-1104
+  source: zizmor
+  native_id: "excessive-permissions@.github/workflows/ci.yml:20"
+  native_category: "excessive-permissions"
+  polarity: gap
+  observation: >
+    overly broad permissions: default permissions used due to no permissions: block (.github/workflows/ci.yml:20)
+  evidence: [".github/workflows/ci.yml:20"]
+  fix: >
+    Set a top-level permissions: block (contents: read), and grant each job only the scopes it uses.
+  detail:
+    tool_severity: "Medium"
+    level: "warning"
+- id: F-1105
+  source: zizmor
+  native_id: "unpinned-uses@.github/workflows/ci.yml:14"
+  native_category: "unpinned-uses"
+  polarity: gap
+  observation: >
+    unpinned action reference: action is not pinned to a hash (required by blanket policy) (.github/workflows/ci.yml:14)
+  evidence: [".github/workflows/ci.yml:14"]
+  fix: >
+    Pin the action to a full 40-character commit SHA, with the version as a trailing comment, and let a dependency bot keep the pin current.
+  detail:
+    tool_severity: "High"
+    level: "error"
+- id: F-1106
+  source: zizmor
+  native_id: "unpinned-uses@.github/workflows/ci.yml:15"
+  native_category: "unpinned-uses"
+  polarity: gap
+  observation: >
+    unpinned action reference: action is not pinned to a hash (required by blanket policy) (.github/workflows/ci.yml:15)
+  evidence: [".github/workflows/ci.yml:15"]
+  fix: >
+    Pin the action to a full 40-character commit SHA, with the version as a trailing comment, and let a dependency bot keep the pin current.
+  detail:
+    tool_severity: "High"
+    level: "error"
+- id: F-1107
+  source: zizmor
+  native_id: "unpinned-uses@.github/workflows/ci.yml:23"
+  native_category: "unpinned-uses"
+  polarity: gap
+  observation: >
+    unpinned action reference: action is not pinned to a hash (required by blanket policy) (.github/workflows/ci.yml:23)
+  evidence: [".github/workflows/ci.yml:23"]
+  fix: >
+    Pin the action to a full 40-character commit SHA, with the version as a trailing comment, and let a dependency bot keep the pin current.
+  detail:
+    tool_severity: "High"
+    level: "error"
+- id: F-1108
+  source: zizmor
+  native_id: "unpinned-uses@.github/workflows/ci.yml:24"
+  native_category: "unpinned-uses"
+  polarity: gap
+  observation: >
+    unpinned action reference: action is not pinned to a hash (required by blanket policy) (.github/workflows/ci.yml:24)
+  evidence: [".github/workflows/ci.yml:24"]
+  fix: >
+    Pin the action to a full 40-character commit SHA, with the version as a trailing comment, and let a dependency bot keep the pin current.
+  detail:
+    tool_severity: "High"
+    level: "error"

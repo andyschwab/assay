@@ -1,0 +1,54 @@
+# Known-answer sheet for the infra target — an IaC and container policy instrument's
+# fixture (assay #181). Matching is by evidence path + class (an instrument answer: by
+# check name). Method classes: checkov.
+target: infra
+
+planted:
+  - id: P-01
+    class: container-runs-as-root
+    axis: code-security
+    polarity: gap
+    evidence: Dockerfile:1
+    detectable_by: [checkov]
+    note: >
+      The image never drops to an unprivileged USER, so the application runs as root
+      inside its container; it also declares no HEALTHCHECK.
+
+  - id: P-02
+    class: storage-unprotected
+    axis: code-security
+    polarity: gap
+    evidence: main.tf:2
+    detectable_by: [checkov]
+    note: >
+      The backup bucket has no server-side encryption, versioning, access logging or
+      public-access block: whatever lands in it is one misconfiguration from exposure.
+
+# What checkov records over this target, keyed by the framework a failed check reports.
+instruments:
+  - id: I-01
+    check: dockerfile
+    detectable_by: [checkov]
+    axis: code-security
+    polarity: gap
+    note: P-01's failed container checks.
+
+  - id: I-02
+    check: terraform
+    detectable_by: [checkov]
+    axis: code-security
+    polarity: gap
+    note: P-02's failed storage checks.
+
+  - id: I-03
+    check: config-audited
+    detectable_by: [checkov]
+    axis: code-security
+    polarity: fact
+    note: Dockerfile and main.tf, each audited.
+
+# The status the yardstick's measurement of this target should read (assay yardstick/README.md, "Known answers").
+requirements:
+  - id: d-infrastructure-config-secure
+    status: unmet
+    reason: "P-01 and P-02: the container runs as root and the bucket is unprotected."

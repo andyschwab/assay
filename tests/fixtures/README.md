@@ -15,16 +15,25 @@ reaching outside the repo — self-contained immutable copies, kept separate fro
 - `cleanlib/` — a run over the `clean-lib` control target (the same methods).
   Scored against `cleanlib/ANSWERS.yaml`; the assertion is 0 false positives, with
   the instruments' known absences answered on the sheet rather than counted.
-- `lockfiles/` — dependency-scan's run over the `lockfiles` target (#17): one
-  lockfile pinning a package with a known critical advisory, one truncated so npm
-  refuses it offline (ENOLOCK). Scored against `lockfiles/ANSWERS.yaml` by the
+- `lockfiles/` — dependency-scan's and osv-scanner's runs over the `lockfiles` target
+  (#17, #179): one lockfile pinning a package with a known critical advisory, one
+  truncated so npm refuses it offline (ENOLOCK), and a pip pin with a critical advisory
+  only osv-scanner reads. Scored against `lockfiles/ANSWERS.yaml` by the
   `dependency-scan-fixture` block, not pinned in `tests/golden.json`.
   `lockfiles/legacy/` keeps a frozen copy of the target's truncated lockfile
   (stored as `<name>.pending`, so this repository's dependency graph never parses
   it) for the block's offline end-to-end check.
-- `fixtures-root/` — repo-census over the fixture repository's root, scored against
-  the repo-root sheet (`fixtures-root/ANSWERS.yaml`). Repo-scoped instruments are
-  answered only there, so the per-target runs record repo-census skipped.
+- `fixtures-root/` — repo-census and zizmor over the fixture repository's root, scored
+  against the repo-root sheet (`fixtures-root/ANSWERS.yaml`). Repo-scoped instruments
+  are answered only there, so the per-target runs record repo-census and zizmor skipped.
+- `infra/` — checkov's run over the `infra` target (#181): a Dockerfile that runs as
+  root and a Terraform bucket with no protection. Scored against `infra/ANSWERS.yaml`
+  by the `checkov-instrument` block, not pinned in `tests/golden.json`.
+
+The three adapter-run instruments (#179–#181) were drawn with their adapters' own
+runner (`map/start.mjs` runAdapterInstrument) at assay-fixtures `fe1ca28`: osv-scanner
+and checkov over each target (no-input where a target holds no lockfile or no IaC),
+zizmor at the root, each archived as the runner's envelope under `map/raw/`.
 
 Each scored sheet also carries a `requirements:` list (#18): the status the
 yardstick's measurement of the run should read, per requirement, with its reason

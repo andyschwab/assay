@@ -18,3 +18,12 @@ scanners:
   structure-scan:
     status: skipped
     reason: "fixture run: structure-scan was not executed over this public target"
+  osv-scanner:
+    status: ran
+    duration: "1s"
+  checkov:
+    status: ran
+    duration: "2s"
+  zizmor:
+    status: skipped
+    reason: "repo-scoped: run at the fixture repository root and scored there (tests/fixtures/fixtures-root)"

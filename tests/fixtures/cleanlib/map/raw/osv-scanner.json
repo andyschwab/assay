@@ -1,0 +1,14 @@
+{
+  "envelope": 1,
+  "scanner": "osv-scanner",
+  "exit": 128,
+  "version": "osv-scanner version: 2.7.0",
+  "no_input": false,
+  "report": "",
+  "stderr": [
+    "Scanning dir .",
+    "Starting filesystem walk for root: /",
+    "End status: 4 dirs visited, 10 inodes visited, 0 Extract calls, 420.696µs elapsed, 420.892µs wall time",
+    "No package sources found, --help for usage information."
+  ]
+}

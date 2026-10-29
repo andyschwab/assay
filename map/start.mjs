@@ -45,11 +45,12 @@
 // Library: drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml,
 // engineCommit — routine/run.mjs imports all five.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
+import { childEnv } from './child-env.mjs';
 import { loadAdapters, adoptedAdapters } from './project.mjs';
 import { scannersPath, findingsDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
@@ -125,6 +126,70 @@ function toolNotRunLines(tool, rawFile) {
     .map(([name, t]) => `  · ${tool}: ${name} ${t.status} — ${String(t.reason || 'no reason recorded').replace(/\s+/g, ' ').trim().split(/(?<=\.)\s/)[0]}`);
 }
 
+// ── an instrument run off its adapter (CLAUDE.md rule 7; map/scanners/CONTRACT.md §3a) ──
+// An adopted instrument whose adapter carries `run:` is driven from that field alone:
+//   bin, args          the command, run from inside the target
+//   ok_exits           the exits that are a completed run (anything else: failed)
+//   no_input_exits     exits meaning the tool found nothing to read (a not-applicable fact)
+//   inputs             globs; when none matches, the tool is not started (nothing to read)
+//   version            args that print the tool's version, recorded in the envelope
+//   install            how to install it, named when it is absent (skipped, never clean)
+//   timeout_s          a wall-clock bound (default 600)
+// It writes the envelope ingest's formats read: the exit, the report (stdout) and the
+// tail of stderr, with every path made relative to the target.
+const INPUT_WALK_SKIP = new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'vendor']);
+const globRe = (g) => new RegExp('^' + g.split('**/').map((part) => part.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]')).join('(?:.*/)?') + '$');
+function hasInput(repoDir, globs) {
+  const res = globs.map(globRe);
+  let seen = 0;
+  const walk = (rel) => {
+    for (const e of (() => { try { return readdirSync(rel ? join(repoDir, rel) : repoDir); } catch { return []; } })()) {
+      if (++seen > 50000) return true;   // a tree too large to walk is not ruled out
+      const p = rel ? `${rel}/${e}` : e;
+      let st; try { st = statSync(join(repoDir, p)); } catch { continue; }
+      if (st.isDirectory()) { if (!INPUT_WALK_SKIP.has(e) && walk(p)) return true; }
+      else if (res.some((r) => r.test(p))) return true;
+    }
+    return false;
+  };
+  return walk('');
+}
+export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
+  const run = adapter.run;
+  const root = (() => { try { return realpathSync(repoDir); } catch { return resolve(repoDir); } })();
+  // a tool may print the target's path absolute, or relative to the filesystem root
+  const prefixes = [...new Set([root, resolve(repoDir)].flatMap((x) => [`${x}/`, `${x.replace(/^\/+/, '')}/`]))].sort((a, b) => b.length - a.length);
+  const rel = (t) => prefixes.reduce((acc, pre) => acc.split(pre).join(''), String(t ?? ''));
+  const { dir: rawDir, file: rawFile } = rawScratch(id);
+  const write = (env) => writeFileSync(rawFile, JSON.stringify({ envelope: 1, scanner: id, ...env }, null, 2) + '\n');
+  const ok = [...(run.ok_exits || [0]), ...(run.no_input_exits || [])].map(Number);
+  try {
+    if (Array.isArray(run.inputs) && run.inputs.length && !hasInput(repoDir, run.inputs)) {
+      log(`· ${id} — nothing to read (none of ${run.inputs.join(', ')})`);
+      write({ exit: 0, no_input: true, report: null, stderr: [] });
+      return ingestInstrumentRaw({ tool: id, exit: 0, output: '', rawFile, okExits: ok, outDir, log, target: repoDir });
+    }
+    if (!which(run.bin)) {
+      const reason = `${run.bin} not on PATH where this run was drawn${run.install ? ` (install: ${run.install})` : ''}`;
+      log(`· ${id} — ${reason}, skipped`);
+      return { status: 'skipped', reason };
+    }
+    const version = Array.isArray(run.version) ? String(spawnSync(run.bin, run.version, { encoding: 'utf8', env: childEnv() }).stdout || '').trim().split('\n')[0] : null;
+    log(`· ${id}${version ? ` (${version})` : ''} …`);
+    const t0 = Date.now();
+    // the same allow-listed environment as every instrument's child (map/child-env.mjs, CONTRACT.md §3a)
+    const r = spawnSync(run.bin, (run.args || []).map(String), { cwd: repoDir, env: childEnv(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: Number(run.timeout_s || 600) * 1000 });
+    const duration = `${Math.max(1, Math.round((Date.now() - t0) / 1000))}s`;   // the row's cost on the record (SCHEMA.md §5a, #159)
+    const stderr = rel(r.stderr).split('\n').filter(Boolean).slice(-400);
+    write({ exit: r.status, version, no_input: false, report: rel(r.stdout), stderr });
+    const row = ingestInstrumentRaw({ tool: id, exit: r.status, output: stderr.slice(-3).join('\n') || (r.error ? String(r.error.message) : ''), rawFile, okExits: ok, outDir, log, target: repoDir });
+    return { ...row, duration };
+  } finally { try { rmSync(rawDir, { recursive: true, force: true }); } catch {} }
+}
+// every adopted instrument whose adapter carries run:, in id order
+export const adapterRunInstruments = (adapters = loadAdapters()) =>
+  Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument' && a.run && a.run.bin).map(([id]) => id).sort();
+
 // gitleaks is an external binary, not part of assay's own CLI — run it directly
 // when present; when it is not, skip it with the CALLER's own absent-reason
 // (CONTRACT.md §3a: an adopted instrument may be absent from an environment,
@@ -177,6 +242,7 @@ export function toScannersYaml(engine, rows, header = '# scanners.yaml — GENER
     L.push(`  ${id}:`, `    status: ${r.status}`);
     if (r.reason) L.push(`    reason: ${q(r.reason)}`);
     if (r.model) L.push(`    model: ${q(r.model)}`);
+    if (r.duration) L.push(`    duration: ${q(r.duration)}`);
   }
   return L.join('\n') + '\n';
 }
@@ -233,6 +299,8 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentR
   rows['gitleaks'] = runGitleaks(repoDir, outDir, log, gitleaksAbsentReason);
   if (handoff) rows['structure-scan'] = ingestHandoff('structure-scan', handoff, outDir, log);
   else rows['structure-scan'] = runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log });
+  const adapters = loadAdapters();
+  for (const id of adapterRunInstruments(adapters)) rows[id] = runAdapterInstrument(id, adapters[id], repoDir, outDir, log);
   return rows;
 }
 

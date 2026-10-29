@@ -1,0 +1,152 @@
+# Adapter: zizmor (external instrument) -> the axis roster (map/scanners/CONTRACT.md).
+# A static auditor of GitHub Actions workflows and actions (https://github.com/zizmorcore/zizmor,
+# MIT): unpinned uses, template injection, token permissions, credential persistence and
+# the rest of its audits, deterministic and offline. Adopted as #180 (map/scanners/CANDIDATES.md,
+# "The code reviewer's local analyzers"). Keyed by the audit id its SARIF ruleId carries
+# after the `zizmor/` prefix; every audit reads a supply-chain or workflow-security property,
+# so every one lands on code-security. An audit not listed here halts the projection
+# (default: FAIL): a new upstream audit is read before it is counted.
+scanner: zizmor
+targets_taxonomy: 3
+role: instrument
+fails_loud: zizmor-instrument
+# verified_against is the release this adapter was last checked against (its audit list,
+# its SARIF shape, its exit codes): bump it after re-reading those, never on faith.
+verified_against: "1.31.1"
+# How the runner drives it (map/start.mjs runAdapterInstrument): offline, so the audits that
+# need the GitHub API (impostor-commit, ref-confusion, known-vulnerable-actions,
+# stale-action-refs, …) do not run; the run record says so in its reason line.
+run:
+  bin: zizmor
+  args:
+    - "--offline"
+    - "--format"
+    - "sarif"
+    - "."
+  # with --format sarif zizmor exits 0 whether or not it finds anything; any other exit is a
+  # tool error (it crashes with no workflow to read, so the runner checks the inputs first)
+  ok_exits: [0]
+  inputs:
+    - ".github/workflows/*.yml"
+    - ".github/workflows/*.yaml"
+    - "**/action.yml"
+    - "**/action.yaml"
+  version:
+    - "--version"
+  install: "uv tool install zizmor==1.31.1 (or pipx install zizmor==1.31.1)"
+  timeout_s: 300
+ingest:
+  format: sarif
+  tool: zizmor
+  start_id: 980
+  rule_prefix: "zizmor/"
+  severity_property: "zizmor/severity"
+# the band a view reads, from the audit's own severity (zizmor/severity in the SARIF)
+bands:
+  High: High
+  Medium: Medium
+  Low: Low
+  Informational: Low
+  default: Medium
+
+contributes: []
+
+map:
+  unpinned-uses:                # a uses: pinned to a tag or branch, not a commit SHA
+    axis: code-security
+    fix: "Pin the action to a full 40-character commit SHA, with the version as a trailing comment, and let a dependency bot keep the pin current."
+  unpinned-images:              # a container image referenced by tag, not digest
+    axis: code-security
+    fix: "Reference the image by its sha256 digest, with the tag as a comment."
+  unpinned-tools:
+    axis: code-security
+  excessive-permissions:        # GITHUB_TOKEN wider than the job needs (including the default)
+    axis: code-security
+    fix: "Set a top-level permissions: block (contents: read), and grant each job only the scopes it uses."
+  undocumented-permissions:
+    axis: code-security
+  artipacked:                   # actions/checkout persisting the token for later steps
+    axis: code-security
+    fix: "Set persist-credentials: false on actions/checkout unless a later step must push with that token."
+  template-injection:           # untrusted context expanded into a run: script
+    axis: code-security
+    fix: "Pass the untrusted value through an env: variable and quote it in the script, never ${{ }} inside run:."
+  dangerous-triggers:
+    axis: code-security
+  github-env:
+    axis: code-security
+  cache-poisoning:
+    axis: code-security
+  insecure-commands:
+    axis: code-security
+  hardcoded-container-credentials:
+    axis: code-security
+  secrets-inherit:
+    axis: code-security
+  secrets-outside-env:
+    axis: code-security
+  overprovisioned-secrets:
+    axis: code-security
+  unredacted-secrets:
+    axis: code-security
+  self-hosted-runner:
+    axis: code-security
+  bot-conditions:
+    axis: code-security
+  unsound-condition:
+    axis: code-security
+  unsound-contains:
+    axis: code-security
+  unsound-ternary:
+    axis: code-security
+  obfuscation:
+    axis: code-security
+  anonymous-definition:
+    axis: code-security
+  concurrency-limits:
+    axis: code-security
+  dependabot-cooldown:
+    axis: code-security
+  dependabot-execution:
+    axis: code-security
+  github-app:
+    axis: code-security
+  insecure-url-scheme:
+    axis: code-security
+  adhoc-packages:
+    axis: code-security
+  misfeature:
+    axis: code-security
+  self-repository:
+    axis: code-security
+  use-trusted-publishing:
+    axis: code-security
+  superfluous-actions:
+    axis: code-security
+  archived-uses:
+    axis: code-security
+  typosquat-uses:
+    axis: code-security
+  forbidden-uses:
+    axis: code-security
+  ref-version-mismatch:
+    axis: code-security
+  stale-action-refs:            # online audits: listed so a run made online still projects
+    axis: code-security
+  impostor-commit:
+    axis: code-security
+  ref-confusion:
+    axis: code-security
+  known-vulnerable-actions:
+    axis: code-security
+  no-input:                     # a FACT row: no workflow or action file in the tree —
+    axis: code-security         #   the decider below reads not-applicable and steps aside
+
+default: FAIL
+
+# "actions pinned by SHA" in d-dependencies-pinned, decided mechanically beside the code
+# reviewer's domain K (#177, #180)
+decides:
+  - requirement: d-dependencies-pinned
+    category: unpinned-uses
+    not_applicable_when: no-input

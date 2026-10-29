@@ -51,23 +51,30 @@ export async function run() {
   if (sig(findings) !== want) fail(`the stored rows must be ${want} (got ${sig(findings) || '(none)'})`);
   if (sig(convert('dependency-scan', raw, rep.exit)) !== sig(findings)) fail('re-converting the archived report must give the stored rows');
 
+  // the run also carries the other dependency auditor's rows since #179 (pinned in
+  // osv-scanner-instrument.mjs): what follows reads dependency-scan's own
+  const own = findings.filter((f) => f.source === 'dependency-scan');
+  const mine = (xs) => (xs || []).filter((x) => (x.detectable_by || []).includes('dependency-scan'));
+  const ownAnswers = { ...answers, planted: mine(answers.planted), instruments: mine(answers.instruments), requirements: [] };
+  const { 'osv-scanner': _coDecider, ...solo } = adaptersOnce();
+
   // (c) every row lands on code-security, and the frozen-run category lockfile-unsupported still maps there
-  const proj = projectMulti(findings, adaptersOnce());
+  const proj = projectMulti(own, adaptersOnce());
   if (proj.unmapped.length) fail(`every stored row must map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
   const offAxis = proj.projected.filter((p) => p.axis !== 'code-security').map((p) => `${p.f.native_category}→${p.axis}`);
   if (offAxis.length) fail(`every dependency-scan row lands on code-security (got ${offAxis.join(', ')})`);
-  const frozen = projectMulti([{ ...findings[0], native_category: 'lockfile-unsupported', polarity: 'gap' }], adaptersOnce());
+  const frozen = projectMulti([{ ...own[0], native_category: 'lockfile-unsupported', polarity: 'gap' }], adaptersOnce());
   if (frozen.projected[0]?.axis !== 'code-security') fail('a frozen run\'s lockfile-unsupported row still lands on code-security');
 
   // (d) scored against the frozen sheet: each answer recovered, on its axis
-  const r = score(findings, adaptersOnce(), answers, manifest);
-  const checks = (answers.instruments || []).map((i) => i.check).sort().join(',');
+  const r = score(own, adaptersOnce(), ownAnswers, manifest);
+  const checks = (ownAnswers.instruments || []).map((i) => i.check).sort().join(',');
   if (checks !== 'critical,lockfile-failed,lockfile-not-audited') fail(`the sheet answers critical, lockfile-failed and lockfile-not-audited (got ${checks || '(none)'})`);
   const notRecovered = r.results.filter((x) => x.status !== 'recovered').map((x) => `${x.id} ${x.status}`);
   if (notRecovered.length || r.total_in_scope !== 5) fail(`every answer must read recovered, five in scope (got ${notRecovered.join(', ') || 'none unrecovered'}; ${r.total_in_scope} in scope)`);
 
   // (e) the yardstick: the critical advisory decides d-dependencies-known-clean unmet
-  const d = measureRun({ findings, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {} }, loadYardstick()).find((x) => x.id === 'd-dependencies-known-clean');
+  const d = measureRun({ findings: own, manifest: [{ scanner: 'dependency-scan', status: 'ran' }], inputs: null, coverage: {}, adapters: solo }, loadYardstick()).find((x) => x.id === 'd-dependencies-known-clean');
   if (d?.status !== 'unmet') fail(`the stored run reads d-dependencies-known-clean unmet (got ${d?.status})`);
 
   // (f) end to end, offline: the frozen truncated lockfile reads failed (ENOLOCK) on this runner too.

@@ -22,3 +22,12 @@ scanners:
   structure-scan:
     status: skipped
     reason: "fixture run: structure-scan was not executed over this public target"
+  zizmor:
+    status: ran
+    duration: "1s"
+  osv-scanner:
+    status: skipped
+    reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib, tests/fixtures/lockfiles)"
+  checkov:
+    status: skipped
+    reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib, tests/fixtures/lockfiles, tests/fixtures/infra)"

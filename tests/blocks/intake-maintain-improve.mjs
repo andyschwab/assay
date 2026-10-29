@@ -36,18 +36,18 @@ export async function run() {
   if (existsSync(join(tmp, 'views', 'intake.yaml'))) {
     const doc = parseYaml(readFileSync(join(tmp, 'views', 'intake.yaml'), 'utf8'));
     const floorIds = reg.requirements.filter((d) => (d.tags || []).includes('floor')).map((d) => d.id);
-    const all = [...(doc.open || []), ...(doc.met || []), ...(doc.to_run || [])];
+    const all = [...(doc.open || []), ...(doc.met || []), ...(doc.to_run || []), ...(doc.not_applicable || [])];
     const ids = all.map((r) => r.id);
     const missing = floorIds.filter((id) => !ids.includes(id));
     if (ids.length !== floorIds.length || missing.length || dupes(ids).length)
-      fail(`every floor row must appear exactly once across intake.yaml's open/met/to_run (got ${ids.length} of ${floorIds.length} floor rows; missing ${missing.join(', ') || 'none'}; duplicated ${dupes(ids).join(', ') || 'none'})`);
+      fail(`every floor row must appear exactly once across intake.yaml's open/met/to_run/not_applicable (got ${ids.length} of ${floorIds.length} floor rows; missing ${missing.join(', ') || 'none'}; duplicated ${dupes(ids).join(', ') || 'none'})`);
   }
 
   let maintainDoc = null;
   if (existsSync(join(tmp, 'views', 'maintain.yaml'))) {
     maintainDoc = parseYaml(readFileSync(join(tmp, 'views', 'maintain.yaml'), 'utf8'));
     const fleetIds = reg.requirements.filter((d) => (d.tags || []).includes('fleet')).map((d) => d.id);
-    const all = [...(maintainDoc.open || []), ...(maintainDoc.met || []), ...(maintainDoc.to_run || [])];
+    const all = [...(maintainDoc.open || []), ...(maintainDoc.met || []), ...(maintainDoc.to_run || []), ...(maintainDoc.not_applicable || [])];
     const ids = all.map((r) => r.id);
     const missing = fleetIds.filter((id) => !ids.includes(id));
     if (ids.length !== fleetIds.length || missing.length || dupes(ids).length)

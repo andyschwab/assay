@@ -281,9 +281,10 @@ const asList = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]).map(St
 // candidate measured on a run that carries it).
 export function decidersOf(d, adapters, disp = null) {
   if (d?.decide?.kind !== 'instrument') return [];
-  const own = Array.isArray(d.decide.deciders) ? d.decide.deciders : d.decide.scanner ? [d.decide] : [];
+  const own = (Array.isArray(d.decide.deciders) ? d.decide.deciders : d.decide.scanner ? [d.decide] : [])
+    .filter((spec) => !adapters?.[spec.scanner]?.retired);   // a retired scanner decides nothing (CONTRACT.md §4a)
   const bound = Object.values(adapters || {}).flatMap((a) => (Array.isArray(a.decides) ? a.decides : [])
-    .filter((b) => b && b.requirement === d.id && (a.adopted !== false || (disp && disp[a.scanner])))
+    .filter((b) => b && b.requirement === d.id && !a.retired && (a.adopted !== false || (disp && disp[a.scanner])))
     .map(({ requirement, ...b }) => ({ ...b, scanner: a.scanner })));
   return [...own.map(({ kind, deciders, any_gap, ...spec }) => spec), ...bound];
 }

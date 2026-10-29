@@ -22,3 +22,12 @@ scanners:
   structure-scan:
     status: skipped
     reason: "frozen run: drawn before the structure-scan instrument existed"
+  zizmor:
+    status: skipped
+    reason: "frozen run: drawn before this instrument was adopted"
+  osv-scanner:
+    status: skipped
+    reason: "frozen run: drawn before this instrument was adopted"
+  checkov:
+    status: skipped
+    reason: "frozen run: drawn before this instrument was adopted"

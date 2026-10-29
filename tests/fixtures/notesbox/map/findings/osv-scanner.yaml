@@ -1,0 +1,13 @@
+# map/findings/osv-scanner.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: osv-scanner · exit code 128 (verified in its success set) · 1 row(s).
+# Ids start at F-1300: the next hundred above the base's highest id F-1200 (in checkov.yaml, deep-code-review.yaml, fresh-clone.yaml, gitleaks.yaml, repo-eval-context.yaml, repo-eval-delegation.yaml, repo-eval-legibility.yaml, repo-eval-verification.yaml); the profile floor is F-985.
+# Raw report archived at map/raw/osv-scanner.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-1300
+  source: osv-scanner
+  native_id: "no-input@root"
+  native_category: "no-input"
+  polarity: fact
+  observation: >
+    Nothing in the tree for osv-scanner to read (it looked for its inputs): not applicable, not merely clean.
+  evidence: ["./:1"]
