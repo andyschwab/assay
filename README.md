@@ -179,6 +179,7 @@ node assay.mjs compile <run> [--target <target>]
 
 # what changed since a previous run, and holding the line on it
 node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
+node assay.mjs migrate-run <prev-run> [--write]              # a baseline written before the strict YAML reader: quote what it refuses
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
 ```
 

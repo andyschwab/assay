@@ -21,6 +21,7 @@ const GROUPS = [
     'validate': ['map/validate.mjs', 'check a run: schema, ids, citations, the run record; fails closed'],
     'ingest': ['map/ingest.mjs', "turn a scanner's output into findings in a run"],
     'record': ['map/record.mjs', "set one scanner's disposition in the run record"],
+    'migrate-run': ['map/migrate-run.mjs', 'bring a run written before the strict YAML reader forward: quote the flow lists it refuses (--write to rewrite)'],
     'enumerate': ['map/enumerate.mjs', 'list the populations a run must cover, and gate on coverage'],
     'fresh-clone': ['map/fresh-clone.mjs', "EXECUTES THE TARGET'S CODE: install, build, lint, typecheck, test, migrate from a clean checkout"],
     'dependency-scan': ['map/dependency-scan.mjs', "RUNS THE TARGET'S PACKAGE MANAGER: npm, pnpm and yarn audit over every lockfile, from scratch copies"],

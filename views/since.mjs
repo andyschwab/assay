@@ -163,7 +163,10 @@ if (isMain(import.meta.url)) {
   catch (e) { console.error(`✗ since: cannot load the yardstick register (${e.message})`); process.exit(2); }
 
   const since = buildSince(previousDoc, currentDoc, reg);
-  const findingsDelta = compareFindings(loadFindings(previous), loadFindings(runDir));
+  let previousFindings;
+  try { previousFindings = loadFindings(previous); }
+  catch (e) { console.error(`✗ since: the previous run's findings do not read under the strict reader (${e.message}); a run written before b16800c is brought forward with: node assay.mjs migrate-run ${previous} --write`); process.exit(2); }
+  const findingsDelta = compareFindings(previousFindings, loadFindings(runDir));
 
   const runId = basename(runDir), previousId = basename(previous);
   let proseConfidential = false;
