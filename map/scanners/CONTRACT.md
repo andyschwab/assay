@@ -462,15 +462,24 @@ tree checks:
   script swallows a non-zero exit (a command ending `|| true` / `|| exit 0` /
   `|| :`, or a `set +e` line anywhere in a multi-line block-scalar script,
   disabling errexit for the rest of it); a gate that can fail open is not a gate.
+  A `set +e` does **not** fail open when the script reads the gated command's
+  status after it (`code=$?`, `if [ $? …`, `|| code=$?`, `exit $?`) and either
+  exits non-zero on it, or hands it on through `$GITHUB_OUTPUT` to a later step of
+  the same job that exits non-zero under an `if:` on that output. A status read
+  whose hand-on the census cannot follow (acted on by no later step, a step with no
+  `id:`, another job, a file) records the step `fail_open: unknown` with the reason
+  (`detail.failOpenUnknown`), and the check reads `not-measured`: never `pass`,
+  never fail-open.
 
 **Success set.** `exit` is `0` when every check reads `pass`, `not-applicable`, or
-`not-measured` (the last, owner-evidence-only, means the checkout could not
-confirm a transcript's commit either way — never a failure of the tool itself),
+`not-measured` (the last means the checkout could not confirm a transcript's
+commit either way, or a ci-gate `set +e` could not be followed — never a failure
+of the tool itself),
 `1` when at least one check is a `gap`; both are successful runs and `ingest.mjs
 --tool repo-census` accepts both. A crash of the runner itself exits `2` and halts
 the intake. The converter writes one gap row per `gap` check and one strength row
 per `pass` check (so the axis sees the evidence, not just the absence of a gap); a
-`not-measured` check (the six owner-evidence checks only — below) yields a FACT
+`not-measured` check (the six owner-evidence checks and ci-gate) yields a FACT
 row in its own `<check>-unverifiable` category, never the check's own category, so
 the requirement it decides reads not-measured rather than a silent met; a
 `not-applicable` check (the same six, over a tree with no deployment signal —
@@ -543,7 +552,11 @@ document's `deployment.signals` (`kind`, `path`, what it is):
   `Chart.yaml`, `kustomization.yaml|yml`, `skaffold.yaml`;
 - `deploy-workflow` — a CI config (`.github/workflows/*.yml|yaml`,
   `.gitlab-ci.yml`, `.circleci/config.yml`, `azure-pipelines.yml`,
-  `bitbucket-pipelines.yml`, `Jenkinsfile`) whose text says `deploy`;
+  `bitbucket-pipelines.yml`, `Jenkinsfile`) that deploys in what it runs, never
+  in a comment (`#` at the start of a line or after whitespace, outside quotes):
+  in a GitHub workflow, `deploy` in a `run:` script (inline or its block), a
+  `uses:` action, a job or step `name:`, or an `environment:` key; in any other
+  CI config, any line. The signal cites the `line` it matched;
 - `server` — a server entry point (`server.{js,mjs,cjs,ts,mts,py,go,rb}`,
   `manage.py`, `wsgi.py`, `asgi.py`); a `package.json` with a `start`, `serve`
   or `deploy` script or a web-framework dependency (express, fastify, koa, hapi,

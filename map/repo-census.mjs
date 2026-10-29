@@ -577,6 +577,7 @@ function parseSteps(lines) {
     if (l.indent <= jobsIndent) break;
     if (jobIndent === null) jobIndent = l.indent;
     if (l.indent === jobIndent && /^[\w-]+:\s*$/.test(l.trimmed)) {
+      const job = l.trimmed.replace(/:\s*$/, '');
       let j = i + 1, jobContinueOnError = false;
       while (j < lines.length) {
         const l2 = lines[j];
@@ -591,6 +592,8 @@ function parseSteps(lines) {
           // block scalar whose body is captured from the following more-indented
           // lines. Returns the index to resume the outer loop from.
           const handleRun = (l3, rest, kNow) => {
+            const key = rest.match(/^(id|if):\s*(.*?)\s*$/);
+            if (key) cur[key[1] === 'id' ? 'id' : 'ifCond'] = key[2].replace(/^['"]|['"]$/g, '');
             const m = rest.match(/^run:\s*(.*)$/);
             if (!m) return kNow;
             const val = m[1].trim();
@@ -615,7 +618,7 @@ function parseSteps(lines) {
             const isItemStart = itemIndent !== null && l3.indent === itemIndent && /^-\s?/.test(l3.trimmed);
             if (isItemStart) {
               flush();
-              cur = { line: l3.n, cmd: null, continueOnError: jobContinueOnError, coeLine: null };
+              cur = { line: l3.n, cmd: null, continueOnError: jobContinueOnError, coeLine: null, job };
               const rest = l3.trimmed.replace(/^-\s?/, '');
               k = handleRun(l3, rest, k);
               if (/^continue-on-error:\s*true\s*$/.test(rest)) { cur.continueOnError = true; cur.coeLine = l3.n; }
@@ -638,13 +641,41 @@ function parseSteps(lines) {
     // overrides an already-found `continue-on-error: true` (that citation wins)
     if (!s.continueOnError) {
       const candidates = s.scriptLines && s.scriptLines.length ? s.scriptLines : (s.cmd ? [{ n: s.line, text: s.cmd }] : []);
-      for (const c of candidates) {
+      for (let ci = 0; ci < candidates.length; ci++) {
+        const c = candidates[ci];
         const shape = shellFailOpenLine(c.text);
-        if (shape) { s.continueOnError = true; s.coeLine = c.n; s.failOpenShell = shape; s.failOpenText = c.text; break; }
+        if (!shape) continue;
+        // a `set +e` that reads the exit status and acts on it is not fail-open (#166)
+        const held = shape === 'set +e' ? setPlusEHeld(candidates.slice(ci + 1), s, steps) : { held: false };
+        if (held.held === true) break;
+        if (held.held === 'unknown') { s.failOpenUnknown = { line: c.n, text: c.text, reason: held.reason }; break; }
+        s.continueOnError = true; s.coeLine = c.n; s.failOpenShell = shape; s.failOpenText = c.text; break;
       }
     }
   }
   return steps;
+}
+// After a `set +e`, the script still fails closed when it reads the gated command's
+// status (`code=$?`, `if [ $? …`, `|| code=$?`, `exit $?`) and either exits non-zero on
+// it, or hands it on through $GITHUB_OUTPUT to a later step of the same job that exits
+// non-zero under an `if:` on that output. A status read whose hand-on cannot be followed
+// (another job, a file, no step id) is `unknown`: never pass and never fail-open.
+const STATUS_READ_RE = /\$\?/;
+const EXITS_NONZERO_RE = /\bexit\s+(?:[1-9]\d*|"?\$\{?(?:\?|[A-Za-z_]\w*)\}?"?)(?:\s|;|$)/;
+const GH_OUTPUT_RE = /\b([A-Za-z_][\w-]*)=[^>]*>>\s*"?\$\{?GITHUB_OUTPUT\}?"?/;
+function setPlusEHeld(after, step, steps) {
+  const readAt = after.findIndex((l) => STATUS_READ_RE.test(l.text));
+  if (readAt === -1) return { held: false };
+  const rest = after.slice(readAt);
+  if (rest.some((l) => EXITS_NONZERO_RE.test(l.text))) return { held: true };
+  const keys = [...new Set(rest.map((l) => (l.text.match(GH_OUTPUT_RE) || [])[1]).filter(Boolean))];
+  if (!keys.length) return { held: 'unknown', reason: 'the script reads the exit status but neither exits non-zero on it nor hands it on through $GITHUB_OUTPUT' };
+  if (!step.id) return { held: 'unknown', reason: `the status is handed on through $GITHUB_OUTPUT (${keys.join(', ')}), but the step has no id: for a later step to read it by` };
+  const later = steps.slice(steps.indexOf(step) + 1).filter((t) => t.job === step.job);
+  const acts = later.find((t) => t.ifCond && keys.some((k) => t.ifCond.includes(`steps.${step.id}.outputs.${k}`)) &&
+    (t.scriptLines && t.scriptLines.length ? t.scriptLines.map((x) => x.text) : [t.cmd || '']).some((x) => EXITS_NONZERO_RE.test(x)));
+  if (acts) return { held: true };
+  return { held: 'unknown', reason: `the status is handed on as steps.${step.id}.outputs.${keys.join('/')}, but no later step of job ${step.job} exits non-zero under an if: on it` };
 }
 export function parseWorkflow(text) {
   const lines = toLines(text);
@@ -669,7 +700,7 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
   const wfDir = join(dir, wfRelBase);
   const files = safeReaddir(wfDir).filter((f) => /\.ya?ml$/i.test(f)).sort();
   const branchNote = 'Branch protection (whether this check is required to merge) is not visible from the tree; this check decides only what the tree shows.';
-  const detail = { path: '.', defaultBranch, workflows: [], failOpen: [] };
+  const detail = { path: '.', defaultBranch, workflows: [], failOpen: [], failOpenUnknown: [] };
   if (workflowsPointer) detail.pointer = 'workflows';
   if (!files.length) {
     return {
@@ -679,7 +710,7 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
     };
   }
   let anyGate = false;
-  const failOpen = [];
+  const failOpen = [], unknown = [];
   for (const f of files) {
     const relFile = `${wfRelBase}/${f}`;
     const text = safeRead(join(wfDir, f)) || '';
@@ -690,9 +721,11 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
     const gates = (onPR || onDefaultPush) && gateSteps.length > 0;
     if (gates) anyGate = true;
     for (const s of gateSteps) if (s.continueOnError) failOpen.push({ file: relFile, line: s.coeLine || s.line, cmd: s.failOpenText || s.cmd, shape: s.failOpenShell ? 'shell' : 'continue-on-error' });
+    if (gates) for (const s of gateSteps) if (!s.continueOnError && s.failOpenUnknown) unknown.push({ file: relFile, line: s.failOpenUnknown.line, cmd: s.failOpenUnknown.text, fail_open: 'unknown', reason: s.failOpenUnknown.reason });
     detail.workflows.push({ file: relFile, events: trigger.events, pushBranches: trigger.pushBranches, gates, gateCommands: gateSteps.map((s) => s.cmd) });
   }
   detail.failOpen = failOpen;
+  detail.failOpenUnknown = unknown;
   if (failOpen.length) {
     const shapes = [...new Set(failOpen.map((f) => f.shape === 'shell' ? 'a run command that swallows a non-zero exit (`|| true` / `|| exit 0` / `|| :` / `set +e`)' : '`continue-on-error: true`'))];
     return {
@@ -706,6 +739,15 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
       name, status: 'gap', detail,
       evidence: detail.workflows.map((w) => `${w.file}:1`),
       observation: `No workflow both triggers on pull_request (or push to the default branch, ${defaultBranch}${pointerNote(!!pointerBranch)}) and runs a test/lint/typecheck/build step${pointerNote(!!workflowsPointer)}. ${branchNote}`,
+    };
+  }
+  // a `set +e` whose status read the census cannot follow to a non-zero exit (#166):
+  // never pass, never fail-open
+  if (unknown.length) {
+    return {
+      name, status: 'not-measured', detail,
+      evidence: unknown.map((u) => `${u.file}:${u.line}`),
+      observation: `A gate step disables errexit (\`set +e\`) and reads the exit status, but the census cannot tell whether a failure still fails the run: ${unknown.map((u) => `${u.file}:${u.line} (${u.reason})`).join('; ')}. Not measured, never pass. ${branchNote}`,
     };
   }
   return {
@@ -951,6 +993,37 @@ const SERVER_SCRIPT_RE = /^(start|serve|deploy)(:|$)/;
 const PY_MANIFEST_RE = /^(requirements.*\.txt|pyproject\.toml|pipfile)$/i;
 const PY_SERVER_RE = /^\s*["']?(flask|django|fastapi|starlette|uvicorn|gunicorn|aiohttp|tornado|sanic)\b/im;
 const DEPLOY_WORD_RE = /\bdeploy/i;
+// A comment is never evidence: `#` at the start of a line or after whitespace, outside
+// quotes, ends what the line says (YAML, and the shell inside a run: script alike).
+function stripHashComment(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote) { if (c === quote) quote = null; continue; }
+    if (c === '"' || c === "'") quote = c;
+    else if (c === '#' && (i === 0 || /\s/.test(line[i - 1]))) return line.slice(0, i);
+  }
+  return line;
+}
+// The line where a CI config deploys, or 0 (#165). A GitHub workflow deploys in what
+// runs: a run: script (inline or its block), a uses: action, a job or step name:, or an
+// environment: key; any other CI config in any line of its own. Comments never count.
+const GH_RUNS_KEY_RE = /^\s*(?:-\s+)?(run|uses|name|environment)\s*:/;
+function deployLine(text, githubWorkflow) {
+  const lines = String(text).split('\n');
+  let blockIndent = -1;   // inside a run: block scalar: the indent its key sits at
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const indent = raw.match(/^\s*/)[0].length;
+    if (blockIndent >= 0 && raw.trim() !== '' && indent <= blockIndent) blockIndent = -1;
+    const said = stripHashComment(raw);
+    if (!githubWorkflow) { if (DEPLOY_WORD_RE.test(said)) return i + 1; continue; }
+    const key = said.match(GH_RUNS_KEY_RE);
+    if (blockIndent >= 0 || key) { if (DEPLOY_WORD_RE.test(said)) return i + 1; }
+    if (key && key[1] === 'run' && /:\s*[|>][-+0-9]*\s*$/.test(said)) blockIndent = said.indexOf('run');
+  }
+  return 0;
+}
 function packageJsonSignal(text) {
   let pkg; try { pkg = JSON.parse(text); } catch { return null; }
   if (!pkg || typeof pkg !== 'object') return null;
@@ -987,8 +1060,10 @@ function findDeploymentSignals(dir, { evidencePointer = null } = {}) {
       else if (SERVER_ENTRY_RE.test(e)) add('server', p, 'a server entry point');
       else if (lower === 'package.json') { const w = packageJsonSignal(safeRead(abs) || ''); if (w) add('server', p, w); }
       else if (PY_MANIFEST_RE.test(e)) { if (PY_SERVER_RE.test(safeRead(abs) || '')) add('server', p, 'a Python web framework dependency'); }
-      if ((/^\.github\/workflows\/[^/]+\.ya?ml$/i.test(p) || CI_FILES.has(lower) || /^\.circleci\/config\.ya?ml$/i.test(p)) && DEPLOY_WORD_RE.test(safeRead(abs) || '')) {
-        add('deploy-workflow', p, 'a CI workflow that deploys');
+      const gh = /^\.github\/workflows\/[^/]+\.ya?ml$/i.test(p);
+      if (gh || CI_FILES.has(lower) || /^\.circleci\/config\.ya?ml$/i.test(p)) {
+        const line = deployLine(safeRead(abs) || '', gh);
+        if (line) signals.push({ kind: 'deploy-workflow', path: p, line, what: `a CI workflow that deploys (line ${line})` });
       }
     }
   };
