@@ -11,6 +11,19 @@ targets_taxonomy: 3
 role: instrument
 fails_loud: osv-scanner-instrument
 verified_against: "2.7.0"
+# what `node assay.mjs tools install` puts on PATH (map/tools.mjs; CONTRACT.md §3g): the
+# release binary, its sum from the release's osv-scanner_SHA256SUMS
+tool:
+  bin: osv-scanner
+  version: "2.7.0"
+  upstream: "github:google/osv-scanner"
+  fetch:
+    linux-x64:
+      url: "https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64"
+      sha256: "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
+    darwin-arm64:
+      url: "https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_darwin_arm64"
+      sha256: "d4926ef8da134332543be276dff157e4c170f99ad91fc48e89448a8816bdf70b"
 run:
   bin: osv-scanner
   # every package listed, so a source scanned clean is on the record too; the OSV database
@@ -27,7 +40,7 @@ run:
   no_input_exits: [128]     # no package source anywhere in the tree
   version:
     - "--version"
-  install: "the osv-scanner_linux_amd64 release binary from github.com/google/osv-scanner/releases (v2.7.0), on PATH as osv-scanner"
+  install: "node assay.mjs tools install --only osv-scanner (the pin is this adapter's tool: block)"
   timeout_s: 900
 ingest:
   format: osv-results

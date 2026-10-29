@@ -165,6 +165,11 @@ node assay.mjs help                                   # every command, grouped m
 # git repository: over a plain tree (an exported snapshot) it is recorded skipped
 node assay.mjs start --out <run> <target> [--allow-exec]
 
+# the external tools the adopted adapters pin (map/scanners/CONTRACT.md §3g), each
+# checksum-verified; run it from an environment's setup script so every session, and
+# every child review session, starts with them on PATH
+node assay.mjs tools install [--dir ~/.local/bin]
+
 #   practice-review: open map/METHOD.md as the opening context of a coding-agent session
 #   pointed at the target repository; it drives the passes
 node assay.mjs ingest <run> --tool deep-code-review --raw dcr-report.yaml

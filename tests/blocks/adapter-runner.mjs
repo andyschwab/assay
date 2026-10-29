@@ -59,7 +59,7 @@ import('node:fs').then(({ readFileSync }) => {
   try {
     // (a)
     const absent = withEnv('/nonexistent-path-for-the-test', undefined, () => runAdapterInstrument('zizmor', adapter, target, runDir('run-a'), () => {}));
-    if (absent.status !== 'skipped' || !/zizmor not on PATH/.test(absent.reason || '') || !/install: uv tool install zizmor/.test(absent.reason || '')) fail(`(a) an absent binary is skipped, with the install line (got ${JSON.stringify(absent)})`);
+    if (absent.status !== 'skipped' || !/zizmor not on PATH/.test(absent.reason || '') || !/install: node assay.mjs tools install --only zizmor/.test(absent.reason || '')) fail(`(a) an absent binary is skipped, with the install line (got ${JSON.stringify(absent)})`);
     // (b)
     const dB = runDir('run-b');
     const none = withEnv(`${bin}:${savedPath}`, undefined, () => runAdapterInstrument('zizmor', adapter, empty, dB, () => {}));

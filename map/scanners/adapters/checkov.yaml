@@ -10,6 +10,13 @@ targets_taxonomy: 3
 role: instrument
 fails_loud: checkov-instrument
 verified_against: "3.4.0"
+# what `node assay.mjs tools install` puts on PATH (map/tools.mjs; CONTRACT.md §3g): a
+# package with a large dependency tree, so pinned by version into its own environment
+tool:
+  bin: checkov
+  version: "3.4.0"
+  upstream: "pypi:checkov"
+  pypi: checkov
 run:
   bin: checkov
   # offline (no external module download, no results upload), passed checks kept (not
@@ -37,7 +44,7 @@ run:
   ok_exits: [0, 1]          # 0 every check passed, 1 at least one failed
   version:
     - "--version"
-  install: "uv tool install checkov==3.4.0 (or pipx install checkov==3.4.0)"
+  install: "node assay.mjs tools install --only checkov (the pin is this adapter's tool: block)"
   timeout_s: 1200
 ingest:
   format: checks-report

@@ -743,6 +743,29 @@ or an empty summary) is one `no-input` fact, which a decider's
 (a value to a band, read from `detail.tool_severity`, else the native category,
 with `default`). The rows an adapter's instrument decides are its `decides:` (§3).
 
+### 3g. The tools an adapter pins (`tool:`)
+
+An adapter whose scanner runs an external binary pins it in `tool:`, so one command
+puts every adopted tool on PATH before a session starts, from an environment's setup
+script (`node assay.mjs tools install [--dir <bin>]`, `map/tools.mjs`, #189). The core
+reads the block and names no tool:
+
+- `bin` and `version`: the command and its pin. Where the adapter has
+  `verified_against`, `version` equals it: the pin and the verified version move
+  together, in one reviewed bump with the adapter's fixture run.
+- `upstream`: where a newer release is read, `github:<owner>/<repo>` or
+  `pypi:<package>` (`node assay.mjs tools check`, and weekly the `tools-check`
+  workflow, which opens one issue for pins behind or unreadable).
+- `fetch`: per platform (`linux-x64`, `darwin-arm64`, …) the artifact's `url`, its
+  `sha256`, and for an archive (`.tar.gz`, `.zip`, `.whl`) the `member` to install. A
+  download whose sum differs is refused, naming both sums, and nothing is installed.
+- or `pypi`: a package installed at the pinned version into its own environment, for
+  a tool whose dependencies cannot be pinned by sum here.
+
+A tool already installed at its pin (the stamp beside the binaries, its sum still
+matching) is left as it is. The `run.install` line a skipped row carries points at
+this command.
+
 ## 4. The fail-closed rule (the coherence guarantee)
 
 A finding whose `native_category` matches **no** row in its adapter is a

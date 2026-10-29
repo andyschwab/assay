@@ -16,6 +16,21 @@ verified_against: "1.31.1"
 # How the runner drives it (map/start.mjs runAdapterInstrument): offline, so the audits that
 # need the GitHub API (impostor-commit, ref-confusion, known-vulnerable-actions,
 # stale-action-refs, …) do not run; the run record says so in its reason line.
+# what `node assay.mjs tools install` puts on PATH (map/tools.mjs; CONTRACT.md §3g): the
+# binary wheel from PyPI, checksum-pinned, with no dependency to float
+tool:
+  bin: zizmor
+  version: "1.31.1"
+  upstream: "pypi:zizmor"
+  fetch:
+    linux-x64:
+      url: "https://files.pythonhosted.org/packages/7c/f7/ee2c8eedc7bf07f443a41aa12f828c7846fd17bab184c22403afd0cbb137/zizmor-1.31.1-py3-none-manylinux_2_28_x86_64.whl"
+      sha256: "58e878eb2dbd2c6183c105e1ac28c14f7dd1eca44a783f1fe2a69647d012c410"
+      member: "zizmor-1.31.1.data/scripts/zizmor"
+    darwin-arm64:
+      url: "https://files.pythonhosted.org/packages/d8/8f/aeb02ac2a769e9b35991633ea04a43481616b2895c82cc5cac58aeeafd0d/zizmor-1.31.1-py3-none-macosx_11_0_arm64.whl"
+      sha256: "4a70ee3c2721122aff04d5bbad5e448d15384f45de2ecb3c9493fe9dac2bc95f"
+      member: "zizmor-1.31.1.data/scripts/zizmor"
 run:
   bin: zizmor
   args:
@@ -33,7 +48,7 @@ run:
     - "**/action.yaml"
   version:
     - "--version"
-  install: "uv tool install zizmor==1.31.1 (or pipx install zizmor==1.31.1)"
+  install: "node assay.mjs tools install --only zizmor (the pin is this adapter's tool: block)"
   timeout_s: 300
 ingest:
   format: sarif
