@@ -77,6 +77,21 @@ requirements:
     owner:
       risk: "Anyone who ever gets a copy of the code gets any key written into it too, and the code's history remembers every past version forever, so deleting the line later does not undo it. That key can then be used to act as your app: read data, send mail, or run up a bill."
       fix: "Have your AI search the whole project and its history for anything that looks like a password or key, move each one out of the code into the hosting platform's settings, and then replace (rotate) every key that was ever exposed."
+  - id: d-infrastructure-config-secure
+    title: Infrastructure and container configuration carries no known misconfiguration
+    tier: safety
+    topic: code-security
+    tags: [floor, fleet]
+    decide:
+      kind: instrument
+    # decided through an adapter's decides: (an IaC policy instrument, #181); a tree with no
+    # IaC or container file reads not-applicable, and a file it could not parse not-measured
+    check: an IaC and container policy scan of every Terraform, CloudFormation, Kubernetes, Helm, Kustomize, Dockerfile, Serverless, ARM and Bicep file in the tree fails no check; a file it could not parse reads not-measured, never clean; a tree with none of them reads not-applicable
+    sources: [scanner-candidates/core, issue/181]
+    status: draft
+    owner:
+      risk: "The files that describe your servers, storage and containers can quietly leave a door open: a storage bucket anyone can read, a database reachable from the internet, a container running with full control of its machine. Nothing in the app itself shows it, and the first sign is often someone else finding it."
+      fix: "Have your AI run an infrastructure policy check over every infrastructure and container file, fix each failed check (or record why it does not apply), and run the check again until it is clean."
   - id: d-routes-authorized
     title: Every route that touches data is behind server-side authorization
     tier: safety
@@ -84,8 +99,6 @@ requirements:
     tags: [floor]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: B
     check: a route census where every data route names its check; the code scanner's application-security domain clean
     sources: [floor/s-auth, takeover-eval/unauthenticated-paid-route]
     status: draft
@@ -99,8 +112,6 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: T
     check: every scoped table carries its policy; the scanner's multi-tenancy domain clean
     sources: [foundation/structural-rule-3, takeover-eval/identity-re-derived]
     status: draft
@@ -121,7 +132,7 @@ requirements:
     # the descriptor is worded on critical only (its category), so a run with high
     # (or moderate/low/info) advisories and zero critical rows still reads met —
     # narrower than the title; widen the category only with a reviewed change.
-    check: dependency-scan (npm, pnpm or yarn audit over every lockfile in the tree) reports no critical advisory; a manifest with dependencies and no lockfile covering it, or a lockfile nothing audited (the audit failed, or its package manager was not on the runner), reads not-measured, never clean; no package.json anywhere in the tree reads not-applicable
+    check: dependency-scan (npm, pnpm or yarn audit over every lockfile in the tree), and every dependency auditor an adapter binds here (decides:, over the lockfiles of other ecosystems too), report no critical advisory; a lockfile one auditor could not read is answered where another audited it; a manifest with dependencies and no lockfile covering it, or a lockfile nothing audited (the audit failed, or its package manager was not on the runner), reads not-measured, never clean; no package.json anywhere in the tree reads not-applicable
     sources: [floor/s-deps, scanner-candidates/core]
     status: draft
     owner:
@@ -190,8 +201,6 @@ requirements:
     tags: [floor]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: Q
     check: a personal-data census over stores and schemas; the scanner's privacy domain clean
     sources: [floor/s-personal-data]
     status: draft
@@ -253,8 +262,6 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: N
     check: the env example is complete against the code's reads; the scanner's config domain clean
     sources: [floor/r-config, foundation/config-stated-once]
     status: draft
@@ -268,9 +275,8 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: K
-    check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA
+      any_gap: unmet                # every property the check names must hold (#177)
+    check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA; decided through adapters (decides:): the code reviewer's supply-chain domain and a workflow auditor's unpinned-action reading, any gap from either deciding it unmet
     sources: [floor/r-deps-pinned, foundation/lockfile-and-nvmrc]
     status: draft
     owner:
@@ -590,8 +596,6 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: M
     check: an error sink configured and one induced error observed arriving
     sources: [floor/o-errors]
     status: draft

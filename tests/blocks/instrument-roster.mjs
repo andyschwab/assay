@@ -14,13 +14,13 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync, cpSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadAdapters, loadFindings, loadManifest, projectMulti } from '../../map/project.mjs';
-import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
+import { loadYardstick, measureRun, decidersOf } from '../../yardstick/measure.mjs';
 import { corroboratedFacts } from '../../yardstick/compare.mjs';
 import { HERE, ROOT, current, negFailures } from '../harness.mjs';
 
 export const label = 'instrument-roster';
 
-const FIXTURE_RUNS = ['notesbox', 'cleanlib', 'fixtures-root'];
+const FIXTURE_RUNS = ['notesbox', 'cleanlib', 'fixtures-root', 'lockfiles', 'infra'];
 const CANDIDATE = 'quill-review';
 
 export async function run() {
@@ -53,10 +53,14 @@ export async function run() {
   const ids = Object.keys(adapters).sort();
   if (stat.map((r) => r.scanner).join(',') !== ids.join(',')) fail(`the roster must carry one row per adapter, sorted (got ${stat.map((r) => r.scanner).join(',')})`);
   for (const id of ids) {
-    const want = reg.requirements.filter((d) => d.decide?.kind === 'instrument' && d.decide.scanner === id).map((d) => d.id).sort();
+    // the row's deciders as the yardstick resolves them: its own and the adapters' decides: (#177)
+    const by = (d) => decidersOf(d, adapters).map((x) => x.scanner);
+    const want = reg.requirements.filter((d) => { const ds = by(d); return ds.length === 1 && ds[0] === id; }).map((d) => d.id).sort();
+    const beside = reg.requirements.filter((d) => { const ds = by(d); return ds.length > 1 && ds.includes(id); }).map((d) => d.id).sort();
     const row = byId[id];
     if (!row) continue;
-    if (JSON.stringify(row.decides_alone) !== JSON.stringify(want)) fail(`${id}: decides_alone must be the instrument rows naming it as decide.scanner (want ${want.join(',') || 'none'}, got ${(row.decides_alone || []).join(',') || 'none'})`);
+    if (JSON.stringify(row.decides_alone) !== JSON.stringify(want)) fail(`${id}: decides_alone must be the instrument rows it is the only decider of (want ${want.join(',') || 'none'}, got ${(row.decides_alone || []).join(',') || 'none'})`);
+    if (JSON.stringify(row.decides_beside) !== JSON.stringify(beside)) fail(`${id}: decides_beside must be the instrument rows it decides with another scanner (want ${beside.join(',') || 'none'}, got ${(row.decides_beside || []).join(',') || 'none'})`);
     const a = adapters[id];
     const want_status = a.retired ? 'retired' : a.adopted === false ? 'candidate' : 'adopted';
     if (row.status !== want_status) fail(`${id}: status must read ${want_status} (got ${row.status})`);
@@ -69,8 +73,9 @@ export async function run() {
   }
   if (!stat.some((r) => r.decides_alone.length)) fail('some adopted scanner must decide a requirement alone');
 
-  // not_measured_if_retired is a prediction: retire each scanner from a real run and the
-  // rows that leave the measured scale are exactly the ones it named
+  // not_measured_if_retired is a prediction: retire each scanner from a real run (its
+  // adapter marked retired, its rows and its disposition gone) and the rows that leave the
+  // measured scale are exactly the ones it named; a row it shares stays with the others
   {
     const dir = fixtureDir('notesbox');
     const findings = loadFindings(dir), manifest = loadManifest(dir), inputs = null;   // censuses decide no instrument row
@@ -79,12 +84,18 @@ export async function run() {
     const before = decided(measureRun({ findings, manifest, inputs, coverage }, reg));
     for (const id of Object.keys(manifest.scanners)) {
       if (manifest.scanners[id].status !== 'ran' || !byId[id]) continue;
-      const retired = { ...manifest, scanners: { ...manifest.scanners, [id]: { status: 'skipped', reason: 'retired (roster probe)' } } };
-      const after = decided(measureRun({ findings: findings.filter((f) => (f.source || 'repo-eval') !== id), manifest: retired, inputs, coverage }, reg));
+      const { [id]: _gone, ...rest } = manifest.scanners;
+      const retired = { ...manifest, scanners: rest };
+      const retiredAdapters = { ...adapters, [id]: { ...adapters[id], adopted: false, retired: 'roster probe' } };
+      const after = decided(measureRun({ findings: findings.filter((f) => (f.source || 'repo-eval') !== id), manifest: retired, inputs, coverage, adapters: retiredAdapters }, reg));
       const lost = [...before].filter((x) => !after.has(x)).sort();
       const predicted = byId[id].not_measured_if_retired.filter((x) => before.has(x)).sort();
+      const beside = (byId[id].decides_beside || []).filter((x) => before.has(x));
       const instrumentLost = lost.filter((x) => reg.requirements.find((d) => d.id === x)?.decide.kind === 'instrument');
-      if (JSON.stringify(instrumentLost) !== JSON.stringify(predicted)) fail(`retiring ${id} over notesbox must lose exactly the instrument rows the roster predicts (predicted ${predicted.join(',') || 'none'}, lost ${instrumentLost.join(',') || 'none'})`);
+      // every row it alone decides is lost; a row it decides beside another scanner is lost
+      // only where that scanner did not run this run, and nothing else is ever lost
+      const missed = predicted.filter((x) => !instrumentLost.includes(x)), extra = instrumentLost.filter((x) => !predicted.includes(x) && !beside.includes(x));
+      if (missed.length || extra.length) fail(`retiring ${id} over notesbox loses every row the roster names and none outside its shared rows (predicted ${predicted.join(',') || 'none'}, shared ${beside.join(',') || 'none'}, lost ${instrumentLost.join(',') || 'none'})`);
     }
   }
 

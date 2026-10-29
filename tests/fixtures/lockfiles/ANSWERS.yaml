@@ -1,7 +1,7 @@
 # Known-answer sheet for the lockfiles target — dependency-scan's fixture (assay #17).
 # Two planted lockfiles give the dependency-scan instrument something to find; no
 # other method has anything to say here. Matching is by evidence path + class (an
-# instrument answer: by check name). Method classes: dependency-scan.
+# instrument answer: by check name). Method classes: dependency-scan, osv-scanner.
 target: lockfiles
 
 # Two answers of different kinds:
@@ -42,6 +42,19 @@ planted:
       app/package-lock.json pins minimist 1.2.5, inside the range of the long-standing
       critical prototype-pollution advisory GHSA-xvch-5gv4-984h (fixed in 1.2.6).
 
+  - id: P-03
+    class: known-advisory
+    axis: code-security
+    polarity: gap
+    evidence: python/requirements.txt:1
+    detectable_by: [osv-scanner]
+    note: >
+      python/requirements.txt pins PyYAML 5.3.1, inside the range of the long-standing
+      critical arbitrary-code-execution advisory GHSA-8q59-q68h-6hv4 / PYSEC-2021-142
+      (fixed in 5.4). It is not an npm-family lockfile, so dependency-scan never reads
+      it; osv-scanner does (assay #179). An advisory answer: re-check it as P-02's note says,
+      from python/: osv-scanner scan source --all-packages --format json .
+
 # What dependency-scan records over this target, keyed by its native category.
 instruments:
   - id: I-01
@@ -66,3 +79,31 @@ instruments:
     note: >
       P-01 again, as the fact that holds d-dependencies-known-clean at not-measured
       when no critical advisory decides it (here I-01 does, so it reads unmet).
+
+# What osv-scanner records over this target (assay #179), keyed by its native category.
+  - id: I-04
+    check: critical
+    detectable_by: [osv-scanner]
+    axis: code-security
+    polarity: gap
+    note: The advisories on P-02 and P-03, each at its own CVSS band (both critical, 9.8).
+
+  - id: I-05
+    check: source-failed
+    detectable_by: [osv-scanner]
+    axis: code-security
+    polarity: gap
+    note: P-01 again, as osv-scanner reads it (it reports the unreadable lockfile on stderr).
+
+  - id: I-06
+    check: source-audited
+    detectable_by: [osv-scanner]
+    axis: code-security
+    polarity: fact
+    note: app/package-lock.json and python/requirements.txt, each audited (the fact another decider's not-audited fact is answered by).
+
+# The status the yardstick's measurement of this target should read (assay yardstick/README.md, "Known answers").
+requirements:
+  - id: d-dependencies-known-clean
+    status: unmet
+    reason: "P-02 and P-03: a critical advisory in an npm lockfile (both auditors) and in a pip pin (osv-scanner alone)."

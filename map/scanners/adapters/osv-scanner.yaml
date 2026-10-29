@@ -1,0 +1,76 @@
+# Adapter: osv-scanner (external instrument) -> the axis roster (map/scanners/CONTRACT.md).
+# Audits every lockfile and dependency manifest it recognises against the OSV database
+# (https://github.com/google/osv-scanner, Apache-2.0): pip, Poetry, Pipenv, uv, Go, Cargo,
+# Maven, Gradle, Composer, Bundler, NuGet, pub, mix, and npm, pnpm and yarn too. Adopted as
+# #179 (map/scanners/CANDIDATES.md). It decides d-dependencies-known-clean beside
+# dependency-scan: on npm-family lockfiles the two corroborate, and a lockfile
+# dependency-scan could not audit is answered where this one audited it (its
+# source-audited facts, `audits:` below).
+scanner: osv-scanner
+targets_taxonomy: 3
+role: instrument
+fails_loud: osv-scanner-instrument
+verified_against: "2.7.0"
+run:
+  bin: osv-scanner
+  # every package listed, so a source scanned clean is on the record too; the OSV database
+  # is fetched over the network (as npm audit reads the registry)
+  args:
+    - "scan"
+    - "source"
+    - "--recursive"
+    - "--all-packages"
+    - "--format"
+    - "json"
+    - "."
+  ok_exits: [0, 1]          # 0 no advisory, 1 advisories found
+  no_input_exits: [128]     # no package source anywhere in the tree
+  version:
+    - "--version"
+  install: "the osv-scanner_linux_amd64 release binary from github.com/google/osv-scanner/releases (v2.7.0), on PATH as osv-scanner"
+  timeout_s: 900
+ingest:
+  format: osv-results
+  start_id: 985
+  # a source it found but could not read is reported only on stderr
+  source_failed_re: "^Error during extraction: \\([^)]*\\) (.+?): could not extract"
+# the band a view reads: the advisory's own CVSS band (its native category)
+bands:
+  critical: Critical
+  high: High
+  moderate: Medium
+  low: Low
+  unrated: Medium
+  source-failed: Medium
+  default: Medium
+
+contributes: []
+
+map:
+  critical:                     # CVSS 9.0 and up
+    axis: code-security
+  high:                         # 7.0 to 8.9
+    axis: code-security
+  moderate:                     # 4.0 to 6.9
+    axis: code-security
+  low:                          # above 0, below 4.0
+    axis: code-security
+  unrated:                      # an advisory with no CVSS score
+    axis: code-security
+  source-failed:                # a lockfile found but not readable — absence of an audit is a gap
+    axis: code-security
+  source-audited:               # a FACT row per source audited (whatever it held)
+    axis: code-security
+  source-not-audited:           # a FACT row: a source found and not audited
+    axis: code-security
+  no-input:                     # a FACT row: no package source in the tree
+    axis: code-security
+
+default: FAIL
+
+decides:
+  - requirement: d-dependencies-known-clean
+    category: critical
+    not_applicable_when: no-input
+    not_measured_when: source-not-audited
+    audits: source-audited

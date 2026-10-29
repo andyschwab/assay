@@ -12,10 +12,10 @@ summary:
   met: 0
   unmet: 0
   mixed: 0
-  not-measured: 57
+  not-measured: 58
   not-applicable: 0
   decided: 0
-  of: 57
+  of: 58
 requirements:
   - id: d-accounts-enumerated
     status: not-measured
@@ -41,6 +41,12 @@ requirements:
     basis: run
     findings: []
     note: "gitleaks skipped: fixture: no instrument run over this synthetic base"
+  - id: d-infrastructure-config-secure
+    status: not-measured
+    how: instrument
+    basis: run
+    findings: []
+    note: "checkov skipped: fixture: not executed"
   - id: d-routes-authorized
     status: not-measured
     how: instrument

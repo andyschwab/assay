@@ -64,9 +64,10 @@ the reviewer release it was last checked against) as facts, its severity kept as
 a property and never recomputed into a verdict (`map/scanners/CONTRACT.md` §6),
 and they land on the shared, property-named axes beside every other scanner's,
 where two scanners measuring one property corroborate (§1). They decide a
-requirement only where the yardstick routes it to one of the reviewer's domains,
-read through the same measurement as every other scanner's rows; the reviewer's
-own verdict decides nothing. **Instruments** are
+requirement only where the reviewer's adapter binds it to one of its domains
+(`decides:`), read through the same measurement as every other scanner's rows; the
+reviewer's own verdict decides nothing. A requirement may have several deciders,
+and a gap from any of them decides it (`yardstick/README.md`). **Instruments** are
 deterministic and run offline against the checkout (offline as defined below): `gitleaks`; `fresh-clone`,
 which installs, builds, lints, typechecks, tests and migrates from a clean
 checkout and replays the README's commands, once per workspace in a monorepo;
@@ -75,7 +76,12 @@ checks for an architecture page, a present-tense agent contract, a runbook, a
 CI gate on the default branch, and the owner's evidence transcripts; and
 `structure-scan`, which finds duplicated blocks (jscpd), unused files, exports
 and dependencies (knip), stale artifacts and per-file churn, installing both
-tools from the npm registry into its own scratch for each run.
+tools from the npm registry into its own scratch for each run. Three more run off
+their adapters (`run:`, `map/scanners/CONTRACT.md` §3f) when their binary is on
+`PATH`, and read skipped with their install line otherwise: `zizmor`, GitHub Actions
+workflow security; `osv-scanner`, OSV advisories over every lockfile it reads,
+deciding known-clean dependencies beside `dependency-scan`; and `checkov`,
+infrastructure-as-code and container policy. None of them executes the target's code.
 **Three instruments execute the target's code.** `fresh-clone` runs the target's
 own install (lifecycle scripts included), build, lint, typecheck, test and
 migrate-dry scripts, `dependency-scan` runs the target's package manager, and

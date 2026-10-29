@@ -95,6 +95,22 @@ the core names no operator (`CLAUDE.md` rule 7).
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). The claim rows a packet never speaks to are the list of instruments still to build |
 
+**Who decides an `instrument` row.** The row may name one decider itself (`scanner`,
+`category` and its conditions on `decide`), a list of them (`decide.deciders`), or none:
+an external scanner never appears here (`CLAUDE.md` rule 7). It binds through its
+adapter's `decides:` (`map/scanners/CONTRACT.md` §3), each entry naming the requirement,
+the category and the same optional conditions. A binding counts when the scanner is
+adopted, or on a run that records a disposition for it; a binding to a requirement the
+yardstick lacks halts the load. One decider reads as it always has. With several (#177):
+a gap from any decider decides the row (mixed only where a strength sits beside it and
+the row is mixable); a decider that reads not-applicable steps aside, and the row reads
+not-applicable only when every decider does; any other decider not measured holds the
+row not-measured; met needs every remaining decider met. A decider's `audits:` names the
+fact category in which its scanner records each file it audited; another decider's
+`not_measured_when` fact about only such files is answered, not holding. A row whose
+check is several properties that must all hold carries `decide.any_gap: unmet`: like a
+`safety` row, one gap reads unmet whatever strengths sit beside it.
+
 `decide.category` on an `instrument` row may be a **list**: categories one scanner
 must hold jointly (`d-fresh-clone-runs` needs both `install` and `build`). A
 finding in any listed category joins the population; the row reads met only when

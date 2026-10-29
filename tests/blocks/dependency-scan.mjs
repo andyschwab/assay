@@ -11,11 +11,17 @@
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { projectMulti, contributedBySources } from '../../map/project.mjs';
-import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
+import { loadYardstick, measureRun as measureAll } from '../../yardstick/measure.mjs';
 import { parsePnpmAudit, parseYarnClassicAudit, run as runDependencyScan } from '../../map/dependency-scan.mjs';
 import { HERE, negFailures, viewSev, convert, adaptersOnce } from '../harness.mjs';
 
 export const label = 'dependency-scan';
+
+// these assertions read dependency-scan's own reading of d-dependencies-known-clean, so they
+// measure with it as the row's only decider (its co-decider since #179 is pinned in
+// tests/blocks/yardstick-deciders.mjs and osv-scanner-instrument.mjs)
+const { 'osv-scanner': _coDecider, ...SOLO } = adaptersOnce();
+const measureRun = (args, reg) => measureAll({ ...args, adapters: SOLO }, reg);
 
 export async function run() {
   const fail = (m) => negFailures.push('dependency-scan: ' + m);

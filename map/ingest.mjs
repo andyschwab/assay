@@ -865,7 +865,156 @@ const FORMATS = {
       return rows;
     },
   }),
+  // The three formats below read an instrument the runner drives off its adapter's `run:`
+  // (map/start.mjs runAdapterInstrument), from the envelope it writes: the tool's exit, its
+  // report (stdout, paths already relative to the target) and the tail of its stderr, so a
+  // failure the tool reports only there still reaches the map. Each format is named for
+  // the report's shape; what it needs to know about the tool is the adapter's.
+  sarif: (id, adapter) => envelopeFormat(id, adapter, (env, startId) => {
+    const spec = adapter.ingest;
+    let doc;
+    try { doc = JSON.parse(env.report); } catch (e) { throw new Error(`${id} report is not SARIF JSON (fail-closed): ${e.message.slice(0, 80)}`); }
+    const runs = doc && Array.isArray(doc.runs) ? doc.runs : null;
+    if (!runs || !runs.length) throw new Error(`${id} SARIF has no runs (truncated report?)`);
+    const rows = []; let n = 0;
+    for (const run of runs) {
+      const name = run?.tool?.driver?.name;
+      if (name !== spec.tool) throw new Error(`${id} SARIF run is from "${name}", not ${spec.tool} (adapters/${id}.yaml ingest.tool)`);
+      if (!Array.isArray(run.results)) throw new Error(`${id} SARIF run has no results list (an empty list is a recorded clean run; a missing one is not)`);
+      for (const r of run.results) {
+        const rule = String(r?.ruleId ?? '');
+        if (!rule) throw new Error(`${id} SARIF result with no ruleId (truncated report?)`);
+        const cat = spec.rule_prefix && rule.startsWith(spec.rule_prefix) ? rule.slice(spec.rule_prefix.length) : rule;
+        const loc = r.locations?.[0]?.physicalLocation;
+        const uri = String(loc?.artifactLocation?.uri ?? '').replace(/^\.\//, '');
+        const line = Number(loc?.region?.startLine);
+        if (!uri || !(line > 0)) throw new Error(`${id} SARIF result ${rule} has no file and line (truncated report?)`);
+        const sev = spec.severity_property ? r.properties?.[spec.severity_property] : undefined;
+        rows.push(adapterRow(id, adapter, startId + n++, { native_id: `${cat}@${uri}:${line}`, native_category: cat, polarity: 'gap',
+          observation: `${oneLine(r.message?.text || cat)} (${uri}:${line})`, evidence: [`${uri}:${line}`],
+          detail: { ...(sev ? { tool_severity: String(sev) } : {}), ...(r.level ? { level: String(r.level) } : {}) } }));
+      }
+    }
+    return rows;
+  }),
+  // osv-results: the OSV schema's results-by-source JSON, read with every package listed,
+  // so each source scanned is on the record whether or not it holds an advisory
+  'osv-results': (id, adapter) => envelopeFormat(id, adapter, (env, startId) => {
+    let doc;
+    try { doc = JSON.parse(env.report); } catch (e) { throw new Error(`${id} report is not OSV results JSON (fail-closed): ${e.message.slice(0, 80)}`); }
+    if (!doc || !Array.isArray(doc.results)) throw new Error(`${id} report has no results list (truncated report?)`);
+    const rows = []; let n = 0; const seen = new Set();
+    // one source read by two of the tool's extractors is one source, one advisory one row
+    const push = (r) => { const k = `${r.native_category} ${r.native_id}`; if (seen.has(k)) return; seen.add(k); rows.push(adapterRow(id, adapter, startId + n++, r)); };
+    const band = (score) => { const v = Number(score); return !(v > 0) ? 'unrated' : v >= 9 ? 'critical' : v >= 7 ? 'high' : v >= 4 ? 'moderate' : 'low'; };
+    for (const res of doc.results) {
+      const path = String(res?.source?.path ?? '').replace(/^\/+/, '');
+      if (!path) throw new Error(`${id} result with no source path (truncated report?)`);
+      const pkgs = Array.isArray(res.packages) ? res.packages : [];
+      push({ native_id: `source-audited@${path}`, native_category: 'source-audited', polarity: 'fact', evidence: [`${path}:1`],
+        observation: `${path} (${res.source.type || 'source'}) audited against the OSV database: ${pkgs.length} package(s).`, detail: { packages: pkgs.length } });
+      for (const p of pkgs) {
+        const name = p?.package?.name, version = p?.package?.version;
+        for (const g of (Array.isArray(p.groups) ? p.groups : [])) {
+          const ids = (g.ids || []).map(String).sort();
+          if (!name || !ids.length) throw new Error(`${id} advisory group in ${path} with no package or id (truncated report?)`);
+          const cat = band(g.max_severity);
+          push({ native_id: `${ids[0]}@${name}@${path}`, native_category: cat, polarity: 'gap', evidence: [`${path}:1`],
+            observation: `${name}${version ? ` ${version}` : ''} in ${path} is vulnerable to ${ids.join(', ')} (CVSS ${g.max_severity || 'not scored'}).`,
+            fix: `Upgrade ${name} to a version outside ${ids[0]}'s affected range and regenerate ${path}; re-run the dependency audit and confirm the advisory is gone.`,
+            ...(g.max_severity ? { detail: { cvss: String(g.max_severity) } } : {}) });
+        }
+      }
+    }
+    for (const l of env.stderr) {
+      const m = String(l).match(spec_re(adapter.ingest.source_failed_re));
+      if (!m) continue;
+      const path = String(m[1]).replace(/^\/+/, '');
+      push({ native_id: `source-failed@${path}`, native_category: 'source-failed', polarity: 'gap', evidence: [`${path}:1`],
+        observation: `${path} could not be read for a dependency audit: ${oneLine(l).slice(0, 200)}`,
+        fix: `Make ${path} a complete, parseable lockfile (regenerate it with its package manager) and re-run the dependency audit.` });
+      push({ native_id: `source-not-audited@${path}`, native_category: 'source-not-audited', polarity: 'fact', evidence: [`${path}:1`],
+        observation: `${path} was found but not audited (it could not be read), so its dependencies are not known clean.` });
+    }
+    return rows;
+  }),
+  // checks-report: a policy scanner's per-framework report of passed and failed checks,
+  // each failed check a resource, a file and a line range; files it could not parse listed
+  'checks-report': (id, adapter) => envelopeFormat(id, adapter, (env, startId) => {
+    let doc;
+    try { doc = JSON.parse(env.report); } catch (e) { throw new Error(`${id} report is not a checks report (fail-closed): ${e.message.slice(0, 80)}`); }
+    const reports = Array.isArray(doc) ? doc : [doc];
+    const rows = []; let n = 0;
+    const push = (r) => rows.push(adapterRow(id, adapter, startId + n++, r));
+    const scanned = reports.filter((r) => r && r.check_type);
+    if (!scanned.length) {
+      const s = Array.isArray(doc) ? null : doc;
+      if (!s || typeof s.resource_count !== 'number') throw new Error(`${id} report is neither a framework report nor an empty summary (truncated report?)`);
+      if (s.resource_count !== 0 || s.failed) throw new Error(`${id} summary counts ${s.resource_count} resource(s) but carries no framework report (truncated report?)`);
+      push(noInputRow(id, adapter));
+      return rows;
+    }
+    for (const r of scanned) {
+      const res = r.results;
+      if (!res || !Array.isArray(res.failed_checks) || !Array.isArray(res.passed_checks)) throw new Error(`${id} ${r.check_type} report has no passed and failed check lists (truncated report?)`);
+      const files = [...new Set([...res.failed_checks, ...res.passed_checks].map((c) => String(c.file_path || '').replace(/^\/+/, '')).filter(Boolean))].sort();
+      for (const f of files) push({ native_id: `${r.check_type}-audited@${f}`, native_category: 'config-audited', polarity: 'fact', evidence: [`${f}:1`],
+        observation: `${f} audited as ${r.check_type}: ${res.failed_checks.filter((c) => String(c.file_path).replace(/^\/+/, '') === f).length} check(s) failed, ${res.passed_checks.filter((c) => String(c.file_path).replace(/^\/+/, '') === f).length} passed.` });
+      for (const c of res.failed_checks) {
+        const f = String(c.file_path || '').replace(/^\/+/, '');
+        const line = Array.isArray(c.file_line_range) && Number(c.file_line_range[0]) > 0 ? Number(c.file_line_range[0]) : 1;
+        if (!f || !c.check_id) throw new Error(`${id} ${r.check_type} failed check with no id or file (truncated report?)`);
+        push({ native_id: `${c.check_id}@${c.resource}@${f}`, native_category: String(r.check_type), polarity: 'gap', evidence: [`${f}:${line}`],
+          observation: `${oneLine(c.check_name || c.check_id)} (${c.check_id}): ${c.resource} in ${f}:${line} fails it.`,
+          ...(c.guideline ? { fix: `Change ${c.resource} so it passes ${c.check_id}: ${oneLine(c.guideline)}` } : {}),
+          ...(c.severity ? { detail: { tool_severity: String(c.severity) } } : {}) });
+      }
+      for (const pe of (Array.isArray(res.parsing_errors) ? res.parsing_errors : [])) {
+        const f = String(pe).replace(/^\/+/, '');
+        push({ native_id: `config-not-audited@${f}`, native_category: 'config-not-audited', polarity: 'fact', evidence: [`${f}:1`],
+          observation: `${f} could not be parsed as ${r.check_type}, so its configuration was not audited.` });
+      }
+    }
+    return rows;
+  }),
 };
+
+// ── the envelope an adapter-run instrument leaves (map/start.mjs runAdapterInstrument) ──
+// { envelope: 1, scanner, exit, no_input, report, stderr: [lines] }. A report the runner
+// found nothing to scan for (no_input, or an exit in the adapter's no_input_exits) is one
+// `no-input` fact, which a decider's not_applicable_when names.
+const spec_re = (src) => { if (!src) return /(?!)/; try { return new RegExp(src); } catch (e) { throw new Error(`adapter ingest regex is invalid: ${e.message}`); } };
+function readEnvelope(id, rawText) {
+  let env;
+  try { env = JSON.parse(rawText); } catch (e) { throw new Error(`${id} raw is not the runner's envelope JSON (fail-closed): ${e.message.slice(0, 80)}`); }
+  if (!env || env.envelope !== 1) throw new Error(`${id} raw is not the runner's envelope (envelope: 1); ingest an adapter-run instrument from what \`assay start\` writes`);
+  if (env.scanner !== id) throw new Error(`${id} envelope is from "${env.scanner}"`);
+  if (typeof env.report !== 'string' && !env.no_input) throw new Error(`${id} envelope carries no report`);
+  return { ...env, stderr: Array.isArray(env.stderr) ? env.stderr.map(String) : [] };
+}
+const noInputRow = (id, adapter) => ({ native_id: 'no-input@root', native_category: 'no-input', polarity: 'fact', evidence: ['./:1'],
+  observation: `Nothing in the tree for ${id} to read (it looked for ${(adapter.run?.inputs || ['its inputs']).join(', ')}): not applicable, not merely clean.` });
+function adapterRow(id, adapter, n, r) {
+  const fix = r.fix ?? adapter.map?.[r.native_category]?.fix;
+  return { id: fid(n), source: id, native_id: r.native_id, native_category: r.native_category, polarity: r.polarity,
+    observation: oneLine(r.observation), evidence: r.evidence, ...(fix && r.polarity === 'gap' ? { fix: oneLine(fix) } : {}),
+    ...(r.detail && Object.keys(r.detail).length ? { detail: r.detail } : {}) };
+}
+function envelopeFormat(id, adapter, convertReport) {
+  const run = adapter.run || {};
+  const noInputExits = (run.no_input_exits || []).map(Number);
+  return {
+    raw: `${id}.json`,
+    startId: Number(adapter.ingest.start_id),
+    okExits: [...(run.ok_exits || [0]).map(Number), ...noInputExits],
+    convert(raw, startId, exitCode) {
+      const env = readEnvelope(id, raw);
+      if (Number(env.exit) !== Number(exitCode)) throw new Error(`${id} envelope records exit ${env.exit}, not the ${exitCode} given`);
+      if (env.no_input || noInputExits.includes(Number(exitCode))) return [{ id: fid(startId), source: id, ...noInputRow(id, adapter) }];
+      return convertReport(env, startId);
+    },
+  };
+}
 
 // The profile `tool` is ingested by: a built-in instrument profile, else the format
 // its adapter's `ingest:` selects. Unknown is an error, listing what is known.
@@ -876,7 +1025,7 @@ function profileOf(tool) {
   if (spec) {
     const make = Object.hasOwn(FORMATS, spec.format) ? FORMATS[spec.format] : null;
     if (!make) throw new Error(`adapters/${tool}.yaml ingest.format "${spec.format}" is not a format ingest reads (${Object.keys(FORMATS).join(', ')})`);
-    if (!spec.tool) throw new Error(`adapters/${tool}.yaml ingest: needs tool, the report's review.tool value it accepts`);
+    if (!spec.tool && ['machine-report', 'sarif'].includes(spec.format)) throw new Error(`adapters/${tool}.yaml ingest: needs tool, the tool name its report carries`);
     if (!/^\d+$/.test(String(spec.start_id ?? ''))) throw new Error(`adapters/${tool}.yaml ingest: needs start_id, the id floor, as digits`);
     return make(tool, adapter);
   }

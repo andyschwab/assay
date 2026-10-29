@@ -1,0 +1,67 @@
+# map/findings/osv-scanner.yaml — instrument rows ingested by assay.mjs ingest.
+# Instrument: osv-scanner · exit code 1 (verified in its success set) · 6 row(s).
+# Ids start at F-1200: the next hundred above the base's highest id F-1100 (in checkov.yaml, dependency-scan.yaml); the profile floor is F-985.
+# Raw report archived at map/raw/osv-scanner.json. Regenerate with ingest.mjs; never hand-edit.
+
+- id: F-1200
+  source: osv-scanner
+  native_id: "source-audited@app/package-lock.json"
+  native_category: "source-audited"
+  polarity: fact
+  observation: >
+    app/package-lock.json (lockfile) audited against the OSV database: 1 package(s).
+  evidence: ["app/package-lock.json:1"]
+  detail:
+    packages: 1
+- id: F-1201
+  source: osv-scanner
+  native_id: "GHSA-xvch-5gv4-984h@minimist@app/package-lock.json"
+  native_category: "critical"
+  polarity: gap
+  observation: >
+    minimist 1.2.5 in app/package-lock.json is vulnerable to GHSA-xvch-5gv4-984h (CVSS 9.8).
+  evidence: ["app/package-lock.json:1"]
+  fix: >
+    Upgrade minimist to a version outside GHSA-xvch-5gv4-984h's affected range and regenerate app/package-lock.json; re-run the dependency audit and confirm the advisory is gone.
+  detail:
+    cvss: "9.8"
+- id: F-1202
+  source: osv-scanner
+  native_id: "source-audited@python/requirements.txt"
+  native_category: "source-audited"
+  polarity: fact
+  observation: >
+    python/requirements.txt (lockfile) audited against the OSV database: 1 package(s).
+  evidence: ["python/requirements.txt:1"]
+  detail:
+    packages: 1
+- id: F-1203
+  source: osv-scanner
+  native_id: "GHSA-8q59-q68h-6hv4@pyyaml@python/requirements.txt"
+  native_category: "critical"
+  polarity: gap
+  observation: >
+    pyyaml 5.3.1 in python/requirements.txt is vulnerable to GHSA-8q59-q68h-6hv4, PYSEC-2021-142 (CVSS 9.8).
+  evidence: ["python/requirements.txt:1"]
+  fix: >
+    Upgrade pyyaml to a version outside GHSA-8q59-q68h-6hv4's affected range and regenerate python/requirements.txt; re-run the dependency audit and confirm the advisory is gone.
+  detail:
+    cvss: "9.8"
+- id: F-1204
+  source: osv-scanner
+  native_id: "source-failed@legacy/package-lock.json"
+  native_category: "source-failed"
+  polarity: gap
+  observation: >
+    legacy/package-lock.json could not be read for a dependency audit: Error during extraction: (extracting as javascript/packagelockjson) legacy/package-lock.json: could not extract: unexpected end of JSON input
+  evidence: ["legacy/package-lock.json:1"]
+  fix: >
+    Make legacy/package-lock.json a complete, parseable lockfile (regenerate it with its package manager) and re-run the dependency audit.
+- id: F-1205
+  source: osv-scanner
+  native_id: "source-not-audited@legacy/package-lock.json"
+  native_category: "source-not-audited"
+  polarity: fact
+  observation: >
+    legacy/package-lock.json was found but not audited (it could not be read), so its dependencies are not known clean.
+  evidence: ["legacy/package-lock.json:1"]

@@ -4,7 +4,7 @@
 # see the whole repository, so their known answers live here and only here.
 # Per-target sheets deliberately carry no repo-hygiene class. Matching is by check
 # name + method for an instrument answer, by evidence path otherwise.
-# Method classes: repo-census | dcr | scorecard (retired — see R-01).
+# Method classes: repo-census | dcr | zizmor | scorecard (retired — see R-01).
 target: __repository__
 
 planted:
@@ -27,13 +27,14 @@ planted:
     axis: code-security
     polarity: gap
     evidence: .github/workflows/ci.yml:14
-    detectable_by: [dcr]
+    detectable_by: [dcr, zizmor]
     note: >
       The CI workflow pins actions/checkout (and setup-node) by a mutable major tag
       (@v4), not a commit SHA, so the code CI runs can change under the same
       workflow file. deep-code-review's supply-chain domain (K) reads this and lands
-      it on code-security. (Scorecard's Pinned-Dependencies check was the first
-      method named here.)
+      it on code-security, and zizmor's unpinned-uses audit reads it mechanically
+      (assay #180). (Scorecard's Pinned-Dependencies check was the first method
+      named here.)
 
 strengths:
   - id: R-S1
@@ -115,6 +116,29 @@ instruments:
     polarity: gap
     note: No owner evidence transcript.
 
+# What zizmor records over the workflow (assay #180), keyed by its audit. Standing facts of
+# the fixture's CI, not planted defects: pinned so a change in the reading shows as missed.
+  - id: R-I10
+    check: unpinned-uses
+    detectable_by: [zizmor]
+    axis: code-security
+    polarity: gap
+    note: R-02, each of the four uses lines (checkout and setup-node in both jobs).
+
+  - id: R-I11
+    check: excessive-permissions
+    detectable_by: [zizmor]
+    axis: code-security
+    polarity: gap
+    note: No permissions block, so GITHUB_TOKEN takes the repository default (at the workflow and in each job).
+
+  - id: R-I12
+    check: artipacked
+    detectable_by: [zizmor]
+    axis: code-security
+    polarity: gap
+    note: actions/checkout persists its token for later steps (no persist-credentials false).
+
 # Expected requirement statuses (assay #18): what measuring a run of this target
 # against assay's yardstick (yardstick/requirements.yaml) should read, per requirement,
 # each tied to an item on this sheet. A row whose deciding method did not run reads
@@ -127,7 +151,7 @@ requirements:
     reason: "R-S1: .github/workflows/ci.yml runs the targets' tests on push and pull_request."
   - id: d-dependencies-pinned
     status: unmet
-    reason: "R-02: the CI workflow pins its actions by a mutable major tag, not a commit."
+    reason: "R-02: the CI workflow pins its actions by a mutable major tag, not a commit (the reviewer's domain K and zizmor both read it)."
   - id: d-architecture-page
     status: unmet
     reason: "R-I1: no architecture page."

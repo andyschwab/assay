@@ -26,29 +26,45 @@
     },
     "fixtures-root": {
       "recall": 100,
-      "recovered": 11,
-      "in_scope": 11,
+      "recovered": 14,
+      "in_scope": 14,
       "missed": 0,
       "misHomed": 0,
       "falsePositives": 0
     },
     "roster": {
+      "checkov": {
+        "status": "adopted",
+        "ran_in": 4,
+        "decides_alone": 1,
+        "unique_recoveries": [
+          "infra/I-01",
+          "infra/I-02",
+          "infra/I-03",
+          "infra/P-01",
+          "infra/P-02"
+        ],
+        "corroborated": 0,
+        "fails_loud": "checkov-instrument"
+      },
       "deep-code-review": {
         "status": "adopted",
         "ran_in": 2,
-        "decides_alone": 6,
-        "unique_recoveries": [
-          "fixtures-root/R-02"
-        ],
-        "corroborated": 3,
+        "decides_alone": 5,
+        "unique_recoveries": [],
+        "corroborated": 4,
         "fails_loud": "dcr-machine-report"
       },
       "dependency-scan": {
         "status": "adopted",
-        "ran_in": 2,
-        "decides_alone": 1,
-        "unique_recoveries": [],
-        "corroborated": 0,
+        "ran_in": 3,
+        "decides_alone": 0,
+        "unique_recoveries": [
+          "lockfiles/I-01",
+          "lockfiles/I-02",
+          "lockfiles/I-03"
+        ],
+        "corroborated": 3,
         "fails_loud": "dependency-scan"
       },
       "fresh-clone": {
@@ -72,6 +88,19 @@
         "unique_recoveries": [],
         "corroborated": 1,
         "fails_loud": "instrument-port"
+      },
+      "osv-scanner": {
+        "status": "adopted",
+        "ran_in": 3,
+        "decides_alone": 0,
+        "unique_recoveries": [
+          "lockfiles/I-04",
+          "lockfiles/I-05",
+          "lockfiles/I-06",
+          "lockfiles/P-03"
+        ],
+        "corroborated": 3,
+        "fails_loud": "osv-scanner-instrument"
       },
       "repo-census": {
         "status": "adopted",
@@ -123,6 +152,18 @@
         "unique_recoveries": null,
         "corroborated": null,
         "fails_loud": "instrument-port"
+      },
+      "zizmor": {
+        "status": "adopted",
+        "ran_in": 1,
+        "decides_alone": 0,
+        "unique_recoveries": [
+          "fixtures-root/R-I10",
+          "fixtures-root/R-I11",
+          "fixtures-root/R-I12"
+        ],
+        "corroborated": 1,
+        "fails_loud": "zizmor-instrument"
       }
     },
     "notesbox/requirements": {
@@ -145,12 +186,10 @@
       ]
     },
     "fixtures-root/requirements": {
-      "agree": 32,
-      "disagree": 1,
+      "agree": 33,
+      "disagree": 0,
       "out_of_scope": 0,
-      "disagreements": [
-        "d-dependencies-pinned"
-      ]
+      "disagreements": []
     }
   }
 }

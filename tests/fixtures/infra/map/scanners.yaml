@@ -1,0 +1,33 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
+engine: fixture
+scanners:
+  repo-eval:
+    status: skipped
+    reason: "fixture run: this target exists for the IaC and container policy instrument alone (tests/fixtures/README.md)"
+  deep-code-review:
+    status: skipped
+    reason: "fixture run: this target exists for the IaC and container policy instrument alone (tests/fixtures/README.md)"
+  gitleaks:
+    status: skipped
+    reason: "fixture run: this target exists for the IaC and container policy instrument alone (tests/fixtures/README.md)"
+  fresh-clone:
+    status: skipped
+    reason: "fixture run: this target exists for the IaC and container policy instrument alone (tests/fixtures/README.md)"
+  dependency-scan:
+    status: skipped
+    reason: "fixture run: this target exists for the IaC and container policy instrument alone (tests/fixtures/README.md)"
+  repo-census:
+    status: skipped
+    reason: "repo-scoped: run at the fixture repository root and scored there (tests/fixtures/fixtures-root)"
+  structure-scan:
+    status: skipped
+    reason: "fixture run: this target exists for the IaC and container policy instrument alone (tests/fixtures/README.md)"
+  zizmor:
+    status: skipped
+    reason: "repo-scoped: run at the fixture repository root and scored there (tests/fixtures/fixtures-root)"
+  osv-scanner:
+    status: skipped
+    reason: "fixture run: this target exists for the IaC and container policy instrument alone (tests/fixtures/README.md)"
+  checkov:
+    status: ran
+    duration: "2s"

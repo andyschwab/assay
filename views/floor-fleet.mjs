@@ -3,7 +3,7 @@
 // filtered to a tag population. Neither reads findings directly — only the
 // yardstick's measurement plus the yardstick (title/check/tier/topic) and the
 // run manifest (what was not seen). Ordering: tier order, then register order.
-import { loadYardstick, loadMeasurement } from '../yardstick/measure.mjs';
+import { loadYardstick, loadMeasurement, decidersOf } from '../yardstick/measure.mjs';
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';
 import { q as yq } from '../lib/yaml-min.mjs';
 
@@ -16,10 +16,11 @@ export function joinContradictions(raw, reg) {
   return raw.map((c) => ({ ...c, title: byId.get(c.id)?.title || c.id }));
 }
 
-// decided_by: the instrument name from the row's decide, or "owner" for claim
-// rows; a census/facet row is decided by that mechanism's own name.
+// decided_by: the instrument name(s) from the row's deciders (yardstick/measure.mjs
+// decidersOf: the row's own and its adapters' bindings), or "owner" for claim rows; a
+// census/facet row is decided by that mechanism's own name.
 function decidedBy(d) {
-  if (d.decide.kind === 'instrument') return d.decide.scanner;
+  if (d.decide.kind === 'instrument') return decidersOf(d, loadAdapters()).map((x) => x.scanner).join(' + ');
   if (d.decide.kind === 'claim') return 'owner';
   return d.decide.kind;
 }

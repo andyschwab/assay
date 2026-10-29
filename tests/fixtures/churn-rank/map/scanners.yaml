@@ -21,3 +21,12 @@ scanners:
     reason: "fixture run: only structure-scan's rows are planted (#111)"
   structure-scan:
     status: ran
+  zizmor:
+    status: skipped
+    reason: "fixture: not executed"
+  osv-scanner:
+    status: skipped
+    reason: "fixture: not executed"
+  checkov:
+    status: skipped
+    reason: "fixture: not executed"
