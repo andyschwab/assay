@@ -204,7 +204,7 @@ function gradesToYaml(g, generatedNote) {
         out.push(`    ${k}:`);
         out.push(`      claim: true`);
         out.push(`      why: ${q(f.why)}`);
-        if (f.evidence.length) out.push(`      evidence: [${f.evidence.join(', ')}]`);
+        if (f.evidence.length) out.push(`      evidence: [${f.evidence.map(q).join(', ')}]`);
       } else out.push(`    ${k}: false`);
     }
     if (d.note) out.push(`    note: ${q(d.note)}`);
