@@ -145,12 +145,10 @@
       ]
     },
     "fixtures-root/requirements": {
-      "agree": 32,
-      "disagree": 1,
+      "agree": 33,
+      "disagree": 0,
       "out_of_scope": 0,
-      "disagreements": [
-        "d-dependencies-pinned"
-      ]
+      "disagreements": []
     }
   }
 }

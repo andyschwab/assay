@@ -84,8 +84,6 @@ requirements:
     tags: [floor]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: B
     check: a route census where every data route names its check; the code scanner's application-security domain clean
     sources: [floor/s-auth, takeover-eval/unauthenticated-paid-route]
     status: draft
@@ -99,8 +97,6 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: T
     check: every scoped table carries its policy; the scanner's multi-tenancy domain clean
     sources: [foundation/structural-rule-3, takeover-eval/identity-re-derived]
     status: draft
@@ -190,8 +186,6 @@ requirements:
     tags: [floor]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: Q
     check: a personal-data census over stores and schemas; the scanner's privacy domain clean
     sources: [floor/s-personal-data]
     status: draft
@@ -253,8 +247,6 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: N
     check: the env example is complete against the code's reads; the scanner's config domain clean
     sources: [floor/r-config, foundation/config-stated-once]
     status: draft
@@ -268,8 +260,7 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: K
+      any_gap: unmet                # every property the check names must hold (#177)
     check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA
     sources: [floor/r-deps-pinned, foundation/lockfile-and-nvmrc]
     status: draft
@@ -590,8 +581,6 @@ requirements:
     tags: [floor, fleet]
     decide:
       kind: instrument
-      scanner: deep-code-review
-      category: M
     check: an error sink configured and one induced error observed arriving
     sources: [floor/o-errors]
     status: draft

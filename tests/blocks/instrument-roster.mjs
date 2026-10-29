@@ -14,7 +14,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync, cpSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadAdapters, loadFindings, loadManifest, projectMulti } from '../../map/project.mjs';
-import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
+import { loadYardstick, measureRun, decidersOf } from '../../yardstick/measure.mjs';
 import { corroboratedFacts } from '../../yardstick/compare.mjs';
 import { HERE, ROOT, current, negFailures } from '../harness.mjs';
 
@@ -53,10 +53,14 @@ export async function run() {
   const ids = Object.keys(adapters).sort();
   if (stat.map((r) => r.scanner).join(',') !== ids.join(',')) fail(`the roster must carry one row per adapter, sorted (got ${stat.map((r) => r.scanner).join(',')})`);
   for (const id of ids) {
-    const want = reg.requirements.filter((d) => d.decide?.kind === 'instrument' && d.decide.scanner === id).map((d) => d.id).sort();
+    // the row's deciders as the yardstick resolves them: its own and the adapters' decides: (#177)
+    const by = (d) => decidersOf(d, adapters).map((x) => x.scanner);
+    const want = reg.requirements.filter((d) => { const ds = by(d); return ds.length === 1 && ds[0] === id; }).map((d) => d.id).sort();
+    const beside = reg.requirements.filter((d) => { const ds = by(d); return ds.length > 1 && ds.includes(id); }).map((d) => d.id).sort();
     const row = byId[id];
     if (!row) continue;
-    if (JSON.stringify(row.decides_alone) !== JSON.stringify(want)) fail(`${id}: decides_alone must be the instrument rows naming it as decide.scanner (want ${want.join(',') || 'none'}, got ${(row.decides_alone || []).join(',') || 'none'})`);
+    if (JSON.stringify(row.decides_alone) !== JSON.stringify(want)) fail(`${id}: decides_alone must be the instrument rows it is the only decider of (want ${want.join(',') || 'none'}, got ${(row.decides_alone || []).join(',') || 'none'})`);
+    if (JSON.stringify(row.decides_beside) !== JSON.stringify(beside)) fail(`${id}: decides_beside must be the instrument rows it decides with another scanner (want ${beside.join(',') || 'none'}, got ${(row.decides_beside || []).join(',') || 'none'})`);
     const a = adapters[id];
     const want_status = a.retired ? 'retired' : a.adopted === false ? 'candidate' : 'adopted';
     if (row.status !== want_status) fail(`${id}: status must read ${want_status} (got ${row.status})`);

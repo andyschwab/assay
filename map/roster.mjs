@@ -41,7 +41,7 @@ import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapters, loadFindings, loadManifest, projectMulti, orderAxes } from './project.mjs';
 import { score } from './score.mjs';
-import { loadYardstick } from '../yardstick/measure.mjs';
+import { loadYardstick, decidersOf } from '../yardstick/measure.mjs';
 import { corroboratedFacts } from '../yardstick/compare.mjs';
 
 const sourceOf = (f) => f.source || 'repo-eval';
@@ -66,11 +66,13 @@ export function roster(adapters, reg, runs = []) {
   const full = runs.map((r) => (r.answers ? recoveredIds(r.findings, adapters, r) : null));
   return Object.keys(adapters).sort().map((id) => {
     const a = adapters[id];
-    const decides = reg.requirements.filter((d) => d.decide && d.decide.kind === 'instrument' && d.decide.scanner === id).map((d) => d.id).sort();
+    const deciders = (d) => decidersOf(d, adapters).map((x) => x.scanner);
+    const decides = reg.requirements.filter((d) => { const ds = deciders(d); return ds.length === 1 && ds[0] === id; }).map((d) => d.id).sort();
+    const decidesBeside = reg.requirements.filter((d) => { const ds = deciders(d); return ds.length > 1 && ds.includes(id); }).map((d) => d.id).sort();
     const axes = new Set([...(a.contributes || []), ...Object.values(a.map || {}).flatMap((m) => (m ? [m.axis, ...(m.also_axes || [])] : [])).filter(Boolean)]);
     const row = {
       scanner: id, role: a.role || null, status: rosterStatus(a),
-      decides_alone: decides, not_measured_if_retired: [...decides], feeds: orderAxes([...axes]),
+      decides_alone: decides, decides_beside: decidesBeside, not_measured_if_retired: [...decides], feeds: orderAxes([...axes]),
       fails_loud: a.fails_loud || null, ran_in: null, unique_recoveries: null, corroborated: null, cost: null,
     };
     if (!measured) return row;
@@ -96,7 +98,7 @@ function toRosterYaml(rows, runNames = []) {
     `runs: [${runNames.map(q).join(', ')}]`, 'scanners:'];
   for (const r of rows) {
     out.push(`  - scanner: ${r.scanner}`, `    role: ${r.role ?? 'null'}`, `    status: ${r.status}`,
-      `    decides_alone:${list(r.decides_alone)}`, `    not_measured_if_retired:${list(r.not_measured_if_retired)}`,
+      `    decides_alone:${list(r.decides_alone)}`, `    decides_beside:${list(r.decides_beside)}`, `    not_measured_if_retired:${list(r.not_measured_if_retired)}`,
       `    feeds:${list(r.feeds)}`, `    fails_loud: ${r.fails_loud ? r.fails_loud : 'null   # no harness block named: not adoptable (INTAKE.md)'}`,
       `    ran_in:${r.ran_in === null ? ' []' : list(r.ran_in)}`,
       `    unique_recoveries:${list(r.unique_recoveries, nm(r))}`,

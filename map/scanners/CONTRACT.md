@@ -115,6 +115,10 @@ map:
   J:                   # a category measuring a property another scanner also
     axis: deterministic-gates   # measures maps to that SHARED axis
 default: FAIL          # unmapped native_category => loud error, never a silent axis
+decides:               # optional — the yardstick rows this scanner decides (rule 7, #177):
+  - requirement: d-…   #   the row, the native category whose rows decide it, and the
+    category: B        #   optional not_applicable_when / not_measured_when / audits /
+                       #   excluding (yardstick/README.md); requirements.yaml names none
 handoff:               # optional — how the handoff bundles and proves this scanner's
                         #   remedies (§7); block style only, same as everything below
   unit: finding         # finding (default) | file | scanner — §7

@@ -47,6 +47,33 @@ const STRUCTURED = new Set(['structured-event', 'audited']);
 export const TOPICS = [...AXIS_ORDER, 'custody', 'reproducibility', 'operability'];
 
 // ── the yardstick: load + validate (fail closed) ───────────────────────────────
+// One decider: a scanner, the native category (or categories) its rows decide the row on,
+// and its optional evidence conditions. Shared by a yardstick row and an adapter's decides:.
+function validateDecider(spec, at) {
+  const errors = [];
+  if (!spec || typeof spec !== 'object') return [`${at}: a decider must be a map`];
+  const cat = spec.category;
+  // category is one native_category, OR a list of them (two rows the decider must
+  // hold jointly — e.g. install AND build); an empty list names nothing and is rejected
+  const validCategory = typeof cat === 'string' ? cat.length > 0 : Array.isArray(cat) && cat.length > 0 && cat.every((c) => typeof c === 'string' && c.length > 0);
+  if (!(spec.scanner && validCategory)) errors.push(`${at} needs scanner + category (a non-empty string, or a non-empty list of strings)`);
+  // optional evidence conditions (§ not-applicable / not-measured, decided only from
+  // the map): the name of a `polarity: fact` row, from the SAME scanner, whose presence
+  // (with the decided category itself carrying no rows) resolves the decider instead of
+  // the ordinary category verdict. Never a packet claim — see measureRun. `audits` names
+  // the fact category in which the scanner records each file it audited: another
+  // decider's not-measured fact about that file is answered by it.
+  const okName = (x) => typeof x === 'string' && x.length > 0;
+  for (const k of ['not_applicable_when', 'not_measured_when', 'audits']) {
+    const v = spec[k];
+    if (v !== undefined && !(okName(v) || (Array.isArray(v) && v.length > 0 && v.every(okName)))) errors.push(`${at}: ${k} must be a non-empty string, or a non-empty list of them (a fact row's native_category)`);
+  }
+  // optional population rule: the name of a detail flag the scanner sets on rows its own
+  // evidence cannot carry (e.g. structure-scan's `unconfigured`, #121); such rows stay in
+  // the map and the views and never decide this requirement
+  if (spec.excluding !== undefined && !okName(spec.excluding)) errors.push(`${at}: excluding must be a non-empty string (a detail flag the scanner sets)`);
+  return errors;
+}
 export function validateYardstick(reg) {
   const errors = [];
   if (!reg || !Array.isArray(reg.requirements)) return ['yardstick: no requirements list'];
@@ -64,24 +91,15 @@ export function validateYardstick(reg) {
     else if (d.decide.kind === 'facet' && !FACET_RULES.includes(d.decide.rule)) errors.push(`${at}: facet rule "${d.decide.rule}" unknown`);
     else if (d.decide.kind === 'census' && !(Array.isArray(d.decide.measures) && d.decide.measures.length)) errors.push(`${at}: census needs measures: [names]`);
     else if (d.decide.kind === 'instrument') {
-      const cat = d.decide.category;
-      // category is one native_category, OR a list of them (two rows the decider must
-      // hold jointly — e.g. install AND build); an empty list names nothing and is rejected
-      const validCategory = typeof cat === 'string' ? cat.length > 0 : Array.isArray(cat) && cat.length > 0 && cat.every((c) => typeof c === 'string' && c.length > 0);
-      if (!(d.decide.scanner && validCategory)) errors.push(`${at}: instrument needs scanner + category (a non-empty string, or a non-empty list of strings)`);
-      // optional evidence conditions (§ not-applicable / not-measured, decided only from
-      // the map): the name of a `polarity: fact` row, from the SAME scanner, whose presence
-      // (with the decided category itself carrying no rows) resolves the row instead of the
-      // ordinary category verdict. Never a packet claim — see measureRun.
-      for (const k of ['not_applicable_when', 'not_measured_when']) {
-        const v = d.decide[k];
-        const okName = (x) => typeof x === 'string' && x.length > 0;
-        if (v !== undefined && !(okName(v) || (Array.isArray(v) && v.length > 0 && v.every(okName)))) errors.push(`${at}: decide.${k} must be a non-empty string, or a non-empty list of them (a fact row's native_category)`);
-      }
-      // optional population rule: the name of a detail flag the scanner sets on rows its own
-      // evidence cannot carry (e.g. structure-scan's `unconfigured`, #121); such rows stay in
-      // the map and the views and never decide this requirement
-      if (d.decide.excluding !== undefined && !(typeof d.decide.excluding === 'string' && d.decide.excluding.length > 0)) errors.push(`${at}: decide.excluding must be a non-empty string (a detail flag the scanner sets)`);
+      // one decider on the row itself (scanner + category …), a list of them (decide.deciders),
+      // or none here: an external scanner binds through its adapter's `decides:` (CLAUDE.md
+      // rule 7), and decidersOf resolves the row against the adapters
+      if (d.decide.deciders !== undefined) {
+        if (!Array.isArray(d.decide.deciders) || !d.decide.deciders.length) errors.push(`${at}: decide.deciders must be a non-empty list`);
+        else for (const [i, spec] of d.decide.deciders.entries()) errors.push(...validateDecider(spec, `${at}: decide.deciders[${i}]`));
+        if (d.decide.scanner !== undefined) errors.push(`${at}: decide carries scanner beside deciders: name each decider in the list`);
+      } else if (d.decide.scanner !== undefined || d.decide.category !== undefined) errors.push(...validateDecider(d.decide, `${at}: instrument`));
+      if (d.decide.any_gap !== undefined && d.decide.any_gap !== 'unmet') errors.push(`${at}: decide.any_gap may only be "unmet" (a check every listed property must hold)`);
     }
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
     if (!Array.isArray(d.sources) || !d.sources.length) errors.push(`${at}: sources required (extracted, not designed)`);
@@ -95,7 +113,9 @@ export function validateYardstick(reg) {
 }
 export function loadYardstick(file = YARDSTICK_FILE) {
   const reg = parseYaml(readFileSync(file, 'utf8'));
+  // the register itself, then every adapter's binding against it (rule 7, #177)
   const errors = validateYardstick(reg);
+  if (!errors.length) errors.push(...validateAdapterDecides(reg, (ADAPTERS ??= loadAdapters())));
   if (errors.length) throw new Error(errors.join('\n'));
   return reg;
 }
@@ -195,26 +215,26 @@ function categoryVerdict(scanner, category, rows, coverage) {
 }
 
 // a row the requirement's `decide.excluding` flag sets aside (its detail carries the flag true)
-const excluded = (d, f) => Boolean(d.decide.excluding) && f.detail?.[d.decide.excluding] === true;
+const excluded = (spec, f) => Boolean(spec.excluding) && f.detail?.[spec.excluding] === true;
 
-function byInstrument(d, fs, disp, coverage) {
-  const { scanner, category } = d.decide;
+function byInstrument(d, spec, fs, disp, coverage) {
+  const { scanner, category } = spec;
   // category may be one native_category or a list of them (two rows the decider must
   // hold jointly, e.g. install AND build for one requirement): a finding matches when its
   // native_category is ANY listed value; met requires EVERY listed category to be met.
   const categories = (Array.isArray(category) ? category : [category]).map(String);
   const catLabel = categories.length > 1 ? `[${categories.join(', ')}]` : categories[0];
   const all = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')));
-  const rows = all.filter((f) => !excluded(d, f));
+  const rows = all.filter((f) => !excluded(spec, f));
   const aside = all.length - rows.length;
-  const asideNote = aside ? `; ${aside} row(s) flagged ${d.decide.excluding} set aside, not evidence for this requirement` : '';
+  const asideNote = aside ? `; ${aside} row(s) flagged ${spec.excluding} set aside, not evidence for this requirement` : '';
   const dp = disp[scanner];
   if (!dp) return row(rows.length ? 'unmet' : 'not-measured', 'instrument', rows.map((f) => f.id), rows.length ? `${rows.length} row(s) from ${scanner} (no manifest disposition recorded)` : `${scanner} has no disposition in the run manifest`);
   if (dp.status !== 'ran') return row('not-measured', 'instrument', [], `${scanner} ${dp.status}${dp.reason ? ': ' + dp.reason : ''}`);
   const gaps = rows.filter((f) => f.polarity === 'gap'), strengths = rows.filter((f) => f.polarity === 'strength');
   // a safety-tier check is a cleanliness claim: a strength row never makes it partly met
   // (yardstick/README.md, the instrument rule); any other tier reads a strength beside a gap mixed.
-  if (gaps.length) return row(strengths.length && d.tier !== 'safety' ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${catLabel}${strengths.length ? ', ' + strengths.length + ' strength' : ''}${asideNote}`);
+  if (gaps.length) return row(strengths.length && mixable(d) ? 'mixed' : 'unmet', 'instrument', rows.map((f) => f.id), `${gaps.length} gap row(s) from ${scanner} category ${catLabel}${strengths.length ? ', ' + strengths.length + ' strength' : ''}${asideNote}`);
   // no gap rows anywhere in the listed categories: met only where every listed category
   // independently clears categoryVerdict — a list is an AND, never decided by one member alone.
   const perCat = categories.map((c) => ({ c, ...categoryVerdict(scanner, c, rows.filter((f) => String(f.native_category) === c), coverage) }));
@@ -233,18 +253,91 @@ function byInstrument(d, fs, disp, coverage) {
 // evidence in that category (a gap, a strength) always governs over the
 // condition, the same "list is an AND, never overridden by a side fact" rule
 // byInstrument already holds for a joint category.
-function evidenceCondition(d, fs, disp, key) {
-  const cond = d.decide[key];
+function evidenceCondition(spec, fs, disp, key, answered = new Set()) {
+  const cond = spec[key];
   if (!cond) return null;
-  const { scanner, category } = d.decide;
+  const { scanner, category } = spec;
   if (disp[scanner]?.status !== 'ran') return null;   // not decidable from a run that did not happen
   const categories = (Array.isArray(category) ? category : [category]).map(String);
-  const inCategory = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')) && !excluded(d, f));
+  const inCategory = fs.filter((f) => f.source === scanner && categories.includes(String(f.native_category ?? '')) && !excluded(spec, f));
   if (inCategory.length) return null;
   const conds = (Array.isArray(cond) ? cond : [cond]).map(String);   // any one of the named facts fires it
-  const hits = fs.filter((f) => f.source === scanner && conds.includes(String(f.native_category)) && f.polarity === 'fact');
+  // a fact about files another decider of the same row audited is answered by that decider
+  const hits = fs.filter((f) => f.source === scanner && conds.includes(String(f.native_category)) && f.polarity === 'fact')
+    .filter((f) => !(evidenceFiles(f).length && evidenceFiles(f).every((x) => answered.has(x))));
   if (!hits.length) return null;
   return hits.map((h) => h.observation).filter(Boolean).join(' ') || `${scanner} recorded ${conds.join(' / ')}`;
+}
+
+// a gap beside a strength reads mixed, except on a safety-tier row (a cleanliness claim) and
+// on a row marked `any_gap: unmet` (a check every listed property must hold, #177)
+const mixable = (d) => d.tier !== 'safety' && d.decide.any_gap !== 'unmet';
+const evidenceFiles = (f) => (f.evidence || []).map((e) => String(e).replace(/:\d+(-\d+)?$/, '')).filter(Boolean);
+const asList = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]).map(String);
+
+// The deciders of an instrument row (#177): its own (the single form on decide, or
+// decide.deciders), then every adapter whose `decides:` names the row. An adapter's binding
+// counts when the scanner is adopted, or when the run records a disposition for it (a
+// candidate measured on a run that carries it).
+export function decidersOf(d, adapters, disp = null) {
+  if (d?.decide?.kind !== 'instrument') return [];
+  const own = Array.isArray(d.decide.deciders) ? d.decide.deciders : d.decide.scanner ? [d.decide] : [];
+  const bound = Object.values(adapters || {}).flatMap((a) => (Array.isArray(a.decides) ? a.decides : [])
+    .filter((b) => b && b.requirement === d.id && (a.adopted !== false || (disp && disp[a.scanner])))
+    .map(({ requirement, ...b }) => ({ ...b, scanner: a.scanner })));
+  return [...own.map(({ kind, deciders, any_gap, ...spec }) => spec), ...bound];
+}
+// every adapter binding names an instrument row and is a whole decider; every instrument
+// row resolves at least one decider (fail closed: a row nothing decides is not a row)
+function validateAdapterDecides(reg, adapters) {
+  const errors = [];
+  const byId = new Map(reg.requirements.map((d) => [d.id, d]));
+  for (const a of Object.values(adapters || {})) for (const [i, b] of (Array.isArray(a.decides) ? a.decides : []).entries()) {
+    const at = `adapters/${a.scanner}.yaml decides[${i}]`;
+    const d = b && byId.get(b.requirement);
+    if (!d) { errors.push(`${at}: names no requirement in the yardstick (${b && b.requirement})`); continue; }
+    if (d.decide.kind !== 'instrument') errors.push(`${at}: ${d.id} is decided by ${d.decide.kind}, not an instrument`);
+    errors.push(...validateDecider({ ...b, scanner: a.scanner }, at));
+  }
+  for (const d of reg.requirements) if (d.decide.kind === 'instrument' && !decidersOf(d, adapters, null).length && !Object.values(adapters || {}).some((a) => (a.decides || []).some((b) => b && b.requirement === d.id)))
+    errors.push(`yardstick: ${d.id}: an instrument row with no decider (neither on the row nor in any adapter's decides:)`);
+  return errors;
+}
+
+// One decider's own reading of the row: its evidence conditions, then its rows.
+function decideOne(d, spec, fs, disp, coverage, answered) {
+  const na = evidenceCondition(spec, fs, disp, 'not_applicable_when');
+  if (na) return row('not-applicable', 'instrument', [], na);
+  const nm = evidenceCondition(spec, fs, disp, 'not_measured_when', answered);
+  if (nm) return row('not-measured', 'instrument', [], nm);
+  return byInstrument(d, spec, fs, disp, coverage);
+}
+// An instrument row over all its deciders (#177). One decider reads exactly as it always
+// has. With several: a gap from any decider decides the row (mixed only where a strength
+// sits beside it and the row is mixable); a decider that reads not-applicable steps aside,
+// and the row is not-applicable only when every one does; any other decider not measured
+// holds the row not-measured; met needs every remaining decider met.
+function decideInstrument(d, fs, disp, coverage, adapters) {
+  const specs = decidersOf(d, adapters, disp);
+  if (!specs.length) return row('not-measured', 'instrument', [], 'no decider for this row is adopted or recorded in this run');
+  const auditedBy = (spec) => new Set(fs.filter((f) => f.source === spec.scanner && f.polarity === 'fact' && asList(spec.audits).includes(String(f.native_category))).flatMap(evidenceFiles));
+  const per = specs.map((spec) => {
+    const answered = new Set(specs.filter((o) => o !== spec).flatMap((o) => [...auditedBy(o)]));
+    return { spec, r: decideOne(d, spec, fs, disp, coverage, answered) };
+  });
+  if (per.length === 1) return per[0].r;
+  const ids = [...new Set(per.flatMap((p) => p.r.findings || []))];
+  const say = (ps) => ps.map((p) => `${p.spec.scanner}: ${p.r.note}`).join('; ');
+  const gapped = per.filter((p) => p.r.status === 'unmet' || p.r.status === 'mixed');
+  if (gapped.length) {
+    const byId = new Map(fs.map((f) => [f.id, f]));
+    const strengths = ids.filter((id) => byId.get(id)?.polarity === 'strength').length;
+    return row(strengths && mixable(d) ? 'mixed' : 'unmet', 'instrument', ids, say(per));
+  }
+  const live = per.filter((p) => p.r.status !== 'not-applicable');
+  if (!live.length) return row('not-applicable', 'instrument', [], say(per));
+  if (live.some((p) => p.r.status !== 'met')) return row('not-measured', 'instrument', ids, say(live.filter((p) => p.r.status !== 'met')));
+  return row('met', 'instrument', ids, say(live));
 }
 
 // ── the projection ────────────────────────────────────────────────────────────
@@ -257,22 +350,16 @@ function evidenceCondition(d, fs, disp, key) {
 // row) are collected and attached as `rows.contradictions` — an own property on
 // the returned array, not a second return value, so every existing caller
 // (`.map`/`.find`/`Object.fromEntries`) keeps working unmodified.
-export function measureRun({ findings, manifest, inputs, coverage, packet }, reg = loadYardstick()) {
+export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null }, reg = loadYardstick()) {
   const disp = dispositionsOf(manifest);
+  adapters ??= (ADAPTERS ??= loadAdapters());
   const contradictions = [];
   const claims = packet && Array.isArray(packet.claims) ? packet.claims : [];
   const rows = reg.requirements.map((d) => {
     let r, basis = 'run';
     if (d.decide.kind === 'facet') r = byFacet(d, findings);
     else if (d.decide.kind === 'census') r = byCensus(d, inputs);
-    else if (d.decide.kind === 'instrument') {
-      const na = evidenceCondition(d, findings, disp, 'not_applicable_when');
-      if (na) r = row('not-applicable', 'instrument', [], na);
-      else {
-        const nm = evidenceCondition(d, findings, disp, 'not_measured_when');
-        r = nm ? row('not-measured', 'instrument', [], nm) : byInstrument(d, findings, disp, coverage || {});
-      }
-    }
+    else if (d.decide.kind === 'instrument') r = decideInstrument(d, findings, disp, coverage || {}, adapters);
     else {
       const pd = decidePacketClaim(d.id, packet);
       if (pd) { r = row(pd.status, 'claim', [], pd.note); basis = 'owner'; }

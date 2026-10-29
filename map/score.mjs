@@ -44,7 +44,7 @@ import { basename } from 'node:path';
 import { isMain, sevRank } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadFindings, loadAdapters, projectMulti, loadManifest } from './project.mjs';
-import { STATUSES, loadYardstick, projectRun } from '../yardstick/measure.mjs';
+import { STATUSES, loadYardstick, projectRun, decidersOf } from '../yardstick/measure.mjs';
 
 // the method class a known-answer sheet's detectable_by names: the adapter's `method:`, else the id
 const methodOf = (adapters, source) => (adapters[source] && adapters[source].method) || source;
@@ -133,7 +133,7 @@ export function score(findings, adapters, answers, manifest = null) {
 // no reason, a claim row answered anything but not-measured) throws: it is never
 // graded. A non-claim requirement the sheet does not answer is not graded (the sheet
 // is the floor, not the ceiling); every claim row is, expected not-measured.
-export function gradeRequirements(rows, answers, reg, manifest = null) {
+export function gradeRequirements(rows, answers, reg, manifest = null, adapters = loadAdapters()) {
   const list = answers.requirements;
   if (!Array.isArray(list)) throw new Error('the sheet carries no requirements: list');
   const byId = new Map(reg.requirements.map((d) => [d.id, d]));
@@ -155,7 +155,7 @@ export function gradeRequirements(rows, answers, reg, manifest = null) {
     const r = rows.find((x) => x.id === id);
     const actual = r ? r.status : null;
     // the deciding method did not run: the row reads not-measured, which grades nothing
-    const notRun = d.decide.kind === 'instrument' ? !(recorded[d.decide.scanner] && recorded[d.decide.scanner].status === 'ran')
+    const notRun = d.decide.kind === 'instrument' ? !decidersOf(d, adapters, recorded).some((x) => recorded[x.scanner] && recorded[x.scanner].status === 'ran')
       : d.decide.kind === 'census' ? !(r && r.measure) : false;
     const grade = actual === want ? 'agree' : notRun && actual === 'not-measured' ? 'out-of-scope' : 'disagree';
     results.push({ id, kind: d.decide.kind, expected: want, actual, grade, note: r ? r.note : 'not measured at all' });
