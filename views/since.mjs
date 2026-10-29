@@ -70,7 +70,7 @@ function yardstickOnlyRowYaml(r) {
 function findingRowYaml(f) {
   return [`    - fingerprint: ${q(f.fingerprint)}`, `      id: ${f.id}`, `      source: ${f.source}`,
     `      dimension: ${q(f.dimension || '')}`, `      native_category: ${q(f.native_category || '')}`,
-    `      evidence: [${(f.evidence || []).join(', ')}]`, `      observation: ${q(f.observation)}`].join('\n');
+    `      evidence: [${(f.evidence || []).map(q).join(', ')}]`, `      observation: ${q(f.observation)}`].join('\n');
 }
 
 export function toYaml(runId, previousId, since, findingsDelta) {
