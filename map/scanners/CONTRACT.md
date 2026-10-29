@@ -78,6 +78,16 @@ names what would settle it (`resolves_with`), a `prior_status` names its
 Anything less halts. A full coverage map with an empty findings list is a
 recorded clean run.
 
+A gap row may carry the reviewer's strict `verdict` (`native_verdict` on the row).
+`confirmed` is ranked and carries the severity. `needs_validation` is a question:
+it needs `blockers` and a `validation_plan` and carries no severity, and it is read
+from `findings` and from a top-level `needs_validation` list alike, never dropped.
+It lands as an `unverified` gap with no severity, its blockers stated in the
+observation, its plan as `resolves_with` and, when it has no fix, as the fix's first
+act. `rejected` is the reviewer's own withdrawal: it needs a `reject_reason`, carries
+no severity, is never filed as a gap, and is named with its reason under `rejected`
+in the coverage sidecar. A verdict outside the three halts.
+
 ## 3. The adapter format (one file per scanner, `adapters/<id>.yaml`)
 
 ```yaml
