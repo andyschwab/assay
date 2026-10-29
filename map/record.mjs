@@ -35,6 +35,7 @@ import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapters, REPO_EVAL_PASSES } from './project.mjs';
 import { scannersPath } from '../lib/run-layout.mjs';
+import { remeasureIfMeasured } from '../yardstick/measure.mjs';
 
 export const STATUSES = ['ran', 'skipped', 'failed'];
 
@@ -145,6 +146,16 @@ export function updateRunRecord(path, edit) {
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
+// After ingest or record changes a run: a run already measured is measured again, so its
+// yardstick.yaml never trails its map (#184); one that cannot be measured halts loud,
+// naming the command, never leaves the stale file to read as current.
+export function remeasure(runDir, who) {
+  let out;
+  try { out = remeasureIfMeasured(runDir); }
+  catch (e) { console.error(`✗ ${who}: the run changed but could not be measured again (${e.message}); its yardstick.yaml is stale — fix the cause, then: node assay.mjs measure ${runDir} --write`); process.exit(1); }
+  if (out) console.log(`✓ measured again → ${out}`);
+}
+
 if (isMain(import.meta.url)) {
   const [runDir, scanner, status, ...rest] = process.argv.slice(2);
   const opt = (name) => { const i = rest.indexOf(name); return i > -1 ? rest[i + 1] : undefined; };
@@ -179,4 +190,5 @@ if (isMain(import.meta.url)) {
   try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model, spend, duration, pass }); row = r.row; return r.text; }); }
   catch (e) { console.error(`✗ record: ${e.message}`); process.exit(2); }
   console.log(row.join('\n'));
+  remeasure(runDir, 'record');
 }
