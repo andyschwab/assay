@@ -121,7 +121,7 @@
         "corroborated": 0,
         "fails_loud": "repo-census"
       },
-      "repo-eval": {
+      "practice-review": {
         "status": "adopted",
         "ran_in": 2,
         "decides_alone": 0,

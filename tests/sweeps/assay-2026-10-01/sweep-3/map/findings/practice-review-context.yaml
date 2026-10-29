@@ -1,4 +1,4 @@
-# map/findings/repo-eval-context.yaml — Pass 2, context economy, over assay at c30912c
+# map/findings/practice-review-context.yaml — Pass 2, context economy, over assay at c30912c
 # (blind sweep 3). Census-augmented: one finding per bounded context (module population,
 # subject_type artifact), then the entry-point, size, freshness and spend facts.
 
@@ -97,7 +97,7 @@
   polarity: gap
   subject_type: artifact
   observation: >
-    METHOD.md, the opening context of a repo-eval session, is a single 787-line document in
+    METHOD.md, the opening context of a practice-review session, is a single 787-line document in
     which the base passes (Passes 0-7) share the context with the view, report, handoff and
     scoring detail (Pass 8 onward) that a base pass does not use.
   evidence: [map/METHOD.md:61, map/METHOD.md:141, map/METHOD.md:352, map/METHOD.md:497-569, README.md:131-132]
@@ -119,7 +119,7 @@
   polarity: fact
   subject_type: process
   observation: >
-    The run record can carry the model and spend of each judgment scanner and each repo-eval
+    The run record can carry the model and spend of each judgment scanner and each practice-review
     pass, and variance reports agreement per model pair, but no file records a rationale
     for which model tier runs which pass or a re-qualification step when models change.
   evidence: [map/SCHEMA.md:358-385, map/variance.mjs:93-97, map/METHOD.md:152-159]

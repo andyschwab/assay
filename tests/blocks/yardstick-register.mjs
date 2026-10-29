@@ -29,7 +29,7 @@ export async function run() {
       { id: 'F-9', dimension: 'unprompted', polarity: 'gap', subject_type: 'control', observation: 'x', evidence: ['a:1'], confidence: 'confirmed', source: 'gitleaks', native_category: 'secret', axis: 'code-security' },
     ];
     const inputs = { dimensions: [{ dimension: 'artifact-legibility', sampled: [{ name: 'decision-reconstruction', what: 'w', met: 3, of: 4 }] }] };
-    const ran = [{ scanner: 'gitleaks', status: 'ran' }, { scanner: 'repo-eval', status: 'ran' }];
+    const ran = [{ scanner: 'gitleaks', status: 'ran' }, { scanner: 'practice-review', status: 'ran' }];
     const rows = measureRun({ findings: base, manifest: ran, inputs, coverage: {} }, reg);
     const by = Object.fromEntries(rows.map((r) => [r.id, r]));
     if (by['d-effects-gated']?.status !== 'unmet' || !by['d-effects-gated'].findings.includes('F-1')) fail('an unheld halt must read d-effects-gated unmet, citing it');

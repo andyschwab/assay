@@ -16,7 +16,7 @@
   subject_type: artifact
   observation: >
     The map/ module has no README of its own; it is loaded through map/METHOD.md (787 lines) and
-    map/SCHEMA.md (878 lines), and the method names SCHEMA.md authoritative, so a repo-eval session
+    map/SCHEMA.md (878 lines), and the method names SCHEMA.md authoritative, so a practice-review session
     loads both, about 1,665 lines, before reading the target.
   evidence: [map/METHOD.md:265-273, map/SCHEMA.md:5-12, README.md:131-132]
   confidence: confirmed
@@ -117,7 +117,7 @@
   polarity: strength
   subject_type: control
   observation: >
-    The run record can carry the model and the spend of each judgment scanner and of each repo-eval
+    The run record can carry the model and the spend of each judgment scanner and of each practice-review
     pass, renderers name them, and variance reports fact agreement per model pair.
   evidence: [map/SCHEMA.md:359-385, README.md:135-136]
   confidence: confirmed
@@ -126,7 +126,7 @@
   polarity: gap
   subject_type: process
   observation: >
-    No file records which model tier the repo-eval method should run on, why, or a re-qualification
+    No file records which model tier the practice-review method should run on, why, or a re-qualification
     step when a model ships; the model and spend fields are optional per run, and spend is never
     required.
   evidence: [map/SCHEMA.md:359-381, README.md:131-136, map/METHOD.md:155-159]

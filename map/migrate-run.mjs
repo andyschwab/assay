@@ -1,6 +1,15 @@
-// migrate-run.mjs — bring a run written before the strict YAML reader forward (#182).
+// migrate-run.mjs — bring a run written by an earlier engine forward (#182, #188).
 //
-// Before b16800c a flow list was split on every comma and each element read as a
+// Two changes left stored runs behind, and this brings each forward in turn.
+//
+// 1. A retired scanner id (#188). The built-in judgment scanner was named repo-eval
+// until it was renamed practice-review (its method class eval-pass with it): a run
+// drawn before the rename carries the old id in its file names (map/findings/
+// repo-eval-<pass>.yaml) and its text (the run record's key, a row's source). Every
+// file and path holding it is renamed; nothing is written where a renamed path would
+// land on one that exists.
+//
+// 2. Before b16800c a flow list was split on every comma and each element read as a
 // scalar, and ingest wrote evidence elements unquoted. A path holding a bracket (a
 // dynamic route segment, app/[id]/page.tsx) now reads as a nested flow list, and the
 // strict reader fails closed on it, so such a run cannot be validated or be Since's
@@ -13,10 +22,40 @@
 // left as it was.
 //
 // Usage: node assay.mjs migrate-run <run-dir> [--write]   (without --write: what would change)
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { readFileSync, writeFileSync, readdirSync, statSync, renameSync, existsSync } from 'node:fs';
+import { join, relative, dirname, basename } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml, q, YamlError } from '../lib/yaml-min.mjs';
+
+// the retired ids and what they became; the one place in the tree the old ids are
+// written (tests/blocks/retired-names.mjs holds it)
+const RETIRED = [['repo-eval', 'practice-review'], ['eval-pass', 'practice-review']];
+const renamed = (s) => RETIRED.reduce((t, [a, b]) => t.split(a).join(b), s);
+const holdsRetired = (s) => RETIRED.some(([a]) => s.includes(a));
+
+const walk = (dir) => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
+const TEXT = /\.(ya?ml|md|json|txt)$/;
+
+// step 1: the retired ids → { renames: [[from, to]], rewrites: [file], refused: [why] }
+function retiredIds(runDir) {
+  const files = walk(runDir);
+  const renames = files.filter((f) => holdsRetired(basename(f))).map((f) => [f, join(dirname(f), renamed(basename(f)))]);
+  const rewrites = files.filter((f) => TEXT.test(f) && holdsRetired(readFileSync(f, 'utf8')));
+  const refused = renames.filter(([, to]) => existsSync(to)).map(([from, to]) => `${relative(runDir, from)} would land on ${relative(runDir, to)}, which exists`);
+  return { renames, rewrites, refused };
+}
+
+// what a run still carries from an earlier engine, in a line each (validate and Since
+// name it, and the command that brings the run forward)
+export function legacyIn(runDir) {
+  if (!existsSync(runDir)) return [];
+  const out = [];
+  const ids = retiredIds(runDir);
+  if (ids.renames.length || ids.rewrites.length) out.push(`it carries a retired scanner id (${RETIRED.map(([a, b]) => `${a} → ${b}`).join(', ')}) in ${ids.renames.length + ids.rewrites.length} file(s)`);
+  const lists = walk(runDir).filter((f) => /\.ya?ml$/.test(f)).filter((f) => migrateText(readFileSync(f, 'utf8')).changed);
+  if (lists.length) out.push(`${lists.length} file(s) hold flow lists the strict reader refuses`);
+  return out.map((x) => `${x} — a run drawn by an earlier engine: node assay.mjs migrate-run ${runDir} --write`);
+}
 
 // the legacy reader's rule for one flow list, frozen as b16800c^ had it
 function legacyScalar(raw) {
@@ -54,16 +93,24 @@ function migrateText(text) {
   return { text: refused.length ? text : out, changed: refused.length ? 0 : changed, refused };
 }
 
-const yamlFiles = (dir) => readdirSync(dir).flatMap((n) => { const p = join(dir, n); return statSync(p).isDirectory() ? yamlFiles(p) : /\.ya?ml$/.test(n) ? [p] : []; });
-
 function migrateRun(runDir, { write = false } = {}) {
   const report = [];
-  for (const f of yamlFiles(runDir)) {
+  const ids = retiredIds(runDir);
+  if (ids.refused.length) return [{ file: '(retired ids)', ids: 0, changed: 0, refused: ids.refused }];
+  if (ids.renames.length || ids.rewrites.length) {
+    if (write) {
+      for (const f of ids.rewrites) writeFileSync(f, renamed(readFileSync(f, 'utf8')));
+      for (const [from, to] of ids.renames) renameSync(from, to);
+    }
+    report.push({ file: '(retired ids)', ids: ids.renames.length + ids.rewrites.length, changed: 0, refused: [] });
+    if (!write) return report;   // the strict-list step reads the files under their new names
+  }
+  for (const f of walk(runDir).filter((x) => /\.ya?ml$/.test(x))) {
     const before = readFileSync(f, 'utf8');
     const r = migrateText(before);
     if (!r.changed && !r.refused.length) continue;
     if (write && r.changed) writeFileSync(f, r.text);
-    report.push({ file: relative(runDir, f), changed: r.changed, refused: r.refused });
+    report.push({ file: relative(runDir, f), ids: 0, changed: r.changed, refused: r.refused });
   }
   return report;
 }
@@ -74,8 +121,9 @@ if (isMain(import.meta.url)) {
   if (!runDir) { console.error('usage: node assay.mjs migrate-run <run-dir> [--write]'); process.exit(2); }
   const write = args.includes('--write');
   const report = migrateRun(runDir, { write });
-  if (!report.length) { console.log(`✓ migrate-run: every YAML file in ${runDir} already reads under the strict reader`); process.exit(0); }
+  if (!report.length) { console.log(`✓ migrate-run: ${runDir} carries nothing from an earlier engine`); process.exit(0); }
   for (const r of report) {
+    if (r.ids) console.log(`${write ? '✓ renamed' : '· would rename'} the retired scanner id in ${r.ids} file(s) or path(s)`);
     if (r.changed) console.log(`${write ? '✓ rewrote' : '· would rewrite'} ${r.changed} flow list(s) in ${r.file}`);
     for (const x of r.refused) console.error(`✗ ${r.file}: left as it was, ${x}`);
   }

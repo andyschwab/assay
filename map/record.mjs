@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // record.mjs — set one scanner's disposition directly in <run>/map/scanners.yaml
 // (the run record, SCHEMA.md §5a): a judgment scanner's own review lands as
-// `record <run> repo-eval ran`, a decision not to run something as `record
+// `record <run> practice-review ran`, a decision not to run something as `record
 // <run> <scanner> skipped --reason "<why>"`. `assay start` (map/start.mjs)
 // writes the file; `ingest` and `record` are the only things that touch it
 // after that, and both go through setScannerRow below, under updateRunRecord's
@@ -22,7 +22,7 @@
 //   --duration — how long the scanner ran, with the unit ("4m10s"), any
 //              scanner, instruments included; kept like model:. Always on the
 //              row, never on a pass.
-//   --pass   — repo-eval only: --model/--spend land on that one pass
+//   --pass   — practice-review only: --model/--spend land on that one pass
 //              (`passes: <pass>:` in the row) instead of the row. Recorded
 //              passes are kept by every edit.
 // Adds the row if the scanner has none yet. Refuses (exit 2, nothing
@@ -33,7 +33,7 @@
 import { readFileSync, writeFileSync, existsSync, openSync, closeSync, unlinkSync } from 'node:fs';
 import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
-import { loadAdapters, REPO_EVAL_PASSES } from './project.mjs';
+import { loadAdapters, PRACTICE_REVIEW_PASSES } from './project.mjs';
 import { scannersPath } from '../lib/run-layout.mjs';
 import { remeasureIfMeasured } from '../yardstick/measure.mjs';
 
@@ -69,8 +69,8 @@ function renderRow(id, status, reason, model, spend, passes, duration) {
 // appended after the last existing row.
 export function setScannerRow(text, scanner, status, { reason, model, spend, duration, pass } = /** @type {any} */ ({})) {
   if (!STATUSES.includes(status)) throw new Error(`bad status "${status}" (${STATUSES.join(' | ')})`);
-  if (pass !== undefined && scanner !== 'repo-eval') throw new Error(`--pass is the built-in scanner's per-pass record; ${scanner} has no passes`);
-  if (pass !== undefined && !REPO_EVAL_PASSES[pass]) throw new Error(`unknown pass "${pass}" (${Object.keys(REPO_EVAL_PASSES).join(' | ')})`);
+  if (pass !== undefined && scanner !== 'practice-review') throw new Error(`--pass is the built-in scanner's per-pass record; ${scanner} has no passes`);
+  if (pass !== undefined && !PRACTICE_REVIEW_PASSES[pass]) throw new Error(`unknown pass "${pass}" (${Object.keys(PRACTICE_REVIEW_PASSES).join(' | ')})`);
   if (pass !== undefined && model === undefined && spend === undefined) throw new Error(`--pass ${pass} records that pass's --model and/or --spend; neither was given`);
   const hadTrailingNL = text.endsWith('\n');
   const lines = (hadTrailingNL ? text.slice(0, -1) : text).split('\n');

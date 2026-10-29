@@ -1,4 +1,4 @@
-# map/findings/repo-eval-delegation.yaml — Pass 5, delegation, over assay at c30912c
+# map/findings/practice-review-delegation.yaml — Pass 5, delegation, over assay at c30912c
 # (blind sweep 3). One effect finding per terrain channel (11), the capability findings
 # for the two documented agent contexts, the credential census (one control per
 # credential), and the halt / containment controls the effects are measured against.
@@ -254,9 +254,9 @@
   dimension: delegation
   polarity: gap
   subject_type: capability
-  label: "the repo-eval session over a target"
+  label: "the practice-review session over a target"
   observation: >
-    The repo-eval session reads the whole target repository (untrusted text, possibly private
+    The practice-review session reads the whole target repository (untrusted text, possibly private
     code) and is told to run `assay start` and `enumerate`, which run dependency-scan against
     the registry, while METHOD.md's ground rules give that session no instruction to treat the
     target's own files (including a target CLAUDE.md) as data rather than instructions.

@@ -45,11 +45,11 @@ threshold change is a reviewed change to `SWEEP.yaml`, never a silent drift.
 **The sets here.**
 
 - `fixture-notesbox/`: fixture-sized and **not blind**: three copies of the notesbox
-  fixture's repo-eval passes with one finding dropped and one descriptor re-judged.
+  fixture's practice-review passes with one finding dropped and one descriptor re-judged.
   It proves the gate reads the number and can go red; it says nothing about the
   method's repeatability.
 - `assay-2026-10-01/`: **blind**, over this repository at `c30912c` (method at the same
-  commit): three fresh-context `repo-eval` runs, each a child session that never saw an
+  commit): three fresh-context `practice-review` runs, each a child session that never saw an
   answer sheet, the other sweeps, or this directory, all recorded with their model
   (`claude-opus-5-5` on every pass). Measured: 24 union facts, 9 caught by all three
   (fact presence 38%); 17 effect channels, 5 shared by two or more sweeps, 1 identical

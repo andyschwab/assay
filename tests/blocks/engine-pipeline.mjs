@@ -16,10 +16,10 @@ export async function run() {
     { id: 'F-902', dimension: 'unprompted', axis: 'code-security', polarity: 'gap', observation: 'x', evidence: ['a:1'], confidence: 'confirmed', subject_type: 'process' },
   ], adapters);
   if (explicit.projected.find((p) => p.f.id === 'F-902')?.axis !== 'code-security') fail('an explicit finding axis must be honored as-is');
-  const contributed = contributedBySources(adapters, ['repo-eval']);
-  if (contributed.has('code-correctness')) fail('repo-eval must not contribute the code axes (they arrive with a code scanner)');
-  if (!contributed.has('delegation') || !contributed.has('multiplayer')) fail('repo-eval must contribute its seven dimension axes');
-  const roster = rosterFor(adapters, ['repo-eval'], explicit.projected);
+  const contributed = contributedBySources(adapters, ['practice-review']);
+  if (contributed.has('code-correctness')) fail('practice-review must not contribute the code axes (they arrive with a code scanner)');
+  if (!contributed.has('delegation') || !contributed.has('multiplayer')) fail('practice-review must contribute its seven dimension axes');
+  const roster = rosterFor(adapters, ['practice-review'], explicit.projected);
   if (!roster.includes('code-security')) fail('an axis a finding explicitly carries must still appear in the roster (never a silent drop)');
   const base = [{ f: { id: 'F-A', polarity: 'gap', severity: 'Critical' }, axis: 'code-correctness', also: [], source: 'x' }];
   const decided = decideProjected(base, [{ finding: 'F-A', action: 'accept', reason: 'known' }], null);

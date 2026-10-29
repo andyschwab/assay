@@ -22,7 +22,7 @@ export async function run() {
   // a finding "no longer found" that carries no requirement at all (subject_type: control,
   // decided by no facet/instrument row) — removing it must change since's findings tally
   // and NOTHING in the yardstick, proving the two are read from independent inputs.
-  const delFile = join(curr, 'map', 'findings', 'repo-eval-delegation.yaml');
+  const delFile = join(curr, 'map', 'findings', 'practice-review-delegation.yaml');
   const delRaw = readFileSync(delFile, 'utf8');
   const delWithoutF050 = delRaw.replace(/- id: F-050[\s\S]*?(?=\n- id: F-051)/, '');
   if (delWithoutF050 === delRaw || delWithoutF050.includes('F-050')) fail('test setup: could not remove F-050 from the curr fixture copy — the since "no longer found" case would be vacuous');
@@ -52,7 +52,7 @@ export async function run() {
     if ((doc.regressed || []).length) fail('nothing should have regressed in this fixture');
     const noLongerFound = (doc.findings?.no_longer_found || []).map((f) => f.id);
     if (!noLongerFound.includes('F-700')) fail(`F-700 (gitleaks, emptied in curr) must read as no-longer-found (got ${noLongerFound.join(', ')})`);
-    if (!noLongerFound.includes('F-050')) fail(`F-050 (removed from curr's repo-eval pass) must read as no-longer-found (got ${noLongerFound.join(', ')})`);
+    if (!noLongerFound.includes('F-050')) fail(`F-050 (removed from curr's practice-review pass) must read as no-longer-found (got ${noLongerFound.join(', ')})`);
   }
   const sincePage = existsSync(sincePagePath(curr)) ? readFileSync(sincePagePath(curr), 'utf8') : '';
   if (!/no longer found/i.test(sincePage) || /\bfixed\b/i.test(sincePage.replace(/never "fixed"/i, ''))) fail('SINCE.md must say "no longer found", never "fixed", for an unmatched finding');

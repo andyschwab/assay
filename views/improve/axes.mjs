@@ -200,7 +200,7 @@ for (const a of roster) {
     out.push(a === HOTSPOT_AXIS ? `**Risks open** _(severity-ranked; within a severity, ${hotspotNote(gaps.map((p) => p.f))})_:` : '**Risks open** _(severity-ranked)_:');
     for (const p of gaps) {
       const sev = p.f.severity ? ` _(${p.f.severity})_` : '';
-      const src = p.source !== 'repo-eval' ? ` [${p.source}]` : '';
+      const src = p.source !== 'practice-review' ? ` [${p.source}]` : '';
       out.push(`- ${p.f.id}${sev}${src} — ${say(p.f.observation)} \`${ev1(p.f)}\``);
     }
     out.push('');

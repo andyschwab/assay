@@ -1,4 +1,4 @@
-# map/findings/repo-eval-delegation.yaml — neutral evidence base for assay at
+# map/findings/practice-review-delegation.yaml — neutral evidence base for assay at
 # c30912c (blind sweep 1). Pass 5: delegation surface. One effect finding per
 # channel slug fixed in map/terrain.md; capabilities are the LLM-driven surfaces
 # the method and the handoff put an agent in; controls follow.
@@ -114,10 +114,10 @@
   dimension: delegation
   polarity: fact
   subject_type: capability
-  observation: "The repo-eval scanner is a coding-agent session opened with METHOD.md over the target repository: it reads untrusted target text, holds the target's code and findings, and its tool surface is whatever the operator's session grants, with sending left to a human by instruction only."
+  observation: "The practice-review scanner is a coding-agent session opened with METHOD.md over the target repository: it reads untrusted target text, holds the target's code and findings, and its tool surface is whatever the operator's session grants, with sending left to a human by instruction only."
   evidence: [README.md:131-132, map/METHOD.md:49-53, map/METHOD.md:741]
   confidence: plausible
-  label: "the repo-eval agent session"
+  label: "the practice-review agent session"
   capabilities:
     untrusted_input: true
     private_data: true

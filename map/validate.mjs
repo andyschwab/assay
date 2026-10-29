@@ -14,12 +14,13 @@ import {
   findingsDir, coverageDir, scannersPath, yardstickPath as runYardstickPath,
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
-  nativeReportPath, isRepoEvalPassFile, REPO_EVAL_PASS_PREFIX, decisionsPath,
+  nativeReportPath, isPracticeReviewPassFile, PRACTICE_REVIEW_PASS_PREFIX, decisionsPath,
   chainsDataPath, handoffSequencePath, backlogPath, backlogAuthoredPath,
 } from '../lib/run-layout.mjs';
 import { checkChains, checkSequence, checkBacklog, checkAuthoredBacklog } from '../lib/run-data.mjs';
 import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
 import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
+import { legacyIn } from './migrate-run.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -39,7 +40,7 @@ const PRECONDITIONS = new Set(['prompt-injection','stolen-credential','malicious
 // absent is valid (the adapter projects it). The valid set is DERIVED from the
 // adapters — axes are scanner-contributed, so the vocab is open by design:
 // every axis any adapter contributes or maps to. See map/scanners/CONTRACT.md.
-const { loadAdapters, projectMulti, REPO_EVAL_PASSES } = await import('./project.mjs');
+const { loadAdapters, projectMulti, PRACTICE_REVIEW_PASSES } = await import('./project.mjs');
 const AXES = new Set();
 let ADAPTERS = {};
 try {
@@ -57,7 +58,7 @@ const LIKELIHOOD = new Set(['high','moderate','low']);
 // Ids are F-### unique within a run, carrying NO dimension meaning (decoupled 2026-08-05):
 // the `dimension` field + filename↔dimension agreement is the source of truth for a finding's
 // dimension. No per-dimension id bands, no fixed budget, no ceiling. See SCHEMA §3.
-const FILE_DIM = Object.fromEntries(Object.entries(REPO_EVAL_PASSES).map(([p, d]) => [`repo-eval-${p}.yaml`, d]));
+const FILE_DIM = Object.fromEntries(Object.entries(PRACTICE_REVIEW_PASSES).map(([p, d]) => [`practice-review-${p}.yaml`, d]));
 
 const errors = [];
 const err = (where, msg) => errors.push(`${where}: ${msg}`);
@@ -90,6 +91,10 @@ const target = tIdx > -1 ? process.argv[tIdx + 1] : null;
 const runDir = arg;
 const evalDir = findingsDir(runDir);   // map/findings/ — every reader/writer uses this one path
 if (!existsSync(evalDir)) { console.error(`no such dir: ${evalDir}`); process.exit(2); }
+// a run drawn by an earlier engine is named, with the command that brings it forward,
+// never read as a missing scanner or a parse failure (#182, #188)
+const legacy = legacyIn(runDir);
+if (legacy.length) { console.error(`✗ assay validate: ${runDir} is not in the current format (fails closed)\n`); for (const l of legacy) console.error('  • ' + l); process.exit(1); }
 
 const allById = new Map();       // id -> {finding, file}
 const passFiles = readdirSync(evalDir).filter((f) => f.endsWith('.yaml')).sort();
@@ -102,10 +107,10 @@ function checkFinding(f, fileLabel, expectDim) {
   else allById.set(id, { f, file: fileLabel });
   // External-scanner findings (overlay, SCHEMA §2a): a finding from another
   // evaluator carries `source` + `native_category` and is validated under the
-  // PORT (map/scanners/CONTRACT.md §1), not the native repo-eval schema —
+  // PORT (map/scanners/CONTRACT.md §1), not the native practice-review schema —
   // no `dimension`/`subject_type`. Its axis is derived by its adapter at
   // projection, so it need not carry one here; if it does, the vocab is checked.
-  const external = f.source && f.source !== 'repo-eval';
+  const external = f.source && f.source !== 'practice-review';
   if (external) {
     for (const k of ['source','native_category','observation','evidence','polarity']) {
       if (f[k] === undefined || f[k] === null || f[k] === '') err(at, `missing required key (external finding): ${k}`);
@@ -211,7 +216,7 @@ for (const file of passFiles) {
 {
   const { loadManifest, adoptedAdapters, MANIFEST_FILE, MANIFEST_STATUS } = await import('./project.mjs');
   const mPath = scannersPath(runDir);
-  const sourcesSeen = new Set([...allById.values()].map((v) => v.f.source || 'repo-eval'));
+  const sourcesSeen = new Set([...allById.values()].map((v) => v.f.source || 'practice-review'));
   if (!existsSync(mPath)) {
     err(MANIFEST_FILE, `missing — every run records each adopted scanner's disposition (ran | skipped + reason | failed + reason); a scanner that can be omitted without a recorded decision reads as coverage. Start the run: node assay.mjs start --out ${runDir} <target> (or see the template: map/templates/scanners.yaml).`);
   } else {
@@ -238,10 +243,10 @@ for (const file of passFiles) {
           if (!spendOk(row.spend)) err(at, `spend must be what the scanner's inference spent (a string with its unit, or a whole number), or absent`);
           if (!spendOk(row.duration)) err(at, `duration must be how long the scanner ran (a string with its unit, or a whole number of seconds), or absent`);
           if (row.passes !== undefined) {
-            if (id !== 'repo-eval') err(at, `passes: is the built-in scanner's per-pass record; ${id} has no passes`);
+            if (id !== 'practice-review') err(at, `passes: is the built-in scanner's per-pass record; ${id} has no passes`);
             else if (!row.passes || typeof row.passes !== 'object' || Array.isArray(row.passes)) err(at, `passes: must be a map of pass → { model, spend }`);
             else for (const [p, v] of Object.entries(row.passes)) {
-              if (!REPO_EVAL_PASSES[p]) { err(`${at}:${p}`, `unknown pass — the built-in scanner's passes are ${Object.keys(REPO_EVAL_PASSES).join(', ')}`); continue; }
+              if (!PRACTICE_REVIEW_PASSES[p]) { err(`${at}:${p}`, `unknown pass — the built-in scanner's passes are ${Object.keys(PRACTICE_REVIEW_PASSES).join(', ')}`); continue; }
               if (!v || typeof v !== 'object' || Array.isArray(v) || (v.model === undefined && v.spend === undefined)) { err(`${at}:${p}`, `a pass record carries model:, spend:, or both`); continue; }
               if (v.model !== undefined && !(typeof v.model === 'string' && v.model.trim())) err(`${at}:${p}`, `model must be the model id the pass ran on (a string), or absent`);
               if (!spendOk(v.spend)) err(`${at}:${p}`, `spend must be what the pass's inference spent (a string with its unit, or a whole number), or absent`);
@@ -249,10 +254,10 @@ for (const file of passFiles) {
           }
           if (row.status === 'ran') {
             if (row.model === undefined && ADAPTERS[id].role !== 'instrument') {
-              // repo-eval may record its model per pass instead: warn for the passes with none
+              // practice-review may record its model per pass instead: warn for the passes with none
               const passes = row.passes && typeof row.passes === 'object' ? row.passes : {};
-              const bare = id === 'repo-eval' ? passFiles.filter(isRepoEvalPassFile).map((f) => f.slice(REPO_EVAL_PASS_PREFIX.length, -'.yaml'.length)).filter((p) => !(passes[p] && passes[p].model)) : [];
-              if (id !== 'repo-eval' || !Object.keys(passes).length)
+              const bare = id === 'practice-review' ? passFiles.filter(isPracticeReviewPassFile).map((f) => f.slice(PRACTICE_REVIEW_PASS_PREFIX.length, -'.yaml'.length)).filter((p) => !(passes[p] && passes[p].model)) : [];
+              if (id !== 'practice-review' || !Object.keys(passes).length)
                 warn(at, `no model: recorded for a judgment scanner — a repeat cannot separate model drift from method drift`);
               else if (bare.length)
                 warn(at, `no model: recorded for pass(es) ${bare.join(', ')} of a judgment scanner — a repeat cannot separate model drift from method drift`);
@@ -260,7 +265,7 @@ for (const file of passFiles) {
             const explicitFile = passFiles.includes(`${id}.yaml`);
             if (!sourcesSeen.has(id) && !explicitFile)
               err(at, `status ran, but the base carries no rows from ${id} and no map/findings/${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty); if it did not run, record that: node assay.mjs record ${runDir} ${id} skipped --reason "<why>"`);
-            if (ADAPTERS[id].role !== 'instrument' && id !== 'repo-eval' && !existsSync(nativeReportPath(runDir, id)))
+            if (ADAPTERS[id].role !== 'instrument' && id !== 'practice-review' && !existsSync(nativeReportPath(runDir, id)))
               warn(at, `peer scanner ran but the run carries no native report map/native/${id}.md — its port rows are the only record; the package lists no appendix for it`);
           } else if (sourcesSeen.has(id)) {
             err(at, `status ${row.status}, but the base carries rows from ${id} — rows from a scanner recorded as not run are not evidence; if it ran, record it: node assay.mjs record ${runDir} ${id} ran`);
@@ -491,7 +496,7 @@ if (canonName) {
   // Resolution order (SCHEMA.md §8): (1) the run's instance entry — runs live at
   // <entry>/runs/<run>/ with the target's canon at <entry>/canon/<name>.yaml
   // (custody layout, reorganization 2026-08-11); (2) canon/ next to this tool
-  // (portable layout — repo-eval copied into a target repo).
+  // (portable layout — practice-review copied into a target repo).
   const candidates = [
     join(arg, '..', '..', 'canon', `${canonName}.yaml`),
     join(HERE, 'canon', `${canonName}.yaml`),

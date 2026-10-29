@@ -35,7 +35,7 @@ export async function run() {
   // the deciders read the same doctrine
   const reg = loadYardstick();
   const fnd = (id, o) => ({ id, dimension: 'delegation', polarity: 'fact', subject_type: 'effect', observation: 'x', evidence: ['a:1'], confidence: 'confirmed', effect: e({ channel: 'ch-' + id, ...o }) });
-  const by = (base) => Object.fromEntries(measureRun({ findings: base, manifest: [{ scanner: 'repo-eval', status: 'ran' }], inputs: {}, coverage: {} }, reg).map((r) => [r.id, r]));
+  const by = (base) => Object.fromEntries(measureRun({ findings: base, manifest: [{ scanner: 'practice-review', status: 'ran' }], inputs: {}, coverage: {} }, reg).map((r) => [r.id, r]));
   const person = by([fnd('F-1', { gate_type: 'initiated-by-person', fail_mode: 'closed' })]);
   if (person['d-effects-gated']?.status !== 'met') fail(`a recorded person's own act must read d-effects-gated met (got ${person['d-effects-gated']?.status})`);
   const mixed = by([fnd('F-1', { gate_type: 'initiated-by-person', fail_mode: 'closed' }), fnd('F-2', {})]);
@@ -60,7 +60,7 @@ export async function run() {
     try {
       mkdirSync(join(dir, 'map', 'findings'), { recursive: true });
       copyFileSync(scanners, join(dir, 'map', 'scanners.yaml'));
-      writeFileSync(join(dir, 'map', 'findings', 'repo-eval-delegation.yaml'), yamlOf(o));
+      writeFileSync(join(dir, 'map', 'findings', 'practice-review-delegation.yaml'), yamlOf(o));
       try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), dir], { stdio: 'pipe' }); return []; }
       catch (x) { return (String(x.stdout || '') + String(x.stderr || '')).split('\n').filter((l) => l.startsWith('  • ')).map((l) => l.slice(4)); }
     } finally { rmSync(dir, { recursive: true, force: true }); }

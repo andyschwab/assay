@@ -17,7 +17,7 @@ export async function run() {
     ['improvePagePath', [], 'IMPROVE.md'], ['ownerPagePath', [], 'OWNER.md'], ['sincePagePath', [], 'SINCE.md'],
     ['routinePath', [], 'routine.yaml'], ['handoffDir', [], 'handoff'],
     ['scannersPath', [], 'map/scanners.yaml'], ['findingsDir', [], 'map/findings'], ['findingsPath', ['gitleaks'], 'map/findings/gitleaks.yaml'],
-    ['repoEvalPassPath', ['gates'], 'map/findings/repo-eval-gates.yaml'], ['coveragePath', ['deep-code-review'], 'map/coverage/deep-code-review.yaml'],
+    ['practiceReviewPassPath', ['gates'], 'map/findings/practice-review-gates.yaml'], ['coveragePath', ['deep-code-review'], 'map/coverage/deep-code-review.yaml'],
     ['censusesPath', [], 'map/censuses.yaml'], ['backlogPath', [], 'map/backlog.yaml'], ['terrainPath', [], 'map/terrain.md'],
     ['nativeReportPath', ['deep-code-review'], 'map/native/deep-code-review.md'], ['rawPath', ['x.json'], 'map/raw/x.json'],
     ['yardstickPath', [], 'yardstick.yaml'], ['viewPath', ['intake'], 'views/intake.yaml'],

@@ -15,7 +15,7 @@ export async function run() {
   mkdirSync(join(run, 'map', 'findings'), { recursive: true });
   mkdirSync(join(run, 'views', 'improve'), { recursive: true });
   copyFileSync(join(HERE, 'negative', 'bad-standing-watch', 'map', 'scanners.yaml'), join(run, 'map', 'scanners.yaml'));
-  writeFileSync(join(run, 'map', 'findings', 'repo-eval-delegation.yaml'), [
+  writeFileSync(join(run, 'map', 'findings', 'practice-review-delegation.yaml'), [
     '- id: F-001', '  dimension: delegation', '  polarity: strength', '  subject_type: effect',
     '  observation: A held, reversible send.', '  evidence: [a.py:1]', '  confidence: confirmed',
     '  effect:', '    channel: mail-send', '    reversibility: reversible', '    external: false',

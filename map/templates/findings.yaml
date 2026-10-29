@@ -1,4 +1,4 @@
-# map/findings/repo-eval-<pass>.yaml — neutral evidence base for <TARGET> (run
+# map/findings/practice-review-<pass>.yaml — neutral evidence base for <TARGET> (run
 # <slug>-<YYYY-MM-DD>). Facts + structured descriptors + file:line evidence. NO
 # severity, NO priority — those are view outputs. Evidence paths are
 # repo-relative to the TARGET repo. One file per pass (legibility, context,
@@ -15,7 +15,7 @@
   evidence: [path/to/file.ts:12, path/to/other.md:3]   # mandatory, non-empty
   confidence: confirmed        # confirmed | plausible | unverified
 
-# map/findings/repo-eval-delegation.yaml (a different pass file, shown here for
+# map/findings/practice-review-delegation.yaml (a different pass file, shown here for
 # the effect facet's shape): every effect channel is an `effect` finding with
 # the full facet; Root AI etc. are `capability` findings. Isolation-strength
 # baseline findings are `control` findings in this pass; effects that pierce

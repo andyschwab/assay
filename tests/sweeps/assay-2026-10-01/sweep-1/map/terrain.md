@@ -44,7 +44,7 @@ cites their content.
   `views/README.md`, `routine/README.md`, `owner/PACKET.md`,
   `owner/ask-owner.md`, `owner/evidence/README.md`, `tests/fixtures/README.md`.
 - **Agent-facing files.** `CLAUDE.md`; `map/METHOD.md` (frontmatter `type:
-  skill`, the repo-eval scanner method an agent session executes);
+  skill`, the practice-review scanner method an agent session executes);
   `owner/ask-owner.md` (a prompt an owner pastes into their own AI); the
   handoff plan prompts `views/improve/handoff.mjs` generates.
 - **Canon.** `map/canon/` ships empty (README only). No canon for this target:
@@ -75,7 +75,7 @@ the job token), `ask-owner` (prints a prompt to stdout), every view/page writer
 `measure` (read-only or local-only computation).
 
 **AI surfaces (capabilities).** No LLM call site exists in code. Three
-LLM-driven surfaces exist by design, outside the engine: the repo-eval agent
+LLM-driven surfaces exist by design, outside the engine: the practice-review agent
 session that executes `map/METHOD.md`; the coding-agent session that executes a
 handoff plan prompt; and the owner's own AI answering `owner/ask-owner.md`
 (recorded under multiplayer, not as an engine capability).
@@ -84,7 +84,7 @@ handoff plan prompt; and the owner's own AI answering `owner/ask-owner.md`
 
 - **Container / agent classes:** the operator's local machine (`start`,
   instruments); the routine `target` job (executes the change); the routine
-  `routine` gate job (never executes the change); the repo-eval agent session;
+  `routine` gate job (never executes the change); the practice-review agent session;
   the handoff-executing agent session. Each assessed separately.
 - **Credentials:** `ASSAY_READ_TOKEN` (optional routine secret, commented out);
   the gate job's `github.token` as `FETCH_TOKEN`; the evaluator's own

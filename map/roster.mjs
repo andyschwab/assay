@@ -44,7 +44,7 @@ import { score } from './score.mjs';
 import { loadYardstick, decidersOf } from '../yardstick/measure.mjs';
 import { corroboratedFacts } from '../yardstick/compare.mjs';
 
-const sourceOf = (f) => f.source || 'repo-eval';
+const sourceOf = (f) => f.source || 'practice-review';
 
 const rosterStatus = (a) => (a.retired ? 'retired' : a.adopted === false ? 'candidate' : 'adopted');
 

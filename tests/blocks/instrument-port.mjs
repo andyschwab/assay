@@ -36,7 +36,7 @@ export async function run() {
   {
     const tmp = join(HERE, '.tmp-idwidth'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
     copyFileSync(join(HERE, 'sidecar-fixture', 'map', 'scanners.yaml'), join(tmp, 'map', 'scanners.yaml'));
-    copyFileSync(join(HERE, 'sidecar-fixture', 'map', 'findings', 'repo-eval-delegation.yaml'), join(tmp, 'map', 'findings', 'repo-eval-delegation.yaml'));
+    copyFileSync(join(HERE, 'sidecar-fixture', 'map', 'findings', 'practice-review-delegation.yaml'), join(tmp, 'map', 'findings', 'practice-review-delegation.yaml'));
     const row = (id) => `- id: ${id}\n  source: gitleaks\n  native_id: "r@a.ts:1"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
     const manifest = readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8').replace(/gitleaks:[\s\S]*?(?=\n  \w|$)/, 'gitleaks:\n    status: ran');
     writeFileSync(join(tmp, 'map', 'scanners.yaml'), manifest);

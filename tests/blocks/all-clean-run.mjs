@@ -17,7 +17,7 @@ export async function run() {
   const tmp = join(HERE, 'tmp-all-clean'); rmSync(tmp, { recursive: true, force: true });
   mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
   writeFileSync(join(tmp, 'map', 'scanners.yaml'), [
-    'engine: test', 'scanners:', '  repo-eval:', '    status: ran',
+    'engine: test', 'scanners:', '  practice-review:', '    status: ran',
     '  deep-code-review:', '    status: skipped', '    reason: "not run for this test"',
     '  gitleaks:', '    status: ran', '  fresh-clone:', '    status: ran',
     '  dependency-scan:', '    status: ran',
@@ -27,7 +27,7 @@ export async function run() {
     '  osv-scanner:', '    status: skipped', '    reason: "not run for this test"',
     '  checkov:', '    status: skipped', '    reason: "not run for this test"', '',
   ].join('\n'));
-  for (const f of ['repo-eval', 'gitleaks', 'fresh-clone', 'dependency-scan']) writeFileSync(join(tmp, 'map', 'findings', `${f}.yaml`), '[]\n');
+  for (const f of ['practice-review', 'gitleaks', 'fresh-clone', 'dependency-scan']) writeFileSync(join(tmp, 'map', 'findings', `${f}.yaml`), '[]\n');
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); }
   catch (e) { fail(`an all-clean run must validate green (${String(e.stderr || e.stdout || e.message).split('\n').filter((l) => l.includes('•')).join(' | ')})`); }
   // measure.mjs: zero findings + a manifest must measure, never throw "no findings"

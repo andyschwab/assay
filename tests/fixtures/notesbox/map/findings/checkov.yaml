@@ -1,6 +1,6 @@
 # map/findings/checkov.yaml — instrument rows ingested by assay.mjs ingest.
 # Instrument: checkov · exit code 0 (verified in its success set) · 1 row(s).
-# Ids start at F-1400: the next hundred above the base's highest id F-1300 (in deep-code-review.yaml, fresh-clone.yaml, gitleaks.yaml, osv-scanner.yaml, repo-eval-context.yaml, repo-eval-delegation.yaml, repo-eval-legibility.yaml, repo-eval-verification.yaml); the profile floor is F-990.
+# Ids start at F-1400: the next hundred above the base's highest id F-1300 (in deep-code-review.yaml, fresh-clone.yaml, gitleaks.yaml, osv-scanner.yaml, practice-review-context.yaml, practice-review-delegation.yaml, practice-review-legibility.yaml, practice-review-verification.yaml); the profile floor is F-990.
 # Raw report archived at map/raw/checkov.json. Regenerate with ingest.mjs; never hand-edit.
 
 - id: F-1400

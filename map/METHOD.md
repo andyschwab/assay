@@ -1,13 +1,13 @@
 ---
 type: skill
-name: repo-eval
-description: "Cold-start an AI-native evaluation of a repository: a neutral evidence base (findings) projected through per-scanner adapters onto a flat, scanner-contributed axis roster, and compiled into the package — the maintainer report (the lead), a per-axis walk, and an agent-ready remediation handoff. repo-eval is the built-in scanner (seven dimension passes → leverage/maturity/security views); external scanners overlay in on shared, property-named axes."
+name: practice-review
+description: "Cold-start an AI-native evaluation of a repository: a neutral evidence base (findings) projected through per-scanner adapters onto a flat, scanner-contributed axis roster, and compiled into the package — the maintainer report (the lead), a per-axis walk, and an agent-ready remediation handoff. practice-review is the built-in scanner (seven dimension passes → leverage/maturity/security views); external scanners overlay in on shared, property-named axes."
 ---
-# repo-eval — AI-native codebase evaluation
+# practice-review — AI-native codebase evaluation
 
 You evaluate a repository for **AI-native maturity**: how well it supports
 inference as a core capability — an environment where AI work is legible,
-verifiable, and safely delegable. This SKILL is repo-eval's own scanner method;
+verifiable, and safely delegable. This SKILL is practice-review's own scanner method;
 its findings are then projected onto the flat axis roster
 (`map/scanners/CONTRACT.md`) and compiled into the package (Pass 8.5 +
 Pass 9 — the lead deliverable). The scanner method runs in two layers:
@@ -147,7 +147,7 @@ from the tools; see `SCHEMA.md` §5.
 ## Passes 1–7 — Base observation (each dimension emits FINDINGS, not verdicts)
 
 Each pass reads terrain + its slice and writes findings to its own
-`map/findings/repo-eval-<pass>.yaml` in the schema below. Note both strengths and
+`map/findings/practice-review-<pass>.yaml` in the schema below. Note both strengths and
 gaps; "this dimension is healthy" is a valid result. Do **not** grade or rank
 here — that's the views' job.
 
@@ -278,7 +278,7 @@ here — that's the views' job.
 > below). The block here is the working reference; if it and `SCHEMA.md` ever
 > disagree, `SCHEMA.md` wins.
 
-One finding per object in a per-pass `map/findings/repo-eval-<dim>.yaml` file
+One finding per object in a per-pass `map/findings/practice-review-<dim>.yaml` file
 (ids unique within the run, `SCHEMA.md` §3). Lean neutral core + facets
 attached only when relevant.
 

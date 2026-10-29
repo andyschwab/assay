@@ -61,7 +61,7 @@
   observation: >
     Every adopted scanner adapter declares default FAIL, so a finding whose native category maps to
     no axis halts the projection instead of landing silently.
-  evidence: [map/scanners/adapters/repo-eval.yaml:41, map/scanners/adapters/gitleaks.yaml:22, map/scanners/adapters/deep-code-review.yaml:73, map/scanners/CONTRACT.md:520-527]
+  evidence: [map/scanners/adapters/practice-review.yaml:41, map/scanners/adapters/gitleaks.yaml:22, map/scanners/adapters/deep-code-review.yaml:73, map/scanners/CONTRACT.md:520-527]
   confidence: confirmed
 - id: F-034
   dimension: deterministic-gates

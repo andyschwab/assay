@@ -2,9 +2,9 @@
 # The assay-fixtures repository root, measured by its one repo-scoped instrument.
 engine: fixture
 scanners:
-  repo-eval:
+  practice-review:
     status: skipped
-    reason: "fixture: the root sheet carries no method-pass item; the targets' runs cover repo-eval"
+    reason: "fixture: the root sheet carries no method-pass item; the targets' runs cover practice-review"
   deep-code-review:
     status: ran
     model: "claude-opus-5-5"

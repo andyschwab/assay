@@ -62,7 +62,7 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 // The shared fail-closed loader: a sweep file this reader cannot parse HALTS the
 // measurement instead of being skipped — a silently dropped file would be
 // mis-read as variance, corrupting the very number this tool exists to produce.
-import { loadFindings, loadManifest, modelOf, REPO_EVAL_PASSES } from './project.mjs';
+import { loadFindings, loadManifest, modelOf, PRACTICE_REVIEW_PASSES } from './project.mjs';
 import { isMain } from './doctrine.mjs';
 
 // identity tokens: the specific thing a finding is about — full evidence PATH (not basename)
@@ -77,7 +77,7 @@ const idTokens = (f) => {
   return t;
 };
 
-// A finding's clustering bucket. repo-eval findings carry `dimension`; scanner and
+// A finding's clustering bucket. practice-review findings carry `dimension`; scanner and
 // instrument rows carry `source` + `native_category` and NO dimension (SCHEMA §2a), so
 // they group by source instead of collapsing into one undefined bucket (which also crashed
 // the sort). Keeping them separate per source is the honest read: two sources are never the
@@ -94,11 +94,11 @@ export function computeVariance(runDirs) {
 }
 
 // A sweep's model of record per clustering bucket (SCHEMA.md §5a): a dimension reads
-// its repo-eval pass's model (else the row's), a `source:<id>` bucket that scanner's.
+// its practice-review pass's model (else the row's), a `source:<id>` bucket that scanner's.
 // null where the run record names none — reported as such, never guessed.
-const PASS_OF_DIMENSION = Object.fromEntries(Object.entries(REPO_EVAL_PASSES).map(([p, d]) => [d, p]));
+const PASS_OF_DIMENSION = Object.fromEntries(Object.entries(PRACTICE_REVIEW_PASSES).map(([p, d]) => [d, p]));
 function modelResolver(manifest) {
-  return (g) => (String(g).startsWith('source:') ? modelOf(manifest, g.slice('source:'.length)) : modelOf(manifest, 'repo-eval', PASS_OF_DIMENSION[g]));
+  return (g) => (String(g).startsWith('source:') ? modelOf(manifest, g.slice('source:'.length)) : modelOf(manifest, 'practice-review', PASS_OF_DIMENSION[g]));
 }
 
 // The pure half — sweeps is an array of FINDINGS ARRAYS, so the measure is testable

@@ -77,7 +77,7 @@ to stdout; a person sends it), `validate-packet`.
 
 AI surfaces (a capability is an LLM call site): the code holds none. The
 repository authors three prompts that run in an LLM session it does not
-contain, recorded as `capability` findings: the repo-eval steward session
+contain, recorded as `capability` findings: the practice-review steward session
 (`map/METHOD.md`), the handoff plan session (`views/improve/handoff.mjs`), and
 the owner's ask-owner conversation (`owner/ask-owner.md`).
 

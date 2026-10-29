@@ -1,8 +1,8 @@
-# Adapter: repo-eval (this engine's OWN passes, dogfooded as a scanner) -> the
+# Adapter: practice-review (this engine's OWN passes, dogfooded as a scanner) -> the
 # axis roster (map/scanners/CONTRACT.md). Block style so lib/yaml-min.mjs
 # parses it. The seven dimension passes ARE the seven native axes — the map is the
 # identity; an axis is the property the pass measures, so no routing is needed.
-scanner: repo-eval
+scanner: practice-review
 targets_taxonomy: 3
 # What the core reads about this scanner (CONTRACT.md §3): a judgment scanner, the
 # built-in method (map/METHOD.md) a session runs, whose passes write port rows
@@ -10,7 +10,7 @@ targets_taxonomy: 3
 role: judgment
 # the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
 fails_loud: negative-fixtures
-method: eval-pass
+method: practice-review
 
 # The axes this scanner contributes: its own measure exists there (the seven
 # dimension passes, each with its census/coverage machinery). It contributes no
@@ -50,6 +50,6 @@ default: FAIL
 # handoff (map/scanners/CONTRACT.md §3, block style only): the default unit
 # (finding) is enough. client_proof points at the repository's own test suite,
 # never at re-running the engine's own passes (there is no capabilities.verify-fix
-# for repo-eval — its own re-scan is `node assay.mjs compile`, always implied).
+# for practice-review — its own re-scan is `node assay.mjs compile`, always implied).
 handoff:
   client_proof: "A test in the repository's own suite exercises {paths}; it fails before the change and passes after it."

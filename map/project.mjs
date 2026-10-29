@@ -8,7 +8,7 @@
 // (two scanners measuring one property corroborate on one axis; provenance
 // stays on the finding via `source`, never on the chapter). Each finding is
 // routed by ITS OWN scanner's adapter, keyed by its native category
-// (native_category for external scanners, dimension for repo-eval). A finding
+// (native_category for external scanners, dimension for practice-review). A finding
 // may carry `also_axes` (compound cross-links) or an explicit `axis`.
 // FAIL-CLOSED: an unmapped native category halts. Read-only; never modifies
 // the base.
@@ -50,7 +50,7 @@ const explicitAlso = (f) => Array.isArray(f.also_axes) ? f.also_axes : [];
 // THE findings loader — every tool loads through this one function so the
 // semantics cannot drift (before consolidation there were five copies, one of
 // which skipped unparseable files and mis-read the loss as variance). Rules:
-//   • every file under map/findings/ — one per scanner, or one per repo-eval
+//   • every file under map/findings/ — one per scanner, or one per practice-review
 //     pass — read and concatenated; no merged-file fallback;
 //   • FAIL CLOSED on an unparseable file (parseYaml throws; never caught here);
 //   • FAIL CLOSED on a file whose top level is neither a list nor empty (a map
@@ -161,14 +161,14 @@ export function notRunPhrase(manifest, id) {
 
 // ── models of record (SCHEMA.md §5a) ─────────────────────────────────────────
 // The built-in scanner's passes: the pass name its file carries
-// (map/findings/repo-eval-<pass>.yaml, a `passes:` key in its manifest row) → the
+// (map/findings/practice-review-<pass>.yaml, a `passes:` key in its manifest row) → the
 // dimension every finding in that file carries.
-export const REPO_EVAL_PASSES = {
+export const PRACTICE_REVIEW_PASSES = {
   legibility: 'artifact-legibility', context: 'context-economy', gates: 'deterministic-gates',
   verification: 'verification', delegation: 'delegation', improvement: 'improvement-loop', multiplayer: 'multiplayer',
 };
 
-// The model a scanner (or one repo-eval pass) ran on: the pass's own model, else the
+// The model a scanner (or one practice-review pass) ran on: the pass's own model, else the
 // row's, else null — never a guess.
 export function modelOf(manifest, scanner, pass) {
   const r = manifest && manifest.scanners && manifest.scanners[scanner];
@@ -283,7 +283,7 @@ export function projectMulti(findings, adapters) {
     // layer (views/severity.mjs), never stored in the map (#53, F-1230)
     const sev = severityOf(raw);
     const f = sev === raw.severity ? raw : { ...raw, severity: sev };
-    const src = f.source || 'repo-eval';
+    const src = f.source || 'practice-review';
     const alsoFromFinding = explicitAlso(f);
     const ex = explicitAxis(f);
     if (ex) {

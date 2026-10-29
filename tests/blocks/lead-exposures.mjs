@@ -16,7 +16,7 @@ export async function run() {
   copyFixtureFindings('notesbox', tmp); copyFixtureScanners('notesbox', tmp);
   // notesbox: the one live chain is model-driven (F-051 → F-052). F-050 (auth fails open to
   // admin) is the non-AI access gap; rated Critical here, it is the run's only Critical.
-  const del = join(tmp, 'map', 'findings', 'repo-eval-delegation.yaml');
+  const del = join(tmp, 'map', 'findings', 'practice-review-delegation.yaml');
   writeFileSync(del, readFileSync(del, 'utf8').replace(/(- id: F-050\n(?:  .*\n)*?  confidence: confirmed\n)/, '$1  severity: Critical\n'));
   if (!/F-050[\s\S]*?severity: Critical/.test(readFileSync(del, 'utf8'))) fail('fixture setup: F-050 must carry severity Critical');
   mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });

@@ -38,7 +38,7 @@ that point to it instead.
   `views/README.md`, `routine/README.md`, `owner/PACKET.md`, `owner/evidence/README.md`,
   `.github/PULL_REQUEST_TEMPLATE.md`, `HISTORY.md` (not read).
 - **Agent-facing files:** `CLAUDE.md`; `map/METHOD.md` (a skill with frontmatter, the
-  repo-eval method an agent session runs); `owner/ask-owner.md` (a prompt an owner pastes
+  practice-review method an agent session runs); `owner/ask-owner.md` (a prompt an owner pastes
   into their own AI); the compiled `handoff/plan/NN-*.md` session prompts
   (`views/improve/handoff.mjs`).
 
@@ -72,14 +72,14 @@ in the routine (a read with the job token). `maturity --write`, `backlog --write
 
 **AI surfaces (capabilities):** the engine has no LLM call site in code (no model SDK or
 HTTP client in any `.mjs`). Two documented agent contexts consume engine text:
-the repo-eval session that `map/METHOD.md` drives over a target, and the session a
+the practice-review session that `map/METHOD.md` drives over a target, and the session a
 `handoff/plan/NN-*.md` prompt is pasted into.
 
 ## Populations (closed lists)
 
 - **Container / agent classes:** evaluator's own machine (start / CLI); routine `target`
   job (executes the change); routine `routine` job (gate, never executes the change);
-  repo-eval agent session; handoff-plan agent session.
+  practice-review agent session; handoff-plan agent session.
 - **Credentials:** `ASSAY_READ_TOKEN` (optional secret, commented out in the template),
   the job's `github.token` passed as `FETCH_TOKEN` in one step; the evaluator's own
   environment (dropped by `map/child-env.mjs`). Every other enumerate hit is a planted

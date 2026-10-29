@@ -126,7 +126,7 @@ export async function run() {
   // 7. the degenerate gate still fails closed: an open gap, no fix, no roadmap → no sequence
   const tmpDeg = join(HERE, 'tmp-sequence-degenerate'); rmSync(tmpDeg, { recursive: true, force: true });
   mkdirSync(join(tmpDeg, 'map', 'findings'), { recursive: true });
-  writeFileSync(join(tmpDeg, 'map', 'findings', 'x.yaml'), '- id: F-1\n  source: repo-eval\n  dimension: artifact-legibility\n  polarity: gap\n  observation: "an open gap with no fix and no roadmap"\n  evidence: [a:1]\n');
+  writeFileSync(join(tmpDeg, 'map', 'findings', 'x.yaml'), '- id: F-1\n  source: practice-review\n  dimension: artifact-legibility\n  polarity: gap\n  observation: "an open gap with no fix and no roadmap"\n  evidence: [a:1]\n');
   let degStatus = 0;
   try { execFileSync(process.execPath, [join(ROOT, 'views', 'improve', 'handoff.mjs'), tmpDeg], { stdio: 'pipe' }); }
   catch (e) { degStatus = e.status ?? 1; }

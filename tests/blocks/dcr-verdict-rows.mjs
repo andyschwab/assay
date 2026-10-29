@@ -127,7 +127,7 @@ export async function run() {
   // (d) end to end: ingest, validate, project
   const tmp = join(HERE, 'tmp-dcr-verdict'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('notesbox', tmp);
-  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  repo-eval:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: ran\n  dependency-scan:\n    status: ran\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n  structure-scan:\n    status: skipped\n    reason: "fixture: not executed"\n  zizmor:\n    status: skipped\n    reason: "fixture: not executed"\n  osv-scanner:\n    status: ran\n  checkov:\n    status: ran\n');
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), 'engine: fixture\nscanners:\n  practice-review:\n    status: ran\n  deep-code-review:\n    status: ran\n  gitleaks:\n    status: ran\n  fresh-clone:\n    status: ran\n  dependency-scan:\n    status: ran\n  repo-census:\n    status: skipped\n    reason: "fixture: not executed"\n  structure-scan:\n    status: skipped\n    reason: "fixture: not executed"\n  zizmor:\n    status: skipped\n    reason: "fixture: not executed"\n  osv-scanner:\n    status: ran\n  checkov:\n    status: ran\n');
   const raw = join(tmp, 'machine-report.yaml'); writeFileSync(raw, report);
   try {
     execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'deep-code-review', '--raw', raw], { stdio: 'pipe' });

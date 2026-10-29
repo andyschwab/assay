@@ -2,7 +2,7 @@
 # This target is kept deliberately healthy. Its job is to catch the OTHER failure
 # mode: an evaluator or instrument that manufactures problems in a clean codebase.
 # Matching is by evidence path + class (an instrument answer: by check name).
-# Method classes: eval-pass | dcr | gitleaks | fresh-clone | dependency-scan
+# Method classes: practice-review | dcr | gitleaks | fresh-clone | dependency-scan
 # (repo-scoped instruments are answered in the repo-root sheet).
 target: clean-lib
 
@@ -24,7 +24,7 @@ strengths:
     axis: artifact-legibility
     polarity: strength
     evidence: docs/adr/0001-fold-table-over-normalize.md:1
-    detectable_by: [eval-pass]
+    detectable_by: [practice-review]
     note: >
       A full ADR whose "why not the alternative" reconstructs the design choice
       (explicit fold table over NFKD, for cross-version output stability) from the
@@ -35,7 +35,7 @@ strengths:
     axis: verification
     polarity: strength
     evidence: test/slugify.test.mjs:9
-    detectable_by: [eval-pass]
+    detectable_by: [practice-review]
     note: >
       The test suite asserts actual output across the edge cases the code exists to
       handle (accents, punctuation, collapsing, trimming, the type guard) — a real
@@ -46,7 +46,7 @@ strengths:
     axis: delegation
     polarity: strength
     evidence: index.mjs:1
-    detectable_by: [eval-pass]
+    detectable_by: [practice-review]
     note: >
       A pure function with no I/O, no network, no credentials, no agent surface —
       nothing to delegate and nothing to gate. The delegation axis should read this
