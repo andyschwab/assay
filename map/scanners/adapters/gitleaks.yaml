@@ -15,6 +15,22 @@ role: instrument
 # the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
 fails_loud: instrument-port
 
+# what `node assay.mjs tools install` puts on PATH (map/tools.mjs; CONTRACT.md §3g): the
+# release archive, its sum from the release's checksums file. No verified_against yet: the
+# report format is read as 8.x's; the first fixture run on this pin records it
+tool:
+  bin: gitleaks
+  version: "8.28.0"
+  upstream: "github:gitleaks/gitleaks"
+  fetch:
+    linux-x64:
+      url: "https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz"
+      sha256: "a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb"
+      member: "gitleaks"
+    darwin-arm64:
+      url: "https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_darwin_arm64.tar.gz"
+      sha256: "d942f3ad147250c9edbaab3fed9e482f98d3b59ba10ae97b8d75647e3ade492c"
+      member: "gitleaks"
 contributes: []
 
 map:

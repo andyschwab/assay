@@ -1,0 +1,35 @@
+# Weekly, reads each pinned scanner tool (the adopted adapters' tool: blocks, map/tools.mjs) against
+# its latest upstream release, and opens one issue when a pin is behind or unreadable, or comments
+# on the open one when the list changed (#189). It installs and runs nothing of the tools: the
+# check reads release metadata only. A bump is a reviewed PR that moves tool.version, each fetch
+# url and sha256, and verified_against together, with the adapter's fixture run.
+name: tools-check
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+permissions: { contents: read }
+concurrency: { group: tools-check, cancel-in-progress: false }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: { contents: read, issues: write }
+    env:
+      GH_TOKEN: '${{ github.token }}'
+      GITHUB_TOKEN: '${{ github.token }}'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { persist-credentials: false }
+      - name: Open or update the issue for pins behind upstream
+        run: |
+          set -euo pipefail
+          node assay.mjs tools check --json > "$RUNNER_TEMP/rows.json"
+          behind=$(node -e "const r=require(process.argv[1]).filter((x)=>x.status!=='current');process.stdout.write(r.map((x)=>'- '+x.scanner+' ('+x.bin+'): pinned '+x.pinned+', latest '+(x.latest||'unknown')+(x.why?' ('+x.why+')':'')).join('\n'))" "$RUNNER_TEMP/rows.json")
+          if [ -z "$behind" ]; then echo "every pin is current"; exit 0; fi
+          title="tools: pinned scanner tools behind upstream"
+          body=$(printf '%s\n\n%s\n' "The weekly tools check (node assay.mjs tools check) reads these pins as behind or unknown. A bump moves tool.version, each fetch url and sha256, and verified_against together, with the adapter's fixture run (map/tools.mjs; map/scanners/CONTRACT.md §3g)." "$behind")
+          n=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -z "$n" ]; then gh issue create --title "$title" --body "$body"; exit 0; fi
+          last=$(gh issue view "$n" --json body,comments --jq 'if (.comments | length) > 0 then .comments[-1].body else .body end')
+          if [ "$last" != "$body" ]; then gh issue comment "$n" --body "$body"; else echo "issue #$n already says this"; fi
