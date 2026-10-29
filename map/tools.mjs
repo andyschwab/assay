@@ -27,7 +27,6 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { isMain } from './doctrine.mjs';
 import { loadAdapters } from './project.mjs';
-import { childEnv } from './child-env.mjs';
 
 const platformKey = (platform = process.platform, arch = process.arch) => `${platform}-${arch}`;
 const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest('hex');
@@ -88,7 +87,9 @@ export function installTool(t, dir, { platform = platformKey(), fetch = curl } =
   if (t.pypi) {
     const spec = `${t.pypi}==${t.version}`;
     if (has('uv')) {
-      const r = sh('uv', ['tool', 'install', '--force', spec], { env: { ...childEnv(), UV_TOOL_BIN_DIR: dir } });
+      // the installer runs in the operator's own environment: it never touches a target, so it
+      // is not one of the instruments that execute a target's code (map/child-env.mjs)
+      const r = sh('uv', ['tool', 'install', '--force', spec], { env: { ...process.env, UV_TOOL_BIN_DIR: dir } });
       if (r.status !== 0) return row('failed', `uv tool install ${spec}: ${(r.stderr || '').trim().split('\n').pop()}`);
     } else {
       const venv = join(homedir(), '.local', 'share', 'assay-tools', `${t.pypi}-${t.version}`);
