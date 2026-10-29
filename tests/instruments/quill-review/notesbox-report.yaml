@@ -1,7 +1,7 @@
 # A synthetic machine report from the invented quill-review over the notesbox fixture
 # target (tests/fixtures/notesbox): test data only, no real tool wrote it. Both are facts
 # another scanner already recorded on the same axis, file and polarity: Q1 the committed
-# key the secrets instrument and the code reviewer found, Q2 the unbounded sync retry the
+# key the secrets instrument and the code reviewer found, Q2 the swallowed backup push the
 # code reviewer found. It recovers no known answer the others do not.
 review:
   tool: quill-review
@@ -25,7 +25,7 @@ findings:
     area: K1
     polarity: gap
     severity: Medium
-    observation: The sync loop retries a failed push without a bound.
-    evidence: ["lib/sync.mjs:8"]
-    fix: Bound the retries and surface the last error.
+    observation: The backup push to the configured URL swallows a failed send and still reports success.
+    evidence: ["lib/sync.mjs:12", "config/settings.mjs:4"]
+    fix: Await the push, check the response, and surface the error.
 prior_not_rechecked: []

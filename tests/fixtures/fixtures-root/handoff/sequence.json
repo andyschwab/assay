@@ -1,0 +1,216 @@
+{
+  "schema": "assay.handoff-sequence/1",
+  "run": "fixtures-root",
+  "sequence": [
+    {
+      "n": 1,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "High · F-1000",
+      "findings": [
+        "F-1000"
+      ],
+      "plan": "plan/01-security-F-1000.md"
+    },
+    {
+      "n": 2,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-960",
+      "findings": [
+        "F-960"
+      ],
+      "plan": null
+    },
+    {
+      "n": 3,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-962",
+      "findings": [
+        "F-962"
+      ],
+      "plan": null
+    },
+    {
+      "n": 4,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-969",
+      "findings": [
+        "F-969"
+      ],
+      "plan": null
+    },
+    {
+      "n": 5,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-965",
+      "findings": [
+        "F-965"
+      ],
+      "plan": null
+    },
+    {
+      "n": 6,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-967",
+      "findings": [
+        "F-967"
+      ],
+      "plan": null
+    },
+    {
+      "n": 7,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-968",
+      "findings": [
+        "F-968"
+      ],
+      "plan": null
+    },
+    {
+      "n": 8,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-961",
+      "findings": [
+        "F-961"
+      ],
+      "plan": null
+    },
+    {
+      "n": 9,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Medium · F-1001",
+      "findings": [
+        "F-1001"
+      ],
+      "plan": null
+    },
+    {
+      "n": 10,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Medium · F-1002",
+      "findings": [
+        "F-1002"
+      ],
+      "plan": null
+    },
+    {
+      "n": 11,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Medium · F-1003",
+      "findings": [
+        "F-1003"
+      ],
+      "plan": null
+    },
+    {
+      "n": 12,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Medium · F-1004",
+      "findings": [
+        "F-1004"
+      ],
+      "plan": null
+    },
+    {
+      "n": 13,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Medium · F-1005",
+      "findings": [
+        "F-1005"
+      ],
+      "plan": null
+    },
+    {
+      "n": 14,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-964",
+      "findings": [
+        "F-964"
+      ],
+      "plan": null
+    },
+    {
+      "n": 15,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "repo-census",
+      "title": "Medium · F-966",
+      "findings": [
+        "F-966"
+      ],
+      "plan": null
+    },
+    {
+      "n": 16,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Low · F-1006",
+      "findings": [
+        "F-1006"
+      ],
+      "plan": null
+    },
+    {
+      "n": 17,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Low · F-1007",
+      "findings": [
+        "F-1007"
+      ],
+      "plan": null
+    },
+    {
+      "n": 18,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Low · F-1008",
+      "findings": [
+        "F-1008"
+      ],
+      "plan": null
+    },
+    {
+      "n": 19,
+      "kind": "remedy",
+      "voice": "scanner-verbatim",
+      "source": "deep-code-review",
+      "title": "Nit · F-1009",
+      "findings": [
+        "F-1009"
+      ],
+      "plan": null
+    }
+  ],
+  "pending": []
+}

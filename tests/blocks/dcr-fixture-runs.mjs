@@ -25,7 +25,7 @@ import { HERE, negFailures, convert, adaptersOnce } from '../harness.mjs';
 export const label = 'dcr-fixture-runs';
 
 const RUNS = [
-  { key: 'notesbox', target: 'flawed-webapp', recovered: ['P-02', 'P-03', 'P-04'], misHomed: { 'P-07': { native: 'F7', axis: 'code-correctness' } } },
+  { key: 'notesbox', target: 'flawed-webapp', recovered: ['P-02', 'P-03', 'P-04'], misHomed: { 'P-07': { native: 'F9', axis: 'code-correctness' } } },
   { key: 'fixtures-root', target: 'assay-fixtures', recovered: ['R-02'], misHomed: {} },
 ];
 
