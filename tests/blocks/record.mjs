@@ -14,7 +14,7 @@ export async function run() {
     '# a hand-written header comment — must survive untouched',
     'engine: deadbeef',
     'scanners:',
-    '  repo-eval:',
+    '  practice-review:',
     '    status: ran',
     '  gitleaks:',
     '    # a comment that belongs to the gitleaks row',
@@ -25,12 +25,12 @@ export async function run() {
     '',
   ].join('\n');
 
-  // flip gitleaks to ran: repo-eval, fresh-clone, the header, and engine: must
+  // flip gitleaks to ran: practice-review, fresh-clone, the header, and engine: must
   // not move a single character.
   const { text: afterRan, row: rowRan } = setScannerRow(original, 'gitleaks', 'ran');
   if (!/^# a hand-written header comment — must survive untouched$/m.test(afterRan)) fail('record must not touch the file\'s header comment');
   if (!/engine: deadbeef/.test(afterRan)) fail('record must not touch engine:');
-  if (!/ {2}repo-eval:\n {4}status: ran/.test(afterRan)) fail('record must leave an untouched row (repo-eval) exactly as it was');
+  if (!/ {2}practice-review:\n {4}status: ran/.test(afterRan)) fail('record must leave an untouched row (practice-review) exactly as it was');
   if (!/ {2}fresh-clone:\n {4}status: ran/.test(afterRan)) fail('record must leave the row AFTER the edited one exactly as it was');
   if (!/ {2}gitleaks:\n {4}status: ran\n/.test(afterRan)) fail(`record must rewrite the target row to the new status (got:\n${afterRan})`);
   if (/ingesting its report records it ran/.test(afterRan)) fail('switching a row to ran must drop its prior skip reason when no new --reason is given');
@@ -39,13 +39,13 @@ export async function run() {
   // skipped again, with a new reason: the reason is the one just given, not any prior one.
   const { text: afterSkip } = setScannerRow(afterRan, 'gitleaks', 'skipped', { reason: 'binary missing here' });
   if (!/gitleaks:\n {4}status: skipped\n {4}reason: "binary missing here"/.test(afterSkip)) fail(`record must write the new skip reason (got:\n${afterSkip})`);
-  if (!/repo-eval:\n {4}status: ran/.test(afterSkip) || !/fresh-clone:\n {4}status: ran/.test(afterSkip)) fail('record must still leave the other rows untouched on a second edit');
+  if (!/practice-review:\n {4}status: ran/.test(afterSkip) || !/fresh-clone:\n {4}status: ran/.test(afterSkip)) fail('record must still leave the other rows untouched on a second edit');
 
   // model: carries over across a status change unless overridden.
-  const { text: withModel } = setScannerRow(original, 'repo-eval', 'ran', { model: 'model-a' });
-  const { text: keptModel } = setScannerRow(withModel, 'repo-eval', 'ran', {});
-  if (!/repo-eval:\n {4}status: ran\n {4}model: "model-a"/.test(keptModel)) fail(`record must keep an existing model: when --model is not given again (got:\n${keptModel})`);
-  const { text: keptModelOnSkip } = setScannerRow(withModel, 'repo-eval', 'skipped', { reason: 'x' });
+  const { text: withModel } = setScannerRow(original, 'practice-review', 'ran', { model: 'model-a' });
+  const { text: keptModel } = setScannerRow(withModel, 'practice-review', 'ran', {});
+  if (!/practice-review:\n {4}status: ran\n {4}model: "model-a"/.test(keptModel)) fail(`record must keep an existing model: when --model is not given again (got:\n${keptModel})`);
+  const { text: keptModelOnSkip } = setScannerRow(withModel, 'practice-review', 'skipped', { reason: 'x' });
   if (!/model: "model-a"/.test(keptModelOnSkip)) fail('model: should still carry over into a skipped row too, unless the caller means to drop it');
 
   // a scanner with no row yet is APPENDED, after the last existing row.

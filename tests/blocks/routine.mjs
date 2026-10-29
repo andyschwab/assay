@@ -34,7 +34,7 @@ export async function run() {
     else {
       const manifest = parseYaml(readFileSync(manifestPath, 'utf8'));
       const rows = manifest.scanners || {};
-      if (rows['repo-eval']?.status !== 'skipped' || !/not run by the routine/.test(rows['repo-eval']?.reason || '')) fail(`repo-eval must always read skipped with the fixed reason (got ${JSON.stringify(rows['repo-eval'])})`);
+      if (rows['practice-review']?.status !== 'skipped' || !/not run by the routine/.test(rows['practice-review']?.reason || '')) fail(`practice-review must always read skipped with the fixed reason (got ${JSON.stringify(rows['practice-review'])})`);
       if (rows['deep-code-review']?.status !== 'skipped' || !/not run by the routine/.test(rows['deep-code-review']?.reason || '')) fail(`deep-code-review must always read skipped with the fixed reason (got ${JSON.stringify(rows['deep-code-review'])})`);
       if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone needs no network against this fixture and must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
       if (rows['dependency-scan']?.status !== 'ran') fail(`dependency-scan needs no network against this lockfile-free fixture and must read ran (got ${JSON.stringify(rows['dependency-scan'])})`);

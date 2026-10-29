@@ -12,7 +12,7 @@ export async function run() {
 
   // missing manifest → point at `assay start`
   mkdirSync(join(tmp, 'no-manifest', 'map', 'findings'), { recursive: true });
-  writeFileSync(join(tmp, 'no-manifest', 'map', 'findings', 'repo-eval-legibility.yaml'), '[]\n');
+  writeFileSync(join(tmp, 'no-manifest', 'map', 'findings', 'practice-review-legibility.yaml'), '[]\n');
   let out1 = '';
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), join(tmp, 'no-manifest')], { encoding: 'utf8', stdio: 'pipe' }); }
   catch (e) { out1 = String(e.stderr); }

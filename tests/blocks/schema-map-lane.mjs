@@ -34,7 +34,7 @@ export async function run() {
   const runDir = join(tmp, 'entry', 'runs', 'r');
   mkdirSync(join(runDir, 'map', 'findings'), { recursive: true });
   copyFileSync(join(HERE, 'negative', 'bad-standing-watch', 'map', 'scanners.yaml'), join(runDir, 'map', 'scanners.yaml'));
-  const finding = (evidence) => writeFileSync(join(runDir, 'map', 'findings', 'repo-eval-delegation.yaml'), [
+  const finding = (evidence) => writeFileSync(join(runDir, 'map', 'findings', 'practice-review-delegation.yaml'), [
     '- id: F-001', '  dimension: delegation', '  polarity: strength', '  subject_type: effect',
     '  observation: A held, reversible send.', `  evidence: [${evidence}]`, '  confidence: confirmed',
     '  effect:', '    channel: mail-send', '    reversibility: reversible', '    external: false',

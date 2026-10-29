@@ -18,7 +18,7 @@ export async function run() {
   mkdirSync(join(tmp, 'map'), { recursive: true });
   const mPath = join(tmp, 'map', 'scanners.yaml');
   const lockFile = mPath + '.lock';
-  writeFileSync(mPath, 'engine: x\nscanners:\n  repo-eval:\n    status: skipped\n    reason: "not yet run: ingesting its report records it ran"\n  gitleaks:\n    status: skipped\n    reason: "not yet run: ingesting its report records it ran"\n');
+  writeFileSync(mPath, 'engine: x\nscanners:\n  practice-review:\n    status: skipped\n    reason: "not yet run: ingesting its report records it ran"\n  gitleaks:\n    status: skipped\n    reason: "not yet run: ingesting its report records it ran"\n');
   if (typeof rec.updateRunRecord !== 'function') fail('map/record.mjs must export updateRunRecord(path, edit), the locked read-modify-write both record and ingest use');
   else {
     const writer = join(tmp, 'writer.mjs');
@@ -35,7 +35,7 @@ export async function run() {
 
     // a held lock: record and ingest both wait for it, then write
     for (const [label, args, check] of [
-      ['record', [join(ROOT, 'map', 'record.mjs'), tmp, 'repo-eval', 'ran'], (d) => d.scanners?.['repo-eval']?.status === 'ran'],
+      ['record', [join(ROOT, 'map', 'record.mjs'), tmp, 'practice-review', 'ran'], (d) => d.scanners?.['practice-review']?.status === 'ran'],
       ['ingest', [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], (d) => d.scanners?.gitleaks?.status === 'ran'],
     ]) {
       writeFileSync(lockFile, 'held by the harness\n');

@@ -125,12 +125,12 @@ const axisLines = roster.map((a) => {
 // ── appendices: scanner-native reports (THIS run only) ───────────────────────
 // A peer scanner's own report in its own voice — provenance, listed but not merged.
 // Only this run's directories are scanned: an earlier version also picked up
-// sibling runs, and a repo-eval-only package once listed a five-day-old sibling
+// sibling runs, and a practice-review-only package once listed a five-day-old sibling
 // report right beside its "code axes not measured" line. A run with no native
 // report lists none; a peer scanner that ran without one is named as such.
 function findAppendices() {
   const out = new Map();
-  const peers = Object.values(adapters).filter((ad) => ad.role !== 'instrument' && ad.scanner !== 'repo-eval').map((ad) => ad.scanner);
+  const peers = Object.values(adapters).filter((ad) => ad.role !== 'instrument' && ad.scanner !== 'practice-review').map((ad) => ad.scanner);
   for (const dir of [nativeDir(runDir)]) {
     if (!existsSync(dir) || !statSync(dir).isDirectory()) continue;
     for (const f of readdirSync(dir)) for (const id of peers)
@@ -209,7 +209,7 @@ ${descSum.decided} of ${descSum.of} requirements decided by this run (met ${desc
 ## Appendices — scanner-native reports (provenance, in each scanner's own voice)
 
 ${[...apps.map(([label, p]) => `- **${label}** — [\`${rel(p)}\`](${rel(p)})`),
-   ...dispo.ran.filter((id) => adapters[id].role !== 'instrument' && id !== 'repo-eval' && !apps.some(([l]) => l === id)).map((id) => `- **${id}** — ran; no native report in this run (its port rows in \`map/findings/\` are the record).`),
+   ...dispo.ran.filter((id) => adapters[id].role !== 'instrument' && id !== 'practice-review' && !apps.some(([l]) => l === id)).map((id) => `- **${id}** — ran; no native report in this run (its port rows in \`map/findings/\` are the record).`),
    ...dispo.skipped.map((s) => `- **${s.id}** — skipped this run: ${s.reason}.`),
    ...dispo.failed.map((s) => `- **${s.id}** — failed this run: ${s.reason}.`),
   ].join('\n') || '_None generated for this run. Run a scanner\'s native reporter to add one._'}

@@ -3,5 +3,5 @@
   polarity: strength
   subject_type: artifact
   observation: "A valid finding; the malformation is in the grades tail, not here."
-  evidence: [tests/negative/bad-aggregate/map/findings/repo-eval-legibility.yaml:1]
+  evidence: [tests/negative/bad-aggregate/map/findings/practice-review-legibility.yaml:1]
   confidence: confirmed

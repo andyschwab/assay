@@ -1,24 +1,24 @@
 # scanners.yaml — run manifest (SCHEMA.md §5a): one sweep of the fixture sweep set (tests/sweeps/README.md).
 engine: fixture
 scanners:
-  repo-eval:
+  practice-review:
     status: ran
     model: "fixture-authored"
   deep-code-review:
     status: skipped
-    reason: "a repeatability sweep measures the repo-eval passes only"
+    reason: "a repeatability sweep measures the practice-review passes only"
   gitleaks:
     status: skipped
-    reason: "a repeatability sweep measures the repo-eval passes only"
+    reason: "a repeatability sweep measures the practice-review passes only"
   fresh-clone:
     status: skipped
-    reason: "a repeatability sweep measures the repo-eval passes only"
+    reason: "a repeatability sweep measures the practice-review passes only"
   dependency-scan:
     status: skipped
-    reason: "a repeatability sweep measures the repo-eval passes only"
+    reason: "a repeatability sweep measures the practice-review passes only"
   repo-census:
     status: skipped
-    reason: "a repeatability sweep measures the repo-eval passes only"
+    reason: "a repeatability sweep measures the practice-review passes only"
   structure-scan:
     status: skipped
     reason: "frozen run: drawn before the structure-scan instrument existed"

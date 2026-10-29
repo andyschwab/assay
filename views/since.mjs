@@ -16,6 +16,7 @@ import { basename, dirname } from 'node:path';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
 import { loadFindings } from '../map/project.mjs';
+import { legacyIn } from '../map/migrate-run.mjs';
 import { loadYardstick } from '../yardstick/measure.mjs';
 import { loadYardstickDoc } from '../yardstick/ratchet.mjs';
 import { compare, compareFindings } from '../yardstick/compare.mjs';
@@ -162,6 +163,9 @@ if (isMain(import.meta.url)) {
   try { reg = loadYardstick(); }
   catch (e) { console.error(`✗ since: cannot load the yardstick register (${e.message})`); process.exit(2); }
 
+  // a baseline drawn by an earlier engine is named, with the command that brings it forward (#182, #188)
+  const legacy = legacyIn(previous);
+  if (legacy.length) { console.error(`✗ since: the previous run ${previous} is not in the current format`); for (const l of legacy) console.error('  • ' + l); process.exit(2); }
   const since = buildSince(previousDoc, currentDoc, reg);
   let previousFindings;
   try { previousFindings = loadFindings(previous); }

@@ -96,9 +96,9 @@ export function compare(previous, current) {
 // never from a line number alone or from prose (a line shifts when the file
 // above it grows by one line; an observation's wording is not identity):
 //
-//   scanner           `source` (native repo-eval passes carry none — those use
-//                      the fixed pass label "repo-eval")
-//   category          `dimension` for a repo-eval finding, `native_category` for
+//   scanner           `source` (native practice-review passes carry none — those use
+//                      the fixed pass label "practice-review")
+//   category          `dimension` for a practice-review finding, `native_category` for
 //                      a scanner/instrument row (SCHEMA.md §2a: the two are
 //                      mutually exclusive on a finding)
 //   polarity          a check that was a strength and is now a gap is a new
@@ -114,7 +114,7 @@ export function compare(previous, current) {
 // groupKey already accepts for scanner/instrument rows, which carry no per-item
 // slug — and it fails toward UNDER-reporting "new", never toward inventing one.
 export function fingerprintFinding(f) {
-  const scanner = f.source || 'repo-eval';
+  const scanner = f.source || 'practice-review';
   const category = f.dimension || f.native_category || '';
   const paths = (Array.isArray(f.evidence) ? f.evidence : []).map((e) => String(e).split(':')[0]).sort();
   // polarity is part of the fact: a check that passed last run and gaps now is a new gap
@@ -129,7 +129,7 @@ export function fingerprintFinding(f) {
 export function compareFindings(previousFindings, currentFindings) {
   const prevFp = new Set((previousFindings || []).map(fingerprintFinding));
   const currFp = new Set((currentFindings || []).map(fingerprintFinding));
-  const pick = (f) => ({ fingerprint: fingerprintFinding(f), id: f.id, source: f.source || 'repo-eval', dimension: f.dimension ?? null, native_category: f.native_category ?? null, evidence: f.evidence || [], observation: f.observation || '' });
+  const pick = (f) => ({ fingerprint: fingerprintFinding(f), id: f.id, source: f.source || 'practice-review', dimension: f.dimension ?? null, native_category: f.native_category ?? null, evidence: f.evidence || [], observation: f.observation || '' });
   return {
     new: (currentFindings || []).filter((f) => !prevFp.has(fingerprintFinding(f))).map(pick),
     no_longer_found: (previousFindings || []).filter((f) => !currFp.has(fingerprintFinding(f))).map(pick),
@@ -178,7 +178,7 @@ export function corroboratedFacts(projected) {
     const fp = factFingerprint(p.f, p.axis);
     if (!by.has(fp)) by.set(fp, { fingerprint: fp, sources: new Set(), findings: [] });
     const e = by.get(fp);
-    e.sources.add(p.source || p.f.source || 'repo-eval');
+    e.sources.add(p.source || p.f.source || 'practice-review');
     e.findings.push(p.f.id);
   }
   return [...by.values()].filter((e) => e.sources.size >= 2)

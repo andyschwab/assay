@@ -103,7 +103,7 @@ full contract, adapter format, and fail-closed rule live in
 ```yaml
 axis: code-correctness               # a contributed axis (the roster is adapter-derived)
 also_axes: [delegation]              # optional compound cross-links (a finding touching >1 axis)
-source: <reviewer>                   # which scanner produced it, its adapter's id (repo-eval for native passes)
+source: <reviewer>                   # which scanner produced it, its adapter's id (practice-review for native passes)
 ```
 
 A finding's `also_axes` place it in every section it truly touches (the seam is
@@ -218,7 +218,7 @@ Ids are `F-###` — `F-` plus **three or more digits**, zero-padded to three (`F
 an instrument such as a history-mode secrets scan returns more rows than three digits hold) —
 **unique within a run and carrying no dimension meaning.** A finding's
 dimension lives in its `dimension:` field, backed by the **filename ↔ dimension** check
-(a `map/findings/repo-eval-gates.yaml` finding must be `deterministic-gates` or
+(a `map/findings/practice-review-gates.yaml` finding must be `deterministic-gates` or
 `unprompted`). The id number is just an address; it does not encode the
 dimension, and there is **no per-dimension budget, no ceiling, and no
 re-homing to satisfy a band.**
@@ -240,7 +240,7 @@ enforces it via filename↔dimension.
   `reaches`/`explained_by`/`escapes` resolves, and filename↔dimension holds.
 
 **`unprompted`** is a first-class dimension for a seam-finding no criterion asked for; a
-finding with `dimension: unprompted` may live in any `map/findings/repo-eval-*.yaml` file and takes an
+finding with `dimension: unprompted` may live in any `map/findings/practice-review-*.yaml` file and takes an
 ordinary id (no special range). It is identified by its field, like everything else.
 
 **Ids are never renumbered.** An id keeps whatever value it was assigned; a retroactive
@@ -284,13 +284,13 @@ runs/<slug>-<date>/
 ├── map/
 │   ├── terrain.md                        # Pass 0 — map + effect inventory + slice plan
 │   ├── findings/
-│   │   ├── repo-eval-legibility.yaml     # Pass 1  ┐
-│   │   ├── repo-eval-context.yaml        # Pass 2  │ one file per dimension pass,
-│   │   ├── repo-eval-gates.yaml          # Pass 3  │ each a YAML list of findings,
-│   │   ├── repo-eval-verification.yaml   # Pass 4  │ ids unique per run (§3)
-│   │   ├── repo-eval-delegation.yaml     # Pass 5  │
-│   │   ├── repo-eval-improvement.yaml    # Pass 6  │
-│   │   ├── repo-eval-multiplayer.yaml    # Pass 7  ┘
+│   │   ├── practice-review-legibility.yaml     # Pass 1  ┐
+│   │   ├── practice-review-context.yaml        # Pass 2  │ one file per dimension pass,
+│   │   ├── practice-review-gates.yaml          # Pass 3  │ each a YAML list of findings,
+│   │   ├── practice-review-verification.yaml   # Pass 4  │ ids unique per run (§3)
+│   │   ├── practice-review-delegation.yaml     # Pass 5  │
+│   │   ├── practice-review-improvement.yaml    # Pass 6  │
+│   │   ├── practice-review-multiplayer.yaml    # Pass 7  ┘
 │   │   └── <scanner>.yaml                # one per peer scanner / instrument
 │   │                                      #   (gitleaks.yaml, <reviewer>.yaml,
 │   │                                      #   fresh-clone.yaml, dependency-scan.yaml,
@@ -344,7 +344,7 @@ the target's full findings and evidence paths), which is what lets
 when copied into the target repo. The shipped report partials
 (`views/improve/templates/*.md`) carry the same frontmatter and are frontmatter-stripped at splice time.
 
-**Filename ↔ dimension agreement:** every finding in `map/findings/repo-eval-<dim>.yaml`
+**Filename ↔ dimension agreement:** every finding in `map/findings/practice-review-<dim>.yaml`
 must carry the matching `dimension`, except `dimension: unprompted`, which is
 permitted in any file.
 
@@ -375,7 +375,7 @@ it, never writing unlocked.
 # map/scanners.yaml — template: map/templates/scanners.yaml
 engine: 759240a               # the engine commit the run executed under (warned if absent)
 scanners:
-  repo-eval:
+  practice-review:
     status: ran
   <reviewer>:                 # a peer reviewer's adapter id
     status: skipped           # ran | skipped | failed
@@ -385,18 +385,18 @@ scanners:
     reason: "gitleaks binary not on PATH in the run container"
 ```
 
-A row may carry `model:`, the model id a judgment scanner ran on (repo-eval,
+A row may carry `model:`, the model id a judgment scanner ran on (practice-review,
 a peer reviewer, a census authored by a model), and `spend:`, what its inference spent,
 with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. Any row, an instrument's
 included, may carry `duration:`, how long the scanner ran, with the unit (`"4m10s"`) or
 as a whole number of seconds (`node assay.mjs record <run> <scanner> ran --duration
 "<text>"`); `node assay.mjs roster` reads it and `spend:` as the scanner's cost
-(`map/scanners/INTAKE.md`). An empty `duration:` is an error. The `repo-eval` row may
+(`map/scanners/INTAKE.md`). An empty `duration:` is an error. The `practice-review` row may
 also carry `passes:`, the same two fields per pass, keyed by the pass's file name
-(`map/findings/repo-eval-<pass>.yaml`), so a run can say which model wrote each pass:
+(`map/findings/practice-review-<pass>.yaml`), so a run can say which model wrote each pass:
 
 ```yaml
-  repo-eval:
+  practice-review:
     status: ran
     model: "<model id>"            # the passes' default
     spend: "180k tokens"
@@ -406,9 +406,9 @@ also carry `passes:`, the same two fields per pass, keyed by the pass's file nam
         spend: "22k tokens"
 ```
 
-`node assay.mjs record <run> repo-eval ran --pass <pass> --model <id> [--spend "<text>"]`
+`node assay.mjs record <run> practice-review ran --pass <pass> --model <id> [--spend "<text>"]`
 writes one pass; every record and ingest keeps the passes already recorded. A judgment
-scanner that ran with no model is warned, repo-eval included: a repeat cannot separate
+scanner that ran with no model is warned, practice-review included: a repeat cannot separate
 model drift from method drift. With a per-pass record and no row model, the warning names
 the passes present in the base that carry no model. Deterministic instruments need none.
 An unknown pass, a pass entry with neither field, or an empty `model:`/`spend:` is an

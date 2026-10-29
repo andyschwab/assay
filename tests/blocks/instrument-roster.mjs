@@ -87,7 +87,7 @@ export async function run() {
       const { [id]: _gone, ...rest } = manifest.scanners;
       const retired = { ...manifest, scanners: rest };
       const retiredAdapters = { ...adapters, [id]: { ...adapters[id], adopted: false, retired: 'roster probe' } };
-      const after = decided(measureRun({ findings: findings.filter((f) => (f.source || 'repo-eval') !== id), manifest: retired, inputs, coverage, adapters: retiredAdapters }, reg));
+      const after = decided(measureRun({ findings: findings.filter((f) => (f.source || 'practice-review') !== id), manifest: retired, inputs, coverage, adapters: retiredAdapters }, reg));
       const lost = [...before].filter((x) => !after.has(x)).sort();
       const predicted = byId[id].not_measured_if_retired.filter((x) => before.has(x)).sort();
       const beside = (byId[id].decides_beside || []).filter((x) => before.has(x));
@@ -120,7 +120,7 @@ export async function run() {
   if (!full.some((r) => r.ran_in.length === 0)) fail('some adapter (the retired one) ran in none of the fixture runs, and the roster must say so');
   if (!full.some((r) => r.unique_recoveries?.length)) fail('over the fixture runs some scanner must recover an answer nothing else does');
   for (const row of full) for (const u of row.unique_recoveries || []) if (!/^[^/]+\/\S+$/.test(u)) fail(`${row.scanner}: a unique recovery names its run and answer id (<run>/<id>), got ${u}`);
-  if (fullBy['repo-eval'] && fullBy['repo-eval'].cost?.spend?.length) fail('no committed fixture run records spend, so cost must read empty lists there');
+  if (fullBy['practice-review'] && fullBy['practice-review'].cost?.spend?.length) fail('no committed fixture run records spend, so cost must read empty lists there');
 
   // the CLI prints the report; a run with no record halts, never an empty roster
   {

@@ -1,7 +1,7 @@
 # scanners.yaml — run manifest (SCHEMA.md §5a). Negative fixture: the base passes and repo-census ran.
 engine: fixture
 scanners:
-  repo-eval:
+  practice-review:
     status: ran
   deep-code-review:
     status: skipped

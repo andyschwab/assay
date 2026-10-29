@@ -30,7 +30,7 @@ the instrument role in §3a):
 
 | Scanner | Role | Adapter | Notes |
 |---|---|---|---|
-| repo-eval (native) | peer scanner | `adapters/repo-eval.yaml` | The seven dimension passes; dogfooded as one scanner |
+| practice-review (native) | peer scanner | `adapters/practice-review.yaml` | The seven dimension passes; dogfooded as one scanner |
 | deep-code-review | peer scanner | `adapters/deep-code-review.yaml` | LLM skill, own A–W taxonomy (1.60+), per-finding severity + verbatim fixes; contributes the two code axes. Its 1.128+ machine report (adapter `min_version`; checked against `verified_against`) (`findings-YYYY-MM-DD.yaml`, a coverage row per domain) is ingested by `map/ingest.mjs --tool deep-code-review`, which also archives the coverage sidecar |
 | Gitleaks | instrument | `adapters/gitleaks.yaml` | Integrated via `map/ingest.mjs`: every leak → one `secret` row onto code-security; converter validated against a live v8.24.3 run; secrets never copied out of the raw report |
 | fresh-clone (native) | instrument | `adapters/fresh-clone.yaml` | `map/fresh-clone.mjs`: clones to scratch, runs the declared install / build / lint / typecheck / test / migrate steps, replays README command claims for presence; ingested via `map/ingest.mjs --tool fresh-clone` (exits 0 and 1 are runs, 2 halts). A not-declared floor step and a missing claim are gaps; rows never carry step output. Contract §3b |
@@ -141,7 +141,7 @@ granularity, never file:line. They are the realistic path to real
 
 - **Workspace truth**: nothing verifies that agent-facing docs are *accurate* —
   that documented commands run, that described structure matches reality. The
-  readiness scorers check presence, not truth. This is repo-eval's home ground.
+  readiness scorers check presence, not truth. This is practice-review's home ground.
 - **Static product-AI quality**: no tool statically assesses whether shipped AI
   features carry evals/grounding; the nearest proxy (eval-config presence) is a
   check written in-house.

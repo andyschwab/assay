@@ -55,7 +55,7 @@ repository ─ scanners and instruments ─▶ map/ ─▶ yardstick/ ─▶ vie
 ```
 
 **The map** (`map/`). Scanners of two kinds draw it. **Peer scanners** bring
-judgment and their own taxonomy: `repo-eval`, the built-in method
+judgment and their own taxonomy: `practice-review`, the built-in method
 (`map/METHOD.md`), and `deep-code-review`, an external code reviewer. Each has an
 adapter and keeps its native report as an appendix. A code reviewer is **one
 peer scanner**: its findings enter through its adapter
@@ -145,7 +145,7 @@ and assay itself, reading assay with an optional read token when assay's own
 repository is private (`routine/README.md`). No adopted instrument calls a
 repo-hosting platform's own API; that is what **offline** means everywhere in
 assay (`map/scanners/CONTRACT.md` §3a): no hosting platform's API, while a
-package registry may be reached. A peer scanner (`repo-eval`,
+package registry may be reached. A peer scanner (`practice-review`,
 `deep-code-review`) runs in a coding-agent session the operator opens, outside
 the engine. How to operate all of it is `RUNBOOK.md`.
 
@@ -165,12 +165,12 @@ node assay.mjs help                                   # every command, grouped m
 # git repository: over a plain tree (an exported snapshot) it is recorded skipped
 node assay.mjs start --out <run> <target> [--allow-exec]
 
-#   repo-eval: open map/METHOD.md as the opening context of a coding-agent session
+#   practice-review: open map/METHOD.md as the opening context of a coding-agent session
 #   pointed at the target repository; it drives the passes
 node assay.mjs ingest <run> --tool deep-code-review --raw dcr-report.yaml
 #   ingesting a report also flips that scanner's row to ran in map/scanners.yaml
-node assay.mjs record <run> repo-eval ran --model <id>             # or record one directly (no report to ingest)
-#   --pass <pass> records the model (and --spend) of one repo-eval pass
+node assay.mjs record <run> practice-review ran --model <id>             # or record one directly (no report to ingest)
+#   --pass <pass> records the model (and --spend) of one practice-review pass
 #   either one measures an already-compiled run again (yardstick.yaml follows the map)
 node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed
 
@@ -179,7 +179,7 @@ node assay.mjs compile <run> [--target <target>]
 
 # what changed since a previous run, and holding the line on it
 node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
-node assay.mjs migrate-run <prev-run> [--write]              # a baseline written before the strict YAML reader: quote what it refuses
+node assay.mjs migrate-run <prev-run> [--write]              # a run an earlier engine drew: rename a retired id, quote what the strict reader refuses
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
 ```
 

@@ -168,9 +168,9 @@
   dimension: delegation
   polarity: gap
   subject_type: capability
-  label: "the repo-eval steward session"
+  label: "the practice-review steward session"
   observation: >
-    The repo-eval method runs in a coding-agent session the operator opens, pointed at the untrusted
+    The practice-review method runs in a coding-agent session the operator opens, pointed at the untrusted
     target tree and writing its findings; the method states that a person sends any output but sets
     no bound on the session's own tools, so the session can hold untrusted input, private target
     content and whatever external effects its host grants.

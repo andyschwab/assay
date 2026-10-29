@@ -1,7 +1,7 @@
 # scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
 engine: fixture
 scanners:
-  repo-eval:
+  practice-review:
     status: skipped
     reason: "fixture run: only structure-scan's rows are planted (#111)"
   deep-code-review:

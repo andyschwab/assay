@@ -1,4 +1,4 @@
-# map/findings/repo-eval-multiplayer.yaml — neutral evidence base for assay at
+# map/findings/practice-review-multiplayer.yaml — neutral evidence base for assay at
 # c30912c (blind sweep 1). Pass 7: multiplayer (agent access surface, shared
 # substrate, authority domains, consent semantics).
 
@@ -62,7 +62,7 @@
   dimension: multiplayer
   polarity: gap
   subject_type: contract
-  observation: "A run record row names a judgment scanner's status, reason, model and spend but not who or which session ran it, so acting-as for a repo-eval or deep-code-review review is not recorded in the run."
+  observation: "A run record row names a judgment scanner's status, reason, model and spend but not who or which session ran it, so acting-as for a practice-review or deep-code-review review is not recorded in the run."
   evidence: [map/SCHEMA.md:345-357, map/SCHEMA.md:365-374, map/record.mjs:12]
   confidence: confirmed
 

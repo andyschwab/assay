@@ -1,7 +1,7 @@
 # scanners.yaml — run manifest (SCHEMA.md §5a): every adopted scanner's disposition.
 engine: fixture
 scanners:
-  repo-eval:
+  practice-review:
     status: skipped
     reason: "fixture run: this target exists for dependency-scan alone (tests/fixtures/README.md)"
   deep-code-review:

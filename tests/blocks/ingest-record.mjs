@@ -16,7 +16,7 @@ export async function run() {
     '# a header comment',
     'engine: cafef00d',
     'scanners:',
-    '  repo-eval:',
+    '  practice-review:',
     '    status: skipped',
     '    reason: "not yet run: ingesting its report records it ran"',
     '  gitleaks:',
@@ -29,7 +29,7 @@ export async function run() {
   if (manifest.scanners?.gitleaks?.status !== 'ran') fail(`ingest must flip the ingested tool's row to ran (got ${JSON.stringify(manifest.scanners?.gitleaks)})`);
   if (manifest.scanners.gitleaks.reason) fail('ingest flipping a row to ran must drop its prior skip reason');
   if (manifest.scanners.gitleaks.model !== 'test-model') fail(`ingest --model must be recorded on the flipped row (got ${JSON.stringify(manifest.scanners.gitleaks.model)})`);
-  if (manifest.scanners?.['repo-eval']?.status !== 'skipped') fail('ingest must not disturb a DIFFERENT scanner\'s row');
+  if (manifest.scanners?.['practice-review']?.status !== 'skipped') fail('ingest must not disturb a DIFFERENT scanner\'s row');
   if (manifest.engine !== 'cafef00d') fail('ingest must not disturb engine:');
   const raw = readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8');
   if (!raw.startsWith('# a header comment')) fail('ingest\'s record-keeping must not disturb the file\'s own header comment');

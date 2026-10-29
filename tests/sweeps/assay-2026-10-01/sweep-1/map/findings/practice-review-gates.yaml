@@ -1,4 +1,4 @@
-# map/findings/repo-eval-gates.yaml — neutral evidence base for assay at
+# map/findings/practice-review-gates.yaml — neutral evidence base for assay at
 # c30912c (blind sweep 1). Pass 3: deterministic gates. Gate/test-coverage items
 # are subject_type contract (SCHEMA.md §2 canonical census subject_type).
 
@@ -55,7 +55,7 @@
   polarity: strength
   subject_type: contract
   observation: "An adapter's only sanctioned default is FAIL, so a scanner category with no mapping halts the projection instead of landing on a silent axis."
-  evidence: [map/scanners/CONTRACT.md:520-527, map/scanners/adapters/repo-eval.yaml:41]
+  evidence: [map/scanners/CONTRACT.md:520-527, map/scanners/adapters/practice-review.yaml:41]
   confidence: confirmed
 
 - id: F-033

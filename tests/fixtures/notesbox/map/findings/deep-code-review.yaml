@@ -1,6 +1,6 @@
 # map/findings/deep-code-review.yaml — peer-scanner rows ingested by assay.mjs ingest from the scanner's machine report.
 # Scanner: deep-code-review · 28 row(s) · coverage archived at map/coverage/deep-code-review.yaml (one row per domain).
-# Ids start at F-1000: the next hundred above the base's highest id F-903 (in fresh-clone.yaml, gitleaks.yaml, repo-eval-context.yaml, repo-eval-delegation.yaml, repo-eval-legibility.yaml, repo-eval-verification.yaml); the profile floor is F-800.
+# Ids start at F-1000: the next hundred above the base's highest id F-903 (in fresh-clone.yaml, gitleaks.yaml, practice-review-context.yaml, practice-review-delegation.yaml, practice-review-legibility.yaml, practice-review-verification.yaml); the profile floor is F-800.
 # Raw report archived at map/raw/deep-code-review.yaml. Regenerate with ingest.mjs; never hand-edit.
 
 - id: F-1000

@@ -1,4 +1,4 @@
-# map/findings/repo-eval-gates.yaml — Pass 3, deterministic gates, over assay at c30912c
+# map/findings/practice-review-gates.yaml — Pass 3, deterministic gates, over assay at c30912c
 # (blind sweep 3). Census-augmented: one finding per interface contract (gates-coverage
 # population, subject_type contract), then the CI and harness facts.
 

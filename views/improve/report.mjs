@@ -84,7 +84,7 @@ function snapshotStats() {
 // ── computed: security risks (illuminated, most-likely first — no go/no-go) ────────
 // The security exposures presented as decisions, not a deployment verdict: each is a
 // risk to fix, accept, or investigate. No "safe to run at level X" — the engine issues
-// no go/no-go; this is repo-eval's native risk read.
+// no go/no-go; this is practice-review's native risk read.
 function securityRisks() {
   const ex = gate.exposures || [];
   const rank = { high: 0, moderate: 1, low: 2 };
@@ -216,7 +216,7 @@ function maturity() {
 function scannerAxes() {
   const adapters = loadAdapters();
   const { projected } = projectMulti(findings, adapters);
-  const external = projected.filter((p) => p.source !== 'repo-eval');
+  const external = projected.filter((p) => p.source !== 'practice-review');
   const present = [...new Set(projected.map((p) => p.source))].sort();
   const contributed = contributedBySources(adapters, present);
   const registry = registryAxesOf(adapters);

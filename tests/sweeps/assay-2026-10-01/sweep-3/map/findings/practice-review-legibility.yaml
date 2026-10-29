@@ -1,4 +1,4 @@
-# map/findings/repo-eval-legibility.yaml — Pass 1, artifact legibility, over assay at
+# map/findings/practice-review-legibility.yaml — Pass 1, artifact legibility, over assay at
 # c30912c (blind sweep 3). Facts with file:line evidence; no severity, no priority.
 # Census-augmented: one finding per sampled non-obvious decision (decision-legibility
 # population, subject_type artifact), then the whole-repo facts.

@@ -29,7 +29,7 @@ export async function run() {
   const run = join(tmp, 'run'), prior = join(tmp, 'prior');
   for (const d of [run, prior]) { copyFixtureFindings('notesbox', d); copyFixtureScanners('notesbox', d); }
   // the prior judged one channel's telemetry differently: one descriptor-divergence item
-  const dPath = join(prior, 'map', 'findings', 'repo-eval-delegation.yaml');
+  const dPath = join(prior, 'map', 'findings', 'practice-review-delegation.yaml');
   const before = readFileSync(dPath, 'utf8');
   writeFileSync(dPath, before.replace('    telemetry: unstructured\n', '    telemetry: none\n'));
   if (readFileSync(dPath, 'utf8') === before) fail('test setup: the prior must change one telemetry descriptor');

@@ -45,7 +45,7 @@ export async function run() {
     if (rows['repo-census']?.status !== 'ran') fail(`repo-census needs no network and must read ran (got ${JSON.stringify(rows['repo-census'])})`);
     if (rows['dependency-scan']?.status !== 'ran') fail(`dependency-scan needs no network against this lockfile-free fixture and must read ran (got ${JSON.stringify(rows['dependency-scan'])})`);
     if (rows['fresh-clone']?.status !== 'ran') fail(`fresh-clone (--allow-exec, default clone mode, a real local git target) must read ran (got ${JSON.stringify(rows['fresh-clone'])})`);
-    for (const id of ['repo-eval', 'deep-code-review']) {
+    for (const id of ['practice-review', 'deep-code-review']) {
       const r = rows[id];
       if (r?.status !== 'skipped') fail(`${id} must be recorded skipped by start (got ${JSON.stringify(r)})`);
       else if (!/not yet run: a steward session runs it/.test(r.reason || '') || !r.reason.includes(`node assay.mjs record <run> ${id} ran`))

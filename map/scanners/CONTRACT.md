@@ -23,7 +23,7 @@ present adapters**, never hardcoded:
 
 - Every scanner — the native seven-dimension method included — **contributes**
   axes through its adapter's `contributes:` list: the axes its own methodology
-  measures. repo-eval contributes the seven dimension axes; the code reviewer
+  measures. practice-review contributes the seven dimension axes; the code reviewer
   contributes *code-correctness*, *code-maintainability* and *code-security*.
 - **Axes are shared.** Any scanner may **feed** an axis it does not contribute
   (the code reviewer's testing findings land on `deterministic-gates`, its
@@ -40,7 +40,7 @@ present adapters**, never hardcoded:
 ## 2. The port — what a scanner emits (after its adapter runs)
 
 ```yaml
-source: <reviewer>                # scanner id (matches adapters/<id>.yaml); "repo-eval" for native passes
+source: <reviewer>                # scanner id (matches adapters/<id>.yaml); "practice-review" for native passes
 native_id: F6                     # the scanner's own id, verbatim
 native_category: "F. Reliability" # the scanner's own taxonomy term (drives the mapping)
 observation: >                    # one grounded sentence — the fact

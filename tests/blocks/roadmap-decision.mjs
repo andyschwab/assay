@@ -15,9 +15,9 @@ export async function run() {
   const tmp = join(HERE, 'tmp-roadmap-decision'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('cleanlib', tmp);
   copyFixtureScanners('cleanlib', tmp);
-  // repo-eval is a judgment scanner: with no model of record it warns (#56), and this
+  // practice-review is a judgment scanner: with no model of record it warns (#56), and this
   // block's "no warning at all" must stay about the roadmap shape alone
-  writeFileSync(join(tmp, 'map', 'scanners.yaml'), readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8').replace('  repo-eval:\n    status: ran\n', '  repo-eval:\n    status: ran\n    model: "test-model"\n'));
+  writeFileSync(join(tmp, 'map', 'scanners.yaml'), readFileSync(join(tmp, 'map', 'scanners.yaml'), 'utf8').replace('  practice-review:\n    status: ran\n', '  practice-review:\n    status: ran\n    model: "test-model"\n'));
   mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });
   const head = ['target: "decision test target"', 'maintainer: "the test maintainers"', 'exec_summary: "test"', 'roadmap:'];
   const item = (extra) => ['  - slug: declare-lint', '    title: "Declare the missing lint gate"', '    body: "Lint is not declared; add it."', '    findings: [F-900]', ...extra, '    done_when:', '      - "package.json declares a lint script"', ''];

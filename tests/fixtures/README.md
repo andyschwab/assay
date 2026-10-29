@@ -8,7 +8,7 @@ Self-contained evaluation runs over the public [assay-fixtures](https://github.c
 targets, kept here so the regression harness can pin the engine's **recall** without
 reaching outside the repo — self-contained immutable copies, kept separate from any confidential run data.
 
-- `notesbox/` — a run over the `flawed-webapp` target (repo-eval delegation-focused
+- `notesbox/` — a run over the `flawed-webapp` target (practice-review delegation-focused
   passes, a live gitleaks instrument row, and the fresh-clone and dependency-scan
   instruments' own output over the target). Scored against `notesbox/ANSWERS.yaml`,
   a frozen snapshot of the target's answer sheet.

@@ -1,6 +1,6 @@
 engine: fixture
 scanners:
-  repo-eval:
+  practice-review:
     status: ran
   deep-code-review:
     status: ran
