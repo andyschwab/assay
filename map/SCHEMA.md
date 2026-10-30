@@ -438,7 +438,9 @@ compiles anything):
   indistinguishable from an omission.
 - `ran` requires evidence that it ran: rows carrying `source: <scanner>` in the base,
   or an explicit (possibly empty) `map/findings/<scanner>.yaml` for a verified-clean
-  instrument run (fail loud, never empty). A peer scanner that ran without its native
+  instrument run (fail loud, never empty). The built-in scanner writes one file per
+  pass, so its explicit record is its `map/findings/practice-review-<pass>.yaml` files:
+  passes that all found nothing are a clean run, not a missing one. A peer scanner that ran without its native
   report (`map/native/<scanner>.md` in the run) validates with a warning — its port
   rows are the only record, and the package lists no appendix for it.
 - The inverse is enforced too: **rows from a scanner recorded as `skipped` or
