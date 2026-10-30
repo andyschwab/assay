@@ -776,8 +776,15 @@ reads the block and names no tool:
   a tool whose dependencies cannot be pinned by sum here.
 
 A tool already installed at its pin (the stamp beside the binaries, its sum still
-matching) is left as it is. The `run.install` line a skipped row carries points at
-this command.
+matching) is left as it is, and a platform with no pinned artifact fails the install.
+
+The pinned tools are a precondition of a measurement, never one of its results
+(#198). `node assay.mjs tools verify` reads each one ready only when it is on PATH
+and, asked its version (the adapter's `run.version`, else `--version`), exits 0
+and prints the pin. `assay start <target>` and the routine's gate step refuse to
+draw a map until every one is ready, naming each that is absent, broken or at
+another version. The `run.install` line a skipped row carries, kept for a
+runner called as a library, points at the install command.
 
 ## 4. The fail-closed rule (the coherence guarantee)
 

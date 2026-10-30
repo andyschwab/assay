@@ -88,13 +88,16 @@ The routine runs the instruments assay runs offline on its own — `repo-census`
 `fresh-clone`, `dependency-scan`, `structure-scan` (whose knip step imports the
 target's own tool configs, so in the two-job template it runs in the `target` job
 after fresh-clone's install, never in the gate job, which never executes the
-target) — plus `gitleaks` when that binary happens to
-be on the runner's `PATH` and the checkout is the repository's own top level
+target) — plus `gitleaks` when the checkout is the repository's own top level
 (never a subdirectory of a larger checkout, whose history is not this
-repository's), and every adopted instrument whose adapter carries `run:`
-(`map/scanners/CONTRACT.md` §3f) when its binary is on `PATH`; when either fails,
-the run record carries it `skipped`, with that reason (for an adapter-run
-instrument, its install line), never silently as clean
+repository's; that target is recorded `skipped` with the reason), and every
+adopted instrument whose adapter carries `run:` (`map/scanners/CONTRACT.md` §3f).
+Assay's own tools are a precondition, never a skip (#198): before it draws
+anything the routine checks that every tool an adopted adapter pins is on `PATH`
+and answers at its pin (`node assay.mjs tools verify`), and when one is absent,
+broken or at another version it draws no map and fails, `gate: not-run` with the
+reason in `routine.yaml`. A scanner the target makes inapplicable is recorded
+skipped with its reason, never silently as clean
 (`map/scanners/CONTRACT.md` §3a). `fresh-clone` executes the repository's own
 install and scripts; the routine runs it in place because its checkout is a
 fresh, disposable CI job, with the allow-listed environment of
@@ -226,13 +229,13 @@ read directly, exactly as before.
    what makes either change accountable, and `CODEOWNERS` is what makes that
    review required rather than optional.
 
-Optional: to include `gitleaks`, add a workflow step that installs the
-`gitleaks` binary onto `PATH` before the routine step; the routine detects it
-automatically and needs no flag. An adapter-run instrument joins the same way: install
-its binary (its adapter's `run.install` names how, at the version its
-`verified_against` pins) before the routine step. The template carries this step commented out,
-pinned to one release and verified against its published checksum — copy it in
-and uncomment it rather than adding an unpinned `curl | sh` of your own.
+Assay's tools: the template's `routine` job installs every tool the adopted
+adapters pin (`node assay.mjs tools install`, each download checked against the
+sha256 its adapter's `tool:` block pins before it is ever executed), verifies them
+(`tools verify`) and puts them on `PATH`, before the routine step. The pins live in
+the engine's adapters, so they move with `ASSAY_REF` and the workflow carries none
+of its own. A tool that cannot be installed fails the job, as does the routine on a
+runner without them: there is no step to leave out.
 
 ## `--since` is not wired into the template
 

@@ -49,21 +49,7 @@ export async function run() {
   if (!versions.includes(22)) fail(`ci.yml's node-version matrix must include 22 (got ${JSON.stringify(versions)})`);
   if (!/node-version:\s*\$\{\{\s*matrix\.node-version\s*\}\}/.test(yml)) fail('setup-node must take node-version from the matrix');
 
-  // CI runs the gitleaks-present branch of the harness (issue #51): it installs the
-  // exact release the routine template's optional step pins, checked against the
-  // same sha256, before npm test — never an unpinned binary, never left out.
-  const tplYml = readFileSync(join(ROOT, 'routine', 'assay-routine.yml'), 'utf8');
-  const pinOf = (text, key) => (text.match(new RegExp(`${key}:\\s*'([^']+)'`)) || [])[1];
-  const installIdx = lines.findIndex((l) => /^\s*-\s*name:\s*Install gitleaks/.test(l));
-  const testIdx = lines.findIndex((l) => /^\s*-?\s*run:\s*npm test\s*$/.test(l));
-  if (installIdx === -1) fail('ci.yml must install gitleaks (an enabled "Install gitleaks" step), so CI runs the harness with the binary present');
-  else {
-    if (testIdx !== -1 && installIdx > testIdx) fail('ci.yml must install gitleaks before npm test');
-    for (const k of ['GITLEAKS_VERSION', 'GITLEAKS_SHA256']) {
-      if (!pinOf(yml, k) || pinOf(yml, k) !== pinOf(tplYml, k)) fail(`ci.yml's ${k} must equal the routine template's (got ${pinOf(yml, k)}, template ${pinOf(tplYml, k)}) — one engine, one pin`);
-    }
-    if (!/sha256sum -c/.test(yml)) fail('ci.yml must check the gitleaks download against its sha256 before executing it');
-  }
+  // CI installs assay's pinned tools before npm test (#198): tests/blocks/tools-precondition.mjs.
 
   for (const s of ['lint', 'typecheck', 'build', 'test']) {
     if (typeof pkg.scripts?.[s] !== 'string') fail(`package.json must declare a "${s}" script`);

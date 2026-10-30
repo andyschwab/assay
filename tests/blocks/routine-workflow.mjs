@@ -108,14 +108,8 @@ export async function run() {
   }
 
   // installation (routine/README.md "Installing it"): a push trigger so merged main
-  // is measured the same day, and an optional gitleaks step that is pinned to a
-  // release and checked against its published sha256 — commented out, never enabled
-  // by default.
+  // is measured the same day. The tools step is tests/blocks/tools-precondition.mjs (#198).
   if (!/^\s*push:\s*$/m.test(yml)) fail('the template must also trigger on push to the default branch');
-  const gitleaksBlock = lines.filter((l) => /^\s*#.*gitleaks/i.test(l) || /GITLEAKS_/.test(l)).join('\n');
-  if (!/GITLEAKS_VERSION/.test(gitleaksBlock) || !/GITLEAKS_SHA256/.test(gitleaksBlock)) fail('the optional gitleaks step must pin a version and a sha256 checksum');
-  if (!/[0-9a-f]{64}/.test(gitleaksBlock)) fail('the optional gitleaks step must carry a real-shaped sha256 (64 hex chars)');
-  if (!lines.some((l) => /^\s*#\s*-\s*name:\s*Install gitleaks/.test(l))) fail('the optional gitleaks install step must be commented out (never enabled by default)');
 
   const readme = readFileSync(join(ROOT, 'routine', 'README.md'), 'utf8');
   if (!/required status check/i.test(readme)) fail('routine/README.md must say to make the routine job a required status check');

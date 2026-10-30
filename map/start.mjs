@@ -13,12 +13,14 @@
 // records (tests/blocks/routine.mjs pins this byte-for-byte).
 //
 // Usage: node assay.mjs start --out <run> [<target>] [--allow-exec]
-//   <target> given  — runs repo-census, dependency-scan (from scratch copies of
+//   <target> given  — refuses (exit 1, nothing written) until every pinned tool is
+//                      on PATH and answers at its pin (map/tools.mjs verify, #198);
+//                      then runs repo-census, dependency-scan (from scratch copies of
 //                      each lockfile, never the target's own configuration),
 //                      structure-scan (jscpd and knip installed into its own
 //                      scratch; knip only under --allow-exec, since it imports
-//                      the target's own tool configs), and gitleaks when its
-//                      binary is on PATH; and fresh-clone
+//                      the target's own tool configs), gitleaks and the
+//                      adapter-run instruments; and fresh-clone
 //                      (from a scratch clone of the target's committed head,
 //                      never in place: the routine's CI checkout is the only
 //                      in-place caller) ONLY under --allow-exec, because it
@@ -52,6 +54,7 @@ import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
 import { loadAdapters, adoptedAdapters } from './project.mjs';
+import { toolsNotReady } from './tools.mjs';
 import { scannersPath, findingsDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
@@ -380,6 +383,13 @@ function runCli() {
   if (existsSync(mPath)) {
     console.error(`✗ start refused: ${mPath} already exists — a run is never redrawn in place. Pick a new --out, or use \`record\`/\`ingest\` to update this one.`);
     process.exit(2);
+  }
+
+  // assay's pinned tools are a precondition, never a skip (#198): with a target to measure,
+  // start draws nothing until every one is on PATH and answers at its pin.
+  if (target) {
+    const notReady = toolsNotReady();
+    if (notReady) { console.error(`✗ start refused: ${notReady}`); process.exit(1); }
   }
 
   // map/findings/ is created even when nothing runs here (no target — every
