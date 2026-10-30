@@ -47,10 +47,12 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
       principal: app-user         #   free short slug, REQUIRED when verified_as is present
       privilege: bound            #   bound | elevated — elevated forbids confidence: confirmed
       triggered_by: ci            #   optional free slug: who or what started the check
-  capabilities:                # REQUIRED iff subject_type == capability (all three bools)
+  capabilities:                # REQUIRED iff subject_type == capability (all three)
     untrusted_input: true
     private_data: true
-    external_effect: true
+    external_effect: write     # none | read | write: read only fetches from the outside world,
+                               #   write sends, publishes or changes something there (#172);
+                               #   a boolean still reads: true is write, false none
   label: "control of every workspace"  # optional short human name; the chain view renders
                                         # it verbatim (entry / sink / cut). See §6d.
   # ── optional links (all values are F-### ids, except preconditions) ──
@@ -255,8 +257,11 @@ every id is a unique, well-formed `F-###` — never that it falls inside a per-d
   `channel`, `reversibility`, `external`, `gate_type`, `telemetry`, `blast_scope` are
   all required. `fail_mode` is additionally required **whenever `gate_type` is not
   `none`** (a real gate must declare how it fails).
-- `subject_type: capability` ⟹ the `capabilities` block with all three booleans
-  (`untrusted_input`, `private_data`, `external_effect`) is **mandatory**.
+- `subject_type: capability` ⟹ the `capabilities` block is **mandatory**:
+  `untrusted_input` and `private_data` booleans, and `external_effect` one of `none`,
+  `read` or `write` (a boolean a map wrote before still reads: `true` is `write`,
+  `false` is `none`). Only `write` makes the full trifecta: a surface whose outward leg
+  only reads holds nothing it can send, publish or change out there (#172).
 - `escapes` is optional but the security view weights it heavily — attach it to any
   effect whose damage leaves a containment the base records elsewhere as a strength.
 
@@ -779,8 +784,9 @@ exposure stays in §5 only.
 - **held** — reaches an effect, but every reachable one is currently held (guarded or
   read-only). Shown, with *what holds it*, because that control is load-bearing: if it
   weakens, the path opens. (E.g. a full-trifecta cron whose external call is read-only.)
-- **contained** — an untrusted-input surface with `external_effect: false` (confirmed): a
-  positive, grounded reason no chain can start there.
+- **contained** — an untrusted-input surface with `external_effect: none` (confirmed): a
+  positive, grounded reason no chain can start there; or `read` with no effect it reaches,
+  which reads the outside world and acts on nothing (#172).
 - **unresolved** — a chain-critical value that could not be determined: a low-confidence
   finding on a path, a sink we could not confirm is really open, or an effect leg with no
   traced reach (a possible missing edge). Surfaced under the chains as a one-line flag and

@@ -34,7 +34,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { parseYaml, q } from '../../lib/yaml-min.mjs';
 import { censusesPath, maturityGradesPath } from '../../lib/run-layout.mjs';
-import { gateHolds, isHaltClass, isMain } from '../../map/doctrine.mjs';
+import { gateHolds, isHaltClass, effectLeg, isMain } from '../../map/doctrine.mjs';
 import { loadFindings } from '../../map/project.mjs';
 
 const STRUCTURED = new Set(['structured-event', 'audited']);
@@ -50,7 +50,8 @@ export function computeCoverage(findingsIn) {
   const caps = findings.filter((f) => f.subject_type === 'capability' && f.capabilities);
   const halts = effects.filter((e) => isHaltClass(e.effect));
   const holds = (e) => gateHolds(e.effect);
-  const legs = (c) => ['untrusted_input', 'private_data', 'external_effect'].filter((k) => c.capabilities[k] === true).length;
+  // the outward leg counts when it acts on the outside world; one that only reads does not (#172)
+  const legs = (c) => ['untrusted_input', 'private_data'].filter((k) => c.capabilities[k] === true).length + (effectLeg(c.capabilities) === 'write' ? 1 : 0);
   const m = (name, what, met, of, primary = false) => ({ name, what, met, of, pct: pct(met, of), kind: 'counted', primary });
 
   // dimension order follows the report's canonical DIM_ORDER (legibility → context →

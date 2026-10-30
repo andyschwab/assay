@@ -9,7 +9,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
-import { isHalt } from './doctrine.mjs';
+import { isHalt, effectLeg } from './doctrine.mjs';
 import {
   findingsDir, coverageDir, scannersPath, yardstickPath as runYardstickPath,
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
@@ -179,8 +179,12 @@ function checkFinding(f, fileLabel, expectDim) {
   if (f.subject_type === 'capability') {
     const c = f.capabilities;
     if (!c || typeof c !== 'object' || Array.isArray(c)) err(at, `subject_type:capability requires a capabilities block`);
-    else for (const k of ['untrusted_input','private_data','external_effect'])
-      if (typeof c[k] !== 'boolean') err(at, `capabilities.${k} must be boolean`);
+    else {
+      for (const k of ['untrusted_input','private_data'])
+        if (typeof c[k] !== 'boolean') err(at, `capabilities.${k} must be boolean`);
+      // none | read | write (#172); the boolean a map wrote before still reads (true is write)
+      if (effectLeg(c) === null) err(at, `capabilities.external_effect must be none, read or write (or a boolean: true is write, false none)`);
+    }
   }
   // precondition vocab
   if (Array.isArray(f.preconditions)) for (const pc of f.preconditions)

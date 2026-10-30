@@ -38,6 +38,16 @@ export const isHaltClass = (e) => e.reversibility === 'irreversible' || e.extern
 // or a person's act that leaves no record.)
 export const isHalt = (e) => isHaltClass(e) && !gateHolds(e);
 
+// A capability's outward leg (#172): `none`, `read` (it reaches the outside world only to
+// fetch from it, so there is nothing out there it can send, publish or change) or `write`.
+// The boolean a map wrote before reads as before: true is write, false is none. Takes the
+// capabilities facet; anything else reads null, which the validator refuses.
+const EFFECT_LEGS = ['none', 'read', 'write'];
+export const effectLeg = (c) => {
+  const v = c && c.external_effect;
+  return v === true ? 'write' : v === false ? 'none' : EFFECT_LEGS.includes(v) ? v : null;
+};
+
 // ── severity ─────────────────────────────────────────────────────────────────
 // Severity is a carried property (a scanner's own label, never asserted by the
 // engine); this is only its display/sort order. Unrated sorts last.

@@ -9,12 +9,13 @@
 //   live      — reaches an unheld halt (a real, open path)
 //   held      — reaches an effect, but every one is currently held (guarded / read-only);
 //               shown with what holds it, because that control is load-bearing
-//   contained — an untrusted-input surface with NO power to act (external_effect: false),
+//   contained — an untrusted-input surface with NO power to act (external_effect: none, or
+//               read: it fetches from the outside world and changes nothing there, #172),
 //               a confirmed reason the obvious chain is closed
 // Plus `unresolved`: chain-critical values that could not be determined (a low-confidence
 // finding on a path, an unsure sink, an effect leg with no traced reach). Confidence
 // propagates: a chain riding a plausible/unverified finding is rendered "possible", not asserted.
-import { isHalt } from './doctrine.mjs';
+import { isHalt, effectLeg } from './doctrine.mjs';
 import { channelLabel } from '../lib/display.mjs';
 
 const PRECOND_RANK = {
@@ -135,8 +136,11 @@ export function buildChains(findings, channelNotes = {}) {
         entry: { id: entry.id, label: entryLabel },
         holds: heldEffects.map((e) => ({ id: e.id, label: label(e, sinkFallback(e)), by: holdReason(e.effect), confWord: confWord(e.confidence) })),
       });
-    } else if (entry.capabilities.external_effect === false) {
+    } else if (effectLeg(entry.capabilities) === 'none') {
       contained.push({ id: entry.id, label: entryLabel, why: 'holds no power to act' });
+    } else if (effectLeg(entry.capabilities) === 'read') {
+      // its outward leg only fetches (#172): contained for action, whatever it reads
+      contained.push({ id: entry.id, label: entryLabel, why: 'reads the outside world, acts on nothing' });
     } else {
       // an effect leg is present but no reached effect was traced — a missing edge, or truly inert
       unresolved.push({ kind: 'untraced-leg', id: entry.id, label: entryLabel,
