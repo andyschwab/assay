@@ -259,9 +259,12 @@ node assay.mjs since <run> --previous <prev-run>        # writes views/since.yam
 node assay.mjs compile <run> --since <prev-run>          # compiles every other view too
 ```
 
-Reads both runs' `yardstick.yaml` through `compare()` for the requirement-level
-story and both runs' findings through `compareFindings()` for which findings are
-new since the previous run and which are no longer found — schema and page
+Reads both runs' `yardstick.yaml`, plus the previous run's map measured by this
+engine (`projectRun`), through `compare()` for the requirement-level story, so a
+rule that changed between engines reads re-ruled, never as a move of the
+repository (#183). It reads both runs' findings through `compareFindings()` for
+which findings are new since the previous run and which are no longer found, apart
+from the scanners that ran in only one of the runs. The schema and page are
 documented in `views/README.md`, the one home of the Since view's shape. Compile
 with no `--since` writes neither file.
 
