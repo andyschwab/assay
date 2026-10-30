@@ -5,7 +5,9 @@
 // the identical path).
 //
 // Refuses to draw anything until every pinned tool is on PATH and answers at its pin
-// (`node assay.mjs tools verify`, #198): the tools are a precondition, never a skip.
+// (`node assay.mjs tools verify`, #198): the tools are a precondition, never a skip. A
+// refused run exits REFUSED_EXIT (3) with gate: refused and the tools not ready listed in
+// routine.yaml (#197).
 // Draws the map with the instruments assay runs offline on its own — repo-census,
 // fresh-clone, dependency-scan, structure-scan (in the two-job template, fresh-clone
 // and structure-scan run in the target job and the gate ingests their reports),
@@ -75,7 +77,7 @@ import { catGitFile, resolveGitRef } from '../yardstick/ratchet.mjs';
 import { gitHead, gitRemote } from '../map/repo-census.mjs';
 import { loadContradictions } from '../yardstick/measure.mjs';
 import { routinePath, scannersPath, mapDir } from '../lib/run-layout.mjs';
-import { toolsNotReady } from '../map/tools.mjs';
+import { toolsRefusal, REFUSED_EXIT } from '../map/tools.mjs';
 import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit, writeTargetHandoff } from '../map/start.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
@@ -150,6 +152,10 @@ export function toRoutineYaml(rec) {
   L.push(`gate: ${rec.gate}`);
   if (rec.failures.length) { L.push('failures:'); for (const f of rec.failures) L.push(`  - ${q(oneLineReason(f))}`); }
   else L.push('failures: []');
+  if ((rec.refused || []).length) {
+    L.push('refused:');
+    for (const r of rec.refused) L.push(`  - scanner: ${q(r.scanner)}`, `    bin: ${q(r.bin)}`, `    version: ${q(r.version)}`, `    status: ${r.status}`);
+  }
   L.push(`contradictions: ${rec.contradictions}`);
   L.push(`exit: ${rec.exit}`);
   return L.join('\n') + '\n';
@@ -170,7 +176,7 @@ export function runTargetSteps({ repoDir, handoffDir } = /** @type {any} */ ({})
 // runRoutine — the pure sequencing (spawns child processes; no process.exit of its
 // own), so it is both the CLI's body and the thing tests/blocks/routine.mjs calls
 // directly. Returns { ok, exitCode, log: [lines] }.
-export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, handoff, toolsCheck = () => toolsNotReady() } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, handoff, toolsCheck = () => toolsRefusal() } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const lines = [];
   const say = (s) => { lines.push(s); log(s); };
   repoDir = resolve(repoDir);
@@ -188,10 +194,10 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, 
   // never only a job that exited green or red in CI (the goal this record exists
   // for). baselineInfo defaults to "none" for the paths that never got far enough
   // to resolve one (validate/compile failing before the baseline is even looked at).
-  function finish({ ok, exitCode, gate, baselineInfo = /** @type {{ source: string, where?: string }} */ ({ source: 'none' }), failures = [] }) {
+  function finish({ ok, exitCode, gate, baselineInfo = /** @type {{ source: string, where?: string }} */ ({ source: 'none' }), failures = [], refused = [] }) {
     let contradictions = 0;
     try { contradictions = loadContradictions(outDir).length; } catch { /* no readable yardstick.yaml yet */ }
-    const record = { date: startDate, repository, commit, engine, trigger, baseline: baselineInfo, gate, failures, contradictions, exit: exitCode };
+    const record = { date: startDate, repository, commit, engine, trigger, baseline: baselineInfo, gate, failures, refused, contradictions, exit: exitCode };
     try { writeFileSync(routinePath(outDir), toRoutineYaml(record)); }
     catch (e) { say(`⚠ could not write routine.yaml: ${e.message}`); }
     return { ok, exitCode, log: lines };
@@ -209,12 +215,13 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, 
   // still gets written, with gate: not-run and the reason, rather than the run
   // directory carrying no record at all of what happened.
   // assay's pinned tools are a precondition, never a skip (#198): a runner that cannot field
-  // every adopted instrument draws no map, and the run says why (gate: not-run). `toolsCheck`
+  // every adopted instrument draws no map, and the run is refused with an outcome of its own
+  // (#197): exit REFUSED_EXIT, gate: refused, and the tools not ready as data. `toolsCheck`
   // is the seam a test drives; the CLI always checks the real PATH.
-  const notReady = toolsCheck();
-  if (notReady) {
-    say(`✗ ${notReady}`);
-    return finish({ ok: false, exitCode: 1, gate: 'not-run', failures: [notReady] });
+  const refusal = toolsCheck();
+  if (refusal) {
+    say(`✗ ${refusal.reason}`);
+    return finish({ ok: false, exitCode: REFUSED_EXIT, gate: 'refused', failures: [refusal.reason], refused: refusal.refused });
   }
 
   try {

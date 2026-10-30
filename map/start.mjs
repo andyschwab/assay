@@ -13,7 +13,7 @@
 // records (tests/blocks/routine.mjs pins this byte-for-byte).
 //
 // Usage: node assay.mjs start --out <run> [<target>] [--allow-exec]
-//   <target> given  — refuses (exit 1, nothing written) until every pinned tool is
+//   <target> given  — refuses (exit 3, nothing written: #197) until every pinned tool is
 //                      on PATH and answers at its pin (map/tools.mjs verify, #198);
 //                      then runs repo-census, dependency-scan (from scratch copies of
 //                      each lockfile, never the target's own configuration),
@@ -54,7 +54,7 @@ import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
 import { loadAdapters, adoptedAdapters } from './project.mjs';
-import { toolsNotReady } from './tools.mjs';
+import { toolsNotReady, REFUSED_EXIT } from './tools.mjs';
 import { scannersPath, findingsDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
@@ -389,7 +389,7 @@ function runCli() {
   // start draws nothing until every one is on PATH and answers at its pin.
   if (target) {
     const notReady = toolsNotReady();
-    if (notReady) { console.error(`✗ start refused: ${notReady}`); process.exit(1); }
+    if (notReady) { console.error(`✗ start refused: ${notReady}`); process.exit(REFUSED_EXIT); }
   }
 
   // map/findings/ is created even when nothing runs here (no target — every
