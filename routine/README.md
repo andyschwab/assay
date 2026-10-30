@@ -41,9 +41,9 @@ Every firing also writes `<run>/routine.yaml` (`lib/run-layout.mjs`'s
 gate held, so a fleet collector reading only the uploaded run artifact knows
 the outcome without going back to the CI logs. It is written as the very last
 step before `run.mjs` returns, on every path: a held or failed gate, a
-skipped one (no baseline yet), and — best effort — `gate: not-run` when
-`validate` or `compile` itself failed (or the routine hit an unexpected error)
-before a measurement even existed to gate on.
+skipped one (no baseline yet), a refused one (assay's own tools not ready), and —
+best effort — `gate: not-run` when `validate` or `compile` itself failed (or the
+routine hit an unexpected error) before a measurement even existed to gate on.
 
 ```yaml
 # routine.yaml — written by routine/run.mjs; the run's own record of what the routine did
@@ -56,9 +56,14 @@ trigger: "<GITHUB_EVENT_NAME when set: schedule | push | pull_request | workflow
 baseline:
   source: none | file | ref
   where: "<the file path or git ref; omitted when none>"
-gate: held | failed | skipped | not-run
+gate: held | failed | skipped | not-run | refused
 failures:          # the ratchet's failure lines, verbatim, one per entry; [] when none
   - "<line>"
+refused:           # only on gate: refused — each pinned tool not ready on this runner
+  - scanner: "<the adapter that pins it>"
+    bin: "<its command>"
+    version: "<the pinned version expected>"
+    status: absent | broken | other-version | unprepared
 contradictions: <count of contradictions in yardstick.yaml>
 exit: <the routine's exit code>
 ```
@@ -76,7 +81,12 @@ no baseline was found at all — which is exactly when `gate` reads `skipped`.
 exit 0 with a baseline in hand; `gate: not-run` means the gate never ran —
 validation or compile failed, the routine crashed, or the ratchet could not
 evaluate (exit 2: an unreadable baseline, a missing ref) — with the reason in
-`failures`. A reason is recorded on one line, capped at 400 characters (the full
+`failures`. `gate: refused` is exit 3, and only that: the runner could not field
+the adopted instruments' pinned tools, so no map was drawn (#197). `failures`
+carries the one-line reason and `refused` lists each tool not ready, so a
+consumer running the routine across many repositories reports "refused:
+gitleaks absent" and fixes it with `node assay.mjs tools install --role
+instrument`, never reading it as a failed measurement. A reason is recorded on one line, capped at 400 characters (the full
 output stays in the CI log). `failures` is read straight
 from the ratchet subprocess's own stderr — the lines `evaluateRatchet`
 already prints with a `✗ ` prefix, minus its one summary line — rather than
@@ -95,8 +105,8 @@ adopted instrument whose adapter carries `run:` (`map/scanners/CONTRACT.md` §3f
 Assay's own tools are a precondition, never a skip (#198): before it draws
 anything the routine checks that every tool an adopted adapter pins is on `PATH`
 and answers at its pin (`node assay.mjs tools verify --role instrument`), and when one is absent,
-broken or at another version it draws no map and fails, `gate: not-run` with the
-reason in `routine.yaml`. A scanner the target makes inapplicable is recorded
+broken or at another version it draws no map and is refused: exit 3, `gate:
+refused` and the tools not ready in `routine.yaml` (#197). A scanner the target makes inapplicable is recorded
 skipped with its reason, never silently as clean
 (`map/scanners/CONTRACT.md` §3a). `fresh-clone` executes the repository's own
 install and scripts; the routine runs it in place because its checkout is a

@@ -202,6 +202,17 @@ export function toolsNotReady(rows = verifyTools(instrumentTools())) {
   return `assay's pinned tools are not ready, so no map is drawn: ${bad.map((r) => `${r.scanner} (${r.status}: ${r.detail})`).join('; ')}. Install them with \`node assay.mjs tools install --dir <bin>\`, put <bin> on PATH, and confirm with \`node assay.mjs tools verify\``;
 }
 
+// A run that cannot field its instruments' tools is refused (#197), with an outcome of its
+// own: never exit 1 (a failed measurement or gate) or 2 (a usage error), so a consumer
+// running assay across many repositories can report "refused: <tool> missing" and fix it
+// with `tools install`. → null when every tool is ready, else the reason line and each tool
+// not ready as data.
+export const REFUSED_EXIT = 3;
+export function toolsRefusal(rows = verifyTools(instrumentTools())) {
+  const reason = toolsNotReady(rows);
+  return reason && { reason, refused: rows.filter((r) => r.status !== 'ready').map(({ scanner, bin, version, status }) => ({ scanner, bin, version, status })) };
+}
+
 // the latest upstream version of one tool, or null with why
 function latestOf(t) {
   const [kind, name] = String(t.upstream).split(/:(.+)/);

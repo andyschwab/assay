@@ -3,9 +3,9 @@
 //   (a) verify reads each pinned tool ready only when it is on PATH and, asked its
 //       version, exits 0 and prints the pin; absent, broken and another version are each
 //       named, and a version that only starts with the pin is another version;
-//   (b) the routine's gate step draws nothing when a tool is not ready: gate not-run, exit
-//       1, the reason in routine.yaml, and no run record (map/scanners.yaml);
-//   (c) `assay start <target>` refuses with the tools absent from PATH, exit 1, and writes
+//   (b) the routine's gate step draws nothing when a tool is not ready: refused (#197), the
+//       reason in routine.yaml, and no run record (map/scanners.yaml);
+//   (c) `assay start <target>` refuses with the tools absent from PATH, exit 3, and writes
 //       nothing; start with no target, which runs nothing, still starts;
 //   (d) the routine template and the engine's own CI install every pinned tool with
 //       `tools install`, verify them, and put them on PATH before anything runs, as a step
@@ -13,7 +13,7 @@
 import { readFileSync, existsSync, rmSync, mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { verifyTools, toolsNotReady, pinnedTools } from '../../map/tools.mjs';
+import { verifyTools, toolsNotReady, pinnedTools, REFUSED_EXIT } from '../../map/tools.mjs';
 import { runRoutine } from '../../routine/run.mjs';
 import { routinePath, scannersPath } from '../../lib/run-layout.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
@@ -51,10 +51,10 @@ export async function run() {
     // (b)
     const runDir = join(tmp, 'run');
     const target = join(HERE, 'instruments', 'fresh-clone-target');
-    const res = runRoutine({ repoDir: target, outDir: runDir, toolsCheck: () => 'planted: twotool (absent: twotool is not on PATH)' });
-    if (res.ok || res.exitCode !== 1) fail(`(b) the routine fails when a tool is not ready (got ok=${res.ok} exit=${res.exitCode})`);
+    const res = runRoutine({ repoDir: target, outDir: runDir, toolsCheck: () => ({ reason: 'planted: twotool (absent: twotool is not on PATH)', refused: [] }) });
+    if (res.ok || res.exitCode !== REFUSED_EXIT) fail(`(b) the routine is refused when a tool is not ready (got ok=${res.ok} exit=${res.exitCode})`);
     const rec = existsSync(routinePath(runDir)) ? readFileSync(routinePath(runDir), 'utf8') : '';
-    if (!/^gate: not-run$/m.test(rec) || !/planted: twotool/.test(rec)) fail(`(b) routine.yaml reads gate: not-run with the reason (got:\n${rec})`);
+    if (!/^gate: refused$/m.test(rec) || !/planted: twotool/.test(rec)) fail(`(b) routine.yaml reads gate: refused with the reason (got:\n${rec})`);
     if (existsSync(scannersPath(runDir))) fail('(b) no map is drawn: no run record is written');
 
     // (c) PATH holds only this node, so no pinned tool resolves
@@ -63,7 +63,7 @@ export async function run() {
     const env = { ...process.env, PATH: nodeOnly };
     const startRun = join(tmp, 'start-run');
     const s = spawnSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', startRun, target], { encoding: 'utf8', env });
-    if (s.status !== 1 || !/start refused: assay's pinned tools are not ready/.test(s.stderr) || existsSync(startRun)) fail(`(c) start refuses with the tools absent, exit 1, nothing written (got exit ${s.status}, ${existsSync(startRun) ? 'a run written' : 'nothing written'}: ${s.stderr.trim()})`);
+    if (s.status !== REFUSED_EXIT || !/start refused: assay's pinned tools are not ready/.test(s.stderr) || existsSync(startRun)) fail(`(c) start refuses with the tools absent, exit 3, nothing written (got exit ${s.status}, ${existsSync(startRun) ? 'a run written' : 'nothing written'}: ${s.stderr.trim()})`);
     const bare = spawnSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', join(tmp, 'bare-run')], { encoding: 'utf8', env });
     if (bare.status !== 0) fail(`(c) start with no target runs nothing, so it still starts (got exit ${bare.status}: ${bare.stderr.trim()})`);
 
