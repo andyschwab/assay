@@ -180,6 +180,7 @@ node assay.mjs ingest <run> --tool deep-code-review --raw dcr-report.yaml
 node assay.mjs record <run> practice-review ran --model <id>             # or record one directly (no report to ingest)
 #   a judgment scanner's review session starts from its lane, read-only (map/scanners/CONTRACT.md §3h):
 #   node assay.mjs lane <scanner> --name <Name> [--head <ref>] [--inputs-dir <path>]
+#   and once its outputs are collected: node assay.mjs validate <run> --target <checkout> --lane <scanner>
 #   --pass <pass> records the model (and --spend) of one practice-review pass
 #   either one measures an already-compiled run again (yardstick.yaml follows the map)
 node assay.mjs validate <run> [--target <target>]     # schema, ids, citations, run record; fails closed

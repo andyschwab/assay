@@ -847,6 +847,13 @@ and the prompt. Its frontmatter:
 - `inputs`: run files the lane reads that ran before it (a before-review record, an
   instrument's raw report). A lane with inputs is never seeded without `--inputs-dir`.
 
+The consumer collects what the session publishes into the run, records it ran (with its
+model), and checks it whole: `node assay.mjs validate <run> --target <checkout> --lane
+<scanner>` fails unless the scanner is recorded ran and every file the lane publishes is in
+the run, its citations resolving in the tree it reviewed. A lane can therefore never publish
+a partial run as complete. A plain `validate` does not ask, so a run drawn with fewer passes,
+or frozen before the lanes, still validates.
+
 A lane names no model and no operator: the consumer adds the model the session runs on and
 any authorization its sessions open with. Every command a lane spells out is a git read
 (`tests/blocks/lanes.mjs`). Where the scanner's own method says to run a script, the lane

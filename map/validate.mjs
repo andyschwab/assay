@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // assay findings validator — the format contract, enforced.
-// Usage:  node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>]
+// Usage:  node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>] [--lane <scanner>]
+//   --lane: the consumer's check after collecting a review lane's outputs (#201): every file the
+//   lane publishes is in the run, and the scanner is recorded ran; needs --target, so each
+//   citation is read against the tree.
 //   <run-dir> is a run root (…/runs/<slug>-<date>/) — findings live under its map/findings/.
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
@@ -78,7 +81,7 @@ function emptyCites(f, at) {
 
 // ── load findings ───────────────────────────────────────────────────────────
 const arg = process.argv[2];
-if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>]'); process.exit(2); }
+if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>] [--lane <scanner>]'); process.exit(2); }
 // Optional: verify every evidence path resolves to a real file in the TARGET repo.
 // Off by default so the validator stays portable (a run may be checked without the
 // target present); when --target is given it fails closed on a cited path that does
@@ -88,6 +91,10 @@ if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <t
 // `compile --target` all do.
 const tIdx = process.argv.indexOf('--target');
 const target = tIdx > -1 ? process.argv[tIdx + 1] : null;
+const lIdx = process.argv.indexOf('--lane');
+const laneOnly = lIdx > -1 ? process.argv[lIdx + 1] : null;
+if (lIdx > -1 && !laneOnly) { console.error('usage: --lane <scanner>, the judgment scanner whose collected lane outputs this checks'); process.exit(2); }
+if (laneOnly && !target) { console.error(`✗ assay validate --lane ${laneOnly}: a collected lane is checked against the target it read (--target <checkout>): its citations must resolve there`); process.exit(2); }
 const runDir = arg;
 const evalDir = findingsDir(runDir);   // map/findings/ — every reader/writer uses this one path
 if (!existsSync(evalDir)) { console.error(`no such dir: ${evalDir}`); process.exit(2); }
@@ -276,6 +283,22 @@ for (const file of passFiles) {
           }
         }
         for (const src of sourcesSeen) if (!m.scanners[src]) err(`${MANIFEST_FILE}:${src}`, `the base carries rows from ${src} but the manifest records no disposition for it`);
+        // a review lane's coverage is every file it publishes (#201): a lane recorded ran with an
+        // output missing decided less than its record says. The consumer's --lane check after
+        // collecting refuses it. A plain validate does not ask: a run drawn with fewer passes, or
+        // frozen before the lanes, still validates.
+        if (laneOnly) {
+          const { lanes, readLane } = await import('./lane.mjs');
+          const all = lanes(ADAPTERS);
+          if (laneOnly && !all.some((l) => l.scanner === laneOnly)) err(`${MANIFEST_FILE}:${laneOnly}`, `--lane names no review lane (lanes: ${all.map((l) => l.scanner).join(', ')})`);
+          for (const l of all.filter((x) => x.scanner === laneOnly)) {
+            const row = m.scanners[l.scanner];
+            if (!row || row.status !== 'ran') { err(`${MANIFEST_FILE}:${l.scanner}`, `the lane was collected but is not recorded ran: node assay.mjs record ${runDir} ${l.scanner} ran --model <id>`); continue; }
+            const outputs = String(readLane(l.file).meta.outputs || '').split(/\s+/).filter(Boolean);
+            const missing = outputs.filter((o) => !existsSync(join(runDir, o)));
+            if (missing.length) err(`${MANIFEST_FILE}:${l.scanner}`, `the ${l.scanner} lane is recorded ran, but ${missing.length} of the ${outputs.length} files it publishes are not in the run (${missing.join(', ')}): collect them, or record what did not run`);
+          }
+        }
         // coverage sidecars (map/coverage/<scanner>.yaml): a scanner's own per-domain
         // account. Complete against the adapter's coverage_domains, and only for a
         // scanner the manifest records as ran — a partial account of a run that did
