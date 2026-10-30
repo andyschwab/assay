@@ -282,9 +282,10 @@ for (const file of passFiles) {
               else if (bare.length)
                 warn(at, `no model: recorded for pass(es) ${bare.join(', ')} of a judgment scanner — a repeat cannot separate model drift from method drift`);
             }
-            const explicitFile = passFiles.includes(`${id}.yaml`);
+            // the built-in scanner writes one file per pass, so its explicit clean record is its pass files
+            const explicitFile = passFiles.includes(`${id}.yaml`) || (id === 'practice-review' && passFiles.some(isPracticeReviewPassFile));
             if (!sourcesSeen.has(id) && !explicitFile)
-              err(at, `status ran, but the base carries no rows from ${id} and no map/findings/${id}.yaml (a verified-clean run writes an explicit empty file — fail loud, never empty); if it did not run, record that: node assay.mjs record ${runDir} ${id} skipped --reason "<why>"`);
+              err(at, `status ran, but the base carries no rows from ${id} and no map/findings/${id}.yaml${id === 'practice-review' ? ' or practice-review-<pass>.yaml' : ''} (a verified-clean run writes an explicit empty file — fail loud, never empty); if it did not run, record that: node assay.mjs record ${runDir} ${id} skipped --reason "<why>"`);
             if (ADAPTERS[id].role !== 'instrument' && id !== 'practice-review' && !existsSync(nativeReportPath(runDir, id)))
               warn(at, `peer scanner ran but the run carries no native report map/native/${id}.md — its port rows are the only record; the package lists no appendix for it`);
           } else if (sourcesSeen.has(id)) {
