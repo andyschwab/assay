@@ -17,6 +17,9 @@ role: judgment
 # the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
 fails_loud: dcr-machine-report
 method: dcr
+# the review session's seed body (map/lane.mjs, `assay lane deep-code-review`; #201): read-only,
+# reading the results that ran before it
+lane: deep-code-review/lane.md
 ingest:
   format: machine-report
   tool: deep-code-review

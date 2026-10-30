@@ -11,6 +11,8 @@ role: judgment
 # the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
 fails_loud: negative-fixtures
 method: practice-review
+# the review session's seed body (map/lane.mjs, `assay lane practice-review`; #201): read-only
+lane: practice-review/lane.md
 
 # The axes this scanner contributes: its own measure exists there (the seven
 # dimension passes, each with its census/coverage machinery). It contributes no

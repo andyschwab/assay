@@ -21,6 +21,7 @@ const GROUPS = [
     'validate': ['map/validate.mjs', 'check a run: schema, ids, citations, the run record; fails closed'],
     'ingest': ['map/ingest.mjs', "turn a scanner's output into findings in a run"],
     'record': ['map/record.mjs', "set one scanner's disposition in the run record"],
+    'lane': ['map/lane.mjs', "a judgment scanner's review lane, filled in for one target: the read-only seed body a review session starts from (the consumer adds the model)"],
     'tools': ['map/tools.mjs', "install the external tools the adopted adapters pin, checksum-verified (install [--dir <bin>]); say whether each is on PATH and answering at its pin, which start and the routine require (verify); or list each pin against its latest release (check)"],
     'migrate-run': ['map/migrate-run.mjs', 'bring a run an earlier engine drew forward: rename a retired scanner id, quote the flow lists the strict reader refuses (--write to rewrite)'],
     'enumerate': ['map/enumerate.mjs', 'list the populations a run must cover, and gate on coverage'],
