@@ -63,7 +63,7 @@ refused:           # only on gate: refused — each pinned tool not ready on thi
   - scanner: "<the adapter that pins it>"
     bin: "<its command>"
     version: "<the pinned version expected>"
-    status: absent | broken | other-version | unprepared
+    status: absent | broken | other-version
 contradictions: <count of contradictions in yardstick.yaml>
 exit: <the routine's exit code>
 ```

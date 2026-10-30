@@ -790,12 +790,10 @@ them too (#196). The core reads the blocks and names no tool:
   download whose sum differs is refused, naming both sums, and nothing is installed.
 - or `pypi`: a package installed at the pinned version into its own environment, for
   a tool whose dependencies cannot be pinned by sum here.
-- `prepare` (optional): a list of `{ args }`, each run with the installed tool in an
-  empty scratch directory once it is installed, and again at every install: the state
-  the tool reads offline, such as a vulnerability database or a rule bundle. A prepare
-  that fails fails the install.
-- `ready` (optional): args whose exit 0, run in an empty scratch directory, says that
-  state is there; verify reads the tool `unprepared` otherwise.
+
+A pinned tool is its binary. Nothing here prepares state beside it (a database or a
+rule bundle fetched after install), and a block carrying `prepare` or `ready` is a
+problem of the block: a tool that needs such state reads it from the run's inputs.
 
 A tool already installed at its pin (the stamp beside the binaries, its sum still
 matching) is left as it is, and a platform with no pinned artifact fails the install.
@@ -803,10 +801,10 @@ matching) is left as it is, and a platform with no pinned artifact fails the ins
 The pinned tools are a precondition of a measurement, never one of its results
 (#198). `node assay.mjs tools verify` reads each one ready only when it is on PATH
 and, asked its version (the adapter's `run.version`, else `--version`), exits 0
-and prints the pin, and its `ready` check, where it has one, exits 0. `assay start
+and prints the pin. `assay start
 <target>` and the routine's gate step refuse to draw a map until every tool the run
 executes is ready (`--run`: the instruments' tools, and each tool a review reads that
-runs before it), naming each that is absent, broken, unprepared or at another version.
+runs before it), naming each that is absent, broken or at another version.
 
 A judgment scanner's review executes nothing (#201). A `tools:` entry with
 `before_review:` is run by the deterministic phase (`assay start`, the routine), never by
