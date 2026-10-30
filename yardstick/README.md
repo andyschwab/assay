@@ -75,12 +75,21 @@ finding, never silently overwritten.
 | `title` | the requirement, one sentence, no stack in it |
 | `tier` | the order to fix things when taking a repository on, which is also the order of irreversibility: custody, safety, reproducibility, verification, legibility, operability (the file's `tiers:` list) |
 | `topic` | what part of the code it is about: an axis of the roster (`map/project.mjs`), or custody, reproducibility or operability, which no scanner measures as an axis. Improve groups by topic |
-| `tags` | which view reads it: `floor` (Intake: the bar for taking a repository on), `fleet` (Maintain: what a steward's routines read), `ai-operating` (the model-call layer) |
+| `tags` | which view reads it: `floor` (Intake: the bar for taking a repository on), `fleet` (Maintain: what a steward's routines read), `ai-operating` (the model-call layer). Every row in the register carries at least one, so no measured row is read by Owner alone |
+| `harm` | on a `floor` row, and only there: what its gap can harm, from the file's closed `harms:` list (`data`, `people`, `money`, `recovery`). `owner.risk` says how, in plain words. A row with no harm to name is valuable and measured, and lives beyond the floor |
 | `decide` | the deciding mechanism, one of four kinds below |
 | `check` | the proving check: what shows the requirement met |
 | `sources` | where the row was extracted from, as `<kind>/<slug>`: `floor/` a takeover floor, `manifest/` a template's guarantee manifest, `foundation/` a foundation template's rules, `takeover-eval/` and `template-eval/` evaluations of real repositories (never named), `method/` this method, `scanner-candidates/` the scanner roster, `issue/` an assay issue. Every row has one: requirements are extracted from practice, not designed |
 | `status` | draft, stable or deprecated: the row's own lifecycle |
 | `owner` | a nested `{ risk, fix }` block for the Owner view (`views/owner.mjs`, `OWNER.md`): `risk` is what could happen to the app's owner if the requirement stays unmet — consequence to a person first, plain words, a term explained in a short clause the first time, no stack names, no tool names, one or two sentences; `fix` is the next thing to do, one sentence, actionable by the owner's own AI. Never a score, a grade, or a severity word — the tier already carries the priority. Required on every row |
+
+**The floor.** A row is `floor` when its gap can cause harm to data, to people, to
+money or to recovery (#161), and it names which in `harm`. Quality that makes work
+faster or safer to change, but harms nothing by its absence, is valuable and
+measured, and lives beyond the floor: Maintain reads it through `fleet`, and Owner
+lists it beyond the floor. This says which view reads a row, never a severity: the
+map still states what is (`CLAUDE.md` rule 1). `measure.mjs` refuses a floor row
+with no harm, and a harm on a row beyond the floor.
 
 A row that exists because one operator's tooling reads it names that consumer in
 its own text (a `consumer:` field or a sentence) and is phrased for any operator;

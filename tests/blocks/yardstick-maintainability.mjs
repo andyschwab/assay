@@ -1,7 +1,8 @@
 // ── two code-maintainability rows a structure-scan run decides (#110) ─────────
 // d-no-drifting-duplicates (structure-scan `duplicate`) and d-no-dead-code
 // (structure-scan `unused` and `stale-artifact`) are instrument rows on the
-// code-maintainability topic, floor and fleet. Pinned on synthetic rows shaped like
+// code-maintainability topic, read by fleet and beyond the floor (#161: quality that speeds
+// work, which harms nothing by its absence, leaves the floor). Pinned on synthetic rows shaped like
 // map/ingest.mjs's structure-scan profile:
 //   (a) the register carries both, as instrument rows of structure-scan, with
 //       owner.risk / owner.fix; d-one-home-per-fact stays a claim and its check names
@@ -14,7 +15,7 @@
 //   (d) knip's unused files, exports, types and members decide d-no-dead-code only
 //       when the target configures knip (#121); unconfigured they stay rows flagged
 //       detail.unconfigured, and an unused dependency decides it either way;
-//   (c) Owner renders each row's risk and fix, and Intake lists each with its check.
+//   (c) Owner renders each row's risk and fix beyond the floor, and Intake, which reads the floor only, lists neither.
 import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -38,7 +39,7 @@ export async function run() {
     if (d.decide.kind !== 'instrument' || d.decide.scanner !== 'structure-scan' || got.join(',') !== cats.join(','))
       fail(`${id} must be decided by structure-scan category ${cats.join(' + ')} (got ${d.decide.kind} ${d.decide.scanner} ${got.join(',')})`);
     if (d.tier !== 'legibility' || d.topic !== 'code-maintainability') fail(`${id} must be tier legibility, topic code-maintainability (got ${d.tier}, ${d.topic})`);
-    if (!['floor', 'fleet'].every((t) => (d.tags || []).includes(t))) fail(`${id} must be tagged floor and fleet (got ${(d.tags || []).join(',')})`);
+    if (!(d.tags || []).includes('fleet') || (d.tags || []).includes('floor')) fail(`${id} must be tagged fleet and not floor (#161) (got ${(d.tags || []).join(',')})`);
     if (!String(d.owner?.risk || '').trim() || !String(d.owner?.fix || '').trim()) fail(`${id} must carry owner.risk and owner.fix`);
   }
   if (!/50 tokens/.test(String(byId['d-no-drifting-duplicates']?.check || ''))) fail('d-no-drifting-duplicates states its own clone threshold (50 tokens) in check');
@@ -114,7 +115,7 @@ export async function run() {
 
   // (c) the notesbox fixture records structure-scan skipped: measured and compiled, both
   // rows read not-measured with that reason; Owner carries each row's risk and fix and
-  // renders them when the row is open; Intake lists each under To run with its check
+  // renders them beyond the floor when the row is open; Intake, the floor only, lists neither (#161)
   const tmp = join(HERE, 'tmp-yardstick-maintainability'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('notesbox', tmp);
   copyFixtureScanners('notesbox', tmp);
@@ -127,17 +128,16 @@ export async function run() {
   const intakePage = existsSync(join(tmp, 'INTAKE.md')) ? readFileSync(join(tmp, 'INTAKE.md'), 'utf8') : '';
   const toRun = intakePage.split('## To run')[1]?.split('\n## ')[0] || '';
   for (const id of Object.keys(want)) {
-    const o = built?.floor.not_measured.find((x) => x.id === id);
-    if (!o || !/structure-scan skipped/.test(String(o.reason))) fail(`Owner must read ${id} could-not-tell with the run record's reason (got ${o ? o.reason : 'no row'})`);
+    const o = built?.beyond_floor.not_measured.find((x) => x.id === id);
+    if (!o || !/structure-scan skipped/.test(String(o.reason))) fail(`Owner must read ${id} beyond the floor, could-not-tell with the run record's reason (got ${o ? o.reason : 'no row'})`);
     else if (o.risk !== byId[id].owner.risk || o.fix !== byId[id].owner.fix) fail(`Owner must carry ${id}'s risk and fix from the register`);
-    const line = toRun.split('\n').find((l) => l.includes(`**${id}**`)) || '';
-    if (!line.includes(`Proving check: ${byId[id].check}`)) fail(`INTAKE.md must list ${id} under To run with its proving check (got: ${line || 'no line'})`);
+    if (toRun.includes(`**${id}**`)) fail(`INTAKE.md reads the floor only, so ${id} is not under To run (#161)`);
   }
   if (built) {
-    const open = Object.keys(want).map((id) => ({ ...built.floor.not_measured.find((x) => x.id === id), status: 'unmet' })).filter((x) => x.id);
+    const open = Object.keys(want).map((id) => ({ ...built.beyond_floor.not_measured.find((x) => x.id === id), status: 'unmet' })).filter((x) => x.id);
     const empty = { open: [], not_measured: [], met: [], not_applicable: [] };
-    const page = ownerView.renderMd('run', { floor: { ...empty, open }, beyond_floor: empty, not_looked_at: [] }, { name: 'app', date: '2026-10-05' });
-    for (const id of Object.keys(want)) if (!page.includes(`What could happen: ${byId[id].owner.risk}`) || !page.includes(`What to do: ${byId[id].owner.fix}`)) fail(`OWNER.md must render ${id}'s risk and fix when it is open`);
+    const page = ownerView.renderMd('run', { floor: empty, beyond_floor: { ...empty, open }, not_looked_at: [] }, { name: 'app', date: '2026-10-05' });
+    for (const id of Object.keys(want)) if (!page.includes(byId[id].owner.risk) || !page.includes(`What to do: ${byId[id].owner.fix}`)) fail(`OWNER.md must render ${id}'s risk and fix beyond the floor when it is open`);
   }
   rmSync(tmp, { recursive: true, force: true });
 }

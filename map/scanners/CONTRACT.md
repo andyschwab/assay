@@ -423,9 +423,9 @@ node assay.mjs ingest <run-dir> --tool dependency-scan --raw dependency-scan.jso
 
 ### 3d. The repo-census instrument (`map/repo-census.mjs`)
 
-**What it measures.** Four floor rows a run could not decide before except by an
+**What it measures.** Four rows a run could not decide before except by an
 LLM-authored census (`d-architecture-page`, `d-agent-contract`, `d-runbook`,
-`d-ci-gate-on-default-branch`), decided deterministically from the tree, read-only,
+`d-ci-gate-on-default-branch`; the first beyond the floor since #161, the other three floor), decided deterministically from the tree, read-only,
 offline, zero deps, plus six owner-evidence transcript checks (below). Four
 tree checks:
 
