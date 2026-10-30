@@ -65,6 +65,7 @@ planted:
   - id: P-07
     class: effects-vs-reports
     axis: verification
+    also_axes: [code-correctness]
     polarity: gap
     evidence: lib/sync.mjs:12
     detectable_by: [practice-review, dcr]
@@ -72,7 +73,9 @@ planted:
       pushBackup fires the backup POST fire-and-forget (not awaited) and swallows any
       failure with .catch(() => {}), then returns { ok: true } unconditionally. It
       reports success while the effect may have dropped — a half-reliable integration
-      that trusts a return value it never checked.
+      that trusts a return value it never checked. A code scanner files it as a reliability
+      defect (code-correctness): a dropped failure is a correctness bug as well as an
+      unverified effect, so either home recovers it (assay #168).
 
   - id: P-05
     class: stale-doc

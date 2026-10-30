@@ -9,12 +9,11 @@
 //     and the report carries no local path;
 //   • the stored rows are the converter's own output over the archived report;
 //   • scored on the scanner's rows alone, the dcr items recover on their axis:
-//     P-02, P-03, P-04 over flawed-webapp and R-02 at the root. P-07 (effects vs
-//     reports) is pinned as it reads today: the scanner files the swallowed backup
-//     push in domain F, which the adapter routes to code-correctness, while the sheet
-//     homes the item on verification only. The run still recovers P-07 through the
-//     built-in method; whether the sheet should list code-correctness in P-07's
-//     also_axes is an open question (#168), not papered over.
+//     P-02, P-03, P-04 and P-07 over flawed-webapp and R-02 at the root. P-07 (effects
+//     vs reports) recovers on code-correctness: the scanner files the swallowed backup
+//     push in domain F, which the adapter routes there, and the sheet lists
+//     code-correctness in P-07's also_axes beside verification (#168, decided by the
+//     owner: a dropped failure is a correctness defect as well as an unverified effect).
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
@@ -25,7 +24,7 @@ import { HERE, negFailures, convert, adaptersOnce } from '../harness.mjs';
 export const label = 'dcr-fixture-runs';
 
 const RUNS = [
-  { key: 'notesbox', target: 'flawed-webapp', recovered: ['P-02', 'P-03', 'P-04'], misHomed: { 'P-07': { native: 'F9', axis: 'code-correctness' } } },
+  { key: 'notesbox', target: 'flawed-webapp', recovered: ['P-02', 'P-03', 'P-04', 'P-07'], misHomed: {} },
   { key: 'fixtures-root', target: 'assay-fixtures', recovered: ['R-02'], misHomed: {} },
 ];
 
