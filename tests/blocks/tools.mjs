@@ -6,15 +6,16 @@
 //   (d) a platform with no pinned artifact reads unsupported, never installed;
 //   (e) every adopted adapter that runs an external binary pins it in a well-formed tool:
 //       block, at its verified_against where it has one;
-//   (f) check reads a newer upstream as behind, and an unreadable one as unknown, never current;
-//   (g) the gitleaks CI installs is the adapter's pin: one version and one sum, never two.
+//   (f) check reads a newer upstream as behind, and an unreadable one as unknown, never current.
+// That CI and the routine template install from these pins, and carry none of their own, is
+// tests/blocks/tools-precondition.mjs (#198).
 import { mkdirSync, writeFileSync, rmSync, existsSync, statSync, readFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { installTool, pinnedTools, toolBlockProblems, checkTools } from '../../map/tools.mjs';
 import { loadAdapters } from '../../map/project.mjs';
-import { HERE, ROOT, negFailures } from '../harness.mjs';
+import { HERE, negFailures } from '../harness.mjs';
 
 export const label = 'tools';
 
@@ -65,10 +66,5 @@ export async function run() {
     // (f)
     const rows = checkTools([tar, whl], (t) => (t.bin === 'faketool' ? { latest: '1.1.0' } : { latest: null, why: 'unreadable' }));
     if (rows[0].status !== 'behind' || rows[1].status !== 'unknown') fail(`(f) a newer upstream is behind and an unreadable one unknown (got ${rows.map((r) => r.status).join(', ')})`);
-    // (g)
-    const ci = readFileSync(join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
-    const ciVersion = (ci.match(/GITLEAKS_VERSION:\s*'([^']+)'/) || [])[1], ciSum = (ci.match(/GITLEAKS_SHA256:\s*'([0-9a-f]{64})'/) || [])[1];
-    const gl = pinned.get('gitleaks');
-    if (!gl || ciVersion !== String(gl.version) || ciSum !== gl.fetch?.['linux-x64']?.sha256) fail(`(g) ci.yml installs gitleaks ${ciVersion} (${ciSum}); the adapter pins ${gl?.version} (${gl?.fetch?.['linux-x64']?.sha256})`);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }

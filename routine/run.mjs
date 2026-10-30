@@ -4,11 +4,12 @@
 // Actions template and a steward's own terminal call, so CI and a local run take
 // the identical path).
 //
+// Refuses to draw anything until every pinned tool is on PATH and answers at its pin
+// (`node assay.mjs tools verify`, #198): the tools are a precondition, never a skip.
 // Draws the map with the instruments assay runs offline on its own — repo-census,
 // fresh-clone, dependency-scan, structure-scan (in the two-job template, fresh-clone
-// and structure-scan run in the target job and the gate ingests their reports);
-// gitleaks only when its
-// binary is present — records
+// and structure-scan run in the target job and the gate ingests their reports),
+// gitleaks and the adapter-run instruments — records
 // every adopted scanner that did NOT run as skipped or failed with a reason
 // (CLAUDE.md rule 3: fail loud, never empty; nothing compiles without a reason),
 // validates, compiles the package (folding in the repository's own packet/
@@ -74,6 +75,7 @@ import { catGitFile, resolveGitRef } from '../yardstick/ratchet.mjs';
 import { gitHead, gitRemote } from '../map/repo-census.mjs';
 import { loadContradictions } from '../yardstick/measure.mjs';
 import { routinePath, scannersPath, mapDir } from '../lib/run-layout.mjs';
+import { toolsNotReady } from '../map/tools.mjs';
 import { drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml as toScannersYamlBase, engineCommit, writeTargetHandoff } from '../map/start.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
@@ -168,7 +170,7 @@ export function runTargetSteps({ repoDir, handoffDir } = /** @type {any} */ ({})
 // runRoutine — the pure sequencing (spawns child processes; no process.exit of its
 // own), so it is both the CLI's body and the thing tests/blocks/routine.mjs calls
 // directly. Returns { ok, exitCode, log: [lines] }.
-export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, handoff } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, handoff, toolsCheck = () => toolsNotReady() } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const lines = [];
   const say = (s) => { lines.push(s); log(s); };
   repoDir = resolve(repoDir);
@@ -206,6 +208,15 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, 
   // — before it ever reaches a compiled measurement to gate on — routine.yaml
   // still gets written, with gate: not-run and the reason, rather than the run
   // directory carrying no record at all of what happened.
+  // assay's pinned tools are a precondition, never a skip (#198): a runner that cannot field
+  // every adopted instrument draws no map, and the run says why (gate: not-run). `toolsCheck`
+  // is the seam a test drives; the CLI always checks the real PATH.
+  const notReady = toolsCheck();
+  if (notReady) {
+    say(`✗ ${notReady}`);
+    return finish({ ok: false, exitCode: 1, gate: 'not-run', failures: [notReady] });
+  }
+
   try {
   // The routine's own repoDir is already a fresh CI checkout (or --base-ref's
   // working tree), so fresh-clone runs with --no-clone (in place) — exactly as

@@ -158,7 +158,7 @@ dependency, for `npm run typecheck` (checkJs over the engine's modules) beside
 ```sh
 node assay.mjs help                                   # every command, grouped map / yardstick / views
 
-# draw the map — one command makes the run, runs every offline instrument, and
+# draw the map (once tools verify passes) — one command makes the run, runs every offline instrument, and
 # records every other adopted scanner skipped, with how to record it once it runs.
 # fresh-clone executes the target's code, so it runs only under --allow-exec:
 # pass it in a disposable container or VM. It clones the target, so it needs a
@@ -167,8 +167,10 @@ node assay.mjs start --out <run> <target> [--allow-exec]
 
 # the external tools the adopted adapters pin (map/scanners/CONTRACT.md §3g), each
 # checksum-verified; run it from an environment's setup script so every session, and
-# every child review session, starts with them on PATH
+# every child review session, starts with them on PATH. They are a precondition, never
+# a skip: start <target> and the routine refuse to draw a map until verify passes
 node assay.mjs tools install [--dir ~/.local/bin]
+node assay.mjs tools verify                           # each pinned tool on PATH, answering at its pin
 
 #   practice-review: open map/METHOD.md as the opening context of a coding-agent session
 #   pointed at the target repository; it drives the passes

@@ -1,9 +1,11 @@
 // tools.mjs — install the external tools the adopted adapters pin, and say which are behind (#189).
 //
-// An instrument absent from PATH is recorded skipped with its install line, which is
-// loud and right; but a session that cannot fetch and run a release binary itself, and
-// every child review session beside it, needs the tools installed before it starts, from
-// an environment's setup script. Each adapter that drives an external tool says what to
+// The tools are a precondition of a measurement, never one of its results (#198): a run
+// that cannot field every adopted instrument does not start. `verify` says whether each
+// pinned tool is on PATH and answers `--version` with its pin; the routine's gate step and
+// `assay start <target>` refuse to draw a map until it does. A session, and every child
+// review session beside it, installs them before it starts (an environment's setup
+// script, a workflow step). Each adapter that drives an external tool says what to
 // install in a `tool:` block (map/scanners/CONTRACT.md §3g), and nothing here names a
 // tool (CLAUDE.md rule 7):
 //   tool.bin        the command the adapter runs
@@ -19,6 +21,7 @@
 // matching) is left as it is.
 //
 // Usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>]   (default ~/.local/bin)
+//        node assay.mjs tools verify                                          (each pin on PATH and answering)
 //        node assay.mjs tools check [--json]                                  (pinned against latest)
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync, copyFileSync, mkdtempSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -37,7 +40,7 @@ const has = (cmd) => sh('sh', ['-c', `command -v ${cmd}`]).status === 0;
 export function pinnedTools(adapters = loadAdapters()) {
   return Object.entries(adapters)
     .filter(([, a]) => a && a.tool && a.adopted !== false && !a.retired)
-    .map(([scanner, a]) => ({ scanner, verified: a.verified_against ?? null, ...a.tool }))
+    .map(([scanner, a]) => ({ scanner, verified: a.verified_against ?? null, versionArgs: (a.run && a.run.version) || ['--version'], ...a.tool }))
     .sort((x, y) => x.scanner.localeCompare(y.scanner));
 }
 
@@ -121,6 +124,36 @@ export function installTool(t, dir, { platform = platformKey(), fetch = curl } =
   finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
+// one tool as this machine runs it: the bin PATH resolves, and what it says asked its version
+// (the adapter's run.version args, else --version)
+const answerOf = (t) => {
+  if (!has(t.bin)) return { found: false };
+  const r = sh(t.bin, t.versionArgs || ['--version'], { timeout: 60000 });
+  return { found: true, exit: r.status, output: `${r.stdout || ''}${r.stderr || ''}`.trim() };
+};
+
+// every pinned tool ready to run → one row per tool: ready | absent | broken | other-version.
+// Ready is on PATH, asked its version exits 0 and prints the pinned one; anything else names
+// what it found. `answer` is the seam a test drives without the tools themselves.
+export function verifyTools(tools = pinnedTools(), answer = answerOf) {
+  const v = (t) => String(t.version).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return tools.map((t) => {
+    const a = answer(t);
+    const row = (status, detail) => ({ scanner: t.scanner, bin: t.bin, version: String(t.version), status, detail });
+    if (!a.found) return row('absent', `${t.bin} is not on PATH`);
+    if (a.exit !== 0) return row('broken', `${t.bin} ${(t.versionArgs || ['--version']).join(' ')} exited ${a.exit}: ${String(a.output).split('\n').pop() || '(no output)'}`);
+    if (!new RegExp(`(^|[^\\d.])v?${v(t)}($|[^\\d.])`).test(a.output)) return row('other-version', `${t.bin} ${(t.versionArgs || ['--version']).join(' ')} says ${JSON.stringify(String(a.output).split('\n')[0])}, not ${t.version}`);
+    return row('ready', `${t.bin} ${t.version}`);
+  });
+}
+
+// the one line a run that refuses to start prints and records, or null when every tool is ready
+export function toolsNotReady(rows = verifyTools()) {
+  const bad = rows.filter((r) => r.status !== 'ready');
+  if (!bad.length) return null;
+  return `assay's pinned tools are not ready, so no map is drawn: ${bad.map((r) => `${r.scanner} (${r.status}: ${r.detail})`).join('; ')}. Install them with \`node assay.mjs tools install --dir <bin>\`, put <bin> on PATH, and confirm with \`node assay.mjs tools verify\``;
+}
+
 // the latest upstream version of one tool, or null with why
 function latestOf(t) {
   const [kind, name] = String(t.upstream).split(/:(.+)/);
@@ -157,17 +190,22 @@ if (isMain(import.meta.url)) {
     let bad = 0;
     for (const t of tools) {
       const r = installTool(t, dir);
-      if (r.status === 'failed') bad++;
+      // unsupported is not installed: a platform with no pinned artifact cannot run the routine
+      if (r.status === 'failed' || r.status === 'unsupported') bad++;
       console.log(`${r.status === 'failed' ? '✗' : r.status === 'unsupported' ? '·' : '✓'} ${r.scanner} (${r.bin}): ${r.status}, ${r.detail}`);
     }
     if (!process.env.PATH.split(':').includes(dir)) console.log(`note: ${dir} is not on PATH; add it so the instruments find their tools`);
     process.exit(bad ? 1 : 0);
+  } else if (sub === 'verify') {
+    const rows = verifyTools(tools);
+    for (const r of rows) console.log(`${r.status === 'ready' ? '✓' : '✗'} ${r.scanner} (${r.bin}): ${r.status}, ${r.detail}`);
+    process.exit(rows.every((r) => r.status === 'ready') ? 0 : 1);
   } else if (sub === 'check') {
     const rows = checkTools(tools);
     if (args.includes('--json')) console.log(JSON.stringify(rows, null, 1));
     else for (const r of rows) console.log(`${r.status.padEnd(8)} ${r.scanner} (${r.bin}): pinned ${r.pinned}, latest ${r.latest ?? '?'}${r.why ? ` — ${r.why}` : ''}`);
   } else {
-    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>]\n       node assay.mjs tools check [--json]');
+    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>]\n       node assay.mjs tools verify [--only <scanner>]\n       node assay.mjs tools check [--json]');
     process.exit(2);
   }
 }
