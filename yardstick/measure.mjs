@@ -32,7 +32,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { censusesPath, yardstickPath, ownerDir, packetManifestPath } from '../lib/run-layout.mjs';
-import { isHalt, isHaltClass, gateHolds, isMain } from '../map/doctrine.mjs';
+import { isHalt, isHaltClass, gateHolds, effectLeg, isMain } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 import { loadPacket, validatePacket, decidePacketClaim } from './packet.mjs';
 
@@ -185,11 +185,15 @@ function byFacet(d, fs) {
   if (r === 'trifecta') {
     const caps = fs.filter((f) => f.subject_type === 'capability' && f.capabilities);
     if (!caps.length) return row('not-measured', 'facet', [], 'no capability findings in the base (no AI surface enumerated)');
-    const full = caps.filter((f) => f.capabilities.untrusted_input && f.capabilities.private_data && f.capabilities.external_effect);
+    // the full trifecta's outward leg acts on the outside world; one that only reads from it
+    // (#172) is counted on its own and never makes the trifecta
+    const legs = (f) => f.capabilities.untrusted_input && f.capabilities.private_data;
+    const full = caps.filter((f) => legs(f) && effectLeg(f.capabilities) === 'write');
+    const readOnly = caps.filter((f) => legs(f) && effectLeg(f.capabilities) === 'read');
     const byId = new Map(fs.map((f) => [f.id, f]));
     const bad = full.filter((f) => (f.reaches ?? []).some((id) => { const t = byId.get(id); return t?.effect && isHalt(t.effect); }));
     const status = !full.length ? 'met' : bad.length ? 'unmet' : 'mixed';
-    return row(status, 'facet', full.map((f) => f.id), `${caps.length} AI surface(s); ${full.length} hold the full trifecta; ${bad.length} reach an effect with no gate that holds`, { met: caps.length - full.length, of: caps.length });
+    return row(status, 'facet', full.map((f) => f.id), `${caps.length} AI surface(s); ${full.length} hold the full trifecta; ${readOnly.length} read the outside world only; ${bad.length} reach an effect with no gate that holds`, { met: caps.length - full.length, of: caps.length });
   }
   throw new Error(`facet rule ${r}`);
 }

@@ -309,7 +309,7 @@ attached only when relevant.
  capabilities: # REQUIRED when subject_type == capability
  untrusted_input: true
  private_data: true
- external_effect: true
+ external_effect: write # none | read (only fetches from outside) | write (sends, publishes, changes)
  preconditions: [prompt-injection] # what an attacker needs (controlled list, below)
  reaches: [F-055] # findings reachable from here in one context (feeds kill-chain)
  explained_by: [F-090] # links UP to a systemic finding (feeds fan-out)
