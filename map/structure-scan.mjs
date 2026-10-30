@@ -30,7 +30,9 @@
 //      directory directly beneath it that does (an application kept whole in
 //      app/, #119; its rows' paths written relative to the root, `knip.root`
 //      recording where it ran); none, or more than one such directory, leaves
-//      knip nothing it can read: `not-applicable`, the candidates named, never clean. A tool that exits outside its success set
+//      knip nothing it can read: `not-applicable`, the candidates named, never clean. A config
+//      that refuses to load is set aside and knip retried once (setAside, #186), each file
+//      recorded in knip.config_not_read. A tool that exits outside its success set
 //      (jscpd: 0 — no --threshold or --exit-code is passed, so findings never
 //      change its exit; knip: 0 clean, 1 issues) or whose report does not parse
 //      reads `failed` with its exit — a crashed tool never reads as 0 findings.
@@ -62,6 +64,7 @@ import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSy
 import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, relative, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
+import { builtinModules } from 'node:module';
 import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
 import { detectToolchain } from './fresh-clone.mjs';
@@ -107,7 +110,7 @@ function binOf(prefix, name) {
   let pkg;
   try { pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')); } catch { return null; }
   const bin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin && pkg.bin[name];
-  return bin ? { file: join(dir, bin), version: String(pkg.version || '') } : null;
+  return bin ? { file: join(dir, bin), version: String(pkg.version || ''), dir } : null;
 }
 function runTool(bin, args, cwd, timeoutSec) {
   return spawnSync(process.execPath, [bin.file, ...args], { cwd, encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: toolEnv() });
@@ -191,6 +194,67 @@ function knipVerdict(r, installed) {
   return { status: 'failed', reason: why, exit_code: r.status ?? null };
 }
 
+// ── a config knip could not load, set aside (#186) ─────────────────────────────
+// A target's tool configuration may refuse to load on purpose (a test config that throws
+// under CI when its database is not configured), and knip loads every plugin's config to
+// find entry points, so one refusal fails the whole pass. knip is retried once with each
+// refused file set aside: its plugin keeps its default entry points (`config: []`, never
+// the plugin turned off, which reads every test file unused), the file itself is ignored,
+// and the packages it imports, read from its text and never run, are not reported unused.
+// The run records each file set aside (config_not_read); what the file would have added
+// (its own entry or include patterns) is not followed. Not retried, and failed as before:
+// a refused file no knip plugin reads, or a target whose own knip configuration is code
+// (a retry would have to rewrite it). The retry's configuration lives in scratch, never in
+// the target.
+const LOAD_ERROR = /^ERROR: Error loading (\S+) \((.*)\)$/;
+const NODE_BUILTIN = new Set(builtinModules);
+function importsOf(text) {
+  const out = new Set();
+  for (const m of String(text).matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]/gm)) {
+    const s = m[1];
+    if (/^[./]/.test(s) || s.startsWith('node:') || NODE_BUILTIN.has(s.split('/')[0])) continue;
+    out.add(s.startsWith('@') ? s.split('/').slice(0, 2).join('/') : s.split('/')[0]);
+  }
+  return [...out].sort();
+}
+// the knip plugin that reads a config file, by its name (vitest.config.ts, .eslintrc.js), when
+// the installed knip carries that plugin
+function pluginFor(file, knipDir) {
+  const name = basename(file).replace(/^\./, '').split('.')[0].replace(/rc$/, '');
+  return name && existsSync(join(knipDir, 'dist', 'plugins', name)) ? name : null;
+}
+// the workspace a file belongs to: the nearest directory above it holding a package.json
+function workspaceOf(cwd, file) {
+  for (let d = posix(dirname(file)); d && d !== '.'; d = posix(dirname(d))) if (existsSync(join(cwd, d, 'package.json'))) return d;
+  return '.';
+}
+function setAside(bin, cwd, stderr, scratch) {
+  const refused = String(stderr || '').split('\n').map(oneLine).map((l) => LOAD_ERROR.exec(l)).filter(Boolean).map((m) => ({ file: posix(m[1]), reason: m[2].slice(0, 240) }));
+  if (!refused.length) return {};
+  const own = knipConfig(cwd);
+  let base = {};
+  if (own === 'package.json') { try { base = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')).knip || {}; } catch { return { why: 'its package.json does not parse' }; } }
+  else if (own && own.endsWith('.json')) { try { base = JSON.parse(readFileSync(join(cwd, own), 'utf8')); } catch { return { why: `its own knip configuration (${own}) does not parse as JSON` }; } }
+  else if (own) return { why: `not retried: the target's own knip configuration (${own}) is code, and setting a config aside would mean rewriting it` };
+  const asArr = (v) => (Array.isArray(v) ? v : v === undefined ? [] : [v]);
+  const notRead = [];
+  for (const r of refused) {
+    const plugin = pluginFor(r.file, bin.dir);
+    if (!plugin) return { why: `not retried: no knip plugin reads ${r.file}, so it cannot be set aside` };
+    const ws = workspaceOf(cwd, r.file);
+    let imports = [];
+    try { imports = importsOf(readFileSync(join(cwd, r.file), 'utf8')); } catch { /* unreadable: no imports kept */ }
+    const at = ws === '.' ? base : ((base.workspaces ||= {})[ws] ||= {});
+    at[plugin] = { ...(at[plugin] && typeof at[plugin] === 'object' ? at[plugin] : {}), config: [] };
+    if (imports.length) at.ignoreDependencies = [...new Set([...asArr(at.ignoreDependencies), ...imports])];
+    base.ignore = [...new Set([...asArr(base.ignore), r.file])];
+    notRead.push({ file: r.file, plugin, reason: r.reason, imports });
+  }
+  const config = join(scratch, 'knip-set-aside.json');
+  writeFileSync(config, JSON.stringify(base, null, 2) + '\n');
+  return { config, notRead };
+}
+
 // ── where knip runs (#119): the root when it holds a package.json, else the one
 // directory directly beneath it that does (an application kept whole in app/), else
 // nowhere: not-applicable, every candidate named ──────────────────────────────
@@ -211,8 +275,17 @@ function runKnip(bin, root, dir, scratch, timeoutSec) {
   const at = (f) => (dir === '.' ? posix(f) : `${dir}/${posix(f)}`);
   const deps = knipDeps(dir === '.' ? root : join(root, dir), scratch, timeoutSec);
   if (deps.skip) return { status: 'skipped', reason: deps.skip, exit_code: null };
-  const r = runTool(bin, ['--reporter', 'json', '--no-progress'], deps.cwd, timeoutSec);
-  if (r.error || r.signal || (r.status !== 0 && r.status !== 1)) { const v = knipVerdict(r, deps.installed); return { status: v.status, reason: v.reason, exit_code: v.exit_code }; }
+  let r = runTool(bin, ['--reporter', 'json', '--no-progress'], deps.cwd, timeoutSec);
+  let notRead = null;
+  if (r.error || r.signal || (r.status !== 0 && r.status !== 1)) {
+    const v = knipVerdict(r, deps.installed);
+    if (v.status !== 'failed' || r.error || r.signal) return { status: v.status, reason: v.reason, exit_code: v.exit_code };
+    const aside = setAside(bin, deps.cwd, r.stderr, scratch);
+    if (!aside.config) return { status: 'failed', reason: aside.why ? `${v.reason}; ${aside.why}` : v.reason, exit_code: v.exit_code };
+    const again = runTool(bin, ['--config', aside.config, '--reporter', 'json', '--no-progress'], deps.cwd, timeoutSec);
+    if (again.error || again.signal || (again.status !== 0 && again.status !== 1)) return { status: 'failed', reason: `${v.reason}; retried with ${aside.notRead.map((n) => n.file).join(', ')} set aside, and ${knipVerdict(again, true).reason}`, exit_code: again.status ?? null };
+    r = again; notRead = aside.notRead;
+  }
   let rep;
   try { rep = JSON.parse(r.stdout); } catch { rep = null; }
   if (!rep || !Array.isArray(rep.issues)) return { status: 'failed', reason: `knip exited ${r.status} but printed no JSON report with an issues list`, exit_code: r.status };
@@ -227,7 +300,7 @@ function runKnip(bin, root, dir, scratch, timeoutSec) {
       }
     }
   }
-  return { status: 'ran', exit_code: r.status, unused, raw: rep, note: deps.note };
+  return { status: 'ran', exit_code: r.status, unused, raw: rep, note: deps.note, ...(notRead ? { config_not_read: notRead } : {}) };
 }
 
 // ── the tree: tracked files, stale names ─────────────────────────────────────
@@ -317,8 +390,8 @@ export function run({ target, timeout = 300, noExec = false, log = /** @type {(m
       if (!inst.ok) { tools[t] = { status: 'skipped', reason: inst.reason }; continue; }
       const bin = binOf(scratch, t);
       if (!bin) { tools[t] = { status: 'skipped', reason: `npm reported ${t}@${TOOLS[t]} installed, but its package carries no ${t} bin` }; continue; }
-      const res = t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, kr.dir, scratch, timeout);
-      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(t === 'knip' ? { root: kr.dir } : {}), ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}), ...(res.note ? { note: res.note } : {}) };
+      const res = /** @type {Record<string, any>} */ (t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnip(bin, root, kr.dir, scratch, timeout));
+      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(t === 'knip' ? { root: kr.dir } : {}), ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}), ...(res.note ? { note: res.note } : {}), ...(res.config_not_read ? { config_not_read: res.config_not_read } : {}) };
       if (res.status === 'ran') {
         raw[t] = res.raw;
         if (t === 'jscpd') duplicates = res.duplicates; else unused = res.unused;

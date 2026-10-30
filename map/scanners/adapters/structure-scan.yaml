@@ -36,6 +36,8 @@ map:
     axis: code-maintainability
   unused-not-applicable:        # a fact row: no package.json knip can run in, nothing for it to read
     axis: code-maintainability
+  unused-config-not-read:       # a fact row: a config knip could not load, set aside so the rest was measured (#186)
+    axis: code-maintainability
 
 default: FAIL
 
