@@ -98,6 +98,8 @@ method: dcr            # optional — the method class a known-answer sheet's de
                        #   names (map/score.mjs); without one, the scanner id
 fails_loud: <block>    # the harness block (tests/blocks/<block>.mjs) holding its
                        #   fail-loud halts; an adopted scanner names one (INTAKE.md)
+lane: <id>/lane.md     # a judgment scanner: its review session's seed body, beside this file
+                       #   (§3h); every adopted judgment scanner names one
 adopted: false         # optional — a candidate, or with retired: "<why>" a retired
                        #   scanner (§4a); absent, it is adopted
 ingest:                # optional — how map/ingest.mjs reads this scanner's report when
@@ -826,6 +828,29 @@ report read as clean) or `skipped` (with a `reason`). No stderr tail is archived
 `tools:` entry with no `before_review:` is its session's own, installed with `tools
 install --only <scanner>`; a run assay draws never waits on it. The `run.install` line a skipped row carries, kept for a
 runner called as a library, points at the install command.
+
+### 3h. A judgment scanner's lane (`lane:`)
+
+A judgment scanner's review runs in a session a person started, and that session executes
+nothing (#201): it reads the target and the results that ran before it, and writes its own
+findings. Everything that executes ran in the deterministic phase (`assay start`, the
+routine): the instruments, and each tool the review reads (`before_review`, §3g). The lane
+is the session's seed body, versioned with the engine so a pin moves the instruments and
+the lanes together. `node assay.mjs lane <scanner> --name <Name> [--head <ref>]
+[--inputs-dir <path>]` fills it for one target (`map/lane.mjs`) and prints the session and
+artifact titles, the files the lane publishes (`outputs`), the files it reads (`inputs`),
+and the prompt. Its frontmatter:
+
+- `session_title`, `artifact`: the review session's title and the one page it publishes.
+- `outputs`: the run files the lane publishes, each verbatim between `--- <path> (verbatim)
+  ---` and `--- end <path> ---` on that page; a consumer collects them into the run.
+- `inputs`: run files the lane reads that ran before it (a before-review record, an
+  instrument's raw report). A lane with inputs is never seeded without `--inputs-dir`.
+
+A lane names no model and no operator: the consumer adds the model the session runs on and
+any authorization its sessions open with. Every command a lane spells out is a git read
+(`tests/blocks/lanes.mjs`). Where the scanner's own method says to run a script, the lane
+says not to: the result it would produce is an input.
 
 ## 4. The fail-closed rule (the coherence guarantee)
 

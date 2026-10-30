@@ -1,0 +1,25 @@
+---
+type: doc
+title: "Lane: deep-code-review (a review session's seed body)"
+lane: deep-code-review
+session_title: "{{NAME}}: code review FULL on {{HEAD_LABEL}} ({{DATE}})"
+artifact: "{{NAME}} Deep Code Review {{DATE}}"
+inputs: "map/raw/before-review/deep-code-review/semgrep.json map/raw/fresh-clone.json"
+---
+The engagement is a read-only evaluation of a repository the owner has access to; the consumer that seeded this session ingests what you publish. If a step is impossible, record why and continue with the rest.
+
+HARD RULES. This session executes nothing: it reads files and writes its own report, and that is all. Never run the target's code, its install, build or tests; never run the reviewer's scripts, a scanner, or anything you fetched; never install anything. Never push, commit, open issues or PRs, or comment on this repository or any other. Never write into this checkout's tree: your files live in your scratch directory. Never include a secret value, a matched secret's text, an environment value, or an author name or email in anything you publish; cite the file and line and describe the shape instead. Publish exactly one private Artifact page (Artifact tool) and give its URL in your final message.
+
+TASK. A FULL deep-code-review of this repository at one head, producing the reviewer's machine report for a program to ingest.
+
+1. Checkout. {{HEAD_STEP}} Record: branch, the head sha, its commit date, which top-level apps exist, shallow or not.
+
+2. The reviewer's method. Read it, at the release the engine was verified against ({{VERIFIED_AGAINST}}) or later: `git clone --depth 1 https://github.com/andyschwab/deep-code-review <scratch>/reviewer`, and record the release in `<scratch>/reviewer/.claude/skills/deep-code-review/VERSION`. Read `.claude/skills/deep-code-review/SKILL.md` there and follow its method, loading `references/` as it directs, in particular method.md, report-format.md and machine-report.md. Where it says to run a script or an analyzer, do not: the analyzers ran before you, and their results are what you read. {{INPUTS_STEP}} A result whose status is failed or skipped is an analyzer that did not run, recorded with its reason, never a clean one.
+
+3. Review with scope FULL, at full depth: coverage is the product, so spend the effort a domain needs rather than the least that produces a row. {{FOCUS}} Every assigned domain (A–T and W) gets a coverage row that is TRUE: scanned, partial with a note saying what was and was not opened, not-scanned with a note, or not-applicable with a note. A row that says scanned when the domain was skimmed is the one failure this run must not have. Priority, because these decide floor rows: B application security (every route and its authorization check; scoping in the data layer, not only the UI), Q privacy (what personal data is held, where; erasure reaches every store), K build/CI/supply chain (dependencies and toolchain pinned; actions pinned by commit), N configuration, M observability, then C AI/LLM safety, then the rest. Produce the route census and the data-store census the method asks for.
+
+4. Machine report exactly per machine-report.md: block-style YAML, the review header (date {{DATE}}, scope FULL, start_sha, target "{{NAME}}"), ground_truth (build, tests and the rest from the results you were given; what no result covers reads not-run with the reason "this session executes nothing"), one coverage row for every one of A B C D E F G H I J K L M N O P Q R S T W, findings with id, area, severity, polarity, confidence, title, observation, evidence as repository-relative path:line strings, and a fix for every gap. Re-resolve every evidence line against the tree by reading it before publishing; drop any that do not resolve and say how many. Also the markdown report per report-format.md.
+
+5. Publish ONE private Artifact page titled "{{NAME}} Deep Code Review {{DATE}}": a CHECKOUT RECORD (branch, sha, date, the reviewer's release, which analyzer results you read and their status, wall clock, one paragraph on how the budget was allocated), then the machine report verbatim in a `<pre>` block delimited by `--- findings-{{DATE}}.yaml (verbatim) ---` and `--- end machine report ---`, then the markdown between `--- review-{{DATE}}.md (verbatim) ---` and `--- end review ---`, HTML-escaped, under 4 MB.
+
+Final message: the artifact URL, the start sha, the reviewer's release, findings by severity, and coverage counts.
