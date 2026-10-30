@@ -3,11 +3,12 @@
 // The tools are a precondition of a measurement, never one of its results (#198): a run
 // that cannot field every adopted instrument does not start. `verify` says whether each
 // pinned tool is on PATH and answers `--version` with its pin; the routine's gate step and
-// `assay start <target>` refuse to draw a map until it does. A session, and every child
-// review session beside it, installs them before it starts (an environment's setup
-// script, a workflow step). Each adapter that drives an external tool says what to
-// install in a `tool:` block (map/scanners/CONTRACT.md §3g), and nothing here names a
-// tool (CLAUDE.md rule 7):
+// `assay start <target>` refuse to draw a map until every instrument's tool does. A session,
+// and every child review session beside it, installs them before it starts (an environment's
+// setup script, a workflow step). An instrument's adapter says what to install in a `tool:`
+// block, and a judgment scanner's adapter lists the tools its own session drives in
+// `tools:`, each the same shape (map/scanners/CONTRACT.md §3g); nothing here names a tool
+// (CLAUDE.md rule 7):
 //   tool.bin        the command the adapter runs
 //   tool.version    the pinned version — the adapter's verified_against where it has one
 //   tool.upstream   where a newer release is read: github:<owner>/<repo> | pypi:<package>
@@ -17,11 +18,15 @@
 //   tool.pypi       instead of fetch: a package installed at the pinned version into its
 //                   own environment (uv tool install, else a venv) — pinned by version, and
 //                   PyPI's own hashes over TLS, not by a sum here (its dependencies float)
+//   tool.prepare    optional: [{ args }], each run once the tool is installed, in an empty
+//                   scratch directory (state the tool reads offline: a database, a rule bundle)
+//   tool.ready      optional: args whose exit 0, in an empty scratch directory, says the
+//                   prepared state is there; verify reads the tool unprepared otherwise
 // A tool already installed at its pin (the stamp beside the binaries, its sha256 still
 // matching) is left as it is.
 //
-// Usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>]   (default ~/.local/bin)
-//        node assay.mjs tools verify                                          (each pin on PATH and answering)
+// Usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>] [--role <role>]   (default ~/.local/bin)
+//        node assay.mjs tools verify [--only <scanner>] [--role <role>]     (each pin on PATH and answering)
 //        node assay.mjs tools check [--json]                                  (pinned against latest)
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync, copyFileSync, mkdtempSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -36,12 +41,20 @@ const sha256 = (file) => createHash('sha256').update(readFileSync(file)).digest(
 const sh = (cmd, args, opts = {}) => spawnSync(cmd, args, { encoding: 'utf8', ...opts });
 const has = (cmd) => sh('sh', ['-c', `command -v ${cmd}`]).status === 0;
 
-// the adopted adapters' tool blocks, in scanner order
+// the adopted adapters' pinned tools, in scanner order: an adapter's `tool:` (the binary its
+// instrument runs, at the adapter's verified_against) and its `tools:` (the binaries a
+// judgment scanner's own session drives, which assay never runs). Each carries the
+// adapter's role, so a caller can ask for the tools one kind of run needs.
 export function pinnedTools(adapters = loadAdapters()) {
   return Object.entries(adapters)
-    .filter(([, a]) => a && a.tool && a.adopted !== false && !a.retired)
-    .map(([scanner, a]) => ({ scanner, verified: a.verified_against ?? null, versionArgs: (a.run && a.run.version) || ['--version'], ...a.tool }))
-    .sort((x, y) => x.scanner.localeCompare(y.scanner));
+    .filter(([, a]) => a && a.adopted !== false && !a.retired)
+    .flatMap(([scanner, a]) => {
+      const role = a.role || 'judgment';
+      const own = a.tool ? [{ scanner, role, verified: a.verified_against ?? null, versionArgs: (a.run && a.run.version) || ['--version'], ...a.tool }] : [];
+      const driven = Array.isArray(a.tools) ? a.tools.map((t) => ({ scanner, role, verified: null, versionArgs: ['--version'], ...t })) : [];
+      return [...own, ...driven];
+    })
+    .sort((x, y) => x.scanner.localeCompare(y.scanner) || String(x.bin).localeCompare(String(y.bin)));
 }
 
 // what a tool block owes, in a line each (a block holds them; install reads nothing else)
@@ -51,6 +64,9 @@ export function toolBlockProblems(t) {
   if (t.verified && String(t.verified) !== String(t.version)) out.push(`tool.version ${t.version} is not the adapter's verified_against ${t.verified}: the pin and the verified version move together`);
   if (!/^(github:[\w.-]+\/[\w.-]+|pypi:[\w.-]+)$/.test(String(t.upstream || ''))) out.push('tool.upstream is github:<owner>/<repo> or pypi:<package>');
   if (!!t.fetch === !!t.pypi) out.push('a tool block has fetch (per-platform artifacts) or pypi (a package), not both or neither');
+  const argList = (v) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string');
+  if (t.prepare !== undefined && !(Array.isArray(t.prepare) && t.prepare.every((p) => p && argList(p.args)))) out.push('tool.prepare is a list of { args: [...] }, each run once the tool is installed');
+  if (t.ready !== undefined && !argList(t.ready)) out.push('tool.ready is a list of args whose exit 0 says the tool can run');
   for (const [plat, f] of Object.entries(t.fetch || {})) {
     if (!/^https:\/\//.test(String(f && f.url))) out.push(`fetch.${plat}.url is an https URL`);
     if (!/^[0-9a-f]{64}$/.test(String(f && f.sha256))) out.push(`fetch.${plat}.sha256 is 64 hex characters`);
@@ -76,8 +92,28 @@ function extract(archive, url, member, out) {
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
-// install one tool → { scanner, bin, status: installed | current | failed | unsupported, detail }
-export function installTool(t, dir, { platform = platformKey(), fetch = curl } = {}) {
+// the state a tool needs beyond its binary (a database it reads offline, say): each
+// prepare entry runs the installed tool once, in an empty scratch directory → null, or why not
+function prepareTool(t, dir) {
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-prepare-'));
+  try {
+    for (const p of t.prepare || []) {
+      const r = sh(join(dir, t.bin), p.args, { cwd: scratch, timeout: 900000 });
+      if (r.status !== 0) return `${t.bin} ${p.args.join(' ')} exited ${r.status}: ${`${r.stderr || ''}${r.stdout || ''}`.trim().split('\n').pop() || '(no output)'}`;
+    }
+    return null;
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+}
+
+// install one tool, then prepare it → { scanner, bin, status: installed | current | failed | unsupported, detail }
+export function installTool(t, dir, opts = {}) {
+  const r = installBinary(t, dir, opts);
+  if (!['installed', 'current'].includes(r.status) || !(t.prepare || []).length) return r;
+  const why = prepareTool(t, dir);
+  return why ? { ...r, status: 'failed', detail: `installed, but not prepared: ${why}` } : { ...r, detail: `${r.detail}; prepared` };
+}
+
+function installBinary(t, dir, { platform = platformKey(), fetch = curl } = {}) {
   const row = (status, detail) => ({ scanner: t.scanner, bin: t.bin, version: t.version, status, detail });
   const problems = toolBlockProblems(t);
   if (problems.length) return row('failed', `the tool block is malformed: ${problems.join('; ')}`);
@@ -124,17 +160,25 @@ export function installTool(t, dir, { platform = platformKey(), fetch = curl } =
   finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
-// one tool as this machine runs it: the bin PATH resolves, and what it says asked its version
-// (the adapter's run.version args, else --version)
+// one tool as this machine runs it: the bin PATH resolves, what it says asked its version
+// (the adapter's run.version args, else --version), and, for a tool with `ready`, whether
+// that check exits 0 in an empty scratch directory
 const answerOf = (t) => {
   if (!has(t.bin)) return { found: false };
   const r = sh(t.bin, t.versionArgs || ['--version'], { timeout: 60000 });
-  return { found: true, exit: r.status, output: `${r.stdout || ''}${r.stderr || ''}`.trim() };
+  const out = { found: true, exit: r.status, output: `${r.stdout || ''}${r.stderr || ''}`.trim() };
+  if (!t.ready) return out;
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-ready-'));
+  try {
+    const k = sh(t.bin, t.ready, { cwd: scratch, timeout: 300000 });
+    return { ...out, ready: { exit: k.status, output: `${k.stderr || ''}${k.stdout || ''}`.trim() } };
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
 };
 
-// every pinned tool ready to run → one row per tool: ready | absent | broken | other-version.
-// Ready is on PATH, asked its version exits 0 and prints the pinned one; anything else names
-// what it found. `answer` is the seam a test drives without the tools themselves.
+// every pinned tool ready to run → one row per tool: ready | absent | broken | other-version |
+// unprepared. Ready is on PATH, asked its version exits 0 and prints the pinned one, and its
+// `ready` check, where it has one, exits 0 (unprepared: install's prepare has not run here);
+// anything else names what it found. `answer` is the seam a test drives without the tools themselves.
 export function verifyTools(tools = pinnedTools(), answer = answerOf) {
   const v = (t) => String(t.version).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return tools.map((t) => {
@@ -143,12 +187,16 @@ export function verifyTools(tools = pinnedTools(), answer = answerOf) {
     if (!a.found) return row('absent', `${t.bin} is not on PATH`);
     if (a.exit !== 0) return row('broken', `${t.bin} ${(t.versionArgs || ['--version']).join(' ')} exited ${a.exit}: ${String(a.output).split('\n').pop() || '(no output)'}`);
     if (!new RegExp(`(^|[^\\d.])v?${v(t)}($|[^\\d.])`).test(a.output)) return row('other-version', `${t.bin} ${(t.versionArgs || ['--version']).join(' ')} says ${JSON.stringify(String(a.output).split('\n')[0])}, not ${t.version}`);
+    if (t.ready && (!a.ready || a.ready.exit !== 0)) return row('unprepared', `${t.bin} ${t.ready.join(' ')} exited ${a.ready ? a.ready.exit : '?'}: ${String(a.ready && a.ready.output || '').split('\n').pop() || '(no output)'}; \`tools install\` prepares it`);
     return row('ready', `${t.bin} ${t.version}`);
   });
 }
 
-// the one line a run that refuses to start prints and records, or null when every tool is ready
-export function toolsNotReady(rows = verifyTools()) {
+// the one line a run that refuses to start prints and records, or null when every tool is
+// ready. A run assay draws needs the tools its instruments run; a judgment scanner's tools
+// are its own session's, checked there (`tools verify --only <scanner>`).
+export const instrumentTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument');
+export function toolsNotReady(rows = verifyTools(instrumentTools())) {
   const bad = rows.filter((r) => r.status !== 'ready');
   if (!bad.length) return null;
   return `assay's pinned tools are not ready, so no map is drawn: ${bad.map((r) => `${r.scanner} (${r.status}: ${r.detail})`).join('; ')}. Install them with \`node assay.mjs tools install --dir <bin>\`, put <bin> on PATH, and confirm with \`node assay.mjs tools verify\``;
@@ -184,7 +232,7 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
   const sub = args[0];
-  const tools = pinnedTools().filter((t) => !opt('--only') || t.scanner === opt('--only'));
+  const tools = pinnedTools().filter((t) => (!opt('--only') || t.scanner === opt('--only')) && (!opt('--role') || t.role === opt('--role')));
   if (sub === 'install') {
     const dir = opt('--dir') || join(homedir(), '.local', 'bin');
     let bad = 0;
@@ -205,7 +253,7 @@ if (isMain(import.meta.url)) {
     if (args.includes('--json')) console.log(JSON.stringify(rows, null, 1));
     else for (const r of rows) console.log(`${r.status.padEnd(8)} ${r.scanner} (${r.bin}): pinned ${r.pinned}, latest ${r.latest ?? '?'}${r.why ? ` — ${r.why}` : ''}`);
   } else {
-    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>]\n       node assay.mjs tools verify [--only <scanner>]\n       node assay.mjs tools check [--json]');
+    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools verify [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools check [--json]');
     process.exit(2);
   }
 }

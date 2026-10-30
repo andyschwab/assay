@@ -756,16 +756,19 @@ or an empty summary) is one `no-input` fact, which a decider's
 (a value to a band, read from `detail.tool_severity`, else the native category,
 with `default`). The rows an adapter's instrument decides are its `decides:` (§3).
 
-### 3g. The tools an adapter pins (`tool:`)
+### 3g. The tools an adapter pins (`tool:`, `tools:`)
 
 An adapter whose scanner runs an external binary pins it in `tool:`, so one command
 puts every adopted tool on PATH before a session starts, from an environment's setup
-script (`node assay.mjs tools install [--dir <bin>]`, `map/tools.mjs`, #189). The core
-reads the block and names no tool:
+script (`node assay.mjs tools install [--dir <bin>]`, `map/tools.mjs`, #189). A
+judgment scanner whose own session drives external tools that assay never runs lists
+them in `tools:`, each entry the same shape, so the session that runs it starts with
+them too (#196). The core reads the blocks and names no tool:
 
-- `bin` and `version`: the command and its pin. Where the adapter has
+- `bin` and `version`: the command and its pin. In `tool:`, where the adapter has
   `verified_against`, `version` equals it: the pin and the verified version move
-  together, in one reviewed bump with the adapter's fixture run.
+  together, in one reviewed bump with the adapter's fixture run. A `tools:` entry's
+  version is its own (the scanner's `verified_against` is the scanner's).
 - `upstream`: where a newer release is read, `github:<owner>/<repo>` or
   `pypi:<package>` (`node assay.mjs tools check`, and weekly the `tools-check`
   workflow, which opens one issue for pins behind or unreadable).
@@ -774,6 +777,12 @@ reads the block and names no tool:
   download whose sum differs is refused, naming both sums, and nothing is installed.
 - or `pypi`: a package installed at the pinned version into its own environment, for
   a tool whose dependencies cannot be pinned by sum here.
+- `prepare` (optional): a list of `{ args }`, each run with the installed tool in an
+  empty scratch directory once it is installed, and again at every install: the state
+  the tool reads offline, such as a vulnerability database or a rule bundle. A prepare
+  that fails fails the install.
+- `ready` (optional): args whose exit 0, run in an empty scratch directory, says that
+  state is there; verify reads the tool `unprepared` otherwise.
 
 A tool already installed at its pin (the stamp beside the binaries, its sum still
 matching) is left as it is, and a platform with no pinned artifact fails the install.
@@ -781,9 +790,12 @@ matching) is left as it is, and a platform with no pinned artifact fails the ins
 The pinned tools are a precondition of a measurement, never one of its results
 (#198). `node assay.mjs tools verify` reads each one ready only when it is on PATH
 and, asked its version (the adapter's `run.version`, else `--version`), exits 0
-and prints the pin. `assay start <target>` and the routine's gate step refuse to
-draw a map until every one is ready, naming each that is absent, broken or at
-another version. The `run.install` line a skipped row carries, kept for a
+and prints the pin, and its `ready` check, where it has one, exits 0. `assay start
+<target>` and the routine's gate step refuse to draw a map until every instrument's
+tool is ready (`--role instrument`), naming each that is absent, broken, unprepared or
+at another version. A judgment scanner's `tools:` are its session's: that session runs
+`tools install --only <scanner>` and `tools verify --only <scanner>` before it reviews,
+and a run assay draws never waits on them. The `run.install` line a skipped row carries, kept for a
 runner called as a library, points at the install command.
 
 ## 4. The fail-closed rule (the coherence guarantee)

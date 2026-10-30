@@ -94,7 +94,7 @@ repository's; that target is recorded `skipped` with the reason), and every
 adopted instrument whose adapter carries `run:` (`map/scanners/CONTRACT.md` §3f).
 Assay's own tools are a precondition, never a skip (#198): before it draws
 anything the routine checks that every tool an adopted adapter pins is on `PATH`
-and answers at its pin (`node assay.mjs tools verify`), and when one is absent,
+and answers at its pin (`node assay.mjs tools verify --role instrument`), and when one is absent,
 broken or at another version it draws no map and fails, `gate: not-run` with the
 reason in `routine.yaml`. A scanner the target makes inapplicable is recorded
 skipped with its reason, never silently as clean
@@ -230,12 +230,13 @@ read directly, exactly as before.
    review required rather than optional.
 
 Assay's tools: the template's `routine` job installs every tool the adopted
-adapters pin (`node assay.mjs tools install`, each download checked against the
-sha256 its adapter's `tool:` block pins before it is ever executed), verifies them
-(`tools verify`) and puts them on `PATH`, before the routine step. The pins live in
-the engine's adapters, so they move with `ASSAY_REF` and the workflow carries none
-of its own. A tool that cannot be installed fails the job, as does the routine on a
-runner without them: there is no step to leave out.
+instruments' adapters pin (`node assay.mjs tools install --role instrument`, each
+download checked against the sha256 its adapter's `tool:` block pins before it is
+ever executed), verifies them (`tools verify --role instrument`) and puts them on
+`PATH`, before the routine step. A review session's own tools are never the
+routine's. The pins live in the engine's adapters, so they move with `ASSAY_REF` and
+the workflow carries none of its own. A tool that cannot be installed fails the
+job, as does the routine on a runner without them: there is no step to leave out.
 
 ## `--since` is not wired into the template
 
