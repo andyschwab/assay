@@ -587,6 +587,18 @@ const PROFILES = {
           detail: detailFor([u.file], { kind: u.kind, name: u.name, ...(rep.tools.knip.config === null && SS_ENTRY_KINDS.includes(u.kind) ? { unconfigured: true } : {}) }),
         });
       }
+      // a config knip could not load and set aside to measure the rest (#186): a fact per file,
+      // so the run says what was not read; the rows above still decide
+      const notRead = rep.tools.knip.config_not_read;
+      if (notRead !== undefined && (rep.tools.knip.status !== 'ran' || !Array.isArray(notRead) || !notRead.every((x) => x && typeof x.file === 'string' && x.file && typeof x.plugin === 'string' && typeof x.reason === 'string'))) throw new Error('structure-scan knip config_not_read must be a list of { file, plugin, reason } on a knip that ran (truncated report?)');
+      for (const x of notRead || []) {
+        rows.push({
+          id: fid(startId + n++), source: 'structure-scan',
+          native_id: `unused-config-not-read@${x.file}`, native_category: 'unused-config-not-read', polarity: 'fact',
+          observation: `knip could not load ${x.file} (${oneLine(x.reason)}), so it ran with that file set aside: its ${x.plugin} plugin kept its default entry points, ${x.file} was not reported, ${Array.isArray(x.imports) && x.imports.length ? `nor the packages it imports (${x.imports.join(', ')}), ` : ''}and whatever entry or include patterns it would have added were not followed.`,
+          evidence: [`${x.file}:1`],
+        });
+      }
       for (const s of rep.stale) {
         if (!s || typeof s.file !== 'string' || !s.file || typeof s.pattern !== 'string') throw new Error('structure-scan stale artifact missing file / pattern (truncated report?)');
         rows.push({

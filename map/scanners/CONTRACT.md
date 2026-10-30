@@ -629,6 +629,19 @@ tools do the first two and the instrument does the rest from the tree:
   file it cannot load for a module that is not installed reads `skipped`, the
   module named. A failure with the dependencies present stays `failed`; either
   reason keeps the first three `ERROR:` lines knip printed, not only its last.
+  A configuration that refuses to load (a test config that throws under `CI=1`
+  with no database configured) does not fail the whole pass (#186): knip is
+  retried once with each refused file set aside. Its plugin keeps its default
+  entry points (`<plugin>: { config: [] }`, never the plugin turned off, which
+  reads every test file unused), the file is ignored, and the packages it
+  imports, read from its text and never run, are not reported unused. The run
+  records each file in `knip.config_not_read`, and ingest writes one
+  `unused-config-not-read` fact per file. The other rows still decide; what the
+  file would have added (its own entry or include patterns) is not followed. It
+  is not retried, and stays `failed`, when no knip plugin reads the refused file
+  or when the target's own knip configuration is code (a retry would have to
+  rewrite it). The retry's configuration lives in scratch, merged over the
+  target's own `knip.json` or `package.json` `knip` where there is one.
 - **stale artifacts** — every tracked file (`git ls-files`, else a walk
   skipping `node_modules/` and `.git/`) whose last token before the extension
   is `old` (`x_old.ts`, `x-old.ts`, `x.old.js`, `x.old`; never a word inside a
