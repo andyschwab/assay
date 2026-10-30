@@ -18,10 +18,6 @@
 //   tool.pypi       instead of fetch: a package installed at the pinned version into its
 //                   own environment (uv tool install, else a venv) — pinned by version, and
 //                   PyPI's own hashes over TLS, not by a sum here (its dependencies float)
-//   tool.prepare    optional: [{ args }], each run once the tool is installed, in an empty
-//                   scratch directory (state the tool reads offline: a database, a rule bundle)
-//   tool.ready      optional: args whose exit 0, in an empty scratch directory, says the
-//                   prepared state is there; verify reads the tool unprepared otherwise
 // A tool already installed at its pin (the stamp beside the binaries, its sha256 still
 // matching) is left as it is.
 //
@@ -66,9 +62,7 @@ export function toolBlockProblems(t) {
   if (t.verified && String(t.verified) !== String(t.version)) out.push(`tool.version ${t.version} is not the adapter's verified_against ${t.verified}: the pin and the verified version move together`);
   if (!/^(github:[\w.-]+\/[\w.-]+|pypi:[\w.-]+)$/.test(String(t.upstream || ''))) out.push('tool.upstream is github:<owner>/<repo> or pypi:<package>');
   if (!!t.fetch === !!t.pypi) out.push('a tool block has fetch (per-platform artifacts) or pypi (a package), not both or neither');
-  const argList = (v) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string');
-  if (t.prepare !== undefined && !(Array.isArray(t.prepare) && t.prepare.every((p) => p && argList(p.args)))) out.push('tool.prepare is a list of { args: [...] }, each run once the tool is installed');
-  if (t.ready !== undefined && !argList(t.ready)) out.push('tool.ready is a list of args whose exit 0 says the tool can run');
+  for (const k of ['prepare', 'ready']) if (t[k] !== undefined) out.push(`tool.${k} is retired: a pinned tool is its binary, and nothing here prepares state beside it`);
   for (const [plat, f] of Object.entries(t.fetch || {})) {
     if (!/^https:\/\//.test(String(f && f.url))) out.push(`fetch.${plat}.url is an https URL`);
     if (!/^[0-9a-f]{64}$/.test(String(f && f.sha256))) out.push(`fetch.${plat}.sha256 is 64 hex characters`);
@@ -94,28 +88,8 @@ function extract(archive, url, member, out) {
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
-// the state a tool needs beyond its binary (a database it reads offline, say): each
-// prepare entry runs the installed tool once, in an empty scratch directory → null, or why not
-function prepareTool(t, dir) {
-  const scratch = mkdtempSync(join(tmpdir(), 'assay-prepare-'));
-  try {
-    for (const p of t.prepare || []) {
-      const r = sh(join(dir, t.bin), p.args, { cwd: scratch, timeout: 900000 });
-      if (r.status !== 0) return `${t.bin} ${p.args.join(' ')} exited ${r.status}: ${`${r.stderr || ''}${r.stdout || ''}`.trim().split('\n').pop() || '(no output)'}`;
-    }
-    return null;
-  } finally { rmSync(scratch, { recursive: true, force: true }); }
-}
-
-// install one tool, then prepare it → { scanner, bin, status: installed | current | failed | unsupported, detail }
-export function installTool(t, dir, opts = {}) {
-  const r = installBinary(t, dir, opts);
-  if (!['installed', 'current'].includes(r.status) || !(t.prepare || []).length) return r;
-  const why = prepareTool(t, dir);
-  return why ? { ...r, status: 'failed', detail: `installed, but not prepared: ${why}` } : { ...r, detail: `${r.detail}; prepared` };
-}
-
-function installBinary(t, dir, { platform = platformKey(), fetch = curl } = {}) {
+// install one tool → { scanner, bin, status: installed | current | failed | unsupported, detail }
+export function installTool(t, dir, { platform = platformKey(), fetch = curl } = {}) {
   const row = (status, detail) => ({ scanner: t.scanner, bin: t.bin, version: t.version, status, detail });
   const problems = toolBlockProblems(t);
   if (problems.length) return row('failed', `the tool block is malformed: ${problems.join('; ')}`);
@@ -163,24 +137,16 @@ function installBinary(t, dir, { platform = platformKey(), fetch = curl } = {}) 
 }
 
 // one tool as this machine runs it: the bin PATH resolves, what it says asked its version
-// (the adapter's run.version args, else --version), and, for a tool with `ready`, whether
-// that check exits 0 in an empty scratch directory
+// (the adapter's run.version args, else --version)
 const answerOf = (t) => {
   if (!has(t.bin)) return { found: false };
   const r = sh(t.bin, t.versionArgs || ['--version'], { timeout: 60000 });
-  const out = { found: true, exit: r.status, output: `${r.stdout || ''}${r.stderr || ''}`.trim() };
-  if (!t.ready) return out;
-  const scratch = mkdtempSync(join(tmpdir(), 'assay-ready-'));
-  try {
-    const k = sh(t.bin, t.ready, { cwd: scratch, timeout: 300000 });
-    return { ...out, ready: { exit: k.status, output: `${k.stderr || ''}${k.stdout || ''}`.trim() } };
-  } finally { rmSync(scratch, { recursive: true, force: true }); }
+  return { found: true, exit: r.status, output: `${r.stdout || ''}${r.stderr || ''}`.trim() };
 };
 
-// every pinned tool ready to run → one row per tool: ready | absent | broken | other-version |
-// unprepared. Ready is on PATH, asked its version exits 0 and prints the pinned one, and its
-// `ready` check, where it has one, exits 0 (unprepared: install's prepare has not run here);
-// anything else names what it found. `answer` is the seam a test drives without the tools themselves.
+// every pinned tool ready to run → one row per tool: ready | absent | broken | other-version.
+// Ready is on PATH, and asked its version exits 0 and prints the pinned one; anything else
+// names what it found. `answer` is the seam a test drives without the tools themselves.
 export function verifyTools(tools = pinnedTools(), answer = answerOf) {
   const v = (t) => String(t.version).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return tools.map((t) => {
@@ -189,7 +155,6 @@ export function verifyTools(tools = pinnedTools(), answer = answerOf) {
     if (!a.found) return row('absent', `${t.bin} is not on PATH`);
     if (a.exit !== 0) return row('broken', `${t.bin} ${(t.versionArgs || ['--version']).join(' ')} exited ${a.exit}: ${String(a.output).split('\n').pop() || '(no output)'}`);
     if (!new RegExp(`(^|[^\\d.])v?${v(t)}($|[^\\d.])`).test(a.output)) return row('other-version', `${t.bin} ${(t.versionArgs || ['--version']).join(' ')} says ${JSON.stringify(String(a.output).split('\n')[0])}, not ${t.version}`);
-    if (t.ready && (!a.ready || a.ready.exit !== 0)) return row('unprepared', `${t.bin} ${t.ready.join(' ')} exited ${a.ready ? a.ready.exit : '?'}: ${String(a.ready && a.ready.output || '').split('\n').pop() || '(no output)'}; \`tools install\` prepares it`);
     return row('ready', `${t.bin} ${t.version}`);
   });
 }
