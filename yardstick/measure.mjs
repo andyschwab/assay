@@ -78,7 +78,7 @@ export function validateYardstick(reg) {
   const errors = [];
   if (!reg || !Array.isArray(reg.requirements)) return ['yardstick: no requirements list'];
   if (!Array.isArray(reg.tiers) || !reg.tiers.length) errors.push('yardstick: tiers must be a non-empty list');
-  const tiers = new Set(reg.tiers || []), tags = new Set(reg.tags || []), topics = new Set(TOPICS), seen = new Set();
+  const tiers = new Set(reg.tiers || []), tags = new Set(reg.tags || []), harms = new Set(reg.harms || []), topics = new Set(TOPICS), seen = new Set();
   for (const d of reg.requirements) {
     const at = `yardstick: ${d.id ?? '(no id)'}`;
     if (!d.id || !/^d-[a-z0-9-]+$/.test(d.id)) errors.push(`${at}: id must match d-<slug>`);
@@ -87,6 +87,12 @@ export function validateYardstick(reg) {
     if (!tiers.has(d.tier)) errors.push(`${at}: tier "${d.tier}" not in the yardstick's tiers`);
     if (!topics.has(d.topic)) errors.push(`${at}: topic "${d.topic}" not in the allowed list (the axis roster plus custody, reproducibility and operability)`);
     for (const t of d.tags || []) if (!tags.has(t)) errors.push(`${at}: tag "${t}" not in the yardstick's tags`);
+    // a row is floor when its gap can cause harm (yardstick/README.md, #161): a floor row
+    // names what, from the closed harms list, and a row beyond the floor names none
+    const floor = (d.tags || []).includes('floor');
+    if (floor && !(Array.isArray(d.harm) && d.harm.length)) errors.push(`${at}: a floor row names the harm its gap can cause (harm: [${[...harms].join(', ')}])`);
+    if (!floor && d.harm !== undefined) errors.push(`${at}: harm is a floor row's; a row beyond the floor names none`);
+    for (const h of Array.isArray(d.harm) ? d.harm : []) if (!harms.has(h)) errors.push(`${at}: harm "${h}" not in the yardstick's harms`);
     if (!d.decide || !KINDS.includes(d.decide.kind)) errors.push(`${at}: decide.kind must be one of ${KINDS.join('|')}`);
     else if (d.decide.kind === 'facet' && !FACET_RULES.includes(d.decide.rule)) errors.push(`${at}: facet rule "${d.decide.rule}" unknown`);
     else if (d.decide.kind === 'census' && !(Array.isArray(d.decide.measures) && d.decide.measures.length)) errors.push(`${at}: census needs measures: [names]`);
