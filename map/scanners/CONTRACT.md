@@ -165,7 +165,7 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   carry rule id + location only.
 - **An adopted instrument runs against the checkout under review, without
   needing a repo-hosting platform's own API.** A tool that needs a remote
-  *configuration* API (GitHub's, for Scorecard's checks) is a forever-fail in
+  *configuration* API (a repository host's, for a repository-settings checker) is a forever-fail in
   any environment without that reach, and a scanner that cannot run is worse
   than none: every run would have to dispose of it, and its absence reads as
   coverage. Such a tool may be integrated, but not adopted. This is distinct
@@ -200,23 +200,14 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   `tests/instruments/exec-planted` (a planted `.yarnrc` and lifecycle scripts)
   and the harness's `isolation` block pin all of this.
 
-Adopted instruments: **gitleaks** (`adapters/gitleaks.yaml` — every leak is one
-`secret` category row onto `code-security`; corroborates the delegation
-credential census; git mode reads the history of the repository that
-CONTAINS its source, so `assay start` and the routine scan only a
-repository's own top level — a subdirectory of a larger checkout is recorded
-skipped with that reason, a directory in no repository is scanned in
-directory mode, and every reported path is relative to the target; its exit
-code must agree with its report, 1 with leaks and 0 with none, or the intake
-halts),
-**fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
+Adopted instruments: assay's own, **fresh-clone** (`adapters/fresh-clone.yaml`, §3b),
 **dependency-scan** (`adapters/dependency-scan.yaml`, §3c), **repo-census**
 (`adapters/repo-census.yaml`, §3d), and **structure-scan**
-(`adapters/structure-scan.yaml`, §3e). **OpenSSF Scorecard**
-(`adapters/scorecard.yaml`) is integrated but not part of the adopted roster:
-its checks are remote repository-configuration reads that need direct GitHub
-API access at run time, which an offline run does not have. The wider
-candidate roster: `map/scanners/CANDIDATES.md`.
+(`adapters/structure-scan.yaml`, §3e); and every external instrument whose adapter
+carries `run:` and `adopted` (§3f; the adapters directory is the roster). A retired
+instrument's adapter stays, `adopted: false` with its `retired:` reason, so frozen
+runs that carry its rows still project. The wider candidate roster:
+`map/scanners/CANDIDATES.md`.
 
 ### 3b. The fresh-clone instrument (`map/fresh-clone.mjs`)
 
@@ -402,7 +393,7 @@ That fact holds `d-dependencies-known-clean` at not-measured unless a real criti
 advisory decides it: an unaudited lockfile is not a clean one (before the fact
 existed, a run whose only lockfile went unaudited read met). A clean run is the
 explicit empty `map/findings/dependency-scan.yaml`. Every category lands on
-`code-security` — the shared property gitleaks and the code reviewer also feed.
+`code-security` — the shared property the secret scan and the code reviewer also feed.
 (`lockfile-unsupported` stays mapped for runs frozen before 0.2.0, which filed a
 pnpm/yarn lockfile as a gap.)
 
@@ -718,10 +709,16 @@ the routine through the same offline draw) drives every adopted instrument that 
 ```yaml
 run:
   bin: <binary>              # found on PATH; absent → skipped, with `install`'s line
-  args: [ … ]                # run from inside the target
+  args: [ … ]                # run from inside the target; an arg holding `{report}` names a
+                             #   scratch file the tool writes its report to (else stdout)
   ok_exits: [0, 1]           # the exits that are a completed run; any other → failed
   no_input_exits: [128]      # optional: the tool found nothing to read
   inputs: [".github/workflows/*.yml", …]   # optional globs: none in the tree → not started
+  scope: repository          # optional: the tool reads the history of the repository
+                             #   holding the target; a target that is not its repository's
+                             #   top level is skipped with that reason before anything runs
+  outside_repository: [ … ]  # optional, with scope: args added when the target is in no
+                             #   repository (a directory scan)
   version: ["--version"]     # optional: recorded in the envelope
   install: "<how to install it>"
   timeout_s: 600
@@ -749,12 +746,26 @@ map and the archive names no machine. Ingest reads it by the format the adapter'
   failed check is a gap keyed by its framework; each file a framework read is a
   `config-audited` fact; each file it could not parse is a `config-not-audited`
   fact. A summary that counts resources but carries no framework report halts.
+- `leak-list`: a JSON array of leaks (`RuleID`, `File`, `StartLine`, …), read from the
+  envelope or from a bare report given with `--exit` (#156). Every leak is one gap of
+  the adapter's `ingest.category`, citing the rule and `file:line` and never the
+  matched value; its fix is the adapter's `ingest.fix`. The exit must agree with the
+  report: `ingest.found_exit` with leaks, any other success exit with none. The archive
+  keeps only the fields `ingest.keep` names, each in `ingest.abbreviate` cut to 12
+  characters.
+- `check-scores`: `{ checks: [{ name, score, reason, details }] }`, each check scored
+  0–10 or -1 (not applicable, skipped and logged). At or above `ingest.strength_at` a
+  check is a strength, below it a gap; a detail line's `file:line` is its evidence,
+  else the archived report. Its `native_id` is `<check>:<score>`.
 
 A run that found nothing to read (its inputs absent, an exit in `no_input_exits`,
 or an empty summary) is one `no-input` fact, which a decider's
 `not_applicable_when` names. The views band the gaps from the adapter's `bands:`
 (a value to a band, read from `detail.tool_severity`, else the native category,
-with `default`). The rows an adapter's instrument decides are its `decides:` (§3).
+with `default`; or `by_score`, a list of `{ at_most, band }` read against a scored
+check's score, with `default`). An adapter that names no bands leaves its gaps
+unrated: the reader ranks them. The rows an adapter's instrument decides are its
+`decides:` (§3).
 
 ### 3g. The tools an adapter pins (`tool:`, `tools:`)
 
@@ -888,8 +899,9 @@ remedies, never how to classify them:
   remedy, not ten), or `scanner` (one remedy for the whole scanner's remaining
   open gaps).
 - `triage: true` — this scanner's remedy is a read-first bucket (confirm what is
-  live before fixing anything — gitleaks): sequenced right after the roadmap,
-  always gets a session prompt, and implies `unit: scanner`.
+  live before fixing anything — a secret scan): sequenced right after the roadmap,
+  always gets a session prompt, and implies `unit: scanner`. `ignore_file:` names
+  where a person records a hit confirmed not live (the triage prompt cites it).
 - `client_proof:` — one plain sentence: a proof the repository's OWN team can
   run, with the repository's OWN tools, no assay. May use `{paths}` (the
   remedy's evidence files, `:line` stripped, deduped) and `{dirs}` (their parent

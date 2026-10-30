@@ -76,9 +76,7 @@ requirements:
     harm: [data, money]
     decide:
       kind: instrument
-      scanner: gitleaks
-      category: secret
-    check: gitleaks over the full history exits clean; each prior leak has a rotation recorded
+    check: a secrets scan over the full history exits clean; each prior leak has a rotation recorded
     sources: [floor/s-secrets, foundation/never-a-secret-in-a-file, manifest/invariants]
     status: draft
     owner:

@@ -297,7 +297,7 @@ runs/<slug>-<date>/
 │   │   ├── practice-review-improvement.yaml    # Pass 6  │
 │   │   ├── practice-review-multiplayer.yaml    # Pass 7  ┘
 │   │   └── <scanner>.yaml                # one per peer scanner / instrument
-│   │                                      #   (gitleaks.yaml, <reviewer>.yaml,
+│   │                                      #   (<instrument>.yaml, <reviewer>.yaml,
 │   │                                      #   fresh-clone.yaml, dependency-scan.yaml,
 │   │                                      #   repo-census.yaml, …)
 │   ├── scanners.yaml                # §5a — the RUN MANIFEST: every adopted scanner's disposition (REQUIRED)
@@ -385,9 +385,9 @@ scanners:
   <reviewer>:                 # a peer reviewer's adapter id
     status: skipped           # ran | skipped | failed
     reason: "out of this engagement's scope; decided by the lead"   # required unless ran
-  gitleaks:
+  <instrument>:                # an external instrument's adapter id
     status: failed
-    reason: "gitleaks binary not on PATH in the run container"
+    reason: "<instrument> exited 2: <the tail of its error>"
 ```
 
 A row may carry `model:`, the model id a judgment scanner ran on (practice-review,

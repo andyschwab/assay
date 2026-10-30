@@ -1,5 +1,5 @@
-// ── runGitleaks: the secret scan reads the target's own history, never an
-// enclosing repository's (issue #51) ──
+// ── the secret scan reads the target's own history, never an enclosing repository's (issue #51) ──
+// gitleaks runs off its adapter (scope: repository, outside_repository: --no-git; #156).
 // gitleaks in git mode scans the history of whatever repository contains its
 // --source, so a target that is a subdirectory of a larger checkout was measured
 // against the enclosing repository's history, and its hits cited paths outside
@@ -12,7 +12,8 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runGitleaks } from '../../map/start.mjs';
+import { runAdapterInstrument } from '../../map/start.mjs';
+import { loadAdapters } from '../../map/project.mjs';
 import { ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'gitleaks-target';
@@ -23,6 +24,8 @@ export async function run() {
   const hasGitleaks = spawnSync('gitleaks', ['version'], { encoding: 'utf8' }).status === 0;
   const scratch = mkdtempSync(join(tmpdir(), 'assay-gitleaks-target-'));
   const logs = [];
+  const adapter = loadAdapters().gitleaks;
+  const runGitleaks = (dir, out, log) => runAdapterInstrument('gitleaks', adapter, dir, out, log);
   const findingsFile = (out) => join(out, 'map', 'findings', 'gitleaks.yaml');
 
   // a subdirectory of a repository whose history holds a planted value outside it
@@ -35,14 +38,14 @@ export async function run() {
   git(['add', '-A']);
   if (git(['commit', '-q', '-m', 'planted']).status !== 0) fail('test setup: could not commit the scratch parent repository');
   const outSub = join(scratch, 'run-sub');
-  const sub = runGitleaks(join(parent, 'sub'), outSub, (l) => logs.push(l), 'absent here');
+  const sub = runGitleaks(join(parent, 'sub'), outSub, (l) => logs.push(l));
   if (sub.status !== 'skipped' || !/not its git repository's top level/.test(sub.reason || '')) fail(`a subdirectory of a repository must be refused with the not-a-top-level reason, whatever is on PATH (got ${JSON.stringify(sub)})`);
   if (existsSync(findingsFile(outSub))) fail('a refused target must write no gitleaks rows — never the enclosing repository\'s hits');
 
   // the repository's own top level is still scanned in git mode, its own history read
   if (hasGitleaks) {
     const outTop = join(scratch, 'run-top');
-    const top = runGitleaks(parent, outTop, (l) => logs.push(l), 'absent here');
+    const top = runGitleaks(parent, outTop, (l) => logs.push(l));
     const rows = existsSync(findingsFile(outTop)) ? readFileSync(findingsFile(outTop), 'utf8') : '';
     if (top.status !== 'ran' || !/planted\.js:1/.test(rows)) fail(`a repository's own top level must be scanned and cite planted.js:1 (got ${JSON.stringify(top)}, rows ${JSON.stringify(rows.slice(0, 200))})`);
   }
@@ -53,7 +56,7 @@ export async function run() {
   writeFileSync(join(loose, 'lib', 'k.js'), planted);
   if (spawnSync('git', ['-C', loose, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' }).status === 0) fail(`test setup: the temp directory ${tmpdir()} is inside a git repository, so the directory-mode case cannot be built`);
   const outLoose = join(scratch, 'run-loose');
-  const lo = runGitleaks(loose, outLoose, (l) => logs.push(l), 'absent here');
+  const lo = runGitleaks(loose, outLoose, (l) => logs.push(l));
   // the evidence element may be quoted (#53: ingest quotes every element) or bare
   if (hasGitleaks) {
     const rows = existsSync(findingsFile(outLoose)) ? readFileSync(findingsFile(outLoose), 'utf8') : '';

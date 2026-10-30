@@ -31,6 +31,47 @@ tool:
       url: "https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_darwin_arm64.tar.gz"
       sha256: "cad3de5dc9a4d5447d967a70a4d49499c557f04db028274cc324f9ff983f6502"
       member: "gitleaks"
+# The runner drives it from here (map/start.mjs runAdapterInstrument, CONTRACT.md §3a):
+# git mode reads the history of whatever repository CONTAINS the source, so a target that
+# is not its repository's top level is refused with a reason before anything runs (scope:
+# repository), and a target in no repository is scanned as a directory (outside_repository).
+# It runs from inside the target with --source . so every File it reports is relative to
+# the target, and writes its report to the file {report} names; --redact keeps the matched
+# value out of that report too. Exit 1 means leaks found, 0 none.
+run:
+  bin: gitleaks
+  args:
+    - "detect"
+    - "--source"
+    - "."
+    - "--report-format"
+    - "json"
+    - "--report-path"
+    - "{report}"
+    - "--redact"
+  scope: repository
+  outside_repository:
+    - "--no-git"
+  ok_exits: [0, 1]
+  version:
+    - "version"
+  install: "node assay.mjs tools install --only gitleaks (the pin is this adapter's tool: block)"
+  timeout_s: 1800
+# A gitleaks report is a leak list (map/ingest.mjs): every leak collapses to the one
+# category below, the rule id kept in native_id. The archive keeps location fields only:
+# never Secret, Match, Line, Author, Email or Message; the commit is cut to 12 characters.
+ingest:
+  format: leak-list
+  start_id: 700
+  found_exit: 1
+  category: secret
+  keep: [RuleID, Description, File, StartLine, EndLine, StartColumn, EndColumn, Commit, Date, Fingerprint, Entropy, Tags]
+  abbreviate: [Commit]
+  fix: "Rotate the credential now (assume it is burned), then purge it from history; suppress via .gitleaksignore only after verifying it is a false positive, with the reason recorded."
+# the requirement it decides (CLAUDE.md rule 7: the row names no scanner)
+decides:
+  - requirement: d-secrets-out-of-history
+    category: secret
 contributes: []
 
 map:
@@ -46,6 +87,8 @@ default: FAIL
 # already have: the gitleaks binary itself, scoped both to history and the tree.
 handoff:
   triage: true
+  # where a person records a hit confirmed not to be a live secret (the triage prompt's step 3)
+  ignore_file: ".gitleaksignore"
   client_proof: "`gitleaks detect --source . --redact` (the history) and `gitleaks detect --no-git --source . --redact` (the tree) report none of these, or each remaining one is recorded in `.gitleaksignore` with the reason a person confirmed it is not a live secret."
 
 capabilities:

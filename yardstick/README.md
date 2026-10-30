@@ -128,7 +128,8 @@ clean and the other not scanned reads not-measured. An empty list is rejected.
 
 The instruments that decide rows:
 
-- `gitleaks`: secrets in the tree and its history.
+- An external instrument decides the rows its adapter's `decides:` names
+  (`CLAUDE.md` rule 7); the secret scan decides `d-secrets-out-of-history` that way.
 - `fresh-clone` (`map/fresh-clone.mjs`, contract §3b): install, build, lint,
   typecheck, test and migrate from a clean checkout, once per workspace in a
   monorepo, and the README's commands replayed. It decides `d-fresh-clone-runs`
