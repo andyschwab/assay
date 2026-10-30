@@ -8,7 +8,7 @@
 // This is the ONE sequencing both callers share: `assay start` (a person
 // starting a run in their own terminal) and routine/run.mjs (the routine a
 // stewarded repository runs on its own schedule). The routine's own reasons
-// (NOT_RUN_BY_ROUTINE, its gitleaks-absent line) are parameters here, not
+// (NOT_RUN_BY_ROUTINE) are parameters here, not
 // hard-coded, so moving this file changed nothing about what the routine
 // records (tests/blocks/routine.mjs pins this byte-for-byte).
 //
@@ -19,8 +19,8 @@
 //                      each lockfile, never the target's own configuration),
 //                      structure-scan (jscpd and knip installed into its own
 //                      scratch; knip only under --allow-exec, since it imports
-//                      the target's own tool configs), gitleaks and the
-//                      adapter-run instruments; and fresh-clone
+//                      the target's own tool configs), the instruments
+//                      each adapter's run: drives; and fresh-clone
 //                      (from a scratch clone of the target's committed head,
 //                      never in place: the routine's CI checkout is the only
 //                      in-place caller) ONLY under --allow-exec, because it
@@ -44,8 +44,8 @@
 // remain. It does not compile and does not write routine.yaml — that is the
 // routine's own record, not a person's start.
 //
-// Library: drawOfflineMap, runAssayInstrument, runGitleaks, toScannersYaml,
-// engineCommit — routine/run.mjs imports all five.
+// Library: drawOfflineMap, runAssayInstrument, runAdapterInstrument, toScannersYaml,
+// engineCommit — routine/run.mjs imports what it re-exports.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -138,6 +138,12 @@ function toolNotRunLines(tool, rawFile) {
 //   version            args that print the tool's version, recorded in the envelope
 //   install            how to install it, named when it is absent (skipped, never clean)
 //   timeout_s          a wall-clock bound (default 600)
+//   {report} in args   the tool writes its report to that file rather than stdout; the
+//                      runner names a scratch file and reads the report from it
+//   scope: repository  the tool reads the history of the repository holding the target,
+//                      so a target that is not its repository's top level is skipped with
+//                      a reason before anything runs, whatever is on PATH; and a target in
+//                      no repository runs with `outside_repository` args added
 // It writes the envelope ingest's formats read: the exit, the report (stdout) and the
 // tail of stderr, with every path made relative to the target.
 const INPUT_WALK_SKIP = new Set(['.git', 'node_modules', '.venv', 'venv', '__pycache__', 'vendor']);
@@ -167,6 +173,15 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
   const write = (env) => writeFileSync(rawFile, JSON.stringify({ envelope: 1, scanner: id, ...env }, null, 2) + '\n');
   const ok = [...(run.ok_exits || [0]), ...(run.no_input_exits || [])].map(Number);
   try {
+    let outsideRepository = false;
+    if (run.scope === 'repository') {
+      const top = spawnSync('git', ['-C', repoDir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
+      if (top.status === 0 && realpathSync(String(top.stdout).trim()) !== root) {
+        log(`· ${id} — target is not its repository's top level, skipped`);
+        return { status: 'skipped', reason: `${id} not run: the target is not its git repository's top level, so a scan of its repository would read the enclosing repository's history — scan the repository's own checkout, or a copy outside any repository` };
+      }
+      outsideRepository = top.status !== 0;
+    }
     if (Array.isArray(run.inputs) && run.inputs.length && !hasInput(repoDir, run.inputs)) {
       log(`· ${id} — nothing to read (none of ${run.inputs.join(', ')})`);
       write({ exit: 0, no_input: true, report: null, stderr: [] });
@@ -178,13 +193,17 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
       return { status: 'skipped', reason };
     }
     const version = Array.isArray(run.version) ? String(spawnSync(run.bin, run.version, { encoding: 'utf8', env: childEnv() }).stdout || '').trim().split('\n')[0] : null;
-    log(`· ${id}${version ? ` (${version})` : ''} …`);
+    log(`· ${id}${version ? ` (${version})` : ''}${outsideRepository ? ' (in no repository)' : ''} …`);
+    const reportFile = join(rawDir, 'report.out');
+    const args = [...(run.args || []), ...(outsideRepository ? run.outside_repository || [] : [])].map((a) => String(a).split('{report}').join(reportFile));
+    const toFile = (run.args || []).some((a) => String(a).includes('{report}'));
     const t0 = Date.now();
     // the same allow-listed environment as every instrument's child (map/child-env.mjs, CONTRACT.md §3a)
-    const r = spawnSync(run.bin, (run.args || []).map(String), { cwd: repoDir, env: childEnv(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: Number(run.timeout_s || 600) * 1000 });
+    const r = spawnSync(run.bin, args, { cwd: repoDir, env: childEnv(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: Number(run.timeout_s || 600) * 1000 });
     const duration = secondsSince(t0);   // the row's cost on the record (SCHEMA.md §5a, #159)
     const stderr = rel(r.stderr).split('\n').filter(Boolean).slice(-400);
-    write({ exit: r.status, version, no_input: false, report: rel(r.stdout), stderr });
+    const report = toFile ? (existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : null) : r.stdout;
+    write({ exit: r.status, version, no_input: false, report: report == null ? null : rel(report), stderr });
     const row = ingestInstrumentRaw({ tool: id, exit: r.status, output: stderr.slice(-3).join('\n') || (r.error ? String(r.error.message) : ''), rawFile, okExits: ok, outDir, log, target: repoDir });
     return { ...row, duration };
   } finally { try { rmSync(rawDir, { recursive: true, force: true }); } catch {} }
@@ -202,49 +221,6 @@ function timed(run) {
 // every adopted instrument whose adapter carries run:, in id order
 export const adapterRunInstruments = (adapters = loadAdapters()) =>
   Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument' && a.run && a.run.bin).map(([id]) => id).sort();
-
-// gitleaks is an external binary, not part of assay's own CLI — run it directly
-// when present; when it is not, skip it with the CALLER's own absent-reason
-// (CONTRACT.md §3a: an adopted instrument may be absent from an environment,
-// and its absence must be RECORDED, never silently read as clean).
-// Git mode reads the history of whatever repository CONTAINS --source, so the
-// target must be its repository's top level: a subdirectory of a larger
-// checkout is refused with a reason (checked before the binary, so the record
-// is the same on every machine), and a directory in no repository is scanned in
-// directory mode. gitleaks runs from inside the target with --source . so every
-// File it reports is relative to the target (#51).
-const GITLEAKS_NOT_TOP_LEVEL = "gitleaks not run: the target is not its git repository's top level, so a git-mode scan would read the enclosing repository's history — scan the repository's own checkout, or a copy outside any repository";
-export function runGitleaks(repoDir, outDir, log, absentReason) {
-  const top = spawnSync('git', ['-C', repoDir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8' });
-  const inRepo = top.status === 0;
-  if (inRepo && realpathSync(String(top.stdout).trim()) !== realpathSync(repoDir)) {
-    log('· gitleaks — target is not its repository\'s top level, skipped');
-    return { status: 'skipped', reason: GITLEAKS_NOT_TOP_LEVEL };
-  }
-  if (!which('gitleaks')) {
-    log('· gitleaks — binary not found on PATH, skipped');
-    return { status: 'skipped', reason: absentReason };
-  }
-  const { dir: rawDir, file: rawFile } = rawScratch('gitleaks');
-  log(`· gitleaks (${inRepo ? 'git history' : 'directory, no repository'}) …`);
-  const r = spawnSync('gitleaks', ['detect', '--source', '.', ...(inRepo ? [] : ['--no-git']), '--report-format', 'json', '--report-path', rawFile, '--redact'], { cwd: repoDir, encoding: 'utf8' });
-  const exit = r.status;
-  if (exit == null || (exit !== 0 && exit !== 1)) {
-    const reason = `gitleaks exited ${exit == null ? '(no exit code — process error)' : exit}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
-    log(`  ✗ gitleaks failed: ${reason}`);
-    try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
-    return { status: 'failed', reason };
-  }
-  const ing = assay(['ingest', outDir, '--tool', 'gitleaks', '--raw', rawFile, '--exit', String(exit)]);
-  try { rmSync(rawDir, { recursive: true, force: true }); } catch {}
-  if (ing.status !== 0) {
-    const reason = `gitleaks ran (exit ${exit}) but its report failed to ingest: ${String(ing.stderr || ing.stdout || '').trim().split('\n').slice(-3).join(' | ')}`;
-    log(`  ✗ ${reason}`);
-    return { status: 'failed', reason };
-  }
-  log(`  ✓ gitleaks ran (exit ${exit})`);
-  return { status: 'ran' };
-}
 
 // header: the caller's own leading comment line — routine/run.mjs passes its
 // original text verbatim so its output stays byte-identical to before the move.
@@ -268,13 +244,13 @@ export const judgmentScanners = (adapters = loadAdapters()) =>
   Object.keys(adoptedAdapters(adapters)).filter((id) => adapters[id].role !== 'instrument');
 
 // drawOfflineMap — runs every instrument assay can run on its own (repo-census,
-// fresh-clone, dependency-scan, gitleaks-if-present, structure-scan) against
+// fresh-clone, dependency-scan, structure-scan, and each adopted instrument its adapter's
+// `run:` drives) against
 // repoDir/outDir, and records the judgment scanners skipped with the caller's
 // own pendingReason. Returns the seven scanner rows (not yet written to disk — the
 // caller decides the file's full roster and writes it).
 //   pendingReason(id)     — the reason text for a judgment scanner (a function
 //                           of the scanner id, or a plain string used as-is).
-//   gitleaksAbsentReason  — the reason text when the gitleaks binary is absent.
 //   freshCloneNoClone     — pass `--no-clone` to fresh-clone (run it in place):
 //                           the routine's own repoDir IS already a fresh CI
 //                           checkout, so it passes true, byte-identically to
@@ -299,7 +275,7 @@ export const judgmentScanners = (adapters = loadAdapters()) =>
 //                           ingested instead (the routine's gate job, which never
 //                           executes the target; knip ran in the target job,
 //                           after fresh-clone's install — #128).
-export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentReason, freshCloneNoClone = false, freshCloneSkipReason = null, handoff = null, structureScanNoExec = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+export function drawOfflineMap({ repoDir, outDir, pendingReason, freshCloneNoClone = false, freshCloneSkipReason = null, handoff = null, structureScanNoExec = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of judgmentScanners()) rows[id] = { status: 'skipped', reason: reasonFor(id) };
@@ -311,7 +287,6 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentR
   else if (handoff) rows['fresh-clone'] = ingestHandoff('fresh-clone', handoff, outDir, log);
   else rows['fresh-clone'] = timed(() => runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log, target: repoDir }));
   rows['dependency-scan'] = timed(() => runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir }));
-  rows['gitleaks'] = timed(() => runGitleaks(repoDir, outDir, log, gitleaksAbsentReason));
   if (handoff) rows['structure-scan'] = ingestHandoff('structure-scan', handoff, outDir, log);
   else rows['structure-scan'] = timed(() => runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log }));
   const adapters = loadAdapters();
@@ -367,7 +342,6 @@ function ingestHandoff(tool, handoffDir, outDir, log) {
 // was not measured, and a local path describes the machine, not the run.
 const pendingReasonFor = (_outArg) => (id) =>
   `not yet run: a steward session runs it; ingesting its report records it ran (${id}: node assay.mjs record <run> ${id} ran)`;
-const GITLEAKS_ABSENT_HERE = 'gitleaks binary not on PATH where this run was drawn';
 const NO_TARGET_REASON = 'not yet run: ingesting its report records it ran';
 const NO_EXEC_REASON = "not run: fresh-clone runs the target's own install, lifecycle scripts and tests on this machine; re-run start with --allow-exec in a disposable container or VM, or ingest a fresh-clone report drawn there";
 // fresh-clone clones the target's committed head, so under --allow-exec a target
@@ -419,7 +393,7 @@ function runCli() {
   if (target) {
     const repoDir = resolve(target);
     const freshCloneSkipReason = !args.includes('--allow-exec') ? NO_EXEC_REASON : isRepoTopLevel(repoDir) ? null : NOT_A_REPO_REASON;
-    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), gitleaksAbsentReason: GITLEAKS_ABSENT_HERE, freshCloneSkipReason, structureScanNoExec: !args.includes('--allow-exec') }, log);
+    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), freshCloneSkipReason, structureScanNoExec: !args.includes('--allow-exec') }, log);
   }
   // Every OTHER adopted scanner (today: none beyond the seven drawOfflineMap
   // already covers; a future adapter falls here automatically) is recorded

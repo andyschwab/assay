@@ -22,14 +22,9 @@ const NOT_CORE = (f) => f.startsWith('map/scanners/adapters/') || f === 'map/sca
 
 // Known residue, each entry the files an external scanner is still named in and
 // why: the list may only shrink, and an entry that no longer holds fails (stale).
-const PENDING = {
-  // instruments with a built-in conversion profile in ingest.mjs (and gitleaks' runner in
-  // start.mjs and the routine): the same move to adapter fields, not yet made
-  gitleaks: ['map/SCHEMA.md', 'map/ingest.mjs', 'map/scanners/CONTRACT.md', 'map/start.mjs', 'map/templates/scanners.yaml',
-    'routine/README.md', 'routine/assay-routine.yml', 'routine/run.mjs', 'views/improve/handoff.mjs', 'views/severity.mjs',
-    'yardstick/README.md', 'yardstick/requirements.yaml'],
-  scorecard: ['map/ingest.mjs', 'map/scanners/CONTRACT.md', 'views/severity.mjs'],
-};
+// Empty since #156: the last two instruments with a built-in profile and runner read
+// theirs off their adapters' `ingest:` and `run:`.
+const PENDING = {};
 
 const OPERATOR_WORDS = ['perun'];
 const OPERATOR_DIGESTS = [

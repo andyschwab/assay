@@ -12,11 +12,11 @@
 //      that crashed must never read as "0 findings". Malformed or truncated
 //      input halts. A verified-clean run (success exit, empty report) writes an
 //      explicit zero-findings file recording that the instrument ran.
-//   2. NEVER COPY A SECRET. The gitleaks profile builds observations from rule
+//   2. NEVER COPY A SECRET. The leak-list format builds observations from rule
 //      id + location only; the matched secret value is never written anywhere.
 //
-// Evidence: file:line where the tool reports one; a repo-level claim (most
-// Scorecard checks) cites the archived raw report (run-relative `map/raw/…`),
+// Evidence: file:line where the tool reports one; a repo-level claim (most checks of
+// a check-scores report) cites the archived raw report (run-relative `map/raw/…`),
 // which `validate.mjs --target` knows to skip (instrument evidence lives in the
 // run, not the target).
 //
@@ -46,7 +46,7 @@
 // halts. A tool skipped or failed is a <category>-not-run fact, never 0 rows.
 //
 // Usage:
-//   node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx]
+//   node assay.mjs ingest <run-dir> --tool <instrument> --raw <file> --exit <code> [--start F-7xx]
 //   node assay.mjs ingest <run-dir> --tool <reviewer> --raw <machine report .yaml> [--start F-8xx]
 // Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
 // <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
@@ -65,81 +65,16 @@ import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs'
 import { TOOL_STATUS as SS_TOOL_STATUS, UNUSED_KINDS as SS_UNUSED_KINDS, HISTORY as SS_HISTORY, TEST_PATH as SS_TEST_PATH } from './structure-scan.mjs';
 
 // The routine uploads the whole run, map/raw/ included, as a workflow artifact
-// (routine/README.md), so a raw archive is minimised like gitleaks': a tail of a
+// (routine/README.md), so a raw archive is minimised like a leak list's: a tail of a
 // tool's own output, which may echo an environment value, is dropped (every key
 // named in `keys`, at any depth), and the rest of the document is kept as is.
 const dropKeys = (raw, keys) => JSON.parse(raw, (k, v) => (keys.includes(k) ? undefined : v));
 
 // ── tool profiles ────────────────────────────────────────────────────────────
 // okExits: the tool's documented success exits (anything else = tool error, halt).
-// For gitleaks, 0 = clean and 1 = leaks found are both successful runs.
+// An external instrument has no profile here: its adapter's `ingest:` names the format
+// below that reads its report (CLAUDE.md rule 7).
 const PROFILES = {
-  gitleaks: {
-    startId: 700,
-    okExits: [0, 1],
-    // the raw archive is LOCATION-ONLY: a gitleaks report carries the matched value in
-    // Secret, Match and Line (and the author's name and email); none of it may enter a run
-    archive(raw) {
-      const leaks = JSON.parse(raw);
-      return JSON.stringify(leaks.map((l) => Object.fromEntries(GITLEAKS_ARCHIVE_KEYS.filter((k) => l[k] !== undefined).map((k) => [k, k === 'Commit' ? String(l[k]).slice(0, 12) : l[k]]))), null, 1) + '\n';
-    },
-    convert(raw, startId, exitCode) {
-      const leaks = parseJson(raw, 'gitleaks');
-      if (!Array.isArray(leaks)) throw new Error('gitleaks report must be a JSON array');
-      // the exit code and the report agree (F-304), as fresh-clone / dependency-scan / repo-census
-      // already require: gitleaks exits 1 when it found leaks and 0 when it found none, so an
-      // exit 1 over an empty array (a truncated or foreign report) is not a verified-clean run
-      if ((exitCode === 1) !== (leaks.length > 0)) throw new Error(`gitleaks exited ${exitCode} but its report holds ${leaks.length} leak(s) — the report does not describe the run it is filed under (exit 1 means leaks found, 0 none)`);
-      return leaks.map((l, i) => {
-        for (const k of ['RuleID', 'File', 'StartLine']) {
-          if (l[k] === undefined || l[k] === null || l[k] === '') throw new Error(`gitleaks leak ${i} missing ${k} (truncated report?)`);
-        }
-        // NEVER touch l.Secret / l.Match — the matched value must not leave the raw file.
-        return {
-          id: fid(startId + i),
-          source: 'gitleaks',
-          native_id: `${l.RuleID}@${l.File}:${l.StartLine}`,
-          native_category: 'secret',
-          polarity: 'gap',
-          observation: `Committed secret detected by rule ${l.RuleID} (${oneLine(l.Description || 'no description')}); the value is in the repository history at the cited location.`,
-          evidence: [`${l.File}:${l.StartLine}`],
-          fix: `Rotate the credential now (assume it is burned), then purge it from history; suppress via .gitleaksignore only after verifying it is a false positive, with the reason recorded.`,
-        };
-      });
-    },
-  },
-  scorecard: {
-    startId: 750,
-    okExits: [0],
-    // >= 8 strength · 0-7 gap · -1 (N/A) skipped, logged. The gap's severity band is the
-    // view's (views/severity.mjs), read from the score in native_id; the row asserts none.
-    convert(raw, startId) {
-      const rep = parseJson(raw, 'scorecard');
-      if (!rep || !Array.isArray(rep.checks)) throw new Error('scorecard report has no checks[] (truncated report?)');
-      const rows = /** @type {any} */ ([]); const skipped = [];
-      let n = 0;
-      for (const c of rep.checks) {
-        if (!c || !c.name || typeof c.score !== 'number') throw new Error('scorecard check missing name/score (truncated report?)');
-        if (c.score < 0) { skipped.push(c.name); continue; } // N/A — logged in the file header, never silent
-        const detailPath = firstPath(c.details);
-        const row = {
-          id: fid(startId + n++),
-          source: 'scorecard',
-          native_id: `${c.name}:${c.score}`,
-          native_category: c.name,
-          polarity: c.score >= 8 ? 'strength' : 'gap',
-          observation: `Scorecard ${c.name} scored ${c.score}/10: ${oneLine(c.reason || 'no reason given')}.`,
-          evidence: [detailPath || 'map/raw/scorecard.json:1'],
-        };
-        if (row.polarity === 'gap') {
-          row.fix = `Raise the ${c.name} score: follow the check's remediation guidance${c.documentation && c.documentation.url ? ` (${c.documentation.url})` : ''}.`;
-        }
-        rows.push(row);
-      }
-      rows.skipped = skipped;
-      return rows;
-    },
-  },
   'fresh-clone': {
     startId: 900,
     // 0 = every declared step passed and every README claim present, at the root AND
@@ -652,8 +587,6 @@ const RC_FIX = {
     `Run the procedure; a person or CI writes this file from its real output — an agent must never write it. The resulting transcript at ops/evidence/${id}.md (or docs/evidence/${id}.md) needs the required frontmatter keys (owner/evidence/README.md), a body with a fenced code block and at least 5 non-empty lines, a commit that resolves in the checkout's history, and a date inside the freshness window. Re-run repo-census and confirm it reads pass.`])),
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];
-// the only gitleaks fields a run may keep (never Secret, Match, Line, Author, Email, Message)
-const GITLEAKS_ARCHIVE_KEYS = ['RuleID', 'Description', 'File', 'StartLine', 'EndLine', 'StartColumn', 'EndColumn', 'Commit', 'Date', 'Fingerprint', 'Entropy', 'Tags'];
 // the instruments' closed vocabularies are imported from the producers above (#80); a report
 // outside them is truncated or foreign. not-supported: dependency-scan documents from before 0.2.0
 const DS_STATUS = [...LOCK_STATUS, 'not-supported'];
@@ -700,7 +633,7 @@ function parseJson(raw, tool) {
   try { return JSON.parse(raw); }
   catch (e) { throw new Error(`${tool} raw report is not valid JSON (fail-closed): ${e.message.slice(0, 80)}`); }
 }
-// pull a file:line (or bare path) out of a Scorecard details line, if one exists
+// pull a file:line (or bare path) out of a check's details line, if one exists
 function firstPath(details) {
   if (!Array.isArray(details)) return null;
   for (const d of details) {
@@ -877,6 +810,98 @@ const FORMATS = {
       return rows;
     },
   }),
+  // leak-list: a JSON array of leaks, each { RuleID, File, StartLine, Description, … } with
+  // the matched value in Secret / Match / Line. The format reads location only: a row
+  // cites the rule and file:line, and never the value; the archive keeps only the fields
+  // the adapter names (ingest.keep), each named in ingest.abbreviate cut to 12 characters.
+  // The tool's exit and the report agree: the adapter's ingest.found_exit means leaks
+  // were found, any other success exit none. Read from the runner's envelope or a bare
+  // report given with --exit.
+  'leak-list': (id, adapter) => {
+    const spec = adapter.ingest;
+    const keep = Array.isArray(spec.keep) ? spec.keep.map(String) : [];
+    const abbreviate = new Set(Array.isArray(spec.abbreviate) ? spec.abbreviate.map(String) : []);
+    const reportOf = (raw) => { const doc = parseJson(raw, id); return doc && doc.envelope === 1 ? { env: readEnvelope(id, raw), leaks: null } : { env: null, leaks: doc }; };
+    const minimise = (leaks) => leaks.map((l) => Object.fromEntries(keep.filter((k) => l[k] !== undefined).map((k) => [k, abbreviate.has(k) ? String(l[k]).slice(0, 12) : l[k]])));
+    return {
+      raw: `${id}.json`,
+      startId: Number(spec.start_id),
+      okExits: (adapter.run?.ok_exits || spec.ok_exits || [0]).map(Number),
+      // the raw archive is LOCATION-ONLY: none of the matched value, nor its author, enters a run
+      archive(raw) {
+        const { env, leaks } = reportOf(raw);
+        if (!env) return JSON.stringify(minimise(leaks), null, 1) + '\n';
+        return JSON.stringify({ ...env, stderr: [], report: env.report == null ? null : JSON.stringify(minimise(parseJson(env.report, id))) }, null, 1) + '\n';
+      },
+      convert(raw, startId, exitCode) {
+        const { env, leaks: bare } = reportOf(raw);
+        if (env && Number(env.exit) !== Number(exitCode)) throw new Error(`${id} envelope records exit ${env.exit}, not the ${exitCode} given`);
+        const leaks = env ? parseJson(env.report, id) : bare;
+        if (!Array.isArray(leaks)) throw new Error(`${id} report must be a JSON array of leaks`);
+        // the exit code and the report agree (F-304): the found exit means leaks, any other
+        // success exit none, so a found exit over an empty array (a truncated or foreign
+        // report) is not a verified-clean run
+        const found = Number(spec.found_exit);
+        if ((exitCode === found) !== (leaks.length > 0)) throw new Error(`${id} exited ${exitCode} but its report holds ${leaks.length} leak(s) — the report does not describe the run it is filed under (exit ${found} means leaks found)`);
+        return leaks.map((l, i) => {
+          for (const k of ['RuleID', 'File', 'StartLine']) {
+            if (l[k] === undefined || l[k] === null || l[k] === '') throw new Error(`${id} leak ${i} missing ${k} (truncated report?)`);
+          }
+          // NEVER touch l.Secret / l.Match — the matched value must not leave the raw file.
+          return {
+            id: fid(startId + i),
+            source: id,
+            native_id: `${l.RuleID}@${l.File}:${l.StartLine}`,
+            native_category: String(spec.category),
+            polarity: 'gap',
+            observation: `Committed secret detected by rule ${l.RuleID} (${oneLine(l.Description || 'no description')}); the value is in the repository history at the cited location.`,
+            evidence: [`${l.File}:${l.StartLine}`],
+            fix: oneLine(spec.fix),
+          };
+        });
+      },
+    };
+  },
+  // check-scores: { checks: [{ name, score, reason, details, documentation }] }, each
+  // check scored 0–10 or -1 (not applicable). At or above the adapter's ingest.strength_at
+  // a check is a strength, below it a gap; -1 is skipped and logged, never silent. A gap's
+  // band is the view's (views/severity.mjs, the adapter's bands.by_score), read from the
+  // score in native_id; the row asserts none.
+  'check-scores': (id, adapter) => {
+    const spec = adapter.ingest;
+    const label = String(spec.label || id);
+    return {
+      raw: `${id}.json`,
+      startId: Number(spec.start_id),
+      okExits: (spec.ok_exits || [0]).map(Number),
+      convert(raw, startId) {
+        const rep = parseJson(raw, id);
+        if (!rep || !Array.isArray(rep.checks)) throw new Error(`${id} report has no checks[] (truncated report?)`);
+        const rows = /** @type {any} */ ([]); const skipped = [];
+        let n = 0;
+        for (const c of rep.checks) {
+          if (!c || !c.name || typeof c.score !== 'number') throw new Error(`${id} check missing name/score (truncated report?)`);
+          if (c.score < 0) { skipped.push(c.name); continue; } // N/A — logged in the file header, never silent
+          const detailPath = firstPath(c.details);
+          const row = {
+            id: fid(startId + n++),
+            source: id,
+            native_id: `${c.name}:${c.score}`,
+            native_category: c.name,
+            polarity: c.score >= Number(spec.strength_at) ? 'strength' : 'gap',
+            observation: `${label} ${c.name} scored ${c.score}/10: ${oneLine(c.reason || 'no reason given')}.`,
+            evidence: [detailPath || `map/raw/${id}.json:1`],
+          };
+          if (row.polarity === 'gap') {
+            row.fix = `Raise the ${c.name} score: follow the check's remediation guidance${c.documentation && c.documentation.url ? ` (${c.documentation.url})` : ''}.`;
+          }
+          rows.push(row);
+        }
+        rows.skipped = skipped;
+        return rows;
+      },
+    };
+  },
   // The three formats below read an instrument the runner drives off its adapter's `run:`
   // (map/start.mjs runAdapterInstrument), from the envelope it writes: the tool's exit, its
   // report (stdout, paths already relative to the target) and the tail of its stderr, so a
@@ -1039,6 +1064,8 @@ function profileOf(tool) {
     if (!make) throw new Error(`adapters/${tool}.yaml ingest.format "${spec.format}" is not a format ingest reads (${Object.keys(FORMATS).join(', ')})`);
     if (!spec.tool && ['machine-report', 'sarif'].includes(spec.format)) throw new Error(`adapters/${tool}.yaml ingest: needs tool, the tool name its report carries`);
     if (!/^\d+$/.test(String(spec.start_id ?? ''))) throw new Error(`adapters/${tool}.yaml ingest: needs start_id, the id floor, as digits`);
+    if (spec.format === 'leak-list' && !(spec.category && spec.fix && Array.isArray(spec.keep) && spec.keep.length && /^\d+$/.test(String(spec.found_exit ?? '')))) throw new Error(`adapters/${tool}.yaml ingest: a leak-list needs category, fix, keep (the location fields a run may archive) and found_exit`);
+    if (spec.format === 'check-scores' && !(Number(spec.strength_at) >= 0)) throw new Error(`adapters/${tool}.yaml ingest: check-scores needs strength_at, the score at or above which a check is a strength`);
     return make(tool, adapter);
   }
   const known = [...Object.keys(PROFILES), ...Object.values(loadAdapters()).filter((a) => a.ingest).map((a) => a.scanner)];
@@ -1046,9 +1073,9 @@ function profileOf(tool) {
 }
 
 // ── id allocation: above the base's highest id, never inside another block ──
-// Each profile has a documented floor (gitleaks 700, scorecard 750, a reviewer's adapter
-// ingest.start_id (800 for the code reviewer), fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
-// history scan's gitleaks block ran F-700..F-1866), so the default start is the profile floor OR the
+// Each profile has a documented floor (an adapter's ingest.start_id: 700 for the secret
+// scan, 750 for the retired check-scores instrument, 800 for the code reviewer), fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
+// history scan's leak block ran F-700..F-1866), so the default start is the profile floor OR the
 // next hundred above the highest id already in the run's OTHER findings files,
 // whichever is higher. The profile's own file is excluded so a re-ingest of the same
 // tool lands where it did before instead of drifting upward on every run.
@@ -1153,8 +1180,7 @@ if (isMain(import.meta.url)) {
   try { profile = tool ? profileOf(tool) : null; } catch { /* convert reports an unknown tool */ }
   const exitless = !!(profile && profile.exitless);
   if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|dependency-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <gitleaks|scorecard|fresh-clone|repo-census|structure-scan> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
+    console.error('usage: node assay.mjs ingest <run-dir> --tool <instrument> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
     console.error('       node assay.mjs ingest <run-dir> --tool <reviewer, an adapter with ingest:> --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
     process.exit(2);
   }

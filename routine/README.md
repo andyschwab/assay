@@ -32,7 +32,7 @@ workflow runs (on a public repository, anyone), for as long as
 in a run carries what an instrument's output could have echoed: ingest drops
 fresh-clone's step output tails, dependency-scan's stderr tails and the code
 text of structure-scan's duplicated blocks before
-archiving to `map/raw/`, keeps gitleaks' locations only, and records a URL
+archiving to `map/raw/`, keeps a leak list's locations only, and records a URL
 target with its userinfo stripped. A failing step's cause is read from the
 workflow's own log, not from the artifact.
 
@@ -85,7 +85,7 @@ evaluate (exit 2: an unreadable baseline, a missing ref) — with the reason in
 the adopted instruments' pinned tools, so no map was drawn (#197). `failures`
 carries the one-line reason and `refused` lists each tool not ready, so a
 consumer running the routine across many repositories reports "refused:
-gitleaks absent" and fixes it with `node assay.mjs tools install --role
+<tool> absent" and fixes it with `node assay.mjs tools install --role
 instrument`, never reading it as a failed measurement. A reason is recorded on one line, capped at 400 characters (the full
 output stays in the CI log). `failures` is read straight
 from the ratchet subprocess's own stderr — the lines `evaluateRatchet`
@@ -98,10 +98,11 @@ The routine runs the instruments assay runs offline on its own — `repo-census`
 `fresh-clone`, `dependency-scan`, `structure-scan` (whose knip step imports the
 target's own tool configs, so in the two-job template it runs in the `target` job
 after fresh-clone's install, never in the gate job, which never executes the
-target) — plus `gitleaks` when the checkout is the repository's own top level
-(never a subdirectory of a larger checkout, whose history is not this
-repository's; that target is recorded `skipped` with the reason), and every
-adopted instrument whose adapter carries `run:` (`map/scanners/CONTRACT.md` §3f).
+target) — plus every adopted instrument whose adapter carries `run:`
+(`map/scanners/CONTRACT.md` §3f). One that reads the history of the repository
+holding the target (`scope: repository`) runs only over the repository's own top
+level, never a subdirectory of a larger checkout, whose history is not this
+repository's; that target is recorded `skipped` with the reason.
 Assay's own tools are a precondition, never a skip (#198): before it draws
 anything the routine checks that every tool an adopted adapter pins is on `PATH`
 and answers at its pin (`node assay.mjs tools verify --role instrument`), and when one is absent,

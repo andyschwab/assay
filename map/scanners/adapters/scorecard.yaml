@@ -20,6 +20,20 @@ retired: "2026-09-15 — needs direct GitHub API access at run time; cannot run 
 # the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
 fails_loud: instrument-port
 
+# A Scorecard report is a check-scores list (map/ingest.mjs): >= 8 a strength, 0-7 a gap,
+# -1 (N/A) skipped and logged. Its exit is 0.
+ingest:
+  format: check-scores
+  start_id: 750
+  strength_at: 8
+  label: Scorecard
+  ok_exits: [0]
+# a gap's band, read from its score (views/severity.mjs): 0-3 High, else Medium
+bands:
+  by_score:
+    - at_most: 3
+      band: High
+  default: Medium
 contributes: []
 
 map:

@@ -8,7 +8,7 @@
 //     declared `handoff.unit` (map/scanners/CONTRACT.md): one remedy per finding sharing
 //     an identical fix (the default), one per evidence file, or one for the whole scanner.
 //   • triage           — a scanner whose adapter declares `handoff.triage: true` (a
-//     read-first bucket: confirm which hits are live before fixing anything — gitleaks).
+//     read-first bucket: confirm which hits are live before fixing anything — a secret scan).
 //   • eval-authored    — a remedy authored by the evaluating agent in the run's
 //     views/improve/prose.yaml roadmap (title/body/assumptions/question/options/done_when), joined to
 //     its findings and spliced with their verbatim observations + evidence paths.
@@ -497,6 +497,12 @@ function triageRows(ps) {
     return `- ${file} — ${group.length} hit${group.length === 1 ? '' : 's'}; rule(s): ${ruleIds.join(', ') || '(none recorded)'}; finding(s) ${idRange}`;
   });
 }
+// where a hit confirmed not live is recorded: the scanner's adapter names its file
+// (handoff.ignore_file); with none, the scanner's own suppression mechanism
+const ignoreLine = (source) => {
+  const file = adapters[source]?.handoff?.ignore_file;
+  return file ? `add it to \`${file}\`` : `suppress it in ${source}'s own ignore list`;
+};
 function planTriage(s) {
   const rows = triageRows(s.ps);
   return `# Session prompt — ${seqTitle(s)}
@@ -528,7 +534,7 @@ rotating every credential at the handover makes the history's old values dead in
 ## Step 3 — Suppress the dead ones, and propose the purge
 
 For each hit that is not a live secret (a fixture, a placeholder, a value already rotated),
-add it to \`.gitleaksignore\` with the reason a person confirmed. For history, propose; do not
+${ignoreLine(s.source)} with the reason a person confirmed. For history, propose; do not
 rewrite: say whether a purge is still worth its cost once nothing in history is live, and
 what it would take (every clone re-cloned, open branches rebased). Tell me which you chose,
 per file.

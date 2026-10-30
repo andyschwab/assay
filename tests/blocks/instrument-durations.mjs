@@ -54,7 +54,7 @@ export async function run() {
     }
     const set = (tool, duration) => { const st = JSON.parse(readFileSync(statusFile(tool), 'utf8')); writeFileSync(statusFile(tool), JSON.stringify({ ...st, duration })); };
     set('fresh-clone', '42s'); set('structure-scan', '$(planted)');
-    const gate = drawOfflineMap({ repoDir: target, outDir: join(tmp, 'gate'), pendingReason: 'x', gitleaksAbsentReason: 'x', freshCloneNoClone: true, handoff });
+    const gate = drawOfflineMap({ repoDir: target, outDir: join(tmp, 'gate'), pendingReason: 'x', freshCloneNoClone: true, handoff });
     if (gate['fresh-clone']?.duration !== '42s') fail(`(c) the gate's fresh-clone row carries the target step's own time (got ${JSON.stringify(gate['fresh-clone'])})`);
     if (gate['structure-scan']?.duration !== undefined) fail(`(c) a handed duration of any other shape is not recorded (got ${JSON.stringify(gate['structure-scan']?.duration)})`);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
