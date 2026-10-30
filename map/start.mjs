@@ -182,13 +182,23 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
     const t0 = Date.now();
     // the same allow-listed environment as every instrument's child (map/child-env.mjs, CONTRACT.md §3a)
     const r = spawnSync(run.bin, (run.args || []).map(String), { cwd: repoDir, env: childEnv(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: Number(run.timeout_s || 600) * 1000 });
-    const duration = `${Math.max(1, Math.round((Date.now() - t0) / 1000))}s`;   // the row's cost on the record (SCHEMA.md §5a, #159)
+    const duration = secondsSince(t0);   // the row's cost on the record (SCHEMA.md §5a, #159)
     const stderr = rel(r.stderr).split('\n').filter(Boolean).slice(-400);
     write({ exit: r.status, version, no_input: false, report: rel(r.stdout), stderr });
     const row = ingestInstrumentRaw({ tool: id, exit: r.status, output: stderr.slice(-3).join('\n') || (r.error ? String(r.error.message) : ''), rawFile, okExits: ok, outDir, log, target: repoDir });
     return { ...row, duration };
   } finally { try { rmSync(rawDir, { recursive: true, force: true }); } catch {} }
 }
+// a row's cost on the run record (SCHEMA.md §5a, #159): whole seconds of wall time, at least 1
+const secondsSince = (t0) => `${Math.max(1, Math.round((Date.now() - t0) / 1000))}s`;
+// run one instrument and time it: a row it ran or failed carries its duration; a row it
+// skipped spent nothing worth recording, and a row that carries its own duration keeps it
+function timed(run) {
+  const t0 = Date.now();
+  const row = run();
+  return row && row.status !== 'skipped' && !row.duration ? { ...row, duration: secondsSince(t0) } : row;
+}
+
 // every adopted instrument whose adapter carries run:, in id order
 export const adapterRunInstruments = (adapters = loadAdapters()) =>
   Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument' && a.run && a.run.bin).map(([id]) => id).sort();
@@ -293,17 +303,19 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, gitleaksAbsentR
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of judgmentScanners()) rows[id] = { status: 'skipped', reason: reasonFor(id) };
-  rows['repo-census'] = runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir });
+  // each instrument row carries its wall time (#159); a handed-off one carries the target
+  // step's own, measured where it ran
+  rows['repo-census'] = timed(() => runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir }));
   const fcArgs = freshCloneNoClone ? [repoDir, '--no-clone'] : [repoDir];
   if (freshCloneSkipReason) { log(`· fresh-clone — not run: ${freshCloneSkipReason}`); rows['fresh-clone'] = { status: 'skipped', reason: freshCloneSkipReason }; }
   else if (handoff) rows['fresh-clone'] = ingestHandoff('fresh-clone', handoff, outDir, log);
-  else rows['fresh-clone'] = runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log, target: repoDir });
-  rows['dependency-scan'] = runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir });
-  rows['gitleaks'] = runGitleaks(repoDir, outDir, log, gitleaksAbsentReason);
+  else rows['fresh-clone'] = timed(() => runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log, target: repoDir }));
+  rows['dependency-scan'] = timed(() => runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir }));
+  rows['gitleaks'] = timed(() => runGitleaks(repoDir, outDir, log, gitleaksAbsentReason));
   if (handoff) rows['structure-scan'] = ingestHandoff('structure-scan', handoff, outDir, log);
-  else rows['structure-scan'] = runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log });
+  else rows['structure-scan'] = timed(() => runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log }));
   const adapters = loadAdapters();
-  for (const id of adapterRunInstruments(adapters)) rows[id] = runAdapterInstrument(id, adapters[id], repoDir, outDir, log);
+  for (const id of adapterRunInstruments(adapters)) rows[id] = timed(() => runAdapterInstrument(id, adapters[id], repoDir, outDir, log));
   return rows;
 }
 
@@ -325,9 +337,10 @@ export function writeTargetHandoff({ repoDir, handoffDir }, log = /** @type {(ms
   const exits = {};
   for (const [tool, extra] of Object.entries(HANDED_OFF)) {
     log(`· ${tool} (in place; its report is handed to the gate) …`);
+    const t0 = Date.now();
     const r = assay([tool, repoDir, ...extra, '--out', join(handoffDir, handoffReport(tool))]);
     const output = String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join('\n');
-    writeFileSync(join(handoffDir, handoffStatus(tool)), JSON.stringify({ tool, exit: r.status, output }) + '\n');
+    writeFileSync(join(handoffDir, handoffStatus(tool)), JSON.stringify({ tool, exit: r.status, output, duration: secondsSince(t0) }) + '\n');
     log(`  ${r.status != null && HANDOFF_OK_EXITS.includes(r.status) ? '✓' : '✗'} ${tool} exited ${r.status == null ? '(no exit code — process error)' : r.status}`);
     exits[tool] = r.status;
   }
@@ -343,7 +356,9 @@ function ingestHandoff(tool, handoffDir, outDir, log) {
     return { status: 'failed', reason };
   }
   const exit = Number.isInteger(status && status.exit) ? status.exit : null;
-  return ingestInstrumentRaw({ tool, exit, output: status && status.output, rawFile: join(handoffDir, handoffReport(tool)), okExits: HANDOFF_OK_EXITS, outDir, log });
+  const row = ingestInstrumentRaw({ tool, exit, output: status && status.output, rawFile: join(handoffDir, handoffReport(tool)), okExits: HANDOFF_OK_EXITS, outDir, log });
+  // the target step's own wall time, when it handed one forward (#159); handoff data, so only its shape is trusted
+  return status && typeof status.duration === 'string' && /^\d+s$/.test(status.duration) ? { ...row, duration: status.duration } : row;
 }
 
 // the reason a `start` run gives for a judgment scanner it never runs, naming

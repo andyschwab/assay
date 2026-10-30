@@ -396,7 +396,10 @@ with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. Any row, an inst
 included, may carry `duration:`, how long the scanner ran, with the unit (`"4m10s"`) or
 as a whole number of seconds (`node assay.mjs record <run> <scanner> ran --duration
 "<text>"`); `node assay.mjs roster` reads it and `spend:` as the scanner's cost
-(`map/scanners/INTAKE.md`). An empty `duration:` is an error. The `practice-review` row may
+(`map/scanners/INTAKE.md`). `assay start` and the routine write it on every instrument row
+they ran or that failed, in whole seconds (`"12s"`); in the two-job routine a handed-off
+instrument carries the target step's own time (#159). A judgment scanner's row takes it
+from `record --duration`. An empty `duration:` is an error. The `practice-review` row may
 also carry `passes:`, the same two fields per pass, keyed by the pass's file name
 (`map/findings/practice-review-<pass>.yaml`), so a run can say which model wrote each pass:
 
