@@ -131,15 +131,15 @@ jobs:
       # assay's pinned tools are a precondition, never a skip (routine/README.md,
       # "Assay's tools"): the routine refuses to draw a map until every adopted
       # instrument's tool is on PATH and answers at its pin. One command installs
-      # them all from the engine's own adapters (--role instrument: a review
-      # session's own tools are never the routine's), each download checked against the
+      # them all from the engine's own adapters (--run: the instruments' tools and those a
+      # review reads, run here before it — never a review session's own), each download checked against the
       # sha256 its adapter pins before it is ever executed, so the pins move with
       # ASSAY_REF and this file carries none of its own. A failed install fails the job.
       - name: Install assay's pinned tools
         run: |
           set -euo pipefail
-          node "$GITHUB_WORKSPACE/assay/assay.mjs" tools install --role instrument --dir "$RUNNER_TEMP/assay-bin"
-          PATH="$RUNNER_TEMP/assay-bin:$PATH" node "$GITHUB_WORKSPACE/assay/assay.mjs" tools verify --role instrument
+          node "$GITHUB_WORKSPACE/assay/assay.mjs" tools install --run --dir "$RUNNER_TEMP/assay-bin"
+          PATH="$RUNNER_TEMP/assay-bin:$PATH" node "$GITHUB_WORKSPACE/assay/assay.mjs" tools verify --run
           echo "$RUNNER_TEMP/assay-bin" >> "$GITHUB_PATH"
 
       - name: Take the target job's handoff

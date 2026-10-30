@@ -35,7 +35,7 @@ jobs:
       - name: Install assay's pinned tools
         run: |
           set -euo pipefail
-          node assay.mjs tools install --role instrument --dir "$RUNNER_TEMP/assay-bin"
-          PATH="$RUNNER_TEMP/assay-bin:$PATH" node assay.mjs tools verify --role instrument
+          node assay.mjs tools install --run --dir "$RUNNER_TEMP/assay-bin"
+          PATH="$RUNNER_TEMP/assay-bin:$PATH" node assay.mjs tools verify --run
           echo "$RUNNER_TEMP/assay-bin" >> "$GITHUB_PATH"
       - run: npm test

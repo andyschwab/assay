@@ -102,7 +102,10 @@ export async function run() {
     rmSync(recordsPath, { force: true });
     const runDir = join(tmp, 'run');
     let startOut = '';
-    try { startOut = execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDir, target], { encoding: 'utf8', stdio: 'pipe' }); }
+    // without the placeholder CA (b) planted: start's precondition runs every tool it needs, and
+    // a tool that sets up TLS cannot start with a certificate file that is not one
+    const { SSL_CERT_FILE: _ca, NODE_EXTRA_CA_CERTS: _nodeCa, ...startEnv } = process.env;
+    try { startOut = execFileSync(process.execPath, [join(ROOT, 'map', 'start.mjs'), '--out', runDir, target], { encoding: 'utf8', stdio: 'pipe', env: startEnv }); }
     catch (e) { startOut = String(e.stdout || '') + String(e.stderr || ''); }
     const rows = existsSync(runScannersPath(runDir)) ? (parseYaml(readFileSync(runScannersPath(runDir), 'utf8')).scanners || {}) : {};
     const fc = rows['fresh-clone'];

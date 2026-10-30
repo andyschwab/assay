@@ -85,8 +85,7 @@ evaluate (exit 2: an unreadable baseline, a missing ref) — with the reason in
 the adopted instruments' pinned tools, so no map was drawn (#197). `failures`
 carries the one-line reason and `refused` lists each tool not ready, so a
 consumer running the routine across many repositories reports "refused:
-<tool> absent" and fixes it with `node assay.mjs tools install --role
-instrument`, never reading it as a failed measurement. A reason is recorded on one line, capped at 400 characters (the full
+<tool> absent" and fixes it with `node assay.mjs tools install --run`, never reading it as a failed measurement. A reason is recorded on one line, capped at 400 characters (the full
 output stays in the CI log). `failures` is read straight
 from the ratchet subprocess's own stderr — the lines `evaluateRatchet`
 already prints with a `✗ ` prefix, minus its one summary line — rather than
@@ -105,7 +104,7 @@ level, never a subdirectory of a larger checkout, whose history is not this
 repository's; that target is recorded `skipped` with the reason.
 Assay's own tools are a precondition, never a skip (#198): before it draws
 anything the routine checks that every tool an adopted adapter pins is on `PATH`
-and answers at its pin (`node assay.mjs tools verify --role instrument`), and when one is absent,
+and answers at its pin (`node assay.mjs tools verify --run`), and when one is absent,
 broken or at another version it draws no map and is refused: exit 3, `gate:
 refused` and the tools not ready in `routine.yaml` (#197). A scanner the target makes inapplicable is recorded
 skipped with its reason, never silently as clean
@@ -241,9 +240,9 @@ read directly, exactly as before.
    review required rather than optional.
 
 Assay's tools: the template's `routine` job installs every tool the adopted
-instruments' adapters pin (`node assay.mjs tools install --role instrument`, each
+instruments' adapters pin, and each tool a review reads that the routine runs before it (`node assay.mjs tools install --run`, each
 download checked against the sha256 its adapter's `tool:` block pins before it is
-ever executed), verifies them (`tools verify --role instrument`) and puts them on
+ever executed), verifies them (`tools verify --run`) and puts them on
 `PATH`, before the routine step. A review session's own tools are never the
 routine's. The pins live in the engine's adapters, so they move with `ASSAY_REF` and
 the workflow carries none of its own. A tool that cannot be installed fails the

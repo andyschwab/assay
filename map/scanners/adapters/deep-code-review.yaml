@@ -35,39 +35,28 @@ verified_against: "1.609.0"
 # validate use this list to require completeness — a report missing a row for any
 # of these halts.
 coverage_domains: [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, W]
-# The tools the reviewer's own session drives (its review_checks.sh runs each when it is on
-# PATH, and reads a run that could not start as not-run, never clean), pinned so `tools
-# install` puts them there before a code-review session starts (CONTRACT.md §3g, #196).
-# They are the reviewer's, never assay's: the routine and start never run them, and the
-# gate that holds a run to its instruments' tools leaves them out (`tools verify --only
-# deep-code-review` is the session's own check). Each pin is a release at least a week old
-# when pinned. semgrep's engine is LGPL; the registry pack the reviewer adds by default is
-# not redistributable, and an operator running it on client work sets
-# REVIEW_SEMGREP_REGISTRY=0 (CANDIDATES.md). trivy's release infrastructure was
-# compromised twice in March 2026, so its archive is pinned by the sha256 its release
-# publishes; the reviewer runs it offline against a cached vulnerability database and check
-# bundle, which install fetches (prepare) and verify requires (ready).
+# The tools the review reads (#196, #201). The review session executes nothing: semgrep runs
+# before it, in the deterministic phase (`assay start`, the routine), over the target with
+# the reviewer's own bundled taint rules, vendored beside this file
+# (deep-code-review/semgrep-taint/, MIT, SOURCE.md names the commit), or the target's own
+# .semgrep.yml where it carries one, as the reviewer reads it. Its report lands in the run
+# (map/raw/before-review/deep-code-review/semgrep.json) and decides no requirement on its
+# own; the review judges it. The registry pack the reviewer adds by default is never run
+# here: its rules are not redistributable (CANDIDATES.md). Trivy is not pinned: its scanners
+# repeat what osv-scanner, gitleaks and Checkov measure as instruments, and its release
+# infrastructure was compromised twice in March 2026. Each pin is a release at least a week
+# old when pinned.
 tools:
   - bin: semgrep
     version: "1.182.1"
     upstream: "pypi:semgrep"
     pypi: semgrep
-  - bin: trivy
-    version: "0.76.1"
-    upstream: "github:aquasecurity/trivy"
-    fetch:
-      linux-x64:
-        url: "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_Linux-64bit.tar.gz"
-        sha256: "c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0"
-        member: "trivy"
-      darwin-arm64:
-        url: "https://github.com/aquasecurity/trivy/releases/download/v0.76.1/trivy_0.76.1_macOS-ARM64.tar.gz"
-        sha256: "11a9b6cd2752011b54f01ea4bd0dbfa9f0c41dc6538d5a3f9d23955f471bf4e5"
-        member: "trivy"
-    prepare:
-      - args: ["fs", "--quiet", "--download-db-only"]
-      - args: ["fs", "--quiet", "--scanners", "misconfig", "."]
-    ready: ["fs", "--quiet", "--skip-db-update", "--offline-scan", "--scanners", "vuln", "."]
+    before_review:
+      args: ["--json", "--quiet", "--metrics=off", "--disable-version-check", "--config", "{rules}", "."]
+      rules: "deep-code-review/semgrep-taint"
+      repo_rules: [".semgrep.yml", ".semgrep"]
+      ok_exits: [0]
+      timeout_s: 900
 
 contributes:
   - code-correctness

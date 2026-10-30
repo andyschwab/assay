@@ -25,8 +25,9 @@
 // A tool already installed at its pin (the stamp beside the binaries, its sha256 still
 // matching) is left as it is.
 //
-// Usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>] [--role <role>]   (default ~/.local/bin)
-//        node assay.mjs tools verify [--only <scanner>] [--role <role>]     (each pin on PATH and answering)
+// Usage: node assay.mjs tools install [--dir <bin-dir>] [--run] [--only <scanner>] [--role <role>]   (default ~/.local/bin)
+//        node assay.mjs tools verify [--run] [--only <scanner>] [--role <role>]     (each pin on PATH and answering)
+//   --run: the tools a run assay draws executes, which start and the routine require
 //        node assay.mjs tools check [--json]                                  (pinned against latest)
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync, copyFileSync, mkdtempSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
@@ -43,8 +44,9 @@ const has = (cmd) => sh('sh', ['-c', `command -v ${cmd}`]).status === 0;
 
 // the adopted adapters' pinned tools, in scanner order: an adapter's `tool:` (the binary its
 // instrument runs, at the adapter's verified_against) and its `tools:` (the binaries a
-// judgment scanner's own session drives, which assay never runs). Each carries the
-// adapter's role, so a caller can ask for the tools one kind of run needs.
+// judgment scanner's review reads: one with `before_review` the deterministic phase runs
+// for it, #201; any other its own session drives). Each carries the adapter's role, so a
+// caller can ask for the tools one kind of run needs.
 export function pinnedTools(adapters = loadAdapters()) {
   return Object.entries(adapters)
     .filter(([, a]) => a && a.adopted !== false && !a.retired)
@@ -195,8 +197,10 @@ export function verifyTools(tools = pinnedTools(), answer = answerOf) {
 // the one line a run that refuses to start prints and records, or null when every tool is
 // ready. A run assay draws needs the tools its instruments run; a judgment scanner's tools
 // are its own session's, checked there (`tools verify --only <scanner>`).
-export const instrumentTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument');
-export function toolsNotReady(rows = verifyTools(instrumentTools())) {
+// the tools a run assay draws executes: its instruments', and each tool a judgment scanner's
+// review reads that runs before it (`before_review`, #201). The gate holds a run to these.
+export const runTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument' || t.before_review);
+export function toolsNotReady(rows = verifyTools(runTools())) {
   const bad = rows.filter((r) => r.status !== 'ready');
   if (!bad.length) return null;
   return `assay's pinned tools are not ready, so no map is drawn: ${bad.map((r) => `${r.scanner} (${r.status}: ${r.detail})`).join('; ')}. Install them with \`node assay.mjs tools install --dir <bin>\`, put <bin> on PATH, and confirm with \`node assay.mjs tools verify\``;
@@ -208,7 +212,7 @@ export function toolsNotReady(rows = verifyTools(instrumentTools())) {
 // with `tools install`. → null when every tool is ready, else the reason line and each tool
 // not ready as data.
 export const REFUSED_EXIT = 3;
-export function toolsRefusal(rows = verifyTools(instrumentTools())) {
+export function toolsRefusal(rows = verifyTools(runTools())) {
   const reason = toolsNotReady(rows);
   return reason && { reason, refused: rows.filter((r) => r.status !== 'ready').map(({ scanner, bin, version, status }) => ({ scanner, bin, version, status })) };
 }
@@ -243,7 +247,8 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
   const sub = args[0];
-  const tools = pinnedTools().filter((t) => (!opt('--only') || t.scanner === opt('--only')) && (!opt('--role') || t.role === opt('--role')));
+  // --run: the tools a run assay draws executes (the gate's set); --role, --only narrow it further
+  const tools = (args.includes('--run') ? runTools() : pinnedTools()).filter((t) => (!opt('--only') || t.scanner === opt('--only')) && (!opt('--role') || t.role === opt('--role')));
   if (sub === 'install') {
     const dir = opt('--dir') || join(homedir(), '.local', 'bin');
     let bad = 0;
@@ -264,7 +269,7 @@ if (isMain(import.meta.url)) {
     if (args.includes('--json')) console.log(JSON.stringify(rows, null, 1));
     else for (const r of rows) console.log(`${r.status.padEnd(8)} ${r.scanner} (${r.bin}): pinned ${r.pinned}, latest ${r.latest ?? '?'}${r.why ? ` — ${r.why}` : ''}`);
   } else {
-    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools verify [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools check [--json]');
+    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--run] [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools verify [--run] [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools check [--json]');
     process.exit(2);
   }
 }
