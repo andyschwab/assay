@@ -54,7 +54,7 @@ import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
 import { loadAdapters, adoptedAdapters } from './project.mjs';
-import { toolsNotReady, REFUSED_EXIT } from './tools.mjs';
+import { toolsNotReady, REFUSED_EXIT, pinnedTools } from './tools.mjs';
 import { scannersPath, findingsDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
@@ -218,6 +218,43 @@ function timed(run) {
   return row && row.status !== 'skipped' && !row.duration ? { ...row, duration: secondsSince(t0) } : row;
 }
 
+// ── the tools a review reads, run before it (#201; map/scanners/CONTRACT.md §3g) ──
+// A judgment scanner's review executes nothing: a tools: entry with `before_review` is run
+// here, over the target, and its report written into the run for the review to read,
+// map/raw/before-review/<scanner>/<bin>.json. It decides no requirement on its own. The
+// rule set is the adapter's, vendored under map/scanners/adapters/ (a target's own rules,
+// `repo_rules`, take its place); `{rules}` in args names it. Only the exit and the report
+// are archived, never a stderr tail (the routine uploads map/raw/).
+const ADAPTERS_DIR = join(HERE, 'scanners', 'adapters');
+export const beforeReviewPath = (outDir, scanner, bin) => join(outDir, 'map', 'raw', 'before-review', scanner, `${bin}.json`);
+export function runBeforeReview(t, repoDir, outDir, log) {
+  const br = t.before_review;
+  const out = beforeReviewPath(outDir, t.scanner, t.bin);
+  mkdirSync(dirname(out), { recursive: true });
+  const record = (env) => { writeFileSync(out, JSON.stringify({ envelope: 1, scanner: t.scanner, tool: t.bin, ...env }, null, 1) + '\n'); return env; };
+  const own = (br.repo_rules || []).map(String).find((f) => existsSync(join(repoDir, f)));
+  const rules = own ? join(repoDir, own) : br.rules ? join(ADAPTERS_DIR, String(br.rules)) : null;
+  if (!rules || !existsSync(rules)) {
+    const reason = `no rule set: ${own ? own : `${br.rules} is not under map/scanners/adapters/`}`;
+    log(`· ${t.bin} (before ${t.scanner}'s review) — skipped: ${reason}`);
+    return record({ status: 'skipped', reason });
+  }
+  const version = String(spawnSync(t.bin, t.versionArgs || ['--version'], { encoding: 'utf8', env: childEnv() }).stdout || '').trim().split('\n')[0] || null;
+  log(`· ${t.bin}${version ? ` (${version})` : ''} before ${t.scanner}'s review, rules ${own || br.rules} …`);
+  const t0 = Date.now();
+  const r = spawnSync(t.bin, (br.args || []).map((a) => String(a).split('{rules}').join(rules)), { cwd: repoDir, env: childEnv(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: Number(br.timeout_s || 900) * 1000 });
+  const ok = (br.ok_exits || [0]).map(Number).includes(r.status);
+  // a tool may name the rules by where they sit on this machine (semgrep prefixes each rule id
+  // with its directory, dotted); the record names no machine
+  const rulesDir = own && !own.endsWith('/') && existsSync(rules) && !statSync(rules).isDirectory() ? dirname(rules) : rules;
+  const machine = [`${rulesDir.replace(/^\/+/, '').split('/').join('.')}.`, `${resolve(repoDir)}/`, `${rulesDir}/`];
+  const report = ok ? machine.reduce((acc, m) => acc.split(m).join(''), String(r.stdout)) : null;
+  const env = { status: ok ? 'ran' : 'failed', exit: r.status, version, rules: own || String(br.rules), duration: secondsSince(t0), report };
+  if (!ok) env.reason = `${t.bin} exited ${r.status == null ? '(no exit code — process error)' : r.status}`;
+  log(`  ${ok ? '✓' : '✗'} ${t.bin} ${env.status}${ok ? '' : `: ${env.reason}`}`);
+  return record(env);
+}
+
 // every adopted instrument whose adapter carries run:, in id order
 export const adapterRunInstruments = (adapters = loadAdapters()) =>
   Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument' && a.run && a.run.bin).map(([id]) => id).sort();
@@ -291,6 +328,8 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, freshCloneNoClo
   else rows['structure-scan'] = timed(() => runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log }));
   const adapters = loadAdapters();
   for (const id of adapterRunInstruments(adapters)) rows[id] = timed(() => runAdapterInstrument(id, adapters[id], repoDir, outDir, log));
+  // what each judgment scanner's review reads, run here so the review executes nothing (#201)
+  for (const t of pinnedTools(adapters).filter((x) => x.before_review && x.role !== 'instrument')) runBeforeReview(t, repoDir, outDir, log);
   return rows;
 }
 

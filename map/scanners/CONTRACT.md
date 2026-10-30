@@ -802,11 +802,29 @@ The pinned tools are a precondition of a measurement, never one of its results
 (#198). `node assay.mjs tools verify` reads each one ready only when it is on PATH
 and, asked its version (the adapter's `run.version`, else `--version`), exits 0
 and prints the pin, and its `ready` check, where it has one, exits 0. `assay start
-<target>` and the routine's gate step refuse to draw a map until every instrument's
-tool is ready (`--role instrument`), naming each that is absent, broken, unprepared or
-at another version. A judgment scanner's `tools:` are its session's: that session runs
-`tools install --only <scanner>` and `tools verify --only <scanner>` before it reviews,
-and a run assay draws never waits on them. The `run.install` line a skipped row carries, kept for a
+<target>` and the routine's gate step refuse to draw a map until every tool the run
+executes is ready (`--run`: the instruments' tools, and each tool a review reads that
+runs before it), naming each that is absent, broken, unprepared or at another version.
+
+A judgment scanner's review executes nothing (#201). A `tools:` entry with
+`before_review:` is run by the deterministic phase (`assay start`, the routine), never by
+the review session, and writes its report into the run for the review to read
+(`map/raw/before-review/<scanner>/<bin>.json`). It decides no requirement on its own:
+
+```yaml
+before_review:
+  args: [ … ]          # run from inside the target; {rules} names the rule set
+  rules: <dir>         # a rule set vendored under map/scanners/adapters/, with its source
+  repo_rules: [ … ]    # files the target may carry that take the rules' place
+  ok_exits: [0]
+  timeout_s: 900
+```
+
+The report is an envelope, `{ envelope: 1, scanner, tool, status, exit, version, rules,
+report }`, with `status` `ran`, `failed` (an exit outside `ok_exits`, never an empty
+report read as clean) or `skipped` (with a `reason`). No stderr tail is archived. A
+`tools:` entry with no `before_review:` is its session's own, installed with `tools
+install --only <scanner>`; a run assay draws never waits on it. The `run.install` line a skipped row carries, kept for a
 runner called as a library, points at the install command.
 
 ## 4. The fail-closed rule (the coherence guarantee)
