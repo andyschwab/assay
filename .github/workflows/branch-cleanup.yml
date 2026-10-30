@@ -1,8 +1,10 @@
 # Deletes merged branches that carry nothing new since their merge, whatever their names (#170). The everyday path is
-# the repository's own "Automatically delete head branches" setting; this is the baseline sweep for what that misses
-# (branches merged before it was on, or merged some other way), run a few times under a person's watch. A session
-# cannot delete a ref, so a person dispatches this, by hand only. `dry_run` (default true) prints the plan and deletes
-# nothing; a person reads it, then runs it again with dry_run off.
+# the repository's own "Automatically delete head branches" setting; this is the sweep for what that misses (branches
+# merged before it was on, or merged some other way). A session cannot delete a ref, so the sweep runs on every push to
+# the default branch, a merge's own push, and deletes (#173): a slice ends with the run on its merge commit, with nobody
+# to dispatch it. The `push` filter names the usual default branches, and the plan job runs only when the push is to
+# this repository's default branch, so the file is seeded verbatim. A run started by hand is a dry run unless a person
+# turns `dry_run` off: it prints the plan and deletes nothing.
 #
 # Planned for deletion: a branch that is not the default branch, not protected and not under KEEP; that a merged pull
 # request came from; that has nothing new since that merge (its tip is the head of a merged pull request from it, which
@@ -15,6 +17,8 @@
 # the REST API, and nothing of the branches' code runs.
 name: branch-cleanup
 on:
+  push:
+    branches: [main, master]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -29,13 +33,15 @@ jobs:
   plan:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: ${{ github.event_name != 'push' || github.ref_name == github.event.repository.default_branch }}
     permissions: { contents: read, pull-requests: read }
-    outputs: { merged: '${{ steps.plan.outputs.merged }}' }
+    outputs: { merged: '${{ steps.plan.outputs.merged }}', dry_run: '${{ steps.plan.outputs.dry_run }}' }
     env: { GH_TOKEN: '${{ github.token }}' }
     steps:
       - name: Plan the merged branches
         id: plan
-        env: { DRY_RUN: '${{ inputs.dry_run }}' }
+        # a push deletes; a run by hand is a dry run unless a person turned it off
+        env: { DRY_RUN: "${{ github.event_name == 'push' && 'false' || inputs.dry_run }}" }
         run: |
           set -euo pipefail
           set -f   # KEEP's patterns are matched by case, never expanded against files
@@ -73,10 +79,11 @@ jobs:
           echo "kept (${#kept[@]}):"
           for b in "${kept[@]+"${kept[@]}"}"; do echo "  $b"; done
           echo "merged=${merged[*]+"${merged[*]}"}" >> "$GITHUB_OUTPUT"
-          if [ "${DRY_RUN:-true}" = true ]; then echo "dry run: nothing deleted. Dispatch again with dry_run off to delete the ${#merged[@]} merged branch(es)."; fi
+          [ "${DRY_RUN:-true}" = false ] && echo "dry_run=false" >> "$GITHUB_OUTPUT" || echo "dry_run=true" >> "$GITHUB_OUTPUT"
+          if [ "${DRY_RUN:-true}" != false ]; then echo "dry run: nothing deleted. Dispatch again with dry_run off to delete the ${#merged[@]} merged branch(es)."; fi
   delete:
     needs: plan
-    if: ${{ !inputs.dry_run && needs.plan.outputs.merged != '' }}
+    if: ${{ needs.plan.outputs.dry_run == 'false' && needs.plan.outputs.merged != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: { contents: write }

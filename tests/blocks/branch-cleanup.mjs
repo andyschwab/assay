@@ -4,8 +4,9 @@
 // states (each branch's tip and protection, its comparison with main, the head commits of its merged pull requests, its
 // closed ones, the open ones that use it). The fake applies the step's own --jq with jq, as gh does; the runner and a
 // Mac ship both, and a machine without them fails here, never skips. Pinned:
-//   (a) a dispatch is a dry run unless a person turns it off, and nothing else triggers the workflow;
-//   (b) the plan reads; only the delete job writes, and it runs only with dry_run off;
+//   (a) a dispatch is a dry run unless a person turns it off (a push to the default branch deletes: #173,
+//       tests/blocks/branch-cleanup-on-merge.mjs);
+//   (b) the plan reads; only the delete job writes, and it runs only when the plan says it is not a dry run;
 //   (c) planned, whatever the name: a branch a merged pull request came from, with nothing new since (its tip is a merged
 //       head, after a squash too, or main holds it), that no open pull request uses as head or base; kept: a branch with
 //       a commit after its merge, a just-cut one, one in flight, one still a base, one closed unmerged; the default
@@ -32,7 +33,7 @@ function job(s, name) {
   return next < 0 ? s.slice(at) : s.slice(at, at + 1 + next);
 }
 // The `run: |` body of the step whose name starts with `name`, dedented, so it runs here as it runs there.
-function stepScript(s, name) {
+export function stepScript(s, name) {
   const at = s.indexOf(`- name: ${name}`);
   if (at < 0) return null;
   const step = s.slice(at).split(/\n(?= {6}- )/)[0];
@@ -45,7 +46,7 @@ function stepScript(s, name) {
 // A recorded GitHub: each branch's tip, protection and comparison with main, the head commits of its merged pull requests,
 // its closed unmerged ones, and the open ones that use it as head or base.
 const MAIN = 'm0';
-const BRANCHES = {
+export const BRANCHES = {
   main: { tip: MAIN, status: 'identical' },                                              // the default branch
   'gh-pages': { tip: 'g1', status: 'diverged', merged: ['g1'] },                          // under KEEP by name
   'release/1.0': { tip: 'r1', status: 'behind', merged: ['r1'] },                         // under KEEP by glob
@@ -60,11 +61,11 @@ const BRANCHES = {
   'claude/quiet-hopper-ef34gh': { tip: 'q1', status: 'identical', merged: ['q1'], openHead: 1 }, // merged, a new pull request open
   'docs/closed-unmerged': { tip: 'd1', status: 'behind', closed: 1 },                     // its pull request closed unmerged
 };
-const PLANNED = 'work/2026-10-12@w1 fix/squash-merged@f1 claude/brave-turing-ab12cd@m0 work/2026-10-14b-170-item@i1';
+export const PLANNED = 'work/2026-10-12@w1 fix/squash-merged@f1 claude/brave-turing-ab12cd@m0 work/2026-10-14b-170-item@i1';
 const KEPT = ['feature/kept-working', 'work/2026-10-14c', 'work/2026-10-14b', 'claude/quiet-hopper-ef34gh', 'docs/closed-unmerged', 'stable', 'gh-pages', 'release/1.0', 'main'];
 const UNREAD = ['main', 'gh-pages', 'release/1.0', 'stable'];   // never named in a call past the listing
 
-const FAKE_GH = `#!/usr/bin/env bash
+export const FAKE_GH = `#!/usr/bin/env bash
 echo "$*" >> "$GH_LOG"
 [ -n "$GH_FAIL" ] && [[ "$*" == *"$GH_FAIL"* ]] && { echo "HTTP 502" >&2; exit 1; }
 [[ " $* " == *" DELETE "* ]] && exit 0
@@ -91,17 +92,14 @@ export async function run() {
   const fail = (m) => negFailures.push('branch-cleanup: ' + m);
   const s = readFileSync(FILE, 'utf8');
 
-  // (a) by hand only, a dry run by default
-  const on = s.match(/^on:\n((?: [^\n]*\n)+)/m);
-  const triggers = on ? on[1].match(/^ {2}\w+:/gm) : null;
-  if (JSON.stringify(triggers) !== JSON.stringify(['  workflow_dispatch:'])) fail(`the workflow runs on workflow_dispatch alone (got ${JSON.stringify(triggers)})`);
+  // (a) a dispatch is a dry run by default
   if (!/\n {6}dry_run:\n(?: {8}[^\n]*\n)*? {8}type: boolean\n(?: {8}[^\n]*\n)*? {8}default: true\n/.test(s)) fail('dry_run is a boolean that defaults to true');
 
   // (b) the plan reads; the delete job alone writes, and only with dry_run off
   if (!/^permissions: \{ contents: read \}/m.test(s)) fail('the workflow\'s default permissions are contents: read');
   const plan = job(s, 'plan'), del = job(s, 'delete');
   if (!plan || /write/.test(plan)) fail('a plan job exists and holds no write permission');
-  if (!del || !/\n {4}if: \$\{\{ !inputs\.dry_run [^\n]*\}\}\n/.test(del)) fail('the delete job runs only when dry_run is off');
+  if (!del || !/\n {4}if: \$\{\{ needs\.plan\.outputs\.dry_run == 'false' [^\n]*\}\}\n/.test(del)) fail('the delete job runs only when the plan says it is not a dry run');
   if (!del || !/\n {4}permissions: \{ contents: write \}\n/.test(del)) fail('the delete job holds contents: write');
   const writes = s.split('\n').map((l) => l.replace(/(^|\s)#.*$/, '')).join('\n').match(/: write\b/g) || [];
   if (writes.length !== 1) fail(`exactly one write permission in the file, the delete job's (got ${writes.length})`);
@@ -133,7 +131,8 @@ export async function run() {
     mkdirSync(join(dir, 'release')); writeFileSync(join(dir, 'release', 'other'), '');
     const p = step(planScript);
     if (p.status !== 0) fail(`the plan exits 0 over a readable GitHub (got ${p.status}: ${p.out.slice(0, 300)})`);
-    if (p.output.trim() !== `merged=${PLANNED}`) fail(`the plan names exactly the merged branches with nothing new, each at its tip (got ${JSON.stringify(p.output.trim())})`);
+    const mergedLine = (p.output.match(/^merged=.*$/m) || [''])[0];
+    if (mergedLine !== `merged=${PLANNED}`) fail(`the plan names exactly the merged branches with nothing new, each at its tip (got ${JSON.stringify(p.output.trim())})`);
     for (const k of KEPT) if (!new RegExp(`kept[^\\n]*\\n(?:  [^\\n]*\\n)*  ${k.replace(/[/.]/g, '\\$&')} \\(`).test(p.out)) fail(`the plan lists ${k} as kept, with why`);
     const reads = p.gh.split('\n').filter((l) => !/\/branches\?/.test(l) && !/^api repos\/org\/app --jq/.test(l)).join('\n');
     for (const u of UNREAD) if (new RegExp(`(?::|base=|\\.\\.\\.)${u.replace(/[/.]/g, '\\$&')}(?:&|\\s|$)`).test(reads)) fail(`${u} is never read past the listing`);
