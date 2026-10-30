@@ -399,7 +399,11 @@ as a whole number of seconds (`node assay.mjs record <run> <scanner> ran --durat
 (`map/scanners/INTAKE.md`). `assay start` and the routine write it on every instrument row
 they ran or that failed, in whole seconds (`"12s"`); in the two-job routine a handed-off
 instrument carries the target step's own time (#159). A judgment scanner's row takes it
-from `record --duration`. An empty `duration:` is an error. The `practice-review` row may
+from `record --duration`. An empty `duration:` is an error. A review lane that ran may
+carry `reviewed: { head, date }`, the target head it reviewed and the day it did (`record
+<run> <scanner> ran --head <sha> --reviewed YYYY-MM-DD`, #201); every row the lane decides
+carries it into `yardstick.yaml` (`yardstick/README.md`). A `reviewed:` on a row that did
+not run is an error. The `practice-review` row may
 also carry `passes:`, the same two fields per pass, keyed by the pass's file name
 (`map/findings/practice-review-<pass>.yaml`), so a run can say which model wrote each pass:
 

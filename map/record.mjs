@@ -9,7 +9,7 @@
 // the ONE row's own block, leaving every other row, the file's comments, and
 // its `engine:` line exactly as they were. Never a reformat.
 //
-// Usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>]
+// Usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>] [--head <sha>] [--reviewed YYYY-MM-DD]
 //   ran      — `--reason` is allowed too (a note on how it ran); a prior
 //              skip/failed reason is DROPPED unless a new one is given here.
 //   skipped  — needs --reason (a skip with no reason is indistinguishable
@@ -23,6 +23,8 @@
 //              scanner, instruments included; kept like model:. Always on the
 //              row, never on a pass.
 //   --pass   — practice-review only: --model/--spend land on that one pass
+//   --head, --reviewed — a review lane that ran: the target head it reviewed and the day it
+//            did (#201), carried onto every row the lane decides (yardstick.yaml reviewed:)
 //              (`passes: <pass>:` in the row) instead of the row. Recorded
 //              passes are kept by every edit.
 // Adds the row if the scanner has none yet. Refuses (exit 2, nothing
@@ -41,12 +43,17 @@ export const STATUSES = ['ran', 'skipped', 'failed'];
 
 const spendScalar = (v) => (Number.isInteger(v) ? String(v) : q(v));
 
-function renderRow(id, status, reason, model, spend, passes, duration) {
+function renderRow(id, status, reason, model, spend, passes, duration, reviewed) {
   const lines = [`  ${id}:`, `    status: ${status}`];
   if (reason) lines.push(`    reason: ${q(reason)}`);
   if (model) lines.push(`    model: ${q(model)}`);
   if (spend !== undefined && spend !== null) lines.push(`    spend: ${spendScalar(spend)}`);
   if (duration !== undefined && duration !== null) lines.push(`    duration: ${spendScalar(duration)}`);
+  if (reviewed && (reviewed.head || reviewed.date)) {
+    lines.push('    reviewed:');
+    if (reviewed.head) lines.push(`      head: ${q(reviewed.head)}`);
+    if (reviewed.date) lines.push(`      date: ${q(reviewed.date)}`);
+  }
   const ps = Object.entries(passes || {});
   if (ps.length) {
     lines.push('    passes:');
@@ -67,11 +74,15 @@ function renderRow(id, status, reason, model, spend, passes, duration) {
 // after it, and outside the scanners: map (the header comment, `engine:`) is
 // carried through byte-for-byte. A row this scanner has none of yet is
 // appended after the last existing row.
-export function setScannerRow(text, scanner, status, { reason, model, spend, duration, pass } = /** @type {any} */ ({})) {
+export function setScannerRow(text, scanner, status, { reason, model, spend, duration, pass, head, reviewedOn } = /** @type {any} */ ({})) {
   if (!STATUSES.includes(status)) throw new Error(`bad status "${status}" (${STATUSES.join(' | ')})`);
   if (pass !== undefined && scanner !== 'practice-review') throw new Error(`--pass is the built-in scanner's per-pass record; ${scanner} has no passes`);
   if (pass !== undefined && !PRACTICE_REVIEW_PASSES[pass]) throw new Error(`unknown pass "${pass}" (${Object.keys(PRACTICE_REVIEW_PASSES).join(' | ')})`);
   if (pass !== undefined && model === undefined && spend === undefined) throw new Error(`--pass ${pass} records that pass's --model and/or --spend; neither was given`);
+  // what a review lane read (#201): the head of the target it reviewed, and the day it did
+  if (head !== undefined && !/^[0-9a-f]{7,40}$/.test(String(head))) throw new Error(`--head is the reviewed commit's sha, 7–40 hex (got ${JSON.stringify(head)})`);
+  if (reviewedOn !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(reviewedOn))) throw new Error(`--reviewed is the day the review ran, YYYY-MM-DD (got ${JSON.stringify(reviewedOn)})`);
+  if ((head !== undefined || reviewedOn !== undefined) && status !== 'ran') throw new Error('--head and --reviewed record what a lane that ran reviewed; this row is not ran');
   const hadTrailingNL = text.endsWith('\n');
   const lines = (hadTrailingNL ? text.slice(0, -1) : text).split('\n');
 
@@ -97,12 +108,14 @@ export function setScannerRow(text, scanner, status, { reason, model, spend, dur
   const finalModel = onRow && model !== undefined ? model : (current ? current.model : undefined);
   const finalSpend = onRow && spend !== undefined ? spend : (current ? current.spend : undefined);
   const finalDuration = duration !== undefined ? duration : (current ? current.duration : undefined);
+  const prior = current && current.reviewed && typeof current.reviewed === 'object' && status === 'ran' ? current.reviewed : {};
+  const finalReviewed = { head: head !== undefined ? head : prior.head, date: reviewedOn !== undefined ? reviewedOn : prior.date };
   const passes = { ...(current && current.passes && typeof current.passes === 'object' ? current.passes : {}) };
   if (!onRow) {
     const was = passes[pass] && typeof passes[pass] === 'object' ? passes[pass] : {};
     passes[pass] = { model: model !== undefined ? model : was.model, spend: spend !== undefined ? spend : was.spend };
   }
-  const row = renderRow(scanner, status, finalReason, finalModel, finalSpend, passes, finalDuration);
+  const row = renderRow(scanner, status, finalReason, finalModel, finalSpend, passes, finalDuration, finalReviewed);
 
   const at = rowStarts.find((r) => r.id === scanner);
   let out;
@@ -160,7 +173,7 @@ if (isMain(import.meta.url)) {
   const [runDir, scanner, status, ...rest] = process.argv.slice(2);
   const opt = (name) => { const i = rest.indexOf(name); return i > -1 ? rest[i + 1] : undefined; };
   if (!runDir || !scanner || !status) {
-    console.error('usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>]');
+    console.error('usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>] [--head <sha>] [--reviewed YYYY-MM-DD]');
     process.exit(2);
   }
   if (!STATUSES.includes(status)) {
@@ -172,6 +185,8 @@ if (isMain(import.meta.url)) {
   const spend = opt('--spend');
   const duration = opt('--duration');
   const pass = opt('--pass');
+  const head = opt('--head');
+  const reviewedOn = opt('--reviewed');
   const mPath = scannersPath(runDir);
   if (!existsSync(mPath)) {
     console.error(`✗ record: no ${mPath} — start the run first: node assay.mjs start --out ${runDir} <target>`);
@@ -187,7 +202,7 @@ if (isMain(import.meta.url)) {
     process.exit(2);
   }
   let row = /** @type {string[]} */ ([]);
-  try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model, spend, duration, pass }); row = r.row; return r.text; }); }
+  try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model, spend, duration, pass, head, reviewedOn }); row = r.row; return r.text; }); }
   catch (e) { console.error(`✗ record: ${e.message}`); process.exit(2); }
   console.log(row.join('\n'));
   remeasure(runDir, 'record');

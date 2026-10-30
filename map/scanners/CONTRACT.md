@@ -855,7 +855,15 @@ a partial run as complete. A plain `validate` does not ask, so a run drawn with 
 or frozen before the lanes, still validates.
 
 A lane names no model and no operator: the consumer adds the model the session runs on and
-any authorization its sessions open with. Every command a lane spells out is a git read
+any authorization its sessions open with.
+
+The rows a lane decides are its scanner's instrument rows (its `decides:` and the yardstick's
+deciders), and the row kinds its adapter names in `lane_decides:` (practice-review: `facet`,
+`census`, from the facets its passes record and the censuses it writes). Until the lane has
+run, a facet or census row reads not measured with "<scanner> lane not run" and the run
+record's reason. Once it has, the consumer records what it reviewed (`record <run>
+<scanner> ran --head <sha> --reviewed YYYY-MM-DD`) and every row the lane decides carries it,
+so a consumer can say when each was reviewed and when the lane is due again. Every command a lane spells out is a git read
 (`tests/blocks/lanes.mjs`). Where the scanner's own method says to run a script, the lane
 says not to: the result it would produce is an input.
 

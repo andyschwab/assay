@@ -95,6 +95,13 @@ A row that exists because one operator's tooling reads it names that consumer in
 its own text (a `consumer:` field or a sentence) and is phrased for any operator;
 the core names no operator (`CLAUDE.md` rule 7).
 
+**When a lane reviewed a row.** A row a review lane decides (`map/scanners/CONTRACT.md`
+§3h) carries `reviewed:` in `yardstick.yaml`, one entry per lane that ran and recorded what
+it reviewed: `{ by: <scanner>, head: <sha>, date: YYYY-MM-DD }`, read off the run record
+(#201). A facet or census row whose lane has not run reads not measured, its note naming the
+lane not run and the run record's reason. `validate` reads a stored `reviewed:` the run
+record does not produce as drift.
+
 ## The four deciding kinds
 
 | Kind | Decided from | Reads |

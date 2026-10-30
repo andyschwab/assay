@@ -253,6 +253,15 @@ for (const file of passFiles) {
           const spendOk = (v) => v === undefined || (typeof v === 'string' && v.trim()) || (Number.isInteger(v) && v >= 0);
           if (!spendOk(row.spend)) err(at, `spend must be what the scanner's inference spent (a string with its unit, or a whole number), or absent`);
           if (!spendOk(row.duration)) err(at, `duration must be how long the scanner ran (a string with its unit, or a whole number of seconds), or absent`);
+          if (row.reviewed !== undefined) {
+            const rv = row.reviewed;
+            if (!rv || typeof rv !== 'object' || Array.isArray(rv)) err(at, `reviewed: is a map of head and date (#201)`);
+            else {
+              if (row.status !== 'ran') err(at, `reviewed: records what a lane that ran reviewed; this row is ${row.status}`);
+              if (rv.head !== undefined && !/^[0-9a-f]{7,40}$/.test(String(rv.head))) err(at, `reviewed.head is the reviewed commit's sha, 7–40 hex`);
+              if (rv.date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(rv.date))) err(at, `reviewed.date is the day the review ran, YYYY-MM-DD`);
+            }
+          }
           if (row.passes !== undefined) {
             if (id !== 'practice-review') err(at, `passes: is the built-in scanner's per-pass record; ${id} has no passes`);
             else if (!row.passes || typeof row.passes !== 'object' || Array.isArray(row.passes)) err(at, `passes: must be a map of pass → { model, spend }`);
@@ -687,6 +696,7 @@ if (existsSync(yardstickResultPath)) {
         if (!x) { err(at, `not a requirement in the yardstick`); continue; }
         if (r.status !== x.status) err(at, `requirement drift: file says ${r.status}, the map computes ${x.status} — regenerate: node assay.mjs measure <run-dir> --write`);
         if (r.how !== x.how) err(at, `mechanism drift: file says ${r.how}, the yardstick decides by ${x.how}`);
+        if (JSON.stringify(r.reviewed || null) !== JSON.stringify(x.reviewed || null)) err(at, `reviewed drift: the file's reviewed: does not match the run record's review of its lanes — regenerate: node assay.mjs measure <run-dir> --write`);
         if ((r.basis || 'run') !== (x.basis || 'run')) err(at, `basis drift: file says ${r.basis || 'run'}, the map computes ${x.basis || 'run'} (owner/PACKET.md) — regenerate: node assay.mjs measure <run-dir> --write`);
       }
       // contradictions (owner/PACKET.md "Claims and a run, compared"): a packet claim of

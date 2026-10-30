@@ -148,7 +148,7 @@ function dispositionsOf(manifest) {
   if (!manifest) return out;
   const rows = Array.isArray(manifest) ? manifest : Array.isArray(manifest.scanners) ? manifest.scanners
     : manifest.scanners && typeof manifest.scanners === 'object' ? Object.entries(manifest.scanners).map(([k, v]) => ({ scanner: k, ...v })) : [];
-  for (const r of rows) if (r && (r.scanner || r.id)) out[r.scanner || r.id] = { status: r.status, reason: r.reason };
+  for (const r of rows) if (r && (r.scanner || r.id)) out[r.scanner || r.id] = { status: r.status, reason: r.reason, reviewed: r.reviewed && typeof r.reviewed === 'object' ? r.reviewed : null };
   return out;
 }
 
@@ -361,6 +361,28 @@ function decideInstrument(d, fs, disp, coverage, adapters) {
 // row) are collected and attached as `rows.contradictions` — an own property on
 // the returned array, not a second return value, so every existing caller
 // (`.map`/`.find`/`Object.fromEntries`) keeps working unmodified.
+// The review lanes that decide a row (#201): a facet or census row is decided by each lane
+// whose adapter names that kind in `lane_decides` (the evidence it writes), an instrument
+// row by each of its deciders that has a lane. A facet or census row whose lanes have none
+// of them run reads not measured, and its note says so: the lane not run, with its reason.
+// A row a lane that ran decided carries `reviewed`: which lane, at which head, on which day.
+function lanesDeciding(d, adapters, disp) {
+  const live = ([, a]) => a && a.lane && a.adopted !== false && !a.retired;
+  const byKind = Object.entries(adapters).filter(live).filter(([, a]) => (a.lane_decides || []).includes(d.decide.kind)).map(([id]) => id);
+  const byDecider = d.decide.kind === 'instrument' ? decidersOf(d, adapters, disp).map((x) => x.scanner).filter((s) => adapters[s] && adapters[s].lane) : [];
+  return [...new Set([...byKind, ...byDecider])];
+}
+function withLanes(d, r, adapters, disp) {
+  const lanesHere = lanesDeciding(d, adapters, disp);
+  if (!lanesHere.length) return r;
+  const ran = lanesHere.filter((id) => disp[id] && disp[id].status === 'ran');
+  if (!ran.length && r.status === 'not-measured' && (d.decide.kind === 'facet' || d.decide.kind === 'census'))
+    r = { ...r, note: lanesHere.map((id) => `${id} lane not run${disp[id] && disp[id].reason ? `: ${disp[id].reason}` : ' (no disposition recorded)'}`).join('; ') };
+  const reviewed = ran.filter((id) => disp[id].reviewed && (disp[id].reviewed.head || disp[id].reviewed.date))
+    .map((id) => ({ by: id, ...(disp[id].reviewed.head ? { head: String(disp[id].reviewed.head) } : {}), ...(disp[id].reviewed.date ? { date: String(disp[id].reviewed.date) } : {}) }));
+  return reviewed.length ? { ...r, reviewed } : r;
+}
+
 export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null }, reg = loadYardstick()) {
   const disp = dispositionsOf(manifest);
   adapters ??= (ADAPTERS ??= loadAdapters());
@@ -376,6 +398,7 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
       if (pd) { r = row(pd.status, 'claim', [], pd.note); basis = 'owner'; }
       else r = row('not-measured', 'claim', [], 'claim-only: decided by the owner, never inferred from a run');
     }
+    if (d.decide.kind !== 'claim') r = withLanes(d, r, adapters, disp);
     if (d.decide.kind !== 'claim') {
       const c = claims.find((x) => x && x.id === d.id);
       if (c && c.state === 'satisfied' && r.status === 'unmet') {
@@ -444,6 +467,10 @@ export function toYaml(rows, runName) {
     L.push(`  - id: ${r.id}`, `    status: ${r.status}`, `    how: ${r.how}`, `    basis: ${r.basis || 'run'}`);
     if (r.of != null) L.push(`    met: ${r.met}`, `    of: ${r.of}`);
     L.push(`    findings: [${r.findings.join(', ')}]`, `    note: ${q(r.note)}`);
+    if (Array.isArray(r.reviewed) && r.reviewed.length) {
+      L.push('    reviewed:');
+      for (const v of r.reviewed) L.push(`      - by: ${v.by}`, ...(v.head ? [`        head: ${q(v.head)}`] : []), ...(v.date ? [`        date: ${q(v.date)}`] : []));
+    }
   }
   const contradictions = rows.contradictions || [];
   L.push('contradictions:');

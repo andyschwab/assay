@@ -13,6 +13,10 @@ fails_loud: negative-fixtures
 method: practice-review
 # the review session's seed body (map/lane.mjs, `assay lane practice-review`; #201): read-only
 lane: practice-review/lane.md
+# the row kinds its lane's evidence decides (#201): the effect and capability facets its passes
+# record, and the censuses it writes. A row of either kind reads "practice-review lane not run"
+# while the lane has not run, and carries when it was reviewed once it has.
+lane_decides: [facet, census]
 
 # The axes this scanner contributes: its own measure exists there (the seven
 # dimension passes, each with its census/coverage machinery). It contributes no
