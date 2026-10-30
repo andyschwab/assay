@@ -102,6 +102,21 @@
         "corroborated": 3,
         "fails_loud": "osv-scanner-instrument"
       },
+      "practice-review": {
+        "status": "adopted",
+        "ran_in": 2,
+        "decides_alone": 0,
+        "unique_recoveries": [
+          "notesbox/P-06",
+          "notesbox/S-01",
+          "notesbox/S-02",
+          "cleanlib/S-01",
+          "cleanlib/S-02",
+          "cleanlib/S-03"
+        ],
+        "corroborated": 2,
+        "fails_loud": "negative-fixtures"
+      },
       "repo-census": {
         "status": "adopted",
         "ran_in": 1,
@@ -120,22 +135,6 @@
         ],
         "corroborated": 0,
         "fails_loud": "repo-census"
-      },
-      "practice-review": {
-        "status": "adopted",
-        "ran_in": 2,
-        "decides_alone": 0,
-        "unique_recoveries": [
-          "notesbox/P-06",
-          "notesbox/P-07",
-          "notesbox/S-01",
-          "notesbox/S-02",
-          "cleanlib/S-01",
-          "cleanlib/S-02",
-          "cleanlib/S-03"
-        ],
-        "corroborated": 2,
-        "fails_loud": "negative-fixtures"
       },
       "scorecard": {
         "status": "retired",
