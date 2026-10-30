@@ -9,7 +9,8 @@
 //   after  (optional) '*' to run after every other block, or a list of labels to run after
 // The runner (tests/regression.mjs) loads every block, runs them in filename order, and
 // composes the gate's last line from the labels of the blocks that ran.
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadAdapters } from '../map/project.mjs';
@@ -17,6 +18,17 @@ import { convert as convertRaw } from '../map/ingest.mjs';
 
 export const HERE = dirname(fileURLToPath(import.meta.url));   // tests/
 export const ROOT = join(HERE, '..');                            // repo root
+
+// Every file of the checkout a whole-repository rule reads: tracked and untracked, ignored
+// excluded, as regular files only (#216). `git ls-files --others` lists an untracked nested
+// repository as a directory (`dir/`), and one may sit in the tree while a block runs (a scratch
+// repository another block or a concurrent run made), so an entry that is not a regular file
+// now is dropped, never read. Throws when git cannot list.
+export function repoFiles() {
+  return execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' })
+    .split('\n').filter((f) => f && !f.endsWith('/'))
+    .filter((f) => { try { return statSync(join(ROOT, f)).isFile(); } catch { return false; } });
+}
 export const GOLDEN = join(HERE, 'golden.json');
 export const bless = process.argv.includes('--bless');
 

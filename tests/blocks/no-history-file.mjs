@@ -6,10 +6,9 @@
 // (tests/ is exempt: fixtures and sweep sets are other repositories' trees, as data);
 // (b) no file outside tests/ names a HISTORY.md, so no contract asks for one back;
 // (c) the rule's own predicate refuses each planted shape and passes ordinary files.
-import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, negFailures } from '../harness.mjs';
+import { ROOT, negFailures, repoFiles } from '../harness.mjs';
 
 export const label = 'no-history-file';
 
@@ -36,7 +35,7 @@ export async function run() {
   for (const p of ordinary) if (historyShape(p)) fail(`the rule refuses an ordinary file ${p}`);
 
   let files;
-  try { files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').filter(Boolean); }
+  try { files = repoFiles(); }
   catch (e) { fail(`git ls-files failed: ${e.message}`); return; }
   if (!files.length) { fail('git ls-files listed no file; the rule read nothing'); return; }
 

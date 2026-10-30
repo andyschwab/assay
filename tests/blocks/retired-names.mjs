@@ -3,10 +3,9 @@
 // where an earlier engine's runs are read: map/migrate-run.mjs, and the blocks that turn
 // a run back into that shape to pin the migration. Anywhere else, a reader or writer
 // that still names one would split the tree across two names.
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, negFailures } from '../harness.mjs';
+import { ROOT, negFailures, repoFiles } from '../harness.mjs';
 
 export const label = 'retired-names';
 
@@ -16,7 +15,7 @@ const MAY = new Set(['map/migrate-run.mjs', 'tests/blocks/migrate-run-retired-id
 
 export async function run() {
   const fail = (m) => negFailures.push('retired-names: ' + m);
-  const files = execFileSync('git', ['-C', ROOT, 'ls-files', '--cached', '--others', '--exclude-standard'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+  const files = repoFiles();
   for (const f of files) {
     if (RETIRED.some((r) => f.includes(r))) { fail(`${f}: a path names a retired id`); continue; }
     if (MAY.has(f)) continue;

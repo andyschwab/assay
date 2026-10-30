@@ -8,12 +8,11 @@
 // operator or an integration's project. The operator's organisation and repository
 // names are held as SHA-256 digests of the lowercased word, so this public file
 // does not name them either.
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { ROOT, negFailures } from '../harness.mjs';
+import { ROOT, negFailures, repoFiles } from '../harness.mjs';
 
 export const label = 'core-names-no-scanner';
 
@@ -65,7 +64,7 @@ export async function run() {
   // (b) no operator or integration project is named outside the security contact and
   // the fixtures
   let tracked;
-  try { tracked = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n'); }
+  try { tracked = repoFiles(); }
   catch (e) { fail(`git ls-files failed: ${e.message}`); return; }
   const skip = (f) => f === 'SECURITY.md' || f === SELF || f.startsWith('tests/fixtures/') || f === 'package-lock.json';
   const digest = (w) => createHash('sha256').update(w).digest('hex');
