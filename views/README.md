@@ -174,6 +174,24 @@ over `views/improve/templates/`). It needs the run's authored
 section is its one home); this view only joins title/tier/topic from the
 register and renders.
 
+Two runs can be measured by different engines, and a rule that changed between
+them would otherwise read as a move of the repository (#183). So Since compares
+three measurements, every one of them the yardstick's
+(`yardstick/measure.mjs`):
+- the previous run's stored `yardstick.yaml`;
+- the previous run's map, measured by this run's engine (`projectRun`);
+- this run's `yardstick.yaml`.
+
+The moves (regressed, improved, newly and no longer measured) are the second
+against the third: the repository's change, on one engine. `re_ruled` is the
+first against the second: one map, two engines, so every row there is the
+engine's change, never the repository's. A requirement the yardstick added or
+retired between the engines is `yardstick_only`. The findings are split by the
+run records (`map/scanners.yaml`) the same way: a finding from a scanner that did
+not run in the previous run is `not_run_before`, never new; one whose scanner did
+not run in this run is `not_run_now`, never no longer found. Only a scanner that
+ran both times speaks to what the repository changed.
+
 ```yaml
 view: since
 run: <run name>
@@ -181,7 +199,9 @@ previous: <previous run name>
 yardstick: <this run's requirements.yaml version>
 previous_yardstick: <the previous run's version>
 yardstick_version_changed: true | false
-counts: { regressed: N, improved: N, newly_measured: N, no_longer_measured: N, yardstick_only: N, findings_new: N, findings_no_longer_found: N }
+engine: <this run's engine, from map/scanners.yaml>
+previous_engine: <the previous run's engine>
+counts: { regressed: N, improved: N, newly_measured: N, no_longer_measured: N, re_ruled: N, yardstick_only: N, findings_new: N, findings_no_longer_found: N, findings_not_run_before: N, findings_not_run_now: N }
 regressed:            # met/mixed -> worse, or dropped to not-measured/not-applicable
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis, findings: [F-…]}, note }
 improved:              # rank went up (unmet -> mixed -> met)
@@ -193,12 +213,19 @@ no_longer_measured:    # decided -> not-measured OR not-applicable (NEVER "uncha
                         # not-measured (a requirement that stopped applying is not the same
                         # as one nobody measured)
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
+re_ruled:              # the previous map's stored status (previous) against today's engine's
+                        # reading of the same map (current): the engine's change, never a move
+  - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
 yardstick_only:        # the id exists on only one side — the yardstick itself was edited
   - { id, side: previous | current, title, status, basis }
 findings:
   new:                 # matched by fingerprint against the previous run's base; not matched there
     - { fingerprint, id, source, dimension, native_category, evidence: […], observation }
   no_longer_found:     # matched in the previous run; not matched in this one
+    - { fingerprint, id, source, dimension, native_category, evidence: […], observation }
+  not_run_before:      # in this run only, from a scanner that did not run in the previous run
+    - { fingerprint, id, source, dimension, native_category, evidence: […], observation }
+  not_run_now:         # in the previous run only, from a scanner that did not run in this one
     - { fingerprint, id, source, dimension, native_category, evidence: […], observation }
 ```
 
@@ -226,8 +253,9 @@ fingerprint: a fact's custody stays with its scanner.
 
 `SINCE.md`'s headline line is **counts only** — no verdict, no severity the
 views do not already compute (`CLAUDE.md` rule 1) — and its sections run most
-useful first: regressed, improved, newly/no-longer measured, then the findings
-delta last.
+useful first: regressed, improved, newly/no-longer measured, re-ruled by the
+engine, then the findings delta last, with the findings from a scanner that ran in
+only one run apart from it.
 
 ## The index
 
