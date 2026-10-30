@@ -194,16 +194,27 @@ export function verifyTools(tools = pinnedTools(), answer = answerOf) {
   });
 }
 
-// the one line a run that refuses to start prints and records, or null when every tool is
-// ready. A run assay draws needs the tools its instruments run; a judgment scanner's tools
-// are its own session's, checked there (`tools verify --only <scanner>`).
 // the tools a run assay draws executes: its instruments', and each tool a judgment scanner's
 // review reads that runs before it (`before_review`, #201). The gate holds a run to these.
 export const runTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument' || t.before_review);
+
+// the tools a `tools` command line selects: --run the gate's set, then --only <scanner> and
+// --role <role> narrow it. The CLI and the refusal below read this one function, so the
+// commands a refusal prints select exactly what the gate checks (#203).
+export function selectTools(args, tools = pinnedTools()) {
+  const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
+  return (args.includes('--run') ? runTools(tools) : tools).filter((t) => (!opt('--only') || t.scanner === opt('--only')) && (!opt('--role') || t.role === opt('--role')));
+}
+
+// the one line a run that refuses to start prints and records, or null when every tool is
+// ready. Its commands, run as printed, install and verify exactly the gate's set (--run):
+// never a review session's own tools, and nothing the run does not need.
+export const INSTALL_FOR_RUN = 'node assay.mjs tools install --run --dir <bin>';
+export const VERIFY_FOR_RUN = 'node assay.mjs tools verify --run';
 export function toolsNotReady(rows = verifyTools(runTools())) {
   const bad = rows.filter((r) => r.status !== 'ready');
   if (!bad.length) return null;
-  return `assay's pinned tools are not ready, so no map is drawn: ${bad.map((r) => `${r.scanner} (${r.status}: ${r.detail})`).join('; ')}. Install them with \`node assay.mjs tools install --dir <bin>\`, put <bin> on PATH, and confirm with \`node assay.mjs tools verify\``;
+  return `assay's pinned tools are not ready, so no map is drawn: ${bad.map((r) => `${r.scanner} (${r.status}: ${r.detail})`).join('; ')}. Install them with \`${INSTALL_FOR_RUN}\`, put <bin> on PATH, and confirm with \`${VERIFY_FOR_RUN}\``;
 }
 
 // A run that cannot field its instruments' tools is refused (#197), with an outcome of its
@@ -247,8 +258,7 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
   const sub = args[0];
-  // --run: the tools a run assay draws executes (the gate's set); --role, --only narrow it further
-  const tools = (args.includes('--run') ? runTools() : pinnedTools()).filter((t) => (!opt('--only') || t.scanner === opt('--only')) && (!opt('--role') || t.role === opt('--role')));
+  const tools = selectTools(args);
   if (sub === 'install') {
     const dir = opt('--dir') || join(homedir(), '.local', 'bin');
     let bad = 0;
