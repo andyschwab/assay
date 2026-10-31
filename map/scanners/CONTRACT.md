@@ -818,11 +818,25 @@ before_review:
   repo_rules: [ … ]    # files the target may carry that take the rules' place
   ok_exits: [0]
   timeout_s: 900
+  control:             # optional: a positive control, run before the target
+    dir: <dir>         # planted cases vendored under map/scanners/adapters/
+    results: <path>    # where the tool's JSON output holds its hits
+    fields:            # where each hit names its rule, file and line
+      rule: <path>
+      path: <path>
+      line: <path>
+    expect: [ "<rule> <file>:<line>", … ]   # the hits the rules must report
 ```
 
 The report is an envelope, `{ envelope: 1, scanner, tool, status, exit, version, rules,
-report }`, with `status` `ran`, `failed` (an exit outside `ok_exits`, never an empty
-report read as clean) or `skipped` (with a `reason`). No stderr tail is archived. A
+control, report }`, with `status` `ran`, `failed` (an exit outside `ok_exits`, never an empty
+report read as clean) or `skipped` (with a `reason`). Where the entry has a `control`, the
+tool runs over a scratch copy of its planted cases with the vendored rules first, and the
+envelope records `control: { rules, expected, found, missing }`. A control that does not
+fire, a hit missing or the tool failing on the planted cases, makes the run `failed` with
+that reason and no report, and the target is not run: zero results on a target are a clean
+result only beside a control that fired (#223). The control proves the tool and its rules
+on this machine, never that the rules model the target's framework. No stderr tail is archived. A
 `tools:` entry with no `before_review:` is its session's own, installed with `tools
 install --only <scanner>`; a run assay draws never waits on it. The `run.install` line a skipped row carries, kept for a
 runner called as a library, points at the install command.
