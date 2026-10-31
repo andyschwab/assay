@@ -6,7 +6,7 @@
 # this repository's default branch, so the file is seeded verbatim. A run started by hand is a dry run unless a person
 # turns `dry_run` off: it prints the plan and deletes nothing.
 #
-# Another repository calls it rather than copying it (#227): a caller with the same triggers, pinned to a tag, and the
+# Another repository calls it as a reusable workflow (#227): a caller with the same triggers, pinned to a tag, and the
 # permissions the delete job needs (a called workflow's jobs hold at most what the caller grants). A call that passes no
 # dry_run is a dry run unless the caller's event is a push; github.* is the caller's run, so the plan reads the
 # caller's repository. Give the caller no concurrency group named branch-cleanup: the called workflow holds that one.

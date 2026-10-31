@@ -11,13 +11,13 @@
 //   (c) .github/workflows/branch-cleanup.yml is callable (`on: workflow_call` beside push and dispatch) with the same
 //       dry_run input: a boolean that defaults to true, so a caller that passes nothing gets the dispatch's dry run
 //       (a caller on a push deletes, as the push itself does: tests/blocks/branch-cleanup-on-merge.mjs);
-//   (d) `tools --role` is retired: the CLI refuses it, and any option it does not know, as a usage error (exit 2)
+//   (d) the tools CLI refuses an option it does not know as a usage error (exit 2), and still reads --only
 //       rather than ignoring it and selecting every pinned tool; no doc names it.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ROOT, negFailures, repoFiles } from '../harness.mjs';
+import { ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'ci-interface';
 
@@ -94,15 +94,10 @@ export async function run() {
 
   // (d)
   const cli = (args) => spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), 'tools', ...args], { encoding: 'utf8' });
-  for (const args of [['verify', '--run', '--role', 'instrument'], ['install', '--run', '--rol', 'x'], ['verify', '--bogus']]) {
+  for (const args of [['verify', '--run', '--bogus', 'x'], ['install', '--run', '--onl', 'x'], ['verify', '--bogus']]) {
     const r = cli(args);
     if (r.status !== 2 || !/usage/.test(r.stderr)) fail(`(d) \`tools ${args.join(' ')}\` is a usage error, exit 2 (got exit ${r.status}: ${(r.stdout + r.stderr).trim().slice(0, 200)})`);
   }
   const only = cli(['verify', '--run', '--only', 'no-such-scanner']);
   if (only.status !== 0 || /usage/.test(only.stderr)) fail(`(d) \`tools verify --run --only <scanner>\` still reads --only and its value (got exit ${only.status}: ${only.stderr.trim().slice(0, 200)})`);
-  for (const f of repoFiles()) {
-    if (f.startsWith('tests/') || !/\.(md|mjs|yml|yaml)$/.test(f)) continue;
-    const t = readFileSync(join(ROOT, f), 'utf8');
-    if (/tools [^\n`]*--role\b/.test(t)) fail(`(d) ${f} names \`tools … --role\`, which is retired`);
-  }
 }

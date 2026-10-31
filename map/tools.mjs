@@ -164,7 +164,7 @@ export function verifyTools(tools = pinnedTools(), answer = answerOf) {
 export const runTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument' || t.before_review);
 
 // the tools a `tools` command line selects: --run the gate's set, then --only <scanner>
-// narrows it (--role is retired, #227: --run is what a run needs). The CLI and the refusal below read this one function, so the
+// narrows it. The CLI and the refusal below read this one function, so the
 // commands a refusal prints select exactly what the gate checks (#203).
 export function selectTools(args, tools = pinnedTools()) {
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
@@ -223,8 +223,7 @@ if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
   const tools = selectTools(args);
-  // an option the CLI does not know (the retired --role among them, #227) is a usage error, never ignored:
-  // ignored, it would select every pinned tool
+  // an option the CLI does not know is a usage error, never ignored: ignored, it would select every pinned tool
   const VALUED = ['--dir', '--only'], FLAGS = ['--run', '--json'];
   const unknown = args.slice(1).filter((a, i, r) => !VALUED.includes(a) && !FLAGS.includes(a) && !VALUED.includes(r[i - 1]));
   if (unknown.length) console.error(`tools: unknown option ${unknown.join(' ')}`);
