@@ -151,7 +151,7 @@ the engine. How to operate all of it is `RUNBOOK.md`.
 
 ## Quickstart
 
-The tools are zero-dependency Node (20 or later); TypeScript is a development-only
+The tools are zero-dependency Node (22 or later); TypeScript is a development-only
 dependency, for `npm run typecheck` (checkJs over the engine's modules) beside
 `npm run lint` (Node's own syntax check) and `npm test`. Behind one command:
 
