@@ -12,9 +12,12 @@ export async function run() {
   const yml = readFileSync(join(ROOT, 'routine', 'assay-routine.yml'), 'utf8');
   const lines = yml.split('\n');
 
-  // every `uses:` pinned to a 40-hex commit SHA (a version tag or branch is refused).
-  const usesLines = lines.filter((l) => /^\s*uses:\s*/.test(l));
+  // every `uses:` pinned to a 40-hex commit SHA (a version tag or branch is refused). assay's own action at its
+  // checkout (./assay/…, #227) is pinned by that checkout's ASSAY_REF, held to 40 hex below, and is called only after it.
+  const usesLines = lines.filter((l) => /^\s*uses:\s*/.test(l) && !/^\s*uses:\s*\.\/assay\//.test(l));
   if (!usesLines.length) fail('the template must use at least one action');
+  const assayCheckout = lines.findIndex((l) => /^\s*path:\s*assay\s*$/.test(l));
+  lines.forEach((l, i) => { if (/^\s*uses:\s*\.\//.test(l) && (!/^\s*uses:\s*\.\/assay\//.test(l) || assayCheckout === -1 || i < assayCheckout)) fail(`"${l.trim()}" is a local action only from assay's own checkout (path: assay), after it`); });
   for (const l of usesLines) {
     const m = l.match(/uses:\s*([^\s#]+)/);
     const ref = m && m[1].split('@')[1];

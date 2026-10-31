@@ -7,7 +7,8 @@
 //       to run before the review, and no trivy (#201: its scanners repeat the instruments');
 //   (b) the gate a run assay draws is held to covers what the run executes: the
 //       instruments' tools and each tool a review reads that runs before it, never a
-//       session's own (#201); the routine template and CI install and verify that set (--run);
+//       session's own (#201); the routine template and CI install and verify that set (--run), through
+//       assay's tools action (#227);
 //   (c) a block carrying prepare or ready, retired with the one tool that needed them, is a
 //       problem of the block, and no pinned tool carries either.
 import { readFileSync } from 'node:fs';
@@ -37,7 +38,10 @@ export async function run() {
   const gate = runTools(pinnedTools(adapters)).map((x) => x.bin).sort();
   if (JSON.stringify(gate) !== JSON.stringify(['insttool', 'pretool'])) fail(`(b) the gate covers the instruments' tools and the tools run before a review, never a session's own (got ${JSON.stringify(gate)})`);
   for (const f of [join(ROOT, 'routine', 'assay-routine.yml'), join(ROOT, '.github', 'workflows', 'ci.yml')]) {
-    const yml = readFileSync(f, 'utf8').split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+    // a workflow that calls assay's tools action (#227) runs the action's step: read it in its place
+    const own = readFileSync(f, 'utf8');
+    const action = /^\s*(?:-\s+)?uses:\s*\.\/(?:[\w.-]+\/)*\.github\/actions\/tools\s*$/m.test(own) ? readFileSync(join(ROOT, '.github', 'actions', 'tools', 'action.yml'), 'utf8') : '';
+    const yml = (own + '\n' + action).split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
     for (const cmd of ['install', 'verify']) {
       const lines = yml.split('\n').filter((l) => new RegExp(`tools ${cmd}\\b`).test(l));
       if (!lines.length || lines.some((l) => !/--run\b/.test(l))) fail(`(b) ${f.slice(ROOT.length + 1)} runs tools ${cmd} with --run, the set a run executes`);
