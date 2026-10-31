@@ -47,7 +47,7 @@
 // Library: drawOfflineMap, runAssayInstrument, runAdapterInstrument, toScannersYaml,
 // engineCommit — routine/run.mjs imports what it re-exports.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync, readdirSync, statSync, cpSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -226,6 +226,30 @@ function timed(run) {
 // `repo_rules`, take its place); `{rules}` in args names it. Only the exit and the report
 // are archived, never a stderr tail (the routine uploads map/raw/).
 const ADAPTERS_DIR = join(HERE, 'scanners', 'adapters');
+// the tool over its positive control (#223): planted cases beside the adapter, run with the vendored
+// rules in a scratch copy outside any repository (a tool may honour an enclosing .gitignore) →
+// { rules, expected, found, missing } and, when it could not be read at all, error
+const pick = (o, path) => String(path).split('.').reduce((v, k) => (v == null ? v : v[k]), o);
+function runControl(t, br) {
+  const c = br.control, f = c.fields || {};
+  const expect = (c.expect || []).map(String);
+  const rules = br.rules ? join(ADAPTERS_DIR, String(br.rules)) : null, src = join(ADAPTERS_DIR, String(c.dir));
+  const out = { rules: String(br.rules), expected: expect.length, found: 0, missing: expect };
+  if (!rules || !existsSync(rules) || !existsSync(src) || !expect.length) return { ...out, error: `its control ${c.dir} or the rules ${br.rules} are not there, or it expects no hit` };
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-control-'));
+  try {
+    cpSync(src, scratch, { recursive: true });
+    const r = spawnSync(t.bin, (br.args || []).map((a) => String(a).split('{rules}').join(rules)), { cwd: scratch, env: childEnv(), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: Number(br.timeout_s || 900) * 1000 });
+    if (!(br.ok_exits || [0]).map(Number).includes(r.status)) return { ...out, error: `${t.bin} exited ${r.status == null ? '(no exit code — process error)' : r.status} on the planted cases` };
+    let rows;
+    try { rows = pick(JSON.parse(r.stdout), c.results || 'results'); } catch { return { ...out, error: `${t.bin}'s output on the planted cases is not JSON` }; }
+    const prefix = `${rules.replace(/^\/+/, '').split('/').join('.')}.`;
+    const seen = new Set((Array.isArray(rows) ? rows : []).map((h) => `${String(pick(h, f.rule || 'rule')).split(prefix).join('')} ${pick(h, f.path || 'path')}:${pick(h, f.line || 'line')}`));
+    const missing = expect.filter((e) => !seen.has(e));
+    return { ...out, found: expect.length - missing.length, missing };
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+}
+
 export const beforeReviewPath = (outDir, scanner, bin) => join(outDir, 'map', 'raw', 'before-review', scanner, `${bin}.json`);
 export function runBeforeReview(t, repoDir, outDir, log) {
   const br = t.before_review;
@@ -242,6 +266,15 @@ export function runBeforeReview(t, repoDir, outDir, log) {
   const version = String(spawnSync(t.bin, t.versionArgs || ['--version'], { encoding: 'utf8', env: childEnv() }).stdout || '').trim().split('\n')[0] || null;
   log(`· ${t.bin}${version ? ` (${version})` : ''} before ${t.scanner}'s review, rules ${own || br.rules} …`);
   const t0 = Date.now();
+  // zero results on the target are clean only beside a control that fired: one that did not is a
+  // failed analyzer, and the target is not run
+  const control = /** @type {any} */ (br.control ? runControl(t, br) : null);
+  if (control && (control.error || control.missing.length)) {
+    const reason = `positive control did not fire: ${control.error || `${control.missing.length} of ${control.expected} planted hits not reported (${control.missing.join('; ')})`}`;
+    log(`  ✗ ${t.bin} failed: ${reason}`);
+    const { error, ...kept } = control;
+    return record({ status: 'failed', exit: null, version, rules: own || String(br.rules), duration: secondsSince(t0), control: kept, report: null, reason });
+  }
   const r = spawnSync(t.bin, (br.args || []).map((a) => String(a).split('{rules}').join(rules)), { cwd: repoDir, env: childEnv(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: Number(br.timeout_s || 900) * 1000 });
   const ok = (br.ok_exits || [0]).map(Number).includes(r.status);
   // a tool may name the rules by where they sit on this machine (semgrep prefixes each rule id
@@ -249,7 +282,7 @@ export function runBeforeReview(t, repoDir, outDir, log) {
   const rulesDir = own && !own.endsWith('/') && existsSync(rules) && !statSync(rules).isDirectory() ? dirname(rules) : rules;
   const machine = [`${rulesDir.replace(/^\/+/, '').split('/').join('.')}.`, `${resolve(repoDir)}/`, `${rulesDir}/`];
   const report = ok ? machine.reduce((acc, m) => acc.split(m).join(''), String(r.stdout)) : null;
-  const env = { status: ok ? 'ran' : 'failed', exit: r.status, version, rules: own || String(br.rules), duration: secondsSince(t0), report };
+  const env = /** @type {any} */ ({ status: ok ? 'ran' : 'failed', exit: r.status, version, rules: own || String(br.rules), duration: secondsSince(t0), ...(control ? { control } : {}), report });
   if (!ok) env.reason = `${t.bin} exited ${r.status == null ? '(no exit code — process error)' : r.status}`;
   log(`  ${ok ? '✓' : '✗'} ${t.bin} ${env.status}${ok ? '' : `: ${env.reason}`}`);
   return record(env);

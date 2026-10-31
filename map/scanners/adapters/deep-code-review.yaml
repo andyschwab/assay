@@ -60,6 +60,17 @@ tools:
       repo_rules: [".semgrep.yml", ".semgrep"]
       ok_exits: [0]
       timeout_s: 900
+      # planted flows the vendored rules must report, run before the target (#223)
+      control:
+        dir: "deep-code-review/semgrep-control"
+        results: "results"
+        fields:
+          rule: "check_id"
+          path: "path"
+          line: "start.line"
+        expect:
+          - "taint.js.command-injection routes/run.js:4"
+          - "taint.py.command-injection app/run.py:6"
 
 contributes:
   - code-correctness
