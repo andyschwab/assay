@@ -96,7 +96,7 @@ it tags it runs the gate and the trailer check below. Its notes are compiled fro
 commit messages since the previous tag (`node lib/release-notes.mjs`): first what a
 consumer must change, then every commit.
 
-**The change rule.** A commit that touches a file of the surface below carries a
+**The change rule.** A commit that carries this page and touches a file of the surface below carries a
 `Consumer:` git trailer saying what a consumer must change, or `Consumer: none, <why>`
 when nothing, in the message's last paragraph beside its other trailers (git reads
 trailers there only). Those trailers head the release notes. A commit that changes a command,
