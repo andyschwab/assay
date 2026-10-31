@@ -60,6 +60,11 @@ It installs what a run executes (`tools install --run`), verifies each tool at i
 verify fails the step and puts nothing on PATH. Node must already be on PATH. Its one
 input is `dir`.
 
+Which tools it installs moves with the assay pin: they are the adopted instruments'
+`tool:` blocks, each with a pinned artifact for `linux-x64` and `darwin-arm64` (or a
+version-pinned PyPI package); on any other platform the install fails. A review
+session's own tools are never among them.
+
 ## The branch-cleanup workflow
 
 `.github/workflows/branch-cleanup.yml` is callable as a reusable workflow
