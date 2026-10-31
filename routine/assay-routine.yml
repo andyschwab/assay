@@ -135,12 +135,10 @@ jobs:
       # review reads, run here before it — never a review session's own), each download checked against the
       # sha256 its adapter pins before it is ever executed, so the pins move with
       # ASSAY_REF and this file carries none of its own. A failed install fails the job.
+      # The step is assay's own action at the checkout above (.github/actions/tools), so
+      # which tools a run needs moves with ASSAY_REF too.
       - name: Install assay's pinned tools
-        run: |
-          set -euo pipefail
-          node "$GITHUB_WORKSPACE/assay/assay.mjs" tools install --run --dir "$RUNNER_TEMP/assay-bin"
-          PATH="$RUNNER_TEMP/assay-bin:$PATH" node "$GITHUB_WORKSPACE/assay/assay.mjs" tools verify --run
-          echo "$RUNNER_TEMP/assay-bin" >> "$GITHUB_PATH"
+        uses: ./assay/.github/actions/tools
 
       - name: Take the target job's handoff
         # data, never code: only fresh-clone's and structure-scan's raw reports and
