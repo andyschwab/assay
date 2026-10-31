@@ -6,7 +6,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { projectMulti, loadScannerCoverage, axisCoverage, coveragePhrase } from '../../map/project.mjs';
+import { projectMulti, loadScannerCoverage, axisCoverage, coveragePhrase, verifiedPin } from '../../map/project.mjs';
 import { HERE, ROOT, negFailures, convert, adaptersOnce, copyFixtureFindings } from '../harness.mjs';
 
 export const label = 'dcr-machine-report';
@@ -31,7 +31,7 @@ export async function run() {
   const sRow = projectMulti([{ id: 'F-899', source: 'deep-code-review', native_id: 'S1', native_category: 'S', polarity: 'gap', severity: 'Low', observation: 'x', evidence: ['a:1'], fix: 'y' }], adaptersOnce());
   const hRow = projectMulti([{ id: 'F-898', source: 'deep-code-review', native_id: 'H1', native_category: 'H', polarity: 'gap', severity: 'Medium', observation: 'x', evidence: ['a:1'], fix: 'y' }], adaptersOnce());
   if (hRow.projected[0]?.axis !== 'code-maintainability') fail('domain H (tech debt, dead code, maintainability) must land on code-maintainability');
-  if (adaptersOnce()['deep-code-review']?.verified_against !== '1.609.0') fail('the deep-code-review adapter must be re-verified against 1.609.0');
+  if (verifiedPin(adaptersOnce()['deep-code-review']).release !== '1.609.0') fail('the deep-code-review adapter must be re-verified against 1.609.0');
   if (sRow.projected[0]?.axis !== 'improvement-loop') fail('domain S (branches/open-work triage) must land on improvement-loop');
   mustThrow('a flow-map report (not block YAML)', () => convert('deep-code-review', 'coverage: {A: {status: scanned}}\nfindings: []\n', null));
   mustThrow('a report with no coverage map', () => convert('deep-code-review', 'findings: []\n', null));

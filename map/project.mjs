@@ -101,6 +101,17 @@ export function adoptedAdapters(adapters) {
   return out;
 }
 
+// What an adapter's verified_against pins (CLAUDE.md rule 7; map/scanners/CONTRACT.md §3):
+// a release ("1.2.0"), or a release and the commit it is ({ release, commit }) for a scanner
+// whose method a session reads from another repository (#228). → { release, commit }, each
+// a string or null.
+export function verifiedPin(adapter) {
+  const v = adapter ? adapter.verified_against : undefined;
+  const s = (x) => (x === undefined || x === null || x === '' ? null : String(x));
+  if (v && typeof v === 'object' && !Array.isArray(v)) return { release: s(v.release), commit: s(v.commit) };
+  return { release: s(v), commit: null };
+}
+
 // The honesty baseline for "not measured this run": every axis an ADOPTED
 // scanner contributes. A run that lacks one of them is not measured there.
 export function registryAxes(adapters) {

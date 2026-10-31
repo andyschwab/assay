@@ -2,7 +2,7 @@
 # sample for the regression harness, written against the 1.471.0 spec.
 review:
   tool: deep-code-review
-  skill_version: "1.471.0"
+  skill_version: "1.609.0"
   date: 2026-09-15
   scope: FULL
   base_ref: null
