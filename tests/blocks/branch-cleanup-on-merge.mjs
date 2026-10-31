@@ -2,7 +2,8 @@
 // A slice ends with the cleanup run on its merge commit, so nobody has to dispatch the sweep. The workflow's own
 // expressions are evaluated here for each event (GitHub's && and || pick an operand the way JavaScript's do), and the
 // plan step is run with the DRY_RUN each event sets, against the fake GitHub tests/blocks/branch-cleanup.mjs records:
-//   (a) it triggers on a push to main or master and on a dispatch, nothing else;
+//   (a) it triggers on a push to main or master and on a dispatch, and is callable (#227: a caller's run is its
+//       github context, so (b)-(d) hold for a call as for the caller's own event), nothing else;
 //   (b) the plan job runs on a push only when the push is to this repository's default branch, and always by hand;
 //   (c) a push is not a dry run; a dispatch is one unless a person turned dry_run off;
 //   (d) the plan hands its dry-run decision to the delete job, which deletes only when it is false and there is
@@ -32,7 +33,7 @@ export async function run() {
   // (a)
   const on = s.match(/^on:\n((?: [^\n]*\n)+)/m);
   const triggers = on ? on[1].match(/^ {2}\w+:/gm) : null;
-  if (JSON.stringify(triggers) !== JSON.stringify(['  push:', '  workflow_dispatch:'])) fail(`the workflow runs on push and workflow_dispatch, nothing else (got ${JSON.stringify(triggers)})`);
+  if (JSON.stringify(triggers) !== JSON.stringify(['  push:', '  workflow_dispatch:', '  workflow_call:'])) fail(`the workflow runs on push and workflow_dispatch, and as a call from another repository's (#227), nothing else (got ${JSON.stringify(triggers)})`);
   const branches = (s.match(/^ {2}push:\n {4}branches: \[([^\]]*)\]/m) || [])[1];
   if (!branches || !branches.split(',').map((b) => b.trim()).includes('main')) fail(`a push to the default branch triggers it (got branches ${JSON.stringify(branches)})`);
 

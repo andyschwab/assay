@@ -22,7 +22,8 @@ export async function run() {
     '  structure-scan:', '    status: skipped', '    reason: "fixture: not executed"',
     '  zizmor:', '    status: skipped', '    reason: "fixture: not executed"',
     '  osv-scanner:', '    status: ran',
-    '  checkov:', '    status: ran', '',
+    '  checkov:', '    status: ran',
+    '  opengrep:', '    status: skipped', '    reason: "fixture: not executed"', '',
   ].join('\n');
   const tmp = join(HERE, 'tmp-model-of-record'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('cleanlib', tmp);

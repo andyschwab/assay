@@ -5,8 +5,8 @@
 //   (a) the refusal prints an install and a verify command, each with --run;
 //   (b) each printed command, its arguments read as the CLI reads them, selects exactly the gate's tools, also
 //       beside a planted tool only a review session runs (every pinned tool is in the run's set today);
-//   (c) the CLI selects through the same function, so --run composes with the other filters:
-//       `tools verify --run --role instrument` names exactly the run's instruments.
+//   (c) the CLI selects through the same function, so --run composes with --only (--role is retired, #227):
+//       `tools verify --run --only <scanner>` names exactly that scanner's tools in the run's set.
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { toolsNotReady, selectTools, runTools, pinnedTools, INSTALL_FOR_RUN, VERIFY_FOR_RUN } from '../../map/tools.mjs';
@@ -36,9 +36,10 @@ export async function run() {
   }
 
   // (c)
-  const instruments = runTools().filter((t) => t.role === 'instrument').map((t) => `${t.scanner}/${t.bin}`).sort();
-  if (!instruments.length || instruments.length === gate.length) { fail('test setup: the run\'s set holds instruments and a tool that is not one'); return; }
-  const out = spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), 'tools', 'verify', '--run', '--role', 'instrument'], { encoding: 'utf8' });
+  const scanner = runTools()[0].scanner;
+  const own = runTools().filter((t) => t.scanner === scanner).map((t) => `${t.scanner}/${t.bin}`).sort();
+  if (own.length === gate.length) { fail('test setup: the run\'s set holds more than one scanner\'s tools'); return; }
+  const out = spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), 'tools', 'verify', '--run', '--only', scanner], { encoding: 'utf8' });
   const named = [...String(out.stdout + out.stderr).matchAll(/^\s*[✓✗] (\S+) \((\S+)\)/gm)].map((m) => `${m[1]}/${m[2]}`).sort();
-  if (JSON.stringify(named) !== JSON.stringify(instruments)) fail(`(c) \`tools verify --run --role instrument\` names exactly the run's instruments (named ${named.join(', ') || 'none'}; want ${instruments.join(', ')})`);
+  if (JSON.stringify(named) !== JSON.stringify(own)) fail(`(c) \`tools verify --run --only ${scanner}\` names exactly its tools in the run's set (named ${named.join(', ') || 'none'}; want ${own.join(', ')})`);
 }

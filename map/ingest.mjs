@@ -56,7 +56,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readd
 import { join, resolve, relative, sep, isAbsolute } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
-import { loadAdapters } from './project.mjs';
+import { loadAdapters, verifiedPin } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow, updateRunRecord, remeasure } from './record.mjs';
 import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
@@ -921,14 +921,18 @@ const FORMATS = {
       for (const r of run.results) {
         const rule = String(r?.ruleId ?? '');
         if (!rule) throw new Error(`${id} SARIF result with no ruleId (truncated report?)`);
-        const cat = spec.rule_prefix && rule.startsWith(spec.rule_prefix) ? rule.slice(spec.rule_prefix.length) : rule;
+        const listed = spec.rule_prefix && rule.startsWith(spec.rule_prefix) ? rule.slice(spec.rule_prefix.length) : rule;
+        // a rule the adapter does not map is, where it names `other_rules`, one the target wrote
+        // for itself: that one category, the rule id kept in native_id (#232)
+        const other = spec.other_rules && !Object.hasOwn(adapter.map || {}, listed);
+        const cat = other ? String(spec.other_rules) : listed;
         const loc = r.locations?.[0]?.physicalLocation;
         const uri = String(loc?.artifactLocation?.uri ?? '').replace(/^\.\//, '');
         const line = Number(loc?.region?.startLine);
         if (!uri || !(line > 0)) throw new Error(`${id} SARIF result ${rule} has no file and line (truncated report?)`);
         const sev = spec.severity_property ? r.properties?.[spec.severity_property] : undefined;
-        rows.push(adapterRow(id, adapter, startId + n++, { native_id: `${cat}@${uri}:${line}`, native_category: cat, polarity: 'gap',
-          observation: `${oneLine(r.message?.text || cat)} (${uri}:${line})`, evidence: [`${uri}:${line}`],
+        rows.push(adapterRow(id, adapter, startId + n++, { native_id: `${other ? listed : cat}@${uri}:${line}`, native_category: cat, polarity: 'gap',
+          observation: `${other ? `the target's own rule ${listed}: ` : ''}${oneLine(r.message?.text || cat)} (${uri}:${line})`, evidence: [`${uri}:${line}`],
           detail: { ...(sev ? { tool_severity: String(sev) } : {}), ...(r.level ? { level: String(r.level) } : {}) } }));
       }
     }
@@ -1215,8 +1219,19 @@ if (isMain(import.meta.url)) {
   // exactly today's behavior.
   const mPath = scannersPath(runDir);
   if (existsSync(mPath)) {
-    updateRunRecord(mPath, (before) => setScannerRow(before, tool, 'ran', { model: model ?? undefined }).text);
-    console.log(`✓ recorded ${tool} ran in map/scanners.yaml`);
+    // a scanner whose method its adapter pins by commit (#228): the row names the method the
+    // report was read at, when the report says it is the pinned release; a report at another
+    // release records none, and validate refuses it
+    const pin = verifiedPin(loadAdapters()[tool]);
+    let method;
+    if (pin.commit) {
+      let said = null;
+      try { said = String(parseYaml(rawText).review.skill_version); } catch { /* convert has read it */ }
+      if (said === pin.release) method = { release: pin.release, commit: pin.commit };
+      else console.error(`⚠ ingest: ${tool}'s report says skill_version ${said}, and this engine pins ${pin.release} (commit ${pin.commit}): the run records no method, and validate refuses the run until the review is drawn again at the pin`);
+    }
+    updateRunRecord(mPath, (before) => setScannerRow(before, tool, 'ran', { model: model ?? undefined, method }).text);
+    console.log(`✓ recorded ${tool} ran in map/scanners.yaml${method ? ` (method ${method.release} at ${method.commit.slice(0, 12)})` : ''}`);
   }
   remeasure(runDir, 'ingest');
 }

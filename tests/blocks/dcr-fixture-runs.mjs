@@ -17,7 +17,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { loadFindings, loadManifest, loadScannerCoverage, projectMulti } from '../../map/project.mjs';
+import { loadFindings, loadManifest, loadScannerCoverage, projectMulti, verifiedPin } from '../../map/project.mjs';
 import { score } from '../../map/score.mjs';
 import { HERE, negFailures, convert, adaptersOnce } from '../harness.mjs';
 
@@ -56,7 +56,7 @@ export async function run() {
     // (b) the header: public target, the release the adapter was verified against, no local path
     if (rep?.review?.scope !== 'FULL') at(`the review must be FULL scope (got ${rep?.review?.scope})`);
     if (rep?.review?.target !== r.target) at(`review.target must be the public name ${r.target} (got ${rep?.review?.target})`);
-    if (String(rep?.review?.skill_version) !== String(adapter.verified_against)) at(`review.skill_version must be the adapter's verified_against ${adapter.verified_against} (got ${rep?.review?.skill_version})`);
+    if (String(rep?.review?.skill_version) !== verifiedPin(adapter).release) at(`review.skill_version must be the adapter's verified_against ${verifiedPin(adapter).release} (got ${rep?.review?.skill_version})`);
     if (/(^|[\s"'(])(\/home\/|\/Users\/|\/tmp\/|\/root\/|[A-Za-z]:\\)/m.test(raw)) at('the archived report must carry no local path');
 
     // (c) the stored rows are the converter's own output over the archived report

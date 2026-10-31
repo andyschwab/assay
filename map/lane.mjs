@@ -2,8 +2,8 @@
 // lane.mjs — a judgment scanner's review lane, filled in for one target (#201).
 //
 // A judgment scanner's review runs in a session a person started, and that session executes
-// nothing: the deterministic phase (assay start, the routine) ran the instruments and each tool
-// the review reads (`before_review`), and the consumer validates what the session publishes. The
+// nothing: the deterministic phase (assay start, the routine) ran the instruments, whose output
+// the review reads, and the consumer validates what the session publishes. The
 // lane is the session's seed body, versioned with the engine: the adapter names it (`lane:`, a
 // file beside the adapter under map/scanners/adapters/), and its frontmatter carries the session
 // and artifact titles, the files the lane publishes (`outputs`) and the files it reads that ran
@@ -13,7 +13,9 @@
 // Placeholders: {{NAME}} the target's public name · {{DATE}} · {{HEAD_LABEL}} and {{HEAD_STEP}}
 // the head to check out · {{FOCUS}} where the budget goes · {{ASSAY_REF}} the engine the method
 // is read at (this engine, by default) · {{VERIFIED_AGAINST}} the scanner's verified release ·
-// {{INPUTS_STEP}} where the inputs are. A lane with inputs needs --inputs-dir: a review told to
+// {{METHOD_COMMIT}} the commit that release is, for a lane that reads its method from another
+// repository (the adapter's verified_against: { release, commit }, #228; a lane that names it is
+// refused a seed when the adapter pins no commit) · {{INPUTS_STEP}} where the inputs are. A lane with inputs needs --inputs-dir: a review told to
 // read results nobody said where to find is refused, never seeded.
 //
 // Usage: node assay.mjs lane <scanner> --name <Name> [--head <sha|branch>] [--focus <text>]
@@ -23,7 +25,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './doctrine.mjs';
-import { loadAdapters, adoptedAdapters } from './project.mjs';
+import { loadAdapters, adoptedAdapters, verifiedPin } from './project.mjs';
 import { engineCommit } from './start.mjs';
 
 const ADAPTERS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'scanners', 'adapters');
@@ -52,11 +54,13 @@ export function laneSeed(scanner, { name, head = null, focus = null, assay = nul
   const { meta, body } = readLane(lane.file);
   const inputs = words(meta.inputs);
   if (inputs.length && !inputsDir) throw new Error(`the ${scanner} lane reads ${inputs.join(', ')}, which ran before it: say where they are (--inputs-dir)`);
+  const pin = verifiedPin(adapters[scanner]);
   const vars = {
     NAME: name,
     DATE: date || new Date().toISOString().slice(0, 10),
     ASSAY_REF: assay || engineCommit(),
-    VERIFIED_AGAINST: String(adapters[scanner].verified_against ?? 'the latest release'),
+    VERIFIED_AGAINST: pin.release ?? 'the latest release',
+    METHOD_COMMIT: pin.commit,
     HEAD_LABEL: head ? `head ${head}` : 'the default branch',
     HEAD_STEP: head
       ? `Run \`git fetch origin '+refs/heads/*:refs/remotes/origin/*' --depth=3000\` (bounded), then check out ${head} detached (\`git checkout -q ${head}\`, or \`git checkout -q origin/${head}\` for a branch name). If it is not reachable, say so and stop.`
@@ -64,7 +68,7 @@ export function laneSeed(scanner, { name, head = null, focus = null, assay = nul
     FOCUS: focus || 'Cover the whole tree; weight the budget toward the applications that carry the product.',
     INPUTS_STEP: inputs.length ? `They are files under \`${inputsDir}\`, at the run's own paths: ${inputs.map((p) => `\`${p}\``).join(', ')}. A file that is not there is a result you were not given: say so, and review without it.` : '',
   };
-  const fill = (s) => s.replace(/\{\{(\w+)\}\}/g, (_, k) => { if (!(k in vars)) throw new Error(`${lane.file}: unknown placeholder ${k}`); return vars[k]; });
+  const fill = (s) => s.replace(/\{\{(\w+)\}\}/g, (_, k) => { if (!(k in vars)) throw new Error(`${lane.file}: unknown placeholder ${k}`); if (vars[k] === null) throw new Error(`the ${scanner} lane reads its method at a pinned commit, and adapters/${scanner}.yaml verified_against names none ({ release, commit })`); return vars[k]; });
   return { lane: meta.lane || scanner, scanner, title: fill(meta.session_title || ''), artifact: fill(meta.artifact || ''), outputs: words(meta.outputs), inputs, prompt: fill(body).replace(/ +\n/g, '\n').trim() + '\n' };
 }
 

@@ -60,7 +60,8 @@ judgment and their own taxonomy: `practice-review`, the built-in method
 adapter and keeps its native report as an appendix. A code reviewer is **one
 peer scanner**: its findings enter through its adapter
 (`map/scanners/adapters/deep-code-review.yaml`, whose `verified_against` names
-the reviewer release it was last checked against) as facts, its severity kept as
+the reviewer release it was last checked against and the commit that release is, which
+its lane reads and nothing else) as facts, its severity kept as
 a property and never recomputed into a verdict (`map/scanners/CONTRACT.md` §6),
 and they land on the shared, property-named axes beside every other scanner's,
 where two scanners measuring one property corroborate (§1). They decide a
@@ -76,12 +77,15 @@ checks for an architecture page, a present-tense agent contract, a runbook, a
 CI gate on the default branch, and the owner's evidence transcripts; and
 `structure-scan`, which finds duplicated blocks (jscpd), unused files, exports
 and dependencies (knip), stale artifacts and per-file churn, installing both
-tools from the npm registry into its own scratch for each run. Three more run off
+tools from the npm registry into its own scratch for each run. Four more run off
 their adapters (`run:`, `map/scanners/CONTRACT.md` §3f) when their binary is on
 `PATH`, and read skipped with their install line otherwise: `zizmor`, GitHub Actions
 workflow security; `osv-scanner`, OSV advisories over every lockfile it reads,
-deciding known-clean dependencies beside `dependency-scan`; and `checkov`,
-infrastructure-as-code and container policy. None of them executes the target's code.
+deciding known-clean dependencies beside `dependency-scan`; `checkov`,
+infrastructure-as-code and container policy; and `opengrep`, static analysis with
+taint rules vendored beside its adapter, behind a positive control that must fire,
+deciding that untrusted input reaches no dangerous sink unchecked. None of them
+executes the target's code.
 **Three instruments execute the target's code.** `fresh-clone` runs the target's
 own install (lifecycle scripts included), build, lint, typecheck, test and
 migrate-dry scripts, `dependency-scan` runs the target's package manager, and
@@ -169,9 +173,11 @@ node assay.mjs start --out <run> <target> [--allow-exec]
 # checksum-verified; run it from an environment's setup script so every session, and
 # every child review session, starts with them on PATH. They are a precondition, never
 # a skip: start <target> and the routine refuse to draw a map until verify passes
-node assay.mjs tools install [--dir ~/.local/bin] [--run] [--only <scanner>] [--role instrument|judgment]
-node assay.mjs tools verify [--run] [--only <scanner>] [--role instrument|judgment]   # each pin on PATH, answering at its pin; --run: what a run executes
+node assay.mjs tools install [--dir ~/.local/bin] [--run] [--only <scanner>]
+node assay.mjs tools verify [--run] [--only <scanner>]   # each pin on PATH, answering at its pin; --run: what a run executes
 #   a review session installs and verifies its scanner's own tools first: --only deep-code-review
+#   in CI, a workflow that checks assay out calls `uses: ./<path-to-assay>/.github/actions/tools`
+#   (one optional input, dir): it installs, verifies and puts on PATH what a run needs
 
 #   practice-review: open map/METHOD.md as the opening context of a coding-agent session
 #   pointed at the target repository; it drives the passes
@@ -192,7 +198,13 @@ node assay.mjs compile <run> [--target <target>]
 node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
 node assay.mjs migrate-run <prev-run> [--write]              # a run an earlier engine drew: rename a retired id, quote what the strict reader refuses
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
+
+# the requirements themselves: a consumer reads the floor here, never by heart
+node assay.mjs yardstick --floor [--json]
 ```
+
+What a consumer pinned to assay may rely on, and how a release says what it must
+change, is one page: `CONSUMERS.md`. Anything not on it is internal.
 
 Once an operator takes a repository on, `routine/` is a GitHub Actions template
 that repository runs on its own schedule — it runs the offline instruments,

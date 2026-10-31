@@ -22,8 +22,8 @@ export async function run() {
   // the adopted roster is pinned by name: adopting or retiring a scanner is a reviewed
   // change to this line in the same commit (fresh-clone adopted 2026-09-22;
   // dependency-scan and repo-census adopted 2026-09-24; structure-scan adopted 2026-10-05, #108;
-  // zizmor, osv-scanner and checkov adopted 2026-10-29, #179-#181)
-  const ROSTER = ['checkov', 'deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'osv-scanner', 'practice-review', 'repo-census', 'structure-scan', 'zizmor'];
+  // zizmor, osv-scanner and checkov adopted 2026-10-29, #179-#181; opengrep adopted 2026-10-31, #232)
+  const ROSTER = ['checkov', 'deep-code-review', 'dependency-scan', 'fresh-clone', 'gitleaks', 'opengrep', 'osv-scanner', 'practice-review', 'repo-census', 'structure-scan', 'zizmor'];
   if (JSON.stringify(adopted) !== JSON.stringify(ROSTER)) fail(`adopted roster must be ${ROSTER.join(', ')} (got ${adopted.join(', ')})`);
   const reg = registryAxes(adapters);
   // code-maintainability joined 2026-10-05 (#109): deep-code-review's domain H contributes it
@@ -31,13 +31,13 @@ export async function run() {
   if (orderAxes(reg).join() !== AXIS_ORDER.join()) fail(`AXIS_ORDER must name every registry axis, code-maintainability between code-correctness and code-security (got ${orderAxes(reg).join(', ')})`);
   if (axisTitle('code-maintainability') === 'code-maintainability') fail('code-maintainability must carry a label in AXIS_META');
   if (!TOPICS.includes('code-maintainability')) fail('the yardstick TOPICS must accept code-maintainability (the axis roster plus three)');
-  const m = { engine: 'x', scanners: { 'practice-review': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'dependency-scan': { status: 'skipped', reason: 'no registry reach here' }, 'repo-census': { status: 'skipped', reason: 'no filesystem access here' }, 'structure-scan': { status: 'skipped', reason: 'no registry reach here' }, zizmor: { status: 'skipped', reason: 'not installed here' }, 'osv-scanner': { status: 'skipped', reason: 'not installed here' }, checkov: { status: 'skipped', reason: 'not installed here' } } };
+  const m = { engine: 'x', scanners: { 'practice-review': { status: 'ran' }, 'deep-code-review': { status: 'skipped', reason: 'out of scope' }, gitleaks: { status: 'failed', reason: 'binary missing' }, 'fresh-clone': { status: 'skipped', reason: 'no scratch clone here' }, 'dependency-scan': { status: 'skipped', reason: 'no registry reach here' }, 'repo-census': { status: 'skipped', reason: 'no filesystem access here' }, 'structure-scan': { status: 'skipped', reason: 'no registry reach here' }, zizmor: { status: 'skipped', reason: 'not installed here' }, 'osv-scanner': { status: 'skipped', reason: 'not installed here' }, checkov: { status: 'skipped', reason: 'not installed here' }, opengrep: { status: 'skipped', reason: 'not installed here' } } };
   const d = dispositions(m, adapters);
   if (d.ran.join() !== 'practice-review' || d.skipped.find((x) => x.id === 'deep-code-review')?.reason !== 'out of scope' || d.failed[0]?.id !== 'gitleaks' || d.missing.length) fail('dispositions must group ran / skipped / failed with reasons and report nothing missing');
   const line = scannerLine(m, ['practice-review'], adapters);
   if (!/skipped: (.*; )?deep-code-review \(out of scope\)/.test(line) || !line.includes('failed: gitleaks (binary missing)') || !line.includes('fresh-clone (no scratch clone here)')) fail(`the scanners line must name skipped and failed scanners with their reasons (got "${line}")`);
   if (!scannerLine(null, ['practice-review'], adapters).includes('no run manifest')) fail('a missing manifest must be named on the scanners line, never silently omitted');
-  if (dispositions({ scanners: { 'practice-review': { status: 'ran' } } }, adapters).missing.join() !== 'checkov,deep-code-review,dependency-scan,fresh-clone,gitleaks,osv-scanner,repo-census,structure-scan,zizmor') fail('adopted scanners without a row must be reported missing');
+  if (dispositions({ scanners: { 'practice-review': { status: 'ran' } } }, adapters).missing.join() !== 'checkov,deep-code-review,dependency-scan,fresh-clone,gitleaks,opengrep,osv-scanner,repo-census,structure-scan,zizmor') fail('adopted scanners without a row must be reported missing');
   if (!notRunPhrase(m, 'deep-code-review').startsWith('skipped this run: out of scope')) fail('notRunPhrase must carry the recorded reason');
   // the package: refuses without a manifest; lists this run's appendices only, and names the skip
   const tmp = join(HERE, 'tmp-manifest');

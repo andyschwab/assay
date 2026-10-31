@@ -98,6 +98,23 @@ requirements:
     owner:
       risk: "The files that describe your servers, storage and containers can quietly leave a door open: a storage bucket anyone can read, a database reachable from the internet, a container running with full control of its machine. Nothing in the app itself shows it, and the first sign is often someone else finding it."
       fix: "Have your AI run an infrastructure policy check over every infrastructure and container file, fix each failed check (or record why it does not apply), and run the check again until it is clean."
+  - id: d-untrusted-input-checked
+    title: Untrusted input never reaches a dangerous sink unchecked
+    tier: safety
+    topic: code-security
+    tags: [floor, fleet]
+    harm: [data, people]
+    decide:
+      kind: instrument
+    # decided through an adapter's decides: (a static-analysis instrument with vendored taint
+    # rules behind a positive control, #232); a tree with no file in a language those rules read
+    # reads not-applicable, never met
+    check: a taint analysis of every JavaScript, TypeScript and Python file in the tree, run beside a positive control that fired, finds no request input reaching a SQL string, a shell command, returned markup, a filesystem path, an outbound request URL, an unsafe deserializer or evaluator, or a redirect target unchecked; a tree with no file in those languages reads not-applicable
+    sources: [scanner-candidates/core, issue/232]
+    status: draft
+    owner:
+      risk: "If something a visitor types or sends can travel unchecked into a database query, a system command, a page the app sends back, a file path or a web address the server fetches, a stranger can use it to read or change other people's data, run commands on your server, or send your users somewhere harmful."
+      fix: "Have your AI run a taint analysis over the code, and for each place it finds input reaching such a sink, pass the input through a bound parameter, an argument list, escaping or an allowlist, then run it again until it is clean."
   - id: d-routes-authorized
     title: Every route that touches data is behind server-side authorization
     tier: safety

@@ -27,3 +27,6 @@ scanners:
   zizmor:
     status: skipped
     reason: "repo-scoped: run at the fixture repository root and scored there (tests/fixtures/fixtures-root)"
+  opengrep:
+    status: skipped
+    reason: "fixture run: drawn before this instrument was adopted (#232); not yet run over this public target"
