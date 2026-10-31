@@ -18,7 +18,7 @@ command's usage line names its flags. These are the ones a consumer may call:
 | `node assay.mjs tools install [--dir <bin>] [--run] [--only <scanner>]` | the pinned external tools, each download checked against its pinned sha256 |
 | `node assay.mjs tools verify [--run] [--only <scanner>]` | exit 0 only when every pinned tool is on PATH and answers at its pin |
 | `node assay.mjs start --out <run> <target> [--allow-exec]` | a run drawn with every offline instrument; exit 3 when the tools are not ready, and nothing is written |
-| `node assay.mjs lane <scanner> --name <Name> [--head <ref>] [--focus <text>] [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>]` | the read-only seed a judgment scanner's review session starts from |
+| `node assay.mjs lane <scanner> --name <Name> [--head <ref>] [--focus <text>] [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>]` | the read-only seed a judgment scanner's review session starts from; a reviewer whose adapter pins its method by commit is seeded to fetch and read exactly that commit, and to stop when it cannot |
 | `node assay.mjs ingest <run> --tool <scanner> --raw <file> --exit <code> [--target <root>] [--model <id>]` | a scanner's output turned into findings, its row in the run record flipped to ran |
 | `node assay.mjs record <run> <scanner> <ran\|skipped\|failed> [--reason <text>] [--model <id>] [--pass <pass>]` | one scanner's disposition in the run record |
 | `node assay.mjs validate <run> [--target <target>] [--lane <scanner>]` | exit 0 only for a run that validates; fails closed |
@@ -80,7 +80,7 @@ that places them, and `views/README.md` states each data format.
 
 | Path in a run | What it holds |
 | --- | --- |
-| `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason |
+| `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason, and for a reviewer pinned by commit the method it read (`method: { release, commit }`) |
 | `map/findings/<scanner>.yaml` | the findings, one file per scanner (`map/SCHEMA.md`) |
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable |
 | `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data |

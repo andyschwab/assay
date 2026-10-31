@@ -31,8 +31,15 @@ severity_scale: [Blocker, Critical, High, Medium, Low, Nit]
 # rules): bump it after re-reading those three upstream, never on faith. At
 # 1.609.0 (#174) the domain map and coverage rows were unchanged, and a gap row
 # gained the strict verdict (confirmed | needs_validation | rejected) that ingest reads.
+# The reviewer's method lives in its own repository, so verified_against pins it by
+# commit as well as release (#228): the lane fetches exactly that commit and reads the
+# method there, ingest records the pin on the run record, and validate refuses a report
+# whose skill_version is not this release. Moving it is a reviewed change, with the
+# fixture reviews redrawn at the new release (tests/blocks/dcr-fixture-runs.mjs).
 min_version: "1.128.0"
-verified_against: "1.609.0"
+verified_against:
+  release: "1.609.0"
+  commit: "bd375fc31e347ec1293bf26eb53dbc82c0265c8c"
 # The scanner's full domain set (A–T and W since 1.60.0; U, V and X–Z
 # unassigned). Its machine report carries one coverage row per domain; ingest and
 # validate use this list to require completeness — a report missing a row for any

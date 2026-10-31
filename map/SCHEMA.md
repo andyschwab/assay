@@ -403,7 +403,13 @@ from `record --duration`. An empty `duration:` is an error. A review lane that r
 carry `reviewed: { head, date }`, the target head it reviewed and the day it did (`record
 <run> <scanner> ran --head <sha> --reviewed YYYY-MM-DD`, #201); every row the lane decides
 carries it into `yardstick.yaml` (`yardstick/README.md`). A `reviewed:` on a row that did
-not run is an error. The `practice-review` row may
+not run is an error. A scanner whose adapter pins its method by commit
+(`verified_against: { release, commit }`, #228) records on its row the method it was read
+at, `method: { release, commit }`: `ingest` writes the adapter's pin when the report's
+`review.skill_version` is that release. `validate` refuses a `method:` that is not this
+engine's pin, a `method:` on a row that did not run, and an archived report
+(`map/raw/<scanner>.yaml`) whose `skill_version` is not the pinned release; a row that ran
+with no `method:` (drawn before the pin) warns. The `practice-review` row may
 also carry `passes:`, the same two fields per pass, keyed by the pass's file name
 (`map/findings/practice-review-<pass>.yaml`), so a run can say which model wrote each pass:
 

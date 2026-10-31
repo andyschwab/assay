@@ -18,7 +18,7 @@ import {
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
   nativeReportPath, isPracticeReviewPassFile, PRACTICE_REVIEW_PASS_PREFIX, decisionsPath,
-  chainsDataPath, handoffSequencePath, backlogPath, backlogAuthoredPath,
+  chainsDataPath, handoffSequencePath, backlogPath, backlogAuthoredPath, rawPath,
 } from '../lib/run-layout.mjs';
 import { checkChains, checkSequence, checkBacklog, checkAuthoredBacklog } from '../lib/run-data.mjs';
 import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
@@ -225,7 +225,7 @@ for (const file of passFiles) {
 // that never happened. The inverse holds too: rows from a scanner the manifest
 // says did not run are not evidence.
 {
-  const { loadManifest, adoptedAdapters, MANIFEST_FILE, MANIFEST_STATUS } = await import('./project.mjs');
+  const { loadManifest, adoptedAdapters, verifiedPin, MANIFEST_FILE, MANIFEST_STATUS } = await import('./project.mjs');
   const mPath = scannersPath(runDir);
   const sourcesSeen = new Set([...allById.values()].map((v) => v.f.source || 'practice-review'));
   if (!existsSync(mPath)) {
@@ -261,6 +261,26 @@ for (const file of passFiles) {
               if (rv.head !== undefined && !/^[0-9a-f]{7,40}$/.test(String(rv.head))) err(at, `reviewed.head is the reviewed commit's sha, 7–40 hex`);
               if (rv.date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(rv.date))) err(at, `reviewed.date is the day the review ran, YYYY-MM-DD`);
             }
+          }
+          // a scanner whose method its adapter pins by commit (#228): two runs at one engine pin
+          // read one method. Its archived report says the pinned release, and the row names the
+          // pin it was read at (ingest writes it); a run drawn before the pin was recorded warns.
+          const pin = verifiedPin(ADAPTERS[id]);
+          if (row.method !== undefined) {
+            const mt = row.method;
+            if (row.status !== 'ran') err(at, `method: records what a scanner that ran read; this row is ${row.status}`);
+            else if (!mt || typeof mt !== 'object' || Array.isArray(mt)) err(at, `method: is a map of release and commit (#228)`);
+            else if (!pin.commit) err(at, `method: names a pinned method, and adapters/${id}.yaml verified_against pins no commit`);
+            else if (String(mt.release) !== pin.release || String(mt.commit) !== pin.commit) err(at, `method: says ${mt.release} at ${mt.commit}, and this engine pins ${pin.release} at ${pin.commit} (adapters/${id}.yaml verified_against): the review read another method; draw it again at the pin`);
+          }
+          if (pin.commit && row.status === 'ran') {
+            const rawFile = rawPath(runDir, `${id}.yaml`);
+            if (existsSync(rawFile)) {
+              let said;
+              try { said = parseYaml(readFileSync(rawFile, 'utf8'))?.review?.skill_version; } catch (e) { err(`map/raw/${id}.yaml`, `YAML parse failed (fail-closed): ${e.message}`); }
+              if (said !== undefined && String(said) !== pin.release) err(`map/raw/${id}.yaml`, `review.skill_version ${said} is not the release this engine pins (${pin.release} at ${pin.commit}, adapters/${id}.yaml verified_against): the review read another method; draw it again at the pin`);
+            }
+            if (row.method === undefined) warn(at, `names no method: — drawn before the reviewer's method was pinned by commit (#228); a repeat cannot show it read ${pin.release} at ${pin.commit}`);
           }
           if (row.passes !== undefined) {
             if (id !== 'practice-review') err(at, `passes: is the built-in scanner's per-pass record; ${id} has no passes`);

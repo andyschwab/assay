@@ -904,7 +904,13 @@ makes the axis **partially measured**, said in words with the scanner's note, in
 the walk, the index, and the report. The scanner's taxonomy can grow (the code
 reviewer's 1.60 added T and W); `default: FAIL` catches a new letter loudly and the
 fix is one mapping row. The adapter's `min_version` is the oldest report ingest
-accepts; `verified_against` is the release last checked against the adapter.
+accepts; `verified_against` is the release last checked against the adapter. A
+scanner whose method a review session reads from another repository pins it by commit
+as well (#228): `verified_against: { release, commit }`. Its lane reads the method at
+exactly that commit (`{{METHOD_COMMIT}}`, a fetch of one commit, never a default
+branch), the run record names it (`method:`, SCHEMA §5a), and `validate` refuses a
+report whose `skill_version` is not that release. Moving it is a reviewed change, with
+the stored fixture reviews drawn again at the new release.
 
 **Not-adopted is a recorded decision, never a deletion.** An adapter that carries
 `adopted: false` (with a `retired:` note stating why) leaves the roster a run

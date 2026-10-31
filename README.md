@@ -60,7 +60,8 @@ judgment and their own taxonomy: `practice-review`, the built-in method
 adapter and keeps its native report as an appendix. A code reviewer is **one
 peer scanner**: its findings enter through its adapter
 (`map/scanners/adapters/deep-code-review.yaml`, whose `verified_against` names
-the reviewer release it was last checked against) as facts, its severity kept as
+the reviewer release it was last checked against and the commit that release is, which
+its lane reads and nothing else) as facts, its severity kept as
 a property and never recomputed into a verdict (`map/scanners/CONTRACT.md` §6),
 and they land on the shared, property-named axes beside every other scanner's,
 where two scanners measuring one property corroborate (§1). They decide a
