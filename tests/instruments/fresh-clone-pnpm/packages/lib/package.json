@@ -1,1 +1,1 @@
-{ "name": "lib", "private": true, "dependencies": { "zod": "3.22.3" } }
+{ "name": "lib", "private": true, "dependencies": { "zod": "4.6.6" } }
