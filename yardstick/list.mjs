@@ -15,7 +15,7 @@ import { loadYardstick } from './measure.mjs';
 const FLAGS = ['--floor', '--json'];
 
 // The register's rows, or only its floor rows, as a consumer reads them.
-export function listRequirements(reg, { floor = false } = {}) {
+function listRequirements(reg, { floor = false } = {}) {
   return reg.requirements
     .filter((d) => !floor || (d.tags || []).includes('floor'))
     .map((d) => ({ id: d.id, title: d.title, tier: d.tier, topic: d.topic, tags: d.tags || [], harm: d.harm || [] }));

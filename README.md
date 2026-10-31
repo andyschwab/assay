@@ -199,6 +199,9 @@ node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/
 node assay.mjs yardstick --floor [--json]
 ```
 
+What a consumer pinned to assay may rely on, and how a release says what it must
+change, is one page: `CONSUMERS.md`. Anything not on it is internal.
+
 Once an operator takes a repository on, `routine/` is a GitHub Actions template
 that repository runs on its own schedule — it runs the offline instruments,
 compiles the package, and ratchets against a committed baseline; `routine/README.md`
