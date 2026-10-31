@@ -35,6 +35,7 @@ const GROUPS = [
     'roster': ['map/roster.mjs', 'per scanner: what it alone decides, what would read not measured if retired, and over runs its unique recoveries, corroborations and cost'],
   }],
   ['Yardstick: measuring the map against the requirements', {
+    'yardstick': ['yardstick/list.mjs', 'list the requirements, or with --floor the floor rows Intake reads ([--floor] [--json]): a consumer reads the floor here, never by heart'],
     'measure': ['yardstick/measure.mjs', 'per requirement: met, unmet, mixed or not measured'],
     'ratchet': ['yardstick/ratchet.mjs', 'fail when a baseline requirement regresses or drops off the scale'],
     'validate-packet': ['yardstick/packet.mjs', "validate a repository's own packet (owner/PACKET.md); fails closed"],

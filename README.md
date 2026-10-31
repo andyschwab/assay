@@ -194,7 +194,13 @@ node assay.mjs compile <run> [--target <target>]
 node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
 node assay.mjs migrate-run <prev-run> [--write]              # a run an earlier engine drew: rename a retired id, quote what the strict reader refuses
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
+
+# the requirements themselves: a consumer reads the floor here, never by heart
+node assay.mjs yardstick --floor [--json]
 ```
+
+What a consumer pinned to assay may rely on, and how a release says what it must
+change, is one page: `CONSUMERS.md`. Anything not on it is internal.
 
 Once an operator takes a repository on, `routine/` is a GitHub Actions template
 that repository runs on its own schedule — it runs the offline instruments,
