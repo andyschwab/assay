@@ -169,9 +169,11 @@ node assay.mjs start --out <run> <target> [--allow-exec]
 # checksum-verified; run it from an environment's setup script so every session, and
 # every child review session, starts with them on PATH. They are a precondition, never
 # a skip: start <target> and the routine refuse to draw a map until verify passes
-node assay.mjs tools install [--dir ~/.local/bin] [--run] [--only <scanner>] [--role instrument|judgment]
-node assay.mjs tools verify [--run] [--only <scanner>] [--role instrument|judgment]   # each pin on PATH, answering at its pin; --run: what a run executes
+node assay.mjs tools install [--dir ~/.local/bin] [--run] [--only <scanner>]
+node assay.mjs tools verify [--run] [--only <scanner>]   # each pin on PATH, answering at its pin; --run: what a run executes
 #   a review session installs and verifies its scanner's own tools first: --only deep-code-review
+#   in CI, a workflow that checks assay out calls `uses: ./<path-to-assay>/.github/actions/tools`
+#   (one optional input, dir): it installs, verifies and puts on PATH what a run needs
 
 #   practice-review: open map/METHOD.md as the opening context of a coding-agent session
 #   pointed at the target repository; it drives the passes
