@@ -60,6 +60,11 @@ It installs what a run executes (`tools install --run`), verifies each tool at i
 verify fails the step and puts nothing on PATH. Node must already be on PATH. Its one
 input is `dir`.
 
+Which tools it installs moves with the assay pin: they are the adopted instruments'
+`tool:` blocks, each with a pinned artifact for `linux-x64` and `darwin-arm64` (or a
+version-pinned PyPI package); on any other platform the install fails. A review
+session's own tools are never among them.
+
 ## The branch-cleanup workflow
 
 `.github/workflows/branch-cleanup.yml` is callable as a reusable workflow
@@ -91,7 +96,7 @@ it tags it runs the gate and the trailer check below. Its notes are compiled fro
 commit messages since the previous tag (`node lib/release-notes.mjs`): first what a
 consumer must change, then every commit.
 
-**The change rule.** A commit that touches a file of the surface below carries a
+**The change rule.** A commit that carries this page and touches a file of the surface below carries a
 `Consumer:` git trailer saying what a consumer must change, or `Consumer: none, <why>`
 when nothing, in the message's last paragraph beside its other trailers (git reads
 trailers there only). Those trailers head the release notes. A commit that changes a command,

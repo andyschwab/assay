@@ -76,12 +76,15 @@ checks for an architecture page, a present-tense agent contract, a runbook, a
 CI gate on the default branch, and the owner's evidence transcripts; and
 `structure-scan`, which finds duplicated blocks (jscpd), unused files, exports
 and dependencies (knip), stale artifacts and per-file churn, installing both
-tools from the npm registry into its own scratch for each run. Three more run off
+tools from the npm registry into its own scratch for each run. Four more run off
 their adapters (`run:`, `map/scanners/CONTRACT.md` §3f) when their binary is on
 `PATH`, and read skipped with their install line otherwise: `zizmor`, GitHub Actions
 workflow security; `osv-scanner`, OSV advisories over every lockfile it reads,
-deciding known-clean dependencies beside `dependency-scan`; and `checkov`,
-infrastructure-as-code and container policy. None of them executes the target's code.
+deciding known-clean dependencies beside `dependency-scan`; `checkov`,
+infrastructure-as-code and container policy; and `opengrep`, static analysis with
+taint rules vendored beside its adapter, behind a positive control that must fire,
+deciding that untrusted input reaches no dangerous sink unchecked. None of them
+executes the target's code.
 **Three instruments execute the target's code.** `fresh-clone` runs the target's
 own install (lifecycle scripts included), build, lint, typecheck, test and
 migrate-dry scripts, `dependency-scan` runs the target's package manager, and

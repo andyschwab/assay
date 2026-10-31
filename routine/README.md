@@ -240,7 +240,7 @@ read directly, exactly as before.
    review required rather than optional.
 
 Assay's tools: the template's `routine` job installs every tool the adopted
-instruments' adapters pin, and each tool a review reads that the routine runs before it (`node assay.mjs tools install --run`, each
+instruments' adapters pin (`node assay.mjs tools install --run`, each
 download checked against the sha256 its adapter's `tool:` block pins before it is
 ever executed), verifies them (`tools verify --run`) and puts them on
 `PATH`, before the routine step, through assay's own action at its checkout

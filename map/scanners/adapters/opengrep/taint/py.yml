@@ -1,7 +1,7 @@
 # Bundled generic taint rules (Python). Sources: request data and function parameters (excluding self/cls).
 # Sinks: classic injection calls. A guard `if X not in ALLOW: raise|return` before the sink suppresses it for X.
 rules:
-- id: taint.py.sqli
+- id: py-sqli
   mode: taint
   languages: [python]
   severity: ERROR
@@ -33,7 +33,7 @@ rules:
   pattern-sanitizers:
   - pattern: int(...)
   - pattern: float(...)
-- id: taint.py.command-injection
+- id: py-command-injection
   mode: taint
   languages: [python]
   severity: ERROR
@@ -93,7 +93,7 @@ rules:
   pattern-sanitizers:
   - pattern: shlex.quote(...)
   - pattern: int(...)
-- id: taint.py.path-traversal
+- id: py-path-traversal
   mode: taint
   languages: [python]
   severity: WARNING
@@ -169,7 +169,7 @@ rules:
     - metavariable-regex:
         metavariable: $M
         regex: ^[A-Z][A-Z0-9_]*$
-- id: taint.py.ssrf
+- id: py-ssrf
   mode: taint
   languages: [python]
   severity: ERROR
@@ -237,7 +237,7 @@ rules:
         ...
         <... urlopen(<... $G ...>, ...) ...>
     - focus-metavariable: $S
-- id: taint.py.deserialize
+- id: py-deserialize
   mode: taint
   languages: [python]
   severity: ERROR
@@ -267,7 +267,7 @@ rules:
       - pattern: yaml.unsafe_load($S, ...)
       - pattern: jsonpickle.decode($S, ...)
     - focus-metavariable: $S
-- id: taint.py.xss
+- id: py-xss
   mode: taint
   languages: [python]
   severity: WARNING
@@ -299,7 +299,7 @@ rules:
   - pattern: escape(...)
   - pattern: html.escape(...)
   - pattern: markupsafe.escape(...)
-- id: taint.py.open-redirect
+- id: py-open-redirect
   mode: taint
   languages: [python]
   severity: WARNING

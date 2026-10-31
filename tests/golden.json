@@ -89,6 +89,14 @@
         "corroborated": 1,
         "fails_loud": "instrument-port"
       },
+      "opengrep": {
+        "status": "adopted",
+        "ran_in": 0,
+        "decides_alone": 1,
+        "unique_recoveries": null,
+        "corroborated": null,
+        "fails_loud": "opengrep-instrument"
+      },
       "osv-scanner": {
         "status": "adopted",
         "ran_in": 3,

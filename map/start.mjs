@@ -54,7 +54,7 @@ import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
 import { loadAdapters, adoptedAdapters } from './project.mjs';
-import { toolsNotReady, REFUSED_EXIT, pinnedTools } from './tools.mjs';
+import { toolsNotReady, REFUSED_EXIT } from './tools.mjs';
 import { scannersPath, findingsDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
@@ -140,6 +140,16 @@ function toolNotRunLines(tool, rawFile) {
 //   timeout_s          a wall-clock bound (default 600)
 //   {report} in args   the tool writes its report to that file rather than stdout; the
 //                      runner names a scratch file and reads the report from it
+//   rules              a rule set the tool runs (#232): `dir`, vendored under
+//                      map/scanners/adapters/, and `repo`, files the target may carry that run
+//                      beside it; the {rules} arg expands to `flag <path>` for each. A tool may
+//                      name a rule by where it sits on this machine; the envelope names none
+//   control            a positive control (#223): planted cases vendored under
+//                      map/scanners/adapters/, run with the vendored rules over a scratch copy
+//                      before the target. Each `expect` hit ("<rule> <file>:<line>", read from
+//                      the report at `results`, by `fields`) must be reported, or the run is
+//                      failed with the hits missing and the target is not run; the envelope
+//                      records { rules, expected, found, missing }
 //   scope: repository  the tool reads the history of the repository holding the target,
 //                      so a target that is not its repository's top level is skipped with
 //                      a reason before anything runs, whatever is on PATH; and a target in
@@ -163,12 +173,51 @@ function hasInput(repoDir, globs) {
   };
   return walk('');
 }
+// a run's rule set (run.rules): the vendored set, and each file of `repo` the target carries,
+// as the {rules} args; the prefixes a tool may name them by on this machine (a path, or its
+// directories dotted into a rule id), which the envelope drops; or { missing } when the
+// vendored set is not there
+const ADAPTERS_DIR = join(HERE, 'scanners', 'adapters');
+const dotted = (p) => `${p.replace(/^\/+/, '').split('/').join('.')}.`;
+function ruleSet(spec, repoDir) {
+  if (!spec) return null;
+  const dir = spec.dir ? join(ADAPTERS_DIR, String(spec.dir)) : null;
+  if (!dir || !existsSync(dir)) return { missing: String(spec.dir) };
+  const flag = spec.flag ? [String(spec.flag)] : [];
+  const own = (spec.repo || []).map(String).filter((f) => existsSync(join(repoDir, f)));
+  return { dir, own, args: [...flag, dir, ...own.flatMap((f) => [...flag, f])], prefixes: [dotted(dir), `${dir}/`] };
+}
+// the tool over its positive control: the planted cases copied to a scratch directory outside any
+// repository (a tool may honour an enclosing .gitignore) and run with the vendored rules alone →
+// { rules, expected, found, missing } and, when it could not be read at all, error
+const pick = (o, path) => String(path).split('.').reduce((v, k) => (v == null ? v : v[k]), o);
+function runControl(run, rules) {
+  const c = run.control, f = c.fields || {};
+  const expect = (c.expect || []).map(String);
+  const src = join(ADAPTERS_DIR, String(c.dir));
+  const out = { rules: String(run.rules?.dir ?? 'none'), expected: expect.length, found: 0, missing: expect };
+  if (!rules || !existsSync(src) || !expect.length) return { ...out, error: `its control ${c.dir} or its rules are not there, or it expects no hit` };
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-control-'));
+  try {
+    cpSync(src, scratch, { recursive: true });
+    const args = (run.args || []).flatMap((a) => (String(a) === '{rules}' ? [...(run.rules.flag ? [String(run.rules.flag)] : []), rules.dir] : [String(a)]));
+    if (args.some((a) => a.includes('{report}'))) return { ...out, error: 'a control reads the report from stdout, and the args name a {report} file' };
+    const r = spawnSync(run.bin, args, { cwd: scratch, env: childEnv(), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: Number(run.timeout_s || 600) * 1000 });
+    if (!(run.ok_exits || [0]).map(Number).includes(r.status)) return { ...out, error: `${run.bin} exited ${r.status == null ? '(no exit code — process error)' : r.status} on the planted cases` };
+    let hits;
+    try { hits = pick(JSON.parse(r.stdout), c.results || 'results'); } catch { return { ...out, error: `${run.bin}'s output on the planted cases is not JSON` }; }
+    const strip = (id) => rules.prefixes.reduce((acc, p) => acc.split(p).join(''), String(id));
+    const seen = new Set((Array.isArray(hits) ? hits : []).map((h) => `${strip(pick(h, f.rule || 'rule'))} ${pick(h, f.path || 'path')}:${pick(h, f.line || 'line')}`));
+    const missing = expect.filter((e) => !seen.has(e));
+    return { ...out, found: expect.length - missing.length, missing };
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+}
 export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
   const run = adapter.run;
   const root = (() => { try { return realpathSync(repoDir); } catch { return resolve(repoDir); } })();
   // a tool may print the target's path absolute, or relative to the filesystem root
-  const prefixes = [...new Set([root, resolve(repoDir)].flatMap((x) => [`${x}/`, `${x.replace(/^\/+/, '')}/`]))].sort((a, b) => b.length - a.length);
-  const rel = (t) => prefixes.reduce((acc, pre) => acc.split(pre).join(''), String(t ?? ''));
+  const prefixes = [...new Set([root, resolve(repoDir)].flatMap((x) => [`${x}/`, `${x.replace(/^\/+/, '')}/`]))];
+  const rel = (t) => [...prefixes].sort((a, b) => b.length - a.length).reduce((acc, pre) => acc.split(pre).join(''), String(t ?? ''));
   const { dir: rawDir, file: rawFile } = rawScratch(id);
   const write = (env) => writeFileSync(rawFile, JSON.stringify({ envelope: 1, scanner: id, ...env }, null, 2) + '\n');
   const ok = [...(run.ok_exits || [0]), ...(run.no_input_exits || [])].map(Number);
@@ -194,8 +243,23 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
     }
     const version = Array.isArray(run.version) ? String(spawnSync(run.bin, run.version, { encoding: 'utf8', env: childEnv() }).stdout || '').trim().split('\n')[0] : null;
     log(`· ${id}${version ? ` (${version})` : ''}${outsideRepository ? ' (in no repository)' : ''} …`);
+    const rules = ruleSet(run.rules, repoDir);
+    if (rules && rules.missing) {
+      const reason = `${id} has no rule set: ${rules.missing} is not under map/scanners/adapters/`;
+      log(`  ✗ ${id} failed: ${reason}`);
+      return { status: 'failed', reason };
+    }
+    // zero results on the target are clean only beside a control that fired: one that did not
+    // is a failed instrument, and the target is not run (#223)
+    const control = /** @type {any} */ (run.control ? runControl(run, rules) : null);
+    if (control && (control.error || control.missing.length)) {
+      const reason = `positive control did not fire: ${control.error || `${control.missing.length} of ${control.expected} planted hits not reported (${control.missing.join('; ')})`}`;
+      log(`  ✗ ${id} failed: ${reason}`);
+      return { status: 'failed', reason };
+    }
+    if (rules) prefixes.push(...rules.prefixes);
     const reportFile = join(rawDir, 'report.out');
-    const args = [...(run.args || []), ...(outsideRepository ? run.outside_repository || [] : [])].map((a) => String(a).split('{report}').join(reportFile));
+    const args = [...(run.args || []), ...(outsideRepository ? run.outside_repository || [] : [])].flatMap((a) => (String(a) === '{rules}' && rules ? rules.args : [String(a).split('{report}').join(reportFile)]));
     const toFile = (run.args || []).some((a) => String(a).includes('{report}'));
     const t0 = Date.now();
     // the same allow-listed environment as every instrument's child (map/child-env.mjs, CONTRACT.md §3a)
@@ -203,7 +267,7 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
     const duration = secondsSince(t0);   // the row's cost on the record (SCHEMA.md §5a, #159)
     const stderr = rel(r.stderr).split('\n').filter(Boolean).slice(-400);
     const report = toFile ? (existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : null) : r.stdout;
-    write({ exit: r.status, version, no_input: false, report: report == null ? null : rel(report), stderr });
+    write({ exit: r.status, version, no_input: false, ...(control ? { control } : {}), report: report == null ? null : rel(report), stderr });
     const row = ingestInstrumentRaw({ tool: id, exit: r.status, output: stderr.slice(-3).join('\n') || (r.error ? String(r.error.message) : ''), rawFile, okExits: ok, outDir, log, target: repoDir });
     return { ...row, duration };
   } finally { try { rmSync(rawDir, { recursive: true, force: true }); } catch {} }
@@ -216,76 +280,6 @@ function timed(run) {
   const t0 = Date.now();
   const row = run();
   return row && row.status !== 'skipped' && !row.duration ? { ...row, duration: secondsSince(t0) } : row;
-}
-
-// ── the tools a review reads, run before it (#201; map/scanners/CONTRACT.md §3g) ──
-// A judgment scanner's review executes nothing: a tools: entry with `before_review` is run
-// here, over the target, and its report written into the run for the review to read,
-// map/raw/before-review/<scanner>/<bin>.json. It decides no requirement on its own. The
-// rule set is the adapter's, vendored under map/scanners/adapters/ (a target's own rules,
-// `repo_rules`, take its place); `{rules}` in args names it. Only the exit and the report
-// are archived, never a stderr tail (the routine uploads map/raw/).
-const ADAPTERS_DIR = join(HERE, 'scanners', 'adapters');
-// the tool over its positive control (#223): planted cases beside the adapter, run with the vendored
-// rules in a scratch copy outside any repository (a tool may honour an enclosing .gitignore) →
-// { rules, expected, found, missing } and, when it could not be read at all, error
-const pick = (o, path) => String(path).split('.').reduce((v, k) => (v == null ? v : v[k]), o);
-function runControl(t, br) {
-  const c = br.control, f = c.fields || {};
-  const expect = (c.expect || []).map(String);
-  const rules = br.rules ? join(ADAPTERS_DIR, String(br.rules)) : null, src = join(ADAPTERS_DIR, String(c.dir));
-  const out = { rules: String(br.rules), expected: expect.length, found: 0, missing: expect };
-  if (!rules || !existsSync(rules) || !existsSync(src) || !expect.length) return { ...out, error: `its control ${c.dir} or the rules ${br.rules} are not there, or it expects no hit` };
-  const scratch = mkdtempSync(join(tmpdir(), 'assay-control-'));
-  try {
-    cpSync(src, scratch, { recursive: true });
-    const r = spawnSync(t.bin, (br.args || []).map((a) => String(a).split('{rules}').join(rules)), { cwd: scratch, env: childEnv(), encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: Number(br.timeout_s || 900) * 1000 });
-    if (!(br.ok_exits || [0]).map(Number).includes(r.status)) return { ...out, error: `${t.bin} exited ${r.status == null ? '(no exit code — process error)' : r.status} on the planted cases` };
-    let rows;
-    try { rows = pick(JSON.parse(r.stdout), c.results || 'results'); } catch { return { ...out, error: `${t.bin}'s output on the planted cases is not JSON` }; }
-    const prefix = `${rules.replace(/^\/+/, '').split('/').join('.')}.`;
-    const seen = new Set((Array.isArray(rows) ? rows : []).map((h) => `${String(pick(h, f.rule || 'rule')).split(prefix).join('')} ${pick(h, f.path || 'path')}:${pick(h, f.line || 'line')}`));
-    const missing = expect.filter((e) => !seen.has(e));
-    return { ...out, found: expect.length - missing.length, missing };
-  } finally { rmSync(scratch, { recursive: true, force: true }); }
-}
-
-export const beforeReviewPath = (outDir, scanner, bin) => join(outDir, 'map', 'raw', 'before-review', scanner, `${bin}.json`);
-export function runBeforeReview(t, repoDir, outDir, log) {
-  const br = t.before_review;
-  const out = beforeReviewPath(outDir, t.scanner, t.bin);
-  mkdirSync(dirname(out), { recursive: true });
-  const record = (env) => { writeFileSync(out, JSON.stringify({ envelope: 1, scanner: t.scanner, tool: t.bin, ...env }, null, 1) + '\n'); return env; };
-  const own = (br.repo_rules || []).map(String).find((f) => existsSync(join(repoDir, f)));
-  const rules = own ? join(repoDir, own) : br.rules ? join(ADAPTERS_DIR, String(br.rules)) : null;
-  if (!rules || !existsSync(rules)) {
-    const reason = `no rule set: ${own ? own : `${br.rules} is not under map/scanners/adapters/`}`;
-    log(`· ${t.bin} (before ${t.scanner}'s review) — skipped: ${reason}`);
-    return record({ status: 'skipped', reason });
-  }
-  const version = String(spawnSync(t.bin, t.versionArgs || ['--version'], { encoding: 'utf8', env: childEnv() }).stdout || '').trim().split('\n')[0] || null;
-  log(`· ${t.bin}${version ? ` (${version})` : ''} before ${t.scanner}'s review, rules ${own || br.rules} …`);
-  const t0 = Date.now();
-  // zero results on the target are clean only beside a control that fired: one that did not is a
-  // failed analyzer, and the target is not run
-  const control = /** @type {any} */ (br.control ? runControl(t, br) : null);
-  if (control && (control.error || control.missing.length)) {
-    const reason = `positive control did not fire: ${control.error || `${control.missing.length} of ${control.expected} planted hits not reported (${control.missing.join('; ')})`}`;
-    log(`  ✗ ${t.bin} failed: ${reason}`);
-    const { error, ...kept } = control;
-    return record({ status: 'failed', exit: null, version, rules: own || String(br.rules), duration: secondsSince(t0), control: kept, report: null, reason });
-  }
-  const r = spawnSync(t.bin, (br.args || []).map((a) => String(a).split('{rules}').join(rules)), { cwd: repoDir, env: childEnv(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024, timeout: Number(br.timeout_s || 900) * 1000 });
-  const ok = (br.ok_exits || [0]).map(Number).includes(r.status);
-  // a tool may name the rules by where they sit on this machine (semgrep prefixes each rule id
-  // with its directory, dotted); the record names no machine
-  const rulesDir = own && !own.endsWith('/') && existsSync(rules) && !statSync(rules).isDirectory() ? dirname(rules) : rules;
-  const machine = [`${rulesDir.replace(/^\/+/, '').split('/').join('.')}.`, `${resolve(repoDir)}/`, `${rulesDir}/`];
-  const report = ok ? machine.reduce((acc, m) => acc.split(m).join(''), String(r.stdout)) : null;
-  const env = /** @type {any} */ ({ status: ok ? 'ran' : 'failed', exit: r.status, version, rules: own || String(br.rules), duration: secondsSince(t0), ...(control ? { control } : {}), report });
-  if (!ok) env.reason = `${t.bin} exited ${r.status == null ? '(no exit code — process error)' : r.status}`;
-  log(`  ${ok ? '✓' : '✗'} ${t.bin} ${env.status}${ok ? '' : `: ${env.reason}`}`);
-  return record(env);
 }
 
 // every adopted instrument whose adapter carries run:, in id order
@@ -361,8 +355,6 @@ export function drawOfflineMap({ repoDir, outDir, pendingReason, freshCloneNoClo
   else rows['structure-scan'] = timed(() => runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log }));
   const adapters = loadAdapters();
   for (const id of adapterRunInstruments(adapters)) rows[id] = timed(() => runAdapterInstrument(id, adapters[id], repoDir, outDir, log));
-  // what each judgment scanner's review reads, run here so the review executes nothing (#201)
-  for (const t of pinnedTools(adapters).filter((x) => x.before_review && x.role !== 'instrument')) runBeforeReview(t, repoDir, outDir, log);
   return rows;
 }
 

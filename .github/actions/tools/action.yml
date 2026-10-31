@@ -4,9 +4,9 @@
 #   - uses: ./<path-to-assay>/.github/actions/tools
 #
 # so which tools a run needs moves with the assay pin and lives here only. It installs the tools a run executes
-# (`tools install --run`: the instruments' and each one a review reads that runs before it, never a review
-# session's own), each download checked against the sha256 its adapter pins before it is ever executed, verifies
-# each answers at its pin (`tools verify --run`), and appends the directory to GITHUB_PATH. A failed install or
+# (`tools install --run`: the instruments', never a review session's own), each download checked against the
+# sha256 its adapter pins before it is ever executed, verifies each answers at its pin (`tools verify --run`),
+# and appends the directory to GITHUB_PATH. A failed install or
 # verify fails the step and puts nothing on PATH. Node must already be on PATH (actions/setup-node).
 # tests/blocks/ci-interface.mjs runs this step's script.
 name: assay tools

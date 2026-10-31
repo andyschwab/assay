@@ -1,0 +1,168 @@
+# Adapter: opengrep (external instrument) -> the axis roster (map/scanners/CONTRACT.md).
+# Static analysis with cross-function taint (https://github.com/opengrep/opengrep, LGPL-2.1):
+# the vendor-consortium fork of Semgrep CE, built for redistribution, deterministic and
+# offline. Adopted as #232 (map/scanners/CANDIDATES.md, its core-candidate row). It runs the
+# vendored MIT taint rules beside this file (opengrep/taint/, SOURCE.md names the commit),
+# never a registry pack: those rules are not redistributable. Every vendored rule reads one
+# property, untrusted input reaching a dangerous sink, so every one lands on code-security;
+# where the code reviewer reports the same property (its domain B) the two corroborate on that
+# axis. A rule the map does not list halts the projection (default: FAIL), except a rule the
+# target wrote for itself (ingest.other_rules below).
+scanner: opengrep
+targets_taxonomy: 3
+role: instrument
+# the harness block holding this scanner's fail-loud halts (map/scanners/INTAKE.md)
+fails_loud: opengrep-instrument
+# verified_against is the release this adapter was last checked against (its CLI flags, its
+# SARIF shape, its exit codes, the vendored rules firing on the control): bump it after
+# re-reading those, never on faith.
+verified_against: "1.32.0"
+# what `node assay.mjs tools install` puts on PATH (map/tools.mjs; CONTRACT.md §3g): the
+# release's single-file binary, checksum-pinned per platform. 1.32.0 was the newest release
+# at least a week old when pinned (2026-10-22).
+tool:
+  bin: opengrep
+  version: "1.32.0"
+  upstream: "github:opengrep/opengrep"
+  fetch:
+    linux-x64:
+      url: "https://github.com/opengrep/opengrep/releases/download/v1.32.0/opengrep_manylinux_x86"
+      sha256: "7360d60174880bd9214f2dfbe439b7bce82b7a3d44cfe945ba833c85cc8bda75"
+    darwin-arm64:
+      url: "https://github.com/opengrep/opengrep/releases/download/v1.32.0/opengrep_osx_arm64"
+      sha256: "e161746226bccef5b85c57611946fa21dc3b00a2dc2591343d6160af99397e2f"
+# How the runner drives it (map/start.mjs runAdapterInstrument, CONTRACT.md §3a). {rules}
+# expands to `--config <rules>` for the vendored set, and for each file of `repo` the target
+# carries, which runs beside it. The positive control runs first, over a scratch copy of the
+# planted flows with the vendored rules alone: a hit it misses fails the run and the target
+# is not run (#223). A tree with no file in a language the rules read is not started (inputs).
+# With --sarif it exits 0 whether or not it finds anything; any other exit is a tool error.
+run:
+  bin: opengrep
+  args:
+    - "scan"
+    - "--sarif"
+    - "--quiet"
+    - "--disable-version-check"
+    - "{rules}"
+    - "."
+  rules:
+    flag: "--config"
+    dir: "opengrep/taint"
+    repo:
+      - ".semgrep.yml"
+      - ".semgrep"
+  control:
+    dir: "opengrep/control"
+    results: "runs.0.results"
+    fields:
+      rule: "ruleId"
+      path: "locations.0.physicalLocation.artifactLocation.uri"
+      line: "locations.0.physicalLocation.region.startLine"
+    expect:
+      - "js-command-injection routes/run.js:4"
+      - "py-command-injection app/run.py:6"
+  ok_exits: [0]
+  inputs:
+    - "**/*.js"
+    - "**/*.jsx"
+    - "**/*.mjs"
+    - "**/*.cjs"
+    - "**/*.ts"
+    - "**/*.tsx"
+    - "**/*.py"
+  version:
+    - "--version"
+  install: "node assay.mjs tools install --only opengrep (the pin is this adapter's tool: block)"
+  timeout_s: 900
+ingest:
+  format: sarif
+  tool: "Opengrep OSS"
+  start_id: 1000
+  # a rule the map does not list is one the target wrote for itself (run.rules.repo): one
+  # category, its rule id kept in native_id. The block holds every vendored rule mapped.
+  other_rules: target-rule
+# the band a view reads, from the property the rule reads
+bands:
+  js-sqli: High
+  py-sqli: High
+  js-command-injection: High
+  py-command-injection: High
+  js-deserialize-eval: High
+  py-deserialize: High
+  js-ssrf: High
+  py-ssrf: High
+  default: Medium
+
+contributes: []
+
+map:
+  js-sqli:                      # untrusted input in a SQL string
+    axis: code-security
+    fix: "Pass the value as a bound query parameter, never concatenated into the SQL string."
+  py-sqli:
+    axis: code-security
+    fix: "Pass the value as a bound query parameter, never concatenated into the SQL string."
+  js-command-injection:         # untrusted input in a shell command
+    axis: code-security
+    fix: "Run the program with an argument array (execFile/spawn without a shell), never a command string built from input."
+  py-command-injection:
+    axis: code-security
+    fix: "Run the program with an argument list and shell=False, never a command string built from input."
+  js-path-traversal:            # untrusted input in a filesystem path
+    axis: code-security
+    fix: "Resolve the path and confine it to a base directory, or select it from an allowlist."
+  py-path-traversal:
+    axis: code-security
+    fix: "Resolve the path and confine it to a base directory, or select it from an allowlist."
+  js-ssrf:                      # untrusted input selecting an outbound request
+    axis: code-security
+    fix: "Allowlist the scheme and host of every outbound request a caller can influence."
+  py-ssrf:
+    axis: code-security
+    fix: "Allowlist the scheme and host of every outbound request a caller can influence."
+  js-deserialize-eval:          # untrusted input evaluated or unsafely deserialized
+    axis: code-security
+    fix: "Parse the input as data (JSON with a schema), never evaluate or unsafely deserialize it."
+  py-deserialize:
+    axis: code-security
+    fix: "Parse the input as data (JSON with a schema), never unpickle or unsafely load it."
+  js-xss:                       # untrusted input returned as markup
+    axis: code-security
+    fix: "Escape the value for its context, or render it through a template that escapes by default."
+  py-xss:
+    axis: code-security
+    fix: "Escape the value for its context, or render it through a template that escapes by default."
+  js-open-redirect:             # untrusted input selecting a redirect target
+    axis: code-security
+    fix: "Redirect only to relative paths or an allowlist of known hosts."
+  py-open-redirect:
+    axis: code-security
+    fix: "Redirect only to relative paths or an allowlist of known hosts."
+  target-rule:                  # a hit of a rule the target wrote for itself
+    axis: code-security
+  no-input:                     # a FACT row: no file in a language the rules read —
+    axis: code-security         #   the decider below reads not-applicable and steps aside
+
+default: FAIL
+
+# the floor row it decides (CLAUDE.md rule 7: the row names no scanner): any vendored rule's
+# hit reads it unmet; a run beside a control that fired, with none, reads it met
+decides:
+  - requirement: d-untrusted-input-checked
+    category:
+      - js-sqli
+      - py-sqli
+      - js-command-injection
+      - py-command-injection
+      - js-path-traversal
+      - py-path-traversal
+      - js-ssrf
+      - py-ssrf
+      - js-deserialize-eval
+      - py-deserialize
+      - js-xss
+      - py-xss
+      - js-open-redirect
+      - py-open-redirect
+    not_applicable_when: no-input

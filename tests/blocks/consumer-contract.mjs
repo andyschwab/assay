@@ -11,7 +11,8 @@
 //       workflow_call); every file of its surface block exists;
 //   (c) the change rule, on a planted repository: a commit touching the surface carries
 //       a `Consumer:` git trailer, or the check refuses it naming the commit; a commit off
-//       the surface needs none; the release notes put the trailers first;
+//       the surface needs none, and neither does one whose own tree has no CONSUMERS.md (cut
+//       before the rule, merged after it: #232); the release notes put the trailers first;
 //   (d) the same rule on this repository's own history, since the newest v* tag, or since
 //       CONSUMERS.md was added: a shallow history fails loud, never reads as clean;
 //   (e) release.yml: dispatched by a person only, on the default branch, refuses a version
@@ -85,12 +86,18 @@ export async function run() {
     const git = (...a) => execFileSync('git', a, { cwd: tmp, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid' } });
     const commit = (file, text, msg) => { writeFileSync(join(tmp, file), text); git('add', '-A'); git('commit', '-q', '-m', msg); return git('rev-parse', 'HEAD').trim(); };
     git('init', '-q');
-    commit('other.txt', '0\n', 'before the contract');
-    commit('CONSUMERS.md', '# c\n\n```surface\nCONSUMERS.md\ncli.mjs\n```\n', 'the contract\n\nConsumer: none, the page is new');
+    const base = commit('other.txt', '0\n', 'before the contract');
+    commit('CONSUMERS.md', '# c\n\n```surface\nCONSUMERS.md\ncli.mjs\napi.mjs\n```\n', 'the contract\n\nConsumer: none, the page is new');
+    const trunk = git('rev-parse', '--abbrev-ref', 'HEAD').trim();
     commit('other.txt', '1\n', 'off the surface: no trailer needed');
     commit('cli.mjs', '1\n', 'cli: rename --x to --y\n\nConsumer: pass --y where you passed --x');
+    // a branch cut before the page, touching the surface with no trailer, merged after it
+    git('checkout', '-q', '-b', 'early', base);
+    const early = commit('api.mjs', '1\n', 'api: cut from a base with no contract page');
+    git('checkout', '-q', trunk);
+    git('merge', '-q', '--no-ff', '-m', 'merge the early branch', 'early');
     const ok = notes(['--check'], tmp);
-    if (ok.status !== 0) fail(`the trailer check refuses a history that carries every trailer: ${ok.stderr.trim()}`);
+    if (ok.status !== 0) fail(`the trailer check refuses a history that carries every trailer it owes (${early.slice(0, 7)}'s own tree has no CONSUMERS.md, so it owes none): ${ok.stderr.trim()}`);
     const n = notes([], tmp);
     const lines = n.stdout.split('\n').filter(Boolean);
     const first = lines.findIndex((l) => l.includes('pass --y where you passed --x'));

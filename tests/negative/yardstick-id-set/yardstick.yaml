@@ -12,10 +12,10 @@ summary:
   met: 0
   unmet: 0
   mixed: 0
-  not-measured: 58
+  not-measured: 59
   not-applicable: 0
   decided: 0
-  of: 58
+  of: 59
 requirements:
   - id: d-accounts-enumerated
     status: not-measured
@@ -47,6 +47,12 @@ requirements:
     basis: run
     findings: []
     note: "checkov skipped: fixture: not executed"
+  - id: d-untrusted-input-checked
+    status: not-measured
+    how: instrument
+    basis: run
+    findings: []
+    note: "opengrep skipped: fixture: not executed"
   - id: d-routes-authorized
     status: not-measured
     how: instrument
