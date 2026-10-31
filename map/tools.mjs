@@ -21,8 +21,8 @@
 // A tool already installed at its pin (the stamp beside the binaries, its sha256 still
 // matching) is left as it is.
 //
-// Usage: node assay.mjs tools install [--dir <bin-dir>] [--run] [--only <scanner>] [--role <role>]   (default ~/.local/bin)
-//        node assay.mjs tools verify [--run] [--only <scanner>] [--role <role>]     (each pin on PATH and answering)
+// Usage: node assay.mjs tools install [--dir <bin-dir>] [--run] [--only <scanner>]   (default ~/.local/bin)
+//        node assay.mjs tools verify [--run] [--only <scanner>]     (each pin on PATH and answering)
 //   --run: the tools a run assay draws executes, which start and the routine require
 //        node assay.mjs tools check [--json]                                  (pinned against latest)
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync, copyFileSync, mkdtempSync, rmSync, symlinkSync, unlinkSync } from 'node:fs';
@@ -163,12 +163,12 @@ export function verifyTools(tools = pinnedTools(), answer = answerOf) {
 // review reads that runs before it (`before_review`, #201). The gate holds a run to these.
 export const runTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument' || t.before_review);
 
-// the tools a `tools` command line selects: --run the gate's set, then --only <scanner> and
-// --role <role> narrow it. The CLI and the refusal below read this one function, so the
+// the tools a `tools` command line selects: --run the gate's set, then --only <scanner>
+// narrows it. The CLI and the refusal below read this one function, so the
 // commands a refusal prints select exactly what the gate checks (#203).
 export function selectTools(args, tools = pinnedTools()) {
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
-  return (args.includes('--run') ? runTools(tools) : tools).filter((t) => (!opt('--only') || t.scanner === opt('--only')) && (!opt('--role') || t.role === opt('--role')));
+  return (args.includes('--run') ? runTools(tools) : tools).filter((t) => !opt('--only') || t.scanner === opt('--only'));
 }
 
 // the one line a run that refuses to start prints and records, or null when every tool is
@@ -222,8 +222,12 @@ export function checkTools(tools = pinnedTools(), latest = latestOf) {
 if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
-  const sub = args[0];
   const tools = selectTools(args);
+  // an option the CLI does not know is a usage error, never ignored: ignored, it would select every pinned tool
+  const VALUED = ['--dir', '--only'], FLAGS = ['--run', '--json'];
+  const unknown = args.slice(1).filter((a, i, r) => !VALUED.includes(a) && !FLAGS.includes(a) && !VALUED.includes(r[i - 1]));
+  if (unknown.length) console.error(`tools: unknown option ${unknown.join(' ')}`);
+  const sub = unknown.length ? null : args[0];
   if (sub === 'install') {
     const dir = opt('--dir') || join(homedir(), '.local', 'bin');
     let bad = 0;
@@ -244,7 +248,7 @@ if (isMain(import.meta.url)) {
     if (args.includes('--json')) console.log(JSON.stringify(rows, null, 1));
     else for (const r of rows) console.log(`${r.status.padEnd(8)} ${r.scanner} (${r.bin}): pinned ${r.pinned}, latest ${r.latest ?? '?'}${r.why ? ` — ${r.why}` : ''}`);
   } else {
-    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--run] [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools verify [--run] [--only <scanner>] [--role instrument|judgment]\n       node assay.mjs tools check [--json]');
+    console.error('usage: node assay.mjs tools install [--dir <bin-dir>] [--run] [--only <scanner>]\n       node assay.mjs tools verify [--run] [--only <scanner>]\n       node assay.mjs tools check [--json]');
     process.exit(2);
   }
 }

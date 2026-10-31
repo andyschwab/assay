@@ -6,6 +6,22 @@
 # this repository's default branch, so the file is seeded verbatim. A run started by hand is a dry run unless a person
 # turns `dry_run` off: it prints the plan and deletes nothing.
 #
+# Another repository calls it as a reusable workflow (#227): a caller with the same triggers, pinned to a tag, and the
+# permissions the delete job needs (a called workflow's jobs hold at most what the caller grants). A call that passes no
+# dry_run is a dry run unless the caller's event is a push; github.* is the caller's run, so the plan reads the
+# caller's repository. Give the caller no concurrency group named branch-cleanup: the called workflow holds that one.
+#
+#   name: branch-cleanup
+#   on:
+#     push: { branches: [main, master] }
+#     workflow_dispatch: { inputs: { dry_run: { type: boolean, default: true } } }
+#   permissions: { contents: write, pull-requests: read }
+#   jobs:
+#     sweep:
+#       uses: <owner>/assay/.github/workflows/branch-cleanup.yml@<tag>
+#       with:
+#         dry_run: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run }}
+#
 # Planned for deletion: a branch that is not the default branch, not protected and not under KEEP; that a merged pull
 # request came from; that has nothing new since that merge (its tip is the head of a merged pull request from it, which
 # holds after a squash, or the default branch holds its tip); and that no open pull request uses as its head or base.
@@ -23,6 +39,12 @@ on:
     inputs:
       dry_run:
         description: Print what would be deleted and delete nothing
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      dry_run:
+        description: Print what would be deleted and delete nothing (a caller's push deletes whatever this says)
         type: boolean
         default: true
 permissions: { contents: read }

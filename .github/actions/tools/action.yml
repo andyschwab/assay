@@ -1,0 +1,31 @@
+# assay's pinned tools, installed, verified and put on PATH for the steps after this one (#227). A consumer that
+# checks assay out (a submodule, or actions/checkout at a tag) calls it from that path instead of copying the step:
+#
+#   - uses: ./<path-to-assay>/.github/actions/tools
+#
+# so which tools a run needs moves with the assay pin and lives here only. It installs the tools a run executes
+# (`tools install --run`: the instruments' and each one a review reads that runs before it, never a review
+# session's own), each download checked against the sha256 its adapter pins before it is ever executed, verifies
+# each answers at its pin (`tools verify --run`), and appends the directory to GITHUB_PATH. A failed install or
+# verify fails the step and puts nothing on PATH. Node must already be on PATH (actions/setup-node).
+# tests/blocks/ci-interface.mjs runs this step's script.
+name: assay tools
+description: Install, verify and put on PATH the pinned tools an assay run needs
+inputs:
+  dir:
+    description: Directory to install the tools into; empty for <runner temp>/assay-bin
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Install assay's pinned tools
+      shell: bash
+      env: { DIR: '${{ inputs.dir }}' }
+      run: |
+        set -euo pipefail
+        assay="$GITHUB_ACTION_PATH/../../.."
+        dir="${DIR:-$RUNNER_TEMP/assay-bin}"
+        node "$assay/assay.mjs" tools install --run --dir "$dir"
+        PATH="$dir:$PATH" node "$assay/assay.mjs" tools verify --run
+        echo "$dir" >> "$GITHUB_PATH"

@@ -10,6 +10,7 @@
 //   (d) the routine template and the engine's own CI install every pinned tool with
 //       `tools install`, verify them, and put them on PATH before anything runs, as a step
 //       that fails the job, and carry no tool pin of their own to drift from the adapters'.
+//       The step is assay's tools action (.github/actions/tools, #227), read here as the step.
 import { readFileSync, existsSync, rmSync, mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -81,14 +82,16 @@ export async function run() {
       const text = readFileSync(file, 'utf8');
       const name = file.slice(ROOT.length + 1);
       const steps = stepsOf(text, job);
-      const install = steps.findIndex((x) => /assay\.mjs"? tools install/.test(x));
+      // the step is assay's tools action, called at its checkout path (#227): its own step is what runs
+      const install = steps.findIndex((x) => /^\s*(?:-\s+)?uses:\s*\.\/(?:[\w.-]+\/)*\.github\/actions\/tools\s*$/m.test(x));
       const runAt = steps.findIndex((x) => runs.test(x));
-      if (install === -1) { fail(`(d) ${name} installs the pinned tools with \`tools install\``); continue; }
-      const step = steps[install];
+      if (install === -1) { fail(`(d) ${name} installs the pinned tools with assay's tools action`); continue; }
+      const step = readFileSync(join(ROOT, '.github', 'actions', 'tools', 'action.yml'), 'utf8');
+      if (!/tools install/.test(step)) fail(`(d) ${name}'s tools step installs the pinned tools with \`tools install\``);
       if (runAt === -1 || install > runAt) fail(`(d) ${name} installs the tools before the step that runs assay`);
       if (!/tools verify/.test(step)) fail(`(d) ${name} verifies the tools after installing them`);
       if (!/GITHUB_PATH/.test(step)) fail(`(d) ${name} puts the installed tools on PATH for the steps after it`);
-      if (/continue-on-error:\s*true/.test(step) || /\|\|\s*(true|echo|:)/.test(step)) fail(`(d) ${name}'s tools step fails the job when it fails`);
+      if (/continue-on-error:\s*true/.test(step + steps[install]) || /\|\|\s*(true|echo|:)/.test(step)) fail(`(d) ${name}'s tools step fails the job when it fails`);
       if (!/set -euo pipefail/.test(step)) fail(`(d) ${name}'s tools step runs under set -euo pipefail`);
       if (/_VERSION:|_SHA256:|[0-9a-f]{64}/.test(text.replace(/@[0-9a-f]{40}/g, ''))) fail(`(d) ${name} carries a tool pin of its own; the adapters' tool: blocks are the only pins`);
       if (/^\s*#\s*-\s*name:\s*Install/m.test(text)) fail(`(d) ${name} carries a commented-out install step`);
