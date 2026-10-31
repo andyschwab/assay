@@ -194,6 +194,9 @@ node assay.mjs compile <run> [--target <target>]
 node assay.mjs compile <run> --since <prev-run>              # + SINCE.md
 node assay.mjs migrate-run <prev-run> [--write]              # a run an earlier engine drew: rename a retired id, quote what the strict reader refuses
 node assay.mjs ratchet <run> --baseline packet/baseline.yaml # fails when a met/mixed row regresses
+
+# the requirements themselves: a consumer reads the floor here, never by heart
+node assay.mjs yardstick --floor [--json]
 ```
 
 Once an operator takes a repository on, `routine/` is a GitHub Actions template
