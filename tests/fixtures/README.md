@@ -35,6 +35,12 @@ runner (`map/start.mjs` runAdapterInstrument) at assay-fixtures `fe1ca28`: osv-s
 and checkov over each target (no-input where a target holds no lockfile or no IaC),
 zizmor at the root, each archived as the runner's envelope under `map/raw/`.
 
+opengrep (#232) was adopted after these runs were drawn, so every fixture run records it
+skipped with that reason, and `d-untrusted-input-checked` reads not-measured there. Its
+known answers are the `opengrep-instrument` block's own planted targets (one flow found,
+one clean run beside the control that fired); drawing it over the fixture targets lands
+with assay-fixtures.
+
 Each scored sheet also carries a `requirements:` list (#18): the status the
 yardstick's measurement of the run should read, per requirement, with its reason
 (the contract is `yardstick/README.md`, "Known answers"). The

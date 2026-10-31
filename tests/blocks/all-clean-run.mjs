@@ -25,7 +25,8 @@ export async function run() {
     '  structure-scan:', '    status: skipped', '    reason: "not run for this test"',
     '  zizmor:', '    status: skipped', '    reason: "not run for this test"',
     '  osv-scanner:', '    status: skipped', '    reason: "not run for this test"',
-    '  checkov:', '    status: skipped', '    reason: "not run for this test"', '',
+    '  checkov:', '    status: skipped', '    reason: "not run for this test"',
+    '  opengrep:', '    status: skipped', '    reason: "not run for this test"', '',
   ].join('\n'));
   for (const f of ['practice-review', 'gitleaks', 'fresh-clone', 'dependency-scan']) writeFileSync(join(tmp, 'map', 'findings', `${f}.yaml`), '[]\n');
   try { execFileSync(process.execPath, [join(ROOT, 'map', 'validate.mjs'), tmp], { stdio: 'pipe' }); }

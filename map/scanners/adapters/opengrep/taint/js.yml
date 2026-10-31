@@ -1,7 +1,7 @@
 # Bundled generic taint rules (JavaScript/TypeScript). Sources: req/request query, body, params, cookies, headers.
 # Sinks: classic injection calls on well-known receivers. A guard `if (!ALLOW.has(x)) return|throw` before the sink suppresses it for x.
 rules:
-- id: taint.js.sqli
+- id: js-sqli
   mode: taint
   languages: [javascript, typescript]
   severity: ERROR
@@ -41,7 +41,7 @@ rules:
   pattern-sanitizers:
   - pattern: parseInt(...)
   - pattern: Number(...)
-- id: taint.js.command-injection
+- id: js-command-injection
   mode: taint
   languages: [javascript, typescript]
   severity: ERROR
@@ -143,7 +143,7 @@ rules:
   pattern-sanitizers:
   - pattern: parseInt(...)
   - pattern: Number(...)
-- id: taint.js.path-traversal
+- id: js-path-traversal
   mode: taint
   languages: [javascript, typescript]
   severity: WARNING
@@ -295,7 +295,7 @@ rules:
     - focus-metavariable: $S
   pattern-sanitizers:
   - pattern: path.basename(...)
-- id: taint.js.ssrf
+- id: js-ssrf
   mode: taint
   languages: [javascript, typescript]
   severity: ERROR
@@ -524,7 +524,7 @@ rules:
         ...
         <... https.get(<... $G ...>, ...) ...>
     - focus-metavariable: $S
-- id: taint.js.deserialize-eval
+- id: js-deserialize-eval
   mode: taint
   languages: [javascript, typescript]
   severity: ERROR
@@ -562,7 +562,7 @@ rules:
       - pattern: vm.runInNewContext($S, ...)
       - pattern: vm.runInThisContext($S, ...)
     - focus-metavariable: $S
-- id: taint.js.xss
+- id: js-xss
   mode: taint
   languages: [javascript, typescript]
   severity: WARNING
@@ -601,7 +601,7 @@ rules:
   pattern-sanitizers:
   - pattern: escapeHtml(...)
   - pattern: encodeURIComponent(...)
-- id: taint.js.open-redirect
+- id: js-open-redirect
   mode: taint
   languages: [javascript, typescript]
   severity: WARNING

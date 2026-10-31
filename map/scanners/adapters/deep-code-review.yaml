@@ -18,7 +18,7 @@ role: judgment
 fails_loud: dcr-machine-report
 method: dcr
 # the review session's seed body (map/lane.mjs, `assay lane deep-code-review`; #201): read-only,
-# reading the results that ran before it
+# reading the instruments' output that ran before it
 lane: deep-code-review/lane.md
 ingest:
   format: machine-report
@@ -38,39 +38,10 @@ verified_against: "1.609.0"
 # validate use this list to require completeness — a report missing a row for any
 # of these halts.
 coverage_domains: [A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, W]
-# The tools the review reads (#196, #201). The review session executes nothing: semgrep runs
-# before it, in the deterministic phase (`assay start`, the routine), over the target with
-# the reviewer's own bundled taint rules, vendored beside this file
-# (deep-code-review/semgrep-taint/, MIT, SOURCE.md names the commit), or the target's own
-# .semgrep.yml where it carries one, as the reviewer reads it. Its report lands in the run
-# (map/raw/before-review/deep-code-review/semgrep.json) and decides no requirement on its
-# own; the review judges it. The registry pack the reviewer adds by default is never run
-# here: its rules are not redistributable (CANDIDATES.md). Trivy is not pinned: its scanners
-# repeat what osv-scanner, gitleaks and Checkov measure as instruments, and its release
-# infrastructure was compromised twice in March 2026. Each pin is a release at least a week
-# old when pinned.
-tools:
-  - bin: semgrep
-    version: "1.182.1"
-    upstream: "pypi:semgrep"
-    pypi: semgrep
-    before_review:
-      args: ["--json", "--quiet", "--metrics=off", "--disable-version-check", "--config", "{rules}", "."]
-      rules: "deep-code-review/semgrep-taint"
-      repo_rules: [".semgrep.yml", ".semgrep"]
-      ok_exits: [0]
-      timeout_s: 900
-      # planted flows the vendored rules must report, run before the target (#223)
-      control:
-        dir: "deep-code-review/semgrep-control"
-        results: "results"
-        fields:
-          rule: "check_id"
-          path: "path"
-          line: "start.line"
-        expect:
-          - "taint.js.command-injection routes/run.js:4"
-          - "taint.py.command-injection app/run.py:6"
+# The review session executes nothing (#201): it pins no tool. What it reads that executes ran
+# in the deterministic phase as instruments, and its lane names their output in the run
+# (lane.md inputs:): static analysis is the opengrep instrument's rows (#232), which it reads
+# as leads, never as a report in its own input format.
 
 contributes:
   - code-correctness

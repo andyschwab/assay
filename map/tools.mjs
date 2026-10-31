@@ -40,9 +40,8 @@ const has = (cmd) => sh('sh', ['-c', `command -v ${cmd}`]).status === 0;
 
 // the adopted adapters' pinned tools, in scanner order: an adapter's `tool:` (the binary its
 // instrument runs, at the adapter's verified_against) and its `tools:` (the binaries a
-// judgment scanner's review reads: one with `before_review` the deterministic phase runs
-// for it, #201; any other its own session drives). Each carries the adapter's role, so a
-// caller can ask for the tools one kind of run needs.
+// judgment scanner's own session drives). Each carries the adapter's role, so a caller can
+// ask for the tools one kind of run needs.
 export function pinnedTools(adapters = loadAdapters()) {
   return Object.entries(adapters)
     .filter(([, a]) => a && a.adopted !== false && !a.retired)
@@ -159,9 +158,9 @@ export function verifyTools(tools = pinnedTools(), answer = answerOf) {
   });
 }
 
-// the tools a run assay draws executes: its instruments', and each tool a judgment scanner's
-// review reads that runs before it (`before_review`, #201). The gate holds a run to these.
-export const runTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument' || t.before_review);
+// the tools a run assay draws executes: its instruments'. A review executes nothing (#201) and
+// reads the instruments' rows (#232). The gate holds a run to these.
+export const runTools = (tools = pinnedTools()) => tools.filter((t) => t.role === 'instrument');
 
 // the tools a `tools` command line selects: --run the gate's set, then --only <scanner>
 // narrows it. The CLI and the refusal below read this one function, so the

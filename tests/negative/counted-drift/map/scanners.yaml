@@ -30,3 +30,6 @@ scanners:
   checkov:
     status: skipped
     reason: "fixture: not executed"
+  opengrep:
+    status: skipped
+    reason: "fixture: not executed"

@@ -136,7 +136,11 @@ clean and the other not scanned reads not-measured. An empty list is rejected.
 The instruments that decide rows:
 
 - An external instrument decides the rows its adapter's `decides:` names
-  (`CLAUDE.md` rule 7); the secret scan decides `d-secrets-out-of-history` that way.
+  (`CLAUDE.md` rule 7); the secret scan decides `d-secrets-out-of-history` that way,
+  and the static-analysis instrument `d-untrusted-input-checked` (#232): any hit of its
+  vendored taint rules reads it unmet, a run beside a positive control that fired with
+  none reads it met, and a tree with no file in a language the rules read reads
+  not-applicable on its `no-input` fact.
 - `fresh-clone` (`map/fresh-clone.mjs`, contract §3b): install, build, lint,
   typecheck, test and migrate from a clean checkout, once per workspace in a
   monorepo, and the README's commands replayed. It decides `d-fresh-clone-runs`

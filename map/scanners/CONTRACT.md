@@ -724,7 +724,28 @@ run:
   version: ["--version"]     # optional: recorded in the envelope
   install: "<how to install it>"
   timeout_s: 600
+  rules:                     # optional: a rule set the tool runs (#232)
+    flag: "--config"         #   the arg before each rule path
+    dir: <dir>               #   vendored under map/scanners/adapters/, with its source
+    repo: [ … ]              #   files the target may carry, run beside the vendored set
+  control:                   # optional: a positive control, run before the target (#223)
+    dir: <dir>               #   planted cases vendored under map/scanners/adapters/
+    results: <path>          #   where the tool's JSON output holds its hits
+    fields: { rule: <path>, path: <path>, line: <path> }   # where each hit names them
+    expect: [ "<rule> <file>:<line>", … ]                 # the hits the rules must report
 ```
+
+`{rules}` in `args` expands to `flag <path>` for the vendored set and for each `repo` file
+the target carries, which runs beside it and never takes its place: the vendored rules are
+the ones a requirement is decided by. A vendored set that is not there fails the run. A tool
+may name a rule by where it sits on this machine (a path, or its directories dotted into the
+rule id); the envelope names neither. Where the adapter has a `control`, the tool runs over a
+scratch copy of its planted cases, outside any repository, with the vendored rules alone,
+before the target; the envelope records `control: { rules, expected, found, missing }`. A
+control that does not fire (a hit missing, or the tool failing on the planted cases) makes
+the run `failed` with that reason, and the target is not run: zero results on a target are a
+clean result only beside a control that fired (#223). The control proves the tool and its
+rules on this machine, never that the rules model the target's framework.
 
 The child gets the allow-listed environment of `map/child-env.mjs` (§3a, "What
 runs"), never the evaluator's. The runner times it and writes `duration:` on the
@@ -738,7 +759,10 @@ map and the archive names no machine. Ingest reads it by the format the adapter'
 - `sarif`: one gap per result, its `ruleId` (less the adapter's `rule_prefix`) the
   native category, its first location the evidence, the property the adapter names
   (`severity_property`) as `detail.tool_severity`. A run from another tool
-  (`ingest.tool`), no runs, or a run with no results list halts.
+  (`ingest.tool`), no runs, or a run with no results list halts. Where the adapter names
+  `ingest.other_rules`, a rule its map does not list is one the target wrote for itself
+  (`run.rules.repo`, §3f): that one category, its rule id kept in `native_id`; without it,
+  an unlisted rule halts the projection like any unmapped category.
 - `osv-results`: the OSV schema's results by source, read with every package listed.
   Each source scanned is a `source-audited` fact; each advisory group is a gap whose
   category is its CVSS band (`critical`, `high`, `moderate`, `low`, or `unrated`
@@ -803,42 +827,13 @@ The pinned tools are a precondition of a measurement, never one of its results
 and, asked its version (the adapter's `run.version`, else `--version`), exits 0
 and prints the pin. `assay start
 <target>` and the routine's gate step refuse to draw a map until every tool the run
-executes is ready (`--run`: the instruments' tools, and each tool a review reads that
-runs before it), naming each that is absent, broken or at another version.
+executes is ready (`--run`: the instruments' tools), naming each that is absent, broken or
+at another version.
 
-A judgment scanner's review executes nothing (#201). A `tools:` entry with
-`before_review:` is run by the deterministic phase (`assay start`, the routine), never by
-the review session, and writes its report into the run for the review to read
-(`map/raw/before-review/<scanner>/<bin>.json`). It decides no requirement on its own:
-
-```yaml
-before_review:
-  args: [ … ]          # run from inside the target; {rules} names the rule set
-  rules: <dir>         # a rule set vendored under map/scanners/adapters/, with its source
-  repo_rules: [ … ]    # files the target may carry that take the rules' place
-  ok_exits: [0]
-  timeout_s: 900
-  control:             # optional: a positive control, run before the target
-    dir: <dir>         # planted cases vendored under map/scanners/adapters/
-    results: <path>    # where the tool's JSON output holds its hits
-    fields:            # where each hit names its rule, file and line
-      rule: <path>
-      path: <path>
-      line: <path>
-    expect: [ "<rule> <file>:<line>", … ]   # the hits the rules must report
-```
-
-The report is an envelope, `{ envelope: 1, scanner, tool, status, exit, version, rules,
-control, report }`, with `status` `ran`, `failed` (an exit outside `ok_exits`, never an empty
-report read as clean) or `skipped` (with a `reason`). Where the entry has a `control`, the
-tool runs over a scratch copy of its planted cases with the vendored rules first, and the
-envelope records `control: { rules, expected, found, missing }`. A control that does not
-fire, a hit missing or the tool failing on the planted cases, makes the run `failed` with
-that reason and no report, and the target is not run: zero results on a target are a clean
-result only beside a control that fired (#223). The control proves the tool and its rules
-on this machine, never that the rules model the target's framework. No stderr tail is archived. A
-`tools:` entry with no `before_review:` is its session's own, installed with `tools
-install --only <scanner>`; a run assay draws never waits on it. The `run.install` line a skipped row carries, kept for a
+A judgment scanner's review executes nothing (#201). A `tools:` entry is its session's own,
+installed with `tools install --only <scanner>`; a run assay draws never waits on it. A tool
+a review reads the output of runs as an instrument (§3f), and the review's lane names that
+output in the run (§3h, #232). The `run.install` line a skipped row carries, kept for a
 runner called as a library, points at the install command.
 
 ### 3h. A judgment scanner's lane (`lane:`)
@@ -846,7 +841,8 @@ runner called as a library, points at the install command.
 A judgment scanner's review runs in a session a person started, and that session executes
 nothing (#201): it reads the target and the results that ran before it, and writes its own
 findings. Everything that executes ran in the deterministic phase (`assay start`, the
-routine): the instruments, and each tool the review reads (`before_review`, §3g). The lane
+routine), as instruments (§3f): static analysis is one, and a review reads its rows as leads
+(#232). The lane
 is the session's seed body, versioned with the engine so a pin moves the instruments and
 the lanes together. `node assay.mjs lane <scanner> --name <Name> [--head <ref>]
 [--inputs-dir <path>]` fills it for one target (`map/lane.mjs`) and prints the session and
@@ -856,8 +852,8 @@ and the prompt. Its frontmatter:
 - `session_title`, `artifact`: the review session's title and the one page it publishes.
 - `outputs`: the run files the lane publishes, each verbatim between `--- <path> (verbatim)
   ---` and `--- end <path> ---` on that page; a consumer collects them into the run.
-- `inputs`: run files the lane reads that ran before it (a before-review record, an
-  instrument's raw report). A lane with inputs is never seeded without `--inputs-dir`.
+- `inputs`: run files the lane reads that ran before it (an instrument's raw report,
+  `map/raw/<scanner>.json`). A lane with inputs is never seeded without `--inputs-dir`.
 
 The consumer collects what the session publishes into the run, records it ran (with its
 model), and checks it whole: `node assay.mjs validate <run> --target <checkout> --lane

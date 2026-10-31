@@ -921,14 +921,18 @@ const FORMATS = {
       for (const r of run.results) {
         const rule = String(r?.ruleId ?? '');
         if (!rule) throw new Error(`${id} SARIF result with no ruleId (truncated report?)`);
-        const cat = spec.rule_prefix && rule.startsWith(spec.rule_prefix) ? rule.slice(spec.rule_prefix.length) : rule;
+        const listed = spec.rule_prefix && rule.startsWith(spec.rule_prefix) ? rule.slice(spec.rule_prefix.length) : rule;
+        // a rule the adapter does not map is, where it names `other_rules`, one the target wrote
+        // for itself: that one category, the rule id kept in native_id (#232)
+        const other = spec.other_rules && !Object.hasOwn(adapter.map || {}, listed);
+        const cat = other ? String(spec.other_rules) : listed;
         const loc = r.locations?.[0]?.physicalLocation;
         const uri = String(loc?.artifactLocation?.uri ?? '').replace(/^\.\//, '');
         const line = Number(loc?.region?.startLine);
         if (!uri || !(line > 0)) throw new Error(`${id} SARIF result ${rule} has no file and line (truncated report?)`);
         const sev = spec.severity_property ? r.properties?.[spec.severity_property] : undefined;
-        rows.push(adapterRow(id, adapter, startId + n++, { native_id: `${cat}@${uri}:${line}`, native_category: cat, polarity: 'gap',
-          observation: `${oneLine(r.message?.text || cat)} (${uri}:${line})`, evidence: [`${uri}:${line}`],
+        rows.push(adapterRow(id, adapter, startId + n++, { native_id: `${other ? listed : cat}@${uri}:${line}`, native_category: cat, polarity: 'gap',
+          observation: `${other ? `the target's own rule ${listed}: ` : ''}${oneLine(r.message?.text || cat)} (${uri}:${line})`, evidence: [`${uri}:${line}`],
           detail: { ...(sev ? { tool_severity: String(sev) } : {}), ...(r.level ? { level: String(r.level) } : {}) } }));
       }
     }

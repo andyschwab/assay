@@ -10,12 +10,9 @@
 //   (c) a lane names no model (the consumer picks it) and carries no `model:` field;
 //   (d) the practice-review lane publishes exactly the engine's pass files, the terrain and the
 //       censuses;
-//   (e) a lane's inputs are files the run produces (a before-review record or an instrument's raw
-//       report), and a lane with inputs is refused a seed that does not say where they are.
-import { relative } from 'node:path';
+//   (e) a lane's inputs are files the run produces (an instrument's raw report), and a lane with
+//       inputs is refused a seed that does not say where they are.
 import { lanes, readLane, laneSeed } from '../../map/lane.mjs';
-import { beforeReviewPath } from '../../map/start.mjs';
-import { pinnedTools } from '../../map/tools.mjs';
 import { loadAdapters, adoptedAdapters, PRACTICE_REVIEW_PASSES } from '../../map/project.mjs';
 import { negFailures } from '../harness.mjs';
 
@@ -52,10 +49,7 @@ export async function run() {
     if (/\b(claude|gpt|gemini|sonnet|opus|haiku)-[\w.-]*\d/i.test(body)) fail(`(c) the ${l.scanner} lane names a model`);
 
     // (e)
-    const produced = new Set([
-      ...pinnedTools(adapters).filter((t) => t.before_review).map((t) => relative('RUN', beforeReviewPath('RUN', t.scanner, t.bin))),
-      ...Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument').map(([id]) => `map/raw/${id}.json`),
-    ]);
+    const produced = new Set(Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument').map(([id]) => `map/raw/${id}.json`));
     for (const p of seed.inputs) if (!produced.has(p)) fail(`(e) the ${l.scanner} lane reads ${p}, which no run produces`);
     if (seed.inputs.length) {
       let refused = false;

@@ -45,3 +45,6 @@ scanners:
   checkov:
     status: skipped
     reason: "frozen run: drawn before this instrument was adopted"
+  opengrep:
+    status: skipped
+    reason: "frozen run: drawn before this instrument was adopted"

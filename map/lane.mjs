@@ -2,8 +2,8 @@
 // lane.mjs — a judgment scanner's review lane, filled in for one target (#201).
 //
 // A judgment scanner's review runs in a session a person started, and that session executes
-// nothing: the deterministic phase (assay start, the routine) ran the instruments and each tool
-// the review reads (`before_review`), and the consumer validates what the session publishes. The
+// nothing: the deterministic phase (assay start, the routine) ran the instruments, whose output
+// the review reads, and the consumer validates what the session publishes. The
 // lane is the session's seed body, versioned with the engine: the adapter names it (`lane:`, a
 // file beside the adapter under map/scanners/adapters/), and its frontmatter carries the session
 // and artifact titles, the files the lane publishes (`outputs`) and the files it reads that ran

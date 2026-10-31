@@ -31,3 +31,6 @@ scanners:
   checkov:
     status: skipped
     reason: "path-scoped: run per target (tests/fixtures/notesbox, tests/fixtures/cleanlib, tests/fixtures/lockfiles, tests/fixtures/infra)"
+  opengrep:
+    status: skipped
+    reason: "fixture run: drawn before this instrument was adopted (#232); not yet run over this public target"
