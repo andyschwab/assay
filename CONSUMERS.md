@@ -91,7 +91,7 @@ that places them, and `views/README.md` states each data format.
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable |
 | `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data |
 | `views/improve/chains.json`, `handoff/sequence.json` | Improve's ranked chains and its fix sequence as data |
-| `views/improve/report.json` | the Improve report's model, labels applied: capabilities with their counts and trace phrases, the chains, the supervision split with its fixes, and the label tables; a renderer of the report reads it with `views/improve/prose.yaml`, `security-gate.yaml` and `maturity-grades.yaml`, and imports nothing |
+| `views/improve/report.json` | the Improve report's model, labels applied: capabilities with their counts and trace phrases, the chains with each live chain's cuts and, when tentative, its weakest step, the supervision split with its fixes, the label tables and the how-to text; a renderer of the report reads it with `views/improve/prose.yaml`, `security-gate.yaml` and `maturity-grades.yaml`, and imports nothing |
 | `INDEX.md`, `INTAKE.md`, `MAINTAIN.md`, `IMPROVE.md`, `OWNER.md`, `SINCE.md` | the pages, for a person |
 | `routine.yaml` | what the routine did, when a routine drew the run (`routine/README.md`) |
 
