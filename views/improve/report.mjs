@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { prosePath as runProsePath, securityGatePath, maturityGradesPath, improvePagePath, chainsDataPath, improveReportDataPath } from '../../lib/run-layout.mjs';
 import { CHAINS_SCHEMA, checkChains, IMPROVE_REPORT_SCHEMA, checkImproveReport } from '../../lib/run-data.mjs';
-import { DIM_LABEL, WHO_LABEL, GROUP_LABEL, channelLabel } from '../../lib/display.mjs';
+import { DIM_LABEL, WHO_LABEL, GROUP_LABEL, CONFIDENCE_WORD, channelLabel } from '../../lib/display.mjs';
 import { buildSupervision } from '../../map/supervision.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capabilities.mjs';
 import { buildChains } from '../../map/chains.mjs';
@@ -483,9 +483,18 @@ const notes = prose.channel_notes || {};
 const capGroups = buildCapabilities(findings, notes);
 const capCounts = capabilityCounts(capGroups);
 const sup = buildSupervision(findings, prose.roadmap, notes);
+// one rule (#242): every entry naming a finding carries its confidence and the table's word
+// for it, null when confirmed, so a renderer never maps a confidence to a phrase itself
+const withConfidence = (v) => {
+  if (Array.isArray(v)) return v.map(withConfidence);
+  if (!v || typeof v !== 'object') return v;
+  const o = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, withConfidence(x)]));
+  const f = typeof v.id === 'string' ? byId.get(v.id) : null;
+  return f ? { ...o, confidence: f.confidence, word: CONFIDENCE_WORD[f.confidence] ?? null } : o;
+};
 const reportDoc = {
   schema: IMPROVE_REPORT_SCHEMA, run: runId,
-  labels: { dimension: DIM_LABEL, who: WHO_LABEL, group: GROUP_LABEL },
+  labels: { dimension: DIM_LABEL, who: WHO_LABEL, group: GROUP_LABEL, confidence: CONFIDENCE_WORD },
   capabilities: {
     counts: capCounts,
     groups: capGroups.map((g) => ({
@@ -497,14 +506,14 @@ const reportDoc = {
       })),
     })),
   },
-  chains: {
+  chains: withConfidence({
     live: chainsDoc.live.map((c, i) => {
       const b = built.live[i];
       return { ...c, blast_word: b.blastWord, difficulty: b.difficulty, cuts: b.cuts,
         weakest: b.tentative && b.weak ? { id: b.weak, confidence: byId.get(b.weak).confidence, word: b.confWord } : null };
     }),
     held: chainsDoc.held, contained: chainsDoc.contained, unresolved: chainsDoc.unresolved,
-  },
+  }),
   supervision: {
     total: sup.total, supervised: sup.supervised, unsupervised: sup.unsupervised,
     kinds: sup.kinds.map((k) => ({ channel: k.channel, label: k.label, sites: k.sites, ids: k.ids, fixes: k.fixSlugs.map(([n, slug]) => ({ n, slug: slug ? String(slug) : null })) })),

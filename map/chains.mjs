@@ -16,7 +16,7 @@
 // finding on a path, an unsure sink, an effect leg with no traced reach). Confidence
 // propagates: a chain riding a plausible/unverified finding is rendered "possible", not asserted.
 import { isHalt, effectLeg } from './doctrine.mjs';
-import { channelLabel } from '../lib/display.mjs';
+import { channelLabel, CONFIDENCE_WORD } from '../lib/display.mjs';
 
 const PRECOND_RANK = {
   'prompt-injection': 1, 'malicious-dependency': 2, 'stolen-credential': 2,
@@ -35,7 +35,6 @@ const PRECOND_WHY = {
 const BLAST_RANK = { user: 0, tenant: 0, fleet: 2, 'cross-tenant': 2 };
 const BLAST_WORD = { user: 'one user', tenant: 'one tenant', fleet: 'the whole fleet', 'cross-tenant': 'other tenants too' };
 const CONF_RANK = { confirmed: 2, plausible: 1, unverified: 0 };
-const CONF_WORD = { plausible: 'inferred, not confirmed', unverified: 'not verified' };  // null for confirmed
 
 const nodeCost = (f) => Math.max(0, ...((f && f.preconditions) || []).map((p) => PRECOND_RANK[p] || 0));
 const hardestPrecond = (f) => {
@@ -45,7 +44,7 @@ const hardestPrecond = (f) => {
 };
 const label = (f, fallback) => (f && f.label) || fallback || (f && f.id) || '';
 const sinkFallbackWith = (notes) => (f) => (f.effect && channelLabel(f.effect.channel, notes)) || f.id;
-const confWord = (c) => CONF_WORD[c] || null;
+const confWord = (c) => CONFIDENCE_WORD[c] || null;  // null for confirmed
 
 // what the review found limiting a reached-but-not-open effect (stated as an observation,
 // not a guarantee the limit holds — the reader decides what it's worth)
@@ -115,7 +114,7 @@ export function buildChains(findings, channelNotes = {}) {
       const cuts = findings.filter((f) =>
         (f.subject_type === 'control' || f.subject_type === 'process') && f.polarity === 'gap' &&
         (((f.reaches || []).some((r) => sinkIds.has(r))) || liveSinks.some((s) => (s.explained_by || []).includes(f.id))))
-        .map((f) => ({ id: f.id, label: label(f, f.id) }));
+        .map((f) => ({ id: f.id, label: label(f, f.id), confidence: f.confidence, word: confWord(f.confidence) }));
       const blast = headline.effect.blast_scope;
       live.push({
         entry: { id: entry.id, label: entryLabel },

@@ -76,6 +76,7 @@ export async function run() {
       '    reversibility: irreversible',
       '    external: true',
       '    gate_type: deterministic-halt',
+      '    fail_mode: closed',
       '    telemetry: unstructured',
       '    blast_scope: tenant',
       '  preconditions: [prompt-injection]',
