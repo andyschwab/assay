@@ -44,6 +44,9 @@ const GROUPS = [
     'validate-packet': ['yardstick/packet.mjs', "validate a repository's own packet (owner/PACKET.md); fails closed"],
     'ask-owner': ['owner/ask-owner.mjs', 'print the owner prompt, prefilled with what a run already shows'],
   }],
+  ['Routine: what a stewarded repository runs on its own schedule', {
+    'routine': ['routine/run.mjs', "the routine (routine/README.md): verify the tools, draw the run, record the rest, validate, compile and ratchet; writes the run and its routine.yaml (<repo> --out <run> [--baseline <file>] [--base-ref <ref>] [--since <prev-run>]), or the two-job target step (<repo> --target-steps --handoff <dir>)"],
+  }],
   ['Views: Intake, Maintain, Improve, Owner, Since', {
     'compile': ['views/compile.mjs', 'measure, then write every view and the index'],
     'intake': ['views/intake.mjs', 'the Intake view alone, from an existing measurement'],

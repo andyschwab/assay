@@ -30,6 +30,7 @@ command's usage line names its flags. These are the ones a consumer may call:
 | `node assay.mjs compare <previous> <current> [--json]` | what moved between two measurements (`yardstick.yaml`, or a baseline read the same way): `{ previousVersion, currentVersion, versionChanged, rows: [{ id, classification, previous, current }] }`, `classification` one of `improved`, `regressed`, `unchanged`, `newly-measured`, `no-longer-measured`, `yardstick-only` (`yardstick/README.md`); exits 0 whatever moved, 2 when a measurement cannot be read |
 | `node assay.mjs maturity <run> [--write]` | Improve's maturity coverage per dimension; `--write` writes `views/improve/maturity-grades.yaml` (`{ dimensions: [{ dimension, coverage: { pct, met, of, … } \| null, not_measured, … }], aggregate: { pct, met, of, over } }`) |
 | `node assay.mjs variance <run> <run> [<run> …] [--json]` | repeatability across runs of one target: `{ pct, union, core, byDimension, byModelPair, descriptors }`, `pct` the share of the union every run found, `core` the facts every run found |
+| `node assay.mjs routine <repo> --out <run> [--baseline <file>] [--base-ref <git-ref>] [--since <prev-run>] [--packet <dir>] [--handoff <dir>]` | the routine (`routine/README.md`): refuses with exit 3 until the pinned tools are ready, then draws the run with the offline instruments, records every other scanner skipped with its reason, validates, compiles and ratchets against the baseline when one exists; writes the run and its `routine.yaml` (what it did and its `gate`: `held`, `failed`, `skipped`, `not-run`, or `refused` with each tool not ready); exits 0 when the gate held or was skipped, 1 when it failed or did not run, 3 when refused. `node assay.mjs routine <repo> --target-steps --handoff <dir>` is the two-job template's target step |
 | `node assay.mjs migrate-run <run> [--write]` | a run an earlier engine drew, brought forward |
 | `node assay.mjs yardstick [--floor] [--json]` | the requirements, or the floor (§ The floor) |
 
@@ -91,7 +92,7 @@ that places them, and `views/README.md` states each data format.
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable |
 | `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data |
 | `views/improve/chains.json`, `handoff/sequence.json` | Improve's ranked chains and its fix sequence as data |
-| `views/improve/report.json` | the Improve report's model, labels applied: capabilities with their counts and trace phrases, the chains, the supervision split with its fixes, and the label tables; a renderer of the report reads it with `views/improve/prose.yaml`, `security-gate.yaml` and `maturity-grades.yaml`, and imports nothing |
+| `views/improve/report.json` | the Improve report's model, labels applied: capabilities with their counts and trace phrases, the chains with each live chain's cuts and, when tentative, its weakest step, the supervision split with its fixes, the label tables and the how-to text; a renderer of the report reads it with `views/improve/prose.yaml`, `security-gate.yaml` and `maturity-grades.yaml`, and imports nothing |
 | `INDEX.md`, `INTAKE.md`, `MAINTAIN.md`, `IMPROVE.md`, `OWNER.md`, `SINCE.md` | the pages, for a person |
 | `routine.yaml` | what the routine did, when a routine drew the run (`routine/README.md`) |
 

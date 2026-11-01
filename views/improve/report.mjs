@@ -498,7 +498,11 @@ const reportDoc = {
     })),
   },
   chains: {
-    live: chainsDoc.live.map((c, i) => ({ ...c, blast_word: built.live[i].blastWord, difficulty: built.live[i].difficulty })),
+    live: chainsDoc.live.map((c, i) => {
+      const b = built.live[i];
+      return { ...c, blast_word: b.blastWord, difficulty: b.difficulty, cuts: b.cuts,
+        weakest: b.tentative && b.weak ? { id: b.weak, confidence: byId.get(b.weak).confidence, word: b.confWord } : null };
+    }),
     held: chainsDoc.held, contained: chainsDoc.contained, unresolved: chainsDoc.unresolved,
   },
   supervision: {
@@ -506,6 +510,7 @@ const reportDoc = {
     kinds: sup.kinds.map((k) => ({ channel: k.channel, label: k.label, sites: k.sites, ids: k.ids, fixes: k.fixSlugs.map(([n, slug]) => ({ n, slug: slug ? String(slug) : null })) })),
     fixes: sup.fixes, any_unplanned: sup.anyUnplanned,
   },
+  howto: readFileSync(join(HERE, 'templates', 'howto.md'), 'utf8').replace(/^---\n[\s\S]*?\n---\n/, '').trim() + '\n',
 };
 const reportErrors = checkImproveReport(reportDoc, new Set(findings.map((f) => f.id)));
 if (reportErrors.length) { console.error(`report.json would not hold its schema:\n  ${reportErrors.join('\n  ')}`); process.exit(1); }
