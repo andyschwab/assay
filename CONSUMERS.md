@@ -91,8 +91,19 @@ that places them, and `views/README.md` states each data format.
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable |
 | `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data |
 | `views/improve/chains.json`, `handoff/sequence.json` | Improve's ranked chains and its fix sequence as data |
+| `views/improve/report.json` | the Improve report's model, labels applied: capabilities with their counts and trace phrases, the chains, the supervision split with its fixes, and the label tables; a renderer of the report reads it with `views/improve/prose.yaml`, `security-gate.yaml` and `maturity-grades.yaml`, and imports nothing |
 | `INDEX.md`, `INTAKE.md`, `MAINTAIN.md`, `IMPROVE.md`, `OWNER.md`, `SINCE.md` | the pages, for a person |
 | `routine.yaml` | what the routine did, when a routine drew the run (`routine/README.md`) |
+
+## Modules
+
+Two modules are contract, each a small pure function a command would only wrap. No
+other export is: a consumer that needs a value no command prints asks for a command.
+
+| Module | What a consumer may import |
+| --- | --- |
+| `lib/run-layout.mjs` | the functions that place a run's paths (§ The run layout), e.g. `findingsDir(run)`, `chainsDataPath(run)`, `improveReportDataPath(run)` |
+| `map/child-env.mjs` | `childEnv(set)`: the allow-listed environment to give a target's own script (`PATH`, `HOME`, `CI`, the network plumbing whose proxy URL carries no credential, and the `npm_config_*` values in `set`), so a session's tokens never reach it; pass it to `spawn` as `env` |
 
 ## Releases
 
@@ -116,6 +127,7 @@ message.
 CONSUMERS.md
 assay.mjs
 lib/run-layout.mjs
+map/child-env.mjs
 views/README.md
 yardstick/list.mjs
 .github/actions/tools/action.yml

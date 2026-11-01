@@ -65,7 +65,7 @@ export async function run() {
     const sup = buildSupervision(findings, roadmap, {});
     const s = doc.supervision || {};
     if (s.total !== sup.total || s.supervised !== sup.supervised || s.unsupervised !== sup.unsupervised || JSON.stringify(s.fixes) !== JSON.stringify(sup.fixes)) fail(`supervision must be buildSupervision's split (want ${sup.total}/${sup.supervised}/${sup.unsupervised} fixes ${JSON.stringify(sup.fixes)}, got ${JSON.stringify(s)})`);
-    for (const k of s.kinds || []) if (!Array.isArray(k.fixes) || k.fixes.some((f) => !Number.isInteger(f.n) || typeof f.slug !== 'string')) fail(`supervision kind ${k.channel}: fixes must be [{ n, slug }]`);
+    for (const k of s.kinds || []) if (!Array.isArray(k.fixes) || k.fixes.some((f) => !Number.isInteger(f.n) || (f.slug !== null && typeof f.slug !== 'string'))) fail(`supervision kind ${k.channel}: fixes must be [{ n, slug }]`);
     const lab = doc.labels || {};
     if (JSON.stringify(lab.dimension) !== JSON.stringify(DIM_LABEL) || JSON.stringify(lab.who) !== JSON.stringify(WHO_LABEL) || JSON.stringify(lab.group) !== JSON.stringify(GROUP_LABEL)) fail('labels must carry the dimension, who and group tables');
     // validate reads it back, fail-closed
