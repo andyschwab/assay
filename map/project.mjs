@@ -19,7 +19,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { isMain } from './doctrine.mjs';
-import { findingsDir, scannersPath, coverageDir } from '../lib/run-layout.mjs';
+import { findingsDir, scannersPath, coverageDir, prosePath } from '../lib/run-layout.mjs';
+import { buildChains } from './chains.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -319,15 +320,22 @@ if (isMain(import.meta.url)) runCli();
 
 function runCli() {
   const arg = process.argv[2];
-  if (!arg) { console.error('usage: node map/project.mjs <run-dir> [--base <dir>]... [--adapter <id>]'); process.exit(2); }
+  if (!arg || arg.startsWith('--')) { console.error('usage: node assay.mjs project <run-dir> [--json] [--base <dir>]... [--adapter <id>]'); process.exit(2); }
   const bases = [];
   for (let i = 3; i < process.argv.length; i++) if (process.argv[i] === '--base') bases.push(process.argv[++i]);
   const aIdx = process.argv.indexOf('--adapter');
-  let findings = loadFindings(arg);
-  for (const b of bases) findings = findings.concat(loadFindings(b));
-  if (!findings.length) { console.error(`no findings under ${arg}`); process.exit(2); }
+  let findings;
+  try {
+    findings = loadFindings(arg);
+    for (const b of bases) findings = findings.concat(loadFindings(b));
+  } catch (e) { console.error(`✗ project: ${e.message}`); process.exit(2); }
+  const json = process.argv.includes('--json');
+  // an all-clean run (a run record, explicit empty lists) projects to zeros; no findings and
+  // no run record is no map (CLAUDE.md rule 3)
+  if (!findings.length && !(json && loadManifest(arg))) { console.error(`no findings under ${arg}`); process.exit(2); }
   const adapters = aIdx > -1 ? { [process.argv[aIdx + 1]]: loadAdapter(process.argv[aIdx + 1]) } : loadAdapters();
   const { projected, unmapped, needsAxis } = projectMulti(findings, adapters);
+  if (json) return printJson(arg, findings, adapters, projected, unmapped, needsAxis);
   if (unmapped.length) {
     console.error(`\nPROJECTION HALTED (fail-closed) — ${unmapped.length} finding(s) with a native category`);
     console.error(`that has no adapter row. Add a mapping row:`);
@@ -351,4 +359,27 @@ function runCli() {
   }
   if (needsAxis.length) { console.log(`\n# unclassified (needs a per-finding axis):`); for (const n of needsAxis) console.log(`  - ${n.id}`); }
   console.log('');
+}
+
+// `--json` (CONSUMERS.md): the run's projection and chains as data, read straight off the
+// findings, so it reads a run that validates red. An unmapped row is printed AND halts:
+// exit 1, said on stderr, never a clean read.
+function printJson(runDir, findings, adapters, projected, unmapped, needsAxis) {
+  const pp = prosePath(runDir);
+  const prose = existsSync(pp) ? parseYaml(readFileSync(pp, 'utf8')) : null;
+  const live = buildChains(findings, (prose && prose.channel_notes) || {}).live;
+  const sources = [...new Set(projected.map((p) => p.source))].sort();
+  const roster = rosterFor(adapters, sources, projected);
+  const doc = {
+    run: runDir,
+    axes: Object.fromEntries(roster.map((a) => [a, projected.filter((p) => p.axis === a).length])),
+    unmapped: unmapped.map((u) => ({ id: u.id, category: u.cat })),
+    needs_axis: needsAxis.map((n) => ({ id: n.id, category: n.cat })),
+    chains: { live: live.length, lead: live.length ? live[0].entry.label : null },
+  };
+  console.log(JSON.stringify(doc, null, 2));
+  if (unmapped.length) {
+    console.error(`PROJECTION HALTED (fail-closed): ${unmapped.length} finding(s) with a native category no adapter row maps: ${unmapped.map((u) => u.id).join(', ')}`);
+    process.exit(1);
+  }
 }

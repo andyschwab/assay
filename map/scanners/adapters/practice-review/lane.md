@@ -5,6 +5,7 @@ lane: practice-review
 session_title: "{{NAME}}: practice-review on {{HEAD_LABEL}} ({{DATE}})"
 artifact: "{{NAME}} Practice Review {{DATE}}"
 outputs: "map/terrain.md map/censuses.yaml map/findings/practice-review-legibility.yaml map/findings/practice-review-context.yaml map/findings/practice-review-gates.yaml map/findings/practice-review-verification.yaml map/findings/practice-review-delegation.yaml map/findings/practice-review-improvement.yaml map/findings/practice-review-multiplayer.yaml"
+passes: "legibility context gates verification delegation improvement multiplayer"
 ---
 The engagement is a read-only evaluation of a repository the owner has access to; the consumer that seeded this session collects what you publish, validates it and records it. If a step is impossible, record why and continue with the rest.
 

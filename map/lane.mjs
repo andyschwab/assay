@@ -18,9 +18,15 @@
 // refused a seed when the adapter pins no commit) · {{INPUTS_STEP}} where the inputs are. A lane with inputs needs --inputs-dir: a review told to
 // read results nobody said where to find is refused, never seeded.
 //
+// A lane's frontmatter may name `passes`: the built-in scanner's lane names its passes, the
+// files map/project.mjs's PRACTICE_REVIEW_PASSES reads (tests/blocks/lane-list.mjs pins the two
+// equal); every other lane names none.
+//
 // Usage: node assay.mjs lane <scanner> --name <Name> [--head <sha|branch>] [--focus <text>]
 //          [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>]
-// Prints { lane, scanner, title, artifact, outputs, inputs, prompt } as JSON.
+// Prints { lane, scanner, title, artifact, outputs, inputs, passes, prompt } as JSON.
+//        node assay.mjs lane --list [--json]
+// Prints { lanes: [{ scanner, lane, outputs, inputs, passes }] }, every lane unfilled.
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,12 +75,26 @@ export function laneSeed(scanner, { name, head = null, focus = null, assay = nul
     INPUTS_STEP: inputs.length ? `They are files under \`${inputsDir}\`, at the run's own paths: ${inputs.map((p) => `\`${p}\``).join(', ')}. A file that is not there is a result you were not given: say so, and review without it.` : '',
   };
   const fill = (s) => s.replace(/\{\{(\w+)\}\}/g, (_, k) => { if (!(k in vars)) throw new Error(`${lane.file}: unknown placeholder ${k}`); if (vars[k] === null) throw new Error(`the ${scanner} lane reads its method at a pinned commit, and adapters/${scanner}.yaml verified_against names none ({ release, commit })`); return vars[k]; });
-  return { lane: meta.lane || scanner, scanner, title: fill(meta.session_title || ''), artifact: fill(meta.artifact || ''), outputs: words(meta.outputs), inputs, prompt: fill(body).replace(/ +\n/g, '\n').trim() + '\n' };
+  return { lane: meta.lane || scanner, scanner, title: fill(meta.session_title || ''), artifact: fill(meta.artifact || ''), outputs: words(meta.outputs), inputs, passes: words(meta.passes), prompt: fill(body).replace(/ +\n/g, '\n').trim() + '\n' };
+}
+
+// every lane, unfilled: { scanner, lane, outputs, inputs, passes } (`assay lane --list`)
+function laneList(adapters = loadAdapters()) {
+  return lanes(adapters).map(({ scanner, file }) => {
+    const { meta } = readLane(file);
+    return { scanner, lane: meta.lane || scanner, outputs: words(meta.outputs), inputs: words(meta.inputs), passes: words(meta.passes) };
+  });
 }
 
 if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (k) => { const i = args.indexOf(k); return i > -1 ? args[i + 1] : null; };
+  if (args[0] === '--list') {
+    const list = laneList();
+    if (args.includes('--json')) process.stdout.write(JSON.stringify({ lanes: list }, null, 2) + '\n');
+    else for (const l of list) console.log(`${l.scanner.padEnd(18)} outputs ${l.outputs.length}, inputs ${l.inputs.join(' ') || 'none'}${l.passes.length ? `, passes ${l.passes.join(' ')}` : ''}`);
+    process.exit(0);
+  }
   try {
     const seed = laneSeed(args[0], { name: opt('--name'), head: opt('--head'), focus: opt('--focus'), assay: opt('--assay'), date: opt('--date'), inputsDir: opt('--inputs-dir') });
     process.stdout.write(JSON.stringify(seed, null, 2) + '\n');
