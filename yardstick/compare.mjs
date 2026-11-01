@@ -34,8 +34,11 @@
 // across independent runs) so `since` can report findings new since the
 // previous run and findings no longer found — never "fixed": absence of a
 // finding is absence of re-detection, not proof the underlying fact is gone.
+import { readFileSync } from 'node:fs';
 import { STATUSES } from './measure.mjs';
 import { DESCRIPTOR_FIELDS } from '../map/variance.mjs';
+import { isMain } from '../map/doctrine.mjs';
+import { parseYaml } from '../lib/yaml-min.mjs';
 
 // ── requirement-status comparison ───────────────────────────────────────────
 const STATUS_RANK = { unmet: 1, mixed: 2, met: 3 }; // not-measured, not-applicable: off-scale, see above
@@ -184,4 +187,31 @@ export function corroboratedFacts(projected) {
   return [...by.values()].filter((e) => e.sources.size >= 2)
     .map((e) => ({ fingerprint: e.fingerprint, sources: [...e.sources].sort(), findings: e.findings.sort() }))
     .sort((a, b) => a.fingerprint.localeCompare(b.fingerprint));
+}
+
+// ── CLI: `node assay.mjs compare <previous> <current> [--json]` (CONSUMERS.md) ──
+// Two measurements (each a yardstick.yaml, or a baseline read the same way) → what
+// compare() returns, as JSON, or each move with its ids as text. A file that cannot be
+// read, or a status outside the vocabulary, exits 2: never an empty comparison.
+if (isMain(import.meta.url)) {
+  const args = process.argv.slice(2);
+  const files = args.filter((a) => !a.startsWith('--'));
+  if (files.length !== 2) { console.error('usage: node assay.mjs compare <previous yardstick.yaml> <current yardstick.yaml> [--json]'); process.exit(2); }
+  let result;
+  try {
+    const [previous, current] = files.map((f) => {
+      const doc = parseYaml(readFileSync(f, 'utf8'));
+      if (!doc || !Array.isArray(doc.requirements)) throw new Error(`${f}: not a measurement (no requirements list)`);
+      return doc;
+    });
+    result = compare(previous, current);
+  } catch (e) { console.error(`✗ compare: ${e.message}`); process.exit(2); }
+  if (args.includes('--json')) console.log(JSON.stringify(result, null, 2));
+  else {
+    console.log(`yardstick ${result.previousVersion ?? '(none)'} → ${result.currentVersion ?? '(none)'}${result.versionChanged ? ' (the yardstick changed between them)' : ''}`);
+    const by = new Map();
+    for (const r of result.rows) { if (!by.has(r.classification)) by.set(r.classification, []); by.get(r.classification).push(r.id); }
+    for (const c of ['regressed', 'no-longer-measured', 'improved', 'newly-measured', 'yardstick-only', 'unchanged'])
+      if (by.has(c)) console.log(`  ${c} (${by.get(c).length}): ${by.get(c).join(', ')}`);
+  }
 }

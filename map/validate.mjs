@@ -18,9 +18,9 @@ import {
   prosePath as runProsePath, securityGatePath, maturityGradesPath, censusesPath,
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
   nativeReportPath, isPracticeReviewPassFile, PRACTICE_REVIEW_PASS_PREFIX, decisionsPath,
-  chainsDataPath, handoffSequencePath, backlogPath, backlogAuthoredPath, rawPath,
+  chainsDataPath, improveReportDataPath, handoffSequencePath, backlogPath, backlogAuthoredPath, rawPath,
 } from '../lib/run-layout.mjs';
-import { checkChains, checkSequence, checkBacklog, checkAuthoredBacklog } from '../lib/run-data.mjs';
+import { checkChains, checkImproveReport, checkSequence, checkBacklog, checkAuthoredBacklog } from '../lib/run-data.mjs';
 import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
 import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
 import { legacyIn } from './migrate-run.mjs';
@@ -672,6 +672,7 @@ if (existsSync(gradesPath)) {
   const baseIds = new Set(allById.keys());
   const dataFiles = [
     { path: chainsDataPath(runDir), label: 'views/improve/chains.json', kind: 'json', check: (d) => checkChains(d, baseIds) },
+    { path: improveReportDataPath(runDir), label: 'views/improve/report.json', kind: 'json', check: (d) => checkImproveReport(d, baseIds) },
     { path: handoffSequencePath(runDir), label: 'handoff/sequence.json', kind: 'json', check: (d) => checkSequence(d, baseIds) },
     { path: backlogPath(runDir), label: 'map/backlog.yaml', kind: 'yaml', check: checkBacklog },
     { path: backlogAuthoredPath(runDir), label: 'map/backlog-authored.yaml', kind: 'yaml', check: checkAuthoredBacklog },

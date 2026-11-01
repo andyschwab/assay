@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // assay maintainer-report compiler.
 // Usage: node views/improve/report.mjs <run-dir>
-// Assembles <run-dir>/IMPROVE.md, and the ranked chains as data in
-// <run-dir>/views/improve/chains.json (lib/run-data.mjs checkChains), from:
+// Assembles <run-dir>/IMPROVE.md, the ranked chains as data in
+// <run-dir>/views/improve/chains.json (lib/run-data.mjs checkChains), and the report's
+// model as data in <run-dir>/views/improve/report.json (checkImproveReport), from:
 //   views/improve/templates/maintainer-report.md            (fixed structure + markers)
 //   <run-dir>/map/findings/                      (computed tables)
 //   <run-dir>/views/improve/security-gate.yaml   (the security exposures)
@@ -13,9 +14,10 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { prosePath as runProsePath, securityGatePath, maturityGradesPath, improvePagePath, chainsDataPath } from '../../lib/run-layout.mjs';
-import { CHAINS_SCHEMA, checkChains } from '../../lib/run-data.mjs';
-import { DIM_LABEL, WHO_LABEL, channelLabel } from '../../lib/display.mjs';
+import { prosePath as runProsePath, securityGatePath, maturityGradesPath, improvePagePath, chainsDataPath, improveReportDataPath } from '../../lib/run-layout.mjs';
+import { CHAINS_SCHEMA, checkChains, IMPROVE_REPORT_SCHEMA, checkImproveReport } from '../../lib/run-data.mjs';
+import { DIM_LABEL, WHO_LABEL, GROUP_LABEL, channelLabel } from '../../lib/display.mjs';
+import { buildSupervision } from '../../map/supervision.mjs';
 import { buildCapabilities, capabilityCounts, tracePhrase } from '../../map/capabilities.mjs';
 import { buildChains } from '../../map/chains.mjs';
 import { sevRank } from '../../map/doctrine.mjs';
@@ -473,4 +475,39 @@ const chainsDoc = {
 const chainsErrors = checkChains(chainsDoc, new Set(findings.map((f) => f.id)));
 if (chainsErrors.length) { console.error(`chains.json would not hold its schema:\n  ${chainsErrors.join('\n  ')}`); process.exit(1); }
 writeFileSync(chainsDataPath(runDir), JSON.stringify(chainsDoc, null, 2) + '\n');
+
+// the report's model as data (#236): what a renderer of this report (a PDF made from it)
+// draws, with the labels applied, so it reads this file and the run layout's paths and
+// imports nothing from the engine (views/README.md states the format)
+const notes = prose.channel_notes || {};
+const capGroups = buildCapabilities(findings, notes);
+const capCounts = capabilityCounts(capGroups);
+const sup = buildSupervision(findings, prose.roadmap, notes);
+const reportDoc = {
+  schema: IMPROVE_REPORT_SCHEMA, run: runId,
+  labels: { dimension: DIM_LABEL, who: WHO_LABEL, group: GROUP_LABEL },
+  capabilities: {
+    counts: capCounts,
+    groups: capGroups.map((g) => ({
+      group: g.group, label: g.groupLabel, kinds: capCounts.byGroup[g.group].kinds, unguarded: capCounts.byGroup[g.group].unguarded,
+      channels: g.channels.map((c) => ({
+        channel: c.channel, label: c.label, what: c.what, findings: c.findings, external: c.external,
+        reversibility: c.reversibility, telemetry: c.telemetry, trace: tracePhrase(c.telemetry),
+        blast: c.blast ?? null, gates: [...c.gates].sort(), halt: c.halt,
+      })),
+    })),
+  },
+  chains: {
+    live: chainsDoc.live.map((c, i) => ({ ...c, blast_word: built.live[i].blastWord, difficulty: built.live[i].difficulty })),
+    held: chainsDoc.held, contained: chainsDoc.contained, unresolved: chainsDoc.unresolved,
+  },
+  supervision: {
+    total: sup.total, supervised: sup.supervised, unsupervised: sup.unsupervised,
+    kinds: sup.kinds.map((k) => ({ channel: k.channel, label: k.label, sites: k.sites, ids: k.ids, fixes: k.fixSlugs.map(([n, slug]) => ({ n, slug: slug ? String(slug) : null })) })),
+    fixes: sup.fixes, any_unplanned: sup.anyUnplanned,
+  },
+};
+const reportErrors = checkImproveReport(reportDoc, new Set(findings.map((f) => f.id)));
+if (reportErrors.length) { console.error(`report.json would not hold its schema:\n  ${reportErrors.join('\n  ')}`); process.exit(1); }
+writeFileSync(improveReportDataPath(runDir), JSON.stringify(reportDoc, null, 2) + '\n');
 console.log(`✓ compiled ${outPath} (${findings.length} findings, ${(gate.exposures || []).length} security exposures)`);
