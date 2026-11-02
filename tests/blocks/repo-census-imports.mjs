@@ -73,6 +73,13 @@ export async function run() {
     const after = at(doc, 'agent-contract', 'apps/web');
     if (!after || after.status !== 'pass' || after.evidence?.[0] !== 'docs/CATEGORY.md:5') fail(`a ~~~ block closes on ~~~ (a \`\`\` line inside it does not), and "Read @FOUNDATION.md." imports FOUNDATION.md; got ${after ? `${after.status} ${after.evidence?.[0]}` : 'no row'}`);
 
+    // ── an @path indented under a list item is the item's text: an import; the credit names the contract ──
+    tree({ contract: '# CLAUDE.md\n\n1. Read the rules:\n\n    @FOUNDATION.md\n', foundation: '# Foundation\n\n@docs/CATEGORY.md\n', category: CATEGORY });
+    doc = census();
+    const listed = at(doc, 'agent-contract', 'apps/web');
+    if (!listed || listed.status !== 'pass' || listed.evidence?.[0] !== 'docs/CATEGORY.md:5') fail(`an @path indented under a list item imports; got ${listed ? `${listed.status} ${listed.evidence?.[0]}` : 'no row'}`);
+    if (listed && !/CLAUDE\.md, which passes, imports docs\/CATEGORY\.md/.test(listed.observation)) fail(`a credit through an import says the contract passes and imports the file that names it; got ${listed.observation}`);
+
     // ── a credited nested project hands its contract down: its workspace is read against the root's whole chain ──
     rmSync(tmp, { recursive: true, force: true });
     put('package.json', pkg('catalog'));

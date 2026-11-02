@@ -238,11 +238,15 @@ const IMPORT_RE = /(?:^|\s)@((?:\.{1,2}\/)?[\w.-]+(?:\/[\w.-]+)*)/g;
 function importsOf(text) {
   const out = [];
   let fence = null;   // the open fence's character and length: only a like fence at least as long closes it
+  let inList = false;   // an indented line under a list item is the item's text, not an indented code block
   for (const line of text.split('\n')) {
     const f = line.match(/^ {0,3}(`{3,}|~{3,})/);
     if (fence) { if (f && f[1][0] === fence[0] && f[1].length >= fence.length && !line.slice(f[0].length).trim()) fence = null; continue; }
     if (f) { fence = f[1]; continue; }
-    if (/^(?: {4}|\t)/.test(line)) continue;   // an indented code block
+    const indented = /^(?: {4}|\t)/.test(line);
+    if (/^ {0,3}(?:[-*+]|\d+[.)])\s/.test(line)) inList = true;
+    else if (line.trim() && !indented) inList = false;
+    if (indented && !inList) continue;   // an indented code block
     const bare = line.replace(/(`+)[^`]*?\1/g, '');
     for (const m of bare.matchAll(IMPORT_RE)) out.push(m[1].replace(/\.+$/, ''));
   }
@@ -294,7 +298,9 @@ const creditedPass = (name, detail, loc, what, credit) => {
   return {
     name, status: 'pass', detail: { ...detail, coveredBy: credit.file },
     evidence: [`${credit.file}:${credit.line}`],
-    observation: `${loc} has no ${what} of its own; ${who}'s ${credit.file} names it at line ${credit.line} and passes, so ${who} covers it.`,
+    observation: credit.contract && credit.contract !== credit.file
+      ? `${loc} has no ${what} of its own; ${who}'s ${credit.contract}, which passes, imports ${credit.file}, which names it at line ${credit.line}, so ${who} covers it.`
+      : `${loc} has no ${what} of its own; ${who}'s ${credit.file} names it at line ${credit.line} and passes, so ${who} covers it.`,
   };
 };
 
