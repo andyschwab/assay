@@ -430,16 +430,23 @@ tree checks:
   enough. It runs at every **location** `map/projects.mjs` finds (#246), one check
   per location: the root; each **nested project** (a directory below the root with
   its own package.json and its own lockfile or workspace file, outside fixture and
-  test trees, submodules and nested repositories); and each project's
-  **workspaces** (pnpm-workspace.yaml, package.json `workspaces`, else `apps/*` and
-  `packages/*`). A location with no page of its own is **covered by its parent**
+  test trees, documentation sites and examples (`docs/`, `website/`, `site/`,
+  `examples/`, `example/`, `samples/`), submodules and nested repositories); and each
+  project's **workspaces** (pnpm-workspace.yaml, package.json `workspaces`, else
+  `apps/*` and `packages/*`) together with every `apps/*` and `packages/*` directory
+  holding a package.json. A packet's `apps` pointer replaces discovery. When the
+  tree holds more than the root, the report carries `projects` (each with its
+  `path`, `from` and `locations`). A location with no page of its own is **covered by its parent**
   (`pass`, citing the parent's line) when the parent's page passes and names it: a
   workspace's parent is its project, a nested project's is the root. It is named
-  by its path from the root, by its path from its project (`apps/api` inside
-  `templates/x`), or by its scoped package name (`@org/ui`); a bare package name is
+  by its path from the root, by its path from the directory its project runs in
+  (`apps/api` inside `templates/x`, or inside the root's `app/`), or by its scoped package name (`@org/ui`); a bare package name is
   never matched, and a README counts only its Architecture section. A root with no
-  page of its own is **covered by its projects** (`pass`, `delegatedTo`, citing each
-  project's page) when every nested project carries a page that passes on its own.
+  page of its own and no workspaces of its own is **covered by its projects**
+  (`pass`, `delegatedTo`, citing each project's page) when every nested project
+  carries a page that passes on its own. A positional `architecture` or
+  `agent_contract` pointer list reads the root first, then the other locations in
+  path order (or the packet's own `apps` order).
   A location that has its own page is checked on that page.
 - **agent-contract** — AGENTS.md or CLAUDE.md (every location, the same rule,
   parent cover included: a passing parent contract that names the location). `pass` only when it is **present-tense**: no heading matching

@@ -10,10 +10,15 @@
 //     each carries one that passes on its own, and is a gap again when one of them does not;
 //   - the runbook belongs to a project, never to a workspace;
 //   - a pnpm-workspace.yaml at the root is a workspace declaration, outside apps/ and packages/ too;
-//   - a test's planted project, a submodule and a directory carrying its own .git are not projects;
+//   - a test's planted project, a submodule, a directory carrying its own .git, a docs site and an
+//     examples tree are not projects;
+//   - what the census always read stays read: apps/* and packages/* with no root package.json, and
+//     beside a workspace list that does not name them; a `**` glob walks no node_modules and no
+//     symlink loop; a lone application directory's workspace is named by its path from the app;
+//   - a root with workspaces of its own is an application, never covered by its projects;
 //   - a flat tree reads as it always has: no `projects` key, no new location.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
@@ -104,6 +109,53 @@ export async function run() {
     put('docs/architecture.md', '# Architecture\n\nA CLI over one API.\n');
     doc = census();
     if (!doc || !doc.monorepo?.locations?.includes('tools/cli')) fail(`a root pnpm-workspace.yaml naming tools/* should make tools/cli a location; got ${JSON.stringify(doc?.monorepo)}`);
+
+    // ── not projects: a docs site and an examples tree; credit names the project that covers ──
+    tree();
+    put('website/package.json', pkg('site')); put('website/yarn.lock', '\n');
+    put('examples/demo/package.json', pkg('demo')); put('examples/demo/package-lock.json', '{}\n');
+    doc = census();
+    const ps = (doc?.projects || []).map((p) => p.path);
+    if (JSON.stringify(ps) !== JSON.stringify(['.', 'templates/alpha'])) fail(`a docs site and an examples tree are not projects; got ${JSON.stringify(ps)}`);
+    const cr = doc && at(doc, 'architecture-page', 'templates/alpha/apps/web');
+    if (!cr || !/its project templates\/alpha's .* so its project templates\/alpha covers it/.test(cr.observation)) fail(`a credit names the project that covers, not the root; got ${cr?.observation}`);
+
+    // ── a root with workspaces of its own is not covered by its projects ──
+    put('apps/api/package.json', pkg('api'));
+    doc = census();
+    const ra = doc && at(doc, 'architecture-page', '.');
+    if (!ra || ra.status !== 'gap') fail(`a root with workspaces of its own (apps/api) and no page reads gap, never delegated; got ${ra ? `${ra.status} ${JSON.stringify(ra.detail)}` : 'no row'}`);
+
+    // ── what the census always read: apps/* with no root package.json, and beside a declared list ──
+    rmSync(tmp, { recursive: true, force: true });
+    put('apps/web/package.json', pkg('web')); put('apps/api/package.json', pkg('api'));
+    put('README.md', '# Shop\n\n## Architecture\n\nThe API service and its database.\n');
+    doc = census();
+    for (const loc of ['apps/api', 'apps/web']) if (!doc?.monorepo?.locations?.includes(loc)) fail(`with no root package.json, ${loc} is still a location; got ${JSON.stringify(doc?.monorepo)}`);
+    rmSync(tmp, { recursive: true, force: true });
+    put('package.json', pkg('mixed', { workspaces: ['packages/*'] }));
+    put('packages/lib/package.json', pkg('lib')); put('apps/web/package.json', pkg('web'));
+    doc = census();
+    for (const loc of ['apps/web', 'packages/lib']) if (!doc?.monorepo?.locations?.includes(loc)) fail(`${loc} is a location beside a workspace list naming packages/* alone; got ${JSON.stringify(doc?.monorepo)}`);
+
+    // ── a ** glob walks no node_modules and no symlink loop ──
+    rmSync(tmp, { recursive: true, force: true });
+    put('package.json', pkg('deep', { workspaces: ['packages/**'] }));
+    put('packages/a/package.json', pkg('a'));
+    put('packages/a/node_modules/dep/package.json', pkg('dep'));
+    try { symlinkSync('..', join(tmp, 'packages/a/loop')); } catch { /* a host with no symlinks: nothing to loop */ }
+    doc = census();
+    const deep = doc?.monorepo?.locations || [];
+    if (JSON.stringify(deep) !== JSON.stringify(['packages/a'])) fail(`a ** workspace glob reads packages/a alone, walking no node_modules and no symlink; got ${JSON.stringify(deep).slice(0, 200)}`);
+
+    // ── a lone application directory's workspace, named from the app ──
+    rmSync(tmp, { recursive: true, force: true });
+    put('app/package.json', pkg('app', { workspaces: ['apps/*'] }));
+    put('app/apps/api/package.json', pkg('api'));
+    put('README.md', '# Shop\n\n## Architecture\n\nThe API service and its database.\n\n- apps/api: the HTTP service.\n');
+    doc = census();
+    const lone = doc && at(doc, 'architecture-page', 'app/apps/api');
+    if (!lone || lone.status !== 'pass' || !lone.detail?.coveredBy) fail(`app/apps/api is credited by the root README naming it apps/api, its path from the app; got ${lone ? `${lone.status} ${lone.observation}` : 'no row'}`);
 
     // ── a flat tree: as it always was ──
     rmSync(tmp, { recursive: true, force: true });

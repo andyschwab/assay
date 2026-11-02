@@ -230,11 +230,14 @@ const delegatedPass = (name, what, projectChecks) => ({
   evidence: projectChecks.map((c) => c.evidence[0]),
   observation: `The root has no ${what} of its own; each of its nested projects carries one that passes (${projectChecks.map((c) => String(c.evidence[0]).replace(/:\d+$/, '')).join(', ')}), so the root delegates to its projects.`,
 });
-const creditedPass = (name, detail, loc, what, credit) => ({
-  name, status: 'pass', detail: { ...detail, coveredBy: credit.file },
-  evidence: [`${credit.file}:${credit.line}`],
-  observation: `${loc} has no ${what} of its own; the root's ${credit.file} names it at line ${credit.line} and passes, so the root covers it.`,
-});
+const creditedPass = (name, detail, loc, what, credit) => {
+  const who = !credit.parent || credit.parent === '.' ? 'the root' : `its project ${credit.parent}`;
+  return {
+    name, status: 'pass', detail: { ...detail, coveredBy: credit.file },
+    evidence: [`${credit.file}:${credit.line}`],
+    observation: `${loc} has no ${what} of its own; ${who}'s ${credit.file} names it at line ${credit.line} and passes, so ${who} covers it.`,
+  };
+};
 
 // ── architecture-page ────────────────────────────────────────────────────────
 const EXTERNAL_RE = /\b(database|queue|api|service|store|bucket|provider)\b/i;
@@ -1124,13 +1127,18 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
     for (const pr of projects) {
       if (pr.path === '.') locs.push({ path: '.', parent: null, project: true, names: [] });
       else locs.push({ path: pr.path, parent: '.', project: true, names: [pr.path] });
-      for (const w of pr.workspaces) {
+      for (const w of pr.locations) {
         const full = workspacePath(pr, w);
-        locs.push({ path: full, parent: pr.path, project: false, names: [full, ...(pr.path === '.' ? [] : [w])] });
+        // named from the root, and from the directory its project runs in (a nested project, or the
+        // root's application directory, #35)
+        locs.push({ path: full, parent: pr.path, project: false, names: [full, ...(pr.run === '.' ? [] : [w])] });
       }
     }
   }
   const mono = { detected: locs.length > 1, locations: locs.filter((l) => l.path !== '.').map((l) => l.path) };
+  // a positional pointer list reads the root first, then the other locations in path order (or the
+  // packet's own `apps` order) — the order owner/PACKET.md documents
+  const order = declaredApps ? locs.map((l) => l.path) : ['.', ...[...mono.locations].sort()];
   const nestedLocs = locs.filter((l) => l.project && l.path !== '.');
 
   const checks = [];
@@ -1143,24 +1151,26 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
     const out = [];
     for (const l of locs.filter(which)) {
       const parent = l.parent === null ? null : byPath.get(l.parent);
-      const c = check(l, parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent) : null);
+      const m = parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent) : null;
+      const c = check(l, m ? { ...m, parent: l.parent } : null);
       byPath.set(l.path, c);
       out.push(c);
     }
     const root = byPath.get('.');
     const own = nestedLocs.map((l) => byPath.get(l.path)).filter(Boolean);
-    if (root && ABSENT.has(root) && own.length && own.length === nestedLocs.length && own.every((c) => c.status === 'pass' && !c.detail?.coveredBy)) {
+    const rootHasWorkspaces = locs.some((l) => l.parent === '.' && !l.project);
+    if (root && ABSENT.has(root) && !rootHasWorkspaces && own.length && own.length === nestedLocs.length && own.every((c) => c.status === 'pass' && !c.detail?.coveredBy)) {
       out[out.indexOf(root)] = delegatedPass(name, what, own);
     }
     return out;
   };
   checks.push(...perLocation('architecture-page', 'architecture page', /^architecture\b/i, (l, credit) => {
-    const p = pointerForLocation(pointers.architecture, locs.map((x) => x.path), l.path);
+    const p = pointerForLocation(pointers.architecture, order, l.path);
     if (p) note('architecture');
     return checkArchitecturePage(dir, l.path, p, credit);
   }, () => true));
   checks.push(...perLocation('agent-contract', 'agent contract', null, (l, credit) => {
-    const p = pointerForLocation(pointers.agent_contract, locs.map((x) => x.path), l.path);
+    const p = pointerForLocation(pointers.agent_contract, order, l.path);
     if (p) note('agent_contract');
     return checkAgentContract(dir, l.path, p, credit);
   }, () => true));
@@ -1189,7 +1199,7 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
     checks, exit,
   };
   // the projects the tree holds beside its root (map/projects.mjs, #246), each with its workspaces from the root
-  if (projects && projects.length > 1) doc.projects = projects.map((pr) => ({ path: pr.path, from: pr.from, workspaces: pr.workspaces.map((w) => workspacePath(pr, w)) }));
+  if (projects && projects.length > 1) doc.projects = projects.map((pr) => ({ path: pr.path, from: pr.from, locations: pr.locations.map((w) => workspacePath(pr, w)) }));
   if (packetDoc) doc.packet = { path: packetFile, auto: packetAuto, pointers_used: [...pointersUsed].sort() };
   return doc;
 }
