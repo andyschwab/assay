@@ -71,8 +71,8 @@
 //      root with its own package.json and its own lockfile or workspace file is a project of its
 //      own, measured as a root is (its plan, its README, its workspaces) under `projects[]`; a root
 //      step the root does not declare reads `covered` by its projects when every one reaches it
-//      (map/scanners/CONTRACT.md). An install whose package manager is not on PATH is not
-//      attempted and reads skipped, never failed (#248).
+//      (map/scanners/CONTRACT.md). A step whose package manager is not on PATH (an install, or
+//      a script run through npm, pnpm or yarn) is not attempted and reads skipped, never failed (#248).
 //
 // The target's own code runs here — its install (lifecycle scripts included), build,
 // lint, typecheck, test and migrate-dry scripts — so every child gets the allow-listed
@@ -340,6 +340,14 @@ function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void}
       installBroken = 'skipped (the root install did not pass)'; continue;
     }
     if (p.needs_install && installBroken) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `install ${installBroken}; ${name} not attempted` }); continue; }
+    // #248: a step whose command runs a package manager not on PATH is not attempted (the shell
+    // would answer 127, the instrument's gap read as the target's failure)
+    const runner = String(p.command || '').split(/\s+/)[0];
+    if (['npm', 'pnpm', 'yarn'].includes(runner) && !onPath(runner)) {
+      out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `${runner} is not on PATH, so ${name} was not attempted` });
+      if (name === 'install') installBroken = `did not run (${runner} is not on PATH)`;
+      continue;
+    }
     const stepCwd = p.cwd || cwd;   // a workspace's install may run from the root (npm ci --workspace)
     log(`  → ${name}: ${p.command}`);
     const row = runStep(name, p.command, stepCwd, timeoutSec);
@@ -439,6 +447,8 @@ function runWorkspace(wsRelPath, workDir, rootToolchain, timeoutSec, log = /** @
   const { toolchain, pkg } = detectToolchain(wsDir);
   const plan = planWorkspace(rootToolchain, toolchain, pkg, wsRelPath, root);
   if (plan.install.cwd === 'ROOT') plan.install.cwd = workDir;   // resolve the sentinel to the real clone root
+  const missing = packageManagerMissing(toolchain, plan);   // #248, a workspace's own install too
+  if (missing) plan.install = { status: 'pm-missing', command: plan.install.command, reason: missing };
   const steps = runSteps(plan, wsDir, timeoutSec, (m) => log(`  [${wsRelPath}]${m}`));
   const { readme, claims } = replayReadme(wsDir, pkg);
   return { path: wsRelPath, toolchain, steps, readme, readme_claims: claims };
@@ -559,32 +569,50 @@ function measureProject(workDir, project, timeout, log, { readmeFromRoot }) {
 // PATH the steps run with (child-env.mjs), never executed: missing, the install is not attempted
 // and reads skipped, which the requirements read as not measured.
 function packageManagerMissing(toolchain, plan) {
-  if (!plan.install || plan.install.status !== 'declared') return null;
-  const pm = toolchain.package_manager;
-  if (!pm) return null;
-  const dirs = String(stepEnv().PATH || '').split(process.platform === 'win32' ? ';' : ':').filter(Boolean);
-  const names = process.platform === 'win32' ? [`${pm}.cmd`, `${pm}.exe`, pm] : [pm];
-  if (dirs.some((d) => names.some((n) => existsSync(join(d, n))))) return null;
-  const why = toolchain.lockfile ? `named by ${toolchain.lockfile}` : (toolchain.declared && toolchain.declared.packageManager ? `named by packageManager ${toolchain.declared.packageManager}` : 'the package manager this tree names');
-  return `${pm} (${why}) is not on PATH, so the install was not attempted${toolchain.declared && toolchain.declared.packageManager ? '; `corepack enable` provides the version packageManager names' : ''}`;
+  if (!plan.install || plan.install.status !== 'declared' || typeof plan.install.command !== 'string') return null;
+  // the binary the install command runs (a workspace's may be the root's npm, run from the root)
+  const pm = plan.install.command.split(/\s+/)[0];
+  if (!['npm', 'pnpm', 'yarn'].includes(pm)) return null;
+  if (onPath(pm)) return null;
+  const why = pm === toolchain.package_manager && toolchain.lockfile ? `named by ${toolchain.lockfile}` : `the install command \`${plan.install.command}\` runs it`;
+  const hint = toolchain.declared && toolchain.declared.packageManager ? '; `corepack enable` provides the version packageManager names' : '';
+  return `${pm} (${why}) is not on PATH, so the install was not attempted${hint}`;
+}
+// an executable `name` in one of the absolute directories of the steps' PATH (a relative entry
+// would resolve against the step's directory, which a lookup from here cannot vouch for)
+function onPath(name) {
+  const env = stepEnv();
+  const win = process.platform === 'win32';
+  const dirs = String(env.PATH || '').split(win ? ';' : ':').filter((d) => d && isAbsolute(d));
+  const exts = win ? ['', ...String(process.env.PATHEXT || '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean).map((e) => e.toLowerCase())] : [''];
+  return dirs.some((d) => exts.some((e) => {
+    try { const st = statSync(join(d, name + e)); return st.isFile() && (win || (st.mode & 0o111) !== 0); } catch { return false; }
+  }));
 }
 
 // ── a root step covered by its nested projects (#246) ───────────────────────
 const PROJECT_COVERED_STEPS = ['build', 'lint', 'typecheck', 'test'];
-function coverByProjects(st, nested) {
+function coverByProjects(st, nested, workDir) {
   if (st.status !== 'not-declared') return st;
   const stepOf = (pr) => pr.steps.find((x) => x.name === st.name);
   if (st.name === 'migrate') {
-    const owner = nested.find((pr) => { const x = stepOf(pr); return x && x.status !== 'not-declared' && x.status !== 'covered'; });
+    // the package that declares a migrate script owns the migrations, a dry form or not (the
+    // workspaces' rule); its own row says whether a clean checkout can run it
+    const owner = nested.map((pr) => ({ pr, script: declaresMigrate(detectToolchain(join(workDir, pr.path)).pkg) })).find((o) => o.script);
     if (!owner) return st;
-    const x = stepOf(owner);
-    return { ...st, status: 'covered', reason: `migrations belong to ${owner.path}, which declares them`, covered_by: { path: owner.path, step: 'migrate', command: x.declared_as || x.command } };
+    return { ...st, status: 'covered', reason: `migrations belong to ${owner.pr.path}, which declares "${owner.script}"`, covered_by: { path: owner.pr.path, step: 'migrate', command: owner.script } };
   }
   if (!PROJECT_COVERED_STEPS.includes(st.name)) return st;
   const rows = nested.map((pr) => ({ pr, x: stepOf(pr) }));
-  if (!rows.every(({ x }) => x && (x.status === 'passed' || x.status === 'covered'))) return st;
-  const by = rows.map(({ pr, x }) => ({ path: pr.path, step: st.name, command: x.command || (x.covered_by && !Array.isArray(x.covered_by) ? x.covered_by.command : st.name) }));
-  return { ...st, status: 'covered', reason: `the root declares no ${st.name}; each of its nested projects runs its own and it passes (${by.map((b) => b.path).join(', ')})`, covered_by: by.length === 1 ? by[0] : by };
+  const declaring = rows.filter(({ x }) => x && x.status !== 'not-declared');
+  if (!declaring.length) return st;   // no project declares it either: the root's gap stands
+  if (rows.every(({ x }) => x && (x.status === 'passed' || x.status === 'covered'))) {
+    const by = rows.map(({ pr, x }) => ({ path: pr.path, step: st.name, command: x.command || (x.covered_by && !Array.isArray(x.covered_by) ? x.covered_by.command : st.name) }));
+    return { ...st, status: 'covered', reason: `the root declares no ${st.name}; each of its nested projects runs its own and it passes (${by.map((b) => b.path).join(', ')})`, covered_by: by.length === 1 ? by[0] : by };
+  }
+  // a project declares it but it did not pass everywhere (skipped, failed, or undeclared in a
+  // sibling): each project's own row decides, and the root says only that it ran nothing of its own
+  return { ...st, status: 'skipped', reason: `the root declares no ${st.name} of its own; its nested projects' own ${st.name} rows decide (${rows.map(({ pr, x }) => `${pr.path}: ${x ? x.status : 'not recorded'}`).join(', ')})` };
 }
 
 export function run({ target, timeout = 600, clone = true, app: declaredApp = null, log = /** @type {(msg: string) => void} */ (() => {}) }) {
@@ -622,7 +650,7 @@ export function run({ target, timeout = 600, clone = true, app: declaredApp = nu
     // a root step the root does not declare is covered by its nested projects when each of them
     // reaches it (#246): build, lint, typecheck and test when every project's own step passed or is
     // covered; migrate when a project declares it (migrations belong to the package declaring them)
-    if (nested.length) root.steps = root.steps.map((st) => coverByProjects(st, nested));
+    if (nested.length) root.steps = root.steps.map((st) => coverByProjects(st, nested, workDir));
     const bad = (e) => e.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || e.readme_claims.some((c) => c.status === 'missing')
       || (e.workspaces || []).some((w) => w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing'));
     return {

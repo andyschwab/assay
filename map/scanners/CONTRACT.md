@@ -319,20 +319,26 @@ plan in its own directory (its own install), its README, its workspaces. The
 document carries them as `projects: [{ path, from, toolchain, steps, readme,
 readme_claims, workspaces_from?, workspaces }]`, present only when the tree holds
 one, and what the rule set aside as `projects_set_aside` (as the census does);
-`exit` reads them as it reads the root. A step the root does not declare reads
-`covered` by its projects when every project reaches it: build, lint, typecheck and
-test when each project's own step passed or is covered (`covered_by` lists one
-`{ path, step, command }` per project, an object when there is one), and migrate
-when a project declares it. `ingest.mjs` emits a project's rows as it does a
+`exit` reads them as it reads the root. A build, lint, typecheck or test the root
+does not declare reads `covered` by its projects when each project's own step
+passed or is covered (`covered_by` lists one `{ path, step, command }` per project,
+an object when there is one); when a project declares it but it did not pass
+everywhere, the root's step reads `skipped` (each project's own row decides, and
+the root never reads "nothing declares it"); when no project declares it, the
+root's own `not-declared` stands. Migrate is `covered` when a project declares a
+migrate script (its owner, as with workspaces). `ingest.mjs` emits a project's rows as it does a
 workspace's, `native_id` prefixed by the project's path
 (`templates/x:build:failed`), its workspaces' by the full path, and the root's "no
 database signal" reads the projects too.
 
-**A package manager not on PATH (#248).** The package manager a plan installs with
-(npm, pnpm or yarn, from the lockfile) is looked up on the PATH the steps run with,
-never executed. Missing, the install is not attempted: it reads `skipped` with the
+**A package manager not on PATH (#248).** The package manager an install runs (npm,
+pnpm or yarn: the root's, a project's, or a workspace's, including `npm ci
+--workspace` run from the root) is looked up as an executable file in the absolute
+directories of the PATH the steps run with (PATHEXT on Windows), never executed. Missing, the install is not attempted: it reads `skipped` with the
 reason (`pnpm (named by pnpm-lock.yaml) is not on PATH …`), the steps that need it
-are skipped with it, and the requirements read not measured. A shell's exit 127 is
+are skipped with it, and the requirements read not measured. Any other step whose
+command runs a package manager not on PATH (`npm run build`) reads `skipped` the
+same way. A shell's exit 127 is
 the instrument's gap, never the target's failed install.
 
 **What it deliberately does not do.** It never executes a README command beyond

@@ -263,8 +263,11 @@ const PROFILES = {
       // PROJECTS (#246): each nested project the tree holds is measured as a root of its own —
       // its steps, its README, its workspaces — and its rows carry its path, the way a
       // workspace's do (`templates/x:build:failed`), its evidence its own manifest
+      const projectPaths = new Set();
       for (const pr of rep.projects || []) {
-        if (!pr || typeof pr.path !== 'string' || !pr.path || pr.path.split('/').includes('..')) throw new Error('fresh-clone project entry must carry a path inside the tree (truncated report?)');
+        if (!pr || typeof pr.path !== 'string' || !pr.path || pr.path.startsWith('/') || /^[A-Za-z]:/.test(pr.path) || pr.path.split('/').some((seg) => !seg || seg === '.' || seg === '..')) throw new Error('fresh-clone project entry must carry a relative path inside the tree (truncated report?)');
+        if (projectPaths.has(pr.path)) throw new Error(`fresh-clone project ${pr.path} appears twice (truncated report?)`);
+        projectPaths.add(pr.path);
         if (!Array.isArray(pr.steps) || !Array.isArray(pr.readme_claims)) throw new Error(`fresh-clone project ${pr.path} has no steps[] / readme_claims[] (truncated report?)`);
         if (pr.workspaces !== undefined && !Array.isArray(pr.workspaces)) throw new Error(`fresh-clone project ${pr.path} workspaces must be a list (truncated report?)`);
         emitEntry(pr.steps, pr.readme_claims, {
