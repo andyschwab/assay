@@ -143,8 +143,11 @@ ${pnpm === 'fail' ? "process.stderr.write(' ERR_PNPM_FETCH_404  GET https://regi
   const eRows = convert('structure-scan', JSON.stringify(e), e.exit);
   if (!eRows.some((r) => r.native_category === 'unused' && (r.evidence || []).includes('app/src/util.js:3'))) fail(`the unused export ingests with evidence app/src/util.js:3 (got ${JSON.stringify(eRows.map((r) => r.evidence))})`);
 
-  // (f) two application directories, no root manifest: not-applicable, both named
+  // (f) two application directories, no root manifest, neither installing on its own (no
+  // lockfile): no one project to read, so not-applicable, both named. With a lockfile each is a
+  // project of its own (#246) and knip runs in both: tests/blocks/structure-scan-projects.mjs
   const tF = copyOf('f', lone); cpSync(join(tF, 'app'), join(tF, 'web'), { recursive: true });
+  for (const d of ['app', 'web']) rmSync(join(tF, d, 'package-lock.json'), { force: true });
   const f = withPath(fakePath('f', { knip: 'reports', pnpm: 'absent' }), () => SS.run({ target: tF }));
   const fr = knipOf(f).reason || '';
   if (knipOf(f).status !== 'not-applicable' || !/\bapp\b/.test(fr) || !/\bweb\b/.test(fr)) fail(`two application directories and no root package.json read knip not-applicable naming both (got ${JSON.stringify(knipOf(f))})`);
