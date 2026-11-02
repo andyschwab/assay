@@ -511,8 +511,11 @@ const PROFILES = {
       }
       if (rep.tools.jscpd.status !== 'ran' && rep.duplicates.length) throw new Error('structure-scan report lists duplicates from a jscpd that did not run');
       if (rep.tools.knip.status !== 'ran' && rep.unused.length) throw new Error('structure-scan report lists unused items from a knip that did not run');
+      // knip over several projects (#246): each project's own record, the not-run ones named
+      const knipRoots = rep.tools.knip.roots;
+      if (knipRoots !== undefined && (!Array.isArray(knipRoots) || knipRoots.length < 2 || !knipRoots.every((r) => r && typeof r.root === 'string' && r.root && SS_TOOL_STATUS.includes(r.status) && (r.status === 'ran' || (typeof r.reason === 'string' && r.reason.trim())) && (r.status !== 'ran' || r.config === null || (typeof r.config === 'string' && r.config))))) throw new Error('structure-scan knip roots must list two or more { root, status, reason when not ran, config when ran } (truncated report?)');
       const found = rep.duplicates.length + rep.unused.length + rep.stale.length;
-      const notRun = ['jscpd', 'knip'].some((t) => ['skipped', 'failed'].includes(rep.tools[t].status));
+      const notRun = ['jscpd', 'knip'].some((t) => ['skipped', 'failed'].includes(rep.tools[t].status)) || (knipRoots || []).some((r) => r.status === 'skipped' || r.status === 'failed');
       if ((found > 0 || notRun) !== (rep.exit === 1)) throw new Error(`structure-scan report exit ${rep.exit} disagrees with its own content (${found} finding(s), ${notRun ? 'a tool not run' : 'every tool ran'})`);
       const churn = (rep.churn && typeof rep.churn === 'object') ? rep.churn : {};
       const detailFor = (files, extra) => ({ ...extra, ...(rep.history === 'full' ? { churn_90d: Math.max(0, ...files.map((f) => Number.isInteger(churn[f]) ? churn[f] : 0)) } : { history: rep.history }) });
@@ -535,6 +538,12 @@ const PROFILES = {
       // knip's files, exports, types and members are evidence only where the target names its
       // entry points (#121): with no knip configuration the row stays, flagged unconfigured.
       if (rep.unused.length && !(rep.tools.knip.config === null || (typeof rep.tools.knip.config === 'string' && rep.tools.knip.config))) throw new Error('structure-scan report lists unused items but its knip record does not say whether the target configures knip (config: a file name or null)');
+      // the knip configuration an item was read under: its own project's, the deepest root that holds it
+      const configFor = (file) => {
+        if (!knipRoots) return rep.tools.knip.config;
+        const own = knipRoots.filter((r) => r.status === 'ran' && (r.root === '.' || file.startsWith(`${r.root}/`))).sort((a, b) => b.root.length - a.root.length)[0];
+        return own ? own.config : rep.tools.knip.config;
+      };
       for (const u of rep.unused) {
         if (!u || typeof u.file !== 'string' || !u.file || typeof u.name !== 'string' || !SS_UNUSED_KINDS.includes(u.kind)) throw new Error('structure-scan unused item missing file / name / a known kind (truncated report?)');
         const line = Number.isInteger(u.line) ? u.line : 1;
@@ -544,7 +553,7 @@ const PROFILES = {
           observation: `${SS_UNUSED_NOUN[u.kind]} \`${oneLine(u.name)}\` in ${u.file} is not used anywhere in the project, found by knip ${rep.tools.knip.version || ''}`.trimEnd() + '.',
           evidence: [`${u.file}:${line}`],
           fix: `Remove the unused ${SS_UNUSED_NOUN[u.kind].toLowerCase()} (or, when it is a public entry point, declare it in knip's configuration); re-run structure-scan and confirm it no longer reads unused.`,
-          detail: detailFor([u.file], { kind: u.kind, name: u.name, ...(rep.tools.knip.config === null && SS_ENTRY_KINDS.includes(u.kind) ? { unconfigured: true } : {}) }),
+          detail: detailFor([u.file], { kind: u.kind, name: u.name, ...(configFor(u.file) === null && SS_ENTRY_KINDS.includes(u.kind) ? { unconfigured: true } : {}) }),
         });
       }
       // a config knip could not load and set aside to measure the rest (#186): a fact per file,
@@ -598,6 +607,16 @@ const PROFILES = {
             evidence: ['./:1'],
           });
         }
+      }
+      // a project knip did not run in, beside one it did (#246): a fact per project, never silence
+      if (rep.tools.knip.status === 'ran') for (const r of knipRoots || []) {
+        if (r.status !== 'skipped' && r.status !== 'failed') continue;
+        rows.push({
+          id: fid(startId + n++), source: 'structure-scan',
+          native_id: `unused-not-run@${r.root}`, native_category: 'unused-not-run', polarity: 'fact',
+          observation: `knip ${r.status} in ${r.root === '.' ? 'the root project' : `the project at ${r.root}`}: ${oneLine(r.reason)}. Nothing measured unused files, exports and dependencies there, so none found is not none present.`,
+          evidence: [r.root === '.' ? './:1' : `${r.root}/package.json:1`],
+        });
       }
       return rows;
     },

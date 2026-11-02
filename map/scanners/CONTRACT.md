@@ -654,11 +654,16 @@ tools do the first two and the instrument does the rest from the tree:
   `skipped` with that reason. The two-job routine template runs structure-scan
   in its target job, the one job that executes the target, after fresh-clone's
   install there, and hands the report to the gate job, which never runs it
-  (#128). knip runs at the root when it holds a `package.json`, else in the one
-  directory directly beneath it that does (an application kept whole in
-  `app/`, #119), its rows' paths written relative to the repository root and
-  `knip.root` recording where it ran; with no such directory, or more than one,
-  knip reads `not-applicable`, the candidates named, never clean. Those configuration files import the
+  (#128). knip runs in every project `map/projects.mjs` finds that holds a
+  `package.json` (#246): the root, or the one directory directly beneath it that
+  does (an application kept whole in `app/`, #119), and each nested project. Its
+  rows' paths are written relative to the repository root, and `knip.root`
+  records where it ran first. With more than one project the record carries
+  `roots: [{ root, status, exit_code, reason?, config? }]`, one per project; it
+  reads `ran` when knip ran in any of them, an item is read under its own
+  project's configuration, and a project knip did not run in turns the exit to 1
+  and is a fact of its own (`unused-not-run@<root>`). With no such project knip
+  reads `not-applicable`, the candidates named, never clean. Those configuration files import the
   target's dependencies, so knip needs them installed (#118): with
   `node_modules` at the root it runs in place (the routine runs structure-scan
   after fresh-clone's in-place install); with none, dependencies declared and a
