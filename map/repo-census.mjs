@@ -95,7 +95,7 @@
 //     [--as-of <YYYY-MM-DD>] [--evidence-max-age <days>] [--packet <dir|manifest.yaml>]
 // Zero dependencies (node: modules only) beyond the packet reader it shares
 // with validate-packet (yardstick/packet.mjs).
-import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve, isAbsolute, relative, sep } from 'node:path';
 import { isMain } from './doctrine.mjs';
@@ -200,7 +200,9 @@ const pointerNote = (used) => (used ? " (per the packet's pointer)" : '');
 // (from the root first); the parent is the root unless the location sits in a nested project.
 function rootMention(dir, rootCheck, loc, sectionRe = null, names = [loc], parentBase = '.', followImports = false) {
   if (!rootCheck || rootCheck.status !== 'pass') return null;
-  const file = String(rootCheck.evidence?.[0] || '').replace(/:\d+$/, '');
+  // a parent itself credited by its own parent's contract hands that contract down (an imported
+  // file is where the name was found, not the contract)
+  const file = CONTRACT_OF.get(rootCheck) || String(rootCheck.evidence?.[0] || '').replace(/:\d+$/, '');
   let text = file && safeRead(join(dir, file));
   if (!text) return null;
   let offset = 0;
@@ -219,10 +221,12 @@ function rootMention(dir, rootCheck, loc, sectionRe = null, names = [loc], paren
   for (const d of docs) {
     const lines = d.text.split('\n');
     const i = lines.findIndex((l) => re.test(l));
-    if (i > -1) return { file: d.file, line: (d.offset || 0) + i + 1 };
+    if (i > -1) return { file: d.file, line: (d.offset || 0) + i + 1, contract: file };
   }
   return null;
 }
+// the contract a credited location was credited from, for the locations it credits in turn
+const CONTRACT_OF = new WeakMap();
 // ── an agent contract's imports (#249) ───────────────────────────────────────
 // Claude Code reads a CLAUDE.md (or AGENTS.md) together with every file it imports with an
 // `@path` token: the path resolves from the importing file, imports nest, and the chain stops
@@ -233,17 +237,20 @@ const IMPORT_MAX_DEPTH = 5;
 const IMPORT_RE = /(?:^|\s)@((?:\.{1,2}\/)?[\w.-]+(?:\/[\w.-]+)*)/g;
 function importsOf(text) {
   const out = [];
-  let fenced = false;
+  let fence = null;   // the open fence's character and length: only a like fence at least as long closes it
   for (const line of text.split('\n')) {
-    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
-    if (fenced) continue;
-    const bare = line.replace(/`[^`]*`/g, '');
-    for (const m of bare.matchAll(IMPORT_RE)) out.push(m[1]);
+    const f = line.match(/^ {0,3}(`{3,}|~{3,})/);
+    if (fence) { if (f && f[1][0] === fence[0] && f[1].length >= fence.length && !line.slice(f[0].length).trim()) fence = null; continue; }
+    if (f) { fence = f[1]; continue; }
+    if (/^(?: {4}|\t)/.test(line)) continue;   // an indented code block
+    const bare = line.replace(/(`+)[^`]*?\1/g, '');
+    for (const m of bare.matchAll(IMPORT_RE)) out.push(m[1].replace(/\.+$/, ''));
   }
   return out;
 }
 function contractWithImports(dir, file, text) {
   const root = resolve(dir);
+  let realRoot = root; try { realRoot = realpathSync(root); } catch { /* unreadable root: lexical */ }
   const docs = [{ file, text, offset: 0 }];
   const seen = new Set([file]);
   let level = [{ file, text }];
@@ -255,6 +262,9 @@ function contractWithImports(dir, file, text) {
         const abs = resolve(root, from, target);
         const rel = relative(root, abs).split(sep).join('/');
         if (!rel || rel.startsWith('..') || isAbsolute(rel) || seen.has(rel)) continue;
+        // where the path really lands: a symlink inside the tree may point outside it
+        let real = null; try { real = relative(realRoot, realpathSync(abs)); } catch { /* missing: skipped below */ }
+        if (real === null || real.startsWith('..') || isAbsolute(real)) continue;
         seen.add(rel);
         const t = statOk(abs, (st) => st.isFile()) ? safeRead(abs) : null;
         if (t === null) continue;
@@ -1202,6 +1212,7 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
       const parent = l.parent === null ? null : byPath.get(l.parent);
       const m = parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent, name === 'agent-contract') : null;
       const c = check(l, m ? { ...m, parent: l.parent } : null);
+      if (m && c.detail?.coveredBy) CONTRACT_OF.set(c, m.contract);
       byPath.set(l.path, c);
       out.push(c);
     }
