@@ -10,8 +10,10 @@
 //     each carries one that passes on its own, and is a gap again when one of them does not;
 //   - the runbook belongs to a project, never to a workspace;
 //   - a pnpm-workspace.yaml at the root is a workspace declaration, outside apps/ and packages/ too;
-//   - a test's planted project, a submodule, a directory carrying its own .git, a docs site and an
-//     examples tree are not projects;
+//   - a test's planted project, a submodule and a directory carrying its own .git are not projects,
+//     nor a docs site or examples tree beside a root application (named in projects_set_aside);
+//     a catalog entry named docs/, and a site/ under a root with no package.json, are;
+//   - a workspace linked into apps/* is followed;
 //   - what the census always read stays read: apps/* and packages/* with no root package.json, and
 //     beside a workspace list that does not name them; a `**` glob walks no node_modules and no
 //     symlink loop; a lone application directory's workspace is named by its path from the app;
@@ -117,6 +119,8 @@ export async function run() {
     doc = census();
     const ps = (doc?.projects || []).map((p) => p.path);
     if (JSON.stringify(ps) !== JSON.stringify(['.', 'templates/alpha'])) fail(`a docs site and an examples tree are not projects; got ${JSON.stringify(ps)}`);
+    const aside = (doc?.projects_set_aside || []).map((x) => x.path);
+    if (JSON.stringify(aside) !== JSON.stringify(['examples', 'website'])) fail(`what installs on its own but is set aside is named, never dropped silently; got ${JSON.stringify(doc?.projects_set_aside)}`);
     const cr = doc && at(doc, 'architecture-page', 'templates/alpha/apps/web');
     if (!cr || !/its project templates\/alpha's .* so its project templates\/alpha covers it/.test(cr.observation)) fail(`a credit names the project that covers, not the root; got ${cr?.observation}`);
 
@@ -137,6 +141,28 @@ export async function run() {
     put('packages/lib/package.json', pkg('lib')); put('apps/web/package.json', pkg('web'));
     doc = census();
     for (const loc of ['apps/web', 'packages/lib']) if (!doc?.monorepo?.locations?.includes(loc)) fail(`${loc} is a location beside a workspace list naming packages/* alone; got ${JSON.stringify(doc?.monorepo)}`);
+
+    // ── the docs and examples skip is a root application's furniture only ──
+    tree();
+    entry('docs');   // a catalog entry that happens to be named docs/ is an entry
+    doc = census();
+    if (!(doc?.projects || []).some((p) => p.path === 'templates/docs')) fail(`a catalog entry named templates/docs is a project; got ${JSON.stringify((doc?.projects || []).map((p) => p.path))}`);
+    rmSync(tmp, { recursive: true, force: true });
+    put('site/package.json', pkg('site')); put('site/package-lock.json', '{}\n');
+    put('api/package.json', pkg('api')); put('api/package-lock.json', '{}\n');
+    doc = census();
+    const both = (doc?.projects || []).map((p) => p.path);
+    if (JSON.stringify(both) !== JSON.stringify(['.', 'api', 'site'])) fail(`with no root package.json, site/ may be the product: api and site are both projects; got ${JSON.stringify(both)}`);
+
+    // ── a workspace linked into apps/* is followed, as a package manager follows it ──
+    rmSync(tmp, { recursive: true, force: true });
+    put('package.json', pkg('linked', { workspaces: ['apps/*'] }));
+    put('shared/web/package.json', pkg('web'));
+    mkdirSync(join(tmp, 'apps'), { recursive: true });
+    let linked = true;
+    try { symlinkSync(join('..', 'shared', 'web'), join(tmp, 'apps/web')); } catch { linked = false; /* a host with no symlinks */ }
+    doc = census();
+    if (linked && !doc?.monorepo?.locations?.includes('apps/web')) fail(`a symlinked workspace (apps/web -> ../shared/web) is a location; got ${JSON.stringify(doc?.monorepo)}`);
 
     // ── a ** glob walks no node_modules and no symlink loop ──
     rmSync(tmp, { recursive: true, force: true });

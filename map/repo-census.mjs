@@ -1118,11 +1118,11 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   const declaredApps = Array.isArray(pointers.apps) ? [...pointers.apps] : (typeof pointers.apps === 'string' ? [pointers.apps] : null);
   if (pointers.apps !== undefined) note('apps');
   // each location with the parent whose passing document can cover it, and the paths it goes by there
-  let locs, projects = null;
+  let locs, projects = null, setAside = /** @type {Array<{ path: string, reason: string }>} */ ([]);
   if (declaredApps) {
     locs = [{ path: '.', parent: null, project: true, names: [] }, ...declaredApps.map((a) => ({ path: a, parent: '.', project: false, names: [a] }))];
   } else {
-    projects = locateProjects(dir).projects;
+    ({ projects, setAside } = locateProjects(dir));
     locs = [];
     for (const pr of projects) {
       if (pr.path === '.') locs.push({ path: '.', parent: null, project: true, names: [] });
@@ -1200,6 +1200,8 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   };
   // the projects the tree holds beside its root (map/projects.mjs, #246), each with its workspaces from the root
   if (projects && projects.length > 1) doc.projects = projects.map((pr) => ({ path: pr.path, from: pr.from, locations: pr.locations.map((w) => workspacePath(pr, w)) }));
+  // what installs on its own but is not read as a project, and why (never a silent drop)
+  if (setAside.length) doc.projects_set_aside = setAside;
   if (packetDoc) doc.packet = { path: packetFile, auto: packetAuto, pointers_used: [...pointersUsed].sort() };
   return doc;
 }

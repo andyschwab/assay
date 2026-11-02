@@ -12,11 +12,13 @@
 //     bun.lockb), a pnpm-workspace.yaml, or a `workspaces` field. A catalog keeps several such
 //     projects side by side (templates/<name>/), each its own pnpm workspace; a repository with no
 //     package.json at its root and two or more applications beneath it is the same shape. The walk
-//     goes NESTED_MAX_DEPTH directories deep, never into node_modules, a dot-directory, a fixture
-//     or test tree (a test's planted project is the test's input, not the tree's project), or a
-//     documentation site or examples tree (docs/, website/, site/, examples/, example/, samples/:
-//     a site or a sample that installs on its own is not an application the tree ships)
-//     (PROJECT_SKIP; a packet's `apps` pointer declares what discovery leaves out), never into another repository (a submodule named in .gitmodules, or any directory
+//     goes NESTED_MAX_DEPTH directories deep, never into node_modules, a dot-directory, or a fixture
+//     or test tree (a test's planted project is the test's input, not the tree's project), and,
+//     beside a root that is itself an application, not into a docs site or examples tree directly
+//     under it (docs/, website/, site/, examples/, example/, samples/: that application's
+//     furniture). Each such directory holding what would have been a project is named in
+//     `setAside`; a
+//     packet's `apps` pointer declares what discovery leaves out, never into another repository (a submodule named in .gitmodules, or any directory
 //     carrying its own .git: a tree of its own, measured on its own), and never below a project it
 //     found (that project's workspaces are its own).
 //   - each project's WORKSPACES, resolved in its run directory: pnpm-workspace.yaml's `packages:`
@@ -34,12 +36,18 @@ const readPkg = (dir) => { const t = readText(join(dir, 'package.json')); if (t 
 const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return false; } };
 // the real subdirectories of p (never a symlink, so no walk loops), [] when it cannot be read
 const subdirs = (p) => { try { return readdirSync(p, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort(); } catch { return []; } };
+// the subdirectories of p a package manager follows: real ones and symlinks to a directory (a package
+// linked into apps/* is a workspace); only a single step is taken through a link, so no loop
+const linkedSubdirs = (p) => { try { return readdirSync(p, { withFileTypes: true }).filter((e) => e.isDirectory() || (e.isSymbolicLink() && isDir(join(p, e.name)))).map((e) => e.name).sort(); } catch { return []; } };
 // a glob walks no dependency tree and no hidden directory: pnpm and npm skip both
 const GLOB_SKIP = (name) => name === 'node_modules' || name.startsWith('.');
 
 const LOCKFILES = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb'];
-const PROJECT_SKIP = new Set(['node_modules', 'fixtures', '__fixtures__', 'testdata', 'test', 'tests', '__tests__',
-  'docs', 'website', 'site', 'examples', 'example', 'samples']);
+const PROJECT_SKIP = new Set(['node_modules', 'fixtures', '__fixtures__', 'testdata', 'test', 'tests', '__tests__']);
+// beside a root that is itself an application (it holds a package.json), a docs site or an examples
+// tree directly under it is that application's furniture, not a second application; anywhere else
+// (a catalog entry named docs/, a root with no package.json whose site/ is the product) it is a project
+const BESIDE_ROOT_SKIP = new Set(['docs', 'website', 'site', 'examples', 'example', 'samples']);
 const NESTED_MAX_DEPTH = 4;
 const SKIP_DIRS = new Set(['node_modules', '.git']);
 
@@ -63,14 +71,14 @@ function expandWorkspaceGlob(rootDir, pattern) {
     const curAbs = join(rootDir, ...relParts);
     if (seg === '**') {
       walk(relParts, segIdx + 1);                 // ** may consume zero levels
-      for (const entry of subdirs(curAbs)) {
+      for (const entry of subdirs(curAbs)) {   // real directories only: a link under ** could loop
         if (!GLOB_SKIP(entry)) walk([...relParts, entry], segIdx); // stay on ** for deeper levels
       }
       return;
     }
     if (seg.includes('*')) {
       const re = new RegExp('^' + seg.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
-      for (const entry of subdirs(curAbs)) {
+      for (const entry of linkedSubdirs(curAbs)) {
         if (!GLOB_SKIP(entry) && re.test(entry)) walk([...relParts, entry], segIdx + 1);
       }
       return;
@@ -164,6 +172,12 @@ function installsOnItsOwn(abs) {
   return !!(pkg && pkg.workspaces && (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces.packages)));
 }
 
+// whether abs, or a directory below it within `depth` levels, installs on its own
+function holdsProject(abs, depth) {
+  if (installsOnItsOwn(abs)) return true;
+  if (depth <= 0) return false;
+  return subdirs(abs).some((n) => !n.startsWith('.') && n !== 'node_modules' && holdsProject(join(abs, n), depth - 1));
+}
 // the nested projects below the root, breadth-first and sorted; `claimed` holds the paths the root
 // project already owns (its run directory when that is not the root, and its workspaces), which are
 // neither projects nor walked into
@@ -173,16 +187,22 @@ function submodulePaths(dir) {
   if (text === null) return [];
   return [...text.matchAll(/^\s*path\s*=\s*(.+?)\s*$/gm)].map((m) => m[1].replace(/^\.\//, '').replace(/\/+$/, ''));
 }
-function findNested(dir, claimed) {
+function findNested(dir, claimed, setAside) {
   const found = [];
   const others = new Set(submodulePaths(dir));
+  const rootIsApp = existsSync(join(dir, 'package.json'));
   let level = [''];
   for (let depth = 1; depth <= NESTED_MAX_DEPTH && level.length; depth++) {
     const next = [];
     for (const rel of level) {
       for (const name of subdirs(join(dir, rel))) {
-        if (name.startsWith('.') || PROJECT_SKIP.has(name)) continue;
         const child = rel ? `${rel}/${name}` : name;
+        if (name.startsWith('.')) continue;
+        if (PROJECT_SKIP.has(name)) continue;   // a test's input, never the tree's project
+        if (depth === 1 && rootIsApp && BESIDE_ROOT_SKIP.has(name)) {
+          if (holdsProject(join(dir, child), NESTED_MAX_DEPTH - depth)) setAside.push({ path: child, reason: 'a docs site or examples tree beside the root application' });
+          continue;
+        }
         if (claimed.has(child) || others.has(child) || existsSync(join(dir, child, '.git'))) continue;
         if (installsOnItsOwn(join(dir, child))) { found.push(child); continue; }
         next.push(child);
@@ -197,11 +217,12 @@ function findNested(dir, claimed) {
  * Where the tree's projects are.
  * @param {string} dir the tree's root
  * @param {{ app?: string | null }} [opts] app: a declared application directory for the root project (`--app`)
- * @returns {{ projects: Array<{ path: string, run: string, from: string, workspaces: string[], workspaces_from: string | null, locations: string[] }> }}
+ * @returns {{ projects: Array<{ path: string, run: string, from: string, workspaces: string[], workspaces_from: string | null, locations: string[] }>, setAside: Array<{ path: string, reason: string }> }}
  *   `path` is the project's directory ('.' for the root), `run` the directory its steps run in (the
  *   root's application directory, else `path`), `workspaces` each workspace relative to `run` (what
  *   an install covers), `locations` those and every apps/* or packages/* directory holding a
- *   package.json beside them (what a document must account for), relative to `run` too.
+ *   package.json beside them (what a document must account for), relative to `run` too. `setAside`
+ *   names each directory that installs on its own but is not read as a project, and why.
  */
 export function locateProjects(dir, { app = null } = {}) {
   const root = resolve(dir);
@@ -214,15 +235,16 @@ export function locateProjects(dir, { app = null } = {}) {
     const workspaces = resolveWorkspaces(abs, pkg);
     // apps/* and packages/* holding a package.json are the tree's applications and libraries
     // whether or not a workspace list names them (the census has always checked them)
-    const conventional = ['apps', 'packages'].flatMap((b) => subdirs(join(abs, b)).filter((e) => !GLOB_SKIP(e) && existsSync(join(abs, b, e, 'package.json'))).map((e) => `${b}/${e}`));
+    const conventional = ['apps', 'packages'].flatMap((b) => linkedSubdirs(join(abs, b)).filter((e) => !GLOB_SKIP(e) && existsSync(join(abs, b, e, 'package.json'))).map((e) => `${b}/${e}`));
     return { workspaces, workspaces_from: workspaces.length ? workspaceSource(abs, pkg) : null, locations: [...new Set([...workspaces, ...conventional])].sort() };
   };
   const rootProject = { path: '.', run: rootRun, from: appDir ? appDir.from : 'root', ...wsOf(rootRun) };
   const claimed = new Set();
   if (rootRun !== '.') claimed.add(rootRun);
   for (const w of rootProject.locations) claimed.add(rootRun === '.' ? w : `${rootRun}/${w}`);
-  const nested = findNested(root, claimed).map((p) => ({ path: p, run: p, from: 'nested', ...wsOf(p) }));
-  return { projects: [rootProject, ...nested] };
+  const setAside = [];
+  const nested = findNested(root, claimed, setAside).map((p) => ({ path: p, run: p, from: 'nested', ...wsOf(p) }));
+  return { projects: [rootProject, ...nested], setAside };
 }
 
 /** A workspace's path from the root: its project's run directory joined with its own path. */

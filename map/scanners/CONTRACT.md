@@ -430,11 +430,13 @@ tree checks:
   enough. It runs at every **location** `map/projects.mjs` finds (#246), one check
   per location: the root; each **nested project** (a directory below the root with
   its own package.json and its own lockfile or workspace file, outside fixture and
-  test trees, documentation sites and examples (`docs/`, `website/`, `site/`,
-  `examples/`, `example/`, `samples/`), submodules and nested repositories); and each
+  test trees, submodules and nested repositories, and, beside a root that holds a
+  package.json, a docs site or examples tree directly under it (`docs/`, `website/`,
+  `site/`, `examples/`, `example/`, `samples/`), each named in the report's
+  `projects_set_aside` with why); and each
   project's **workspaces** (pnpm-workspace.yaml, package.json `workspaces`, else
-  `apps/*` and `packages/*`) together with every `apps/*` and `packages/*` directory
-  holding a package.json. A packet's `apps` pointer replaces discovery. When the
+  `apps/*` and `packages/*`; a symlinked workspace is followed) together with every
+  `apps/*` and `packages/*` directory holding a package.json. A packet's `apps` pointer replaces discovery. When the
   tree holds more than the root, the report carries `projects` (each with its
   `path`, `from` and `locations`). A location with no page of its own is **covered by its parent**
   (`pass`, citing the parent's line) when the parent's page passes and names it: a
