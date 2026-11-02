@@ -121,7 +121,7 @@ export function workspaceGlobRe(pattern) {
 }
 
 // where the workspace list came from — recorded so a reader can check it
-export function workspaceSource(dir, pkg) {
+function workspaceSource(dir, pkg) {
   const pw = readPnpmWorkspace(dir);
   if (pw && pw.include.length) return 'pnpm-workspace.yaml';
   if (pkg && pkg.workspaces && (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces.packages))) return 'package.json';
@@ -150,7 +150,7 @@ export function resolveWorkspaces(dir, pkg) {
 
 // ── the application directory (#35): the root project's run directory, or --app ──
 // null when the root carries its own package.json (or nothing qualifies): the root runs.
-export function resolveApp(dir, declared = null) {
+function resolveApp(dir, declared = null) {
   if (declared !== null) {
     const abs = resolve(dir, declared);
     const rel = relative(dir, abs).split(sep).join('/');
