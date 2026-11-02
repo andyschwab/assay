@@ -15,17 +15,19 @@
 //     docs/architecture/*.md (case-insensitive), or a README "Architecture" section.
 //     `pass` only when it also NAMES an external service or data store (a heading or
 //     line mentioning database/queue/API/service/store/bucket/provider, or a
-//     mermaid/diagram block) — presence alone is not enough. In a monorepo (package.json
-//     workspaces, or apps/*/package.json, or packages/*/package.json) this runs at the
-//     root AND at every app, one check per location; a location with no page of its
-//     own passes when the root's passing page names it (path or scoped package name).
-//   - agent-contract: AGENTS.md or CLAUDE.md (root and per app, same monorepo rule).
+//     mermaid/diagram block) — presence alone is not enough. It runs at every location
+//     map/projects.mjs finds (#246): the root, each nested project, and each project's
+//     workspaces, one check per location; a location with no page of its own passes when
+//     its parent's passing page names it (path or scoped package name), and a root with
+//     none passes when every nested project carries its own (map/scanners/CONTRACT.md §3d).
+//   - agent-contract: AGENTS.md or CLAUDE.md (every location, the same rule).
 //     `pass` only when it is present-TENSE: no heading matching
 //     /^#+\s*(status|history|changelog|todo|backlog)\b/i and no dated changelog line
 //     (a line starting with a date like 2026-09-01, or a `- 2026-…` bullet).
 //   - runbook: RUNBOOK.md or RUNBOOKS.md at the root or in docs/, docs/runbook*.md, a
 //     runbook(s)/ or docs/runbook(s)/ directory (every .md in it, read together), or a
-//     README/doc section headed "Runbook" or "Operations". `pass` only when it carries a heading or
+//     README/doc section headed "Runbook" or "Operations"; at the root and at each nested
+//     project, never a workspace, with the same parent and project cover. `pass` only when it carries a heading or
 //     paragraph for EACH of restart, roll back, rotate (a key/secret/credential), and
 //     restore (a backup). Presence of the words is what this decides — whether a
 //     procedure was ever actually run is a separate, sidecar claim, said in the
@@ -98,8 +100,9 @@ import { join, resolve, isAbsolute, relative, sep } from 'node:path';
 import { isMain } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadPacket, validatePacket, requirementIdsOnDisk } from '../yardstick/packet.mjs';
+import { locateProjects, workspacePath } from './projects.mjs';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 export const EVIDENCE_IDS = [
   'd-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command',
   'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts',
@@ -148,38 +151,6 @@ function findMdSection(text, wordRe) {
   return { startLine: start + 1, endLine: end, text: lines.slice(start, end).join('\n') };
 }
 
-// ── monorepo detection: package.json workspaces, or apps/* / packages/* ─────
-// A simple, documented, non-general glob resolver: it understands an exact
-// directory or a trailing `/*` (the two shapes real workspace fields use), nothing
-// deeper — this is a census signal, not a build-tool glob engine.
-function resolveWorkspaceGlob(dir, pattern) {
-  const p = String(pattern).replace(/\/$/, '');
-  if (p.endsWith('/*')) {
-    const base = p.slice(0, -2);
-    const baseDir = join(dir, base);
-    return safeReaddir(baseDir)
-      .filter((e) => statOk(join(baseDir, e), (s) => s.isDirectory()) && existsSync(join(baseDir, e, 'package.json')))
-      .map((e) => `${base}/${e}`)
-      .sort();
-  }
-  return existsSync(join(dir, p, 'package.json')) ? [p] : [];
-}
-function detectMonorepo(dir) {
-  const locations = new Set();
-  const pkg = (() => { try { return JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')); } catch { return null; } })();
-  const workspaces = pkg && pkg.workspaces
-    ? (Array.isArray(pkg.workspaces) ? pkg.workspaces : (Array.isArray(pkg.workspaces.packages) ? pkg.workspaces.packages : null))
-    : null;
-  if (workspaces) for (const g of workspaces) for (const loc of resolveWorkspaceGlob(dir, g)) locations.add(loc);
-  for (const base of ['apps', 'packages']) {
-    const baseDir = join(dir, base);
-    for (const e of safeReaddir(baseDir)) {
-      if (statOk(join(baseDir, e), (s) => s.isDirectory()) && existsSync(join(baseDir, e, 'package.json'))) locations.add(`${base}/${e}`);
-    }
-  }
-  return { detected: locations.size > 0, locations: [...locations].sort() };
-}
-
 // ── the packet's pointers (owner/PACKET.md "Pointers") ───────────────────────
 // Resolution: an explicit --packet flag names a manifest.yaml or a packet dir;
 // with no flag, <target>/packet/manifest.yaml is picked up automatically when
@@ -218,31 +189,47 @@ function pointerForLocation(value, locations, loc) {
 const pointerNote = (used) => (used ? " (per the packet's pointer)" : '');
 
 // ── root credit (issue #27) ──────────────────────────────────────────────────
-// A workspace with no page of its own is covered when the root's document, which
-// itself passes, names it: by its path (`apps/api`) or by its scoped package name
+// A location with no page of its own is covered when its parent's document, which
+// itself passes, names it: by its path from the root (`apps/api`), by its path from the
+// parent's project (`apps/api` inside `templates/x`, #246), or by its scoped package name
 // (`@org/ui`). A bare package name is never matched — `lib` or `web` is a word in
-// ordinary prose. When the root's page is a README section (`sectionRe`, and no
+// ordinary prose. When the parent's page is a README section (`sectionRe`, and no
 // packet pointer named the file), only that section is the page. Returns the
-// first line that names it, or null.
-function rootMention(dir, rootCheck, loc, sectionRe = null) {
+// first line that names it, or null. `names` are the paths the location goes by
+// (from the root first); the parent is the root unless the location sits in a nested project.
+function rootMention(dir, rootCheck, loc, sectionRe = null, names = [loc], parentBase = '.') {
   if (!rootCheck || rootCheck.status !== 'pass') return null;
   const file = String(rootCheck.evidence?.[0] || '').replace(/:\d+$/, '');
   let text = file && safeRead(join(dir, file));
   if (!text) return null;
   let offset = 0;
-  if (sectionRe && !rootCheck.detail?.pointer && file === findReadme(dir)) {
+  const parentReadme = (() => { const r = findReadme(parentBase === '.' ? dir : join(dir, parentBase)); return r && (parentBase === '.' ? r : `${parentBase}/${r}`); })();
+  if (sectionRe && !rootCheck.detail?.pointer && file === parentReadme) {
     const sec = findMdSection(text, sectionRe);
     if (!sec) return null;
     text = sec.text; offset = sec.startLine - 1;
   }
   const pkgName = (() => { try { return JSON.parse(readFileSync(join(dir, loc, 'package.json'), 'utf8')).name; } catch { return null; } })();
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const tokens = [loc, ...(typeof pkgName === 'string' && /^@[^/\s]+\/[^/\s]+$/.test(pkgName) ? [pkgName] : [])];
+  const tokens = [...new Set(names), ...(typeof pkgName === 'string' && /^@[^/\s]+\/[^/\s]+$/.test(pkgName) ? [pkgName] : [])];
   const re = new RegExp(`(?:^|[^\\w@./-])(?:\\./)?(?:${tokens.map(esc).join('|')})(?![\\w-]|\\.\\w)`);
   const lines = text.split('\n');
   const i = lines.findIndex((l) => re.test(l));
   return i === -1 ? null : { file, line: offset + i + 1 };
 }
+// a check that found no document at all (as against one that found a document that falls
+// short): only such a root can be covered by its projects (delegatedPass)
+const ABSENT = new WeakSet();
+const absent = (c) => { ABSENT.add(c); return c; };
+// ── a root covered by its projects (#246) ───────────────────────────────────
+// A root that holds no document of its own, over a tree whose nested projects each carry
+// one that passes on its own (never by credit), is a catalog: the root delegates to its
+// projects, and each project's document is the evidence.
+const delegatedPass = (name, what, projectChecks) => ({
+  name, status: 'pass', detail: { path: '.', delegatedTo: projectChecks.map((c) => c.detail.path) },
+  evidence: projectChecks.map((c) => c.evidence[0]),
+  observation: `The root has no ${what} of its own; each of its nested projects carries one that passes (${projectChecks.map((c) => String(c.evidence[0]).replace(/:\d+$/, '')).join(', ')}), so the root delegates to its projects.`,
+});
 const creditedPass = (name, detail, loc, what, credit) => ({
   name, status: 'pass', detail: { ...detail, coveredBy: credit.file },
   evidence: [`${credit.file}:${credit.line}`],
@@ -301,11 +288,11 @@ function checkArchitecturePage(dir, loc, pointerPath, credit = null) {
 
   if (!content) {
     if (credit) return creditedPass(name, detail, loc, 'architecture page', credit);
-    return {
+    return absent({
       name, status: 'gap', detail,
       evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
       observation: `No architecture page found${loc !== '.' ? ` for ${loc}` : ''} (checked ARCHITECTURE.md, docs/ARCHITECTURE.md, docs/architecture.md, docs/architecture/*.md, and a README "Architecture" section) — nothing shows the parts, the data flow, and the external services.`,
-    };
+    });
   }
   const namesExternal = EXTERNAL_RE.test(content) || DIAGRAM_RE.test(content);
   const evidence = [`${filePath}:${lineOffset}`];
@@ -345,11 +332,11 @@ function checkAgentContract(dir, loc, pointerPath, credit = null) {
     if (!file) file = ciFindFile(base, ['CLAUDE.md']);
     if (!file) {
       if (credit) return creditedPass(name, detail, loc, 'agent contract', credit);
-      return {
+      return absent({
         name, status: 'gap', detail,
         evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
         observation: `No AGENTS.md or CLAUDE.md found${loc !== '.' ? ` for ${loc}` : ''}.`,
-      };
+      });
     }
     filePath = relPath(file);
     text = safeRead(join(base, file)) || '';
@@ -393,10 +380,13 @@ function hasProcedure(text, verbRe, nounRe) {
   }
   return false;
 }
-function checkRunbook(dir, pointerPath) {
+function checkRunbook(root, pointerPath, loc = '.', credit = null) {
   const name = 'runbook';
-  const detail = { path: '.' };
+  const detail = { path: loc };
+  const dir = loc === '.' ? root : join(root, loc);
+  const relPath = (p) => (loc === '.' ? p : `${loc}/${p}`);
   if (pointerPath) {
+    const dir = root;
     detail.pointer = 'runbook';
     const full = join(dir, pointerPath);
     if (!existsSync(full)) {
@@ -410,7 +400,7 @@ function checkRunbook(dir, pointerPath) {
     }
     return { name, status: 'pass', detail, evidence, observation: `${pointerPath}${pointerNote(true)} carries a heading or paragraph for restart, roll back, rotate, and restore. Presence of the words is what this decides; whether a procedure was ever actually run is a separate, sidecar claim.` };
   }
-  let filePath = null, content = null, lineOffset = 1, evidence = null;
+  let filePath = null, content = null, lineOffset = 1, evidence = /** @type {string[] | null} */ (null);
   // a runbook(s)/ directory under `base` ('' or 'docs/'): every .md in it, read together,
   // named as the directory and cited file by file
   const readRunbookDir = (base) => {
@@ -444,14 +434,16 @@ function checkRunbook(dir, pointerPath) {
   }
 
   if (!content) {
-    return {
+    if (credit) return creditedPass(name, detail, loc, 'runbook', credit);
+    return absent({
       name, status: 'gap', detail,
-      evidence: ['./:1'],
-      observation: 'No runbook found (checked RUNBOOK.md and RUNBOOKS.md at the root and in docs/, docs/runbook*.md, a runbook(s)/ or docs/runbook(s)/ directory, and a README/doc "Runbook" or "Operations" section). Presence of the words is what this decides; whether a procedure was ever run is a separate, sidecar claim.',
-    };
+      evidence: [`${relPath('') || './'}:1`],   // the root cites ./ (never an empty path)
+      observation: `No runbook found${loc !== '.' ? ` for ${loc}` : ''} (checked RUNBOOK.md and RUNBOOKS.md at the root and in docs/, docs/runbook*.md, a runbook(s)/ or docs/runbook(s)/ directory, and a README/doc "Runbook" or "Operations" section). Presence of the words is what this decides; whether a procedure was ever run is a separate, sidecar claim.`,
+    });
   }
   const missing = PROCEDURES.filter(([, verbRe, nounRe]) => !hasProcedure(content, verbRe, nounRe)).map(([label]) => label);
-  evidence = evidence || [`${filePath}:${lineOffset}`];
+  filePath = relPath(filePath);
+  evidence = evidence ? evidence.map(relPath) : [`${filePath}:${lineOffset}`];
   if (missing.length) {
     return {
       name, status: 'gap', detail, evidence,
@@ -1119,32 +1111,62 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   const pointersUsed = new Set();
   const note = (key) => pointersUsed.add(key);
 
-  const mono = Array.isArray(pointers.apps)
-    ? { detected: true, locations: [...pointers.apps] }
-    : (typeof pointers.apps === 'string' ? { detected: true, locations: [pointers.apps] } : detectMonorepo(dir));
+  // where the tree's projects are (map/projects.mjs, #246), unless the packet's `apps` declares them
+  const declaredApps = Array.isArray(pointers.apps) ? [...pointers.apps] : (typeof pointers.apps === 'string' ? [pointers.apps] : null);
   if (pointers.apps !== undefined) note('apps');
-  const locations = mono.detected ? ['.', ...mono.locations] : ['.'];
+  // each location with the parent whose passing document can cover it, and the paths it goes by there
+  let locs, projects = null;
+  if (declaredApps) {
+    locs = [{ path: '.', parent: null, project: true, names: [] }, ...declaredApps.map((a) => ({ path: a, parent: '.', project: false, names: [a] }))];
+  } else {
+    projects = locateProjects(dir).projects;
+    locs = [];
+    for (const pr of projects) {
+      if (pr.path === '.') locs.push({ path: '.', parent: null, project: true, names: [] });
+      else locs.push({ path: pr.path, parent: '.', project: true, names: [pr.path] });
+      for (const w of pr.workspaces) {
+        const full = workspacePath(pr, w);
+        locs.push({ path: full, parent: pr.path, project: false, names: [full, ...(pr.path === '.' ? [] : [w])] });
+      }
+    }
+  }
+  const mono = { detected: locs.length > 1, locations: locs.filter((l) => l.path !== '.').map((l) => l.path) };
+  const nestedLocs = locs.filter((l) => l.project && l.path !== '.');
 
   const checks = [];
-  // the root ('.') is checked first; a workspace with no file of its own is
-  // credited to the root's passing document when that document names it
-  let rootArch = null, rootAgent = null;
-  for (const loc of locations) {
-    const p = pointerForLocation(pointers.architecture, locations, loc);
+  // the root is checked first, then each nested project, then the workspaces: a location with
+  // no file of its own is credited to its parent's passing document when that document names it;
+  // a root with no document of its own is covered by its nested projects when each carries one
+  // that passes on its own (delegatedPass)
+  const perLocation = (name, what, sectionRe, check, which) => {
+    const byPath = new Map();
+    const out = [];
+    for (const l of locs.filter(which)) {
+      const parent = l.parent === null ? null : byPath.get(l.parent);
+      const c = check(l, parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent) : null);
+      byPath.set(l.path, c);
+      out.push(c);
+    }
+    const root = byPath.get('.');
+    const own = nestedLocs.map((l) => byPath.get(l.path)).filter(Boolean);
+    if (root && ABSENT.has(root) && own.length && own.length === nestedLocs.length && own.every((c) => c.status === 'pass' && !c.detail?.coveredBy)) {
+      out[out.indexOf(root)] = delegatedPass(name, what, own);
+    }
+    return out;
+  };
+  checks.push(...perLocation('architecture-page', 'architecture page', /^architecture\b/i, (l, credit) => {
+    const p = pointerForLocation(pointers.architecture, locs.map((x) => x.path), l.path);
     if (p) note('architecture');
-    const c = checkArchitecturePage(dir, loc, p, loc === '.' ? null : rootMention(dir, rootArch, loc, /^architecture\b/i));
-    if (loc === '.') rootArch = c;
-    checks.push(c);
-  }
-  for (const loc of locations) {
-    const p = pointerForLocation(pointers.agent_contract, locations, loc);
+    return checkArchitecturePage(dir, l.path, p, credit);
+  }, () => true));
+  checks.push(...perLocation('agent-contract', 'agent contract', null, (l, credit) => {
+    const p = pointerForLocation(pointers.agent_contract, locs.map((x) => x.path), l.path);
     if (p) note('agent_contract');
-    const c = checkAgentContract(dir, loc, p, loc === '.' ? null : rootMention(dir, rootAgent, loc));
-    if (loc === '.') rootAgent = c;
-    checks.push(c);
-  }
+    return checkAgentContract(dir, l.path, p, credit);
+  }, () => true));
+  // the runbook belongs to a project (the root and each nested one), never to a workspace
   if (pointers.runbook) note('runbook');
-  checks.push(checkRunbook(dir, pointers.runbook || null));
+  checks.push(...perLocation('runbook', 'runbook', /^(runbook|operations)\b/i, (l, credit) => checkRunbook(dir, l.path === '.' ? (pointers.runbook || null) : null, l.path, credit), (l) => l.project));
   if (pointers.default_branch) note('default_branch');
   if (pointers.workflows) note('workflows');
   checks.push(checkCiGate(dir, defaultBranch, pointers.default_branch || null, pointers.workflows || null));
@@ -1166,6 +1188,8 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
     deployment,
     checks, exit,
   };
+  // the projects the tree holds beside its root (map/projects.mjs, #246), each with its workspaces from the root
+  if (projects && projects.length > 1) doc.projects = projects.map((pr) => ({ path: pr.path, from: pr.from, workspaces: pr.workspaces.map((w) => workspacePath(pr, w)) }));
   if (packetDoc) doc.packet = { path: packetFile, auto: packetAuto, pointers_used: [...pointersUsed].sort() };
   return doc;
 }

@@ -427,15 +427,22 @@ tree checks:
   "Architecture" section. `pass` only when it also **names** an external service or
   data store (a heading or line mentioning database / queue / API / service / store
   / bucket / provider, or a mermaid / diagram block) — presence alone is not
-  enough. In a **monorepo** (package.json `workspaces`, or `apps/*/package.json`,
-  or `packages/*/package.json`) it runs at the root **and** at every app, one check
-  per location. A location with no page of its own is **covered by the root**
-  (`pass`, citing the root's line) when the root's page passes and names it, by
-  its path (`apps/api`) or its scoped package name (`@org/ui`); a bare package
-  name is never matched, and a root README counts only its Architecture section.
+  enough. It runs at every **location** `map/projects.mjs` finds (#246), one check
+  per location: the root; each **nested project** (a directory below the root with
+  its own package.json and its own lockfile or workspace file, outside fixture and
+  test trees, submodules and nested repositories); and each project's
+  **workspaces** (pnpm-workspace.yaml, package.json `workspaces`, else `apps/*` and
+  `packages/*`). A location with no page of its own is **covered by its parent**
+  (`pass`, citing the parent's line) when the parent's page passes and names it: a
+  workspace's parent is its project, a nested project's is the root. It is named
+  by its path from the root, by its path from its project (`apps/api` inside
+  `templates/x`), or by its scoped package name (`@org/ui`); a bare package name is
+  never matched, and a README counts only its Architecture section. A root with no
+  page of its own is **covered by its projects** (`pass`, `delegatedTo`, citing each
+  project's page) when every nested project carries a page that passes on its own.
   A location that has its own page is checked on that page.
-- **agent-contract** — AGENTS.md or CLAUDE.md (root and per app, same monorepo
-  rule, root cover included: a passing root contract that names the location). `pass` only when it is **present-tense**: no heading matching
+- **agent-contract** — AGENTS.md or CLAUDE.md (every location, the same rule,
+  parent cover included: a passing parent contract that names the location). `pass` only when it is **present-tense**: no heading matching
   `/^#+\s*(status|history|changelog|todo|backlog)\b/i` and no dated changelog line
   (a line starting with a date like `2026-09-01`, or a `- 2026-…` bullet).
 - **runbook** — RUNBOOK.md or RUNBOOKS.md at the root or in docs/, docs/runbook*.md,
@@ -444,7 +451,9 @@ tree checks:
   or paragraph for **each** of restart, roll back, rotate (a key/secret/credential),
   and restore (a backup). Presence of the words is what this decides — whether a
   procedure was ever actually **run** is a separate claim, one only the owner's
-  evidence can make, said in the observation every time.
+  evidence can make, said in the observation every time. A runbook belongs to a
+  **project**: it is checked at the root and at each nested project, never at a
+  workspace, with the same parent cover and the same root cover by its projects.
 - **ci-gate** — every `.github/workflows/*.yml|.yaml`, read with a minimal
   line-based reader (zero deps, no YAML library; handles the common shapes: `on:
   [push, pull_request]`, block-form `on: / push: / branches: [main]`,

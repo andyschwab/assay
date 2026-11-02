@@ -71,7 +71,7 @@ import { join, resolve, isAbsolute, dirname, relative, basename } from 'node:pat
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
-import { readPnpmWorkspace, workspaceGlobRe } from './fresh-clone.mjs';
+import { readPnpmWorkspace, workspaceGlobRe } from './projects.mjs';
 
 export const VERSION = '0.3.0';   // 0.3.0: the walk keeps to the repository's own files (`scope`, #100); 0.2.0: pnpm + yarn classic audited
 export const LOCK_STATUS = ['audited', 'failed', 'not-run'];

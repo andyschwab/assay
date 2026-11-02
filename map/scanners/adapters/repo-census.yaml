@@ -1,8 +1,8 @@
 # Adapter: repo-census (INSTRUMENT — the deterministic repo census) -> the axis
 # roster (map/scanners/CONTRACT.md, instrument role, §3d). map/repo-census.mjs
 # checks, read-only against the tree: an architecture page that names an external
-# service or data store (root and per app in a monorepo), a present-tense agent
-# contract (AGENTS.md/CLAUDE.md, same monorepo rule), a runbook covering restart /
+# service or data store (at the root and every location map/projects.mjs finds), a
+# present-tense agent contract (AGENTS.md/CLAUDE.md, the same locations), a runbook covering restart /
 # roll back / rotate / restore, a CI workflow that gates on pull_request or push
 # to the default branch without a step that fails open, and six owner-evidence
 # transcript checks (format at

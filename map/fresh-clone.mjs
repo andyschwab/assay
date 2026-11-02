@@ -97,6 +97,7 @@ import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
 import { stripUserinfo } from './repo-census.mjs';
+import { resolveWorkspaces, workspaceSource, resolveApp } from './projects.mjs';
 
 export const VERSION = '0.5.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
@@ -175,122 +176,9 @@ export function detectToolchain(dir) {
   return { toolchain: tc, pkg };
 }
 
-// ── workspaces: resolve without a glob dependency ────────────────────
-// Supports the three shapes npm-workspaces manifests actually use: a plain path
-// ("tools/cli"), a single-star directory glob ("apps/*"), and a deep glob
-// ("packages/**" — any depth of subdirectory). A candidate is a workspace only
-// when it carries its own package.json; a pattern matching nothing is silently
-// empty, same as npm's own resolution.
-function expandWorkspaceGlob(rootDir, pattern) {
-  const segs = pattern.split('/').filter(Boolean);
-  const out = [];
-  const isDir = (p) => { try { return statSync(p).isDirectory(); } catch { return false; } };
-  const walk = (relParts, segIdx) => {
-    if (segIdx === segs.length) {
-      const rel = relParts.join('/');
-      if (rel && existsSync(join(rootDir, rel, 'package.json'))) out.push(rel);
-      return;
-    }
-    const seg = segs[segIdx];
-    if (seg === '..' || seg === '.') return;      // a workspace never leaves the tree (packet.mjs refuses `..` too)
-    const curAbs = join(rootDir, ...relParts);
-    if (seg === '**') {
-      walk(relParts, segIdx + 1);                 // ** may consume zero levels
-      if (!isDir(curAbs)) return;
-      for (const entry of readdirSync(curAbs)) {
-        if (isDir(join(curAbs, entry))) walk([...relParts, entry], segIdx); // stay on ** for deeper levels
-      }
-      return;
-    }
-    if (seg.includes('*')) {
-      if (!isDir(curAbs)) return;
-      const re = new RegExp('^' + seg.split('*').map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$');
-      for (const entry of readdirSync(curAbs)) {
-        if (re.test(entry) && isDir(join(curAbs, entry))) walk([...relParts, entry], segIdx + 1);
-      }
-      return;
-    }
-    if (isDir(join(curAbs, seg))) walk([...relParts, seg], segIdx + 1);
-  };
-  walk([], 0);
-  return out;
-}
-
-// pnpm-workspace.yaml's `packages:` list — a block list or an inline flow list of
-// strings, `!` marking an exclusion. That is the shape pnpm's own file takes; anything
-// else reads as no list, and the package.json / convention fallback applies.
-export function readPnpmWorkspace(dir) {
-  const text = readText(join(dir, 'pnpm-workspace.yaml'));
-  if (text === null) return null;
-  const lines = text.split('\n');
-  const at = lines.findIndex((l) => /^packages\s*:/.test(l));
-  const raw = [];
-  if (at > -1) {
-    const inline = lines[at].match(/^packages\s*:\s*\[(.*)\]\s*(?:#.*)?$/);
-    if (inline) raw.push(...inline[1].split(','));
-    else for (let j = at + 1; j < lines.length; j++) {
-      if (/^\s*(?:#.*)?$/.test(lines[j])) continue;
-      const m = lines[j].match(/^\s+-\s*(.+?)\s*(?:#.*)?$/);
-      if (!m) break;
-      raw.push(m[1]);
-    }
-  }
-  const items = raw.map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter((x) => x && x !== '.');
-  return { include: items.filter((x) => !x.startsWith('!')), exclude: items.filter((x) => x.startsWith('!')).map((x) => x.slice(1)) };
-}
-// a workspace glob as a whole-path matcher (`**` any depth, `*` one segment) — used for
-// pnpm's `!` exclusions, which name paths to drop rather than directories to walk
-export function workspaceGlobRe(pattern) {
-  const esc = String(pattern).replace(/^\.\//, '').replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-  const body = esc.replace(/\*\*\//g, '\u0000').replace(/\/\*\*/g, '\u0001').replace(/\*\*/g, '\u0002').replace(/\*/g, '[^/]*')
-    .replace(/\u0000/g, '(?:.*/)?').replace(/\u0001/g, '(?:/.*)?').replace(/\u0002/g, '.*');
-  return new RegExp(`^${body}$`);
-}
-
-// where the workspace list came from — recorded so a reader can check it
-function workspaceSource(dir, pkg) {
-  const pw = readPnpmWorkspace(dir);
-  if (pw && pw.include.length) return 'pnpm-workspace.yaml';
-  if (pkg && pkg.workspaces && (Array.isArray(pkg.workspaces) || Array.isArray(pkg.workspaces.packages))) return 'package.json';
-  return 'convention (apps/*, packages/*)';
-}
-
-export function resolveWorkspaces(dir, pkg) {
-  let patterns = [], exclude = [];
-  const pw = readPnpmWorkspace(dir);
-  if (pw && pw.include.length) { patterns = pw.include; exclude = pw.exclude.map(workspaceGlobRe); }
-  else if (pkg && pkg.workspaces) {
-    if (Array.isArray(pkg.workspaces)) patterns = pkg.workspaces;
-    else if (pkg.workspaces && typeof pkg.workspaces === 'object' && Array.isArray(pkg.workspaces.packages)) patterns = pkg.workspaces.packages;
-  }
-  if (!patterns.length) {
-    // no workspaces declared: treat apps/* and packages/* as workspaces when they exist
-    // (the shape most repos use without ever writing the field — the defect that motivated workspaces)
-    for (const base of ['apps', 'packages']) {
-      try { if (statSync(join(dir, base)).isDirectory()) patterns.push(`${base}/*`); } catch { /* not present */ }
-    }
-  }
-  const seen = new Set();
-  for (const pattern of patterns) for (const p of expandWorkspaceGlob(dir, String(pattern).replace(/^\.\//, ''))) if (!exclude.some((re) => re.test(p))) seen.add(p);
-  return [...seen].sort();
-}
-
-// ── the application directory (#35): structure-scan's knipRoot rule, or --app ──
-// null when the root carries its own package.json (or nothing qualifies): the root runs.
-const SKIP_DIRS = new Set(['node_modules', '.git']);
-function resolveApp(dir, declared = null) {
-  if (declared !== null) {
-    const abs = resolve(dir, declared);
-    const rel = relative(dir, abs).split(sep).join('/');
-    if (!rel || rel.startsWith('..') || isAbsolute(rel)) throw new Error(`--app ${declared}: not a directory inside the target`);
-    if (!existsSync(join(abs, 'package.json'))) throw new Error(`--app ${declared}: no package.json there`);
-    return { path: rel, from: '--app' };
-  }
-  if (existsSync(join(dir, 'package.json'))) return null;
-  let dirs = [];
-  try { dirs = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name) && existsSync(join(dir, e.name, 'package.json'))).map((e) => e.name); } catch { /* unreadable: none */ }
-  return dirs.length === 1 ? { path: dirs[0], from: 'lone-directory' } : null;
-}
+// ── workspaces and the application directory: map/projects.mjs, the one rule every
+// instrument reads for where a tree's projects are (#246); re-exported for this file's callers
+export { readPnpmWorkspace, workspaceGlobRe, resolveWorkspaces } from './projects.mjs';
 
 // ── step planning: what is declared, and the command that runs it ────────────
 const NOT_DECLARED = (reason) => ({ status: 'not-declared', command: null, reason });
