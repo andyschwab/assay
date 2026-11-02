@@ -4,7 +4,9 @@
 // package.json. Pinned, with a fake npm whose knip reports one unused export in its cwd's
 // src/util.js, or crashes in a project named `crashes`:
 //   - knip runs in the root and in each nested project; an item is named from the root
-//     (templates/alpha/src/util.js), and the record carries `roots`, one per project;
+//     (templates/alpha/src/util.js), and the record carries `roots`, one per project; a file a
+//     deeper project's knip read is that project's alone, never reported twice;
+//   - each project installs its dependencies into a scratch copy of its own;
 //   - a project knip failed in is named in `roots` with its reason, the run's exit is 1, and
 //     ingest records it as a fact (`unused-not-run@templates/beta`) beside the rows of the
 //     projects it ran in;
@@ -35,15 +37,19 @@ export async function run() {
   const savedPath = process.env.PATH;
   // a PATH with a fake npm: `install --prefix` drops a knip (and a jscpd that exits 3) into the prefix
   const bin = join(tmp, 'bin'); mkdirSync(bin, { recursive: true });
-  const knipBin = `import { readFileSync } from 'node:fs';
+  // the stand-in knip reports `unusedHelper` in every .js file under where it runs (node_modules aside)
+  const knipBin = `import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 const name = JSON.parse(readFileSync('package.json', 'utf8')).name;
 if (name === 'crashes') { process.stderr.write('ERROR: Error loading vitest.config.ts (SyntaxError: planted)\\n'); process.exit(2); }
-process.stdout.write(JSON.stringify({ issues: [{ file: 'src/util.js', exports: [{ name: 'unusedHelper', line: 3, col: 14 }] }] })); process.exit(1);
+const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => e.name === 'node_modules' ? [] : e.isDirectory() ? walk(join(d, e.name)) : e.name.endsWith('.js') ? [join(d, e.name)] : []);
+process.stdout.write(JSON.stringify({ issues: walk('.').sort().map((file) => ({ file, exports: [{ name: 'unusedHelper', line: 3, col: 14 }] })) })); process.exit(1);
 `;
   writeFileSync(join(bin, 'npm'), `#!${process.execPath}
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 const args = process.argv.slice(2);
+if (args[0] === 'ci') { mkdirSync('node_modules', { recursive: true }); process.exit(0); }
 if (args[0] !== 'install') process.exit(1);
 const prefix = args[args.indexOf('--prefix') + 1];
 for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
@@ -68,8 +74,10 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
     const roots = (k.roots || []).map((r) => `${r.root}:${r.status}`);
     if (JSON.stringify(roots) !== JSON.stringify(['.:ran', 'templates/alpha:ran', 'templates/beta:failed'])) fail(`knip runs in the root and each nested project, each recorded in roots; got ${JSON.stringify(k.roots)}`);
     if (k.status !== 'ran') fail(`knip ran in a project, so its record reads ran (got ${k.status} ${k.reason || ''})`);
-    const files = doc.unused.map((u) => `${u.file}:${u.name}`).sort();
-    if (JSON.stringify(files) !== JSON.stringify(['src/util.js:unusedHelper', 'templates/alpha/src/util.js:unusedHelper'])) fail(`each project's items are named from the root; got ${JSON.stringify(files)}`);
+    // the root's knip reaches into both entries: alpha's file is alpha's alone (knip ran there),
+    // beta's stays the root's (knip failed in beta)
+    const files = doc.unused.map((u) => u.file).sort();
+    if (JSON.stringify(files) !== JSON.stringify(['src/util.js', 'templates/alpha/src/util.js', 'templates/beta/src/util.js'])) fail(`each project's items are named from the root, and a file a deeper project's knip read is reported once; got ${JSON.stringify(files)}`);
     if (doc.exit !== 1) fail(`a project knip failed in turns the run's exit to 1 (got ${doc.exit})`);
     const beta = (k.roots || []).find((r) => r.root === 'templates/beta');
     if (!beta || !/SyntaxError: planted/.test(beta.reason || '')) fail(`the failed project carries its reason (got ${JSON.stringify(beta)})`);
@@ -79,6 +87,25 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
     const alphaItem = rows.find((r) => r.native_id === 'unused-exports@templates/alpha/src/util.js:unusedHelper');
     if (!rootItem || rootItem.detail?.unconfigured !== true) fail(`the root's item, read with no knip configuration, is flagged unconfigured (got ${JSON.stringify(rootItem?.detail)})`);
     if (!alphaItem || alphaItem.detail?.unconfigured) fail(`templates/alpha's item is read under its own knip.json, so it is not flagged (got ${JSON.stringify(alphaItem?.detail)})`);
+
+    // ── ingest refuses a roots list naming a project twice, or outside the tree ──
+    for (const bad of [['.', '.'], ['.', '../x'], ['.', '/abs']]) {
+      const d = JSON.parse(JSON.stringify(doc));
+      d.tools.knip.roots = d.tools.knip.roots.slice(0, 2).map((r, i) => ({ ...r, root: bad[i] }));
+      let threw = false; try { convert('structure-scan', JSON.stringify(d), d.exit); } catch { threw = true; }
+      if (!threw) fail(`ingest refuses knip roots ${JSON.stringify(bad)}`);
+    }
+
+    // ── each project installs into its own scratch copy: one project's files never reach another's run ──
+    rmSync(tree, { recursive: true, force: true });
+    for (const [name, only] of [['alpha', 'alpha-only'], ['beta', 'beta-only']]) {
+      put(`templates/${name}/package.json`, JSON.stringify({ name, version: '1.0.0', private: true, dependencies: { dep: '1.0.0' } }) + '\n');
+      put(`templates/${name}/package-lock.json`, '{}\n');
+      put(`templates/${name}/src/${only}.js`, 'export const unusedHelper = 3;\n');
+    }
+    const sep = scan();
+    const sepFiles = sep.unused.map((u) => u.file).sort();
+    if (JSON.stringify(sepFiles) !== JSON.stringify(['templates/alpha/src/alpha-only.js', 'templates/beta/src/beta-only.js'])) fail(`each project's dependencies install into a scratch copy of its own, so no item names a file the project does not hold; got ${JSON.stringify(sepFiles)}`);
 
     // ── no root manifest, two applications each with its own lockfile: knip runs in both ──
     rmSync(tree, { recursive: true, force: true });

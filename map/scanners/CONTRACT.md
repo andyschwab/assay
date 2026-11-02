@@ -658,14 +658,17 @@ tools do the first two and the instrument does the rest from the tree:
   `package.json` (#246): the root, or the one directory directly beneath it that
   does (an application kept whole in `app/`, #119), and each nested project. Its
   rows' paths are written relative to the repository root, and `knip.root`
-  records where it ran first. With more than one project the record carries
-  `roots: [{ root, status, exit_code, reason?, config? }]`, one per project; it
-  reads `ran` when knip ran in any of them, an item is read under its own
+  records the first project it ran in. With more than one project the record carries
+  `roots: [{ root, status, exit_code, reason?, config? }]`, one per project, and
+  `raw.knip` is keyed by project; each project installs into its own scratch copy;
+  an item a shallower project's run reaches into a deeper one's is that deeper
+  project's alone; the record reads `ran` when knip ran in any of them (else
+  `failed` when it failed in one), an item is read under its own
   project's configuration, and a project knip did not run in turns the exit to 1
   and is a fact of its own (`unused-not-run@<root>`). With no such project knip
   reads `not-applicable`, the candidates named, never clean. Those configuration files import the
   target's dependencies, so knip needs them installed (#118): with
-  `node_modules` at the root it runs in place (the routine runs structure-scan
+  `node_modules` in the project's own directory it runs in place (the routine runs structure-scan
   after fresh-clone's in-place install); with none, dependencies declared and a
   lockfile naming the package manager (`package-lock.json` → `npm ci`,
   `pnpm-lock.yaml` → `pnpm install --frozen-lockfile`, `yarn.lock` → `yarn

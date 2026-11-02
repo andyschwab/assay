@@ -23,14 +23,17 @@
 //      (vite.config.*, eslint.config.*, …) to find entry points, which is
 //      executing the target's code: with `noExec` (`assay start` without
 //      --allow-exec, the routine's gate job) it is `skipped` with that reason.
-//      Those configs import the target's dependencies: with no node_modules at
-//      the root, a lockfile's package manager installs them into a scratch copy
+//      Those configs import the target's dependencies: with no node_modules in
+//      the project, a lockfile's package manager installs them into a scratch copy
 //      first (knipDeps, #118), or knip reads `skipped` with why it could not.
-//      knip runs at the root when it holds a package.json, else in the one
-//      directory directly beneath it that does (an application kept whole in
-//      app/, #119; its rows' paths written relative to the root, `knip.root`
-//      recording where it ran); none, or more than one such directory, leaves
-//      knip nothing it can read: `not-applicable`, the candidates named, never clean. A config
+//      knip runs in every project map/projects.mjs finds that holds a package.json
+//      (#246): the root, or the one directory directly beneath it that does (an
+//      application kept whole in app/, #119), and each nested project, each with
+//      its own scratch copy when its dependencies install there; its rows' paths
+//      are written relative to the root, `knip.root` records the first project it
+//      ran in, and with several projects `knip.roots` records each one (raw.knip is
+//      then keyed by project). No such project leaves knip nothing it can read:
+//      `not-applicable`, the candidates named, never clean. A config
 //      that refuses to load is set aside and knip retried once (setAside, #186), each file
 //      recorded in knip.config_not_read. A tool that exits outside its success set
 //      (jscpd: 0 — no --threshold or --exit-code is passed, so findings never
@@ -172,12 +175,12 @@ const LOCK_INSTALL = { npm: ['ci', '--ignore-scripts', '--no-audit', '--no-fund'
 // the first ERROR lines knip printed: they say what it could not load; its last line only says "Please fix"
 const knipErrors = (s) => String(s || '').split('\n').map(oneLine).filter((l) => /^ERROR:/.test(l)).slice(0, 3).join(' | ').slice(0, 600);
 const errLines = (s) => String(s || '').split('\n').map(oneLine).filter((l) => /\bERR/.test(l)).slice(0, 3).join(' | ').slice(0, 600);
-function knipDeps(root, scratch, timeoutSec) {
+function knipDeps(root, scratch, timeoutSec, tag = '') {
   if (existsSync(join(root, 'node_modules'))) return { cwd: root, installed: true };
   const tc = /** @type {Record<string, any>} */ (detectToolchain(root).toolchain || {});
   if (!tc.has_dependencies || !tc.lockfile || !LOCK_INSTALL[tc.package_manager]) return { cwd: root, installed: !tc.has_dependencies };
   const pm = tc.package_manager, args = LOCK_INSTALL[pm], cmd = `${pm} ${args.join(' ')}`;
-  const copy = join(scratch, 'knip-target');
+  const copy = join(scratch, `knip-target${tag}`);   // one per project (#246): never another project's tree
   const lead = `${NOT_INSTALLED}; knip loads the target's tool configuration files, which import them`;
   try { cpSync(root, copy, { recursive: true, filter: (src) => !SKIP_DIRS.has(basename(src)) }); }
   catch (e) { return { skip: `${lead}, and the tree could not be copied to install them into scratch: ${oneLine(e.message)}` }; }
@@ -264,25 +267,28 @@ function noKnipRoot(root) {
   let dirs = [];
   try { dirs = readdirSync(root, { withFileTypes: true }).filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name) && existsSync(join(root, e.name, 'package.json'))).map((e) => e.name).sort(); } catch { /* unreadable: none */ }
   return dirs.length
-    ? `no package.json at the root, and ${dirs.length} directories directly beneath it hold one (${dirs.join(', ')}) with no lockfile or workspace file of their own: knip has no one project to read`
+    ? `no package.json at the root, and ${dirs.length} directories directly beneath it hold one (${dirs.join(', ')}), none of them a project of its own (map/projects.mjs: no lockfile or workspace file, or a fixture, test, submodule or nested repository): knip has no one project to read`
     : 'no package.json at the root or in a directory directly beneath it: knip has no project to read';
 }
 
 // ── knip over several projects (#246) ───────────────────────────────────────
 // One project: knip's record as it always was. Several: knip runs in each, its items named from
 // the root (runKnip's `at`), and the record carries `roots` (each project's own status, reason,
-// exit and config). The record's status is `ran` when knip ran in any project, else the first
-// project's; a project knip did not run in is named in `roots` and turns the run's exit to 1,
+// exit and config). The record's status is `ran` when knip ran in any project, else `failed` when
+// it failed in one, else the first project's; `root` is the first project it ran in; a project knip did not run in is named in `roots` and turns the run's exit to 1,
 // so ingest records it as not run — never silence.
 function runKnipEach(bin, root, dirs, scratch, timeoutSec) {
   if (dirs.length === 1) return runKnip(bin, root, dirs[0], scratch, timeoutSec);
   const results = dirs.map((d) => ({ root: d, ...runKnip(bin, root, d, scratch, timeoutSec) }));
   const ran = results.filter((r) => r.status === 'ran');
-  const head = ran[0] || results[0];
+  const head = ran[0] || results.find((r) => r.status === 'failed') || results[0];
+  // an item in a deeper project knip also ran in is that project's: a shallower run that reaches
+  // into it (a root knip reading a nested entry's files) does not report it a second time
+  const owner = (file) => ran.filter((r) => r.root === '.' || file.startsWith(`${r.root}/`)).sort((a, b) => b.root.length - a.root.length)[0];
   return {
-    status: head.status, exit_code: head.exit_code,
+    status: head.status, exit_code: head.exit_code, root: head.root,
     ...(ran.length ? {} : { reason: results.map((r) => `${r.root}: ${r.reason}`).join('; ') }),
-    unused: ran.flatMap((r) => r.unused), raw: Object.fromEntries(ran.map((r) => [r.root, r.raw])),
+    unused: ran.flatMap((r) => r.unused.filter((u) => owner(u.file) === r)), raw: Object.fromEntries(ran.map((r) => [r.root, r.raw])),
     ...(head.note ? { note: head.note } : {}),
     ...(ran.some((r) => r.config_not_read) ? { config_not_read: ran.flatMap((r) => (r.config_not_read || []).map((x) => ({ ...x, file: r.root === '.' ? x.file : `${r.root}/${x.file}` }))) } : {}),
     roots: results.map((r) => ({ root: r.root, status: r.status, exit_code: r.exit_code, ...(r.reason ? { reason: r.reason } : {}), ...(r.note ? { note: r.note } : {}) })),
@@ -294,7 +300,7 @@ function runKnipEach(bin, root, dirs, scratch, timeoutSec) {
 // relative to the repository root
 function runKnip(bin, root, dir, scratch, timeoutSec) {
   const at = (f) => (dir === '.' ? posix(f) : `${dir}/${posix(f)}`);
-  const deps = knipDeps(dir === '.' ? root : join(root, dir), scratch, timeoutSec);
+  const deps = knipDeps(dir === '.' ? root : join(root, dir), scratch, timeoutSec, dir === '.' ? '' : `-${dir.replace(/[^\w.-]/g, '_')}`);
   if (deps.skip) return { status: 'skipped', reason: deps.skip, exit_code: null };
   let r = runTool(bin, ['--reporter', 'json', '--no-progress'], deps.cwd, timeoutSec);
   let notRead = null;
@@ -414,7 +420,7 @@ export function run({ target, timeout = 300, noExec = false, log = /** @type {(m
       const bin = binOf(scratch, t);
       if (!bin) { tools[t] = { status: 'skipped', reason: `npm reported ${t}@${TOOLS[t]} installed, but its package carries no ${t} bin` }; continue; }
       const res = /** @type {Record<string, any>} */ (t === 'jscpd' ? runJscpd(bin, root, scratch, timeout) : runKnipEach(bin, root, knipDirs, scratch, timeout));
-      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(t === 'knip' ? { root: knipDirs[0] } : {}), ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}), ...(res.note ? { note: res.note } : {}), ...(res.config_not_read ? { config_not_read: res.config_not_read } : {}), ...(res.roots ? { roots: res.roots } : {}) };
+      tools[t] = { status: res.status, version: bin.version, exit_code: res.exit_code, ...(t === 'knip' ? { root: res.root || knipDirs[0] } : {}), ...(res.reason ? { reason: res.reason } : {}), ...(res.statistics ? { statistics: res.statistics } : {}), ...(res.note ? { note: res.note } : {}), ...(res.config_not_read ? { config_not_read: res.config_not_read } : {}), ...(res.roots ? { roots: res.roots } : {}) };
       if (res.status === 'ran') {
         raw[t] = res.raw;
         if (t === 'jscpd') duplicates = res.duplicates; else unused = res.unused;
