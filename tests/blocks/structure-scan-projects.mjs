@@ -89,7 +89,7 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
     if (!alphaItem || alphaItem.detail?.unconfigured) fail(`templates/alpha's item is read under its own knip.json, so it is not flagged (got ${JSON.stringify(alphaItem?.detail)})`);
 
     // ── ingest refuses a roots list naming a project twice, or outside the tree ──
-    for (const bad of [['.', '.'], ['.', '../x'], ['.', '/abs']]) {
+    for (const bad of [['.', '.'], ['.', '../x'], ['.', '/abs'], ['.', '..\\b']]) {
       const d = JSON.parse(JSON.stringify(doc));
       d.tools.knip.roots = d.tools.knip.roots.slice(0, 2).map((r, i) => ({ ...r, root: bad[i] }));
       let threw = false; try { convert('structure-scan', JSON.stringify(d), d.exit); } catch { threw = true; }
@@ -98,14 +98,15 @@ for (const spec of args.filter((a) => /^[a-z][\\w-]*@\\d/.test(a))) {
 
     // ── each project installs into its own scratch copy: one project's files never reach another's run ──
     rmSync(tree, { recursive: true, force: true });
-    for (const [name, only] of [['alpha', 'alpha-only'], ['beta', 'beta-only']]) {
-      put(`templates/${name}/package.json`, JSON.stringify({ name, version: '1.0.0', private: true, dependencies: { dep: '1.0.0' } }) + '\n');
-      put(`templates/${name}/package-lock.json`, '{}\n');
-      put(`templates/${name}/src/${only}.js`, 'export const unusedHelper = 3;\n');
+    // (a/b and a_b: two paths a name made from the path would fold into one)
+    for (const [dir, only] of [['templates/alpha', 'alpha-only'], ['templates/beta', 'beta-only'], ['a/b', 'ab-slash'], ['a_b', 'ab-underscore']]) {
+      put(`${dir}/package.json`, JSON.stringify({ name: only, version: '1.0.0', private: true, dependencies: { dep: '1.0.0' } }) + '\n');
+      put(`${dir}/package-lock.json`, '{}\n');
+      put(`${dir}/src/${only}.js`, 'export const unusedHelper = 3;\n');
     }
     const sep = scan();
     const sepFiles = sep.unused.map((u) => u.file).sort();
-    if (JSON.stringify(sepFiles) !== JSON.stringify(['templates/alpha/src/alpha-only.js', 'templates/beta/src/beta-only.js'])) fail(`each project's dependencies install into a scratch copy of its own, so no item names a file the project does not hold; got ${JSON.stringify(sepFiles)}`);
+    if (JSON.stringify(sepFiles) !== JSON.stringify(['a/b/src/ab-slash.js', 'a_b/src/ab-underscore.js', 'templates/alpha/src/alpha-only.js', 'templates/beta/src/beta-only.js'])) fail(`each project's dependencies install into a scratch copy of its own, so no item names a file the project does not hold; got ${JSON.stringify(sepFiles)}`);
 
     // ── no root manifest, two applications each with its own lockfile: knip runs in both ──
     rmSync(tree, { recursive: true, force: true });

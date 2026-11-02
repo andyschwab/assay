@@ -171,17 +171,19 @@ export function knipConfig(dir) {
 // runs in place, and a config it cannot load for a missing module reads skipped
 // (knipVerdict) rather than failed.
 const NOT_INSTALLED = "the target's dependencies are not installed (no node_modules at the root)";
+// the same, for a project other than the root (#246)
+const notInstalled = (dir) => (dir === '.' ? NOT_INSTALLED : `the target's dependencies are not installed (no node_modules at ${dir})`);
 const LOCK_INSTALL = { npm: ['ci', '--ignore-scripts', '--no-audit', '--no-fund'], pnpm: ['install', '--frozen-lockfile', '--ignore-scripts'], yarn: ['install', '--frozen-lockfile', '--ignore-scripts'] };
 // the first ERROR lines knip printed: they say what it could not load; its last line only says "Please fix"
 const knipErrors = (s) => String(s || '').split('\n').map(oneLine).filter((l) => /^ERROR:/.test(l)).slice(0, 3).join(' | ').slice(0, 600);
 const errLines = (s) => String(s || '').split('\n').map(oneLine).filter((l) => /\bERR/.test(l)).slice(0, 3).join(' | ').slice(0, 600);
-function knipDeps(root, scratch, timeoutSec, tag = '') {
+function knipDeps(root, scratch, timeoutSec, tag = '', label = '.') {
   if (existsSync(join(root, 'node_modules'))) return { cwd: root, installed: true };
   const tc = /** @type {Record<string, any>} */ (detectToolchain(root).toolchain || {});
   if (!tc.has_dependencies || !tc.lockfile || !LOCK_INSTALL[tc.package_manager]) return { cwd: root, installed: !tc.has_dependencies };
   const pm = tc.package_manager, args = LOCK_INSTALL[pm], cmd = `${pm} ${args.join(' ')}`;
   const copy = join(scratch, `knip-target${tag}`);   // one per project (#246): never another project's tree
-  const lead = `${NOT_INSTALLED}; knip loads the target's tool configuration files, which import them`;
+  const lead = `${notInstalled(label)}; knip loads the target's tool configuration files, which import them`;
   try { cpSync(root, copy, { recursive: true, filter: (src) => !SKIP_DIRS.has(basename(src)) }); }
   catch (e) { return { skip: `${lead}, and the tree could not be copied to install them into scratch: ${oneLine(e.message)}` }; }
   const r = spawnSync(pm, args, { cwd: copy, encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER, env: toolEnv() });
@@ -191,9 +193,9 @@ function knipDeps(root, scratch, timeoutSec, tag = '') {
 }
 // a knip that could not load a config for a module that was never installed did not
 // measure the tree (skipped, the module named); any other exit outside 0/1 is a crash
-function knipVerdict(r, installed) {
+function knipVerdict(r, installed, label = '.') {
   const errors = knipErrors(r.stderr);
-  if (!installed && !r.error && !r.signal && /Cannot find (module|package)/.test(errors)) return { status: 'skipped', reason: `${NOT_INSTALLED}: ${errors}`, exit_code: r.status };
+  if (!installed && !r.error && !r.signal && /Cannot find (module|package)/.test(errors)) return { status: 'skipped', reason: `${notInstalled(label)}: ${errors}`, exit_code: r.status };
   const why = r.error || r.signal || !errors ? failure('knip', r) : `knip exited ${r.status}: ${errors}`;
   return { status: 'failed', reason: why, exit_code: r.status ?? null };
 }
@@ -279,7 +281,8 @@ function noKnipRoot(root) {
 // so ingest records it as not run — never silence.
 function runKnipEach(bin, root, dirs, scratch, timeoutSec) {
   if (dirs.length === 1) return runKnip(bin, root, dirs[0], scratch, timeoutSec);
-  const results = dirs.map((d) => ({ root: d, ...runKnip(bin, root, d, scratch, timeoutSec) }));
+  // each project's scratch copy is named by its place in the list: two paths never share one
+  const results = dirs.map((d, i) => ({ root: d, ...runKnip(bin, root, d, scratch, timeoutSec, `-${i}`) }));
   const ran = results.filter((r) => r.status === 'ran');
   const head = ran[0] || results.find((r) => r.status === 'failed') || results[0];
   // an item in a deeper project knip also ran in is that project's: a shallower run that reaches
@@ -290,7 +293,7 @@ function runKnipEach(bin, root, dirs, scratch, timeoutSec) {
     ...(ran.length ? {} : { reason: results.map((r) => `${r.root}: ${r.reason}`).join('; ') }),
     unused: ran.flatMap((r) => r.unused.filter((u) => owner(u.file) === r)), raw: Object.fromEntries(ran.map((r) => [r.root, r.raw])),
     ...(head.note ? { note: head.note } : {}),
-    ...(ran.some((r) => r.config_not_read) ? { config_not_read: ran.flatMap((r) => (r.config_not_read || []).map((x) => ({ ...x, file: r.root === '.' ? x.file : `${r.root}/${x.file}` }))) } : {}),
+    ...(ran.some((r) => r.config_not_read) ? { config_not_read: [...new Map(ran.flatMap((r) => (r.config_not_read || []).map((x) => ({ ...x, file: r.root === '.' ? x.file : `${r.root}/${x.file}` }))).map((x) => [x.file, x])).values()] } : {}),
     roots: results.map((r) => ({ root: r.root, status: r.status, exit_code: r.exit_code, ...(r.reason ? { reason: r.reason } : {}), ...(r.note ? { note: r.note } : {}) })),
   };
 }
@@ -298,14 +301,14 @@ function runKnipEach(bin, root, dirs, scratch, timeoutSec) {
 // ── knip: one entry per unused item, file:line where knip gives one ─────────
 // knip runs in `dir` (a located project) and names files relative to it; rows name them
 // relative to the repository root
-function runKnip(bin, root, dir, scratch, timeoutSec) {
+function runKnip(bin, root, dir, scratch, timeoutSec, tag = '') {
   const at = (f) => (dir === '.' ? posix(f) : `${dir}/${posix(f)}`);
-  const deps = knipDeps(dir === '.' ? root : join(root, dir), scratch, timeoutSec, dir === '.' ? '' : `-${dir.replace(/[^\w.-]/g, '_')}`);
+  const deps = knipDeps(dir === '.' ? root : join(root, dir), scratch, timeoutSec, tag, dir);
   if (deps.skip) return { status: 'skipped', reason: deps.skip, exit_code: null };
   let r = runTool(bin, ['--reporter', 'json', '--no-progress'], deps.cwd, timeoutSec);
   let notRead = null;
   if (r.error || r.signal || (r.status !== 0 && r.status !== 1)) {
-    const v = knipVerdict(r, deps.installed);
+    const v = knipVerdict(r, deps.installed, dir);
     if (v.status !== 'failed' || r.error || r.signal) return { status: v.status, reason: v.reason, exit_code: v.exit_code };
     const aside = setAside(bin, deps.cwd, r.stderr, scratch);
     if (!aside.config) return { status: 'failed', reason: aside.why ? `${v.reason}; ${aside.why}` : v.reason, exit_code: v.exit_code };

@@ -513,7 +513,7 @@ const PROFILES = {
       if (rep.tools.knip.status !== 'ran' && rep.unused.length) throw new Error('structure-scan report lists unused items from a knip that did not run');
       // knip over several projects (#246): each project's own record, the not-run ones named
       const knipRoots = rep.tools.knip.roots;
-      const relRoot = (p) => typeof p === 'string' && (p === '.' || (!!p && !p.startsWith('/') && !/^[A-Za-z]:/.test(p) && p.split('/').every((seg) => seg && seg !== '.' && seg !== '..')));
+      const relRoot = (p) => typeof p === 'string' && (p === '.' || (!!p && !p.startsWith('/') && !p.includes('\\') && !/^[A-Za-z]:/.test(p) && p.split('/').every((seg) => seg && seg !== '.' && seg !== '..')));
       if (knipRoots !== undefined && (!Array.isArray(knipRoots) || knipRoots.length < 2 || new Set(knipRoots.map((r) => r && r.root)).size !== knipRoots.length || !knipRoots.every((r) => r && relRoot(r.root) && SS_TOOL_STATUS.includes(r.status) && (r.status === 'ran' || (typeof r.reason === 'string' && r.reason.trim())) && (r.status !== 'ran' || r.config === null || (typeof r.config === 'string' && r.config))) || ((rep.tools.knip.status === 'ran') !== knipRoots.some((r) => r.status === 'ran')))) throw new Error('structure-scan knip roots must list two or more distinct relative { root, status, reason when not ran, config when ran }, ran when any ran (truncated report?)');
       const found = rep.duplicates.length + rep.unused.length + rep.stale.length;
       const notRun = ['jscpd', 'knip'].some((t) => ['skipped', 'failed'].includes(rep.tools[t].status)) || (knipRoots || []).some((r) => r.status === 'skipped' || r.status === 'failed');
