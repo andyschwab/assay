@@ -20,7 +20,8 @@
 //     workspaces, one check per location; a location with no page of its own passes when
 //     its parent's passing page names it (path or scoped package name), and a root with
 //     none passes when every nested project carries its own (map/scanners/CONTRACT.md §3d).
-//   - agent-contract: AGENTS.md or CLAUDE.md (every location, the same rule).
+//   - agent-contract: AGENTS.md or CLAUDE.md (every location, the same rule; a parent's
+//     contract is the file and the files its `@path` lines import, #249).
 //     `pass` only when it is present-TENSE: no heading matching
 //     /^#+\s*(status|history|changelog|todo|backlog)\b/i and no dated changelog line
 //     (a line starting with a date like 2026-09-01, or a `- 2026-…` bullet).
@@ -197,7 +198,7 @@ const pointerNote = (used) => (used ? " (per the packet's pointer)" : '');
 // packet pointer named the file), only that section is the page. Returns the
 // first line that names it, or null. `names` are the paths the location goes by
 // (from the root first); the parent is the root unless the location sits in a nested project.
-function rootMention(dir, rootCheck, loc, sectionRe = null, names = [loc], parentBase = '.') {
+function rootMention(dir, rootCheck, loc, sectionRe = null, names = [loc], parentBase = '.', followImports = false) {
   if (!rootCheck || rootCheck.status !== 'pass') return null;
   const file = String(rootCheck.evidence?.[0] || '').replace(/:\d+$/, '');
   let text = file && safeRead(join(dir, file));
@@ -213,9 +214,57 @@ function rootMention(dir, rootCheck, loc, sectionRe = null, names = [loc], paren
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const tokens = [...new Set(names), ...(typeof pkgName === 'string' && /^@[^/\s]+\/[^/\s]+$/.test(pkgName) ? [pkgName] : [])];
   const re = new RegExp(`(?:^|[^\\w@./-])(?:\\./)?(?:${tokens.map(esc).join('|')})(?![\\w-]|\\.\\w)`);
-  const lines = text.split('\n');
-  const i = lines.findIndex((l) => re.test(l));
-  return i === -1 ? null : { file, line: offset + i + 1 };
+  // an agent contract is the file and everything its `@path` lines import (#249): what the agent reads
+  const docs = followImports ? contractWithImports(dir, file, text) : [{ file, text, offset }];
+  for (const d of docs) {
+    const lines = d.text.split('\n');
+    const i = lines.findIndex((l) => re.test(l));
+    if (i > -1) return { file: d.file, line: (d.offset || 0) + i + 1 };
+  }
+  return null;
+}
+// ── an agent contract's imports (#249) ───────────────────────────────────────
+// Claude Code reads a CLAUDE.md (or AGENTS.md) together with every file it imports with an
+// `@path` token: the path resolves from the importing file, imports nest, and the chain stops
+// at IMPORT_MAX_DEPTH hops. A token inside a fenced block or an inline code span is not an import.
+// Read here: the file first, then its imports breadth-first, each file once (a cycle ends), a
+// target outside the tree or missing skipped, never an error.
+const IMPORT_MAX_DEPTH = 5;
+const IMPORT_RE = /(?:^|\s)@((?:\.{1,2}\/)?[\w.-]+(?:\/[\w.-]+)*)/g;
+function importsOf(text) {
+  const out = [];
+  let fenced = false;
+  for (const line of text.split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    if (fenced) continue;
+    const bare = line.replace(/`[^`]*`/g, '');
+    for (const m of bare.matchAll(IMPORT_RE)) out.push(m[1]);
+  }
+  return out;
+}
+function contractWithImports(dir, file, text) {
+  const root = resolve(dir);
+  const docs = [{ file, text, offset: 0 }];
+  const seen = new Set([file]);
+  let level = [{ file, text }];
+  for (let depth = 1; depth <= IMPORT_MAX_DEPTH && level.length; depth++) {
+    const next = [];
+    for (const d of level) {
+      const from = d.file.includes('/') ? d.file.slice(0, d.file.lastIndexOf('/')) : '.';
+      for (const target of importsOf(d.text)) {
+        const abs = resolve(root, from, target);
+        const rel = relative(root, abs).split(sep).join('/');
+        if (!rel || rel.startsWith('..') || isAbsolute(rel) || seen.has(rel)) continue;
+        seen.add(rel);
+        const t = statOk(abs, (st) => st.isFile()) ? safeRead(abs) : null;
+        if (t === null) continue;
+        docs.push({ file: rel, text: t, offset: 0 });
+        next.push({ file: rel, text: t });
+      }
+    }
+    level = next;
+  }
+  return docs;
 }
 // a check that found no document at all (as against one that found a document that falls
 // short): only such a root can be covered by its projects (delegatedPass)
@@ -1151,7 +1200,7 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
     const out = [];
     for (const l of locs.filter(which)) {
       const parent = l.parent === null ? null : byPath.get(l.parent);
-      const m = parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent) : null;
+      const m = parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent, name === 'agent-contract') : null;
       const c = check(l, m ? { ...m, parent: l.parent } : null);
       byPath.set(l.path, c);
       out.push(c);

@@ -482,7 +482,12 @@ tree checks:
   path order (or the packet's own `apps` order).
   A location that has its own page is checked on that page.
 - **agent-contract** — AGENTS.md or CLAUDE.md (every location, the same rule,
-  parent cover included: a passing parent contract that names the location). `pass` only when it is **present-tense**: no heading matching
+  parent cover included: a passing parent contract that names the location). The
+  parent's contract is the file **and what it imports** (#249): each `@path` token
+  outside a fenced block or code span, resolved from the importing file, imports
+  nesting up to five hops, each file read once, a target outside the tree or
+  missing skipped; the credit cites the line that names the location, in whichever
+  file it is. Only an agent contract's imports count. `pass` only when it is **present-tense**: no heading matching
   `/^#+\s*(status|history|changelog|todo|backlog)\b/i` and no dated changelog line
   (a line starting with a date like `2026-09-01`, or a `- 2026-…` bullet).
 - **runbook** — RUNBOOK.md or RUNBOOKS.md at the root or in docs/, docs/runbook*.md,
