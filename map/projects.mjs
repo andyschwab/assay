@@ -28,7 +28,7 @@
 //
 // Paths are relative to the root, `/`-separated. A caller with a packet's `apps` pointer uses the
 // pointer instead (owner/PACKET.md): that is a declaration, and this file is discovery.
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, resolve, relative, isAbsolute, sep } from 'node:path';
 
 const readText = (p) => { try { return readFileSync(p, 'utf8'); } catch { return null; } };
@@ -239,11 +239,38 @@ export function locateProjects(dir, { app = null } = {}) {
     return { workspaces, workspaces_from: workspaces.length ? workspaceSource(abs, pkg) : null, locations: [...new Set([...workspaces, ...conventional])].sort() };
   };
   const rootProject = { path: '.', run: rootRun, from: appDir ? appDir.from : 'root', ...wsOf(rootRun) };
+  const setAside = [];
+  // A workspace link is followed only when its target stays inside the tree. The package managers
+  // follow a single link step (a package linked into apps/*), but a link that leaves the tree is not
+  // a workspace: its files are not the tree's, and reading them would credit the tree with another
+  // directory's project. Every such location is named in setAside, never dropped silently.
+  const rootReal = realpathSync(root);
+  const insideTree = (abs) => {
+    try { const real = realpathSync(abs); return real === rootReal || real.startsWith(rootReal + sep); }
+    catch { return false; }
+  };
+  const pruneLinks = (project) => {
+    const base = runAbs(project.run);
+    const dropped = new Set();
+    const keep = (loc) => {
+      if (insideTree(join(base, loc))) return true;
+      dropped.add(project.run === '.' ? loc : `${project.run}/${loc}`);
+      return false;
+    };
+    const declared = new Set(project.workspaces);
+    project.workspaces = project.workspaces.filter(keep);
+    project.locations = project.locations.filter((loc) => (declared.has(loc) ? project.workspaces.includes(loc) : keep(loc)));
+    for (const path of dropped) setAside.push({ path, reason: 'a workspace link that leaves the tree' });
+  };
+  pruneLinks(rootProject);
   const claimed = new Set();
   if (rootRun !== '.') claimed.add(rootRun);
   for (const w of rootProject.locations) claimed.add(rootRun === '.' ? w : `${rootRun}/${w}`);
-  const setAside = [];
-  const nested = findNested(root, claimed, setAside).map((p) => ({ path: p, run: p, from: 'nested', ...wsOf(p) }));
+  const nested = findNested(root, claimed, setAside).map((p) => {
+    const project = { path: p, run: p, from: 'nested', ...wsOf(p) };
+    pruneLinks(project);
+    return project;
+  });
   return { projects: [rootProject, ...nested], setAside };
 }
 
