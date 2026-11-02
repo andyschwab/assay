@@ -67,6 +67,12 @@
 //      README replayed is the root's (else the app's own), its commands checked as a
 //      reader runs them after `cd <dir>`. The document records `app: { path, from }`
 //      and names `readme` from the root; workspace paths stay relative to the app.
+//   7. NESTED PROJECTS (#246): map/projects.mjs's rule, the census's too. A directory below the
+//      root with its own package.json and its own lockfile or workspace file is a project of its
+//      own, measured as a root is (its plan, its README, its workspaces) under `projects[]`; a root
+//      step the root does not declare reads `covered` by its projects when every one reaches it
+//      (map/scanners/CONTRACT.md). An install whose package manager is not on PATH is not
+//      attempted and reads skipped, never failed (#248).
 //
 // The target's own code runs here — its install (lifecycle scripts included), build,
 // lint, typecheck, test and migrate-dry scripts — so every child gets the allow-listed
@@ -97,9 +103,9 @@ import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
 import { stripUserinfo } from './repo-census.mjs';
-import { resolveWorkspaces, workspaceSource, resolveApp } from './projects.mjs';
+import { locateProjects } from './projects.mjs';
 
-export const VERSION = '0.5.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35)
+export const VERSION = '0.6.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35); 0.6.0: `projects[]` (#246), an install skipped when its package manager is not on PATH (#248)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 export const CLAIM_STATUS = ['present', 'missing'];
@@ -325,6 +331,10 @@ function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void}
     const p = plan[name];
     if (p.status === 'not-declared') { out.push({ name, status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason }); continue; }
     if (p.status === 'covered') { out.push({ name, status: 'covered', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason, covered_by: p.covered_by }); continue; }
+    if (p.status === 'pm-missing') {   // #248: the package manager is not on PATH; nothing was run
+      out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason });
+      installBroken = `did not run (${p.reason})`; continue;
+    }
     if (p.status === 'root-install-broken') {   // the root's install covers this one and did not pass
       out.push({ name, status: 'skipped', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason });
       installBroken = 'skipped (the root install did not pass)'; continue;
@@ -512,6 +522,71 @@ function git(args, cwd) {
   return { ok: r.status === 0, out: String(r.stdout || '').trim(), err: String(r.stderr || '').trim() };
 }
 
+// ── one project, measured: its plan, its README, its workspaces ─────────────
+// `project` is map/projects.mjs's entry: `run` is the directory its steps run in, `workspaces`
+// relative to it. The root's README is the front door for an application directory (#35), its
+// commands replayed in the app (`cd <dir>`); a nested project's README is its own.
+function measureProject(workDir, project, timeout, log, { readmeFromRoot }) {
+  const runDir = project.run === '.' ? workDir : join(workDir, project.run);
+  const { toolchain, pkg } = detectToolchain(runDir);
+  const plan = planSteps(toolchain, pkg);
+  const missing = packageManagerMissing(toolchain, plan);
+  if (missing) { plan.install = { status: 'pm-missing', command: plan.install.command, reason: missing }; log(`  → install: ${missing}`); }
+  const steps = runSteps(plan, runDir, timeout, log);
+  const rootReadme = readmeFromRoot ? findReadme(workDir) : null;
+  const { readme: ownReadme, claims } = rootReadme ? replayReadme(runDir, pkg, join(workDir, rootReadme)) : replayReadme(runDir, pkg);
+  const prefix = project.run === '.' ? '' : `${project.run}/`;
+  const readme = rootReadme || (ownReadme ? `${prefix}${ownReadme}` : ownReadme);
+  const wsPaths = pkg ? project.workspaces : [];
+  if (wsPaths.length) log(`→ workspaces: ${wsPaths.join(', ')}`);
+  // the project's context for coverage: its manifest, its step rows (already run), and
+  // which package owns migrations (the project, else the first workspace declaring one)
+  let migrateOwner = null;
+  const ownMig = declaresMigrate(pkg);
+  if (ownMig) migrateOwner = { path: '.', script: ownMig };
+  else for (const p of wsPaths) {
+    const wm = declaresMigrate(detectToolchain(join(runDir, p)).pkg);
+    if (wm) { migrateOwner = { path: p, script: wm }; break; }
+  }
+  const ctx = { pkg, steps, migrateOwner };
+  const workspaces = wsPaths.map((p) => runWorkspace(p, runDir, toolchain, timeout, log, ctx));
+  return { toolchain, steps, readme, readme_claims: claims, workspaces_from: wsPaths.length ? project.workspaces_from : null, workspaces };
+}
+
+// ── the package manager a plan installs with, on PATH (#248) ─────────────────
+// A lockfile names npm, pnpm or yarn; a host without it would run the install, the shell would answer
+// 127, and the target would read "install failed" for the instrument's own gap. Looked up on the
+// PATH the steps run with (child-env.mjs), never executed: missing, the install is not attempted
+// and reads skipped, which the requirements read as not measured.
+function packageManagerMissing(toolchain, plan) {
+  if (!plan.install || plan.install.status !== 'declared') return null;
+  const pm = toolchain.package_manager;
+  if (!pm) return null;
+  const dirs = String(stepEnv().PATH || '').split(process.platform === 'win32' ? ';' : ':').filter(Boolean);
+  const names = process.platform === 'win32' ? [`${pm}.cmd`, `${pm}.exe`, pm] : [pm];
+  if (dirs.some((d) => names.some((n) => existsSync(join(d, n))))) return null;
+  const why = toolchain.lockfile ? `named by ${toolchain.lockfile}` : (toolchain.declared && toolchain.declared.packageManager ? `named by packageManager ${toolchain.declared.packageManager}` : 'the package manager this tree names');
+  return `${pm} (${why}) is not on PATH, so the install was not attempted${toolchain.declared && toolchain.declared.packageManager ? '; `corepack enable` provides the version packageManager names' : ''}`;
+}
+
+// ── a root step covered by its nested projects (#246) ───────────────────────
+const PROJECT_COVERED_STEPS = ['build', 'lint', 'typecheck', 'test'];
+function coverByProjects(st, nested) {
+  if (st.status !== 'not-declared') return st;
+  const stepOf = (pr) => pr.steps.find((x) => x.name === st.name);
+  if (st.name === 'migrate') {
+    const owner = nested.find((pr) => { const x = stepOf(pr); return x && x.status !== 'not-declared' && x.status !== 'covered'; });
+    if (!owner) return st;
+    const x = stepOf(owner);
+    return { ...st, status: 'covered', reason: `migrations belong to ${owner.path}, which declares them`, covered_by: { path: owner.path, step: 'migrate', command: x.declared_as || x.command } };
+  }
+  if (!PROJECT_COVERED_STEPS.includes(st.name)) return st;
+  const rows = nested.map((pr) => ({ pr, x: stepOf(pr) }));
+  if (!rows.every(({ x }) => x && (x.status === 'passed' || x.status === 'covered'))) return st;
+  const by = rows.map(({ pr, x }) => ({ path: pr.path, step: st.name, command: x.command || (x.covered_by && !Array.isArray(x.covered_by) ? x.covered_by.command : st.name) }));
+  return { ...st, status: 'covered', reason: `the root declares no ${st.name}; each of its nested projects runs its own and it passes (${by.map((b) => b.path).join(', ')})`, covered_by: by.length === 1 ? by[0] : by };
+}
+
 export function run({ target, timeout = 600, clone = true, app: declaredApp = null, log = /** @type {(msg: string) => void} */ (() => {}) }) {
   const startedAt = new Date().toISOString();
   let workDir, scratch = null;
@@ -532,37 +607,31 @@ export function run({ target, timeout = 600, clone = true, app: declaredApp = nu
   try {
     const head = git(['rev-parse', 'HEAD'], workDir);
     t.head = head.ok ? head.out : null;
-    const app = resolveApp(workDir, declaredApp);
+    // where the tree's projects are (map/projects.mjs, #246): the root, in its application
+    // directory (#35) when it has one, then each nested project, measured on its own
+    const { projects: located, setAside } = locateProjects(workDir, { app: declaredApp });
+    const rootProject = located[0];
+    const app = rootProject.run !== '.' ? { path: rootProject.run, from: rootProject.from } : null;
     if (app) log(`→ application directory: ${app.path} (${app.from === '--app' ? 'declared with --app' : 'the lone directory holding a package.json'})`);
-    const appDir = app ? join(workDir, app.path) : workDir;
-    const { toolchain, pkg } = detectToolchain(appDir);
-    const plan = planSteps(toolchain, pkg);
-    const steps = runSteps(plan, appDir, timeout, log);
-    // the root's README is the front door; its commands are replayed in the app (`cd <dir>`)
-    const rootReadme = app ? findReadme(workDir) : null;
-    const { readme: appReadme, claims } = rootReadme ? replayReadme(appDir, pkg, join(workDir, rootReadme)) : replayReadme(appDir, pkg);
-    const readme = rootReadme || (app && appReadme ? `${app.path}/${appReadme}` : appReadme);
-    const stepBad = steps.some((s) => s.status === 'failed' || s.status === 'timed-out');
-    const claimBad = claims.some((c) => c.status === 'missing');
-    const wsPaths = pkg ? resolveWorkspaces(appDir, pkg) : [];
-    if (wsPaths.length) log(`→ workspaces: ${wsPaths.join(', ')}`);
-    // the root's context for coverage: its manifest, its step rows (already run), and
-    // which package owns migrations (the root, else the first workspace declaring one)
-    let migrateOwner = null;
-    const rootMig = declaresMigrate(pkg);
-    if (rootMig) migrateOwner = { path: '.', script: rootMig };
-    else for (const p of wsPaths) {
-      const wm = declaresMigrate(detectToolchain(join(appDir, p)).pkg);
-      if (wm) { migrateOwner = { path: p, script: wm }; break; }
-    }
-    const rootCtx = { pkg, steps, migrateOwner };
-    const workspaces = wsPaths.map((p) => runWorkspace(p, appDir, toolchain, timeout, log, rootCtx));
-    const wsBad = workspaces.some((w) => w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing'));
+    const root = measureProject(workDir, rootProject, timeout, log, { readmeFromRoot: !!app });
+    const nested = located.slice(1).map((pr) => {
+      log(`→ nested project: ${pr.path}`);
+      const m = measureProject(workDir, pr, timeout, (msg) => log(`  [${pr.path}]${msg}`), { readmeFromRoot: false });
+      return { path: pr.path, from: pr.from, toolchain: m.toolchain, steps: m.steps, readme: m.readme, readme_claims: m.readme_claims, ...(m.workspaces_from ? { workspaces_from: m.workspaces_from } : {}), workspaces: m.workspaces };
+    });
+    // a root step the root does not declare is covered by its nested projects when each of them
+    // reaches it (#246): build, lint, typecheck and test when every project's own step passed or is
+    // covered; migrate when a project declares it (migrations belong to the package declaring them)
+    if (nested.length) root.steps = root.steps.map((st) => coverByProjects(st, nested));
+    const bad = (e) => e.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || e.readme_claims.some((c) => c.status === 'missing')
+      || (e.workspaces || []).some((w) => w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing'));
     return {
       tool: 'fresh-clone', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
-      target: t, ...(app ? { app } : {}), toolchain, timeout_seconds: timeout, steps, readme, readme_claims: claims,
-      ...(wsPaths.length ? { workspaces_from: workspaceSource(appDir, pkg) } : {}), workspaces,
-      exit: stepBad || claimBad || wsBad ? 1 : 0,
+      target: t, ...(app ? { app } : {}), toolchain: root.toolchain, timeout_seconds: timeout, steps: root.steps, readme: root.readme, readme_claims: root.readme_claims,
+      ...(root.workspaces_from ? { workspaces_from: root.workspaces_from } : {}), workspaces: root.workspaces,
+      ...(nested.length ? { projects: nested } : {}),
+      ...(setAside.length ? { projects_set_aside: setAside } : {}),
+      exit: bad(root) || nested.some(bad) ? 1 : 0,
     };
   } finally {
     if (scratch) rmSync(scratch, { recursive: true, force: true });

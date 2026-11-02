@@ -139,8 +139,9 @@ const PROFILES = {
           // (or, for migrate, owned by the package that declares it) — no row, but only with
           // the covering command recorded; a bare "covered" is unprovable and halts
           if (s.status === 'covered') {
-            const by = s.covered_by;
-            if (!by || typeof by.path !== 'string' || !by.path || typeof by.command !== 'string' || !by.command) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: covered with no covered_by path + command — coverage that names no covering step is not evidence (truncated report?)`);
+            // one covering step, or (a root covered by its nested projects, #246) one per project
+            const bys = Array.isArray(s.covered_by) ? s.covered_by : [s.covered_by];
+            if (!bys.length || !bys.every((by) => by && typeof by.path === 'string' && by.path && typeof by.command === 'string' && by.command)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: covered with no covered_by path + command — coverage that names no covering step is not evidence (truncated report?)`);
             continue;
           }
           // skipped (#30, F-1202): the step never ran (install broke), so it is neither a gap nor
@@ -232,7 +233,10 @@ const PROFILES = {
       // database dependency sits in a workspace (apps/web → @prisma/client) has one, and
       // reading only the root manifest would record a false not-applicable fact
       const hasSignals = (tc) => Array.isArray(tc && tc.database_signals) && tc.database_signals.length > 0;
-      const rootDbSignals = hasSignals(rep.toolchain) || (Array.isArray(rep.workspaces) && rep.workspaces.some((w) => w && hasSignals(w.toolchain)));
+      if (rep.projects !== undefined && !Array.isArray(rep.projects)) throw new Error('fresh-clone report projects must be a list (truncated report?)');
+      const anyWsSignals = (e) => Array.isArray(e.workspaces) && e.workspaces.some((w) => w && hasSignals(w.toolchain));
+      // a nested project's database (#246) is the tree's too: the root's "no database signal" reads them
+      const rootDbSignals = hasSignals(rep.toolchain) || anyWsSignals(rep) || (rep.projects || []).some((pr) => pr && (hasSignals(pr.toolchain) || anyWsSignals(pr)));
       emitEntry(rep.steps, rep.readme_claims, {
         idPrefix: '', inLabel: rep.app ? ` in ${rep.app.path}` : '', errLabel: '', dir: appDir,
         manifest: (rep.toolchain && rep.toolchain.manifest) ? `${appDir}${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
@@ -240,11 +244,12 @@ const PROFILES = {
         hasDbSignals: rootDbSignals,
       });
 
-      for (const w of rep.workspaces || []) {
+      // a workspace of the root (base: the root's application directory) or of a nested project
+      const emitWorkspaces = (list, base) => { for (const w of list || []) {
         if (!w || typeof w.path !== 'string' || !w.path) throw new Error('fresh-clone workspace entry missing path (truncated report?)');
         if (!Array.isArray(w.steps)) throw new Error(`fresh-clone workspace ${w.path} has no steps[] (truncated report?)`);
         if (!Array.isArray(w.readme_claims)) throw new Error(`fresh-clone workspace ${w.path} has no readme_claims[] (truncated report?)`);
-        const wp = `${appDir}${w.path}`;
+        const wp = `${base}${w.path}`;
         const wDbSignals = Array.isArray(w.toolchain && w.toolchain.database_signals) && w.toolchain.database_signals.length > 0;
         emitEntry(w.steps, w.readme_claims, {
           idPrefix: `${wp}:`, inLabel: ` in workspace ${wp}`, errLabel: ` workspace ${wp}`, dir: `${wp}/`,
@@ -252,6 +257,23 @@ const PROFILES = {
           readme: `${wp}/${w.readme || 'README.md'}`,
           hasDbSignals: wDbSignals,
         });
+      } };
+      emitWorkspaces(rep.workspaces, appDir);
+
+      // PROJECTS (#246): each nested project the tree holds is measured as a root of its own —
+      // its steps, its README, its workspaces — and its rows carry its path, the way a
+      // workspace's do (`templates/x:build:failed`), its evidence its own manifest
+      for (const pr of rep.projects || []) {
+        if (!pr || typeof pr.path !== 'string' || !pr.path || pr.path.split('/').includes('..')) throw new Error('fresh-clone project entry must carry a path inside the tree (truncated report?)');
+        if (!Array.isArray(pr.steps) || !Array.isArray(pr.readme_claims)) throw new Error(`fresh-clone project ${pr.path} has no steps[] / readme_claims[] (truncated report?)`);
+        if (pr.workspaces !== undefined && !Array.isArray(pr.workspaces)) throw new Error(`fresh-clone project ${pr.path} workspaces must be a list (truncated report?)`);
+        emitEntry(pr.steps, pr.readme_claims, {
+          idPrefix: `${pr.path}:`, inLabel: ` in project ${pr.path}`, errLabel: ` project ${pr.path}`, dir: `${pr.path}/`,
+          manifest: (pr.toolchain && pr.toolchain.manifest) ? `${pr.path}/${pr.toolchain.manifest}:1` : `${pr.path}/package.json:1`,
+          readme: pr.readme || `${pr.path}/README.md`,
+          hasDbSignals: hasSignals(pr.toolchain) || anyWsSignals(pr),
+        });
+        emitWorkspaces(pr.workspaces, `${pr.path}/`);
       }
 
       return rows;

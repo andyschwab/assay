@@ -310,6 +310,31 @@ workspace's own manifest or README (`apps/x/package.json:1`, `apps/x/README.md:1
 exactly like a root row. A document with no `workspaces` key at all (a runner from
 before workspaces) still converts exactly as it always did.
 
+**Nested projects (#246).** Where the tree's projects are is `map/projects.mjs`'s
+rule, the census's too: a directory below the root with its own package.json and
+its own lockfile or workspace file is a project of its own (a catalog's
+`templates/<name>/`), outside fixture and test trees, docs sites and examples,
+submodules and nested repositories. Each one is measured as a root is: its own
+plan in its own directory (its own install), its README, its workspaces. The
+document carries them as `projects: [{ path, from, toolchain, steps, readme,
+readme_claims, workspaces_from?, workspaces }]`, present only when the tree holds
+one, and what the rule set aside as `projects_set_aside` (as the census does);
+`exit` reads them as it reads the root. A step the root does not declare reads
+`covered` by its projects when every project reaches it: build, lint, typecheck and
+test when each project's own step passed or is covered (`covered_by` lists one
+`{ path, step, command }` per project, an object when there is one), and migrate
+when a project declares it. `ingest.mjs` emits a project's rows as it does a
+workspace's, `native_id` prefixed by the project's path
+(`templates/x:build:failed`), its workspaces' by the full path, and the root's "no
+database signal" reads the projects too.
+
+**A package manager not on PATH (#248).** The package manager a plan installs with
+(npm, pnpm or yarn, from the lockfile) is looked up on the PATH the steps run with,
+never executed. Missing, the install is not attempted: it reads `skipped` with the
+reason (`pnpm (named by pnpm-lock.yaml) is not on PATH …`), the steps that need it
+are skipped with it, and the requirements read not measured. A shell's exit 127 is
+the instrument's gap, never the target's failed install.
+
 **What it deliberately does not do.** It never executes a README command beyond
 the declared steps it already ran — presence in the tree is what the claim replay
 decides, and a `missing` claim is a gap; a `present` one is not proof the command
