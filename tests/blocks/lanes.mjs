@@ -4,9 +4,11 @@
 // deterministic phase ran everything that executes. Pinned:
 //   (a) every adopted judgment scanner names a lane beside its adapter, and each seeds with every
 //       placeholder filled, its title and artifact named;
-//   (b) a lane runs nothing but reads: every command it spells out is a git read (clone, fetch,
-//       checkout, rev-parse, log), it says the session executes nothing, and it never names a
-//       command that runs code (node, npm, a script, assay itself, an install);
+//   (b) a lane runs nothing but reads and its own check: every command it spells out is a git
+//       read (clone, fetch, checkout, rev-parse, log) or, the one exception (#278), the engine's
+//       validate of the lane's own scratch run against its checkout; it says the session
+//       executes nothing else, and it never names another command that runs code (node, npm, a
+//       script, assay itself, an install);
 //   (c) a lane names no model (the consumer picks it) and carries no `model:` field;
 //   (d) the practice-review lane publishes exactly the engine's pass files, the terrain, the
 //       censuses and the effect-channel triage (#259);
@@ -40,7 +42,9 @@ export async function run() {
 
     // (b)
     const { meta, body } = readLane(l.file);
-    const spans = [...seed.prompt.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim());
+    // the lane's own check before it publishes (#278), exactly this command and no other
+    const check = `node <scratch>/assay/assay.mjs validate <scratch>/run --lane ${l.scanner} --target <checkout>`;
+    const spans = [...seed.prompt.matchAll(/`([^`]+)`/g)].map((m) => m[1].trim()).filter((c) => c !== check);
     for (const c of spans.filter((s) => COMMAND.test(s))) if (!READS.test(c)) fail(`(b) the ${l.scanner} lane spells out a command that is not a git read: ${c}`);
     for (const c of spans) if (RUNS.test(c)) fail(`(b) the ${l.scanner} lane names a command that runs code: ${c}`);
     if (!/This session executes nothing/.test(body)) fail(`(b) the ${l.scanner} lane says the session executes nothing`);
