@@ -24,6 +24,7 @@ import { checkChains, checkImproveReport, checkSequence, checkBacklog, checkAuth
 import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
 import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
 import { legacyIn } from './migrate-run.mjs';
+import { censusCount, memberErrors } from './census.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -600,6 +601,7 @@ if (canonName) {
 // variance and compile instead of failing here, naming the file (#267).
 const censusesLabel = 'map/censuses.yaml';
 let censusDims = {};
+const findingOf = new Map([...allById.entries()].map(([id, v]) => [id, v.f]));
 if (existsSync(censusesPath(runDir))) {
   let cz = null;
   try { cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8')); }
@@ -615,7 +617,13 @@ if (existsSync(censusesPath(runDir))) {
       for (const s of x.sampled) {
         const sat = `${at}:${s && s.name || '??'}`;
         if (!s || !s.name) { err(sat, `a sampled census must name its measure`); continue; }
-        if (typeof s.met !== 'number' || typeof s.of !== 'number' || s.of < 1) err(sat, `a sampled census needs numeric met/of`);
+        // members: (#260) the finding ids that are the population; the count is read off them,
+        // so an authored met/of beside them must agree (map/census.mjs). Without members the
+        // authored count stands, and the yardstick never reads it met.
+        if (s.members !== undefined) {
+          for (const k of ['met', 'of']) if (s[k] !== undefined && typeof s[k] !== 'number') err(sat, `${k} must be a number (or left out: members: decides it)`);
+          for (const e of memberErrors(s, findingOf, sat)) errors.push(e);
+        } else if (typeof s.met !== 'number' || typeof s.of !== 'number' || s.of < 1) err(sat, `a sampled census needs members: (the finding ids of its population) or numeric met/of`);
         if (!s.method) err(sat, `a sampled census must state its method`);
       }
     }
@@ -648,7 +656,8 @@ if (existsSync(gradesPath)) {
         if (!row.name) { err(at, `sampled coverage must name its measure (the census row it comes from)`); return; }
         const src = ((censusDims[dim] && censusDims[dim].sampled) || []).find((x) => x && x.name === row.name);
         if (!src) { err(at, `sampled measure "${row.name}" has no census in map/censuses.yaml — a sampled number with no authored source cannot be checked`); return; }
-        if (src.met !== row.met || src.of !== row.of) err(at, `sampled drift: file says ${row.met}/${row.of}, map/censuses.yaml records ${src.met}/${src.of} — regenerate with maturity.mjs --write`);
+        const n = censusCount(src, findingOf);
+        if (n.met !== row.met || n.of !== row.of) err(at, `sampled drift: file says ${row.met}/${row.of}, map/censuses.yaml records ${n.met}/${n.of}${n.listed ? ' (read off its members)' : ''} — regenerate with maturity.mjs --write`);
         else if (String(src.method || '') !== String(row.method || '')) err(at, `sampled drift: method differs from map/censuses.yaml — regenerate with maturity.mjs --write`);
       };
       for (const d of grades.dimensions) {

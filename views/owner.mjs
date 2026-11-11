@@ -64,7 +64,10 @@ export function ownerRow(r, status, byId, findingById) {
   }
   const evidenceOf = (id) => { const f = findingById.get(id); return f && Array.isArray(f.evidence) ? f.evidence.map(String) : []; };
   const where = [...new Set(findings.flatMap(evidenceOf))];
-  const out = { id: r.id, tier: r.tier, topic: r.topic, title: r.title, status, risk: o.risk || '', fix: o.fix || '', where, findings, check: r.check };
+  // what was seen in place (#260): on a met row, the observations of the strengths it cites, so
+  // the owner reads what holds, not only that nothing was found missing
+  const seen = status === 'met' ? findings.map((id) => findingById.get(id)).filter((f) => f && f.polarity === 'strength' && f.observation).map((f) => String(f.observation).trim()) : [];
+  const out = { id: r.id, tier: r.tier, topic: r.topic, title: r.title, status, risk: o.risk || '', fix: o.fix || '', where, findings, seen, check: r.check };
   if (lens) out.lens = lens;
   if (r.decided_by) out.decided_by = r.decided_by;
   out.reason = r.note;
@@ -99,7 +102,10 @@ const q = (s) => yq(s == null ? '' : s);
 function rowYaml(r, pad) {
   const L = [`${pad}- id: ${r.id}`, `${pad}  tier: ${r.tier}`, `${pad}  topic: ${r.topic}`, `${pad}  title: ${q(r.title)}`, `${pad}  status: ${r.status}`];
   L.push(`${pad}  risk: ${q(r.risk)}`, `${pad}  fix: ${q(r.fix)}`);
-  L.push(`${pad}  where: [${(r.where || []).map(q).join(', ')}]`, `${pad}  findings: [${(r.findings || []).join(', ')}]`, `${pad}  check: ${q(r.check)}`);
+  L.push(`${pad}  where: [${(r.where || []).map(q).join(', ')}]`, `${pad}  findings: [${(r.findings || []).join(', ')}]`);
+  // free text: a block sequence, since a flow list's commas would split an item on read-back
+  L.push((r.seen || []).length ? [`${pad}  seen:`, ...r.seen.map((x) => `${pad}    - ${q(x)}`)].join('\n') : `${pad}  seen: []`);
+  L.push(`${pad}  check: ${q(r.check)}`);
   if (r.decided_by) L.push(`${pad}  decided_by: ${r.decided_by}`);
   L.push(`${pad}  reason: ${q(r.reason)}`);
   return L.join('\n');
@@ -124,6 +130,8 @@ export function toYaml(runId, yardstickVersion, built) {
 }
 
 // ── the page ──────────────────────────────────────────────────────────────────
+// a met row's cited strengths, in the owner's words: what was seen in place, then where
+const seenText = (r) => (r.seen && r.seen.length ? `${/[.!?]$/.test(String(r.reason || '').trim()) ? '' : '.'} Seen in place: ${r.seen.map((x) => mdText(x).replace(/\.$/, '')).join('; ')}. Where: ${whereText(r)}.` : '');
 const whereText = (r) => (r.where && r.where.length ? r.where.map(mdCode).join(', ') + (r.lens ? ` (${r.lens})` : '')
   : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : mdText(r.reason));
 
@@ -171,7 +179,7 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
 
   out.push('## Holds', '');
   if (floor.met.length) {
-    for (const r of floor.met) out.push(`- **${r.title}.** ${mdText(r.reason)}`);
+    for (const r of floor.met) out.push(`- **${r.title}.** ${mdText(r.reason)}${seenText(r)}`);
   } else out.push('_Nothing on the floor is met yet._');
   out.push('');
 
@@ -197,7 +205,7 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
   out.push('');
   out.push('### Holds', '');
   if (beyond_floor.met.length) {
-    for (const r of beyond_floor.met) out.push(`- **${r.title}** — ${mdText(r.reason)}`);
+    for (const r of beyond_floor.met) out.push(`- **${r.title}** — ${mdText(r.reason)}${seenText(r)}`);
   } else out.push('_Nothing met yet._');
   out.push('');
   if (beyond_floor.not_applicable.length) {

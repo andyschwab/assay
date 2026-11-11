@@ -34,6 +34,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { parseYaml, q } from '../../lib/yaml-min.mjs';
 import { censusesPath, maturityGradesPath } from '../../lib/run-layout.mjs';
+import { censusCount } from '../../map/census.mjs';
 import { gateHolds, isHaltClass, effectLeg, isMain } from '../../map/doctrine.mjs';
 import { loadFindings } from '../../map/project.mjs';
 
@@ -132,7 +133,9 @@ export function buildGrades(findings, inputs) {
     // A sampled census (from inputs) can supply the primary for an unmeasured
     // dimension. Sampled measures must state met/of and method.
     if (Array.isArray(inp.sampled) && inp.sampled.length) {
-      const sampled = inp.sampled.map((s) => ({ name: s.name, what: s.what, met: s.met, of: s.of, pct: pct(s.met, s.of), kind: 'sampled', method: s.method, primary: !!s.primary }));
+      // the count is read off the census's members when it lists them (map/census.mjs, #260)
+      const byId = new Map((findings || []).map((f) => [String(f.id), f]));
+      const sampled = inp.sampled.map((s) => { const { met, of } = censusCount(s, byId); return { name: s.name, what: s.what, met, of, pct: pct(met, of), kind: 'sampled', method: s.method, primary: !!s.primary }; });
       measures = [...measures, ...sampled];
     }
     const primary = measures.find((mm) => mm.primary) || null;

@@ -44,6 +44,7 @@ import { loadFindings } from '../map/project.mjs';
 import { rawPath, censusesPath, packetManifestPath } from '../lib/run-layout.mjs';
 import { secretShape, emailShape } from '../yardstick/packet.mjs';
 import { stripUserinfo } from '../map/repo-census.mjs';
+import { censusCount } from '../map/census.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // owner/
 const TEMPLATE_FILE = join(HERE, 'ask-owner.md');
@@ -93,7 +94,13 @@ function credentialLine(runDir) {
   if (!doc || !Array.isArray(doc.dimensions)) return null;
   for (const dim of doc.dimensions) {
     for (const s of dim.sampled || []) {
-      if (s && CREDENTIAL_MEASURES.includes(s.name)) return creditSentence(Number(s.of) || 0, Number(s.met) || 0);
+      if (s && CREDENTIAL_MEASURES.includes(s.name)) {
+        // read off the census's members when it lists them (map/census.mjs, #260)
+        let byId = new Map();
+        if (Array.isArray(s.members)) try { byId = new Map(loadFindings(runDir).map((f) => [String(f.id), f])); } catch { /* an unreadable base counts every member unjudged */ }
+        const { met, of } = censusCount(s, byId);
+        return creditSentence(Number(of) || 0, Number(met) || 0);
+      }
     }
   }
   return null;

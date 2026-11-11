@@ -38,8 +38,9 @@ yardstick: <requirements.yaml version>
 counts: { requirements: N, open: N, met: N, to_run: N, not_applicable: N }
 open:              # status unmet or mixed
   - { id, tier, topic, title, status, basis, met, of, findings: [F-…], note, check }
-met:
-  - { id, tier, topic, title, basis, note }
+met:               # findings: what the row was met by (#260): a census's members, the effect
+                   # findings a met effect row read, an instrument's strength rows; [] when none
+  - { id, tier, topic, title, basis, findings: [F-…], note }
 to_run:            # status not-measured
   - { id, tier, topic, title, check, decided_by, basis, note }
 not_applicable:    # status not-applicable — decided from the map, NEVER counted as met
@@ -121,8 +122,8 @@ floor:                # the same population Intake reads (tags: [floor])
     - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], check, reason }
   not_measured:
     - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, decided_by, reason }
-  met:
-    - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], check, reason }
+  met:                # seen: the observations of the strengths the row cites, what was seen in place (#260)
+    - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], seen: ["…"], check, reason }
   not_applicable:    # decided from the map as having nothing to apply to; listed, never counted as met
     - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, reason }
 beyond_floor:          # every requirement NOT tagged floor — fleet and ai-operating rows together
@@ -136,11 +137,14 @@ not_looked_at:         # every run-record row that did not run (map/scanners.yam
 `status` is `unmet | mixed | met | not-measured` — the same statuses
 `yardstick.yaml` carries, never a score or a severity word. `findings` is the
 measurement's own finding ids when the deciding mechanism produced any
-(instrument and some facet rows), and `where` is those findings' evidence,
-`file:line` in the target, what the owner can open; a census or claim row
-decides over a named population or the owner's own word rather than
+(instrument and facet rows, and a census row's members), and `where` is those findings' evidence,
+`file:line` in the target, what the owner can open; a claim row, or a census that lists
+no members, decides over the owner's own word or an authored count rather than
 individual findings, so both read empty there and `reason` (the
-measurement's note) carries what there is to point at instead. `decided_by` names what would decide a
+measurement's note) carries what there is to point at instead. Every row carries `seen`:
+on a `met` row, the observations of the strengths it cites, which `OWNER.md` renders under
+"Holds" as what was seen in place, so the owner reads what holds and not only that nothing
+was found missing; `[]` on every other row and on a met row that cites no strength. `decided_by` names what would decide a
 `not_measured` row (a scanner, `census`, or `owner` for a claim only the
 owner can make) — present only there, the same convention as Intake's
 `to_run`. `OWNER.md` renders `floor` in full (one fix prompt per open row, in

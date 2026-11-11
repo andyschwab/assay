@@ -167,7 +167,7 @@ export function renderMd(runId, built, confidential = false, contradictions = []
 
   out.push('## Met', '');
   if (met.length) {
-    for (const r of met) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${t(r.note)} (met${basisNote(r)}).`);
+    for (const r of met) out.push(`- **${r.id}** _(${r.tier}/${r.topic})_ — ${r.title}. ${t(r.note)} (met${basisNote(r)}${r.findings && r.findings.length ? `; evidence ${r.findings.join(', ')}` : ''}).`);
   } else out.push('_Nothing met yet._');
   out.push('');
 
