@@ -1,0 +1,443 @@
+# practice-review Pass 1: artifact legibility (assay at 2b247c014b14)
+# Censuses: decision-reconstruction (D1-D10 -> F-101..F-110), doc-freshness (F-111..F-143).
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D1 (an in-house strict YAML reader instead of a library) is reconstructable from files: the schema says the reader is zero-dependency so the validator copies into any target repo, and the reader's header says it throws on what it cannot parse because a checker that silently accepts unparseable input hides what it exists to catch.
+  evidence: [lib/yaml-min.mjs:1-6, map/SCHEMA.md:971-972]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D2 (finding ids carry no dimension meaning) is reconstructable from files: SCHEMA.md section 3 states that a fixed per-dimension range is an arbitrary budget a dense repo overflows and would only duplicate the dimension field.
+  evidence: [map/SCHEMA.md:217-232]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D3 (no severity in the base and no go/no-go or deploy-stage verdict) is reconstructable from files: METHOD.md says it stops a strengths-first framing from muting a critical finding, and SCHEMA.md says a per-exposure stage is a risk-tolerance verdict that belongs to the reader.
+  evidence: [README.md:32-37, map/METHOD.md:24-28, map/SCHEMA.md:559-564]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-104
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D4 (the core names no external scanner; scanners arrive as adapters) is reconstructable from files: the scanner contract says the engine interfaces with a scanner and never forks its logic, so a scanner's evolution is absorbed by its adapter alone.
+  evidence: [CLAUDE.md:33-41, map/scanners/CONTRACT.md:7-10, map/scanners/CONTRACT.md:988-990]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D5 (fresh-clone executes the target only under --allow-exec) is reconstructable from files: the start script and README both say it runs the target's own install, lifecycle scripts and tests on this machine, which is not a sandbox, and should be run in a disposable container or VM.
+  evidence: [map/start.mjs:28-32, map/start.mjs:414, README.md:89-100]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D6 (no history file; the change record is git) is reconstructable from files: CLAUDE.md states the rule and points at the guard, whose header says a dated history file restates the commit that made the change, so no parallel log is kept.
+  evidence: [CLAUDE.md:71-73, tests/blocks/no-history-file.mjs:1-8]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D7 (every pinned tool download is sha256-checked before it runs) is reconstructable only by inference: the files state the mechanism and that the check happens before the binary is ever executed, and justify the pypi exception, but no line states the threat the sum defends against.
+  evidence: [map/tools.mjs:15-20, .github/actions/tools/action.yml:6-9, map/scanners/CONTRACT.md:877-881]
+  confidence: plausible
+  property: decision-rationale-recorded
+- id: F-108
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D8 (the routine runs the target's steps in a job separate from the engine's gate) is reconstructable from files: the routine README says code that runs in a job can rewrite the engine checkout, run directory or base ref, so a change could make its own gate read held.
+  evidence: [routine/README.md:130-137, routine/README.md:155-159]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-109
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D9 (a pinned-score move is a reviewed re-bless of tests/golden.json) is reconstructable from files: the regression runner says it pins computed behavior so a change to a tool cannot silently move a result, and that a failing unit or negative assertion is always a real regression.
+  evidence: [tests/regression.mjs:4-13, CLAUDE.md:51-53]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D10 (static analysis runs over a positive control before the target) is reconstructable from files: the contract says zero results on a target are a clean result only beside a control that fired, and that the control proves the tool and rules on this machine, not the target's framework.
+  evidence: [map/scanners/CONTRACT.md:809-813, map/scanners/adapters/opengrep.yaml:36-38]
+  confidence: confirmed
+  property: decision-rationale-recorded
+- id: F-111
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that map/SCHEMA.md is the authoritative finding format holds: the file declares itself the authoritative specification enforced by map/validate.mjs.
+  evidence: [CLAUDE.md:5-6, map/SCHEMA.md:3-12]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-112
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that map/METHOD.md is the built-in scanner holds: the file is the practice-review skill, the built-in scanner's method.
+  evidence: [CLAUDE.md:6, map/METHOD.md:1-11]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-113
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that yardstick/README.md is the requirements contract holds: it describes requirements.yaml and the measurement written to yardstick.yaml.
+  evidence: [CLAUDE.md:6-7, yardstick/README.md:1-10]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-114
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that views/README.md gives the views' data formats holds: it carries a per-file schema table for each view's data file.
+  evidence: [CLAUDE.md:7, views/README.md:168-170]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-115
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim of four views of one run (Intake, Maintain, Improve, Owner) plus Since of two holds: compile writes the four and runs since only when given a previous run.
+  evidence: [CLAUDE.md:3-5, views/compile.mjs:77-95, assay.mjs:50-56]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-116
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that the one rule's home is README.md holds: README.md states the rule and says that paragraph is its one home.
+  evidence: [CLAUDE.md:11, README.md:32-37]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-117
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that node assay.mjs validate fails closed holds: validate exits non-zero on a legacy-format run and on any error.
+  evidence: [CLAUDE.md:16, map/validate.mjs:105, map/validate.mjs:784]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-118
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that a scanner that did not run is recorded in map/scanners.yaml and nothing compiles without the run record holds: validate errors on a missing manifest and compile runs validate first and exits on its failure.
+  evidence: [CLAUDE.md:18-21, map/validate.mjs:233, views/compile.mjs:55-57, views/compile.mjs:68-72]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-119
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that an unmapped scanner category halts the projection holds: the projector collects unmapped categories and documents itself as fail-closed on them.
+  evidence: [CLAUDE.md:18-19, map/project.mjs:13, map/project.mjs:306-309]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-120
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that every view reads the yardstick's measurement (yardstick.yaml) and compile writes them all in one pass holds: compile measures once then runs each view, and each view script reads yardstick.yaml.
+  evidence: [CLAUDE.md:22-25, views/compile.mjs:72-95, views/intake.mjs:4, views/maintain.mjs:6, views/owner.mjs:3]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-121
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that tests/blocks/core-names-no-scanner.mjs holds rule 7 holds: the block exists and its core list and exemptions match the directories and exceptions the rule names.
+  evidence: [CLAUDE.md:33-41, tests/blocks/core-names-no-scanner.mjs:1-7, tests/blocks/core-names-no-scanner.mjs:19-20]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-122
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that npm test runs the regression harness and fails closed holds: the test script runs tests/regression.mjs, which exits non-zero on any drift.
+  evidence: [CLAUDE.md:46, package.json:9, tests/regression.mjs:21-23]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-123
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's score command (node assay.mjs score <run> --answers <ANSWERS.yaml>) matches the score script's usage line.
+  evidence: [CLAUDE.md:48, map/score.mjs:41, assay.mjs:35]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-124
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that a failing unit or negative assertion is never re-blessed holds mechanically: the harness refuses --bless while any unit, negative or scorer failure exists.
+  evidence: [CLAUDE.md:51-53, tests/harness.mjs:131-136]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-125
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that a new harness block is a new file under tests/blocks/ with no existing file edited holds: tests/README.md and the runner say blocks are discovered by filename.
+  evidence: [CLAUDE.md:55-56, tests/README.md:23-26, tests/regression.mjs:15-17]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-126
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's citation of tests/blocks/no-history-file.mjs as the guard for no history file holds: the block exists and pins that rule.
+  evidence: [CLAUDE.md:71-72, tests/blocks/no-history-file.mjs:1-8]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-127
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's toolchain claims hold: Node 22 or later, TypeScript and its types as the only (dev) dependencies, typecheck as checkJs over the engine's modules, and lint as Node's own syntax check.
+  evidence: [README.md:158-160, package.json:10-18, tsconfig.json:3-12, lib/check-syntax.mjs:1-2]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-128
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The Quickstart says help lists every command grouped map / yardstick / views, but the dispatcher prints four groups, including a Routine group the README line omits.
+  evidence: [README.md:163, assay.mjs:18-19, assay.mjs:39, assay.mjs:47, assay.mjs:50]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-129
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's start command and its fresh-clone conditions hold: start takes --out <run> <target> [--allow-exec], skips fresh-clone without the flag, and records it skipped over a target that is not a git repository.
+  evidence: [README.md:165-170, map/start.mjs:15, map/start.mjs:414-419, map/start.mjs:488]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-130
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's claim that start <target> and the routine refuse to draw a map until tools verify passes holds in both scripts.
+  evidence: [README.md:174-175, map/start.mjs:466-472, routine/run.mjs:7-10, routine/run.mjs:80]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-131
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's tools install and tools verify flags (--dir, --run, --only) and the checksum verification hold against map/tools.mjs.
+  evidence: [README.md:176-177, map/tools.mjs:24-27, map/tools.mjs:126-127, map/tools.mjs:226]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-132
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's composite-action claim holds: .github/actions/tools takes one optional input, dir, and installs, verifies and appends the directory to PATH.
+  evidence: [README.md:179-180, .github/actions/tools/action.yml:14-31]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-133
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's ingest line holds: a reviewer adapter is ingested with --tool and --raw and no --exit, and a successful ingest flips that scanner's row to ran in map/scanners.yaml.
+  evidence: [README.md:184-185, map/ingest.mjs:48-50, map/ingest.mjs:1231-1235, map/ingest.mjs:1258-1261]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-134
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's record line (record <run> practice-review ran --model <id>, with --pass and --spend) matches record.mjs's usage.
+  evidence: [README.md:186, README.md:190, map/record.mjs:12]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-135
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's lane command (lane <scanner> --name <Name> [--head <ref>] [--inputs-dir <path>]) matches lane.mjs's accepted options.
+  evidence: [README.md:188, map/lane.mjs:99, map/lane.mjs:103]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-136
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's validate forms (validate <run> [--target], and --lane with --target for a collected lane) match validate.mjs, which refuses --lane without --target.
+  evidence: [README.md:189, README.md:192, map/validate.mjs:85, map/validate.mjs:97-98]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-137
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's claim that ingest or record measures an already-compiled run again holds: both call remeasure after changing a run.
+  evidence: [README.md:191, map/record.mjs:173-180, map/record.mjs:219, map/ingest.mjs:1281]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-138
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's compile forms ([--target], and --since <prev-run> adding SINCE.md) match compile.mjs's usage and its since step.
+  evidence: [README.md:195, README.md:198, views/compile.mjs:23, views/compile.mjs:90-95]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-139
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's migrate-run line (rename a retired id, quote what the strict reader refuses, [--write]) matches migrate-run.mjs's header and usage.
+  evidence: [README.md:199, map/migrate-run.mjs:1-24]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-140
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's ratchet line (ratchet <run> --baseline <file>, failing when a met or mixed row regresses) matches ratchet.mjs's header and usage.
+  evidence: [README.md:200, yardstick/ratchet.mjs:2-7, yardstick/ratchet.mjs:14-18]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-141
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's yardstick --floor [--json] command matches yardstick/list.mjs's accepted flags.
+  evidence: [README.md:203, yardstick/list.mjs:9, yardstick/list.mjs:15]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-142
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's section references into the scanner contract (section 3g for pinned tools, section 3h for a lane) resolve to sections with those subjects.
+  evidence: [README.md:172, README.md:187, map/scanners/CONTRACT.md:861, map/scanners/CONTRACT.md:904]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-143
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's closing claims hold: CONSUMERS.md exists, and routine/ is a workflow template whose driver runs the offline instruments, compiles and ratchets against a committed baseline, with routine/README.md as its contract.
+  evidence: [README.md:206-212, routine/run.mjs:1-18, routine/README.md:3]
+  confidence: confirmed
+  property: doc-claim-holds
+- id: F-144
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Contract text is given one named home that other pages cite rather than restate: README.md declares the one rule's home, and ratchet.mjs declares itself the one home of the baseline format, which yardstick/README.md links to.
+  evidence: [README.md:36-37, CLAUDE.md:11, yardstick/ratchet.mjs:11-12]
+  confidence: confirmed
+  property: single-home-contracts
+- id: F-145
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Entry scripts carry their usage and the reason for each behaviour in a header beside the code, so a script's intent is readable without leaving the file.
+  evidence: [map/start.mjs:15-36, map/tools.mjs:1-27, yardstick/ratchet.mjs:1-30]
+  confidence: confirmed
+  property: intent-beside-code
+- id: F-146
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md requires that taste the code relies on be written in CLAUDE.md or its owning contract, never only in a code comment.
+  evidence: [CLAUDE.md:69-70]
+  confidence: confirmed
+  property: taste-in-contracts
+- id: F-147
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The YAML reader's header lists folded scalars (key: >) as the block scalar it handles, but the reader also accepts the literal indicator | and folds it into one line like >, which neither the header nor the contract's note on the reader states.
+  evidence: [lib/yaml-min.mjs:1-5, lib/yaml-min.mjs:80-89, lib/yaml-min.mjs:116, lib/yaml-min.mjs:135, map/scanners/CONTRACT.md:133-135]
+  confidence: confirmed
+  property: doc-matches-code
+- id: F-148
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    SCHEMA.md section 3 says ids are renumbered across independent runs and a collision is renumbered freely, then says ids are never renumbered, leaving the renumbering rule for a reader to reconcile.
+  evidence: [map/SCHEMA.md:228-231, map/SCHEMA.md:239, map/SCHEMA.md:248]
+  confidence: confirmed
+  property: doc-internally-consistent
+- id: F-149
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    Design comments cite tracker issue numbers as the provenance of a rule while restating the rule inline, so the rule reads from the file and its history lives on the tracker.
+  evidence: [map/start.mjs:16-17, map/tools.mjs:1-4, tests/blocks/no-history-file.mjs:1-3]
+  confidence: confirmed
+  property: rationale-provenance-linked

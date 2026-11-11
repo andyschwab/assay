@@ -165,8 +165,9 @@ here — that's the views' job.
 **The passes are organized by the requirements they feed** (#263). `map/passes.yaml` is the
 one home of the map: each pass names the facet and census requirements it decides (each
 facet- or census-decided requirement has exactly one owning pass, so an observation is
-recorded once, by the pass whose requirement reads it), the questions it asks that no
-requirement reads yet, and the `SCHEMA.md` sections its outputs need. The block at the head
+recorded once, by the pass whose requirement reads it), the claim rows whose context list it
+fills (each such row has exactly one), the questions it asks that no requirement reads yet,
+and the `SCHEMA.md` sections its outputs need. The block at the head
 of each pass below is rendered from that file (`node map/passes.mjs --write`; the harness
 fails on drift), never hand-edited.
 
@@ -176,7 +177,13 @@ fails on drift), never hand-edited.
   their ids as the census's `members:` in `map/censuses.yaml` (`SCHEMA.md` §6b), under the
   census the block names. A facet row is read off the forced fields of the pass's `effect`
   and `capability` findings (`SCHEMA.md` §4), so it needs no census.
-- **A discovery question** feeds no requirement yet. A finding that answers one carries the
+- **A context list a pass fills** belongs to a claim row the owner decides (its
+  `decide.context`): the pass asks the row's question of each member of its population it
+  comes across, and lists those findings' ids in the row's list under `context:` in
+  `map/censuses.yaml` (`SCHEMA.md` §6b). The list decides nothing and closes no population;
+  the views show it beside the row as context (#262).
+- **A discovery question** feeds no requirement yet, and is never a question a census or
+  context row already asks: that question is the row's, asked by the pass that owns it. A finding that answers one carries the
   question's `property:` (`SCHEMA.md` §1), so the run lists it among its candidate
   properties (`views/improve/candidates.yaml`), and two targets that observe it meet on one
   name (#264, #265).
@@ -193,6 +200,8 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
 - **Decides**, asked of every member of each population:
   - `d-decisions-reconstruct` (census `decision-reconstruction`): population every non-obvious decision; no tool lists its members, so the terrain draws them; asks: can a newcomer reconstruct why it was made from the repository's files alone?
   - `d-readme-true` (census `doc-freshness`): population every doc claim; no tool lists its members, so the terrain draws them; asks: does it hold when replayed against the code or checked in the fresh-clone run?
+- **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
+  - `d-one-home-per-fact` (context list `second-accounts`): population every second account; asks: does one home stay authoritative, a docs guard refusing a second account of a list and one store per remembered fact in code?
 - **Discovery**: none.
 - **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
 <!-- /passes:legibility -->
@@ -214,10 +223,10 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
 - **Decides**, asked of every member of each population:
   - `d-modules-standalone` (census `modules-standalone`): population every module; no tool lists its members, so the terrain draws them; asks: can an agent load it alone, with something to read and something to run, and change it without loading the rest?
   - `d-model-call-telemetry` (census `model-call-telemetry`): population every model call site; candidates: `populations.modelCalls` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome?
+- **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
+  - `d-model-qualification` (context list `model-qualification`): population every model in use; asks: is there a dated qualification record for it, with the rationale for the choice and the trigger that re-qualifies it when models ship?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `entry-docs-route-a-stranger`: do the entry-point docs route a stranger to the one subsystem a task needs, disclosing the rest progressively?
-  - `model-tier-rationale-recorded`: is each model-tier choice recorded with its rationale, and re-measured when a model ships?
-  - `inference-spend-metered`: is inference spend metered per work class?
 - **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
 <!-- /passes:context -->
 
@@ -226,7 +235,8 @@ terrain's module population: module boundaries that let a task load one subsyste
 question, not a second one. Whether the entry-point docs route a stranger is a discovery
 question; whether what they say is true is Pass 1's. The same economy holds on the spend side
 (one bounded-resource discipline, two meters): a tier choice that is a standing assumption
-nobody re-measures, and spend nobody meters, are what the spend questions name.
+nobody re-measures is the model-qualification context list's, and a model call that records no
+tier, spend or outcome is the model-call census's.
 
 ### Pass 3 — Deterministic gates
 
@@ -235,6 +245,8 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
 
 - **Decides**, asked of every member of each population:
   - `d-change-gates-fail-closed` (census `change-gates`): population every change gate; candidates: `populations.changeGates` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green?
+- **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
+  - `d-guards-bite` (context list `guard-fixtures`): population every guard fixture; asks: does the self-test flip red when that one check is weakened?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `central-regression-caught`: if a change introduced a subtle regression in the central module, which gate catches it, and when (pre-commit, CI, by hand, never)?
   - `interface-contract-enforced`: does an interface validate what crosses it, so a wrong input fails loudly rather than silently?
@@ -254,24 +266,28 @@ of the application's own effect is Pass 5's, recorded on that effect's finding (
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides** no facet or census requirement.
+- **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
+  - `d-calibration-harness` (context list `rubric-calibration`): population every relied-on rubric; asks: was it hardened by measurement, a frozen input run blind n times with the divergence disposed into named classes?
+  - `d-change-carries-verification` (context list `change-verification`): population every change verification; asks: is the verification section mandatory, with CI refusing an empty one?
+  - `d-ai-feature-evals` (context list `ai-feature-evals`): population every AI feature; asks: does an eval of its answer quality exist and run in CI?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `change-demonstrable`: can a change demonstrate itself, through a runnable example, a fixture or an observable result?
   - `effect-confirmed-not-reported`: does a job that reports success confirm the effect happened, rather than trust a return code or a success report?
   - `output-checked-regardless-of-fluency`: does anything check output however fluent it reads, rather than a check a reviewer must remember to run?
-  - `calibration-harness`: is a skill or rubric hardened by measuring it (an input frozen, run blind several times, the divergence sorted into named classes)?
-- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §9.
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
 <!-- /passes:verification -->
 
 Beyond pass/fail: can a change demonstrate itself? This pass decides no facet or census
 requirement. Whether an effect leaves a record, and whether that record is structured enough
 to prove it, are forced fields of Pass 5's effect findings (`telemetry`), read by Pass 5's
-rows. The requirements nearest this pass's questions (`d-calibration-harness`,
-`d-change-carries-verification`) are owner-attested claim rows, which a run reads not
-measured, so its questions are discovery questions until a requirement reads them. Probe
+rows. The requirements nearest this pass (`d-calibration-harness`,
+`d-change-carries-verification`, `d-ai-feature-evals`) are owner-attested claim rows, which a
+run reads not measured: it fills their context lists, and asks the rest as discovery
+questions until a requirement reads them. Probe
 integrations for the **effects-vs-reports** shape: a half-reliable integration that reports
 success while the effect drops is worse than a missing one. Probe the **decay condition**:
-a check that holds however fluent the output reads. Probe for a **calibration harness**: is
-repeatability checked, or assumed?
+a check that holds however fluent the output reads. A **calibration harness** (is
+repeatability checked, or assumed?) is the rubric-calibration context list's.
 
 ### Pass 5 — Delegation surface
 
@@ -287,12 +303,13 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
   - `d-capability-budget` (facet `trifecta`): population every AI context; asks: does it hold untrusted input, private data and an outward effect at once while reaching an effect with no gate that holds?
   - `d-credentials-enumerated` (census `credentials-below-boundary`): population every secret; candidates: `populations.secrets` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed?
   - `d-ingested-content-is-data` (census `ingested-content`): population every ingestion point; no tool lists its members, so the terrain draws them; asks: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction?
+- **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
+  - `d-ai-disclosure` (context list `ai-disclosure`): population every outward AI output; asks: does the channel name its disclosure mechanism, or record why its audience needs none?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `acting-principal-stated`: for each connector, tool surface and effect, can you say who is acting as whom, with per-identity scoping and a stated role, rather than one opaque principal?
   - `scope-promotion-path`: where capability is scoped (per user, room or tenant), is there a sanctioned, gated way for it to graduate beyond its scope?
   - `policy-reads-provenance`: where a wrapper or policy gates calls, does it reason over what values from what provenance reach which call, with context entries labelled by origin, rather than per-call permission alone?
   - `control-matches-modality`: does each control match its modality (automation gets output checks, augmentation collaboration checkpoints, agency behavioural specs, monitoring and pre-release verification)?
-  - `ai-involvement-disclosed`: is AI involvement disclosed to the audience by structure (a bot visibly joining), not a footnote after the fact?
 - **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §4, §6b, §6e, §9.
 <!-- /passes:delegation -->
 
@@ -332,8 +349,9 @@ as is asked here, once); the **promotion path** out of a scope (scoping bounds b
 fragments leverage in the same move, so scopes with no promotion path are a finding rather than
 a credit); **composition** (individually allowed calls that chain into harm are a finding, not
 a pass; whether context entries carry the origin of the reads that produced them is asked
-here, once); **modality match**; and **authorship** (the halt covers authorization; does
-anything cover authorship?).
+here, once); and **modality match**. **Authorship** (the halt covers authorization; does
+anything cover authorship, disclosed to the audience by structure?) is the ai-disclosure
+context list's, not a discovery question.
 
 ### Pass 6 — Improvement loop
 
@@ -342,6 +360,8 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
 
 - **Decides**, asked of every member of each population:
   - `d-corrections-become-mechanisms` (census `incidents-became-mechanisms`): population every lesson; no tool lists its members, so the terrain draws them; asks: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again?
+- **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
+  - `d-backlog-is-issues` (context list `backlog-records`): population every backlog record; asks: is it an issue on the repository's tracker, labelled by need-by, kind and size and closed by the change that finishes it, with no list file carrying rows?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `impact-self-measured`: does the system know what it is worth (impact fields on shipped work, before-and-after records, its own delta legible without a study)?
   - `usage-outcome-records-emitted`: does the artifact emit structured usage and outcome records by its own design, aggregated at the population level?

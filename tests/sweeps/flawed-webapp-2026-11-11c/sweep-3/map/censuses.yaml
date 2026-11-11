@@ -1,0 +1,63 @@
+# map/censuses.yaml (authored). Census-augmented mode: one finding per member, members frozen in map/terrain.md.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is real: ADR-0001 states context, decision, consequences and the rejected alternative, and lib/db.mjs links back to it (F-117, F-119, F-110); but it is the only ADR, and five of nine doc claims do not hold against the code (F-101, F-104, F-107, F-108, F-109).
+    sampled:
+      - name: doc-freshness
+        what: "concrete README and ADR claims that hold when replayed against the code"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108, F-109]
+        method: "every concrete claim in README.md and docs/adr/0001-storage-choice.md, C1-C9 as frozen in the terrain, one finding each, checked by reading the code (nothing run)"
+        primary: true
+      - name: decision-reconstruction
+        what: "non-obvious decisions whose rationale reconstructs from the files alone"
+        members: [F-110, F-111, F-112, F-113, F-114, F-115, F-116]
+        method: "every non-obvious decision the terrain froze before assessment, D1-D7, one finding each"
+  - dimension: context-economy
+    depth: >
+      Every module opens with a purpose header (F-210), and lib/auth.mjs alone has both a header and a test that exercises it alone (F-203); no agent contract file exists and the model tier is unrecorded (F-214, F-215).
+    sampled:
+      - name: modules-standalone
+        what: "modules an agent can load alone with something to read and something to run"
+        members: [F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208]
+        method: "every source module in the terrain's module population (server.mjs, lib/*, routes/admin.mjs, config/settings.mjs), one finding each"
+        primary: true
+  - dimension: deterministic-gates
+    depth: >
+      The one gate is a dependency-free top-level assert that exits non-zero on failure (F-306), but its assertion cannot fail while authentication falls back to a default identity (F-301), and no test, lint or typecheck script exists (F-302).
+    sampled:
+      - name: change-gates
+        what: "change gates that go red when what they need is absent or never finishes"
+        members: [F-301]
+        method: "every check inside the target a change passes through (CI step, hook, config-driven check), enumerated from a listing; one member, the smoke suite, G1"
+        primary: true
+  - dimension: verification
+    depth: >
+      Where an effect is in-process the report follows the write (F-401, F-404), but both outward effects report success without verifying it, the backup swallowing its own failure (F-402, F-403), and nothing evaluates the assistant's output (F-407, F-408).
+    sampled:
+      - name: effect-provability
+        what: "effect channels whose success report proves the effect happened"
+        members: [F-401, F-402, F-403, F-404]
+        method: "every effect channel in the terrain's effect inventory, one control finding each"
+        primary: true
+  - dimension: delegation
+    depth: >
+      Credentials sit below the prompt boundary and their reach is traceable (F-506, F-507), and GET /notes is owner-scoped (F-514); but authentication falls back to an admin identity (F-508), so the purge and the assistant's ungated email are open to any caller (F-504, F-502, F-505).
+    sampled:
+      - name: credential
+        what: "secrets the running application reads whose reach is traced in the code"
+        members: [F-506, F-507]
+        method: "every secret the running app reads, found by reading (the enumeration listed none): K1 the backup API key, K2 the session bearer-token table, one finding each"
+        primary: true
+  - dimension: improvement-loop
+    depth: >
+      No loop exists to judge: no agent spec, no recorded lesson, and deferred intents live as TODO prose (F-601, F-602, F-604); the census of lessons has no members, so it is not run.
+  - dimension: multiplayer
+    depth: >
+      Every capability is an HTTP JSON route with no human-only screen (F-706), and the assistant labels each note with its owner (F-711); but only two of five interfaces are usable from the README alone, and the assistant surfaces every member's notes without consent (F-713, F-714).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces an agent can reach and use through a contract stated outside the code"
+        members: [F-701, F-702, F-703, F-704, F-705]
+        method: "every route in the server's route table, five, one finding each, judged against the README alone"
+        primary: true

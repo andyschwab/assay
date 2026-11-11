@@ -1,0 +1,88 @@
+# map/censuses.yaml (authored): the censuses this practice-review lane ran, each population
+# frozen in map/terrain.md before assessment, one finding per member (SCHEMA.md §6b).
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best rationale is written beside the choice and names the threat it answers: the routine's
+      two-job split (F-107), id allocation (F-104) and the child environment allow-list (F-109); the
+      repository's own contract requires taste to live in a contract doc (F-112).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions reconstructable from the repository's files alone"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108, F-109, F-110]
+        method: "every decision frozen in terrain.md, D1-D10, one finding each: strength where a file states why it was made, gap where the choice is visible and no file states its reason"
+        primary: true
+  - dimension: context-economy
+    depth: >
+      Where context economy holds it is held by machinery: a block reads the view count and the
+      CLAUDE.md rule citations off the code (F-232), 20 of 21 replayed front-door claims hold
+      (F-210 to F-230), and inference spend is recorded per scanner and per pass (F-238, F-239).
+    sampled:
+      - name: modules-standalone
+        what: "module groups an agent can load alone, with a contract to read and a command or block to run"
+        members: [F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208, F-209]
+        method: "every module group frozen in terrain.md (lib/, map/ core, map/scanners/, yardstick/, views/, views/improve/, owner/, routine/, .github/), one finding each: met with a head comment or README naming its contract, a command or harness block exercising it, and imports that let it change alone"
+        primary: true
+      - name: doc-freshness
+        what: "concrete claims in README.md and CLAUDE.md that hold when replayed against the tree"
+        members: [F-210, F-211, F-212, F-213, F-214, F-215, F-216, F-217, F-218, F-219, F-220, F-221, F-222, F-223, F-224, F-225, F-226, F-227, F-228, F-229, F-230]
+        method: "every concrete claim (command, flag, count, path, capability) in README.md then CLAUDE.md, walked top to bottom, replayable by reading the tree, one finding each citing the claim and the code that confirms or contradicts it"
+  - dimension: deterministic-gates
+    depth: >
+      The gates are themselves tested: each negative fixture must fail for its own named violation
+      (F-312), the harness refuses an empty or broken block (F-314), and blocks pin the workflows'
+      shape (F-322); a weakened check with no fixture, or a re-bless that lowers a score, still passes
+      (F-313, F-316).
+    sampled:
+      - name: change-gates
+        what: "change gates that go red when what they need is absent or never finishes"
+        members: [F-301, F-302, F-303, F-304, F-305, F-306, F-307, F-308, F-309, F-310, F-311]
+        method: "every CI step and config-driven check a change passes before it lands or ships, as frozen in terrain.md (ci.yml six steps, release.yml five steps; no hooks exist), one finding each: the step and the script it runs read for whether it goes red when its tool, secret, input or target is absent, and bounded by the job's timeout"
+        primary: true
+  - dimension: verification
+    depth: >
+      The instrument intake checks the effect rather than an exit code: exit digits are cross-checked
+      against the report, the report's shape is validated and opengrep's positive control must fire,
+      each pinned by a block that turns red when weakened (F-402, F-407, F-416, F-426); the edges pass
+      on exit code alone (F-414, F-415, F-418, F-419).
+    sampled:
+      - name: effect-provability
+        what: "effect channels that leave a durable record outside the AI and are checked by their effect"
+        members: [F-401, F-402, F-403, F-404, F-405, F-406, F-407, F-408, F-409, F-410, F-411, F-412, F-413]
+        method: "every effect channel in terrain.md's effect inventory, one finding each: whether the effect leaves a durable record outside the AI and whether the job checks the effect rather than a return code"
+        primary: true
+  - dimension: delegation
+    depth: >
+      Credentials stay below the boundary: every child that runs a target or its package manager gets
+      an allow-listed environment (F-521), each workflow job states its token scope (F-527), and the one
+      irreversible publish waits on a person's dispatch after its gates (F-525); the open legs are the
+      registry and tool installs with no holding gate (F-507, F-508, F-509).
+    sampled:
+      - name: credential
+        what: "secrets whose reach is traced in the code, where read and what they may do"
+        members: [F-517, F-518, F-519, F-520]
+        method: "every secret the running engine or its own workflows read, frozen in terrain.md (GITHUB_TOKEN, GH_TOKEN, FETCH_TOKEN, ASSAY_READ_TOKEN), one finding each: strength when where it is read and its scopes are traced in the code"
+        primary: true
+  - dimension: improvement-loop
+    depth: >
+      Lessons become typed rules held by blocks that cite the incident, the read-only outward leg
+      (F-610) and the web-app channel list (F-607) among them, and about 90 of 161 blocks follow that
+      pattern (F-613); the process rules, red-then-green and backlog to issue, are only checked for being
+      written (F-614, F-617).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "recorded lessons that became a mechanism that would catch the same failure again"
+        members: [F-601, F-602, F-603, F-604, F-605, F-606, F-607, F-608, F-609, F-610]
+        method: "every lesson the tree records, L1-L10 as frozen in terrain.md, one finding each: strength where a test block, validator rule, ignore rule or measurement code holds it, gap where it lives only as prose"
+        primary: true
+  - dimension: multiplayer
+    depth: >
+      CONSUMERS.md states each output shape and exit code and a block checks it against the commands
+      (F-701, F-710, F-711), and the handoff's sequence and chains files are versioned schemas read back
+      by validate (F-704, F-705); the consumer page's own surface list misses several promised formats (F-715).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces an agent can reach through a contract stated outside the code"
+        members: [F-701, F-702, F-703, F-704, F-705, F-706, F-707, F-708, F-709, F-710, F-711, F-712, F-713, F-714]
+        method: "every interface in terrain.md's frozen population, fourteen in terrain order, one finding each: strength where a contract stated outside the code lets an agent reach it, gap where only a human page or the code does"
+        primary: true
