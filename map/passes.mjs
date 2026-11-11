@@ -2,17 +2,22 @@
 // passes.mjs — practice-review's passes, organized by the requirements they feed (#263).
 //
 // map/passes.yaml is the one home of the pass-to-requirement map: each pass names the facet and
-// census requirements it decides, the discovery questions it asks that no requirement reads, and
-// the map/SCHEMA.md sections its outputs need. This module reads it and:
+// census requirements it decides, the claim rows whose context list it fills, the discovery
+// questions it asks that no requirement reads, and the map/SCHEMA.md sections its outputs need.
+// This module reads it and:
 //   - ownershipErrors: every facet- or census-decided requirement of the yardstick has exactly
 //     one owning pass, and a pass decides only facet and census rows;
+//   - contextErrors: every claim row with a context list (decide.context) has exactly one pass
+//     that fills it, a pass's context names only such rows, and no discovery question is one a
+//     census or context row already asks;
 //   - shapeErrors: the passes, their discovery properties (one pass each, never a requirement id)
 //     and their schema sections are well formed;
 //   - renderBlock / methodDrift: map/METHOD.md's block at the head of each pass is rendered from
 //     the map, never a second hand-kept copy;
 //   - sliceOf: the opening context a pass subagent reads (the method's ground rules, the passes'
 //     introduction, its own pass's section, and the SCHEMA.md sections it names), and its bytes.
-// tests/blocks/passes-feed-requirements.mjs holds all of it.
+// tests/blocks/passes-feed-requirements.mjs and tests/blocks/context-lists-have-owners.mjs hold
+// all of it.
 //
 // Usage: node map/passes.mjs [--check | --write | --measure [--json]]
 //   --check    exit 1 naming each error and each pass block of METHOD.md that drifted (default)
@@ -40,7 +45,7 @@ const asList = (v) => (Array.isArray(v) ? v : v === undefined || v === null ? []
 export function loadPasses(file = PASSES_FILE) {
   const doc = parseYaml(readFileSync(file, 'utf8'));
   if (!doc || !Array.isArray(doc.passes) || !doc.passes.length) throw new Error(`${file}: no passes: list`);
-  return doc.passes.map((p) => ({ ...p, decides: asList(p.decides).map(String), discovery: asList(p.discovery), schema: asList(p.schema).map(String) }));
+  return doc.passes.map((p) => ({ ...p, decides: asList(p.decides).map(String), context: asList(p.context).map(String), discovery: asList(p.discovery), schema: asList(p.schema).map(String) }));
 }
 
 /** Every requirement the map leaves unowned or owns twice, and every decides entry that names no
@@ -60,6 +65,45 @@ export function ownershipErrors(passes, reg) {
     const by = owners.get(d.id) || [];
     if (!by.length) errors.push(`${d.id} (${d.decide.kind}) has no owning pass: name it in one pass's decides (map/passes.yaml)`);
     else if (by.length > 1) errors.push(`${d.id} (${d.decide.kind}) is owned by ${by.length} passes (${by.join(', ')}): one observation, one pass`);
+  }
+  return errors;
+}
+
+/** Every claim row with a context list the map leaves unfilled or fills twice, every context entry
+ * that names no such row, and every discovery question a census or context row already asks: its
+ * property is the row's context list, its census or its id without the `d-`, or its question is
+ * the row's (#262, #263). @param {any[]} passes @param {any} reg */
+export async function contextErrors(passes, reg) {
+  const { parseCheck } = await import('../yardstick/population.mjs');
+  const errors = [];
+  const rows = new Map((reg.requirements || []).map((d) => [d.id, d]));
+  const listOf = (d) => asList(d?.decide?.context).map(String);
+  const owners = new Map();
+  for (const p of passes) for (const id of p.context) {
+    const d = rows.get(id);
+    if (!d) { errors.push(`pass ${p.id} fills the context list of ${id}, which the yardstick does not have`); continue; }
+    if (!listOf(d).length) { errors.push(`pass ${p.id} names ${id} in context:, a ${d.decide?.kind} row with no context list: a pass's context names only claim rows that carry one`); continue; }
+    owners.set(id, [...(owners.get(id) || []), p.id]);
+  }
+  for (const d of rows.values()) {
+    if (!listOf(d).length) continue;
+    const by = owners.get(d.id) || [];
+    if (!by.length) errors.push(`${d.id} (context list ${listOf(d).join(', ')}) has no owning pass: name it in one pass's context (map/passes.yaml)`);
+    else if (by.length > 1) errors.push(`${d.id} (context list ${listOf(d).join(', ')}) is filled by ${by.length} passes (${by.join(', ')}): one list, one pass`);
+  }
+  // a discovery question is one no requirement reads: a census or context row's question is that row's
+  const terms = (reg.members || []).map((m) => m.term);
+  const norm = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const asked = [];
+  for (const d of rows.values()) {
+    const census = d.decide?.kind === 'census' ? asList(d.decide.measures).map(String) : [];
+    if (!census.length && !listOf(d).length) continue;
+    const q = parseCheck(d.check, terms)?.question;
+    asked.push({ id: d.id, names: new Set([...census, ...listOf(d), d.id.replace(/^d-/, '')]), question: q ? norm(q) : null });
+  }
+  for (const p of passes) for (const q of p.discovery) for (const a of asked) {
+    if (a.names.has(String(q?.property))) errors.push(`pass ${p.id}: discovery property ${q.property} is ${a.id}'s (its census, context list or id): the row asks it, so it is no discovery question`);
+    else if (a.question && norm(q?.question) === a.question) errors.push(`pass ${p.id}: discovery ${q.property} asks ${a.id}'s question: the row asks it, so it is no discovery question`);
   }
   return errors;
 }
@@ -97,6 +141,8 @@ export function shapeErrors(passes, reg, schemaText) {
     const need = d?.decide?.kind === 'census' ? ['6b'] : d?.decide?.kind === 'facet' ? (d.decide.rule === 'channels-triaged' ? ['6e'] : ['4']) : [];
     for (const s of need) if (!p.schema.includes(s)) errors.push(`pass ${p.id} decides ${id}, whose output SCHEMA.md §${s} states, and its schema: does not name §${s}`);
   }
+  // a context list's form is §6b's (map/censuses.yaml's context:)
+  for (const p of passes) if (p.context.length && !p.schema.includes('6b')) errors.push(`pass ${p.id} fills the context list of ${p.context[0]}, whose form SCHEMA.md §6b states, and its schema: does not name §6b`);
   return errors;
 }
 
@@ -174,6 +220,13 @@ async function renderBlock(pass, reg) {
     const how = d.decide.kind === 'census' ? `census \`${asList(d.decide.measures)[0]}\`` : `facet \`${d.decide.rule}\``;
     return `  - \`${id}\` (${how}): population every ${c.term}; asks: ${c.question}`;
   });
+  const context = pass.context.map((id) => {
+    const d = rows.get(id);
+    if (!d) throw new Error(`pass ${pass.id} fills the context list of ${id}, which the yardstick does not have`);
+    const c = parseCheck(d.check, terms);
+    if (!c) throw new Error(`${id}: its check names no population term (yardstick/population.mjs)`);
+    return `  - \`${id}\` (context list ${asList(d.decide.context).map((n) => `\`${n}\``).join(', ')}): population every ${c.term}; asks: ${c.question}`;
+  });
   const discovery = pass.discovery.map((q) => `  - \`${q.property}\`: ${q.question}`);
   return [
     open(pass.id),
@@ -181,6 +234,7 @@ async function renderBlock(pass, reg) {
     '',
     decides.length ? '- **Decides**, asked of every member of each population:' : '- **Decides** no facet or census requirement.',
     ...decides,
+    ...(context.length ? ['- **Context, never a decision**: the owner decides each row; list this run\'s findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):', ...context] : []),
     discovery.length ? '- **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:' : '- **Discovery**: none.',
     ...discovery,
     `- **Opens on** the ground rules, the passes' introduction, this section, and \`SCHEMA.md\` ${pass.schema.map((s) => `§${s}`).join(', ')}.`,
@@ -229,7 +283,7 @@ async function main() {
   const { loadYardstick } = await import('../yardstick/measure.mjs');
   const reg = loadYardstick();
   const method = readFileSync(METHOD_FILE, 'utf8');
-  const errors = [...ownershipErrors(passes, reg), ...shapeErrors(passes, reg, readFileSync(SCHEMA_FILE, 'utf8'))];
+  const errors = [...ownershipErrors(passes, reg), ...(await contextErrors(passes, reg)), ...shapeErrors(passes, reg, readFileSync(SCHEMA_FILE, 'utf8'))];
   const { text, drift } = await methodDrift(passes, reg, method);
   if (args.includes('--write')) {
     if (text !== method) writeFileSync(METHOD_FILE, text);
@@ -241,6 +295,6 @@ async function main() {
   }
   for (const e of [...errors, ...drift]) console.error(`✗ ${e}`);
   if (errors.length || drift.length) process.exit(1);
-  console.log(`✓ map/passes.yaml: ${passes.length} passes, every facet and census requirement owned once, METHOD.md in step`);
+  console.log(`✓ map/passes.yaml: ${passes.length} passes, every facet and census requirement owned once, every context list filled once, METHOD.md in step`);
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main().catch((e) => { console.error(`✗ passes: ${e.message}`); process.exit(2); });

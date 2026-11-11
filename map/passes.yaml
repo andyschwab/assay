@@ -3,9 +3,10 @@
 # The one home of the pass-to-requirement map. map/passes.mjs reads it: map/METHOD.md's pass
 # sections carry a block rendered from it (`node map/passes.mjs --write`, never hand-edited),
 # map/project.mjs reads its pass ids and dimensions, and the practice-review lane opens each pass
-# subagent on the slice it names. tests/blocks/passes-feed-requirements.mjs holds it in lockstep
-# with yardstick/requirements.yaml: every facet- or census-decided requirement has exactly one
-# owning pass.
+# subagent on the slice it names and tells it the context lists it names.
+# tests/blocks/passes-feed-requirements.mjs and tests/blocks/context-lists-have-owners.mjs hold it in
+# lockstep with yardstick/requirements.yaml: every facet- or census-decided requirement has exactly one
+# owning pass, and every claim row with a context list one pass that fills it.
 #
 # Per pass:
 #   id         the pass's file, map/findings/practice-review-<id>.yaml
@@ -13,8 +14,14 @@
 #   decides    the facet and census requirements it decides. A census row's population term and
 #              its census (the first of its decide.measures) are read off the yardstick, never
 #              restated here.
+#   context    the claim rows whose context list it fills (#262): a claim row the owner decides
+#              names its list in decide.context, and the pass lists its findings on the row's
+#              population there (map/SCHEMA.md §6b), never deciding the row. Every claim row with a
+#              context list has exactly one owning pass; the list's name and the row's question are
+#              read off the yardstick, never restated here
 #   discovery  the questions it asks that no requirement reads: each finding answering one carries
-#              the question's `property:` (map/SCHEMA.md §1, #264), and no two passes ask one
+#              the question's `property:` (map/SCHEMA.md §1, #264), and no two passes ask one. A
+#              question a census or context row already asks is that row's, never a discovery one
 #   schema     the map/SCHEMA.md sections its outputs need, by section number
 version: 0
 passes:
@@ -23,6 +30,7 @@ passes:
     dimension: artifact-legibility
     title: Artifact legibility
     decides: [d-decisions-reconstruct, d-readme-true]
+    context: [d-one-home-per-fact]
     discovery: []
     schema: [1, 2, 3, 6b, 9]
   - id: context
@@ -30,19 +38,17 @@ passes:
     dimension: context-economy
     title: Context economy
     decides: [d-modules-standalone, d-model-call-telemetry]
+    context: [d-model-qualification]
     discovery:
       - property: entry-docs-route-a-stranger
         question: do the entry-point docs route a stranger to the one subsystem a task needs, disclosing the rest progressively?
-      - property: model-tier-rationale-recorded
-        question: is each model-tier choice recorded with its rationale, and re-measured when a model ships?
-      - property: inference-spend-metered
-        question: is inference spend metered per work class?
     schema: [1, 2, 3, 6b, 9]
   - id: gates
     pass: 3
     dimension: deterministic-gates
     title: Deterministic gates
     decides: [d-change-gates-fail-closed]
+    context: [d-guards-bite]
     discovery:
       - property: central-regression-caught
         question: if a change introduced a subtle regression in the central module, which gate catches it, and when (pre-commit, CI, by hand, never)?
@@ -54,6 +60,7 @@ passes:
     dimension: verification
     title: Verification affordances
     decides: []
+    context: [d-calibration-harness, d-change-carries-verification, d-ai-feature-evals]
     discovery:
       - property: change-demonstrable
         question: can a change demonstrate itself, through a runnable example, a fixture or an observable result?
@@ -61,14 +68,13 @@ passes:
         question: does a job that reports success confirm the effect happened, rather than trust a return code or a success report?
       - property: output-checked-regardless-of-fluency
         question: does anything check output however fluent it reads, rather than a check a reviewer must remember to run?
-      - property: calibration-harness
-        question: is a skill or rubric hardened by measuring it (an input frozen, run blind several times, the divergence sorted into named classes)?
-    schema: [1, 2, 3, 9]
+    schema: [1, 2, 3, 6b, 9]
   - id: delegation
     pass: 5
     dimension: delegation
     title: Delegation surface
     decides: [d-effect-channels-enumerated, d-effects-gated, d-gates-fail-closed, d-effects-traced, d-effects-provable, d-capability-budget, d-credentials-enumerated, d-ingested-content-is-data]
+    context: [d-ai-disclosure]
     discovery:
       - property: acting-principal-stated
         question: for each connector, tool surface and effect, can you say who is acting as whom, with per-identity scoping and a stated role, rather than one opaque principal?
@@ -78,14 +84,13 @@ passes:
         question: where a wrapper or policy gates calls, does it reason over what values from what provenance reach which call, with context entries labelled by origin, rather than per-call permission alone?
       - property: control-matches-modality
         question: does each control match its modality (automation gets output checks, augmentation collaboration checkpoints, agency behavioural specs, monitoring and pre-release verification)?
-      - property: ai-involvement-disclosed
-        question: is AI involvement disclosed to the audience by structure (a bot visibly joining), not a footnote after the fact?
     schema: [1, 2, 3, 4, 6b, 6e, 9]
   - id: improvement
     pass: 6
     dimension: improvement-loop
     title: Improvement loop
     decides: [d-corrections-become-mechanisms]
+    context: [d-backlog-is-issues]
     discovery:
       - property: impact-self-measured
         question: does the system know what it is worth (impact fields on shipped work, before-and-after records, its own delta legible without a study)?
@@ -97,6 +102,7 @@ passes:
     dimension: multiplayer
     title: Multiplayer
     decides: [d-agent-consumable-surface]
+    context: []
     discovery:
       - property: shared-context-substrate
         question: are context stores shared, private or consent-governed, consolidated rather than bespoke per integration, and is a shared scope (room, channel, project) a principal with its own memory and permissions?
