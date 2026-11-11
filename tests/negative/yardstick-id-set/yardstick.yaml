@@ -12,10 +12,10 @@ summary:
   met: 0
   unmet: 0
   mixed: 0
-  not-measured: 59
+  not-measured: 60
   not-applicable: 0
   decided: 0
-  of: 59
+  of: 60
 requirements:
   - id: d-accounts-enumerated
     status: not-measured
@@ -161,6 +161,12 @@ requirements:
     basis: run
     findings: []
     note: "repo-census skipped: fixture: the repo census was not executed over this base"
+  - id: d-change-gates-fail-closed
+    status: not-measured
+    how: census
+    basis: run
+    findings: []
+    note: "no census named change-gates | change-gates-fail-closed in map/censuses.yaml"
   - id: d-guards-bite
     status: not-measured
     how: claim

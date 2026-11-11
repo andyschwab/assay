@@ -401,7 +401,13 @@ is no binning.
 - **Sampled censuses** cover what has no counted field: artifact-legibility (sample
  n non-obvious decisions, count how many reconstruct from files alone),
  context-economy (module census: loadable standalone; instruction files vs their
- stated budget), delegation's credential census. State the method, write one
+ stated budget), delegation's credential census, and deterministic-gates' change-gate
+ census (`change-gates`: every check the repository runs on a change before it lands or
+ ships, a CI job or step, a hook, a config-driven check, each asked whether it goes red
+ when what it needs is absent or never finishes; the gates in front of the app's own
+ effects stay on the effect facets). Each census's population and question are the
+ `check:` of the requirement that reads it (`yardstick/README.md`): list a finding in the
+ census whose population it is a member of, and in no other. State the method, write one
  finding per member (a strength where it meets the bar, a gap where it does not),
  and list those ids as the census's `members:` in `map/censuses.yaml`
  (`SCHEMA.md` §6b): the count is read off them, and a census that lists no members

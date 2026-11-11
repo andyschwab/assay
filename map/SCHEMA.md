@@ -1072,6 +1072,7 @@ the yardstick's):
 | `d-modules-standalone` | `modules-standalone` · `module-standalone` · `module-loadability` · `control-plane-modules-standalone` |
 | `d-agent-consumable-surface` | `agent-access-surface` · `agent-consumable-surface` |
 | `d-corrections-become-mechanisms` | `incidents-became-mechanisms` · `incident-lesson` · `lessons-mechanized` |
+| `d-change-gates-fail-closed` | `change-gates` · `change-gates-fail-closed` |
 
 A population no requirement reads by census (`effect-provability`, `gates-coverage`) keeps
 a descriptive name; it still carries `subject_type` and `rule`.

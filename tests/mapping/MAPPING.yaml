@@ -1,0 +1,275 @@
+# tests/mapping/MAPPING.yaml — the known-answer mapping set (#261, M3 of #257): public findings,
+# each with the one requirement that takes it, or none. Held by tests/blocks/finding-maps-to-one-requirement.mjs
+# through yardstick/population.mjs requirementTaking, the one reading of "which requirement takes
+# this finding" (yardstick/README.md, "The four deciding kinds").
+#
+# Each entry names a finding of a committed public run (tests/sweeps/*, tests/fixtures/*) by its run
+# and id; the block reads the finding itself from the run. `member` is the term of the yardstick's
+# members: vocabulary a careful reader holding the yardstick places it on, read off the rows'
+# "Population: every <term>" clauses: what the finding is about, never which row it should land on.
+# An effect or capability finding and an instrument row carry no member: their own facets and their
+# scanner's bindings place them. `requirement` is the answer, `none` when no requirement takes it,
+# and `why` says why in one line. A row's population blurred, widened over another's, or renamed
+# turns an entry red.
+entries:
+  # ── the effect inventory: an effect finding is taken by its facets (record:) ──
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-505
+    requirement: d-effects-gated
+    why: "an irreversible external send (assistant-email-send) with no gate: a halt-class effect's own finding"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-507
+    requirement: d-effects-gated
+    why: "the purge is irreversible and its gate fails open; the effect's own finding is the halt-class row's, d-gates-fail-closed reads its fail_mode facet"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-504
+    requirement: d-effects-provable
+    why: "note-create is reversible and internal: no halt-class row takes it, the every-effect row does"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-512
+    requirement: d-effects-provable
+    why: "the tools-check issue is reversible and inside the repository's own account"
+  - run: tests/fixtures/notesbox
+    finding: F-053
+    requirement: d-effects-gated
+    why: "backup-sync pushes every note to an outside service with no gate"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-515
+    member: halt-class effect
+    requirement: d-effects-gated
+    why: "none of the three irreversible channels passes a point a person holds: whether a gate stands in front of them"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-518
+    member: halt-class effect's record
+    requirement: d-effects-traced
+    why: "backup-push and workspace-purge emit no record at all"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-401
+    member: effect
+    requirement: d-effects-provable
+    why: "the send's report is produced whether or not mail is delivered: the form of the effect's record, not its presence"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-400
+    member: effect
+    requirement: d-effects-provable
+    why: "the note-create report is derived from the write itself"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-502
+    member: effect gate
+    requirement: d-gates-fail-closed
+    why: "requireAdmin cannot tell an admin from no session: the gate in front of the purge passes when the credential is absent"
+  # ── AI contexts ──
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-508
+    requirement: d-capability-budget
+    why: "the assistant's one prompt holds untrusted notes, every user's data and an email directive"
+  - run: tests/sweeps/assay-2026-11-11/sweep-2
+    finding: F-522
+    requirement: d-capability-budget
+    why: "the ask-owner prompt: an AI context asked for no outward action"
+  # ── censuses ──
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-509
+    member: secret
+    requirement: d-credentials-enumerated
+    why: "credential C1, the backup key, and what it can reach"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-517
+    member: secret
+    requirement: d-credentials-enumerated
+    why: "the optional read token's reach is traced to two checkout steps"
+  - run: tests/sweeps/assay-2026-11-11/sweep-2
+    finding: F-528
+    member: secret
+    requirement: d-credentials-enumerated
+    why: "a GITHUB_TOKEN of any scope read from the environment and put in argv"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-208
+    member: doc claim
+    requirement: d-readme-true
+    why: "the README's endpoint count, checked against the router"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-211
+    member: doc claim
+    requirement: d-readme-true
+    why: "the README's test command names a script the manifest lacks"
+  - run: tests/fixtures/notesbox
+    finding: F-002
+    member: doc claim
+    requirement: d-readme-true
+    why: "the same stale README command, recorded as a process finding"
+  - run: tests/fixtures/notesbox
+    finding: F-903
+    member: doc claim
+    requirement: d-readme-true
+    why: "fresh-clone's replay of the README command; no instrument binding takes readme-claim, so the census it is listed in does"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-211
+    member: doc claim
+    requirement: d-readme-true
+    why: "the README's account of the child environment, checked against child-env.mjs"
+  - run: tests/sweeps/assay-2026-11-11/sweep-2
+    finding: F-229
+    member: doc claim
+    requirement: d-readme-true
+    why: "CONSUMERS.md, a doc page the README routes to, omits flags record takes"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-100
+    member: non-obvious decision
+    requirement: d-decisions-reconstruct
+    why: "decision D1 reconstructs from ADR-0001"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-102
+    member: non-obvious decision
+    requirement: d-decisions-reconstruct
+    why: "decision D3 is stated with no reason anywhere"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-101
+    member: non-obvious decision
+    requirement: d-decisions-reconstruct
+    why: "the zero-dependency decision reconstructs from the front door and the reader's header"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-200
+    member: module
+    requirement: d-modules-standalone
+    why: "server.mjs is loadable standalone"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-203
+    member: module
+    requirement: d-modules-standalone
+    why: "lib/db.mjs exports mutable state three modules write"
+  - run: tests/fixtures/notesbox
+    finding: F-010
+    member: module
+    requirement: d-modules-standalone
+    why: "storage behind a narrow module interface"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-700
+    member: interface
+    requirement: d-agent-consumable-surface
+    why: "GET /notes is consumable by an agent from its stated contract"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-704
+    member: interface
+    requirement: d-agent-consumable-surface
+    why: "POST /admin/purge has no stated contract an agent could call it by"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-705
+    member: interface
+    requirement: d-agent-consumable-surface
+    why: "views/intake.yaml, a data file other tools read, and the contract it carries"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-603
+    member: lesson
+    requirement: d-corrections-become-mechanisms
+    why: "incident #47 became an allow-listed child environment and a block"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-609
+    member: lesson
+    requirement: d-corrections-become-mechanisms
+    why: "the docker-socket lesson lives only as prose"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-306
+    member: change gate
+    requirement: d-change-gates-fail-closed
+    why: "the tools step fails when an install or verify fails (set -euo pipefail)"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-307
+    member: change gate
+    requirement: d-change-gates-fail-closed
+    why: "npm test refuses an empty blocks directory and counts a throwing block as a failure"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-319
+    member: change gate
+    requirement: d-change-gates-fail-closed
+    why: "a hung block has no timeout of its own: whether the check ends in a verdict"
+  # ── boundaries: stale docs (#257's split) ──
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-214
+    member: code comment
+    requirement: none
+    why: "a stale header in lib/db.mjs: docs-current-with-code is not promoted, so no row takes a code comment"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-216
+    member: code comment
+    requirement: none
+    why: "a route comment naming the wrong method"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-718
+    member: second account
+    requirement: none
+    why: "admin membership in two places: d-one-home-per-fact is a claim row"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-707
+    member: second account
+    requirement: none
+    why: "note ownership recorded twice"
+  # ── boundaries: spend ──
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-222
+    member: spend ceiling
+    requirement: none
+    why: "no per-user or per-request budget before the call: the paid-spend-capped candidate, not d-cost-alerts (an alert after the bill)"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-2
+    finding: F-120
+    member: model call record
+    requirement: none
+    why: "spend not metered per call: d-model-call-telemetry is a claim row"
+  # ── boundaries: the multiplayer principals ──
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-500
+    member: request authorization
+    requirement: none
+    why: "an unauthenticated request resolves to admin: d-routes-authorized takes only its instruments' rows"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-711
+    member: data scope
+    requirement: none
+    why: "the assistant reads every user's notes: d-tenant-isolation-in-data-layer takes only its instruments' rows"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-710
+    member: acting principal
+    requirement: none
+    why: "the email is sent as the shared assistant identity: whom an effect acts as, the effects-attributed-to-verified-actor candidate"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-300
+    member: test
+    requirement: none
+    why: "a route exercised by no test: d-effect-sites-tested is a claim row"
+  # ── instruments: taken by their scanner's bindings ──
+  - run: tests/fixtures/notesbox
+    finding: F-1000
+    requirement: d-routes-authorized
+    why: "the code reviewer's authorization category (B) decides the route row"
+  - run: tests/fixtures/notesbox
+    finding: F-1004
+    requirement: d-routes-authorized
+    why: "the assistant path skips the owner filter, reported under B"
+  - run: tests/fixtures/notesbox
+    finding: F-1002
+    requirement: none
+    why: "the code reviewer's category C binds no requirement"
+  - run: tests/fixtures/notesbox
+    finding: F-1001
+    requirement: d-config-declared
+    why: "category N decides the config row"
+  - run: tests/fixtures/notesbox
+    finding: F-700
+    requirement: d-secrets-out-of-history
+    why: "the secret scan's secret category"
+  - run: tests/fixtures/notesbox
+    finding: F-902
+    requirement: d-tests-execute-core
+    why: "fresh-clone's test step"
+  - run: tests/fixtures/notesbox
+    finding: F-900
+    requirement: d-lint-typecheck-gate
+    why: "fresh-clone's lint step"
+  - run: tests/fixtures/notesbox
+    finding: F-1400
+    requirement: d-infrastructure-config-secure
+    why: "the IaC scan's no-input fact, read by not_applicable_when"
+  - run: tests/fixtures/notesbox
+    finding: F-1300
+    requirement: d-dependencies-known-clean
+    why: "the dependency auditor's no-input fact, read by not_applicable_when"
