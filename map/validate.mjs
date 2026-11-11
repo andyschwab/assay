@@ -3,7 +3,9 @@
 // Usage:  node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>] [--lane <scanner>]
 //   --lane: the consumer's check after collecting a review lane's outputs (#201): every file the
 //   lane publishes is in the run, and the scanner is recorded ran; needs --target, so each
-//   citation is read against the tree.
+//   citation is read against the tree. The lane runs the same check over its own scratch run
+//   before it publishes (#278): a run with no run record is read as that, its files checked
+//   and the run-record checks named as not made (the consumer's check makes them).
 //   <run-dir> is a run root (…/runs/<slug>-<date>/) — findings live under its map/findings/.
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
@@ -105,6 +107,7 @@ const legacy = legacyIn(runDir);
 if (legacy.length) { console.error(`✗ assay validate: ${runDir} is not in the current format (fails closed)\n`); for (const l of legacy) console.error('  • ' + l); process.exit(1); }
 
 const allById = new Map();       // id -> {finding, file}
+let laneScratch = false;         // --lane over a run with no run record: a lane's own check (#278)
 const passFiles = readdirSync(evalDir).filter((f) => f.endsWith('.yaml')).sort();
 
 // `property:` (optional, SCHEMA.md §1; #264): a stack-free kebab-case name for the property
@@ -249,7 +252,21 @@ for (const file of passFiles) {
   const { loadManifest, adoptedAdapters, verifiedPin, MANIFEST_FILE, MANIFEST_STATUS } = await import('./project.mjs');
   const mPath = scannersPath(runDir);
   const sourcesSeen = new Set([...allById.values()].map((v) => v.f.source || 'practice-review'));
-  if (!existsSync(mPath)) {
+  if (!existsSync(mPath) && laneOnly) {
+    // a review lane's own scratch run, checked before it publishes (#278): the lane writes no
+    // run record (the consumer records the run once it collects it), so the record's checks are
+    // not made here, and the output says so; every file the lane publishes must still be in it
+    laneScratch = true;
+    warn(MANIFEST_FILE, `none in this run: read as the ${laneOnly} lane's own scratch run, so the run-record checks were not made (the consumer's check after collecting makes them)`);
+    const { lanes, readLane } = await import('./lane.mjs');
+    const all = lanes(ADAPTERS);
+    if (!all.some((l) => l.scanner === laneOnly)) err(`--lane ${laneOnly}`, `--lane names no review lane (lanes: ${all.map((l) => l.scanner).join(', ')})`);
+    for (const l of all.filter((x) => x.scanner === laneOnly)) {
+      const outputs = String(readLane(l.file).meta.outputs || '').split(/\s+/).filter(Boolean);
+      const missing = outputs.filter((o) => !existsSync(join(runDir, o)));
+      if (missing.length) err(`--lane ${l.scanner}`, `${missing.length} of the ${outputs.length} files the ${l.scanner} lane publishes are not in the run (${missing.join(', ')}): write them`);
+    }
+  } else if (!existsSync(mPath)) {
     err(MANIFEST_FILE, `missing — every run records each adopted scanner's disposition (ran | skipped + reason | failed + reason); a scanner that can be omitted without a recorded decision reads as coverage. Start the run: node assay.mjs start --out ${runDir} <target> (or see the template: map/templates/scanners.yaml).`);
   } else {
     let m = null, parsed = false;
@@ -812,4 +829,6 @@ if (warnings.length) {   // non-fatal — printed, exit stays 0 (green)
   console.log(`⚠ assay validate: ${warnings.length} warning(s) (non-fatal):`);
   for (const w of warnings) console.log('  • ' + w);
 }
-console.log(`✓ assay validate: ${total} findings, ${passFiles.length} pass files — schema, ids, filename↔dimension, links, citations, and the run manifest all clean.`);
+console.log(laneScratch
+  ? `✓ assay validate: ${total} findings, ${passFiles.length} pass files — schema, ids, filename↔dimension, links, citations and the ${laneOnly} lane's files all clean; the run record was not checked (none in this run).`
+  : `✓ assay validate: ${total} findings, ${passFiles.length} pass files — schema, ids, filename↔dimension, links, citations, and the run manifest all clean.`);

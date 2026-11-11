@@ -68,7 +68,7 @@ export async function run() {
   for (const m of page.matchAll(/node assay\.mjs ([a-z][a-z-]*)/g)) if (m[1] !== 'help' && !commands.has(m[1])) fail(`CONSUMERS.md names \`node assay.mjs ${m[1]}\`, a command help does not list`);
   if (!/node assay\.mjs yardstick --floor/.test(page)) fail('CONSUMERS.md must name the floor query, `node assay.mjs yardstick --floor`');
   if (!page.includes('.github/actions/tools')) fail('CONSUMERS.md must name the tools action, .github/actions/tools');
-  // action.yml's inputs: the keys indented one level under `inputs:` (lib/yaml-min reads no flow map)
+  // action.yml's inputs: the keys indented one level under `inputs:`, read as text
   const actionInputs = (read('.github/actions/tools/action.yml').match(/^inputs:\n((?:  .*\n)+)/m)?.[1] || '').split('\n').map((l) => l.match(/^  ([A-Za-z_][\w-]*):/)?.[1]).filter(Boolean);
   if (!actionInputs.length) fail('the tools action declares no input this block can read');
   for (const input of actionInputs) if (!new RegExp('`' + input + '`').test(page)) fail(`CONSUMERS.md must name the tools action's input \`${input}\``);

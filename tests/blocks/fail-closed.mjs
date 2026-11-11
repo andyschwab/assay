@@ -10,7 +10,7 @@ export const gate = ['projection'];
 
 export async function run() {
   const mustThrow = (label, fn) => { let threw = false; try { fn(); } catch { threw = true; } if (!threw) negFailures.push(`yaml-min accepted ${label} — must throw (fail-closed reader)`); };
-  mustThrow('an inline flow map {}', () => parseYaml('a: {b: 1}'));
+  mustThrow('a flow map nested in a flow map', () => parseYaml('a: {b: {c: 1}}'));
   mustThrow('an anchor &x', () => parseYaml('a: &x 1'));
   const { unmapped } = projectMulti(
     [{ id: 'F-999', source: 'deep-code-review', native_category: 'ZZ', polarity: 'gap', observation: 'x', evidence: ['a:1'], fix: 'y' }],

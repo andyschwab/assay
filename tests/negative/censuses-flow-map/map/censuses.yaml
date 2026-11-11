@@ -1,5 +1,6 @@
-# NEGATIVE FIXTURE (#267): an authored census whose enforced: flag is written as a flow map,
-# a construct the strict reader (lib/yaml-min.mjs) refuses, and no
+# NEGATIVE FIXTURE (#267): an authored census whose enforced: flag is written as a flow map
+# with a flow map nested in it, a construct the strict reader (lib/yaml-min.mjs) refuses (a
+# single-level flow map reads since #278; SCHEMA.md § What the reader reads), and no
 # views/improve/maturity-grades.yaml yet (a run fresh from its lane). validate must read this
 # file anyway and fail naming it; the measurement reads it with the same reader and would
 # throw. Everything else here is the sampled-drift fixture's clean map, so this is the only defect.
@@ -10,7 +11,7 @@ dimensions:
   - dimension: verification
     depth: >
       The smoke suite asserts the happy path only (F-030).
-    enforced: { claim: true, why: "the smoke suite runs on every push", evidence: [F-030] }
+    enforced: { claim: true, why: { text: "the smoke suite runs on every push" }, evidence: [F-030] }
   - dimension: artifact-legibility
     depth: >
       One full ADR reconstructs the storage choice from the file alone (F-001).

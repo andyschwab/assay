@@ -293,6 +293,10 @@ One finding per object in a per-pass `map/findings/practice-review-<dim>.yaml` f
 (ids unique within the run, `SCHEMA.md` §3). Lean neutral core + facets
 attached only when relevant.
 
+Every YAML file a run writes is read by one strict reader. What it reads, and the plain
+form to write for what it refuses (an anchor, a tag, a flow collection nested in another),
+is `SCHEMA.md` §9, "What the reader reads": read it before writing the files.
+
 ```yaml
 - id: F-023 # stable across re-runs (lets a later run diff "still open?")
  dimension: delegation # …|artifact-legibility|context-economy|deterministic-gates
