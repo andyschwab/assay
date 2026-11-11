@@ -417,9 +417,18 @@ is no binning.
  census (`change-gates`: every check the repository runs on a change before it lands or
  ships, a CI job or step, a hook, a config-driven check, each asked whether it goes red
  when what it needs is absent or never finishes; the gates in front of the app's own
- effects stay on the effect facets). Each census's population and question are the
+ effects stay on the effect facets), context-economy's model-call census
+ (`model-call-telemetry`: every place the code calls a model, each asked whether it emits a
+ structured record of its tier, spend and outcome), and delegation's ingestion census
+ (`ingested-content`: every place outside text enters, each asked whether it is kept as data,
+ stored verbatim with its provenance, rendered escaped and never acted on as an instruction).
+ Each census's population and question are the
  `check:` of the requirement that reads it (`yardstick/README.md`): list a finding in the
- census whose population it is a member of, and in no other. State the method, write one
+ census whose population it is a member of, and in no other. A finding on the population of a
+ claim row the owner decides goes in that row's **context list** instead (`context:` in
+ `map/censuses.yaml`, `SCHEMA.md` §6b), which decides nothing: `second-accounts`,
+ `model-qualification`, `ai-disclosure`, `guard-fixtures`, `backlog-records`,
+ `ai-feature-evals`, `rubric-calibration`, `change-verification`. State the method, write one
  finding per member (a strength where it meets the bar, a gap where it does not),
  and list those ids as the census's `members:` in `map/censuses.yaml`
  (`SCHEMA.md` §6b): the count is read off them, and a census that lists no members

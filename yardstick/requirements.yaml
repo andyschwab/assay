@@ -70,22 +70,48 @@ members:
   - term: change gate
     subject_types: [contract, control, process]
     means: a check the repository runs on a change before it lands or ships (a CI job or step, a hook, a config-driven check)
+  - term: model call site
+    subject_types: [control, process]
+    means: one place in the code that calls a model through a provider's SDK or HTTP API, and whether it records the call; what the call can reach is the AI context's
+  - term: ingestion point
+    subject_types: [control, contract, artifact]
+    means: one place where text from outside the team enters the application (an upload, a fetch, an inbound message, webhook or feed, a file or page read in) and is stored, rendered or handed to a model
+  # claim rows' populations (#262, M4 of #257): the owner decides each row; a run lists the findings
+  # it saw on one in map/censuses.yaml's context:, shown as context and never a decision
+  - term: second account
+    subject_types: [artifact, process, contract, control]
+    means: a fact the system relies on stated in a second place in the docs or the code; d-one-home-per-fact's population
+  - term: model in use
+    subject_types: [artifact, process, control]
+    means: a model and tier the application calls, and whether its choice is recorded with a rationale and a re-qualification trigger; d-model-qualification's population
+  - term: outward AI output
+    subject_types: [control, contract, process, artifact]
+    means: a channel through which model-written content reaches a person outside the team (a reply, a message, a post, a page, a change in another repository), and how it discloses AI involvement; d-ai-disclosure's population
+  - term: guard fixture
+    subject_types: [control, contract, process]
+    means: a shipped check and the negative fixture meant to turn it red when the check is weakened; d-guards-bite's population
+  - term: backlog record
+    subject_types: [artifact, process]
+    means: a place outstanding work is written down (an issue, a list file with rows, a to-do block), and how it is tracked to done; d-backlog-is-issues' population
+  - term: AI feature
+    subject_types: [contract, process, control, artifact]
+    means: a shipped feature whose answer a model produces, and whether an eval checks that answer's quality; d-ai-feature-evals' population
+  - term: relied-on rubric
+    subject_types: [artifact, process, contract, control]
+    means: a skill, prompt or rubric the application relies on for a judgment, and whether its repeatability was measured; d-calibration-harness' population
+  - term: change verification
+    subject_types: [contract, process, control]
+    means: how a change states the verification it carries before it lands (a pull request template's section, a check on the pull request body or the commit message); d-change-carries-verification's population
   # stated boundaries: no facet or census row takes these (a claim or instrument row may name the property)
   - term: code comment
     subject_types: [artifact, contract]
     means: a comment or header inside code, stale or not; no row takes it until a docs-current-with-code row is promoted (#257)
-  - term: second account
-    subject_types: [artifact]
-    means: a fact stated in two places; d-one-home-per-fact is a claim row and takes no finding
   - term: spend ceiling
     subject_types: [control, process]
     means: a per-run or per-process ceiling on paid calls enforced before the call; no row takes it (the paid-spend-capped candidate, #257)
   - term: billing alert
     subject_types: [control, process]
     means: an alert on an account's bill after the spend; d-cost-alerts is decided by the repo census's owner-evidence transcript alone
-  - term: model call record
-    subject_types: [control, process]
-    means: a record of a model call and what it spent; d-model-call-telemetry is a claim row and takes no finding
   - term: request authorization
     subject_types: [control, contract]
     means: whether the server checks who is asking before it answers; d-routes-authorized takes only its instruments' rows
@@ -341,8 +367,10 @@ requirements:
     topic: delegation
     tags: [ai-operating, fleet]
     decide:
-      kind: claim
-    check: every table holding outside text carries its provenance trio; no code path executes a directive read from content
+      kind: census
+      measures: [ingested-content, ingestion-points]
+      why: "census (#262): a run closes the population by reading the tree, since outside text enters only through an upload, a fetch, an inbound route, webhook or feed, or a file read the code makes, and how it is kept, rendered and used is read where it lands"
+    check: "Population: every ingestion point, each place where text from outside the team enters the application (an upload, a fetch, an inbound message, webhook or feed, a file or page read in) and is stored, rendered or handed to a model, one finding per point listed as the ingested-content census's members; excluded: whether request input is checked before it reaches a dangerous sink, which is d-untrusted-input-checked's, what a model call can reach, the AI context's, and the effects a reply drives, which the effect rows take. Question: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction? A census with no members never reads met"
     sources: [foundation/ingested-content-is-data, method/acting-from]
     status: draft
     owner:
@@ -507,7 +535,9 @@ requirements:
     tags: [fleet]
     decide:
       kind: claim
-    check: the self-test flips red when any one check is weakened
+      context: [guard-fixtures]
+      why: "claim (#262): seeing a check turn red when it is weakened takes a mutation run the lane does not make, and the checks themselves are the change-gates census's population, so the tree shows a fixture exists, never that it bites"
+    check: "Population: every guard fixture, each shipped check with the negative fixture meant to turn it red; excluded: whether a change gate goes red when what it needs is absent, which is d-change-gates-fail-closed's, and whether the gates run on the default branch, which is d-ci-gate-on-default-branch's. Question: does the self-test flip red when that one check is weakened?"
     sources: [manifest/d3-guards-bite]
     status: draft
     owner:
@@ -595,7 +625,9 @@ requirements:
     tags: [fleet]
     decide:
       kind: claim
-    check: the PR template's verification section is mandatory and CI refuses an empty one
+      context: [change-verification]
+      why: "claim (#262): the population is the changes, which live in the forge's history, not in the tree, and the template with the check on it is one artifact, not a population; a run shows what it saw as context"
+    check: "Population: every change verification, the way a change states the verification it carries before it lands (a pull request template's section, a check on the pull request body or the commit message); excluded: whether a gate goes red when what it needs is absent, which is d-change-gates-fail-closed's. Question: is the verification section mandatory, with CI refusing an empty one?"
     sources: [manifest/d4-verification-rhythm, foundation/pr-template]
     status: draft
     owner:
@@ -683,7 +715,9 @@ requirements:
     tags: [fleet]
     decide:
       kind: claim
-    check: a docs guard refuses a second account of a list; in code, one store per remembered fact (a duplicated block of code is d-no-drifting-duplicates, which structure-scan decides)
+      context: [second-accounts]
+      why: "claim (#262): no listing closes the facts a system relies on, so a run cannot enumerate every second account; it shows the ones it came across as context"
+    check: "Population: every second account, a fact the system relies on (a list, a rule, a count, a membership) stated in a second place in the docs or the code; excluded: a duplicated block of code, which is d-no-drifting-duplicates' (structure-scan decides it), and a doc claim the code contradicts, which is d-readme-true's. Question: does one home stay authoritative, a docs guard refusing a second account of a list and one store per remembered fact in code?"
     sources: [foundation/where-things-are-written, takeover-eval/one-fact-many-memories]
     status: draft
     owner:
@@ -824,7 +858,9 @@ requirements:
     tags: [fleet]
     decide:
       kind: claim
-    check: no list file carries rows; every PR closes the issues it finishes; the label set is the shared one
+      context: [backlog-records]
+      why: "claim (#262): the issues, their labels and which change closed them live on the forge, not in the tree, so a run cannot close the backlog; it shows the records it saw as context"
+    check: "Population: every backlog record, each place outstanding work is written down (an issue, a list file with rows, a to-do block); excluded: a lesson from a past failure, which is d-corrections-become-mechanisms'. Question: is it an issue on the repository's tracker, labelled by need-by, kind and size and closed by the change that finishes it, with no list file carrying rows?"
     sources: [foundation/docs-backlog, manifest/d7-coordination-adapter]
     status: draft
     owner:
@@ -904,8 +940,10 @@ requirements:
     topic: context-economy
     tags: [ai-operating]
     decide:
-      kind: claim
-    check: one record per call in a machine-readable sink; spend metered per work class
+      kind: census
+      measures: [model-call-telemetry, model-calls]
+      why: "census (#262): a run closes the population by reading the tree, since every model call is a provider SDK import or a call to a provider's API in the code, and whether the call writes a record is read at the call site"
+    check: "Population: every model call site, each place in the code that calls a model through a provider's SDK or HTTP API, one finding per call site listed as the model-call-telemetry census's members; excluded: what the call can reach, the AI context's (d-capability-budget), a ceiling on spend enforced before the call, which no row takes, and an alert on the bill after it, which is d-cost-alerts'. Question: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome? A census with no members never reads met"
     sources: [manifest/d6-telemetry-native, method/spend-meter]
     status: draft
     owner:
@@ -918,7 +956,9 @@ requirements:
     tags: [ai-operating]
     decide:
       kind: claim
-    check: a qualification record per model in use, dated, with the re-qualification trigger named
+      context: [model-qualification]
+      why: "claim (#262): a qualification happens off the repository (a model tried against the work, a choice made), so the tree cannot show it was done; a run shows the records it found as context"
+    check: "Population: every model in use, each model and tier the application calls; excluded: whether each call is recorded, which is d-model-call-telemetry's, and whether an AI feature's answers are evaluated, which is d-ai-feature-evals'. Question: is there a dated qualification record for it, with the rationale for the choice and the trigger that re-qualifies it when models ship?"
     sources: [method/pass-2-spend]
     status: draft
     owner:
@@ -931,7 +971,9 @@ requirements:
     tags: [ai-operating]
     decide:
       kind: claim
-    check: a frozen input run blind n times with the divergence disposed into named classes
+      context: [rubric-calibration]
+      why: "claim (#262): which skills and rubrics the application relies on is the owner's to say, and the blind repeated runs happen in a model, not in the tree; a run shows the harnesses it saw as context"
+    check: "Population: every relied-on rubric, each skill, prompt or rubric the application relies on for a judgment; excluded: an AI feature's answer quality, which is d-ai-feature-evals'. Question: was it hardened by measurement, a frozen input run blind n times with the divergence disposed into named classes?"
     sources: [manifest/d4-eval-seed, method/calibration-probe]
     status: draft
     owner:
@@ -944,7 +986,9 @@ requirements:
     tags: [ai-operating]
     decide:
       kind: claim
-    check: an eval config present and run in CI for each AI feature; a dynamic scanner is the eventual instrument
+      context: [ai-feature-evals]
+      why: "claim (#262): which features ship, and which call sites make up one feature, is a product boundary the tree does not draw, so a run cannot close the population; it shows the evals it saw as context"
+    check: "Population: every AI feature, each shipped feature whose answer a model produces; excluded: the model's qualification, which is d-model-qualification's, and a skill or rubric's repeatability, which is d-calibration-harness'. Question: does an eval of its answer quality exist and run in CI? A dynamic scanner is the eventual instrument"
     sources: [scanner-candidates/dynamic-tier, issue/2]
     status: draft
     owner:
@@ -957,7 +1001,9 @@ requirements:
     tags: [ai-operating]
     decide:
       kind: claim
-    check: each outward channel names its disclosure mechanism or records why none is needed
+      context: [ai-disclosure]
+      why: "claim (#262): whether a disclosure meets its audience's norms is the owner's to say, since the audience is not in the tree; a run shows the channels and mechanisms it saw as context"
+    check: "Population: every outward AI output, each channel through which model-written content reaches a person outside the team; excluded: the send itself, which the effect rows take, and what the call can reach, the AI context's. Question: does the channel name its disclosure mechanism, or record why its audience needs none?"
     sources: [method/authorship-probe]
     status: draft
     owner:

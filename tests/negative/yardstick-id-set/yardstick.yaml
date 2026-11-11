@@ -109,10 +109,10 @@ requirements:
     note: "repo-census skipped: fixture: the repo census was not executed over this base"
   - id: d-ingested-content-is-data
     status: not-measured
-    how: claim
+    how: census
     basis: run
     findings: []
-    note: "claim-only: decided by the owner, never inferred from a run"
+    note: "no census named ingested-content | ingestion-points in map/censuses.yaml"
   - id: d-fresh-clone-runs
     status: not-measured
     how: instrument
@@ -331,10 +331,10 @@ requirements:
     note: "effect population not closed: the run carries no channel candidate list (map/raw/enumerate.json, which assay start writes)"
   - id: d-model-call-telemetry
     status: not-measured
-    how: claim
+    how: census
     basis: run
     findings: []
-    note: "claim-only: decided by the owner, never inferred from a run"
+    note: "no census named model-call-telemetry | model-calls in map/censuses.yaml"
   - id: d-model-qualification
     status: not-measured
     how: claim
