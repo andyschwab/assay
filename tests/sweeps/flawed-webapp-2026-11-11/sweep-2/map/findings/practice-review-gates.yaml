@@ -1,0 +1,169 @@
+# Pass 3 — Deterministic gates (census-augmented: gates-coverage = 5 routes + ADR-0001 storage interface)
+- id: F-200
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "GET /notes untested"
+  observation: >
+    The GET /notes handler's owner filter is pinned by no test: the only test file imports
+    authenticate alone and never exercises the router, so a regression that dropped the
+    owner filter would pass every gate the target has.
+  evidence:
+    - server.mjs:30-33
+    - test/smoke.mjs:5
+  confidence: confirmed
+- id: F-201
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "POST /notes untested, unvalidated"
+  observation: >
+    The POST /notes handler accepts any body without a schema, coercing a missing or
+    non-string text field to a string and storing it, and no test exercises the route.
+  evidence:
+    - server.mjs:35-40
+    - test/smoke.mjs:5
+  confidence: confirmed
+- id: F-202
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "POST /assistant untested"
+  observation: >
+    The POST /assistant handler passes an unvalidated, string-coerced question to ask(),
+    and no test exercises the route or ask() (the email-send path included).
+  evidence:
+    - server.mjs:42-45
+    - lib/agent.mjs:33-42
+    - test/smoke.mjs:5
+  confidence: confirmed
+- id: F-203
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "POST /sync untested"
+  observation: >
+    The POST /sync handler carries an in-code note that it has no authorization check, and no
+    test exercises the route or pushBackup(), so its behavior (auth or delivery) is pinned by
+    nothing.
+  evidence:
+    - server.mjs:47-50
+    - lib/sync.mjs:5-14
+    - test/smoke.mjs:5
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "POST /admin/purge untested"
+  observation: >
+    The /admin/purge handler's requireAdmin check is pinned by no test (no test asserts a
+    non-admin gets 403), and its own comment declares DELETE while the router matches POST,
+    a drift no contract or test catches.
+  evidence:
+    - routes/admin.mjs:5-7
+    - server.mjs:52-54
+    - test/smoke.mjs:5
+  confidence: confirmed
+- id: F-205
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "ADR-0001 storage interface unpinned"
+  observation: >
+    ADR-0001 names the storage interface a future SQLite adapter must satisfy (lookup, the
+    notes map surface, purgeAll), but no test, type declaration or conformance check pins it,
+    so a swapped adapter could break the contract silently.
+  evidence:
+    - docs/adr/0001-storage-choice.md:14-17
+    - lib/db.mjs:19-31
+    - test/smoke.mjs:4-5
+  confidence: confirmed
+- id: F-206
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  label: "No test script wired"
+  observation: >
+    package.json defines only a start script, so the README's documented test command
+    (npm run test:all) does not exist and the smoke file is runnable only by invoking it by
+    hand.
+  evidence:
+    - package.json:6-8
+    - README.md:29-35
+  confidence: confirmed
+- id: F-207
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "Smoke assertion cannot fail"
+  observation: >
+    The single smoke assertion checks only that authenticate returns a truthy user, which
+    authenticate always does (it falls back to a default identity for any unknown token),
+    so the test cannot fail on the auth regression it appears to guard.
+  evidence:
+    - test/smoke.mjs:7-9
+    - lib/auth.mjs:7-12
+  confidence: confirmed
+- id: F-208
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  label: "No CI in the target"
+  observation: >
+    No CI configuration exists inside the target (its 12 files include no workflow or CI
+    file, and package.json carries no test hook), so a regression in the central module is
+    caught at no point automatically, only if someone runs the smoke file by hand.
+  evidence:
+    - package.json:1-9
+    - test/smoke.mjs:1-11
+  confidence: confirmed
+- id: F-209
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  label: "No lint or typecheck"
+  observation: >
+    The target has no lint or typecheck configuration and no devDependencies or scripts for
+    either (plain .mjs with no JSDoc types), so interface drift between modules is not
+    checked statically.
+  evidence:
+    - package.json:1-9
+  confidence: confirmed
+- id: F-210
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "Body parse fails silently"
+  observation: >
+    readBody swallows a JSON parse error and resolves an empty object, so a malformed request
+    body reaches every POST handler as {} instead of failing loudly with a 400.
+  evidence:
+    - server.mjs:11-19
+  confidence: confirmed
+- id: F-211
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "Tool directive has no schema"
+  observation: >
+    The model-to-mailer interface is a regex over free model text that accepts any
+    non-space token as the recipient and subject, with no schema, address validation or
+    allowlist before sendEmail is called.
+  evidence:
+    - lib/agent.mjs:35-39
+  confidence: confirmed
+- id: F-212
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: artifact
+  label: "Server testable in-process"
+  observation: >
+    server.mjs exports the server and only listens when run as the entry point, and the app
+    and its smoke test use zero dependencies (node:assert), so fast in-process route tests
+    would need no new tooling.
+  evidence:
+    - server.mjs:59-63
+    - test/smoke.mjs:4
+    - package.json:1-9
+  confidence: confirmed

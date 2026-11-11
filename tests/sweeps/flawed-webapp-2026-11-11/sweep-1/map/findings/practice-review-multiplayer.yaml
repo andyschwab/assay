@@ -1,0 +1,226 @@
+# Pass 7 — multiplayer (shared context + agent access), practice-review base findings
+# Target: andyschwab/assay-fixtures, subtree targets/flawed-webapp/ (notesbox)
+# Head: 7f7c89d8 — evidence repo-relative to the target subtree; read-only, nothing executed
+
+# ── Agent-access surface census: one finding per terrain route R1–R5 (subject_type: contract) ──
+
+- id: F-700
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    R1 GET /notes is a JSON-over-HTTP API with no request body, bearer-token auth, and a
+    `{ notes }` response, and the README names it and its purpose, so an agent can consume
+    it without any human UI (none exists in the tree).
+  evidence: [server.mjs:30-33, server.mjs:21-24, lib/auth.mjs:6, README.md:16]
+  confidence: confirmed
+
+- id: F-701
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R2 POST /notes is agent-callable JSON over HTTP, but its request field `text` and its
+    `201 { id }` response are stated nowhere outside the code, and a malformed body is
+    silently read as `{}` and stored as an empty note, so an agent caller gets success
+    for a request the server did not understand.
+  evidence: [server.mjs:35-40, server.mjs:16, README.md:17]
+  confidence: confirmed
+
+- id: F-702
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R3 POST /assistant is agent-callable JSON over HTTP, but its request field `question`
+    and its response shape (`answer`, plus `emailed` when the tool fires) are undocumented;
+    the README states only that it answers and can email summaries.
+  evidence: [server.mjs:42-45, lib/agent.mjs:40-42, README.md:18]
+  confidence: confirmed
+
+- id: F-703
+  dimension: multiplayer
+  polarity: fact
+  subject_type: contract
+  observation: >
+    R4 POST /sync is agent-callable with no request body and a `{ ok, pushed }` response,
+    and the README names it and its purpose, though the response shape itself is
+    documented only in code.
+  evidence: [server.mjs:47-50, lib/sync.mjs:13, README.md:19]
+  confidence: confirmed
+
+- id: F-704
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R5 POST /admin/purge is reachable over HTTP but has no stated contract: the README's
+    endpoint list omits it and the handler's own comment names the method as DELETE while
+    the router matches POST, so an agent reading the docs cannot discover or call it
+    correctly.
+  evidence: [server.mjs:52-54, routes/admin.mjs:5, README.md:14-19]
+  confidence: confirmed
+
+- id: F-705
+  dimension: multiplayer
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The route table exposes no usage or outcome telemetry endpoint; the only usage trace
+    is a per-send console line in the mailer and the server's listen log.
+  evidence: [server.mjs:26-57, lib/mailer.mjs:7, server.mjs:60]
+  confidence: confirmed
+
+# ── Shared substrate ──
+
+- id: F-706
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The workspace is not a principal: the store holds one global notes map, a users list
+    and a token table, with no workspace/team entity carrying its own memory, membership
+    or permissions, and the assistant keeps no state of its own between calls.
+  evidence: [lib/db.mjs:2-17, lib/agent.mjs:33-43, docs/adr/0001-storage-choice.md:9]
+  confidence: confirmed
+
+- id: F-707
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Note ownership is recorded twice (each note's `owner` field and each user's `notes`
+    array), and POST /notes writes only the former, so the two records of who owns what
+    diverge from the first created note.
+  evidence: [lib/db.mjs:3-5, lib/db.mjs:9-10, server.mjs:38, lib/db.mjs:29]
+  confidence: confirmed
+
+- id: F-708
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Membership is fixed in source (three users and a three-entry token table) with no route
+    to add a member or issue a credential, and there is no agent or service principal
+    class, so an agent can only act by holding a person's bearer token and is
+    indistinguishable from that person.
+  evidence: [lib/db.mjs:2-6, lib/db.mjs:13-25, lib/auth.mjs:5-8, server.mjs:26-57]
+  confidence: confirmed
+
+# ── Authority domains (as / within / on / from) per effect channel and context read ──
+
+- id: F-709
+  dimension: multiplayer
+  polarity: fact
+  subject_type: control
+  observation: >
+    For `note-create`, the note is written as the resolved requester (`owner: user.id`) on
+    the global notes map, and its result is visible to its owner through R1 but to every
+    caller through the assistant, with no shared-space scope governing who sees it.
+  evidence: [server.mjs:38, server.mjs:31, lib/agent.mjs:12-15]
+  confidence: confirmed
+
+- id: F-710
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    For `assistant-email-send`, the code and README say the email goes on the user's
+    behalf, but it is sent as the shared assistant identity from settings and the asking
+    user is not recorded on the send, so recipients and logs cannot tell who caused it.
+  evidence: [lib/agent.mjs:1-2, README.md:18, lib/mailer.mjs:5-8, config/settings.mjs:7, lib/agent.mjs:39]
+  confidence: confirmed
+
+- id: F-711
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    For the assistant's context read and `assistant-email-send`, the acting-on scope is
+    every user's notes rather than the asker's: `buildPrompt` receives the user but never
+    uses it, and the email body is all notes from all owners.
+  evidence: [lib/agent.mjs:11-20, lib/agent.mjs:38-39]
+  confidence: confirmed
+
+- id: F-712
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    For `backup-push`, the handler is called without the requester at all, so the push of
+    the whole workspace to the external service acts under the service's own key with no
+    record of which person or agent initiated it.
+  evidence: [server.mjs:47-50, lib/sync.mjs:5-13]
+  confidence: confirmed
+
+- id: F-713
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    For `workspace-purge`, one admin's call acts on every member's notes and every user's
+    note list, with no shared-space scope, notice to the affected members, or record of
+    who purged.
+  evidence: [routes/admin.mjs:6-11, lib/db.mjs:27-31]
+  confidence: confirmed
+
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    In the one context read (the assistant prompt, the terrain's single AI surface), each
+    note entry carries an origin label, its owner's email (or owner id when unresolved),
+    and the user question is set apart under its own heading.
+  evidence: [lib/agent.mjs:12-15, lib/agent.mjs:19]
+  confidence: confirmed
+
+- id: F-715
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    Those origin labels are in-band text, so a note whose stored text contains a newline
+    and a `- [...]` line forges another author's label, and the emailed body drops the
+    labels entirely, so recipients get all notes with no attribution.
+  evidence: [server.mjs:38, lib/agent.mjs:14-15, lib/agent.mjs:38]
+  confidence: confirmed
+
+# ── Consent semantics ──
+
+- id: F-716
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Sharing a note with the assistant, with email recipients and with the backup service
+    is automatic, not a conscious act: a note has only id, owner and text, with no
+    visibility or share field, yet every note is read into the prompt, the email and the
+    backup payload.
+  evidence: [server.mjs:38, lib/agent.mjs:12-15, lib/agent.mjs:38, lib/sync.mjs:6]
+  confidence: confirmed
+
+- id: F-717
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The privileged-reader asymmetry is undisclosed and contradicted: the README says the
+    assistant answers about "your notes" and R1 returns only the caller's notes, but the
+    assistant reads every member's notes for any caller.
+  evidence: [README.md:3-5, server.mjs:31, lib/agent.mjs:12-15]
+  confidence: confirmed
+
+# ── Seam ──
+
+- id: F-718
+  dimension: unprompted
+  axis: delegation
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Admin membership has two sources of truth: settings declares an `adminEmails` list that
+    no file in the tree reads, while the effective admin check uses each user's `role`
+    field (and the unauthenticated fallback identity's).
+  evidence: [config/settings.mjs:8, lib/auth.mjs:15-17, lib/db.mjs:3-5, lib/auth.mjs:12]
+  confidence: confirmed

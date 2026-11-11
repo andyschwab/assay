@@ -1,0 +1,164 @@
+# PASS 1 — Artifact legibility (census-augmented: decision-reconstruction, 6 members)
+# Census members (terrain): ADR-0001 storage; auth fallback-to-admin; log-only mailer;
+# fire-and-forget backup; literal API key; text-protocol tool directive.
+
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    ADR-0001 records the storage decision with context, the decision, its consequences
+    and the rejected alternative (SQLite now), and the store module links back to it,
+    so the in-memory choice reconstructs from files alone.
+  evidence:
+    - docs/adr/0001-storage-choice.md:6-10
+    - docs/adr/0001-storage-choice.md:12-17
+    - docs/adr/0001-storage-choice.md:19-29
+    - lib/db.mjs:1
+  confidence: confirmed
+
+- id: F-002
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The auth fallback that resolves any unknown or missing token to a default admin
+    identity carries its rationale in an adjacent comment (avoid demo lockout during
+    deploys, keep ops tooling working), though no decision record weighs that choice
+    and no ops tooling it cites appears in the target.
+  evidence:
+    - lib/auth.mjs:9-12
+  confidence: confirmed
+
+- id: F-003
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The log-only mailer's comment says production posts to a mail relay, but no file
+    holds a relay setting or a switch between builds, so a reader cannot reconstruct
+    when the real transport applies or why the stub reports `sent: true`.
+  evidence:
+    - lib/mailer.mjs:1-2
+    - lib/mailer.mjs:6-8
+    - config/settings.mjs:2-9
+  confidence: confirmed
+
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The fire-and-forget backup push states why it is not awaited (the relay is inside
+    the VPC so failures are rare), though that deployment premise is recorded nowhere
+    else and the configured backup URL is an external https host.
+  evidence:
+    - lib/sync.mjs:7-13
+    - config/settings.mjs:4
+  confidence: confirmed
+
+- id: F-005
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The backup API key is a prefixed token-shaped string literal in settings with only a
+    TODO to move it to env, and the file's pointer to "README for environment notes"
+    dangles because the README has no environment section.
+  evidence:
+    - config/settings.mjs:1
+    - config/settings.mjs:5-6
+    - README.md:12-35
+  confidence: confirmed
+
+- id: F-006
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No artifact records why the assistant's email tool is a free-text `TOOL:send_email`
+    line parsed from model output that sends without confirmation, or why the body is
+    every note in the workspace when the README promises "summaries"; the only prose on
+    the shape is a fixture note, not the app's rationale.
+  evidence:
+    - lib/agent.mjs:1-7
+    - lib/agent.mjs:18
+    - lib/agent.mjs:35-39
+    - README.md:3-5
+    - README.md:18
+  confidence: confirmed
+
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README opens with the product's intent (team notes, admins manage the workspace,
+    an assistant answers and emails summaries), giving a newcomer the purpose before the
+    endpoint list.
+  evidence:
+    - README.md:1-5
+  confidence: confirmed
+
+- id: F-008
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The /sync route's comment flags that it has no authorization check but gives no
+    reason, so whether that is intended or an oversight cannot be reconstructed from
+    files.
+  evidence:
+    - server.mjs:47-50
+  confidence: confirmed
+
+- id: F-009
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Admin status is designated in two places, an `adminEmails` list in settings that no
+    module reads and a `role` field on user records that `requireAdmin` checks, with no
+    artifact saying which governs or why both exist.
+  evidence:
+    - config/settings.mjs:8
+    - lib/db.mjs:5
+    - lib/auth.mjs:15-16
+  confidence: confirmed
+
+- id: F-010
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    `readBody` turns a malformed JSON body into an empty object with no comment or doc
+    explaining the choice, so a newcomer cannot tell whether silent acceptance is
+    intended.
+  evidence:
+    - server.mjs:11-19
+  confidence: confirmed
+
+- id: F-011
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The purge handler's comment states its purpose (clear the workspace between demo
+    cycles), so the existence of a destructive admin route reconstructs from the file.
+  evidence:
+    - routes/admin.mjs:5-6
+  confidence: confirmed
+
+- id: F-012
+  dimension: unprompted
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    Several in-target comments are written in the fixture's meta voice (explaining
+    planted defects) rather than the app maintainers' voice, so the files mix test-harness
+    explanation with app rationale and a reader must separate the two.
+  evidence:
+    - README.md:7-10
+    - lib/agent.mjs:4-7
+    - test/smoke.mjs:1-3
+  confidence: confirmed

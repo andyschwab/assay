@@ -1,0 +1,256 @@
+# PASS 2 — Context economy (census-augmented: modules-standalone x8, doc-freshness x4, plus other context findings)
+# modules-standalone census members (8)
+- id: F-100
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    server.mjs loads standalone as the complete route map: one 63-line file whose imports name
+    each collaborator module and whose single handler holds all five routes.
+  evidence:
+    - server.mjs:3-9
+    - server.mjs:26-57
+  confidence: confirmed
+- id: F-101
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs loads standalone: 17 lines, one import (the session store), with comments that
+    state what it resolves and why the unknown-token fallback exists.
+  evidence:
+    - lib/auth.mjs:1-2
+    - lib/auth.mjs:4-13
+  confidence: confirmed
+- id: F-102
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/db.mjs loads standalone: it has no imports, and its header names ADR-0001 as the place
+    the storage decision is explained.
+  evidence:
+    - lib/db.mjs:1
+    - lib/db.mjs:19-31
+  confidence: confirmed
+- id: F-103
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs loads standalone: a seven-line header states what the assistant does and how
+    the tool directive reaches the mailer, and it imports only the store and the mailer.
+  evidence:
+    - lib/agent.mjs:1-9
+  confidence: confirmed
+- id: F-104
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs loads standalone: 9 lines, one import (settings), and a header that says the
+    transport only logs in this build.
+  evidence:
+    - lib/mailer.mjs:1-8
+  confidence: confirmed
+- id: F-105
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs loads standalone: 14 lines, two imports (store and settings), and a one-line
+    header naming its single job.
+  evidence:
+    - lib/sync.mjs:1-3
+    - lib/sync.mjs:5-13
+  confidence: confirmed
+- id: F-106
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs does not load standalone correctly: its header labels the handler
+    DELETE /admin/purge, while the router dispatches it on POST, so a reader of this module
+    alone learns the wrong verb.
+  evidence:
+    - routes/admin.mjs:5-6
+    - server.mjs:52-53
+  confidence: confirmed
+- id: F-107
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs is self-contained data, but its only pointer sends a reader to README
+    "environment notes" that the README does not contain, and every value is a source literal
+    rather than read from the environment.
+  evidence:
+    - config/settings.mjs:1-8
+    - README.md:12-35
+  confidence: confirmed
+# doc-freshness census members (4 README claims)
+- id: F-108
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says the API exposes 4 endpoints and lists four, while the router serves a fifth,
+    POST /admin/purge, which the README never mentions.
+  evidence:
+    - README.md:14-19
+    - server.mjs:52-54
+  confidence: confirmed
+- id: F-109
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README run command (node server.mjs) holds: server.mjs listens when executed directly,
+    and package.json's start script runs the same command.
+  evidence:
+    - README.md:23-25
+    - server.mjs:59-61
+    - package.json:6-8
+  confidence: confirmed
+- id: F-110
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README's test command, npm run test:all, names a script that package.json does not
+    define; its only script is start.
+  evidence:
+    - README.md:29-33
+    - package.json:6-8
+  confidence: confirmed
+- id: F-111
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README claims every endpoint is covered by the smoke suite, but the suite calls no
+    endpoint and makes a single assertion that a valid token resolves a user.
+  evidence:
+    - README.md:35
+    - test/smoke.mjs:5-9
+  confidence: confirmed
+# other context findings
+- id: F-112
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs's header says route handlers delegate to lib/ and routes/ so each concern lives
+    in one place, but both notes routes are written inline in the router and routes/ holds
+    only the admin handler.
+  evidence:
+    - server.mjs:1-2
+    - server.mjs:30-40
+    - routes/admin.mjs:1-6
+  confidence: confirmed
+- id: F-113
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    ADR-0001, the oldest dated doc, still matches the code on its core claims: the store is
+    in-memory in lib/db.mjs and exposes lookup, the notes map and purgeAll, and lib/db.mjs
+    links back to the ADR.
+  evidence:
+    - docs/adr/0001-storage-choice.md:4
+    - docs/adr/0001-storage-choice.md:14-17
+    - lib/db.mjs:1
+    - lib/db.mjs:8-11
+    - lib/db.mjs:19-31
+  confidence: confirmed
+- id: F-114
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The storage boundary ADR-0001 declares omits the users array, yet lib/agent.mjs imports and
+    searches it directly, so a task scoped by the ADR's interface would miss a dependency an
+    adapter swap must satisfy.
+  evidence:
+    - docs/adr/0001-storage-choice.md:14-17
+    - lib/db.mjs:2-6
+    - lib/agent.mjs:8
+    - lib/agent.mjs:13
+  confidence: confirmed
+- id: F-115
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README, the only entry-point doc, does not route a stranger past endpoints, run and
+    test: it has no module map, no configuration section and no link to the ADR.
+  evidence:
+    - README.md:1-35
+  confidence: confirmed
+- id: F-116
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No agent-facing instruction file exists in the target; the inspected entry points (README
+    and package.json) are the only orientation an agent gets, and neither states conventions
+    or where to start a change.
+  evidence:
+    - README.md:1-35
+    - package.json:1-9
+  confidence: confirmed
+- id: F-117
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says the assistant emails summaries, but the code emails the raw text of every
+    note in the workspace as the body, not a summary.
+  evidence:
+    - README.md:3-5
+    - README.md:18
+    - lib/agent.mjs:37-39
+  confidence: confirmed
+- id: F-118
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs states in the present tense that real deployments swap it for a SQLite adapter,
+    while the ADR says the adapter lands later and no adapter module exists in the target.
+  evidence:
+    - lib/db.mjs:1
+    - docs/adr/0001-storage-choice.md:15-17
+    - docs/adr/0001-storage-choice.md:22-23
+  confidence: plausible
+- id: F-119
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    The assistant's model call names no model or tier, and nothing records why a tier was
+    chosen or when it is re-qualified; the call site is a stub with no model identity.
+  evidence:
+    - lib/agent.mjs:4-7
+    - lib/agent.mjs:23-31
+  confidence: confirmed
+- id: F-120
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    Inference spend is not metered: ask() records no token count, cost or per-request usage,
+    and returns only the answer and the emailed address.
+  evidence:
+    - lib/agent.mjs:33-42
+  confidence: confirmed
+- id: F-121
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Every assistant prompt loads the full text of every note of every user, with no size bound
+    or retrieval step, so prompt size and spend grow with the whole workspace.
+  evidence:
+    - lib/agent.mjs:11-20
+  confidence: confirmed

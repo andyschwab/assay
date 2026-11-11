@@ -1,0 +1,156 @@
+# map/findings/practice-review-legibility.yaml
+# Pass 1 — artifact legibility (census-augmented: decision-reconstruction)
+# Target: targets/flawed-webapp/ (andyschwab/assay-fixtures @ 7f7c89d)
+# Run: flawed-webapp-2026-11-11
+# Evidence paths are relative to targets/flawed-webapp/.
+
+# ── decision-reconstruction census (5 items, subject_type artifact) ──
+
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    ADR-0001 records the in-memory-store-behind-an-interface decision with its context,
+    the interface it binds (lookup, the notes map surface, purgeAll), its consequences and
+    the rejected alternative (SQLite now), and lib/db.mjs points back to it.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, docs/adr/0001-storage-choice.md:6-17, docs/adr/0001-storage-choice.md:19-29, lib/db.mjs:1]
+  confidence: confirmed
+
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The fallback to a default admin identity for an unknown or missing token carries its
+    rationale inline (keep the demo from being locked out during deploys, admin so ops
+    tooling keeps working), so the why reconstructs from the file even though no ADR or
+    README records the decision.
+  evidence: [lib/auth.mjs:8-12]
+  confidence: confirmed
+
+- id: F-103
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The log-only mailer is explained only by a header comment asserting a production
+    path that posts to a mail relay, but no relay transport, setting or switch exists in
+    the tree, while the README presents emailing summaries as a working feature.
+  evidence: [lib/mailer.mjs:1-2, lib/mailer.mjs:5-8, config/settings.mjs:2-9, README.md:3-5, README.md:18]
+  confidence: confirmed
+
+- id: F-104
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The un-awaited backup push is justified by a one-line comment that the relay accepts
+    within "our VPC", a premise no other file records, while the configured backup URL is
+    an https hostname in settings.
+  evidence: [lib/sync.mjs:7-13, config/settings.mjs:4]
+  confidence: plausible
+
+- id: F-105
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The zero-dependency choice is stated as a fact in the server header and visible in
+    package.json, but no file records why beyond the ADR's database-specific consequence,
+    and the stated Node >= 20 floor has no engines field.
+  evidence: [server.mjs:1-2, package.json:1-9, docs/adr/0001-storage-choice.md:21]
+  confidence: confirmed
+
+# ── further legibility strengths and gaps ──
+
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README opens with the app's intent (team notes, admins manage the workspace, an
+    AI assistant answers questions and can email summaries) before its endpoint list.
+  evidence: [README.md:1-5]
+  confidence: confirmed
+
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Every source module opens with a header comment naming its responsibility, and the
+    server header states the routing design (handlers delegate to lib/ and routes/).
+  evidence: [server.mjs:1-2, lib/agent.mjs:1-2, lib/auth.mjs:1, lib/db.mjs:1, lib/mailer.mjs:1-2, lib/sync.mjs:1, routes/admin.mjs:1, config/settings.mjs:1]
+  confidence: confirmed
+
+- id: F-108
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README states the API exposes 4 endpoints and lists four, while the server routes
+    a fifth, POST /admin/purge.
+  evidence: [README.md:14-19, server.mjs:52-54]
+  confidence: confirmed
+
+- id: F-109
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README directs readers to npm run test:all and says every endpoint is covered by
+    the smoke suite, but package.json defines only a start script and test/smoke.mjs holds
+    one assertion on authenticate().
+  evidence: [README.md:29-35, package.json:6-8, test/smoke.mjs:7-9]
+  confidence: confirmed
+
+- id: F-110
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The purge handler's comment documents the route as DELETE /admin/purge, while the
+    server dispatches it on POST.
+  evidence: [routes/admin.mjs:5, server.mjs:52-53]
+  confidence: confirmed
+
+- id: F-111
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The settings header points to the README for environment notes, but the README has no
+    environment section and the settings are literals with no environment read.
+  evidence: [config/settings.mjs:1-9, README.md:1-35]
+  confidence: confirmed
+
+- id: F-112
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README describes no authentication scheme, roles, or the default-identity
+    fallback; bearer tokens and the member/admin roles are documented only in code.
+  evidence: [README.md:12-25, lib/auth.mjs:4-17, lib/db.mjs:2-6, lib/db.mjs:13-17]
+  confidence: confirmed
+
+- id: F-113
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The absence of an authorization check on POST /sync is recorded only as a
+    parenthetical comment with no rationale, and no ADR or README entry covers it.
+  evidence: [server.mjs:47-50, README.md:19, docs/adr/0001-storage-choice.md:1-29]
+  confidence: confirmed
+
+- id: F-114
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The store's header says real deployments swap it for the SQLite adapter, while the ADR
+    describes that adapter as not yet landed and no adapter exists in the tree.
+  evidence: [lib/db.mjs:1, docs/adr/0001-storage-choice.md:15-17, docs/adr/0001-storage-choice.md:22-23]
+  confidence: plausible

@@ -1,0 +1,189 @@
+# Pass 3 — deterministic gates (dimension: deterministic-gates), blind
+# Target: andyschwab/assay-fixtures, subtree targets/flawed-webapp/ (notesbox)
+# Head: 7f7c89d8 — census gates-coverage over terrain routes R1–R5 (subject_type contract)
+
+# ── Census: gates-coverage, one finding per terrain route R1–R5 ──
+
+- id: F-300
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R1 GET /notes (the per-owner filter on user.id) is exercised by no test or gate:
+    the only test file imports lib/auth.mjs alone and never loads server.mjs or issues a
+    request, so a regression that drops or inverts the owner filter is caught by nothing.
+  evidence: [server.mjs:30-33, test/smoke.mjs:4-9, package.json:6-8]
+  confidence: confirmed
+
+- id: F-301
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R2 POST /notes (body parse, id generation, owner assignment, 201 response) is
+    exercised by no test or gate; the smoke suite never imports server.mjs or the notes
+    store.
+  evidence: [server.mjs:35-40, test/smoke.mjs:4-9, package.json:6-8]
+  confidence: confirmed
+
+- id: F-302
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R3 POST /assistant and its effect path (ask, tool-directive parse, sendEmail) are
+    exercised by no test or gate; nothing imports lib/agent.mjs or lib/mailer.mjs, so a
+    change to what the directive parse accepts or to who receives mail is caught by
+    nothing.
+  evidence: [server.mjs:42-45, lib/agent.mjs:33-43, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-303
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R4 POST /sync and pushBackup are exercised by no test or gate (nothing imports
+    lib/sync.mjs), and the route carries no authorization check for a test to pin.
+  evidence: [server.mjs:47-50, lib/sync.mjs:5-13, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-304
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    R5 POST /admin/purge, its requireAdmin check and purgeAll are exercised by no test or
+    gate (nothing imports routes/admin.mjs or calls requireAdmin), so a regression in the
+    403 branch that guards the workspace purge is caught by nothing.
+  evidence: [server.mjs:52-54, routes/admin.mjs:6-11, lib/auth.mjs:15-17, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+# ── Test / lint / typecheck / CI presence and the test-command claim ──
+
+- id: F-305
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The README's test command `npm run test:all` names a script that package.json does
+    not define (its only script is `start`), so the documented gate entry point fails
+    and no `npm test` exists either.
+  evidence: [README.md:29-33, package.json:6-8]
+  confidence: confirmed
+
+- id: F-306
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The README claims every endpoint is covered by the smoke suite, while the suite holds
+    one assertion against authenticate() and touches none of the five routes.
+  evidence: [README.md:35, test/smoke.mjs:4-11, server.mjs:26-57]
+  confidence: confirmed
+
+- id: F-307
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The smoke suite's single assertion (a valid bearer token resolves a user) cannot fail
+    on an auth regression, because authenticate() never returns a falsy value: an unknown
+    or missing token falls back to a default admin identity, so `assert.ok(u)` passes
+    whether or not the token lookup works.
+  evidence: [test/smoke.mjs:7-9, lib/auth.mjs:5-13]
+  confidence: confirmed
+
+- id: F-308
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No lint, typecheck or formatter is configured in the subtree: package.json declares
+    no such script or devDependency and the tree holds no lint or tsconfig/jsconfig file,
+    so the untyped .mjs modules get no static check.
+  evidence: [package.json:1-9]
+  confidence: confirmed
+
+- id: F-309
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No CI workflow or commit hook exists inside the subtree, so even the one smoke test
+    runs only when a person invokes it by hand (`node test/smoke.mjs`; no package script
+    wires it).
+  evidence: [package.json:6-8, test/smoke.mjs:11]
+  confidence: confirmed
+
+- id: F-310
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The central-module regression test answers "nothing, never": server.mjs (the whole
+    route table) is imported by no test and no CI or hook runs any check, so a subtle
+    regression there surfaces only at runtime.
+  evidence: [server.mjs:26-57, test/smoke.mjs:4-5, package.json:6-8]
+  confidence: confirmed
+  explained_by: [F-305, F-309]
+
+- id: F-311
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    server.mjs exports the server object and listens only when run as the entry script,
+    a seam that would let a test drive the routes in-process, but no test uses it.
+  evidence: [server.mjs:59-63, test/smoke.mjs:4-5]
+  confidence: confirmed
+
+# ── Schemas / contracts at interfaces ──
+
+- id: F-312
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Request-body parsing has no schema and fails silent: readBody swallows a JSON parse
+    error into an empty object, so a malformed POST /notes body yields a 201 with an
+    empty-text note and a malformed POST /assistant body an empty question, rather than a
+    400.
+  evidence: [server.mjs:11-19, server.mjs:36-39, server.mjs:43-44]
+  confidence: confirmed
+
+- id: F-313
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The assistant's tool-directive grammar `TOOL:send_email <to> <subject>` is enforced
+    only by a regex over model output with no schema or validation of the recipient
+    (any non-space token is accepted as `to`) before sendEmail is called, and no test
+    pins the grammar.
+  evidence: [lib/agent.mjs:18, lib/agent.mjs:35-39, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-314
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The lib/db.mjs interface that ADR-0001 says a future SQLite adapter must satisfy
+    (`lookup`, the `notes` map surface, `purgeAll`) is pinned by no contract test; the
+    smoke suite reaches sessions.lookup only indirectly through one valid-token call whose
+    assertion cannot fail (F-307), and nothing exercises `notes` or `purgeAll`.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, lib/db.mjs:19-31, test/smoke.mjs:5-9]
+  confidence: confirmed
+  explained_by: [F-307]
+
+- id: F-315
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The route table's method contract is unchecked: the admin handler documents
+    `DELETE /admin/purge` while the router matches POST, and no route-table test or
+    schema would catch the drift between the two.
+  evidence: [routes/admin.mjs:5, server.mjs:52]
+  confidence: confirmed

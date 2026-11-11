@@ -1,0 +1,123 @@
+# map/censuses.yaml — authored censuses, depth sentences and earned flags (SCHEMA §6b)
+# Target: andyschwab/assay-fixtures targets/flawed-webapp @ 7f7c89d823153c702c207b1f36c6c2ce26217ceb
+# Populations and membership rules: map/terrain.md ("Census populations"). Every population
+# is enumerated in full (the target is 12 files); one finding per member, cited per item below.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is a complete ADR (context, decision, consequences, rejected
+      alternative) that the store module links back to (F-001), but the highest-stakes
+      choices, the email tool directive and the literal key, carry no rationale at all (F-006, F-005).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious design choices whose rationale reconstructs from files alone"
+        met: 3
+        of: 6
+        method: "full enumeration of the terrain's decision-reconstruction population, one finding per member"
+        primary: true
+        # items: ADR-0001 storage F-001 met; auth fallback-to-admin F-002 met;
+        #   log-only mailer F-003 not met; fire-and-forget backup F-004 met;
+        #   literal API key F-005 not met; text-protocol tool directive F-006 not met
+    enforced: false
+    generative: false
+  - dimension: context-economy
+    depth: >
+      Modules are small and each loads on its own with a header naming its job (F-100 to F-105),
+      and the oldest doc, the ADR, is still accurate (F-113), but the README is stale on three of
+      four checkable claims (F-108, F-110, F-111) and no model tier or spend is recorded (F-119, F-120).
+    sampled:
+      - name: modules-standalone
+        what: "source modules a bounded context can load and act on correctly alone"
+        met: 6
+        of: 8
+        method: "full enumeration of lib/, routes/, config/ modules plus server.mjs, one finding per module"
+        primary: true
+        # items: server.mjs F-100 met; lib/auth.mjs F-101 met; lib/db.mjs F-102 met;
+        #   lib/agent.mjs F-103 met; lib/mailer.mjs F-104 met; lib/sync.mjs F-105 met;
+        #   routes/admin.mjs F-106 not met; config/settings.mjs F-107 not met
+      - name: doc-freshness
+        what: "README claims that hold against the code"
+        met: 1
+        of: 4
+        method: "every checkable README claim compared to code, one finding per claim"
+        primary: false
+        # items: endpoint count/list F-108 not met; run command F-109 met;
+        #   test command F-110 not met; endpoint coverage claim F-111 not met
+    enforced: false
+    generative: false
+  - dimension: deterministic-gates
+    depth: >
+      No gate holds anywhere: the one test asserts something that is always true (F-207), no test
+      script or CI runs it (F-206, F-208), and malformed input fails silently (F-210); the only
+      asset is a zero-dependency, importable server that would make route tests cheap (F-212).
+    sampled:
+      - name: gates-coverage
+        what: "route handlers and declared interfaces pinned by a test or schema that fails loud"
+        met: 0
+        of: 6
+        method: "full enumeration of the 5 route handlers plus the ADR-0001 storage interface, one finding per member"
+        primary: false
+        # items: GET /notes F-200; POST /notes F-201; POST /assistant F-202; POST /sync F-203;
+        #   POST /admin/purge F-204; storage interface F-205 — all not met
+    enforced: false
+    generative: false
+  - dimension: verification
+    depth: >
+      Only note-create can be read back by its caller (F-300); every outward effect reports
+      success it never checked (F-301, F-302), model output is acted on unchecked (F-304), and
+      the deterministic model stub that could anchor an injection test is unused (F-308).
+    sampled:
+      - name: effect-provability
+        what: "effect channels whose effect can prove it happened, not just report it"
+        met: 1
+        of: 4
+        method: "every effect channel in the terrain inventory, one control finding per channel"
+        primary: false
+        # items: note-create F-300 met; email-send F-301 not met; backup-push F-302 not met;
+        #   workspace-purge F-303 not met
+    enforced: false
+    generative: false
+  - dimension: delegation
+    depth: >
+      The one real boundary is that neither credential ever enters the prompt (F-407) and the
+      human read route is owner-scoped (F-417); everything else is open: an anonymous caller
+      acts as admin (F-408), and the full-trifecta assistant (F-404) can mail every note to any
+      address with no gate (F-401).
+    sampled:
+      - name: credential
+        what: "credentials held outside the source tree and below the prompt boundary"
+        met: 0
+        of: 2
+        method: "full enumeration of the terrain's credential population, one control finding per member"
+        primary: false
+        # items: backup-api-key F-405 not met (literal in source; below the prompt boundary, F-407);
+        #   session-token-table F-406 not met (literal in source)
+    enforced: false
+    generative: false
+  - dimension: improvement-loop
+    depth: >
+      The one used, dated home for a decision is ADR-0001 (F-504); known defects live only as
+      inline comments and an undated TODO (F-502, F-506), there is no agent spec (F-501), and the
+      app emits no structured usage or outcome record (F-508).
+    not_measured: >
+      incidents-became-mechanisms has an empty population: the target records no incident or
+      lesson (F-500), so the census has no denominator; counted measures come from the base.
+    enforced: false
+    generative: false
+  - dimension: multiplayer
+    depth: >
+      The direct read path is per-user (F-609) and prompt context carries origin labels (F-612),
+      but the workspace is not a principal (F-607), sharing happens by automatic surfacing to the
+      assistant (F-617), and that wider reader is undisclosed (F-618).
+    sampled:
+      - name: agent-access-surface
+        what: "capabilities an agent can consume through a documented contract"
+        met: 2
+        of: 6
+        method: "every route plus the assistant, one finding per member; met = machine-consumable and its contract documented"
+        primary: true
+        # items: GET /notes F-600 met; POST /notes F-601 not met; POST /assistant F-602 not met
+        #   (undocumented input); POST /sync F-603 met; POST /admin/purge F-604 not met;
+        #   assistant tool directive F-605 not met
+    enforced: false
+    generative: false

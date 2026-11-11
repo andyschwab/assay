@@ -1,0 +1,150 @@
+# map/findings/practice-review-verification.yaml
+# Pass 4 (verification affordances) of practice-review, run flawed-webapp-2026-11-11.
+# Target: targets/flawed-webapp/ (andyschwab/assay-fixtures @ 7f7c89d); evidence paths are relative to it.
+# Census-augmented: effect-provability census (subject_type control), one item per terrain
+# effect channel (email-send, backup-push, note-create, workspace-purge), met = strength.
+# Blind pass: read-only, nothing executed, ANSWERS.yaml not opened.
+
+# ── effect-provability census ──
+
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Census effect-provability, channel email-send (not met): sendEmail only writes a
+    console.log line (a log-only transport whose header says nothing ever actually sends)
+    and returns the constant { sent: true } without any delivery receipt or relay response.
+  evidence: [lib/mailer.mjs:1-2, lib/mailer.mjs:5-8]
+  confidence: confirmed
+
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Census effect-provability, channel backup-push (not met): pushBackup starts the fetch
+    without awaiting it, discards any rejection with an empty .catch, and returns
+    { ok: true, pushed: notes.size } before the backup service has answered, so neither
+    the HTTP status nor an acknowledgement from the service is ever read.
+  evidence: [lib/sync.mjs:5-13, server.mjs:47-50]
+  confidence: confirmed
+
+- id: F-403
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Census effect-provability, channel note-create (met): the POST /notes handler performs
+    the in-process notes.set synchronously before replying 201 with the id it just wrote,
+    and the created note is readable back by its owner through GET /notes.
+  evidence: [server.mjs:35-40, server.mjs:30-33]
+  confidence: plausible
+
+- id: F-404
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Census effect-provability, channel workspace-purge (not met): purgeAll returns the
+    literal { purged: true } after clearing, without counting what it removed or checking
+    that the notes map and users' note lists are empty, and handlePurge relays that literal
+    as the 200 body.
+  evidence: [lib/db.mjs:27-31, routes/admin.mjs:8-10]
+  confidence: confirmed
+
+# ── effects-vs-reports seams ──
+
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    ask() discards sendEmail's return value and reports emailed set to the parsed recipient
+    to the caller, so the assistant's response states an email went out whenever a
+    TOOL:send_email line parsed, independent of any delivery result.
+  evidence: [lib/agent.mjs:35-40, lib/mailer.mjs:8, server.mjs:42-45]
+  confidence: confirmed
+
+- id: F-406
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    readBody resolves an unparseable JSON body to an empty object, so POST /notes with a
+    malformed body stores a note with empty text and still answers 201, and POST /assistant
+    proceeds with an empty question.
+  evidence: [server.mjs:11-19, server.mjs:35-39, server.mjs:42-44]
+  confidence: confirmed
+
+# ── decay condition ──
+
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The model's output is matched for a TOOL:send_email line and the recipient and subject
+    it names are passed straight to sendEmail with the full note set as body; no check of
+    the output (recipient against workspace users or the configured admin list, subject,
+    or body) runs between the parse and the send.
+  evidence: [lib/agent.mjs:33-39, lib/agent.mjs:5-7, config/settings.mjs:8]
+  confidence: confirmed
+
+# ── runnable examples / fixtures / observability ──
+
+- id: F-408
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The only test file asserts that authenticate returns a truthy user for one token and
+    imports nothing else, so no test, example or fixture exercises any effect channel
+    (mailer, sync, note write, purge) or the server, and package.json defines no test script.
+  evidence: [test/smoke.mjs:1-11, package.json:6-8]
+  confidence: confirmed
+
+- id: F-409
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Of the four effect channels only email-send emits any record (one unstructured
+    console.log line); backup-push, note-create and workspace-purge write no log or event,
+    and the backup push's failure is swallowed without a trace.
+  evidence: [lib/mailer.mjs:7, lib/sync.mjs:8-13, server.mjs:35-40, lib/db.mjs:27-31, routes/admin.mjs:6-11]
+  confidence: confirmed
+
+- id: F-410
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    server.mjs exports the server and calls listen only when run as the entry script, so it
+    is importable in-process without binding a port, but no file in the tree imports it.
+  evidence: [server.mjs:59-63, test/smoke.mjs:4-5]
+  confidence: confirmed
+
+- id: F-411
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The model call is a deterministic in-process stub that echoes any TOOL:send_email line
+    with an address found in its prompt, so the assistant-to-email path is reproducible
+    offline, but no test or example drives it.
+  evidence: [lib/agent.mjs:4-7, lib/agent.mjs:23-31, test/smoke.mjs:4-11]
+  confidence: confirmed
+
+# ── calibration harness ──
+
+- id: F-412
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No calibration harness exists: nothing freezes an input to the assistant prompt, runs it
+    repeatedly, or measures its output, and the tree's only check is the single smoke
+    assertion.
+  evidence: [lib/agent.mjs:11-21, test/smoke.mjs:7-11, package.json:6-8]
+  confidence: confirmed
