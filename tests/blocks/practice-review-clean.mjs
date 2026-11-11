@@ -31,7 +31,7 @@ export async function run() {
     writeFileSync(join(dir, 'map', 'scanners.yaml'), `engine: block\nscanners:\n${rows.join('\n')}\n`);
     // the lane's input, as assay start writes it (#259): a tree with no channel candidate
     mkdirSync(join(dir, 'map', 'raw'), { recursive: true });
-    writeFileSync(join(dir, 'map', 'raw', 'enumerate.json'), JSON.stringify({ schema: 'enumerate', version: 1, target: 'target', files: 1, populations: { channelCandidates: [] } }));
+    writeFileSync(join(dir, 'map', 'raw', 'enumerate.json'), JSON.stringify({ schema: 'enumerate', version: 1, target: 'target', files: 1, populations: { channelCandidates: [], routeHandlers: [], effectSites: [] } }));
     for (const o of outputs) {
       if (o.startsWith('map/findings/') && !passFiles) continue;
       writeFileSync(join(dir, o), o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('effect-triage.yaml') ? 'schema: effect-triage\nversion: 1\ntriage: []\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : '[]\n');

@@ -163,7 +163,7 @@ const row = (status, how, ids, note, extra = {}) => ({ status, how, findings: id
 
 // The effect population, closed (#259; yardstick/README.md "The effect population"). A rule
 // over the effect findings reads only what the run recorded; it may say met only when the
-// run's channel candidates (map/raw/enumerate.json) were all triaged (map/effect-triage.yaml),
+// run's candidates (map/raw/enumerate.json: channel candidates, route handlers, effect sites) were all triaged (map/effect-triage.yaml),
 // so an effect nobody wrote down cannot leave a row met. No list: not measured, with the
 // reason. An untriaged candidate turns a met row mixed and is named; an unmet row stays
 // unmet (a gap the run did record), and a row with nothing to read stays not measured, each
@@ -175,13 +175,13 @@ function closedOver(r, ch) {
   return { ...r, status: r.status === 'met' ? 'mixed' : r.status, note: `${r.note}; ${tail}` };
 }
 // channels-triaged (d-effect-channels-enumerated): the triage itself, as the decision. Met when
-// every candidate is triaged; unmet naming the ones that are not; not measured without a list,
-// and over an empty one (enumerate lists no CLI, skill, tool definition or MCP toolset, so the
-// invocable surface is the route and effect-library topology, which no candidate list closes).
+// every candidate is triaged (channel candidates, route handlers and effect call sites, #269);
+// unmet naming the ones that are not; not measured without a list, and over an empty one
+// (enumerate found nothing to triage, which decides nothing).
 function byChannels(ch) {
   if (!ch.listed) return row('not-measured', 'facet', [], ch.reason);
   const n = ch.candidates.length;
-  if (!n) return row('not-measured', 'facet', [], 'enumerate listed no channel candidates: the invocable surface is the route and effect-library topology (METHOD.md, Pass 0), which no candidate list closes');
+  if (!n) return row('not-measured', 'facet', [], 'enumerate listed no channel candidate, route handler or effect call site: an empty list decides nothing');
   const triaged = n - ch.untriaged.length;
   const split = `${ch.covered.length} effect finding(s) cover them, ${ch.outOfScope.length} out of scope`;
   if (!ch.untriaged.length) return row('met', 'facet', ch.covered, `${n} of ${n} channel candidates triaged: ${split}`, { met: n, of: n });

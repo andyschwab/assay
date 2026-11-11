@@ -85,7 +85,9 @@ CANDIDATES** (`populations.channelCandidates`) — the agent's invocable surface
 effect-bearing skills, the delivery/integration surfaces, the **in-code agent
 tool-definition table** — `tool:` entries, one per `name`+`input_schema` def, the
 most common agentic shape — and remote **MCP toolsets**) — as the candidate channel
-list, plus the `effectSites` call sites. Triage every candidate to either an `effect`
+list, plus the **ROUTE HANDLERS** (`routeHandlers`) and the **EFFECT CALL SITES**
+(`effectSites`, one member per kind, grouping its call lines). Triage every candidate in all
+three to either an `effect`
 finding (in the delegation pass) or an explicit out-of-scope note (read-only tools land
 here) — do not hand-draft a short list from memory — and record the triage in
 `map/effect-triage.yaml`, one entry per candidate (`SCHEMA.md` §6e). The triage is a
@@ -94,8 +96,8 @@ exists and every candidate on it is triaged; an untriaged candidate reads the ro
 naming it, and a run with no list reads it not measured (`yardstick/README.md`, "The effect
 population"). (When the scan returns no CHANNEL
 CANDIDATES — a web app with no CLI/skill/tool-def surface — the invocable surface is the
-route + effect-lib topology; the canon records the resulting channel list so the next run
-does not re-derive it.) This is why: a calibration measured that every effect
+route + effect-lib topology, and the route handlers and effect-site members on the same list
+are what the triage closes, #269.) This is why: a calibration measured that every effect
 channel a single run missed (`master-image-rebuild`, `webhook-inbound`, `meeting-audio`)
 was one the hand-drafted inventory forgot, and each is in the enumerated candidate list.
 The channels through which a system produces effects — sends, writes, deletes, deploys,
