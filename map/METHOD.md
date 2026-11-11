@@ -155,129 +155,230 @@ frontmatter — `type: doc` plus a `title:` — so the file is well-formed where
 OKF bundle guardrail reads it. The generated docs (report + handoff) get theirs
 from the tools; see `SCHEMA.md` §5.
 
-## Passes 1–7 — Base observation (each dimension emits FINDINGS, not verdicts)
+## Passes 1–7 — Base observation (each pass emits FINDINGS, not verdicts)
 
 Each pass reads terrain + its slice and writes findings to its own
-`map/findings/practice-review-<pass>.yaml` in the schema below. Note both strengths and
+`map/findings/practice-review-<pass>.yaml` in the format `SCHEMA.md` §1 states. Note both strengths and
 gaps; "this dimension is healthy" is a valid result. Do **not** grade or rank
 here — that's the views' job.
 
-1. **Artifact legibility** — is knowledge in reviewable artifacts or in heads/
- chat? Decision records, design docs near the code they govern, READMEs that
- explain intent. Test: pick one non-obvious design choice and reconstruct its
- rationale from files alone.
-2. **Context economy** — can a bounded context reach competence fast? Entry-point
- docs that route a stranger; progressive disclosure; module boundaries that let
- a task load one subsystem; docs freshness (spot-check the oldest doc's claims
- against code — stale canon is worse than none). And the same economy on the
- spend side (one bounded-resource discipline, two
- meters): are model-tier choices recorded with rationale, is inference spend
- metered per work class, is there any re-qualification when models ship —
- or is tier choice a standing assumption nobody re-measures?
-3. **Deterministic gates** — the machinery that verifies changes cheaply and
- loudly: tests (fast enough to be used), typecheck, lint, CI; schemas/contracts
- at interfaces so agents fail loudly not silently. Test: if an agent introduced
- a subtle regression in the central module, what catches it, and *when* (pre-
- commit? manual? never)?
-4. **Verification affordances** — beyond pass/fail: can a change demonstrate
- itself (runnable examples, fixtures, observability)? Probe integrations for the
- **effects-vs-reports** shape: do jobs verify *effects* or trust return codes/
- success reports (a half-reliable integration that reports success while the
- effect drops is worse than a missing one)? Probe the **decay condition**: does
- anything check output *regardless of how fluent it reads*, not just checks a
- reviewer remembers to run? Probe for a **calibration harness**: does the repo
- harden any skill or rubric by measuring it — freezing an input, running it
- blind N times, disposing the divergence into named classes — or is
- repeatability assumed rather than checked?
-5. **Delegation surface** (the security-critical dimension — read deepest). For
- every effect channel, record an `effect` finding with its reversibility,
- whether it leaves the trust boundary, its gate, and its telemetry. Probe:
- - **Credential boundary** — is the secret held *below the prompt boundary* (the
- model calls an authored function set with the credential injected out-of-
- band), or does the agent see raw keys / emit raw platform calls on full
- scopes?
- - **Capability budget / trifecta** — does any one agent/session/context
- co-hold untrusted-input + private-data + external-effect, or is it bounded to
- two-of-three? Record the agent as a `capability` finding with the three
- booleans. (This is the generator of most kill-chains — get it right.)
- - **The halt** — are destructive/external effects (deploy, publish, migrate,
- spend, send, delete) gated at explicit narrow points a human actually holds,
- at the *irreversible boundary* (not ceremony at every step)? Do irreversible
- ops exist only in staged form (draft-not-send, quarantine-not-delete)? Is the
- confirming act real (does the reviewer see enough to decide) or a reflexive
- click?
- - **Identity clarity under breadth** — for each connector/tool surface, can you
- say *who is acting as whom*? Per-identity scoping and a stated role, or
- ambient access installed by default across an unbounded surface? Breadth is
- not the defect; ambiguity of actor is, plus the complexity cost of a surface
- nobody can damage-control. A wide surface with clear identity and per-role
- access is a pass; a narrow one where every call runs as the same opaque
- principal is not.
- - **Promotion path out of a scope** — where capability is scoped (per user,
- per room, per tenant), is there a sanctioned way for a capability to graduate
- beyond its scope, with a gate on the promotion? Scoping bounds blast radius
- and fragments leverage in the same move, so a system with scopes and no
- promotion path has bought the safety and paid the whole cost; record the
- absence as a finding rather than crediting the scoping alone
-.
- - **Composition** — where a wrapper/policy gates calls, does it reason over the
- data-flow graph (what values, from what provenance, reach which call), or
- only per-call permission? Individually-allowed calls that chain into harm are
- a finding, not a pass.
- - **Observability of effects** — does each effect emit a durable, machine-
- parseable record you could build a trigger/halt around? An ungated effect
- that is *also* untraced is the worst quadrant — you cannot gate what you
- cannot observe (record `telemetry: none`).
- - **Blast scope** — for each effect/credential, does its damage stay within one
- user/tenant, or does it escape to the fleet / cross-tenant? (A shared secret
- or a cross-tenant reach is a different severity class — record `blast_scope`.)
- - **Modality match** — controls match the modality:
- automation gets output QC, augmentation gets collaboration checkpoints,
- agency gets behavioral specs + monitoring + pre-release verification. A
- control designed for the wrong modality is a finding.
- - **Authorship** — the halt covers *authorization*; does
- anything cover *authorship*? Disclosure of AI involvement matched to the
- audience's norms, structural where the audience requires it (a bot
- visibly joining the call, not a footnote after the fact).
-6. **Improvement loop** — do corrections compound? Is there an agent spec
- (CLAUDE.md or equivalent) accumulating the team's taste and rules? Do review
- comments / lessons have a durable home? Test: where would "we never do X here"
- get written so it sticks — and is that mechanism *used* (dated evidence) or
- aspirational? Two further probes:
- - **Impact self-measurement** — does the system know what it's worth?
- Impact fields on shipped work, before/after records, its own delta
- legible without a study.
- - **Instrumentation-readiness** — does the artifact emit structured
- usage/outcome records *by its own design*? Building telemetry into an
- app is ordinary engineering within the maintainer's control: absence
- scores **here**, never deferred to whoever operates the org's rails
- (the AI Ready boundary — a missing rail is an artifact finding, an
- unused rail is an org finding outside this eval's scope).
-7. **Multiplayer** — shared context + agent access (taxonomy dimension 7). Can multiple
- people and agents share context here, and does the system expose an
- agent-consumable surface rather than only a human UI?
- - **Agent access surface** — enumerate interfaces × consumable-by-agent:
- which capabilities exist only behind a human UI, and which expose
- APIs, handoff formats, or format contracts an agent can consume?
- Usage/outcome telemetry endpoints are part of this surface and must
- aggregate at the population level by construction.
- - **Shared substrate** — context stores × shared / private /
- consent-governed: consolidated and reachable, or scattered and
- bespoke per integration? Is a shared scope (room, channel, project)
- a *principal* with its own memory and permissions, or is all durable
- state per-user?
- - **Authority domains** (the four questions,
- asked per effect channel and per context read): acting **as** (whose
- authority — per-user vs ambient grants), acting **within** (which
- shared space governs it, who sees the result), acting **on** (what
- may be touched), acting **from** (do context entries carry origin
- labels for the reads that produced them?). Deliberate overlap with
- delegation's credential probes: record each finding once, under the
- dimension whose question surfaced it.
- - **Consent semantics** — is sharing a conscious act or automatic
- surfacing? Any privileged-reader asymmetry
- (an admin who can read content) disclosed structurally rather than
- discovered?
+**The passes are organized by the requirements they feed** (#263). `map/passes.yaml` is the
+one home of the map: each pass names the facet and census requirements it decides (each
+facet- or census-decided requirement has exactly one owning pass, so an observation is
+recorded once, by the pass whose requirement reads it), the questions it asks that no
+requirement reads yet, and the `SCHEMA.md` sections its outputs need. The block at the head
+of each pass below is rendered from that file (`node map/passes.mjs --write`; the harness
+fails on drift), never hand-edited.
+
+- **A requirement a pass decides** is asked of its whole population: the row's `check:`
+  names the population and the one question asked of each member
+  (`yardstick/requirements.yaml`). A census row writes one finding per member and lists
+  their ids as the census's `members:` in `map/censuses.yaml` (`SCHEMA.md` §6b), under the
+  census the block names. A facet row is read off the forced fields of the pass's `effect`
+  and `capability` findings (`SCHEMA.md` §4), so it needs no census.
+- **A discovery question** feeds no requirement yet. A finding that answers one carries the
+  question's `property:` (`SCHEMA.md` §1), so the run lists it among its candidate
+  properties (`views/improve/candidates.yaml`), and two targets that observe it meet on one
+  name (#264, #265).
+- **A pass subagent opens on its slice**, not the whole method: the ground rules above, this
+  introduction, its own pass's section below, and the `SCHEMA.md` sections its block names
+  (`node map/passes.mjs --measure` prints each slice's bytes). Pass 0 and the orchestrating
+  session read what they need.
+
+### Pass 1 — Artifact legibility
+
+<!-- passes:legibility -->
+Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
+
+- **Decides**, asked of every member of each population:
+  - `d-decisions-reconstruct` (census `decision-reconstruction`): population every non-obvious decision; asks: can a newcomer reconstruct why it was made from the repository's files alone?
+  - `d-readme-true` (census `doc-freshness`): population every doc claim; asks: does it hold when replayed against the code or checked in the fresh-clone run?
+- **Discovery**: none.
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
+<!-- /passes:legibility -->
+
+Is knowledge in reviewable artifacts or in heads and chat? Pass 0 freezes the decision
+population before assessment: the non-obvious choices a newcomer would question. For each,
+reconstruct its rationale from files alone; decision records, design docs near the code they
+govern and READMEs that explain intent are where that rationale is read from, not questions
+of their own. Then the doc claims: every concrete statement of a command, a count, a path, an
+endpoint or a capability in the README, the pages it routes to and the agent contract,
+replayed against the code, oldest doc first (stale canon is worse than none). Docs freshness
+is asked here once; the context pass no longer spot-checks it.
+
+### Pass 2 — Context economy
+
+<!-- passes:context -->
+Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
+
+- **Decides**, asked of every member of each population:
+  - `d-modules-standalone` (census `modules-standalone`): population every module; asks: can an agent load it alone, with something to read and something to run, and change it without loading the rest?
+  - `d-model-call-telemetry` (census `model-call-telemetry`): population every model call site; asks: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome?
+- **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
+  - `entry-docs-route-a-stranger`: do the entry-point docs route a stranger to the one subsystem a task needs, disclosing the rest progressively?
+  - `model-tier-rationale-recorded`: is each model-tier choice recorded with its rationale, and re-measured when a model ships?
+  - `inference-spend-metered`: is inference spend metered per work class?
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
+<!-- /passes:context -->
+
+Can a bounded context reach competence fast? The module census asks it of every module in the
+terrain's module population: module boundaries that let a task load one subsystem are its
+question, not a second one. Whether the entry-point docs route a stranger is a discovery
+question; whether what they say is true is Pass 1's. The same economy holds on the spend side
+(one bounded-resource discipline, two meters): a tier choice that is a standing assumption
+nobody re-measures, and spend nobody meters, are what the spend questions name.
+
+### Pass 3 — Deterministic gates
+
+<!-- passes:gates -->
+Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
+
+- **Decides**, asked of every member of each population:
+  - `d-change-gates-fail-closed` (census `change-gates`): population every change gate; asks: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green?
+- **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
+  - `central-regression-caught`: if a change introduced a subtle regression in the central module, which gate catches it, and when (pre-commit, CI, by hand, never)?
+  - `interface-contract-enforced`: does an interface validate what crosses it, so a wrong input fails loudly rather than silently?
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
+<!-- /passes:gates -->
+
+The machinery that verifies changes cheaply and loudly. The change-gates census lists every
+CI job or step, commit or push hook, and config-driven lint, typecheck, test, scan or schema
+check a change passes through, one finding each, and asks each whether it goes red when the
+tool, secret, input or target it needs is absent or its check never finishes. A gate in front
+of the application's own effect is Pass 5's, recorded on that effect's finding (`gate_type`,
+`fail_mode`), never here.
+
+### Pass 4 — Verification affordances
+
+<!-- passes:verification -->
+Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
+
+- **Decides** no facet or census requirement.
+- **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
+  - `change-demonstrable`: can a change demonstrate itself, through a runnable example, a fixture or an observable result?
+  - `effect-confirmed-not-reported`: does a job that reports success confirm the effect happened, rather than trust a return code or a success report?
+  - `output-checked-regardless-of-fluency`: does anything check output however fluent it reads, rather than a check a reviewer must remember to run?
+  - `calibration-harness`: is a skill or rubric hardened by measuring it (an input frozen, run blind several times, the divergence sorted into named classes)?
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §9.
+<!-- /passes:verification -->
+
+Beyond pass/fail: can a change demonstrate itself? This pass decides no facet or census
+requirement. Whether an effect leaves a record, and whether that record is structured enough
+to prove it, are forced fields of Pass 5's effect findings (`telemetry`), read by Pass 5's
+rows. The requirements nearest this pass's questions (`d-calibration-harness`,
+`d-change-carries-verification`) are owner-attested claim rows, which a run reads not
+measured, so its questions are discovery questions until a requirement reads them. Probe
+integrations for the **effects-vs-reports** shape: a half-reliable integration that reports
+success while the effect drops is worse than a missing one. Probe the **decay condition**:
+a check that holds however fluent the output reads. Probe for a **calibration harness**: is
+repeatability checked, or assumed?
+
+### Pass 5 — Delegation surface
+
+<!-- passes:delegation -->
+Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
+
+- **Decides**, asked of every member of each population:
+  - `d-effect-channels-enumerated` (facet `channels-triaged`): population every enumerated candidate; asks: is it triaged in map/effect-triage.yaml, to the effect finding that covers it or out of scope with the reason?
+  - `d-effects-gated` (facet `halts-gated`): population every halt-class effect; asks: does a gate that holds stand in front of it?
+  - `d-gates-fail-closed` (facet `gates-fail-closed`): population every effect gate; asks: when a dependency it needs is absent, or its check runs without end, does it refuse?
+  - `d-effects-traced` (facet `halts-traced`): population every halt-class effect's record; asks: does the effect leave a durable record at all?
+  - `d-effects-provable` (facet `effects-provable`): population every effect; asks: is its record structured or audited, so the effect can be proved from outside the AI?
+  - `d-capability-budget` (facet `trifecta`): population every AI context; asks: does it hold untrusted input, private data and an outward effect at once while reaching an effect with no gate that holds?
+  - `d-credentials-enumerated` (census `credentials-below-boundary`): population every secret; asks: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed?
+  - `d-ingested-content-is-data` (census `ingested-content`): population every ingestion point; asks: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction?
+- **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
+  - `acting-principal-stated`: for each connector, tool surface and effect, can you say who is acting as whom, with per-identity scoping and a stated role, rather than one opaque principal?
+  - `scope-promotion-path`: where capability is scoped (per user, room or tenant), is there a sanctioned, gated way for it to graduate beyond its scope?
+  - `policy-reads-provenance`: where a wrapper or policy gates calls, does it reason over what values from what provenance reach which call, with context entries labelled by origin, rather than per-call permission alone?
+  - `control-matches-modality`: does each control match its modality (automation gets output checks, augmentation collaboration checkpoints, agency behavioural specs, monitoring and pre-release verification)?
+  - `ai-involvement-disclosed`: is AI involvement disclosed to the audience by structure (a bot visibly joining), not a footnote after the fact?
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §4, §6b, §6e, §9.
+<!-- /passes:delegation -->
+
+The security-critical pass: read deepest. For every effect channel, record one `effect`
+finding with its forced fields (`SCHEMA.md` §4). Those fields decide six of this pass's rows
+at once, so each probe below is a field answered per effect, never a second finding:
+
+- **The triage** — Pass 0's candidate list (`map/raw/enumerate.json`) closes against these
+ effect findings in `map/effect-triage.yaml` (`SCHEMA.md` §6e): each candidate to the effect
+ finding that covers it, or out of scope with the reason.
+- **The halt** (`gate_type`) — are destructive or external effects (deploy, publish, migrate,
+ spend, send, delete) gated at explicit narrow points a human actually holds, at the
+ *irreversible boundary* (not ceremony at every step)? Do irreversible ops exist only in
+ staged form (draft-not-send, quarantine-not-delete)? Is the confirming act real (does the
+ reviewer see enough to decide) or a reflexive click?
+- **How the gate fails** (`fail_mode`) — when a dependency the gate needs is absent, or its
+ check runs without end, does it refuse?
+- **Observability of effects** (`telemetry`) — does each effect emit a durable,
+ machine-parseable record you could build a trigger or halt around? An ungated effect that is
+ *also* untraced is the worst quadrant: you cannot gate what you cannot observe (record
+ `telemetry: none`).
+- **Blast scope** (`blast_scope`) — does its damage stay within one user or tenant, or escape
+ to the fleet or across tenants? What an effect may touch is answered here, once. (A shared
+ secret or a cross-tenant reach is a different severity class.)
+- **Capability budget / trifecta** — does any one agent, session or context co-hold
+ untrusted input + private data + external effect, or is it bounded to two of three? Record
+ the agent as a `capability` finding with the three booleans. (This is the generator of most
+ kill-chains — get it right.)
+- **Credential boundary** — the credential census, one finding per secret: is the secret held
+ *below the prompt boundary* (the model calls an authored function set with the credential
+ injected out of band), or does the agent see raw keys or emit raw platform calls on full
+ scopes? Trace the boundary; never guess it.
+
+Its discovery questions: **identity under breadth** (breadth is not the defect; ambiguity of
+actor is, plus the complexity cost of a surface nobody can damage-control; whom an effect acts
+as is asked here, once); the **promotion path** out of a scope (scoping bounds blast radius and
+fragments leverage in the same move, so scopes with no promotion path are a finding rather than
+a credit); **composition** (individually allowed calls that chain into harm are a finding, not
+a pass; whether context entries carry the origin of the reads that produced them is asked
+here, once); **modality match**; and **authorship** (the halt covers authorization; does
+anything cover authorship?).
+
+### Pass 6 — Improvement loop
+
+<!-- passes:improvement -->
+Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
+
+- **Decides**, asked of every member of each population:
+  - `d-corrections-become-mechanisms` (census `incidents-became-mechanisms`): population every lesson; asks: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again?
+- **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
+  - `impact-self-measured`: does the system know what it is worth (impact fields on shipped work, before-and-after records, its own delta legible without a study)?
+  - `usage-outcome-records-emitted`: does the artifact emit structured usage and outcome records by its own design, aggregated at the population level?
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
+<!-- /passes:improvement -->
+
+Do corrections compound? The lesson census asks it of every lesson the repository records:
+where would "we never do X here" get written so it sticks, and is that mechanism *used*? The
+agent spec (CLAUDE.md or equivalent) is where the census reads house rules and lessons from;
+whether one exists is the repo census instrument's (`d-agent-contract`), not this pass's.
+Instrumentation-readiness is ordinary engineering within the maintainer's control, so its
+absence scores **here**, never deferred to whoever operates the org's rails (the AI Ready
+boundary: a missing rail is an artifact finding, an unused rail is an org finding outside this
+eval's scope). Usage and outcome telemetry endpoints are asked here, once.
+
+### Pass 7 — Multiplayer
+
+<!-- passes:multiplayer -->
+Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
+
+- **Decides**, asked of every member of each population:
+  - `d-agent-consumable-surface` (census `agent-access-surface`): population every interface; asks: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen?
+- **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
+  - `shared-context-substrate`: are context stores shared, private or consent-governed, consolidated rather than bespoke per integration, and is a shared scope (room, channel, project) a principal with its own memory and permissions?
+  - `sharing-is-consented`: is sharing a conscious act rather than automatic surfacing, and is any privileged reader (an admin who can read content) disclosed by structure?
+- **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
+<!-- /passes:multiplayer -->
+
+Can multiple people and agents share context here, and does the system expose an
+agent-consumable surface rather than only a human UI? The interface census enumerates
+interfaces × consumable-by-agent: which capabilities exist only behind a human UI, and which
+expose APIs, handoff formats or format contracts an agent can consume. Which shared space
+governs an action, and who sees its result, is the shared-substrate question. What this pass
+no longer asks, each recorded once by the pass whose requirement or question reads it: whom an
+effect or agent acts as (Pass 5, identity under breadth), what it may touch (Pass 5,
+`blast_scope`), whether context entries carry their origin (Pass 5, composition), and usage
+and outcome telemetry endpoints (Pass 6, instrumentation-readiness).
 
 ## The finding schema (base layer)
 
