@@ -174,7 +174,7 @@
       }
     },
     "notesbox/requirements": {
-      "agree": 31,
+      "agree": 30,
       "disagree": 3,
       "out_of_scope": 0,
       "disagreements": [
@@ -184,7 +184,7 @@
       ]
     },
     "cleanlib/requirements": {
-      "agree": 31,
+      "agree": 30,
       "disagree": 2,
       "out_of_scope": 0,
       "disagreements": [
@@ -193,7 +193,7 @@
       ]
     },
     "fixtures-root/requirements": {
-      "agree": 33,
+      "agree": 32,
       "disagree": 0,
       "out_of_scope": 0,
       "disagreements": []

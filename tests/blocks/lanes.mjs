@@ -8,9 +8,10 @@
 //       checkout, rev-parse, log), it says the session executes nothing, and it never names a
 //       command that runs code (node, npm, a script, assay itself, an install);
 //   (c) a lane names no model (the consumer picks it) and carries no `model:` field;
-//   (d) the practice-review lane publishes exactly the engine's pass files, the terrain and the
-//       censuses;
-//   (e) a lane's inputs are files the run produces (an instrument's raw report), and a lane with
+//   (d) the practice-review lane publishes exactly the engine's pass files, the terrain, the
+//       censuses and the effect-channel triage (#259);
+//   (e) a lane's inputs are files the run produces (an instrument's raw report, or the
+//       enumeration assay start writes, #259), and a lane with
 //       inputs is refused a seed that does not say where they are.
 import { lanes, readLane, laneSeed } from '../../map/lane.mjs';
 import { loadAdapters, adoptedAdapters, PRACTICE_REVIEW_PASSES } from '../../map/project.mjs';
@@ -49,7 +50,7 @@ export async function run() {
     if (/\b(claude|gpt|gemini|sonnet|opus|haiku)-[\w.-]*\d/i.test(body)) fail(`(c) the ${l.scanner} lane names a model`);
 
     // (e)
-    const produced = new Set(Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument').map(([id]) => `map/raw/${id}.json`));
+    const produced = new Set(Object.entries(adoptedAdapters(adapters)).filter(([, a]) => a.role === 'instrument').map(([id]) => `map/raw/${id}.json`).concat('map/raw/enumerate.json'));
     for (const p of seed.inputs) if (!produced.has(p)) fail(`(e) the ${l.scanner} lane reads ${p}, which no run produces`);
     if (seed.inputs.length) {
       let refused = false;
@@ -61,7 +62,7 @@ export async function run() {
 
   // (d)
   const pr = all.find((l) => l.scanner === 'practice-review');
-  const outputs = pr ? laneSeed('practice-review', { name: 'Demo' }, adapters).outputs : [];
-  const want = ['map/terrain.md', 'map/censuses.yaml', ...Object.keys(PRACTICE_REVIEW_PASSES).map((p) => `map/findings/practice-review-${p}.yaml`)];
-  if (JSON.stringify([...outputs].sort()) !== JSON.stringify([...want].sort())) fail(`(d) the practice-review lane publishes exactly the engine's pass files, the terrain and the censuses (lane: ${outputs.join(' ')}; engine: ${want.join(' ')})`);
+  const outputs = pr ? laneSeed('practice-review', { name: 'Demo', inputsDir: '/inputs' }, adapters).outputs : [];
+  const want = ['map/terrain.md', 'map/censuses.yaml', 'map/effect-triage.yaml', ...Object.keys(PRACTICE_REVIEW_PASSES).map((p) => `map/findings/practice-review-${p}.yaml`)];
+  if (JSON.stringify([...outputs].sort()) !== JSON.stringify([...want].sort())) fail(`(d) the practice-review lane publishes exactly the engine's pass files, the terrain, the censuses and the triage (lane: ${outputs.join(' ')}; engine: ${want.join(' ')})`);
 }

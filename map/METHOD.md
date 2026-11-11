@@ -77,15 +77,22 @@ makes the reproduction tautological (a calibration measured this: a blind re-der
 on a byte-identical repo diverged materially in channel count and caught real surfaces a
 pinned prior run had missed). Canon *maintenance* is a distinct reviewed function, never negotiated mid-eval.
 
-Additionally, **derive the effect inventory from a listing, not from memory**: run
-`node assay.mjs enumerate <target>` and take its **CHANNEL
-CANDIDATES** section — the agent's invocable surface (the `bin/` CLIs, the
+Additionally, **derive the effect inventory from a listing, not from memory**: `assay
+start` has already run the enumeration and written it into the run as
+`map/raw/enumerate.json` (`node assay.mjs enumerate <target> --json`; a review lane is given
+the file as an input and runs nothing). Take its **CHANNEL
+CANDIDATES** (`populations.channelCandidates`) — the agent's invocable surface (the `bin/` CLIs, the
 effect-bearing skills, the delivery/integration surfaces, the **in-code agent
 tool-definition table** — `tool:` entries, one per `name`+`input_schema` def, the
 most common agentic shape — and remote **MCP toolsets**) — as the candidate channel
 list, plus the `effectSites` call sites. Triage every candidate to either an `effect`
 finding (in the delegation pass) or an explicit out-of-scope note (read-only tools land
-here) — do not hand-draft a short list from memory. (When the scan returns no CHANNEL
+here) — do not hand-draft a short list from memory — and record the triage in
+`map/effect-triage.yaml`, one entry per candidate (`SCHEMA.md` §6e). The triage is a
+measured population: the yardstick reads an effect requirement met only when the list
+exists and every candidate on it is triaged; an untriaged candidate reads the row mixed,
+naming it, and a run with no list reads it not measured (`yardstick/README.md`, "The effect
+population"). (When the scan returns no CHANNEL
 CANDIDATES — a web app with no CLI/skill/tool-def surface — the invocable surface is the
 route + effect-lib topology; the canon records the resulting channel list so the next run
 does not re-derive it.) This is why: a calibration measured that every effect
@@ -127,9 +134,11 @@ populations that leak when left implicit — enumerate each as a closed list:
 - **delivery / effect-vs-report paths** (every place a job reports success — verify
  the effect, not the return code).
 
-Run **`node assay.mjs enumerate <target>`** at terrain time: it
+**`node assay.mjs enumerate <target>`** has run before terrain time: `assay start` writes
+its output into the run as `map/raw/enumerate.json`, which a review lane is given and reads
+(it runs nothing). It
 mechanically lists the grep-detectable members of these populations so the passes
-assess a closed list. Once the base is written, run it again with
+assess a closed list. Once the base is written, the consumer runs it again with
 `--run <run-dir>` for the **coverage gate** — which enumerated live-surface members
 no finding cites; verdict each or record why it is out of scope. A finding's `evidence`
 (any file type, block or flow form) and its `covers` list count; one finding may cover a

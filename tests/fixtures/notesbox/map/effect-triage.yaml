@@ -1,0 +1,6 @@
+# map/effect-triage.yaml — the channel candidates' triage (map/SCHEMA.md §6e).
+# enumerate lists no channel candidate in flawed-webapp at assay-fixtures fe1ca28 (a web app
+# with no CLI, skill, tool definition or MCP toolset), so the list is closed and empty.
+schema: effect-triage
+version: 1
+triage: []

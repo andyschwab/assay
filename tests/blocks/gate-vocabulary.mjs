@@ -34,8 +34,10 @@ export async function run() {
 
   // the deciders read the same doctrine
   const reg = loadYardstick();
+  // a closed, empty channel-candidate list (#259): the effect rules read their own rule, which is what this block pins
+  const CLOSED = { candidates: [], triage: [] };
   const fnd = (id, o) => ({ id, dimension: 'delegation', polarity: 'fact', subject_type: 'effect', observation: 'x', evidence: ['a:1'], confidence: 'confirmed', effect: e({ channel: 'ch-' + id, ...o }) });
-  const by = (base) => Object.fromEntries(measureRun({ findings: base, manifest: [{ scanner: 'practice-review', status: 'ran' }], inputs: {}, coverage: {} }, reg).map((r) => [r.id, r]));
+  const by = (base) => Object.fromEntries(measureRun({ findings: base, manifest: [{ scanner: 'practice-review', status: 'ran' }], inputs: {}, coverage: {}, channels: CLOSED }, reg).map((r) => [r.id, r]));
   const person = by([fnd('F-1', { gate_type: 'initiated-by-person', fail_mode: 'closed' })]);
   if (person['d-effects-gated']?.status !== 'met') fail(`a recorded person's own act must read d-effects-gated met (got ${person['d-effects-gated']?.status})`);
   const mixed = by([fnd('F-1', { gate_type: 'initiated-by-person', fail_mode: 'closed' }), fnd('F-2', {})]);

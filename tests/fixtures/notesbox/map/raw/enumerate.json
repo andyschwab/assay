@@ -1,0 +1,39 @@
+{
+  "schema": "enumerate",
+  "version": 1,
+  "target": "flawed-webapp",
+  "files": 13,
+  "populations": {
+    "channelCandidates": [],
+    "routeHandlers": [],
+    "secrets": [],
+    "secretConstants": [],
+    "socketMounts": [],
+    "containerClasses": [
+      {
+        "member": "admin-role branch",
+        "note": "a distinct agent class",
+        "gateable": true,
+        "evidence": [
+          "ANSWERS.yaml:32",
+          "lib/auth.mjs:12",
+          "lib/auth.mjs:16",
+          "lib/db.mjs:5"
+        ]
+      }
+    ],
+    "effectSites": [
+      {
+        "member": "http write (js)",
+        "note": "http write (js)",
+        "gateable": true,
+        "evidence": [
+          "lib/sync.mjs:8"
+        ]
+      }
+    ],
+    "egressControls": [],
+    "contracts": [],
+    "reportPaths": []
+  }
+}

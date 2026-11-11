@@ -13,6 +13,8 @@
 //
 // Usage:
 //   node assay.mjs enumerate <target-repo>              # print the enumerated populations
+//   node assay.mjs enumerate <target-repo> --json       # the same populations as JSON (assay start
+//                                                        #   writes it to map/raw/enumerate.json, #259)
 //   node assay.mjs enumerate <target-repo> --run <run>  # + coverage gate: which enumerated
 //                                                        #   [--exclude <glob>,<glob>] drops declared
 //                                                        #   harness dirs from the gate (e.g. eval/**)
@@ -23,7 +25,7 @@
 // unassessed population member — the class of miss this whole analysis is about.
 
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, extname, basename } from 'node:path';
+import { join, relative, extname, basename, resolve } from 'node:path';
 import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { secretShape } from '../yardstick/packet.mjs';
@@ -307,6 +309,33 @@ const LABEL = {
 const order = ['channelCandidates', 'routeHandlers', 'secrets', 'secretConstants', 'socketMounts', 'containerClasses', 'effectSites', 'egressControls', 'contracts', 'reportPaths'];
 
 const JSON_MODE = process.argv.includes('--json');   // suppress the pretty enumeration; emit only JSON
+
+// --json without --run: the populations as data (#259). `assay start` writes this into the run
+// (lib/run-layout.mjs enumeratePath), and the run's channel candidates are the population the
+// effect-channel triage closes (map/SCHEMA.md §6e). One entry per member, keyed as the readable
+// print keys it; evidence and files are target-relative, and the target is named by its
+// directory's name only — a local path describes the machine, not the run.
+function populationsJson() {
+  const out = {};
+  for (const pop of order) {
+    const members = new Map();
+    for (const [k, v] of pops[pop]) {
+      const mem = v.member || k;
+      if (!members.has(mem)) members.set(mem, { member: mem, note: v.note, gateable: false, evidence: new Set() });
+      const g = members.get(mem);
+      for (const e of v.evidence) g.evidence.add(e);
+      if (v.gateable) g.gateable = true;
+    }
+    out[pop] = [...members.values()].sort((a, b) => a.member.localeCompare(b.member))
+      .map((g) => ({ member: g.member, note: g.note, gateable: g.gateable, evidence: [...g.evidence].sort() }));
+  }
+  return { schema: 'enumerate', version: 1, target: basename(resolve(target)), files: files.length, populations: out };
+}
+if (JSON_MODE && !runDir) {
+  process.stdout.write(JSON.stringify(populationsJson(), null, 2) + '\n');
+  process.exit(0);
+}
+
 if (!JSON_MODE) console.log(`\nassay enumerate — ${rel(target) || target}  (${files.length} files scanned)\n`);
 for (const pop of JSON_MODE ? [] : order) {
   const m = pops[pop];
