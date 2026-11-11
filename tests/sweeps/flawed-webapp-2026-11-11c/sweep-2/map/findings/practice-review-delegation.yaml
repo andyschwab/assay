@@ -1,0 +1,263 @@
+- id: F-501
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    Any caller of POST /assistant, including one with no token, can cause an email whose
+    recipient and subject are taken from a TOOL:send_email line in the model's output and
+    whose body is every note in the workspace, with nothing between the parse and the send.
+  evidence: [server.mjs:42-44, lib/agent.mjs:33-41, lib/mailer.mjs:5-8, lib/auth.mjs:9-12]
+  confidence: confirmed
+  effect:
+    channel: email-send
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: tenant
+  preconditions: [prompt-injection]
+  explained_by: [F-510, F-512]
+  escapes: [F-508]
+  property: ai-output-drives-send-without-halt
+- id: F-502
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /sync pushes the full note set to the backup service using the inline backup key
+    with no authorization check on the route, no log line, and any failure swallowed while
+    the response reports ok.
+  evidence: [server.mjs:47-49, lib/sync.mjs:5-14, config/settings.mjs:4-6]
+  confidence: confirmed
+  effect:
+    channel: backup-push
+    reversibility: irreversible
+    external: false
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [network-position]
+  explained_by: [F-510]
+  property: effect-route-without-authorization
+- id: F-503
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /admin/purge clears every note and every user's note list behind a role check
+    that a request with a missing or unknown token passes, because the fallback identity
+    carries the admin role.
+  evidence: [server.mjs:52-53, routes/admin.mjs:6-11, lib/auth.mjs:12, lib/auth.mjs:15-17, lib/db.mjs:27-31]
+  confidence: confirmed
+  effect:
+    channel: workspace-purge
+    reversibility: irreversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: open
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [network-position]
+  explained_by: [F-510]
+  property: gate-fails-open-on-missing-identity
+- id: F-504
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    POST /notes writes a note owned by the resolved caller (the fallback identity when no
+    valid token is sent) into the shared in-memory store with no log, and the note's text
+    then enters every assistant prompt.
+  evidence: [server.mjs:35-39, lib/auth.mjs:12, lib/agent.mjs:12-15]
+  confidence: confirmed
+  effect:
+    channel: note-create
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+  reaches: [F-505]
+  explained_by: [F-510]
+- id: F-505
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  observation: >
+    The assistant co-holds untrusted input (the caller's question and every note's text,
+    writable by any caller), private data (every user's notes with owner addresses), and an
+    outbound write (an email it triggers by emitting a tool directive).
+  evidence: [lib/agent.mjs:11-20, lib/agent.mjs:27-31, lib/agent.mjs:33-41, server.mjs:35-44]
+  confidence: confirmed
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+  label: "the notes assistant"
+  preconditions: [prompt-injection]
+  reaches: [F-501]
+  explained_by: [F-512]
+  property: lethal-trifecta-in-one-context
+- id: F-506
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The backup API key is an inline string literal in source, read at one traced site as
+    a bearer header to the backup URL and never placed in a prompt, but what it may do at
+    the backup service is stated nowhere and any unauthenticated caller can wield it
+    through POST /sync.
+  evidence: [config/settings.mjs:4-6, lib/sync.mjs:8-12, server.mjs:47-49, lib/agent.mjs:8-9]
+  confidence: confirmed
+  preconditions: [stolen-credential]
+  explained_by: [F-510]
+  property: credential-inline-in-source
+- id: F-507
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The bearer-token table is a static inline map of guessable, non-expiring tokens to
+    users, read only by the session lookup and never placed in a prompt, yet what a token
+    can reach is not what the code enforces since presenting no token yields the admin
+    identity no member token can reach.
+  evidence: [lib/db.mjs:13-17, lib/db.mjs:19-25, lib/auth.mjs:5-13]
+  confidence: confirmed
+  explained_by: [F-510]
+  property: credential-inline-in-source
+- id: F-508
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    A member's token resolves to one named user record with a stated role, and the two
+    note routes act as that user: GET /notes filters to the caller's own notes and POST
+    /notes records the caller as owner.
+  evidence: [lib/auth.mjs:5-8, lib/db.mjs:2-6, lib/db.mjs:19-25, server.mjs:30-39]
+  confidence: confirmed
+  property: per-request-actor-identity
+- id: F-509
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The admin class is marked only by a role field on one user record and checked only on
+    the purge route, the check cannot distinguish that admin from the anonymous fallback,
+    POST /sync carries no role check, and a second admin list in settings is read nowhere.
+  evidence: [lib/db.mjs:5, lib/auth.mjs:12, lib/auth.mjs:15-17, routes/admin.mjs:7, server.mjs:47-49, config/settings.mjs:8]
+  confidence: confirmed
+  explained_by: [F-510]
+  property: admin-identity-ambiguous
+- id: F-510
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Authentication never refuses: every request is resolved before routing, and a missing
+    or unknown bearer token returns a default identity with the admin role, so every route
+    runs as admin for an anonymous caller.
+  evidence: [lib/auth.mjs:5-13, server.mjs:26-27]
+  confidence: confirmed
+  preconditions: [network-position]
+  property: auth-fails-open-to-admin
+- id: F-511
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    No effect in the tree exists in staged form: the email is sent in the same call that
+    parses the directive (no draft or confirm), and the purge clears the store immediately
+    (no quarantine, soft delete or confirmation), with no human-held halt on either.
+  evidence: [lib/agent.mjs:35-41, routes/admin.mjs:6-11, lib/db.mjs:27-31]
+  confidence: confirmed
+  property: irreversible-effects-staged
+- id: F-512
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing reasons over data flow: text any caller stores as a note flows into the
+    prompt, the model's output alone chooses the email recipient, and the body is every
+    note, so individually unchecked steps chain into exfiltration of the workspace.
+  evidence: [server.mjs:35-39, lib/agent.mjs:12-19, lib/agent.mjs:35-39]
+  confidence: confirmed
+  preconditions: [prompt-injection]
+  property: data-flow-aware-policy
+- id: F-513
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    POST /admin/purge followed by POST /sync, both reachable by an anonymous caller, pushes
+    the emptied note set to the backup service with the same key; whether that replaces the
+    prior backup depends on service behaviour the tree does not show.
+  evidence: [lib/db.mjs:27-31, lib/sync.mjs:5-13, server.mjs:47-53, lib/auth.mjs:12]
+  confidence: plausible
+  explained_by: [F-510]
+  property: composed-effects-destroy-backup
+- id: F-514
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Of the four effects only the email send emits a record, an unstructured console line
+    that names no acting user; the backup push, the purge and note creation log nothing,
+    and the push's errors are swallowed.
+  evidence: [lib/mailer.mjs:7, lib/sync.mjs:8-13, lib/db.mjs:27-31, routes/admin.mjs:6-11, server.mjs:35-39]
+  confidence: confirmed
+  property: effects-emit-structured-records
+- id: F-515
+  dimension: delegation
+  polarity: fact
+  subject_type: control
+  observation: >
+    The store holds one shared workspace with no tenant or per-user partition, so every
+    effect's reach is the whole workspace: the purge clears all users' notes and the push
+    and the email carry all of them.
+  evidence: [lib/db.mjs:2-11, lib/db.mjs:27-31, lib/sync.mjs:6, lib/agent.mjs:38]
+  confidence: confirmed
+  property: blast-scope-workspace-wide
+- id: F-516
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The AI-triggered email is sent from a fixed assistant address and the requesting user
+    is not passed to the mailer, so the recipient is told neither that a model chose to
+    send it nor on whose request it was sent.
+  evidence: [lib/agent.mjs:33-39, lib/mailer.mjs:5-8, config/settings.mjs:7]
+  confidence: confirmed
+  property: ai-authorship-disclosed
+- id: F-517
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant ignores who is asking: its prompt includes every user's notes with the
+    owner's address and its email body is every note, unlike GET /notes which filters to
+    the caller's own notes.
+  evidence: [lib/agent.mjs:11-15, lib/agent.mjs:33-38, server.mjs:30-32]
+  confidence: confirmed
+  property: assistant-reads-across-users
+- id: F-518
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The one AI surface holds no credential: its prompt carries notes and the question only,
+    and the model reaches email only through the authored sendEmail function, with the
+    backup key imported nowhere in the agent module.
+  evidence: [lib/agent.mjs:8-9, lib/agent.mjs:11-20, lib/agent.mjs:39, lib/sync.mjs:3]
+  confidence: confirmed
+  property: credential-below-prompt-boundary
+- id: F-519
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant acts on its own output (agency) with no behavioural spec, monitoring or
+    pre-release check of its tool use: the only test exercises token resolution, and no
+    recipient allowlist bounds the send.
+  evidence: [test/smoke.mjs:7-9, lib/agent.mjs:35-39, package.json:6-8]
+  confidence: confirmed
+  property: agency-controls-match-modality

@@ -1,0 +1,82 @@
+- id: F-301
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The smoke suite's only assertion checks that authenticate returns a truthy user for one
+    token, and because authenticate returns a default identity for any unknown or missing
+    token, the check stays green when the token it exercises is absent from the token table
+    (it does finish: a synchronous script with no network, timer or server, so it cannot hang).
+  evidence: [test/smoke.mjs:7-11, lib/auth.mjs:7-12, lib/db.mjs:13-17, lib/db.mjs:20-23]
+  confidence: confirmed
+  explained_by: [F-102]
+  property: gate-fails-red-on-absence
+- id: F-310
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The only test imports authenticate alone and exercises only its valid-token path, while
+    no test imports server.mjs, whose five-route handler holds the ownership filter, note
+    creation, assistant, sync and purge dispatch, nor lib/agent.mjs, lib/sync.mjs,
+    routes/admin.mjs or purgeAll.
+  evidence: [test/smoke.mjs:4-9, server.mjs:26-57, lib/agent.mjs:33-43, lib/sync.mjs:5-14, routes/admin.mjs:6-11, lib/db.mjs:27-31]
+  confidence: confirmed
+  property: test-depth-matches-central-module
+- id: F-311
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The README tells a contributor to run the full suite with npm run test:all, but
+    package.json defines only a start script, so the documented test command does not exist
+    and there is no test script for npm test either.
+  evidence: [README.md:27-33, package.json:6-8]
+  confidence: confirmed
+  property: documented-test-command-runs
+- id: F-312
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    No lint or typecheck runs on a change: package.json declares no lint, typecheck or test
+    script and no devDependencies, and the tree holds no linter, type or tsconfig
+    configuration file, only plain .mjs sources.
+  evidence: [package.json:1-9, server.mjs:1-3]
+  confidence: confirmed
+  property: static-checks-present
+- id: F-313
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No schema validation guards the HTTP interface: readBody swallows a JSON parse failure
+    into an empty object and the handlers coerce missing fields to empty strings, so a
+    malformed request creates an empty note or asks an empty question with a 200/201
+    instead of failing loudly.
+  evidence: [server.mjs:11-19, server.mjs:35-39, server.mjs:42-45]
+  confidence: confirmed
+  property: interface-fails-loud
+- id: F-314
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    A subtle regression in the central request path, such as dropping the owner filter on
+    GET /notes or the requireAdmin check before purge, would pass the target's only check,
+    which never calls those lines, so within the tree nothing catches it before manual use
+    or production.
+  evidence: [server.mjs:30-33, routes/admin.mjs:7, test/smoke.mjs:5-9]
+  confidence: confirmed
+  property: regression-caught-pre-merge
+- id: F-315
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The smoke suite is a zero-dependency script using node:assert that throws, and so exits
+    non-zero, on a failed assertion and needs no server, network or installed packages, so
+    it is cheap enough to run on every change.
+  evidence: [test/smoke.mjs:4-11, package.json:1-9]
+  confidence: confirmed
+  property: fast-test-gate

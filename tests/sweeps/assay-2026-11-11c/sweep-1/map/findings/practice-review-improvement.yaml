@@ -1,0 +1,254 @@
+# Pass 6 — improvement loop (census-augmented: incidents-became-mechanisms, F-601..F-615)
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The method's founding failure (a strengths-first framing muting a critical finding) is held by a harness block that pins every Critical exposure no chain carries into the report's lead section.
+  evidence: [map/METHOD.md:25-28, tests/blocks/lead-exposures.mjs:1-5]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The recorded false strength over a sampled container class (admin container never inspected) is caught only by the enumerate coverage gate, which detects container classes but runs when an operator or the backlog invokes it, never from validate or compile.
+  evidence: [map/METHOD.md:39-45, map/METHOD.md:112-119, map/enumerate.mjs:231-233, map/backlog.mjs:83-91]
+  confidence: plausible
+  property: lesson-left-as-note
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The calibration lesson that a terrain pinned to a prior run makes reproduction tautological is held only as an instruction in the lane seed and the method (derive blind, read no prior run), with no check that detects a copied-forward population.
+  evidence: [map/METHOD.md:71-78, map/SCHEMA.md:981-985, map/scanners/adapters/practice-review/lane.md:21]
+  confidence: plausible
+  property: lesson-left-as-note
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The calibration miss where a hand-drafted effect inventory forgot channels became a closed, validator-checked triage over the enumerated candidate list, pinned by its own harness block.
+  evidence: [map/METHOD.md:100-102, map/SCHEMA.md:864, tests/blocks/effect-population.mjs:1-8]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-605
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The measured low finding-level repeatability of a base sweep is held by a committed blind sweep set that the harness gates at its own threshold, after variance had exited 0 at any agreement level.
+  evidence: [map/METHOD.md:413-425, map/SCHEMA.md:607-611, tests/blocks/sweep-gate.mjs:1-5]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-606
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The "agent cited a plausible path it never opened" failure class is refused by validate --target on a missing path or a line past the file's end, and a block pins that compile --target halts on it.
+  evidence: [map/METHOD.md:515-521, map/SCHEMA.md:940-943, map/validate.mjs:86-92, tests/blocks/compile-target.mjs:1-3]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The machine-side false-green (a handoff reading "nothing to do" over live gaps) is a fail-closed exit in the handoff compiler, and a block pins that it still exits 1 over an open gap with no fix.
+  evidence: [map/METHOD.md:633-636, map/SCHEMA.md:760-763, views/improve/handoff.mjs:112-119, tests/blocks/sequence.mjs:126-133]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-608
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The close-out sort's named failure mode (the engine rail staying healthy while the target-action rail starves) has no check that the sort happened, since validate reads the backlog files only when present.
+  evidence: [map/METHOD.md:792-798, map/validate.mjs:713-731]
+  confidence: plausible
+  property: lesson-left-as-note
+- id: F-609
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The recorded drift of one channel's slug across runs is surfaced by the canon check as a named warning for any run channel the canon lacks, though only when a canon is declared and never as an error.
+  evidence: [map/SCHEMA.md:181-184, map/validate.mjs:593-596, tests/blocks/canon.mjs:1-2]
+  confidence: plausible
+  property: lesson-mechanized
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The cal5/cal6 census subject_type flip that read identical facts as variance was fixed in variance's identity key, which excludes subject_type, though no harness block found pins that exclusion and no validator compares a census's members to the canon's subject_type.
+  evidence: [map/SCHEMA.md:185-190, map/variance.mjs:12-22, map/variance.mjs:127, tests/blocks/variance-mixed-base.mjs:14-27]
+  confidence: plausible
+  property: lesson-mechanized
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The field-measured descriptor drift moving both ways became a second variance measure pinned by its own block and a computed descriptor-divergence backlog class.
+  evidence: [map/SCHEMA.md:192-213, tests/blocks/descriptor-agreement.mjs:1-6, map/backlog.mjs:72]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-612
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident where a full package once shipped with its queued code scanner never run became the required run manifest, which validate fails closed without and a block pins compile refusing.
+  evidence: [map/SCHEMA.md:361-366, map/validate.mjs:222-233, tests/blocks/run-manifest.mjs:54]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-613
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The fix for fresh-clone over an exported tree it cannot clone (#88) is pinned by a block requiring start to record it skipped with the reason, never failed with git's own error.
+  evidence: [map/SCHEMA.md:371-372, tests/blocks/start-tree.mjs:1-6]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-614
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The miss where a web app's empty channel-candidate list once read as a closed list (#269) is pinned by a block that puts route handlers and effect sites on the triage list and holds an untriaged member mixed.
+  evidence: [map/SCHEMA.md:877-878, tests/blocks/web-app-effects.mjs:1-8]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-615
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The "CI-1 lesson" that an unparseable input must be an error applies to the checker through blocks pinning that the shared loader and the strict reader throw rather than silently shrink the base.
+  evidence: [map/SCHEMA.md:914-916, tests/blocks/fail-closed.mjs:19-21, tests/blocks/yaml-strict.mjs:1-4]
+  confidence: confirmed
+  property: lesson-mechanized
+# ── beyond the census: the agent spec, the loop's use, instrumentation, impact, backlog, release notes
+- id: F-616
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md names the durable homes for corrections (engine learnings as tracker issues landing as reviewed changes, taste written in CLAUDE.md or its owning contract, never only in a code comment).
+  evidence: [CLAUDE.md:65-70, CONTRIBUTING.md:12-13]
+  confidence: confirmed
+  property: corrections-have-durable-home
+- id: F-617
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The loop is used with dated, issue-numbered evidence: harness block headers record the run or issue that exposed each failure before pinning it.
+  evidence: [tests/blocks/variance-mixed-base.mjs:1-6, tests/blocks/sweep-gate.mjs:1-3, tests/blocks/yaml-strict.mjs:1-4, tests/blocks/instrument-durations.mjs:1-3]
+  confidence: confirmed
+  property: lesson-mechanized
+- id: F-618
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Two of CLAUDE.md's "never" rules name the harness block that enforces them (the core naming no scanner, and no history file beside git).
+  evidence: [CLAUDE.md:33-41, CLAUDE.md:71-72, tests/blocks/core-names-no-scanner.mjs:1-4, tests/blocks/no-history-file.mjs:1-7]
+  confidence: confirmed
+  property: rule-names-its-mechanism
+- id: F-619
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    CLAUDE.md rule 6 (no client or target names, no run history, no real credentials, no private links) names no mechanism, and no harness block was found checking for confidential material.
+  evidence: [CLAUDE.md:29-32]
+  confidence: plausible
+  property: rule-names-its-mechanism
+- id: F-620
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The "red, then green" rule (an assertion is confirmed red with its rule reverted, and the pull request says so) is held only by a prompt in the pull request template, with no check of the claim.
+  evidence: [CLAUDE.md:60-64, .github/PULL_REQUEST_TEMPLATE.md:7-11]
+  confidence: plausible
+  property: rule-names-its-mechanism
+- id: F-621
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run record carries structured usage per scanner by design: model, spend and duration per row and per practice-review pass, with duration written on every instrument row the engine ran and pinned by a block.
+  evidence: [map/SCHEMA.md:395-438, tests/blocks/model-of-record.mjs:1-4, tests/blocks/instrument-durations.mjs:1-6]
+  confidence: confirmed
+  property: usage-records-structured
+- id: F-622
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every routine firing writes a structured outcome record (routine.yaml: commit, engine, trigger, baseline source, gate state, failures, refused tools, exit) on every path, so a collector reads the outcome from the artifact alone.
+  evidence: [routine/README.md:39-69, routine/run.mjs:127, tests/blocks/routine-record.mjs:1-3]
+  confidence: confirmed
+  property: outcome-records-structured
+- id: F-623
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: contract
+  observation: >
+    A judgment scanner's inference spend is optional on the run record and a missing model only warns, so the spend side of the usage record is not guaranteed for the LLM-driven work.
+  evidence: [map/SCHEMA.md:395-397, map/SCHEMA.md:429-434]
+  confidence: confirmed
+  property: usage-records-structured
+- id: F-624
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine measures its own worth against known answers and repeatability: pinned recall per fixture in tests/golden.json moves only by a reviewed re-bless with the reason, and the committed sweep sets gate three agreement numbers.
+  evidence: [README.md:214-233, CLAUDE.md:51-53, RUNBOOK.md:21-33]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-625
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The release notes compile only Consumer: trailers and commit subjects, carrying no measured before/after (recall or agreement delta) for the release.
+  evidence: [lib/release-notes.mjs:43-54, .github/workflows/release.yml:48-50]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-626
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Contract changes reach consumers through a Consumer: trailer that release-notes --check refuses to omit, run in the harness and before release.yml tags, and the trailers head the published notes.
+  evidence: [CONSUMERS.md:119-126, lib/release-notes.mjs:13-17, .github/workflows/release.yml:42-43, tests/blocks/consumer-contract.mjs:139]
+  confidence: confirmed
+  property: release-notes-from-trailers
+- id: F-627
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine backlog's computed half composes four determinism classes, writes a not-computed reason rather than a zero when a sub-tool fails, and validate reads both halves back fail-closed.
+  evidence: [map/backlog.mjs:48-52, map/backlog.mjs:67-73, map/validate.mjs:722-723, tests/blocks/backlog.mjs:1-4]
+  confidence: confirmed
+  property: engine-backlog-computed
+- id: F-628
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The engine backlog is optional for a run and its route upstream is an authored status field (proposed, filed with an issue link, dropped) that nothing files or reconciles against the tracker.
+  evidence: [map/SCHEMA.md:505-518, map/validate.mjs:725-726]
+  confidence: plausible
+  property: engine-backlog-computed

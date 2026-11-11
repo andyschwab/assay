@@ -1,0 +1,298 @@
+# Pass 4 — verification affordances (census-augmented: effect-provability, one finding per channel slug, F-401..F-423; probes F-424..)
+- id: F-401
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The run-start channel proves its own effect: after writing map/scanners.yaml it runs validate over the run it just drew (with --target when a target was given) and exits with validate's status rather than with its own success line.
+  evidence: [map/start.mjs:498-503, map/start.mjs:519]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-402
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The run-ingest channel refuses a report that does not describe the run it is filed under (a report exit that disagrees with the runner's exit, or a truncated report) and halts before writing any row, instead of trusting the tool's return code.
+  evidence: [map/ingest.mjs:118-119, map/ingest.mjs:1244-1245]
+  confidence: confirmed
+  property: report-matches-run
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The run-record channel rewrites map/scanners.yaml under a lock and prints the row it computed, but never parses the rewritten file back to confirm the row landed; only a later measure or validate reads it.
+  evidence: [map/record.mjs:164-168, map/record.mjs:216-218]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-404
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The run-migrate channel checks each rewrite before writing it: every rewritten flow list is parsed back and compared with the value it replaces, the whole file is re-parsed, and any mismatch leaves the file untouched and exits 1.
+  evidence: [map/migrate-run.mjs:83-91, map/migrate-run.mjs:112, map/migrate-run.mjs:130]
+  confidence: confirmed
+  property: write-verified-before-commit
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The run-compile channel validates the base before compiling and checks each child script's exit status, then prints "package assembled" without reading back the package it wrote, after the handoff step has already removed and rewritten its directory.
+  evidence: [views/compile.mjs:55-58, views/compile.mjs:232-233, views/improve/handoff.mjs:604-609]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-406
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The measure-write channel's output is not trusted as written: validate recomputes every requirement from the base and fails on any status, mechanism, row-count or id drift in yardstick.yaml.
+  evidence: [yardstick/measure.mjs:585-589, map/validate.mjs:736-766]
+  confidence: confirmed
+  property: generated-file-drift-check
+- id: F-407
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The maturity-write channel's generated grades are recomputed from the base by validate, which fails on any counted or sampled drift against the written file.
+  evidence: [views/improve/maturity.mjs:230-236, map/validate.mjs:651-679]
+  confidence: confirmed
+  property: generated-file-drift-check
+- id: F-408
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The backlog-write channel names each class it could not compute in the file and exits 1, and validate reads map/backlog.yaml back fail-closed against its schema.
+  evidence: [map/backlog.mjs:175-184, map/validate.mjs:713-731]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-409
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The intake-write channel writes views/intake.yaml and INTAKE.md and prints counts from its in-memory build; nothing in the engine reads either file back to check it.
+  evidence: [views/intake.mjs:224-228]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-410
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The maintain-write channel writes views/maintain.yaml and MAINTAIN.md and prints counts from its in-memory build, with no read-back or drift check of either file.
+  evidence: [views/maintain.mjs:93-97]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-411
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The owner-write channel writes views/owner.yaml and OWNER.md and prints counts from its in-memory build, with no read-back or drift check of either file.
+  evidence: [views/owner.mjs:244-248]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-412
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The since-write channel writes views/since.yaml and SINCE.md and prints the delta counts from memory, with no read-back or drift check of either file.
+  evidence: [views/since.mjs:250-254]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-413
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The repo-census-write channel's report is checked where it is consumed: ingest refuses a repo-census document whose recorded exit is not 0 or 1, or disagrees with the runner's exit.
+  evidence: [map/repo-census.mjs:1290-1295, map/ingest.mjs:405-411]
+  confidence: confirmed
+  property: report-matches-run
+- id: F-414
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The ratchet-write channel refuses to write a baseline from a run that failed its gate, but writes the baseline without passing it through its own validateBaseline and prints "wrote", so a malformed baseline surfaces only at the next ratchet.
+  evidence: [yardstick/ratchet.mjs:291-303, yardstick/ratchet.mjs:90-92]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-415
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The fresh-clone-exec channel does not read a test step's exit 0 as the suite having run: it records the runner's own pass/skip/fail counts or `unparsed`, and ingest turns skipped tests in a passed step into a gap row.
+  evidence: [map/fresh-clone.mjs:17-21, map/fresh-clone.mjs:318-320, map/ingest.mjs:162-166]
+  confidence: confirmed
+  property: exit-code-not-proof
+- id: F-416
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The dependency-scan-exec channel counts a lockfile as audited only when npm's exit is 0 or 1 and the report holds the expected shape, otherwise it records the lockfile failed.
+  evidence: [map/dependency-scan.mjs:292-301]
+  confidence: confirmed
+  property: exit-code-not-proof
+- id: F-417
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The structure-scan-exec channel fails jscpd when it exits 0 but wrote no readable report, no statistics block, or a duplicate without both locations, rather than trusting the exit code.
+  evidence: [map/structure-scan.mjs:133-145]
+  confidence: confirmed
+  property: exit-code-not-proof
+- id: F-418
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The tools-install channel checks each download's sha256 against the pin before installing, stamps the installed binary's hash, re-checks it on the next install, and offers a verify subcommand that runs each tool and matches its reported version to the pin.
+  evidence: [map/tools.mjs:100, map/tools.mjs:124-133, map/tools.mjs:147-157]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-419
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The routine-run channel gates each stage on the next one's check: it validates the drawn run against the target, stops on a failed compile, and holds the compiled measurement against a baseline before reporting a gate result.
+  evidence: [routine/run.mjs:238-243, routine/run.mjs:281-287, routine/run.mjs:312-322]
+  confidence: confirmed
+  property: staged-verification
+- id: F-420
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The routine-workflow channel does not trust the target job's success: a missing or unreadable handoff is tolerated at download but recorded by the gate as that instrument failed, with the reason.
+  evidence: [routine/assay-routine.yml:143-147, map/start.mjs:392-399]
+  confidence: confirmed
+  property: report-matches-run
+- id: F-421
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The release-publish channel gates on the test suite and the trailer check before tagging, but runs `gh release create` as its last step and never reads the published release or tag back.
+  evidence: [.github/workflows/release.yml:39-50]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-422
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The branch-delete channel re-reads each branch's tip and protection before deleting it, but prints "deleted" from the DELETE call's return code without confirming that the ref is gone.
+  evidence: [.github/workflows/branch-cleanup.yml:127-134]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-423
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The tools-check-issue channel reads the open issue's latest body before commenting so it does not repeat itself, but it never reads back the created issue or comment, and it trusts the return code of `gh`.
+  evidence: [.github/workflows/tools-check.yml:32-35]
+  confidence: confirmed
+  property: effect-read-back
+- id: F-424
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The static-analysis instrument runs over a vendored positive control before the target; if any planted hit is missing, the instrument is recorded failed and the target is not scanned, so zero results always come with a control that fired.
+  evidence: [map/start.mjs:198-217, map/start.mjs:256-263, map/scanners/adapters/opengrep/control/CONTROL.md:7-13]
+  confidence: confirmed
+  property: positive-control
+- id: F-425
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Repeatability is measured, not assumed: variance gates a committed sweep set on fact-presence, descriptor and requirement agreement thresholds, and a test block runs every committed set at its own threshold and proves the gate can go red.
+  evidence: [map/variance.mjs:299-312, tests/blocks/sweep-gate.mjs:20-40]
+  confidence: confirmed
+  property: calibration-harness
+- id: F-426
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Variance sorts divergence into named classes by direction: divergence all one way is consistent with the target having moved, while divergence both ways is flagged as judgment drift.
+  evidence: [map/variance.mjs:52-56, map/variance.mjs:244-246]
+  confidence: confirmed
+  property: divergence-classified
+- id: F-427
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Recall against the known-answer fixtures is pinned in tests/golden.json and checked on every test run; --bless refuses to rewrite it while any unit or negative check fails, so a regression cannot be blessed green.
+  evidence: [tests/golden.json:1-20, tests/harness.mjs:125-138, tests/regression.mjs:40-44]
+  confidence: confirmed
+  property: calibration-harness
+- id: F-428
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Score grades a run against a planted known-answer sheet and scores a control target inversely, counting any unmatched gap as a false positive, so precision is measured as well as recall.
+  evidence: [map/score.mjs:2-8, map/score.mjs:28-30, tests/blocks/fixture-recall.mjs:14-18]
+  confidence: confirmed
+  property: known-answer-fixtures
+- id: F-429
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    validate --target checks every cited evidence path and line against the target regardless of how the finding reads, and fails closed on a path that does not exist or a line past the end of the file.
+  evidence: [map/validate.mjs:360-381]
+  confidence: confirmed
+  property: evidence-resolves
+- id: F-430
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    No check confirms that a cited line says what the observation claims: validate's own comment says --target checks only that the path resolves and the line is inside the file.
+  evidence: [map/validate.mjs:360-363]
+  confidence: confirmed
+  property: evidence-content-checked
+- id: F-431
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The engine ships runnable known-answer targets and malformed-run fixtures that the test runner grades, so a change can show its effect on a fixed input.
+  evidence: [tests/README.md:13-17, tests/blocks/fixture-recall.mjs:14-18]
+  confidence: confirmed
+  property: known-answer-fixtures
+- id: F-432
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Ingest refuses an exit code that is not given as digits or falls outside the tool's success set, so a tool error never reads as zero findings.
+  evidence: [map/ingest.mjs:724-728]
+  confidence: confirmed
+  property: exit-code-not-proof
+- id: F-433
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The routine's own outcome record is written on a best-effort basis: if writing routine.yaml fails, it prints a warning and still returns the run's ok/exit, so the record a run artifact is meant to carry can be missing while the job reads green.
+  evidence: [routine/run.mjs:190-201]
+  confidence: confirmed
+  property: effect-read-back

@@ -1,0 +1,29 @@
+schema: effect-triage
+version: 1
+triage:
+  - candidate: "surface: migrate-run.mjs"
+    finding: F-505
+  - candidate: "route: ANY /api/hooks"
+    out_of_scope: "test fixture under tests/enumerate-fixture/nextjs/ that the enumerate tests read; never served, not a route of this application"
+  - candidate: "route: DELETE /api/users/[id]"
+    out_of_scope: "test fixture under tests/enumerate-fixture/nextjs/ that the enumerate tests read; never served, not a route of this application"
+  - candidate: "route: GET /api/users/[id]"
+    out_of_scope: "test fixture under tests/enumerate-fixture/nextjs/ that the enumerate tests read; never served, not a route of this application"
+  - candidate: "route: GET /health"
+    out_of_scope: "test fixture under tests/enumerate-fixture/nextjs/ that the enumerate tests read; never served, not a route of this application"
+  - candidate: "route: HEAD /health"
+    out_of_scope: "test fixture under tests/enumerate-fixture/nextjs/ that the enumerate tests read; never served, not a route of this application"
+  - candidate: "route: PATCH /api/users/[id]"
+    out_of_scope: "test fixture under tests/enumerate-fixture/nextjs/ that the enumerate tests read; never served, not a route of this application"
+  - candidate: "docker control"
+    out_of_scope: "pattern text, not a call: map/enumerate.mjs:85, 182 and 232 are the enumerator's own detector regexes and comment; the remaining cite is an excluded sweep file"
+  - candidate: "git push"
+    out_of_scope: "pattern text, not a call: map/enumerate.mjs:181 is the enumerator's own detector regex; the remaining cites are excluded sweep files"
+  - candidate: "http write"
+    out_of_scope: "pattern text, not a call: the cited lines are vendored opengrep taint-rule patterns (urllib.request.urlopen) in map/scanners/adapters/opengrep/taint/py.yml that assay hands the scanner; assay makes no such request"
+  - candidate: "http write (js)"
+    finding: F-509
+  - candidate: "message/mail send"
+    out_of_scope: "pattern text, not a call: map/enumerate.mjs:180 is the enumerator's own detector regex"
+  - candidate: "shell exec"
+    out_of_scope: "not executed by assay: the cited lines are vendored opengrep taint-rule patterns (os.system, os.popen) and the opengrep positive-control fixture map/scanners/adapters/opengrep/control/app/run.py:6, a planted case the scanner reads and assay never runs"

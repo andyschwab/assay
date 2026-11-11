@@ -1,0 +1,121 @@
+- id: F-601
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    No lesson, incident, postmortem or lessons record exists anywhere in the tree: the
+    only prose artifacts are the README (endpoints, running, testing) and one storage ADR,
+    so no correction has a recorded path into a durable mechanism.
+  evidence: ["README.md:12-35", "docs/adr/0001-storage-choice.md:1-29", "package.json:1-9"]
+  confidence: confirmed
+  property: lessons-recorded
+
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    There is no agent spec (no CLAUDE.md, AGENTS.md or equivalent) accumulating the team's
+    rules; the README carries only endpoints, a run command and a test command, and the
+    only agent-facing text is the assistant's inline runtime prompt.
+  evidence: ["README.md:12-35", "lib/agent.mjs:16-20"]
+  confidence: confirmed
+  property: agent-spec-present
+
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    A "we never do X here" rule has no mechanical home to land in: package.json defines
+    only a start script (no test, lint or check script), and the sole test asserts only
+    that a valid token resolves a user.
+  evidence: ["package.json:6-8", "test/smoke.mjs:7-9"]
+  confidence: confirmed
+  property: rules-mechanized
+
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The repository has a dated, status-bearing decision record (ADR-0001, accepted
+    2026-05-02) that states context, decision, consequences and the rejected alternative,
+    giving decisions a durable reviewable home that the code points back to.
+  evidence: ["docs/adr/0001-storage-choice.md:1-4", "docs/adr/0001-storage-choice.md:12-29", "lib/db.mjs:1"]
+  confidence: confirmed
+  property: decisions-recorded
+
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The ADR's commitment that persistence "is the first thing the production milestone
+    fixes" and the store's note that real deployments swap in a SQLite adapter are prose
+    intent only: no adapter, test or tracked marker in the tree holds the commitment.
+  evidence: ["docs/adr/0001-storage-choice.md:22-23", "lib/db.mjs:1", "lib/db.mjs:27-31"]
+  confidence: confirmed
+  property: deferred-intent-mechanized
+
+- id: F-606
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    A TODO to move the backup API key to the environment before launch sits directly above
+    a literal, prefixed API key of about 40 characters, and nothing (no check, test or startup assertion)
+    enforces the TODO, so the intent is unmechanized.
+  evidence: ["config/settings.mjs:5-6", "lib/sync.mjs:10"]
+  confidence: confirmed
+  property: todo-unmechanized
+
+- id: F-607
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Known hazards are recorded only as code comments, never pinned by a test or guard: the
+    unknown-token fallback "treated as admin", the sync route's "no authorization check",
+    and the backup push whose failures are assumed "rare".
+  evidence: ["lib/auth.mjs:9-12", "server.mjs:47-49", "lib/sync.mjs:7-12", "test/smoke.mjs:7-9"]
+  confidence: confirmed
+  explained_by: [F-102]
+  property: known-hazard-recorded-as-comment
+
+- id: F-608
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The settings module points to "the README for environment notes", but the README has
+    no environment section, so the pointer names a home for operating rules that holds
+    none.
+  evidence: ["config/settings.mjs:1", "README.md:21-35"]
+  confidence: confirmed
+  property: rule-pointer-resolves
+
+- id: F-609
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Nothing in the tree measures the app's own impact: the assistant, the stated
+    differentiator, returns only an answer and an emailed-to field, with no outcome,
+    usage or before/after record, and there is no changelog or impact field on shipped
+    work beyond a version number.
+  evidence: ["docs/adr/0001-storage-choice.md:27-28", "lib/agent.mjs:33-43", "package.json:3"]
+  confidence: confirmed
+  property: impact-self-measured
+
+- id: F-610
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The app emits no structured usage or outcome records by its own design: the request
+    dispatcher logs nothing per request, and the only output is free-text console lines
+    from the mailer and the listen callback.
+  evidence: ["server.mjs:26-57", "lib/mailer.mjs:7", "server.mjs:60"]
+  confidence: confirmed
+  property: usage-telemetry-structured

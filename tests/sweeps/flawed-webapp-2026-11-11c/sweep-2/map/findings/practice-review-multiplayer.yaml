@@ -1,0 +1,147 @@
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    GET /notes is stated outside the code with its method, path and meaning ("list your notes") and takes no request body, so an agent can call it from the README alone, though the response shape and the bearer scheme are stated only in code.
+  evidence: [README.md:16, server.mjs:30-33, lib/auth.mjs:6]
+  confidence: confirmed
+  property: interface-contract-stated
+- id: F-702
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    POST /notes is named in the README but its one request field (`text`) and its response (`{id}` with 201) are stated only in the handler, so an agent cannot form a valid call from anything outside the code.
+  evidence: [README.md:17, server.mjs:35-39]
+  confidence: confirmed
+  property: interface-contract-stated
+- id: F-703
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    POST /assistant is named in the README but its request field (`question`), its response fields (`answer`, `emailed`) and the in-band `TOOL:send_email` directive format are stated only in code, so no contract outside the code tells an agent how to call it or read its result.
+  evidence: [README.md:18, server.mjs:42-45, lib/agent.mjs:18, lib/agent.mjs:35-42]
+  confidence: confirmed
+  property: interface-contract-stated
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    POST /sync is stated outside the code with its method, path and meaning ("push the workspace to the backup service") and takes no request body, so an agent can call it from the README alone, though its response (`ok`, `pushed`) is stated only in code.
+  evidence: [README.md:19, server.mjs:47-50, lib/sync.mjs:13]
+  confidence: confirmed
+  property: interface-contract-stated
+- id: F-705
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    POST /admin/purge appears in no contract outside the code: the README lists four endpoints without it, and the handler's own comment names it as DELETE while the router dispatches POST, so the only statement of it besides the router is wrong.
+  evidence: [README.md:14-19, routes/admin.mjs:5, server.mjs:52-54]
+  confidence: confirmed
+  property: interface-contract-stated
+- id: F-710
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    All state is one process-global store (a users list, a notes map keyed by note id with an owner field) with no workspace or team entity, so the shared scope the README describes is not a principal with its own memory, membership or permissions; the only scoping is per-owner.
+  evidence: [lib/db.mjs:2-11, lib/db.mjs:27-31, README.md:3-5, docs/adr/0001-storage-choice.md:9-10]
+  confidence: confirmed
+  property: shared-scope-is-principal
+- id: F-711
+  dimension: unprompted
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Note ownership is recorded twice, as each note's `owner` and as each user's `notes` list, and POST /notes writes only the first, so the per-user list diverges from the notes map as soon as a note is created.
+  evidence: [lib/db.mjs:3-5, lib/db.mjs:9-10, server.mjs:38, lib/db.mjs:29]
+  confidence: confirmed
+  property: single-ownership-record
+  axis: multiplayer
+- id: F-712
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    The direct read path scopes to the caller: GET /notes returns only notes whose owner is the authenticated caller's id, not other members' notes.
+  evidence: [server.mjs:30-33]
+  confidence: confirmed
+  property: reads-scoped-to-caller
+- id: F-713
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant acts on and from every member's notes whatever the caller's identity: its prompt builder takes the caller but never uses it, and inlines all notes in the workspace, so any caller reads through the assistant what GET /notes withholds from them.
+  evidence: [lib/agent.mjs:11-15, lib/agent.mjs:33-34, server.mjs:31]
+  confidence: confirmed
+  reaches: [F-505]
+  property: context-reads-scoped-to-caller
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Each note entered into the assistant's context carries an origin label naming the member who owns it, so the context records whose read produced each entry.
+  evidence: [lib/agent.mjs:13-14]
+  confidence: confirmed
+  property: context-origin-labelled
+- id: F-715
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The emailed summary body is every note in the workspace with the origin labels stripped, so other members' notes leave in a message whose recipient the model chose and whose reader cannot tell whose notes they are.
+  evidence: [lib/agent.mjs:36-39, lib/agent.mjs:14]
+  confidence: confirmed
+  reaches: [F-501]
+  property: shared-output-origin-labelled
+- id: F-716
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant is described as emailing "for you" and "on the user's behalf", but the mail goes out from one shared sender address and the only record of it logs recipient, sender, subject and size, never the requesting member, so who acted as whom is not recoverable.
+  evidence: [README.md:18, lib/agent.mjs:1-2, lib/agent.mjs:39, lib/mailer.mjs:5-8, config/settings.mjs:7]
+  confidence: confirmed
+  property: acting-as-identity-recorded
+- id: F-717
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Sharing is never a conscious act: a note is created with no visibility or audience field, yet it surfaces automatically in every other member's assistant context and in any emailed summary.
+  evidence: [server.mjs:35-39, lib/agent.mjs:12-15, lib/agent.mjs:38]
+  confidence: confirmed
+  property: sharing-is-explicit
+- id: F-718
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The privileged reader the assistant is goes undisclosed and is stated wrongly: the README says it answers questions about "your notes" while it reads every member's notes.
+  evidence: [README.md:4, README.md:16, lib/agent.mjs:12-15]
+  confidence: confirmed
+  property: privileged-reader-disclosed
+- id: F-719
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The backup service as a reader of the whole workspace is disclosed outside the code: the README states that POST /sync pushes the workspace to the backup service, which matches the full note set the push sends.
+  evidence: [README.md:19, lib/sync.mjs:1, lib/sync.mjs:6]
+  confidence: confirmed
+  property: privileged-reader-disclosed
+- id: F-720
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Every caller without a known token resolves to one fixed `default` identity, so notes written anonymously land in a single implicit shared bucket that any other anonymous caller reads back through GET /notes, a shared scope no one created or can see the membership of.
+  evidence: [lib/auth.mjs:9-12, server.mjs:31, server.mjs:38]
+  confidence: confirmed
+  property: shared-scope-is-principal

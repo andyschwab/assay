@@ -1,0 +1,88 @@
+- id: F-601
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The target carries no agent spec (no CLAUDE.md, AGENTS.md, rules, skills or prompts file
+    among its 12 files, inspected in full), so no artifact accumulates the team's taste and
+    rules for a person or agent working in it; the only prompt text is built inline in code.
+  evidence: [README.md:1-35, package.json:1-9, lib/agent.mjs:16-20, docs/adr/0001-storage-choice.md:1-29]
+  confidence: confirmed
+  property: agent-spec-present
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    No lesson, incident, postmortem or lessons file is recorded anywhere in the tree, and no
+    test, script or check encodes a past correction, so a "we never do X here" rule has no
+    durable home beyond a free-form ADR and would not be enforced by anything that runs.
+  evidence: [README.md:27-35, package.json:6-8, test/smoke.mjs:1-11, docs/adr/0001-storage-choice.md:1-29]
+  confidence: confirmed
+  property: lessons-become-mechanisms
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    A known correction sits as an unexecuted TODO comment above the inline backup API key
+    ("move to env before launch") while the key is still read from config at the push site,
+    and no issue, check or test tracks the TODO to completion.
+  evidence: [config/settings.mjs:5-6, lib/sync.mjs:10, package.json:6-8]
+  confidence: confirmed
+  property: corrections-tracked-to-done
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The storage decision is recorded as a dated, statused ADR with context, decision,
+    consequences and a rejected alternative, and the code it governs points back to it,
+    giving decisions a durable reviewable home in docs/adr/.
+  evidence: [docs/adr/0001-storage-choice.md:1-29, lib/db.mjs:1]
+  confidence: confirmed
+  property: decisions-recorded
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The ADR states a follow-up (persistence "is the first thing the production milestone
+    fixes"), but nothing in the tree tracks it: no milestone, issue, test or check names it,
+    and the store is still the in-memory one the ADR deferred.
+  evidence: [docs/adr/0001-storage-choice.md:22-23, lib/db.mjs:1-31, package.json:1-9]
+  confidence: confirmed
+  property: decision-follow-ups-tracked
+- id: F-606
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The system records nothing about its own impact: the assistant is named the product's
+    differentiator, yet no impact field, before/after record or outcome measure exists for
+    it or any other shipped capability in the tree.
+  evidence: [docs/adr/0001-storage-choice.md:27-29, README.md:1-5, lib/agent.mjs:33-43]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-607
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The app emits no structured usage or outcome record by its own design: its only output
+    is two free-text console lines (a mailer send line and a server-listening line), while the
+    router, the assistant call, note creation, the purge and the backup push log nothing.
+  evidence: [lib/mailer.mjs:7, server.mjs:60, server.mjs:26-56, lib/agent.mjs:33-43, lib/sync.mjs:5-14, routes/admin.mjs:6-11]
+  confidence: confirmed
+  property: usage-outcome-records-emitted
+- id: F-608
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: control
+  observation: >
+    The one outcome trace the app writes, the mailer line, is a single key=value line naming
+    recipient, sender, subject and body size (not body content), a shape a parser could read
+    but which is unversioned free text on stdout and records an assumed send, not a delivered one.
+  evidence: [lib/mailer.mjs:5-8]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

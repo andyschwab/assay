@@ -1,0 +1,339 @@
+# practice-review — legibility pass, assay @ 2b247c0
+# decision-reconstruction census: F-101..F-110 (D1..D10); doc-freshness census: F-111..F-123.
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D1 (a hand-written YAML reader rather than a library) reconstructs from files: the reader's
+    header states it is zero-dependency and throws on anything outside the subset because a
+    checker that accepts unparseable input hides what it exists to catch, and SCHEMA states the
+    validator is zero-dependency so it copies into any target repository beside METHOD.md.
+  evidence: [lib/yaml-min.mjs:1-6, map/SCHEMA.md:971-972, README.md:158-160]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D2 (ids carry no dimension meaning) reconstructs from SCHEMA section 3, which states why: a
+    fixed per-dimension range is an arbitrary budget a dense repository overflows and would only
+    duplicate the dimension field, which the validator backs by the filename-to-dimension check.
+  evidence: [map/SCHEMA.md:217-232]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D3 (the routine's two-job split) reconstructs from files: the template's comment and the
+    routine README's "Two jobs" section state that the change's own scripts could rewrite the
+    engine, the run or the base ref in a shared job, so the gating job works from fresh
+    checkouts that never executed the change.
+  evidence: [routine/assay-routine.yml:40-47, routine/README.md:130-137]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-104
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D4 (ASSAY_REF must be a full commit SHA) reconstructs from three files, each stating that a
+    branch or tag can move and a scheduled run must run the exact engine a steward reviewed.
+  evidence: [routine/assay-routine.yml:4-6, routine/README.md:209-211, RUNBOOK.md:17-19]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D5 (fresh-clone and knip only under --allow-exec) reconstructs from files: start.mjs's header
+    and its skip reason say fresh-clone runs the target's own install, lifecycle scripts and
+    tests on this machine and knip imports the target's tool configs, and the README repeats it
+    with the advice to use a disposable container or VM.
+  evidence: [map/start.mjs:23-31, map/start.mjs:414, README.md:94-100]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D6 (no history file; the change record is git) reconstructs from files: the block that pins
+    it states that a dated history file restates the commit that made the change, and CLAUDE.md
+    names the rule and the block.
+  evidence: [tests/blocks/no-history-file.mjs:1-8, CLAUDE.md:71-73]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D7 (the core names no scanner) reconstructs from files: CLAUDE.md rule 7, the scanner
+    contract ("we interface with a scanner; we never fork its logic", roster derived from present
+    adapters, never hardcoded) and the intake procedure's first step state the rule and its
+    reason, and the block that holds it repeats both.
+  evidence: [CLAUDE.md:33-41, map/scanners/CONTRACT.md:7-22, map/scanners/INTAKE.md:14-17, tests/blocks/core-names-no-scanner.mjs:1-10]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-108
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D8 (third-party actions pinned to commit SHAs) is stated and enforced but its reason is not
+    written: ci.yml's header names the invariant and the ci-workflow block checks for 40-hex pins
+    matching the template, while the "a branch or tag can move" rationale is written only for
+    ASSAY_REF, in none of the inspected workflows, routine/README.md, SECURITY.md or
+    CONTRIBUTING.md for the actions themselves.
+  evidence: [.github/workflows/ci.yml:1-6, .github/workflows/ci.yml:24, tests/blocks/ci-workflow.mjs:16-22, routine/README.md:209-211]
+  confidence: plausible
+  property: decision-rationale-in-tree
+- id: F-109
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D9 (branch-cleanup deletes on every push to the default branch with no dispatch) reconstructs
+    from the workflow's header, which states that a session cannot delete a ref and a slice ends
+    with the run on its merge commit with nobody to dispatch it, and that a hand-started run is a
+    dry run by default.
+  evidence: [.github/workflows/branch-cleanup.yml:1-7]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-110
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D10 (JavaScript typed by JSDoc and checked by tsc --noEmit rather than TypeScript source) is
+    stated but not explained: tsconfig.json and the README say TypeScript is a development-only
+    dependency for checkJs, and no inspected file (README.md, CONTRIBUTING.md, RUNBOOK.md,
+    CLAUDE.md, map/SCHEMA.md) says why source stays JavaScript; JSDoc tags appear in only three
+    lib/ and map/ modules.
+  evidence: [tsconfig.json:2-12, README.md:158-160, package.json:11-18, lib/release-notes.mjs:35]
+  confidence: confirmed
+  property: decision-rationale-in-tree
+- id: F-111
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that README.md is the front door and the home of the one rule holds: the
+    README opens with what assay is and its four views, and states "the map states what is; the
+    views compute how good, how bad, how urgent".
+  evidence: [CLAUDE.md:5, CLAUDE.md:11, README.md:1-12, README.md:32-36]
+  confidence: confirmed
+  property: agent-contract-routes-resolve
+- id: F-112
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that map/SCHEMA.md is the authoritative finding format holds: the file
+    exists, titles itself the authoritative format contract and names map/validate.mjs as its
+    mechanical enforcement.
+  evidence: [CLAUDE.md:5-6, map/SCHEMA.md:1-12]
+  confidence: confirmed
+  property: agent-contract-routes-resolve
+- id: F-113
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that map/METHOD.md is the built-in scanner holds: the file exists as the
+    practice-review skill and its front matter calls practice-review the built-in scanner.
+  evidence: [CLAUDE.md:6, map/METHOD.md:1-4]
+  confidence: confirmed
+  property: agent-contract-routes-resolve
+- id: F-114
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that yardstick/README.md is the requirements contract holds: the file
+    exists and describes requirements.yaml, the deciding mechanism per requirement and the
+    measurement written to yardstick.yaml.
+  evidence: [CLAUDE.md:6-7, yardstick/README.md:1-12]
+  confidence: confirmed
+  property: agent-contract-routes-resolve
+- id: F-115
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's claim that views/README.md holds the views' data formats holds: the file exists,
+    names the compile commands and per view the script, its data file and its page.
+  evidence: [CLAUDE.md:7, views/README.md:1-13, views/README.md:31]
+  confidence: confirmed
+  property: agent-contract-routes-resolve
+- id: F-116
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The "Checks" command `npm test` resolves: package.json maps it to node tests/regression.mjs,
+    the runner that exists.
+  evidence: [CLAUDE.md:46, package.json:9, tests/regression.mjs:1-3]
+  confidence: confirmed
+  property: agent-contract-commands-resolve
+- id: F-117
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The "Checks" command `node assay.mjs validate <run>` resolves: the dispatcher maps validate to
+    map/validate.mjs, whose usage takes a run directory and whose exit is non-zero on any error,
+    matching the fails-closed claim of rule 2.
+  evidence: [CLAUDE.md:16, CLAUDE.md:47, assay.mjs:21, map/validate.mjs:85, map/validate.mjs:784]
+  confidence: confirmed
+  property: agent-contract-commands-resolve
+- id: F-118
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The "Checks" command `node assay.mjs score <run> --answers <sheet>` resolves: the dispatcher
+    maps score to map/score.mjs, whose usage line and argument parsing take a run directory and
+    --answers with an answers sheet, exiting 2 when either is missing.
+  evidence: [CLAUDE.md:48, assay.mjs:35, map/score.mjs:41, map/score.mjs:170-173]
+  confidence: confirmed
+  property: agent-contract-commands-resolve
+- id: F-119
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The tests/golden.json claim holds: the file exists, the harness compares the scored grades
+    against it and exits 1 on drift, and --bless rewrites it only when no unit or negative
+    failure and no scorer error exists, matching "a failing unit or negative assertion is never
+    re-blessed".
+  evidence: [CLAUDE.md:51-53, tests/harness.mjs:32, tests/harness.mjs:128-139, tests/harness.mjs:141-163]
+  confidence: confirmed
+  property: agent-contract-paths-resolve
+- id: F-120
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The tests/README.md claim holds: the file exists and says a block is one new file under
+    tests/blocks/ with no existing file changed, and the runner discovers every tests/blocks/*.mjs
+    by listing the directory.
+  evidence: [CLAUDE.md:55-56, tests/README.md:23-26, tests/harness.mjs:70-73]
+  confidence: confirmed
+  property: agent-contract-paths-resolve
+- id: F-121
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The tests/blocks/core-names-no-scanner.mjs claim holds: the block exists, cites CLAUDE.md rule
+    7, and its core set (map outside the adapters directory and CANDIDATES.md, yardstick, views,
+    lib, routine) equals the core the rule names.
+  evidence: [CLAUDE.md:33-41, tests/blocks/core-names-no-scanner.mjs:1-20]
+  confidence: confirmed
+  property: agent-contract-paths-resolve
+- id: F-122
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The tests/blocks/no-history-file.mjs claim holds: the block exists and refuses a HISTORY.md,
+    a file under a history/ folder or a dated log file outside tests/, and any file outside
+    tests/ that names HISTORY.md.
+  evidence: [CLAUDE.md:71-73, tests/blocks/no-history-file.mjs:13-26, tests/blocks/no-history-file.mjs:42-54]
+  confidence: confirmed
+  property: agent-contract-paths-resolve
+- id: F-123
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The claim that npm test fails closed holds as read: an empty blocks directory, a block that
+    does not load or is malformed, a block that throws, a missing golden.json, any unit or
+    negative failure and any score drift each produce a failure or a non-zero exit, and the
+    runner exits with the verdict's code.
+  evidence: [CLAUDE.md:46, tests/harness.mjs:73-87, tests/harness.mjs:111-117, tests/harness.mjs:141, tests/harness.mjs:152-163, tests/regression.mjs:28-44]
+  confidence: confirmed
+  property: agent-contract-claims-replay
+- id: F-124
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The scanner intake procedure says a candidate instrument adapter has a conversion profile in
+    map/ingest.mjs, while ingest.mjs states that an external instrument has no profile there and
+    is read by the format its adapter's ingest block names; the built-in profiles are only
+    fresh-clone, dependency-scan, repo-census and structure-scan.
+  evidence: [map/scanners/INTAKE.md:18-21, map/ingest.mjs:73-78, map/ingest.mjs:746-749]
+  confidence: confirmed
+  property: contract-doc-matches-code
+- id: F-125
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Two instrument VERSION constants carry an inline per-version change log in a code comment,
+    a narrated history the no-history-file rule's file-shape check does not reach.
+  evidence: [map/fresh-clone.mjs:108, map/dependency-scan.mjs:76, CLAUDE.md:71-72]
+  confidence: confirmed
+  property: change-record-in-one-place
+- id: F-126
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Code comments state the rationale in the tree and cite the issue number only as provenance,
+    as CLAUDE.md asks ("taste the code relies on is written here or in the contract that owns
+    it, never only in a code comment").
+  evidence: [CLAUDE.md:69-70, map/doctrine.mjs:13-22, lib/release-notes.mjs:32-34, lib/check-syntax.mjs:1-5]
+  confidence: confirmed
+  property: rationale-in-tree
+- id: F-127
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    Outside tests/, 66 tracked files carry 323 references of the form #NNN to an issue tracker
+    outside the tree; some, such as the report-data path, name the issue beside a statement of
+    what rather than why.
+  evidence: [lib/run-layout.mjs:98, lib/run-data.mjs:53, .github/workflows/branch-cleanup.yml:1]
+  confidence: confirmed
+  property: rationale-in-tree
+- id: F-128
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Engine modules open with a header comment stating their role and the contract they serve,
+    for example the one path module, the shared numbering and the handoff's three voices and its
+    fail-closed condition.
+  evidence: [lib/run-layout.mjs:1, views/improve/sequence.mjs:1-2, views/improve/handoff.mjs:2-24, lib/check-syntax.mjs:1-5]
+  confidence: confirmed
+  property: design-note-near-code
+- id: F-129
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The pull request template asks for the change and why, and for concrete verification
+    evidence including the confirmed-red invariant, so a change's rationale lands in the pull
+    request body.
+  evidence: [.github/PULL_REQUEST_TEMPLATE.md:1-11]
+  confidence: confirmed
+  property: rationale-in-tree
+- id: F-130
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    SCHEMA section 3 says ids are renumbered across independent runs and a collision is
+    renumbered freely, then states in bold that ids are never renumbered, leaving a reader to
+    reconcile which renumbering is meant.
+  evidence: [map/SCHEMA.md:230, map/SCHEMA.md:239, map/SCHEMA.md:248-249]
+  confidence: plausible
+  property: contract-doc-self-consistent

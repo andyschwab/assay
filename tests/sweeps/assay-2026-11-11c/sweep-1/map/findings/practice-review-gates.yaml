@@ -1,0 +1,209 @@
+# Pass 3: deterministic gates. Census change-gates: F-301..F-312 (one per population member,
+# in population order); F-313 onward are beyond the census.
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CI test job's first gate step runs npm ci against a committed lockfile (lockfileVersion 3 with per-package integrity hashes), so a missing registry, a lockfile out of step with package.json or a hash mismatch exits non-zero and the job goes red, bounded by the job's 15-minute timeout.
+  evidence: [.github/workflows/ci.yml:30, .github/workflows/ci.yml:19, package-lock.json:4, package-lock.json:25]
+  confidence: confirmed
+  property: dependency-install-fails-closed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CI lint step runs lib/check-syntax.mjs, which refuses an empty module list as unclean, counts any node --check that does not exit 0 (a signal kill included) as a failure, and throws if git cannot list, so it goes red rather than green when its input or tool is absent.
+  evidence: [.github/workflows/ci.yml:31, package.json:10, lib/check-syntax.mjs:11-15]
+  confidence: confirmed
+  property: empty-input-refused
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CI typecheck step runs tsc -p tsconfig.json with allowJs, checkJs and noEmit over the engine's module globs, using the exactly pinned typescript devDependency that npm ci installs, so a type error or an absent compiler exits non-zero and the job goes red.
+  evidence: [.github/workflows/ci.yml:32, package.json:11, package.json:18, tsconfig.json:3-5, tsconfig.json:12]
+  confidence: confirmed
+  property: typecheck-fails-closed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CI build step runs npm run build, which is the same lib/check-syntax.mjs the lint step runs, so it fails red under exactly the lint step's conditions and adds no check of its own.
+  evidence: [.github/workflows/ci.yml:33, package.json:12, package.json:10, lib/check-syntax.mjs:1-2]
+  confidence: confirmed
+  property: empty-input-refused
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CI tools step calls the local composite action, which installs and verifies the pinned instrument tools under set -euo pipefail and fails the step (putting nothing on PATH) when an install or a verify exits non-zero, before npm test runs.
+  evidence: [.github/workflows/ci.yml:34-38, .github/actions/tools/action.yml:26-31]
+  confidence: confirmed
+  property: tool-precondition-fails-closed
+- id: F-306
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CI npm test step runs tests/regression.mjs, which goes red when no block file exists, when a block fails to load or throws, when no block exports the NEGATIVE or SCORED lists, when golden.json is missing (exit 2) or when any scored grade drifts, and the job's 15-minute timeout ends a hung block as a failed job rather than a pass.
+  evidence: [.github/workflows/ci.yml:39, .github/workflows/ci.yml:19, tests/regression.mjs:28-44, tests/harness.mjs:72-73, tests/harness.mjs:77-78, tests/harness.mjs:111-117, tests/harness.mjs:141, tests/harness.mjs:151-163]
+  confidence: confirmed
+  property: empty-input-refused
+- id: F-307
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release workflow's version refusal runs under set -euo pipefail, reads the dispatched version through the environment, and exits 1 on any value that is not vX.Y.Z (an empty value included) or that names an existing tag, so nothing is tagged on a malformed or repeated input.
+  evidence: [.github/workflows/release.yml:33-38, .github/workflows/release.yml:13-16]
+  confidence: confirmed
+  property: input-refused-before-effect
+- id: F-308
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release job's npm ci step installs from the committed lockfile and exits non-zero on a missing registry or a lockfile mismatch, halting the job before the tag step, inside the job's 20-minute timeout.
+  evidence: [.github/workflows/release.yml:39, .github/workflows/release.yml:22, package-lock.json:4]
+  confidence: confirmed
+  property: dependency-install-fails-closed
+- id: F-309
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release job calls the same composite tools action CI calls, so a failed install or verify of a pinned tool fails the job before npm test and before the tag step.
+  evidence: [.github/workflows/release.yml:40, .github/actions/tools/action.yml:9-10, .github/actions/tools/action.yml:29-30]
+  confidence: confirmed
+  property: tool-precondition-fails-closed
+- id: F-310
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release job runs npm test on the dispatched commit before its tag step, and the consumer-contract block holds release.yml to running npm test and the trailer check before gh release create.
+  evidence: [.github/workflows/release.yml:41, .github/workflows/release.yml:44-50, tests/blocks/consumer-contract.mjs:139]
+  confidence: confirmed
+  property: gate-before-irreversible-step
+- id: F-311
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The Consumer-trailer check exits 1 on a shallow history, on a range it cannot read, when no commit adds CONSUMERS.md, when CONSUMERS.md carries no surface block, and when any commit in the range touches a surface file with no Consumer trailer, so an absent input reads red rather than clean.
+  evidence: [.github/workflows/release.yml:42-43, lib/release-notes.mjs:69, lib/release-notes.mjs:76, lib/release-notes.mjs:96-102, lib/release-notes.mjs:104-111]
+  confidence: confirmed
+  property: empty-input-refused
+- id: F-312
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The composite tools action is one bash step under set -euo pipefail that defaults an empty dir input to the runner temp directory rather than skipping, refuses a download whose sha256 differs from the adapter's pin, bounds each version probe at 60 seconds, exits 1 on a failed or unsupported install or a not-ready verify, and ci-interface.mjs runs the step's script to prove a failed install or verify fails it with nothing on PATH.
+  evidence: [.github/actions/tools/action.yml:22-31, map/tools.mjs:127, map/tools.mjs:142, map/tools.mjs:236-244, tests/blocks/ci-interface.mjs:52-56, tests/blocks/ci-interface.mjs:75-78]
+  confidence: confirmed
+  property: tool-precondition-fails-closed
+- id: F-313
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    No commit or push hook or hook-installing script is tracked (package.json declares no prepare script and no hook directory or pre-commit config is in the tree), so the earliest automatic catch of a regression is CI on the pull request, with npm test before a pull request left to the contributor.
+  evidence: [package.json:8-16, CONTRIBUTING.md:4-5, .gitignore:1-13]
+  confidence: confirmed
+  property: no-local-commit-gate
+- id: F-314
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    Both the lint and build scripts run only node --check (a parse check), so no rule-based lint runs and no build artifact is produced, leaving style and semantic checks beyond parsing to tsc and the harness.
+  evidence: [package.json:10, package.json:12, lib/check-syntax.mjs:1-2, lib/check-syntax.mjs:14]
+  confidence: confirmed
+  property: lint-is-parse-only
+- id: F-315
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The typecheck covers only the root, lib, map, owner, routine, views and yardstick globs without strict mode, so tests/regression.mjs, tests/harness.mjs and the blocks are never typechecked, and it types against @types/node 20 while package.json declares Node 22 or later.
+  evidence: [tsconfig.json:2-12, package.json:17-18]
+  confidence: confirmed
+  property: typecheck-scope-partial
+- id: F-316
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The release job gates on npm ci, the tools action, npm test and the trailer check on Node 22 only, and runs neither lint, typecheck nor build nor requires a green CI run on the dispatched commit, so a commit whose typecheck fails can be tagged.
+  evidence: [.github/workflows/release.yml:30-43, .github/workflows/ci.yml:21-33, tests/blocks/consumer-contract.mjs:139]
+  confidence: confirmed
+  property: release-gate-narrower-than-ci
+- id: F-317
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    tools install and tools verify both exit 0 over an empty tool selection (the install loop counts no failure and verify's every() is true over no rows), so if no adopted adapter declared an instrument tool the tools action would read green having installed and verified nothing.
+  evidence: [map/tools.mjs:163, map/tools.mjs:232-240, map/tools.mjs:242-244]
+  confidence: confirmed
+  property: empty-input-reads-green
+- id: F-318
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The harness runs each block with no per-block timeout and the negative-fixture block runs every validate subprocess with no timeout, so a hung block is ended only by the CI job's 15-minute timeout and a local npm test can run without ever reaching a verdict.
+  evidence: [tests/harness.mjs:111-117, tests/blocks/negative-fixtures.mjs:69, .github/workflows/ci.yml:19]
+  confidence: confirmed
+  property: harness-unbounded-locally
+- id: F-319
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    A subtle regression in the central module map/validate.mjs is caught pre-merge on every pull request by the negative-fixture block, which runs validate over each malformed run and fails if it reads green, reads red for a reason other than the one named, or reads red for any additional reason.
+  evidence: [tests/blocks/negative-fixtures.mjs:7-14, tests/blocks/negative-fixtures.mjs:64-76, .github/workflows/ci.yml:8-11, .github/workflows/ci.yml:39]
+  confidence: confirmed
+  property: validator-pinned-by-negative-fixtures
+- id: F-320
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The ci-workflow block holds ci.yml itself to SHA-pinned actions, a contents-read token, a timeout on every job, a Node matrix that includes the declared engines floor, and a run line for each of lint, typecheck, build and npm test.
+  evidence: [tests/blocks/ci-workflow.mjs:16-23, tests/blocks/ci-workflow.mjs:25-41, tests/blocks/ci-workflow.mjs:43-58]
+  confidence: confirmed
+  property: gate-config-self-checked
+- id: F-321
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The shared YAML reader throws on constructs it does not read (anchors, aliases, nested or unclosed flow lists, unbalanced quotes, duplicate keys, a __proto__ key, trailing content) instead of returning a misleading value, and validate reports each parse failure as an error.
+  evidence: [lib/yaml-min.mjs:37-42, lib/yaml-min.mjs:52, lib/yaml-min.mjs:62-66, lib/yaml-min.mjs:138-139, lib/yaml-min.mjs:151, map/validate.mjs:206-207]
+  confidence: confirmed
+  property: interface-parse-fails-closed
+- id: F-322
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run's derived data files (chains, report, handoff sequence, backlog halves) are checked against schemas in lib/run-data.mjs that the writer applies and validate reads back, rejecting a parse failure, a wrong schema tag or a finding id the base does not carry.
+  evidence: [lib/run-data.mjs:1-8, lib/run-data.mjs:18-23, map/validate.mjs:713-731]
+  confidence: confirmed
+  property: interface-schema-checked
+- id: F-323
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    validate exits non-zero on any violation in both its human and --json modes, keeps warnings non-fatal, and reports a projection gate that cannot run as an error rather than a pass.
+  evidence: [map/validate.mjs:446-455, map/validate.mjs:779-789]
+  confidence: confirmed
+  property: exit-reflects-verdict
