@@ -1,0 +1,282 @@
+# map/findings/practice-review-multiplayer.yaml — Pass 7 (multiplayer), assay at 4b81665
+# Census agent-access-surface (artifact): items F-701..F-715, one per interface family.
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "command dispatcher and exit-code contract"
+  observation: >
+    The assay.mjs dispatcher maps 30 named commands to scripts and passes each script's exit status through, and CONSUMERS.md promises that a command that cannot do its work exits non-zero and never prints an empty result with exit 0, so an agent can branch on exit codes (the help text itself is prose for a person).
+  evidence: ["assay.mjs:18-58", "assay.mjs:77-85", "CONSUMERS.md:37-38"]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "contracted --json queries"
+  observation: >
+    Six read-only queries (lane --list, project, toolchain, compare, variance, yardstick) print JSON whose shape CONSUMERS.md spells out field by field, and a harness block pins that each listed row is on the page.
+  evidence: ["CONSUMERS.md:22", "CONSUMERS.md:26-27", "CONSUMERS.md:30", "CONSUMERS.md:32", "CONSUMERS.md:35", "map/project.mjs:332", "yardstick/compare.mjs:209", "yardstick/list.mjs:33", "tests/blocks/consumer-reads.mjs:1-11"]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  label: "structured outputs off the contract"
+  observation: >
+    validate, enumerate, measure and score print JSON under --json and roster prints YAML, but CONSUMERS.md lists validate without --json and lists none of the others' machine output, declaring anything not on the page internal, so an agent that needs a run's validation errors as data reads an off-contract shape (validate's errors are "where: message" strings).
+  evidence: ["map/validate.mjs:734-735", "map/enumerate.mjs:388", "yardstick/measure.mjs:516", "map/score.mjs:187", "map/roster.mjs:118", "CONSUMERS.md:4-7", "CONSUMERS.md:25"]
+  confidence: confirmed
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "run layout as the shared read surface"
+  observation: >
+    CONSUMERS.md names every path a consumer reads in a run (run record, per-scanner findings, yardstick.yaml, each view's data file, chains.json, sequence.json, report.json, routine.yaml) and makes lib/run-layout.mjs the one module that places them.
+  evidence: ["CONSUMERS.md:83-97", "lib/run-layout.mjs:25-33", "map/record.mjs:2-10"]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "instrument reports"
+  observation: >
+    Each executing instrument (fresh-clone, dependency-scan, structure-scan, repo-census) writes a JSON report stamped with its tool name and version, which ingest reads by the format its adapter names, so an instrument's output is machine input rather than console text.
+  evidence: ["map/fresh-clone.mjs:657", "map/dependency-scan.mjs:443", "map/structure-scan.mjs:449", "map/repo-census.mjs:1262", "map/ingest.mjs:20-24"]
+  confidence: confirmed
+- id: F-706
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "review lane seeds"
+  observation: >
+    `assay lane <scanner>` prints the filled seed as JSON ({ lane, scanner, title, artifact, outputs, inputs, passes, prompt }) and `lane --list --json` lists every lane, so a consumer program can start a review session from data rather than a copied prompt.
+  evidence: ["map/lane.mjs:25-29", "map/lane.mjs:94", "map/lane.mjs:100", "CONSUMERS.md:21-22"]
+  confidence: confirmed
+- id: F-707
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "handoff sequence.json and plan prompts"
+  observation: >
+    The handoff writes sequence.json under a versioned schema (assay.handoff-sequence/1) that the writer checks before writing and validate reads back against the run's finding ids, beside one plan/NN-*.md session prompt per sequenced remedy addressed to an agent session.
+  evidence: ["views/improve/handoff.mjs:184-194", "lib/run-data.mjs:146-170", "map/validate.mjs:676", "views/improve/handoff.mjs:343-353", "views/improve/handoff.mjs:37"]
+  confidence: confirmed
+- id: F-708
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "chains.json and report.json"
+  observation: >
+    chains.json (assay.chains/1) and report.json (assay.improve-report/1) carry schema ids, are checked by lib/run-data.mjs before writing and read back fail-closed by validate, and report.json is stated to let a renderer import nothing.
+  evidence: ["lib/run-data.mjs:13-23", "lib/run-data.mjs:69-73", "map/validate.mjs:674-675", "views/README.md:165-166"]
+  confidence: confirmed
+- id: F-709
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "views as YAML data"
+  observation: >
+    Each view (intake, maintain, owner, since, improve) writes a YAML data file whose shape views/README.md states, headed by view, run and yardstick version, and INDEX.md labels each one's reader as machine.
+  evidence: ["views/README.md:34-61", "views/floor-fleet.mjs:128", "views/owner.mjs:116", "views/compile.mjs:197-202"]
+  confidence: confirmed
+- id: F-710
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  label: "human-only pages"
+  observation: >
+    The pages (INDEX, INTAKE, MAINTAIN, IMPROVE, OWNER, SINCE) are rendered "for a person", and views/improve/axes.md and leverage.md, the axis walk and the leverage reading, have no data twin in the run layout.
+  evidence: ["CONSUMERS.md:96", "views/README.md:160", "views/README.md:162", "views/compile.mjs:203"]
+  confidence: confirmed
+- id: F-711
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "owner prompt and packet loop"
+  observation: >
+    The ask-owner prompt is written to be pasted into the owner's own AI tool and asks it to return one YAML packet in a fixed layout, which validate-packet checks strictly and fail-closed, treating the packet as data, never instructions.
+  evidence: ["owner/ask-owner.md:5-11", "owner/ask-owner.md:86-98", "owner/PACKET.md:21-31", "yardstick/packet.mjs:1-8"]
+  confidence: confirmed
+- id: F-712
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  label: "triage overlay format off the contract"
+  observation: >
+    The owner triage overlay owner/decisions.yaml has its schema stated only in a module comment of map/decisions.mjs, and CONSUMERS.md's run-layout table does not list it, so a consumer agent writing or reading triage has no contracted format.
+  evidence: ["map/decisions.mjs:14-21", "CONSUMERS.md:88-97", "lib/run-layout.mjs:32"]
+  confidence: confirmed
+- id: F-713
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "routine.yaml outcome record"
+  observation: >
+    Every routine firing writes routine.yaml (versioned `routine: 1`) on every path with the gate outcome (held, failed, skipped, not-run, refused) and the ratchet's failure lines, so a fleet collector reading only the uploaded run knows the outcome without CI logs.
+  evidence: ["routine/README.md:39-60", "CONSUMERS.md:33", "CONSUMERS.md:97"]
+  confidence: confirmed
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "contract modules"
+  observation: >
+    Two module exports are contract (lib/run-layout.mjs path functions and map/child-env.mjs childEnv), and the page states that any value no command prints is asked for as a command, not imported.
+  evidence: ["CONSUMERS.md:99-107"]
+  confidence: confirmed
+- id: F-715
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  label: "tools action and reusable workflow"
+  observation: >
+    The composite tools action (one input `dir`) and the reusable branch-cleanup workflow (one input `dry_run`, default true) are contracted for other repositories' workflows to call, with their inputs and grants stated.
+  evidence: ["CONSUMERS.md:54-81"]
+  confidence: confirmed
+# ── probes beyond the census: consumer contract, shared substrate, authority domains, consent ──
+- id: F-716
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A commit that touches a file in CONSUMERS.md's surface block must carry a Consumer: trailer, `lib/release-notes.mjs --check` names any commit missing one, and the harness runs it on every push and checks every surface file exists.
+  evidence: ["CONSUMERS.md:117-125", "lib/release-notes.mjs:25-37", "tests/blocks/consumer-contract.mjs:77-81"]
+  confidence: confirmed
+- id: F-717
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The surface block lists eight files and omits the producers of outputs the page promises by shape (map/project.mjs, yardstick/compare.mjs, map/lane.mjs, map/variance.mjs, views/improve/maturity.mjs, routine/run.mjs, lib/run-data.mjs), so a commit changing one of those JSON shapes without touching the page owes no Consumer: trailer.
+  evidence: ["CONSUMERS.md:127-136", "CONSUMERS.md:120-122", "CONSUMERS.md:22", "CONSUMERS.md:26", "CONSUMERS.md:30-33", "lib/release-notes.mjs:36-37"]
+  confidence: confirmed
+- id: F-718
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    The run record map/scanners.yaml is changed only through updateRunRecord, which takes an exclusive lock file, edits one row's block, and fails loud after 30s naming the lock rather than writing unlocked, so record, ingest and another agent cannot interleave.
+  evidence: ["map/record.mjs:146-170", "map/record.mjs:2-10"]
+  confidence: confirmed
+- id: F-719
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Findings are partitioned one file per scanner (map/findings/<scanner>.yaml, and one file per practice-review pass), so parallel writers each own a file in the shared run directory.
+  evidence: ["CONSUMERS.md:91", "map/ingest.mjs:1252-1253", "map/validate.mjs:63-64"]
+  confidence: confirmed
+- id: F-720
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    ingest picks a new scanner's starting id by reading the other findings files without the run-record lock, so two ingests into one run at once can both choose the same hundred; validate then refuses the duplicate ids rather than the writers avoiding them.
+  evidence: ["map/ingest.mjs:1131-1146", "map/ingest.mjs:1239-1242", "map/validate.mjs:113-114"]
+  confidence: plausible
+- id: F-721
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    Owner triage lives in each run's own owner/decisions.yaml keyed by finding id, validate refuses an id not in that run, ids are renumbered across independent runs, and the routine never writes decisions, so an accept or snooze does not carry to the next run although a cross-run fingerprint exists for Since.
+  evidence: ["map/decisions.mjs:4-7", "map/validate.mjs:412", "map/SCHEMA.md:228-231", "routine/README.md:124-127", "views/README.md:233-236"]
+  confidence: confirmed
+- id: F-722
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    A decision's `by` is a free-text role or handle that validate checks only for shape (not an email, not a person's name), so whoever can write the run directory can record an accept that moves a gap off the open count under any role.
+  evidence: ["map/decisions.mjs:18", "map/validate.mjs:419-420", "map/decisions.mjs:49-55"]
+  confidence: confirmed
+- id: F-723
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    A finding's origin label `source` is self-declared on the row and defaults to practice-review when absent; validate checks it only to choose which schema applies and never against the file the row sits in, so the label is not bound to the writer that produced it.
+  evidence: ["map/validate.mjs:120", "map/validate.mjs:202-216", "map/project.mjs:298"]
+  confidence: confirmed
+- id: F-724
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Every handoff artifact fences scanner text as data under a tag hashed from the run's scanner text (markers inside a body are spaced out), each plan prompt opens with a guard against deploying, publishing or sending, and sequence.json labels each item's voice (eval-authored, triage, scanner-verbatim) and source.
+  evidence: ["views/improve/handoff.mjs:149-155", "views/improve/handoff.mjs:343-350", "lib/run-data.mjs:146-148"]
+  confidence: confirmed
+- id: F-725
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Where an owner's packet decides a requirement the view row carries `basis: owner` beside run-decided rows, and a packet claim the run found unmet is kept as a contradiction with claim and run status side by side, never merged.
+  evidence: ["views/README.md:63-76", "yardstick/packet.mjs:9-14"]
+  confidence: confirmed
+- id: F-726
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The run record carries, per judgment scanner, the model it ran on, the head it reviewed and the review date, and a lane names no model or operator, leaving the consumer to add the model and any authorization block.
+  evidence: ["map/record.mjs:12-19", "map/scanners/CONTRACT.md:930-931", "map/scanners/CONTRACT.md:937-939", "map/lane.mjs:10-11"]
+  confidence: confirmed
+- id: F-727
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    The owner prompt tells the owner the packet becomes a file kept in the app's own code and shown on the intake page, but not that the routine folds a committed packet into a run uploaded as a workflow artifact anyone who can read the repository's workflow runs can download, with intake.yaml carrying credential locations, readers and monthly spend.
+  evidence: ["owner/ask-owner.md:24-28", "routine/README.md:118-121", "routine/README.md:28-31", "views/README.md:51-58"]
+  confidence: plausible
+- id: F-728
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine README states structurally who can read the uploaded run (anyone who can read the workflow runs, on a public repository anyone, for the retention period) and that ingest drops step output tails, stderr tails and duplicated code text before archiving for that reason.
+  evidence: ["routine/README.md:28-36", "routine/assay-routine.yml:188"]
+  confidence: confirmed
+- id: F-729
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    A lane hands its outputs back as one Artifact page with each file between `--- <path> (verbatim) ---` markers, and no assay command parses that page: the format appears only in the lane files and CONTRACT.md, collection is the consumer's own code, and assay checks the result only after collection (validate --lane).
+  evidence: ["map/scanners/CONTRACT.md:918-919", "map/scanners/CONTRACT.md:923-928", "map/scanners/adapters/practice-review/lane.md:24"]
+  confidence: confirmed
+- id: F-730
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    The routine template does not wire --since, each firing's run lives only as a workflow artifact kept 90 days, and Since needs a steward holding two run directories locally, so there is no shared longitudinal store of runs a second person or agent can read.
+  evidence: ["routine/assay-routine.yml:173-179", "routine/assay-routine.yml:188", "views/README.md:170-172"]
+  confidence: confirmed
+- id: F-731
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    assay writes nothing back to the repository and has no usage or outcome endpoint of its own; the per-run routine.yaml inside the uploaded artifact is the outcome record a fleet collector is expected to gather.
+  evidence: ["routine/README.md:23-27", "routine/README.md:37-41"]
+  confidence: plausible
+- id: F-732
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    ask-owner fills the owner prompt only from structured run sources (the packet, repo-census's recorded remote, census measures, effect facets), never prose, and sweeps a hand-written --found file for secret, email and template-marker shapes before inserting it.
+  evidence: ["owner/ask-owner.mjs:9-34"]
+  confidence: confirmed
+- id: F-733
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    INDEX.md's data-file table, which labels each file's reader (machine, human, agent), lists none of the three schema-versioned JSON files (chains.json, sequence.json, report.json) and describes handoff/plan as one prompt per Critical/High item where handoff.mjs writes one per sequenced remedy.
+  evidence: ["views/compile.mjs:197-207", "views/improve/handoff.mjs:37"]
+  confidence: confirmed

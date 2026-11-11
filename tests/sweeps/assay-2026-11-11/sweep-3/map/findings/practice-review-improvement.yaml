@@ -1,0 +1,301 @@
+# practice-review pass 6 — improvement-loop (census: incidents-became-mechanisms, subject_type process)
+# F-501..F-514 are the census items (one per recorded lesson); F-515.. are the other probes.
+
+- id: F-501
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#47 target code ran with the evaluator's environment"
+  observation: >
+    The lesson that a target's install and scripts must never run with the evaluator's
+    environment (#47) is held by a harness block with a planted-door fixture that CI runs on
+    every pull request.
+  evidence: ["map/child-env.mjs:1-6", "map/scanners/CONTRACT.md:180", "tests/blocks/isolation.mjs:1-12", "tests/instruments/exec-planted/README.md:3", ".github/workflows/ci.yml:39"]
+  confidence: confirmed
+
+- id: F-502
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#65 proxy URL userinfo is a credential"
+  observation: >
+    The lesson that a proxy URL carrying userinfo is a credential that must not reach a child
+    process (#65) is held in code that drops it with a stated reason and in the isolation block
+    that pins the drop.
+  evidence: ["map/child-env.mjs:12", "map/child-env.mjs:24", "map/fresh-clone.mjs:313", "tests/blocks/isolation.mjs:4-5"]
+  confidence: confirmed
+
+- id: F-503
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#88 fresh-clone over an exported tree"
+  observation: >
+    The lesson that fresh-clone over a tree that is not a repository top level failed with
+    git's own error (#88) is held by a block requiring a skipped row with the reason instead.
+  evidence: ["map/start.mjs:414", "map/SCHEMA.md:370", "tests/blocks/start-tree.mjs:1-6"]
+  confidence: confirmed
+
+- id: F-504
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#172 read-only outward leg counted as a full trifecta"
+  observation: >
+    The lesson that a read-only ingester was counted as a full trifecta (#172) became a
+    three-valued facet enforced in doctrine, validator and chains, pinned by its own block.
+  evidence: ["map/SCHEMA.md:264", "map/doctrine.mjs:41", "map/validate.mjs:192", "map/chains.mjs:141", "tests/blocks/capability-read-leg.mjs:1-11"]
+  confidence: confirmed
+
+- id: F-505
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#38 gate vocabulary"
+  observation: >
+    The lesson that a person's own act, a never-terminating check and an over-privileged
+    verification were indistinguishable gates (#38) is held by closed-vocabulary additions the
+    doctrine, decider and validator must agree on, pinned together in one block.
+  evidence: ["map/SCHEMA.md:70", "map/doctrine.mjs:17", "yardstick/measure.mjs:171", "tests/blocks/gate-vocabulary.mjs:1-10"]
+  confidence: confirmed
+
+- id: F-506
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#201 a lane row says when it was reviewed"
+  observation: >
+    The lesson that an on-demand review lane's rows carried no review head or date (#201) is held
+    by the record command's --head/--reviewed fields and a block that refuses malformed or
+    unrun values and reads an unrun lane as not measured.
+  evidence: ["map/lane.mjs:2", "map/record.mjs:87", "tests/blocks/lane-reviewed.mjs:1-12"]
+  confidence: confirmed
+
+- id: F-507
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#228 reviewer method pinned by commit"
+  observation: >
+    The lesson that a judgment scanner's method read from another repository was the one
+    unpinned dependency of a run (#228) is held by a commit pin the lane, ingest and validator
+    read, pinned by its own block.
+  evidence: ["map/lane.mjs:17", "map/ingest.mjs:1267", "map/validate.mjs:265", "tests/blocks/reviewer-pinned-by-commit.mjs:1-12"]
+  confidence: confirmed
+
+- id: F-508
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "a package shipped with its queued code scanner never run"
+  observation: >
+    The recorded incident of a package shipping with its queued code scanner never run is held
+    by a required run manifest the validator fails closed without and a block pinning that
+    every renderer names an unrun scanner with its reason.
+  evidence: ["map/SCHEMA.md:360-364", "map/validate.mjs:232", "map/templates/scanners.yaml:1-4", "tests/blocks/run-manifest.mjs:1-6"]
+  confidence: confirmed
+
+- id: F-509
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "pinned prior run made determinism tautological"
+  observation: >
+    The calibration lesson that a terrain pinned to the last run's channel list hid surfaces a
+    blind re-derivation caught is held by the canon contract and a validator check (a named but
+    missing canon is an error) pinned by the canon block, though the check is opt-in and drift
+    only warns.
+  evidence: ["map/METHOD.md:74-78", "map/SCHEMA.md:903-906", "map/validate.mjs:540-545", "tests/blocks/canon.mjs:1-2"]
+  confidence: confirmed
+
+- id: F-510
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "missed channels the hand-drafted inventory forgot"
+  observation: >
+    The calibration lesson that every channel a run missed was absent from a hand-drafted
+    inventory is held by the enumerate CHANNEL CANDIDATES detector, pinned by a block, but the
+    coverage gate does not count channel candidates, so triaging each one remains a METHOD
+    instruction.
+  evidence: ["map/METHOD.md:88-93", "map/enumerate.mjs:262-266", "map/enumerate.mjs:333-338", "tests/blocks/enumerate-tooldef.mjs:1-4"]
+  confidence: plausible
+
+- id: F-511
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  label: "docker-socket false strength over an un-inspected container class"
+  observation: >
+    The calibration incident that certified "no docker-socket mount" by inspecting only the
+    per-user container is held only partly: enumerate detects socket mounts and gates them,
+    but container classes (the class the incident missed) stay recall-only, and no harness
+    block exercises either detector.
+  evidence: ["map/METHOD.md:41-45", "map/enumerate.mjs:203-205", "map/enumerate.mjs:230-231", "map/enumerate.mjs:334-338", "tests/blocks/enumerate-gate.mjs:1-4", "tests/blocks/enumerate-nextjs.mjs:1-5"]
+  confidence: confirmed
+
+- id: F-512
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  label: "cal5/cal6 census subject_type flip"
+  observation: >
+    The calibration lesson that a census flipped subject_type between runs (cal5 contract, cal6
+    control) is held only as prose plus a canon-file check; the validator checks a finding's
+    subject_type against the closed vocabulary, never against the canon's declared census
+    subject_type.
+  evidence: ["map/SCHEMA.md:186-191", "map/validate.mjs:135-140", "map/validate.mjs:570-576"]
+  confidence: plausible
+
+- id: F-513
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#57 agreement figures not reproducible from the tree"
+  observation: >
+    The lesson that variance exited 0 at any agreement and cited figures could not be
+    reproduced (#57, from review findings F-324 and F-517 of an earlier run) is held by a sweep
+    gate that enforces each committed set's own threshold and proves it can go red.
+  evidence: ["tests/blocks/sweep-gate.mjs:1-5", "map/SCHEMA.md:206-209"]
+  confidence: confirmed
+
+- id: F-514
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  label: "#30 a skipped step read met"
+  observation: >
+    The lesson that a fresh-clone step skipped after a failed install read met (#30, from review
+    findings of an earlier run) is held by not-run facts each requirement lists and a block that
+    also closes an empty exit code and a disagreeing gitleaks exit.
+  evidence: ["tests/blocks/step-not-run.mjs:1-10"]
+  confidence: confirmed
+
+- id: F-515
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md accumulates the repository's taste as numbered ground rules and landing rules that
+    each name the mechanism holding them (rule 7 by core-names-no-scanner, the change record by
+    no-history-file), and requires taste never to live only in a code comment.
+  evidence: ["CLAUDE.md:9-41", "CLAUDE.md:58-73", "tests/blocks/core-names-no-scanner.mjs:1-2", "tests/blocks/no-history-file.mjs:1-4"]
+  confidence: confirmed
+
+- id: F-516
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Review lessons have a durable home: engine learnings go to the issue tracker by a rule a
+    block checks CLAUDE.md still states, and test headers cite the issue and earlier-run finding
+    ids they close, so a review finding becomes a regression block.
+  evidence: ["CLAUDE.md:65-70", "tests/blocks/doc-consistency.mjs:86-88", "tests/blocks/model-of-record.mjs:1-4", "tests/blocks/step-not-run.mjs:1-2", "tests/blocks/sweep-gate.mjs:1"]
+  confidence: confirmed
+
+- id: F-517
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    A run's engine backlog (computed map/backlog.yaml plus the authored half with its
+    false-strength class) is produced by a hand-run command; the routine driver does not run it
+    and no tool files its items upstream, so the run-to-issue step is a person's act.
+  evidence: ["map/METHOD.md:786-793", "map/backlog.mjs:15-23", "lib/run-data.mjs:206", "routine/run.mjs:1-12"]
+  confidence: plausible
+
+- id: F-518
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The red-then-green rule (a new assertion confirmed red with its rule reverted, recorded in
+    the PR body and commit) is checked only for being stated in CLAUDE.md and prompted in the PR
+    template; nothing checks that a landing PR or commit carries the confirmation.
+  evidence: ["CLAUDE.md:60-64", "tests/blocks/doc-consistency.mjs:87", ".github/PULL_REQUEST_TEMPLATE.md:5-10", ".github/workflows/ci.yml:30-39"]
+  confidence: plausible
+
+- id: F-519
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    A pinned score moves only through a re-bless of tests/golden.json in the same commit, and
+    the bless path refuses a tree with any failing unit or negative assertion, so a correction
+    cannot be absorbed as silent drift.
+  evidence: ["CLAUDE.md:51-53", "tests/blocks/bless-guard.mjs:1-4", "tests/harness.mjs:151"]
+  confidence: confirmed
+
+- id: F-520
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine measures its own worth as a reviewer: score grades recall, mis-homing and false
+    positives against planted known answers, and the pinned golden carries per-fixture recall
+    the harness compares on every run.
+  evidence: ["map/score.mjs:1-8", "tests/blocks/fixture-recall.mjs:1", "tests/golden.json:11-26", "tests/harness.mjs:151"]
+  confidence: confirmed
+
+- id: F-521
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Since view gives a stewarded target a computed before/after between two runs, and
+    separates what the repository moved from what the engine re-ruled (#183).
+  evidence: ["views/since.mjs:1-12", "README.md:14-15"]
+  confidence: confirmed
+
+- id: F-522
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Each handoff remedy names what the next assay run checks, yet Since compares the two runs'
+    measurements and findings without joining handoff/sequence.json, so no computed record says
+    which of assay's own remedies landed.
+  evidence: ["views/README.md:163-164", "views/README.md:168-185", "views/since.mjs:5-12"]
+  confidence: plausible
+
+- id: F-523
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The run record emits structured usage per scanner by design (status, reason, duration, model,
+    spend, and model/spend per practice-review pass), and the roster joins duration and spend as
+    each scanner's cost, both pinned by blocks.
+  evidence: ["map/templates/scanners.yaml:13-22", "map/record.mjs:18-24", "map/roster.mjs:29-30", "tests/blocks/instrument-durations.mjs:1-7", "tests/blocks/model-of-record.mjs:1-4"]
+  confidence: confirmed
+
+- id: F-524
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: contract
+  observation: >
+    spend and model are optional and spend is any non-empty string with a unit, so the roster
+    can list recorded cost values but cannot sum or compare them across runs or scanners.
+  evidence: ["map/templates/scanners.yaml:17-19", "map/validate.mjs:253-255", "map/roster.mjs:107"]
+  confidence: confirmed
+
+- id: F-525
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Upstream drift of pinned scanner tools becomes tracked work without a person noticing: a
+    weekly job opens one issue or comments on the open one only when its body changed.
+  evidence: [".github/workflows/tools-check.yml:30-35"]
+  confidence: confirmed
+
+- id: F-526
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    Doc drift lessons are kept as mechanism: doc-consistency reads contract statements off the
+    code and keeps a list of pointers that once named missing files, each with its correction,
+    so they stay gone.
+  evidence: ["tests/blocks/doc-consistency.mjs:1-4", "tests/blocks/doc-consistency.mjs:90-100"]
+  confidence: confirmed

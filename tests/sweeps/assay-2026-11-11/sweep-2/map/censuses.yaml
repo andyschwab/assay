@@ -1,0 +1,100 @@
+# map/censuses.yaml — authored censuses (SCHEMA §6b), assay at 4b81665.
+# One entry per dimension, each from its blind pass; populations from map/terrain.md.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instances are strong: the canon file and the id scheme each state the alternative they reject and the measurement or failure that motivated them (F-106, F-102), and routine/README.md is a design doc headed by its decisions beside the template it governs (F-117, F-108); rationale is weakest where it ends at an issue number or is missing, as for person-dispatched releases (F-115, F-109).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decision whose rationale can be reconstructed from a file near the code, without the issue tracker or git history"
+        met: 9
+        of: 10
+        method: >
+          10, the terrain's closed decision-reconstruction list, each read at its own file: zero-dep YAML reader met F-101; ids carry no dimension met F-102; child env allow-list met F-103; no deploy verdict or stage scale met F-104; core names no scanner met F-105; canon file met F-106; target exec only under --allow-exec met F-107; routine baseline from base branch met F-108; release only by person dispatch not met F-109; lanes execute nothing met F-110
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: context-economy
+    depth: >
+      The best instance is strong: a 73-line CLAUDE.md and a self-describing 30-command dispatcher route a stranger to per-module contracts that agree with their code, and a regression block checks selected front-door claims against that code (F-218, F-219, F-216, F-203). But the spend side is recorded only on request and never re-qualified (F-226, F-228), and three operator-facing claims have drifted where no check reaches (F-208, F-209, F-210, F-211).
+    sampled:
+      - name: modules-standalone
+        what: "a bounded context can load the module from its own docs/headers without reading the rest"
+        met: 6
+        of: 7
+        method: >
+          7, the terrain's closed module list, each judged on its own README/contract doc and file headers: map/ not met (F-201); map/scanners/ met (F-202); yardstick/ met (F-203); views/ met (F-204); lib/ met (F-205); routine/ met (F-206); owner/ met (F-207)
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: deterministic-gates
+    depth: >
+      The best instance is strong: map/validate.mjs fails closed and every rule is pinned by a negative fixture that must go red for its own reason only, alongside positive validations, writer-and-reader schema checks and recomputed generated tails (F-311, F-312, F-313, F-315, F-329), all run on every pull request by a harness that refuses to read an empty or broken run as green (F-305, F-322). The edges are shallower: chain ranking has no known-answer pin and chains.json is not recomputed (F-316, F-317), re-bless and harness coverage rest on review (F-320, F-323), the static gates are a parse check plus a non-strict typecheck (F-303, F-310), and whether CI is required before merge is unverified (F-309).
+    sampled:
+      - name: gates-coverage
+        what: "a ci.yml pull_request step runs pre-merge and fails loud on a real regression"
+        met: 4
+        of: 5
+        method: >
+          5, the terrain's closed list of ci.yml steps on pull_request, each read to what it checks: lint (lib/check-syntax.mjs, node --check, fails on any unparsable module) met F-301; typecheck (tsc checkJs over engine modules) met F-302; build (the same script as lint, catches nothing lint does not) not met F-303; tools install+verify (sha256 or version pin, set -euo pipefail, exit 1 on failed install or verify) met F-304; npm test (tests/regression.mjs, exit 1 on unit/negative failure, block error or golden drift) met F-305. Merge-blocking status of the checks is unverified (F-309).
+        primary: true
+    enforced:
+      claim: true
+      why: "CI runs lint, typecheck, the tools step and the regression harness on every pull request, and a harness block pins ci.yml's own steps, permissions, pins and matrix; whether the checks are required before merge is not visible (F-309)."
+      evidence: [F-305, F-306, F-307]
+    generative: false
+  - dimension: verification
+    depth: >
+      The best instances verify effects rather than reports and are deep: ingest refuses a non-digit or out-of-set exit and an exit that disagrees with its report (F-407, F-421), opengrep must fire on planted cases before a clean target counts (F-420), and repeatability is measured by a gated sweep harness (F-427); the weak edge is the workflow channels that trust gh exit codes (F-415, F-416, F-417), the skipped gate that exits green (F-423), and the stated absence of any check that a cited line supports its claim (F-425).
+    sampled:
+      - name: effect-provability
+        what: "the channel proves its effect happened (reads the effect or its written result back, or a fail-closed consumer does), rather than trusting a return code or success report"
+        met: 14
+        of: 19
+        method: >
+          19, every channel slug in the terrain effect inventory, in its order, each judged at its own site. The terrain census line says 20, but its table lists 19 slugs, so the denominator is 19. start-run met F-401; fresh-clone-exec met F-402; dependency-scan-exec met F-403; structure-scan-exec met F-404; tools-install met F-405; repo-census-write met (plausible) F-406; ingest-write met F-407; record-write met F-408; migrate-run-write met F-409; backlog-write met F-410; measure-write met F-411; ratchet-baseline-write met F-412; compile-views not met F-413; routine-run met F-414; release-publish not met F-415; tools-check-issue not met F-416; branch-delete not met F-417; tools-action-path met F-418; routine-artifact-upload not met (plausible) F-419.
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: delegation
+    depth: >
+      The best instance is strong: `assay start` holds its irreversible boundary at one explicit --allow-exec flag with skipped-with-reason records (F-501, F-532), children get a regression-pinned env allow-list (F-530), and the consumer routine splits the change's code from its gate across two jobs with least-privilege, unpersisted tokens (F-533, F-527, F-542); but the same target-executing instruments run with only a disclosure when invoked directly or through a local routine (F-502, F-504, F-514), and the two lane sessions co-hold all three trifecta legs under prompt-only rules with no data-not-instructions clause (F-520, F-521, F-535).
+    sampled:
+      - name: credential
+        what: "each secret/token the code or a workflow reads is held below the prompt boundary and scoped least-privilege"
+        met: 5
+        of: 6
+        method: >
+          6, the terrain's closed credential population (secrets.* / github.token in workflows plus env tokens read by code), each assessed at its own file: release.yml GH_TOKEN met F-524; tools-check.yml GH_TOKEN/GITHUB_TOKEN met F-525; branch-cleanup.yml GH_TOKEN met F-526; routine template FETCH_TOKEN met F-527; map/tools.mjs GITHUB_TOKEN (ambient, any scope, passed in curl argv) not met F-528; ASSAY_READ_TOKEN (commented consumer secret, unpersisted) met F-529
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: improvement-loop
+    depth: >
+      The best instance is first-rate: a lesson cited by issue number in a contract doc lands with a test block that names the same issue and asserts the rule (F-601..F-614), findings from runs on assay itself became blocks (F-622), and agent-spec rules point at their holding test (F-616); the loop thins where it meets people and consumers, with red-then-green held only as text (F-618), the backlog stopping at a file (F-621), and no record of assay's value to a consumer (F-628).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "a lesson cited by issue number in a contract doc is pinned by a test block that names the issue and asserts the rule"
+        met: 14
+        of: 14
+        method: >
+          14, every distinct (#NNN) in map/SCHEMA.md, map/scanners/CONTRACT.md §3a (lines 142-213) and yardstick/README.md (CLAUDE.md cites none), each matched to a tests/blocks file naming the issue and read for an asserting fail(): #172 met F-601; #38 met F-602; #88 met F-603; #159 met F-604; #201 met F-605; #228 met F-606; #47 met F-607; #65 met F-608; #161 met F-609; #177 met F-610; #232 met F-611; #121 met F-612; #18 met F-613; #183 met F-614
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: multiplayer
+    depth: >
+      The best instance is strong: the handoff and Improve data files carry versioned schemas checked on write and read back fail-closed, with scanner text fenced and each item's voice and source labelled (F-707, F-708, F-724). The consumer contract's change rule is mechanised (F-716), but it does not reach the files that produce the promised JSON (F-717), and shared state does not carry triage across runs (F-721, F-730).
+    sampled:
+      - name: agent-access-surface
+        what: "the interface family is consumable by an agent through a structured output under a stated format contract, not human-only"
+        met: 12
+        of: 15
+        method: >
+          15 interface families enumerated from assay.mjs's command table, CONSUMERS.md, views/README.md, lib/run-layout.mjs, the lanes and owner/: dispatcher and exit codes met F-701; contracted --json queries met F-702; off-contract structured outputs (validate/enumerate/measure/score --json, roster YAML) not met F-703; run layout met F-704; instrument JSON reports met F-705; lane seeds met F-706; handoff sequence.json and plan prompts met F-707; chains.json and report.json met F-708; views YAML met F-709; pages and axes/leverage md not met (human-only) F-710; owner prompt and packet met F-711; owner/decisions.yaml overlay not met (format off the contract) F-712; routine.yaml met F-713; contract modules met F-714; tools action and reusable workflow met F-715
+        primary: true
+    enforced:
+      claim: true
+      why: "CI's harness pins the contracted command rows and checks the Consumer: trailer on the surface files, and validate reads the three schema-versioned data files back fail-closed; the surface block omits the files that produce several promised outputs (F-717)"
+      evidence: [F-716, F-707, F-708]
+    generative: false

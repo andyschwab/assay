@@ -1,0 +1,631 @@
+# Pass 5 — delegation surface. One effect finding per terrain §6 channel slug (15), then the
+# credential census (subject_type control, one per credential, 4), the two lane capabilities,
+# and the probes (halt, composition, identity, observability, blast scope, modality, authorship).
+
+- id: F-501
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    fresh-clone runs the target's install, lifecycle scripts, build, lint, test and migrate-dry
+    steps through a shell (`shell: true`) as the evaluator's user, and `assay start` runs it only
+    when the operator passes --allow-exec, recording it skipped with the reason otherwise.
+  evidence:
+    - "map/fresh-clone.mjs:77-82"
+    - "map/fresh-clone.mjs:310"
+    - "map/start.mjs:410"
+    - "map/start.mjs:459"
+    - "map/scanners/CONTRACT.md:195-197"
+  confidence: confirmed
+  effect:
+    channel: fresh-clone-exec
+    reversibility: irreversible
+    external: true
+    gate_type: initiated-by-person
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-502
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    dependency-scan sends each lockfile and its package.json to the package registry's audit
+    endpoint from a scratch copy, on every `assay start` with a target and every routine run,
+    with no flag or confirming step before the lockfile leaves the machine.
+  evidence:
+    - "map/dependency-scan.mjs:24-31"
+    - "map/dependency-scan.mjs:61-63"
+    - "map/dependency-scan.mjs:86-95"
+    - "map/dependency-scan.mjs:274-279"
+    - "map/start.mjs:353"
+  confidence: confirmed
+  preconditions: [insider]
+  effect:
+    channel: dependency-scan-audit
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-503
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    structure-scan installs jscpd and knip from the npm registry pinned only by top-level version
+    (`--no-package-lock`, so their transitive dependencies resolve fresh each run, with no
+    integrity pin) and then executes them; only knip's loading of the target's own configs is
+    held behind --allow-exec.
+  evidence:
+    - "map/structure-scan.mjs:10-13"
+    - "map/structure-scan.mjs:22-25"
+    - "map/structure-scan.mjs:78"
+    - "map/structure-scan.mjs:101-104"
+    - "map/structure-scan.mjs:119-120"
+    - "map/structure-scan.mjs:414"
+  confidence: confirmed
+  preconditions: [malicious-dependency]
+  effect:
+    channel: structure-scan-tools
+    reversibility: irreversible
+    external: false
+    gate_type: none
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-504
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    `tools install` verifies every binary fetch against its pinned sha256 but installs a PyPI
+    tool (checkov, an adopted instrument) as `checkov==3.4.0` through uv or pip with no hash
+    check and an unpinned dependency tree, giving uv the full process environment, and the same
+    step runs in assay's CI and release jobs and in every consumer's routine gate job.
+  evidence:
+    - "map/tools.mjs:100-114"
+    - "map/tools.mjs:118-130"
+    - "map/scanners/adapters/checkov.yaml:16-19"
+    - ".github/actions/tools/action.yml:27-31"
+    - ".github/workflows/release.yml:40"
+    - "routine/assay-routine.yml:140-141"
+  confidence: confirmed
+  preconditions: [malicious-dependency]
+  reaches: [F-513]
+  escapes: [F-524]
+  effect:
+    channel: tools-install
+    reversibility: irreversible
+    external: false
+    gate_type: none
+    telemetry: structured-event
+    blast_scope: fleet
+
+- id: F-505
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    `assay start` runs each adopted instrument adapter's bin over the target with the allow-listed
+    child environment and, where the adapter names a positive control, refuses to run the
+    target when the control's planted hits are not reported.
+  evidence:
+    - "map/start.mjs:254-259"
+    - "map/start.mjs:265-271"
+    - "map/start.mjs:357"
+  confidence: confirmed
+  effect:
+    channel: instrument-run
+    reversibility: reversible
+    external: false
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-506
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    `assay start` creates a run directory and writes map/scanners.yaml, refusing an --out whose
+    scanners.yaml already exists and refusing to draw anything while a pinned tool is not ready.
+  evidence:
+    - "map/start.mjs:436-439"
+    - "map/start.mjs:443-446"
+    - "map/start.mjs:469"
+  confidence: confirmed
+  effect:
+    channel: run-start
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-507
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    `assay ingest` writes findings, coverage and minimised raw archives into a run and updates
+    the run record under its lock, refusing to record a method for a review report that names a
+    release other than the pinned one.
+  evidence:
+    - "map/ingest.mjs:67-71"
+    - "map/ingest.mjs:1251-1255"
+    - "map/ingest.mjs:1266-1278"
+  confidence: confirmed
+  effect:
+    channel: run-ingest
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-508
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    `assay record` rewrites one row of map/scanners.yaml only while holding an exclusively
+    created lock file, and fails loud naming the lock after 30 seconds rather than writing
+    unlocked.
+  evidence:
+    - "map/record.mjs:144-151"
+    - "map/record.mjs:152-170"
+  confidence: confirmed
+  effect:
+    channel: run-record
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-509
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    `assay migrate-run` only reports what it would change unless given --write, and leaves a file
+    unchanged when its rewrite would not round-trip or would not parse.
+  evidence:
+    - "map/migrate-run.mjs:24"
+    - "map/migrate-run.mjs:86-94"
+    - "map/migrate-run.mjs:101-112"
+  confidence: confirmed
+  effect:
+    channel: run-migrate
+    reversibility: reversible
+    external: false
+    gate_type: staged-reversible
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: tenant
+
+- id: F-510
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    `assay compile` runs validate first and exits before writing any view when it fails, then
+    regenerates the views and removes and rewrites the run's handoff/ directory from the base.
+  evidence:
+    - "views/compile.mjs:55-58"
+    - "views/compile.mjs:68-72"
+    - "views/improve/handoff.mjs:601-605"
+  confidence: confirmed
+  effect:
+    channel: run-compile
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: tenant
+
+- id: F-511
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    The routine writes a run directory and always writes routine.yaml, refusing to draw a map
+    while a pinned tool is not ready and stopping before the gate when validate fails.
+  evidence:
+    - "routine/run.mjs:190-202"
+    - "routine/run.mjs:216-220"
+    - "routine/run.mjs:234-243"
+  confidence: confirmed
+  effect:
+    channel: routine-run
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-512
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    The weekly tools-check job opens one issue in this repository, or comments on the open one
+    only when its text changed, with a job token scoped to issues write and contents read.
+  evidence:
+    - ".github/workflows/tools-check.yml:7-11"
+    - ".github/workflows/tools-check.yml:17-20"
+    - ".github/workflows/tools-check.yml:32-35"
+  confidence: confirmed
+  effect:
+    channel: tools-check-issue
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: audited
+    blast_scope: tenant
+
+- id: F-513
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    A release tag and GitHub release are created only by a person's workflow_dispatch on the
+    default branch, after the version format and tag-existence checks, npm test with the pinned
+    tools and the Consumer trailer check all pass.
+  evidence:
+    - ".github/workflows/release.yml:1-8"
+    - ".github/workflows/release.yml:10-16"
+    - ".github/workflows/release.yml:23-24"
+    - ".github/workflows/release.yml:33-43"
+    - ".github/workflows/release.yml:44-50"
+  confidence: confirmed
+  effect:
+    channel: release-publish
+    reversibility: irreversible
+    external: true
+    gate_type: initiated-by-person
+    fail_mode: closed
+    telemetry: audited
+    blast_scope: fleet
+
+- id: F-514
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  observation: >
+    branch-cleanup deletes merged branches unattended on every push to the default branch, but
+    only those with nothing new since a merged pull request and no open pull request, re-reading
+    each tip before deleting and refusing the default branch, protected branches and KEEP names.
+  evidence:
+    - ".github/workflows/branch-cleanup.yml:35-37"
+    - ".github/workflows/branch-cleanup.yml:66"
+    - ".github/workflows/branch-cleanup.yml:77-96"
+    - ".github/workflows/branch-cleanup.yml:121-131"
+  confidence: confirmed
+  effect:
+    channel: branch-delete
+    reversibility: reversible-with-window
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: tenant
+
+- id: F-515
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    The routine template uploads the whole run directory, findings and raw archives included,
+    unfiltered as a 90-day workflow artifact on every run (even a failed one), which on a public
+    repository anyone can download; ingest's minimisation of output tails is the only filter.
+  evidence:
+    - "routine/assay-routine.yml:78-82"
+    - "routine/assay-routine.yml:181-188"
+    - "routine/README.md:29-36"
+    - "map/ingest.mjs:67-71"
+  confidence: confirmed
+  preconditions: [insider]
+  effect:
+    channel: routine-artifact-upload
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: structured-event
+    blast_scope: tenant
+
+# ── credential census (credentials-below-boundary): one control per credential ──
+
+- id: F-516
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "credential: github.token per workflow"
+  observation: >
+    The Actions token is held below any prompt boundary (no workflow calls a model) and scoped
+    per job: every workflow defaults to contents read, write scopes are granted only to the job
+    that writes, every checkout sets persist-credentials false, and the routine passes it to its
+    one base-ref fetch through the environment in a job that never runs the change's code.
+  evidence:
+    - ".github/workflows/ci.yml:13-14"
+    - ".github/workflows/tools-check.yml:11"
+    - ".github/workflows/tools-check.yml:17"
+    - ".github/workflows/release.yml:17"
+    - ".github/workflows/release.yml:24"
+    - ".github/workflows/branch-cleanup.yml:50"
+    - ".github/workflows/branch-cleanup.yml:111"
+    - "routine/assay-routine.yml:32-33"
+    - "routine/assay-routine.yml:104-115"
+  confidence: confirmed
+
+- id: F-517
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "credential: ASSAY_READ_TOKEN"
+  observation: >
+    The optional ASSAY_READ_TOKEN is off by default, reaches only the two assay checkout steps
+    with persist-credentials false, and the runbook scopes it to read access on one repository
+    with rotation and revocation steps.
+  evidence:
+    - "routine/assay-routine.yml:58-65"
+    - "routine/assay-routine.yml:117-124"
+    - "RUNBOOK.md:58-71"
+  confidence: confirmed
+
+- id: F-518
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "credential: GITHUB_TOKEN read from env by tools"
+  observation: >
+    `tools check` reads whatever GITHUB_TOKEN the operator's environment holds, of no stated
+    scope, and passes it to curl as a command-line header argument (visible in the process
+    table), and `tools install` hands uv the operator's full environment including that token.
+  evidence:
+    - "map/tools.mjs:202-203"
+    - "map/tools.mjs:104-106"
+    - ".github/workflows/tools-check.yml:20"
+  confidence: confirmed
+
+- id: F-519
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "credential: proxy userinfo"
+  observation: >
+    A proxy URL carrying userinfo is treated as a credential and dropped from every child a
+    target's code runs in, failing closed on any '@' in the authority, with a note on the row
+    saying which and why.
+  evidence:
+    - "map/child-env.mjs:12-24"
+    - "map/child-env.mjs:31-32"
+    - "map/scanners/CONTRACT.md:189-191"
+  confidence: confirmed
+
+# ── capabilities: the two lane sessions (they run outside this repository) ──
+
+- id: F-520
+  dimension: delegation
+  polarity: fact
+  subject_type: capability
+  label: "practice-review lane session"
+  observation: >
+    The practice-review lane seeds a session that reads an untrusted target the owner has access
+    to, clones the method from GitHub, and publishes one artifact the consumer ingests, while its
+    no-push, no-comment and no-execute limits are prompt text only, the session's tools being
+    whatever the host that starts it grants.
+  evidence:
+    - "map/scanners/adapters/practice-review/lane.md:10-12"
+    - "map/scanners/adapters/practice-review/lane.md:18"
+    - "map/scanners/adapters/practice-review/lane.md:24"
+    - "map/lane.mjs:4-11"
+  confidence: plausible
+  reaches: [F-507]
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+
+- id: F-521
+  dimension: delegation
+  polarity: fact
+  subject_type: capability
+  label: "deep-code-review lane session"
+  observation: >
+    The deep-code-review lane seeds a session that reads an untrusted target and instrument output
+    derived from it, fetches the reviewer's method at a pinned commit and verifies it, and
+    publishes one artifact the consumer ingests, its no-push and no-execute limits being prompt
+    text only.
+  evidence:
+    - "map/scanners/adapters/deep-code-review/lane.md:7"
+    - "map/scanners/adapters/deep-code-review/lane.md:9-11"
+    - "map/scanners/adapters/deep-code-review/lane.md:17"
+    - "map/scanners/adapters/deep-code-review/lane.md:23"
+    - "map/lane.mjs:60-70"
+  confidence: plausible
+  reaches: [F-507]
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+
+# ── probes ──
+
+- id: F-522
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "the halt"
+  observation: >
+    The repository's irreversible or external moves are held at narrow points: the release only by
+    a person's dispatch behind the full gate, target execution only under --allow-exec, and a
+    hand-started branch sweep as a dry run unless a person turns it off.
+  evidence:
+    - ".github/workflows/release.yml:1-4"
+    - "map/start.mjs:459"
+    - ".github/workflows/branch-cleanup.yml:38-43"
+    - ".github/workflows/branch-cleanup.yml:104-108"
+  confidence: confirmed
+
+- id: F-523
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "release job composition"
+  observation: >
+    The release job that holds contents write runs npm ci, the tools install (with checkov's
+    unpinned PyPI dependencies) and npm test before its final step hands GH_TOKEN to `gh`
+    resolved from a PATH those earlier steps can extend, so the token step's integrity rests on
+    every earlier step in the same job.
+  evidence:
+    - ".github/workflows/release.yml:24"
+    - ".github/workflows/release.yml:39-41"
+    - ".github/workflows/release.yml:44-50"
+    - ".github/actions/tools/action.yml:29-31"
+  confidence: plausible
+  preconditions: [malicious-dependency]
+  explained_by: [F-504]
+
+- id: F-524
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "routine two-job split"
+  observation: >
+    The routine runs the change's own code only in a target job that holds no write token and
+    hands forward only raw reports as data, while the gating job validates, compiles and ratchets
+    from its own fresh checkouts and reads the baseline from the base branch.
+  evidence:
+    - "routine/assay-routine.yml:40-47"
+    - "routine/assay-routine.yml:52-56"
+    - "routine/assay-routine.yml:143-151"
+    - "routine/assay-routine.yml:160-166"
+    - "routine/run.mjs:162-166"
+  confidence: confirmed
+
+- id: F-525
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "HOME reaches the target"
+  observation: >
+    The child environment allow-list passes HOME, so a target's install and scripts run with the
+    evaluator's home directory and any credential files kept there, which the contract states as
+    "not a sandbox" and leaves to running in a disposable container.
+  evidence:
+    - "map/child-env.mjs:10"
+    - "map/child-env.mjs:28-30"
+    - "map/scanners/CONTRACT.md:195-197"
+    - "README.md:93-97"
+  confidence: confirmed
+
+- id: F-526
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "pinned binary checksum"
+  observation: >
+    Every binary tool download is checked against the sha256 its adapter pins before it is
+    extracted or executed, a malformed tool block is refused, and a mismatch installs nothing.
+  evidence:
+    - "map/tools.mjs:57-71"
+    - "map/tools.mjs:91-94"
+    - "map/tools.mjs:118-130"
+  confidence: confirmed
+
+- id: F-527
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "workflow identity"
+  observation: >
+    Each automated effect acts as the repository's own Actions token with per-job scope and no
+    third-party action in the jobs that write (branch-cleanup uses only the runner's gh CLI),
+    so who acts and with what reach is stated in each workflow file.
+  evidence:
+    - ".github/workflows/branch-cleanup.yml:31-33"
+    - ".github/workflows/branch-cleanup.yml:59"
+    - ".github/workflows/branch-cleanup.yml:111-112"
+    - ".github/workflows/tools-check.yml:17-23"
+  confidence: confirmed
+
+- id: F-528
+  dimension: delegation
+  polarity: fact
+  subject_type: control
+  label: "lane session identity"
+  observation: >
+    A lane session acts as whoever started it with that host's tools, and the lane names no tool
+    allow-list or authorization of its own, leaving any authorization block to the consumer.
+  evidence:
+    - "map/lane.mjs:4-11"
+    - "map/scanners/adapters/practice-review/lane.md:10"
+  confidence: confirmed
+
+- id: F-529
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "run record"
+  observation: >
+    Each operator channel leaves a machine-readable record in the run: a scanners.yaml row per
+    instrument with status, reason and duration, and a routine.yaml written on every return path
+    including failure and refusal.
+  evidence:
+    - "map/start.mjs:279-283"
+    - "routine/run.mjs:190-202"
+    - "map/record.mjs:144-151"
+  confidence: confirmed
+
+- id: F-530
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "instrument output QC"
+  observation: >
+    Automation gets output QC matched to its modality: an instrument with zero results reads
+    clean only beside a positive control that fired on planted cases in the same run.
+  evidence:
+    - "map/start.mjs:252-259"
+    - "map/start.mjs:193-213"
+  confidence: confirmed
+
+- id: F-531
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "lane controls are prompt-level"
+  observation: >
+    The agentic lane sessions are controlled by a behavioural spec in the prompt and by the
+    consumer validating what they publish, with no runtime monitoring or enforced tool limit
+    defined in this repository.
+  evidence:
+    - "map/scanners/adapters/practice-review/lane.md:12"
+    - "map/scanners/adapters/practice-review/lane.md:22"
+    - "map/scanners/adapters/deep-code-review/lane.md:11"
+    - "map/lane.mjs:4-11"
+  confidence: plausible
+
+- id: F-532
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "authorship recorded"
+  observation: >
+    AI authorship is structural: each lane's published checkout record names the model each pass
+    ran on, and ingest records the model and pinned method on the scanner's run-record row.
+  evidence:
+    - "map/scanners/adapters/practice-review/lane.md:24"
+    - "map/scanners/adapters/practice-review/lane.md:26"
+    - "map/ingest.mjs:1278"
+  confidence: confirmed

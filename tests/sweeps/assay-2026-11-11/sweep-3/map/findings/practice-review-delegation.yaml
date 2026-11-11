@@ -1,0 +1,640 @@
+# practice-review — Pass 5, delegation (assay at 4b81665). Blind; read-only.
+# Effects: one per terrain channel slug (10). Credential census: 9 items (F-411..F-419).
+# AI surfaces: capability findings for the five model sessions (F-420..F-424); lane-seed is
+# prompt assembly, recorded as controls (F-434, F-435).
+
+# ── effects (one per channel in terrain.md's inventory) ─────────────────────
+- id: F-401
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  label: "the run directory"
+  observation: >
+    The map, ingest, record and view commands write only the local run directory; `start`
+    refuses to redraw a run whose map/scanners.yaml exists, while the handoff compiler
+    deletes and rewrites handoff/ on every compile.
+  evidence: ["map/start.mjs:436-439", "map/start.mjs:469", "map/ingest.mjs:1251-1255", "views/improve/handoff.mjs:604-607"]
+  confidence: confirmed
+  effect:
+    channel: run-dir-write
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-402
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  label: "the pinned scanners over a target"
+  observation: >
+    `start` (and the routine's gate job) runs each adopted adapter's pinned binary over the
+    target with the allow-listed child environment, and osv-scanner's args carry no offline
+    flag, so the tree's package inventory goes to the OSV service, as the adapter's own
+    comment says, with no step that holds it.
+  evidence: ["map/start.mjs:264-266", "map/scanners/adapters/osv-scanner.yaml:27-38", "map/start.mjs:357"]
+  confidence: plausible
+  effect:
+    channel: instrument-run
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: structured-event
+    blast_scope: tenant
+  preconditions: [insider]
+
+- id: F-403
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  label: "the target's own install and scripts"
+  observation: >
+    fresh-clone runs the target's install, lifecycle scripts, build, lint, typecheck, test
+    and migrate-dry through a shell as the evaluator's user, and `start` runs it only when a
+    person passes --allow-exec (else the run record says skipped and why), while the routine
+    runs it in a token-less job of its own.
+  evidence: ["map/fresh-clone.mjs:308-310", "map/start.mjs:459", "map/start.mjs:410", "map/scanners/CONTRACT.md:195-201", "routine/assay-routine.yml:48-56"]
+  confidence: confirmed
+  effect:
+    channel: fresh-clone-exec
+    reversibility: irreversible
+    external: true
+    gate_type: initiated-by-person
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+  preconditions: [malicious-dependency]
+  escapes: [F-425]
+
+- id: F-404
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  label: "lockfile audit against the live registry"
+  observation: >
+    dependency-scan runs `npm|pnpm|yarn audit --json` from a scratch copy of each lockfile
+    against the live registry on every `start` with a target and every routine run, without
+    --allow-exec or any other stop, so each lockfile's dependency list leaves the machine.
+  evidence: ["map/dependency-scan.mjs:24-31", "map/dependency-scan.mjs:274-278", "map/dependency-scan.mjs:398", "README.md:141-145"]
+  confidence: confirmed
+  effect:
+    channel: dependency-audit
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: structured-event
+    blast_scope: tenant
+  preconditions: [insider]
+
+- id: F-405
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  label: "knip loading the target's configs"
+  observation: >
+    structure-scan npm-installs jscpd and knip into scratch and runs knip, which imports the
+    target's tool configs (and first installs the target's dependencies into a full-tree
+    copy), and while `start` passes --no-exec unless given --allow-exec, the
+    `structure-scan` command itself executes unless a person adds --no-exec.
+  evidence: ["map/structure-scan.mjs:21-27", "map/structure-scan.mjs:181-192", "map/structure-scan.mjs:413-414", "map/structure-scan.mjs:468", "map/start.mjs:355"]
+  confidence: confirmed
+  effect:
+    channel: structure-scan-exec
+    reversibility: irreversible
+    external: true
+    gate_type: initiated-by-person
+    fail_mode: open
+    telemetry: structured-event
+    blast_scope: user
+  preconditions: [malicious-dependency]
+  escapes: [F-425]
+
+- id: F-406
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  label: "pinned tool install"
+  observation: >
+    `tools install` (and the composite action CI and the routine call) downloads each pinned
+    binary with curl and refuses any download whose sha256 differs from its adapter's pin,
+    recording the installed version and sum in a stamp file beside the binaries.
+  evidence: ["map/tools.mjs:91-100", "map/tools.mjs:120-133", ".github/actions/tools/action.yml:22-31"]
+  confidence: confirmed
+  effect:
+    channel: tools-install
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-407
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  label: "the weekly tools issue"
+  observation: >
+    tools-check opens one issue on this repository when a pin is behind or unreadable, and
+    comments on the open one only when its list changed, on a weekly cron with no person in
+    the loop.
+  evidence: [".github/workflows/tools-check.yml:7-10", ".github/workflows/tools-check.yml:29-35"]
+  confidence: confirmed
+  effect:
+    channel: tools-check-issue
+    reversibility: reversible-with-window
+    external: false
+    gate_type: rate-throttle
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: tenant
+
+- id: F-408
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  label: "merged-branch deletion"
+  observation: >
+    branch-cleanup deletes merged branch refs on every push to the default branch with no
+    person acting, after a plan that keeps protected, KEEP-listed, moved and open-PR branches
+    and a re-read of each branch's tip and protection immediately before its DELETE call.
+  evidence: [".github/workflows/branch-cleanup.yml:35-37", ".github/workflows/branch-cleanup.yml:92-96", ".github/workflows/branch-cleanup.yml:121-131"]
+  confidence: confirmed
+  effect:
+    channel: branch-delete
+    reversibility: reversible-with-window
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: tenant
+
+- id: F-409
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  label: "a public release of the engine"
+  observation: >
+    release.yml tags and publishes a GitHub release only when a person dispatches it on the
+    default branch, after refusing a malformed or existing version, running the gate and the
+    Consumer-trailer check.
+  evidence: [".github/workflows/release.yml:10-16", ".github/workflows/release.yml:23", ".github/workflows/release.yml:33-43", ".github/workflows/release.yml:44-50"]
+  confidence: confirmed
+  effect:
+    channel: release-publish
+    reversibility: irreversible
+    external: true
+    gate_type: initiated-by-person
+    fail_mode: closed
+    telemetry: audited
+    blast_scope: fleet
+
+- id: F-410
+  dimension: delegation
+  polarity: fact
+  subject_type: effect
+  label: "the routine's uploaded run"
+  observation: >
+    The routine template uploads the target job's handoff (one day) and the whole run
+    (ninety days, `if: always()`) as workflow artifacts of the stewarded repository, with no
+    step that holds the upload; the ratchet's exit is what fails the required check.
+  evidence: ["routine/assay-routine.yml:77-82", "routine/assay-routine.yml:181-188"]
+  confidence: confirmed
+  effect:
+    channel: routine-artifact-upload
+    reversibility: reversible-with-window
+    external: false
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: tenant
+
+# ── credential census (9: GITHUB_TOKEN in tools.mjs; the job token per workflow job that
+#    holds one; FETCH_TOKEN; ASSAY_READ_TOKEN; proxy userinfo) ─────────────────
+- id: F-411
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "GITHUB_TOKEN in tools check"
+  observation: >
+    map/tools.mjs takes whatever GITHUB_TOKEN the process holds and puts it in curl's argv
+    as a bearer header for a release read of a public repository, and in tools-check.yml that
+    token is the job's issues-write token.
+  evidence: ["map/tools.mjs:201-203", ".github/workflows/tools-check.yml:17-20"]
+  confidence: confirmed
+
+- id: F-412
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "ci.yml job token"
+  observation: >
+    ci.yml's checkout leaves persist-credentials at its default, so the job token (contents:
+    read) sits in .git/config while `npm ci` and `npm test` run, the one checkout across the
+    four workflows that does not set it false.
+  evidence: [".github/workflows/ci.yml:13-14", ".github/workflows/ci.yml:24-26", ".github/workflows/ci.yml:30", ".github/workflows/release.yml:26-29", ".github/workflows/tools-check.yml:22-23"]
+  confidence: confirmed
+
+- id: F-413
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "tools-check job token"
+  observation: >
+    tools-check's token is granted issues write in its one job only (the workflow default is
+    contents read), its checkout does not persist it, and the job runs only assay's own
+    `tools check` and the gh CLI.
+  evidence: [".github/workflows/tools-check.yml:11", ".github/workflows/tools-check.yml:17-23", ".github/workflows/tools-check.yml:27-35"]
+  confidence: confirmed
+
+- id: F-414
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "branch-cleanup plan token"
+  observation: >
+    The branch-cleanup plan job holds a contents-read, pull-requests-read token, has no
+    checkout and runs no code of the branches, only gh REST reads.
+  evidence: [".github/workflows/branch-cleanup.yml:31-33", ".github/workflows/branch-cleanup.yml:50", ".github/workflows/branch-cleanup.yml:59-61"]
+  confidence: confirmed
+
+- id: F-415
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "branch-cleanup delete token"
+  observation: >
+    contents write is granted only to the delete job, which runs only when the plan says
+    dry_run is off and names branches, and which checks out nothing.
+  evidence: [".github/workflows/branch-cleanup.yml:106-112", ".github/workflows/branch-cleanup.yml:121-125"]
+  confidence: confirmed
+
+- id: F-416
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "release job token"
+  observation: >
+    release.yml grants contents write to its one person-dispatched job, keeps it out of
+    .git/config, and puts GH_TOKEN only in the final tag-and-publish step's environment, after
+    `npm ci`, the tools action and `npm test` have run without it.
+  evidence: [".github/workflows/release.yml:17", ".github/workflows/release.yml:24-29", ".github/workflows/release.yml:39-41", ".github/workflows/release.yml:44-45"]
+  confidence: confirmed
+
+- id: F-417
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "FETCH_TOKEN in the routine"
+  observation: >
+    The routine template hands its contents-read job token to one `git fetch` of the base
+    branch through that step's environment (an extraheader via GIT_CONFIG_*), never
+    .git/config, in the gate job that never executes the change.
+  evidence: ["routine/assay-routine.yml:97-115", "routine/assay-routine.yml:32-33"]
+  confidence: confirmed
+
+- id: F-418
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "ASSAY_READ_TOKEN"
+  observation: >
+    When a steward uncomments it, ASSAY_READ_TOKEN is handed to the assay checkout in the
+    target job as well, the job that runs the change's own install and tests, and the
+    template asks only for "a secret that can read it", naming no narrower scope.
+  evidence: ["routine/assay-routine.yml:8-10", "routine/assay-routine.yml:58-65", "routine/assay-routine.yml:72-75", "routine/README.md:213-218"]
+  confidence: plausible
+
+- id: F-419
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "proxy userinfo"
+  observation: >
+    A proxy URL carrying userinfo is withheld from every instrument child (any '@' in the
+    authority fails closed) and the step or lockfile row says which variable was dropped and
+    why.
+  evidence: ["map/child-env.mjs:12-25", "map/child-env.mjs:31-32", "map/fresh-clone.mjs:312-313", "map/dependency-scan.mjs:422-423"]
+  confidence: confirmed
+
+# ── AI surfaces: the model sessions ────────────────────────────────────────
+- id: F-420
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  label: "practice-review session"
+  observation: >
+    The practice-review lane seeds a session that reads an untrusted target the owner has
+    access to and publishes an Artifact page, and the only bound on what else it may do
+    (push, issues, comments) is the lane's prose, since the consumer, not assay, grants the
+    session's tools.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:10-12", "map/scanners/adapters/practice-review/lane.md:24", "map/lane.mjs:4-11"]
+  confidence: plausible
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+  preconditions: [prompt-injection]
+
+- id: F-421
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  label: "deep-code-review session"
+  observation: >
+    The deep-code-review lane seeds a session that reads an untrusted target and the
+    instruments' records of it, fetches its method from another repository at a pinned
+    commit, and publishes an Artifact page, bounded otherwise only by the lane's HARD RULES
+    prose.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:9-11", "map/scanners/adapters/deep-code-review/lane.md:17", "map/scanners/adapters/deep-code-review/lane.md:23"]
+  confidence: plausible
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+  preconditions: [prompt-injection]
+
+- id: F-422
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  label: "handoff plan-prompt session"
+  observation: >
+    Each handoff plan prompt is pasted into a session in the target repository that changes
+    its code, reads text derived from that repository, and is told to re-run the scanner that
+    found the item, with only a prose guard against deploying, publishing or sending.
+  evidence: ["views/improve/handoff.mjs:342-350", "views/improve/handoff.mjs:141-145", "views/improve/handoff.mjs:226-233"]
+  confidence: plausible
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+  preconditions: [prompt-injection]
+  reaches: [F-402, F-403]
+
+- id: F-423
+  dimension: delegation
+  polarity: strength
+  subject_type: capability
+  label: "ask-owner session"
+  observation: >
+    The ask-owner prompt runs in the owner's own AI tool over the owner's own code, never
+    asks for or writes a secret, and returns one YAML block the sender validates as data,
+    never as instructions.
+  evidence: ["owner/ask-owner.md:5-11", "owner/ask-owner.md:13-17", "owner/ask-owner.md:39-40"]
+  confidence: confirmed
+  capabilities:
+    untrusted_input: false
+    private_data: true
+    external_effect: none
+
+- id: F-424
+  dimension: delegation
+  polarity: strength
+  subject_type: capability
+  label: "sessions working in assay"
+  observation: >
+    A session working in this repository under CLAUDE.md opens issues and pull requests in a
+    public repository that by rule holds no client material and no real credentials, so it
+    co-holds untrusted input and outward writes but no private data.
+  evidence: ["CLAUDE.md:29-32", "CLAUDE.md:65-68", "SECURITY.md:22-27"]
+  confidence: confirmed
+  capabilities:
+    untrusted_input: true
+    private_data: false
+    external_effect: write
+
+# ── controls and probes ────────────────────────────────────────────────────
+- id: F-425
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "the child environment allow-list"
+  observation: >
+    Every child an instrument spawns over a target gets an environment built from an
+    allow-list (PATH, HOME, CI, proxy/CA plumbing, the runner's npm_config_* values) that
+    refuses any other name the caller tries to set, and a harness block pins it with a
+    planted token.
+  evidence: ["map/child-env.mjs:1-10", "map/child-env.mjs:27-39", "map/start.mjs:264-266", "tests/blocks/isolation.mjs:1-12"]
+  confidence: confirmed
+
+- id: F-426
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "HOME reaches the target's scripts"
+  observation: >
+    HOME is on the child allow-list and the target's scripts run as the evaluator's user, so
+    file-held credentials under HOME stay readable to them, while README.md says each child
+    sees "never the evaluator's environment or credentials" before conceding it is not a
+    sandbox.
+  evidence: ["map/child-env.mjs:10", "README.md:92-97", "map/scanners/CONTRACT.md:195-197"]
+  confidence: confirmed
+
+- id: F-427
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "start's two refusals"
+  observation: >
+    `start` refuses to draw anything until every pinned instrument tool answers at its pin
+    (exit 3) and runs fresh-clone and knip only under --allow-exec, recording each skipped
+    with its reason otherwise.
+  evidence: ["map/start.mjs:441-446", "map/start.mjs:459-460", "map/start.mjs:410"]
+  confidence: confirmed
+
+- id: F-428
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "sha256-pinned downloads"
+  observation: >
+    A tool block must name an https URL and a 64-hex sha256 per platform, and an install
+    whose download differs from it installs nothing.
+  evidence: ["map/tools.mjs:58-71", "map/tools.mjs:125-127", "map/scanners/adapters/gitleaks.yaml:21-33"]
+  confidence: confirmed
+
+- id: F-429
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "version-only pins"
+  observation: >
+    Two install paths are pinned by version alone with floating dependencies: checkov from
+    PyPI (with uv or pip, in the operator's environment), and jscpd and knip npm-installed per
+    structure-scan run without a lockfile.
+  evidence: ["map/tools.mjs:18-20", "map/tools.mjs:101-118", "map/scanners/adapters/checkov.yaml:15-19", "map/structure-scan.mjs:77-78", "map/structure-scan.mjs:101-104"]
+  confidence: confirmed
+  preconditions: [malicious-dependency]
+
+- id: F-430
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "egress-off flags"
+  observation: >
+    The adapters switch off what their tools would send by default: checkov runs with
+    --skip-download and --skip-results-upload, opengrep with --disable-version-check, zizmor
+    with --offline.
+  evidence: ["map/scanners/adapters/checkov.yaml:22-33", "map/scanners/adapters/opengrep.yaml:42-46", "map/scanners/adapters/zizmor.yaml:36-37"]
+  confidence: confirmed
+
+- id: F-431
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "the stated egress list"
+  observation: >
+    README.md says assay reaches outside the checkout "in three places, and only these"
+    (the package registry, PATH binaries, GitHub Actions), omitting osv-scanner's query to
+    the OSV service and the tool downloads from GitHub releases, PyPI and the GitHub API that
+    map/tools.mjs makes.
+  evidence: ["README.md:141-152", "map/scanners/adapters/osv-scanner.yaml:29-30", "map/tools.mjs:73", "map/tools.mjs:201"]
+  confidence: confirmed
+
+- id: F-432
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "scanner text fenced as data"
+  observation: >
+    Every scanner observation and fix in the handoff is fenced as data under a tag hashed
+    from the run's own scanner text, with any run of three angle brackets inside a body
+    spaced apart so it cannot close the fence, and each plan prompt opens by saying so.
+  evidence: ["views/improve/handoff.mjs:149-155", "views/improve/handoff.mjs:159-164", "views/improve/handoff.mjs:342-346"]
+  confidence: confirmed
+
+- id: F-433
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "unfenced text derived from the target"
+  observation: >
+    The fence covers only scanner observation and fix: evidence paths and the eval-authored
+    roadmap body, written by a review session that read the untrusted target, reach plan
+    prompts unfenced as the evaluator's own voice.
+  evidence: ["views/improve/handoff.mjs:26-29", "views/improve/handoff.mjs:162", "views/improve/handoff.mjs:576"]
+  confidence: plausible
+  preconditions: [prompt-injection]
+
+- id: F-434
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "the head placeholder"
+  observation: >
+    lane.mjs writes the --head value unescaped into the shell commands the review session is
+    told to run (`git checkout -q <head>`), and git allows `;`, `$` and backticks in a branch
+    name.
+  evidence: ["map/lane.mjs:71-73", "map/scanners/adapters/practice-review/lane.md:16"]
+  confidence: plausible
+  preconditions: [prompt-injection]
+
+- id: F-435
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "a seed refused rather than guessed"
+  observation: >
+    lane.mjs refuses to seed a lane with an unknown placeholder, inputs nobody located, or a
+    method commit the adapter does not pin, and the deep-code-review lane has the session
+    confirm the fetched method's commit and version before reading it.
+  evidence: ["map/lane.mjs:59-62", "map/lane.mjs:77", "map/scanners/adapters/deep-code-review/lane.md:17"]
+  confidence: confirmed
+
+- id: F-436
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "the change never shares a job with its gate"
+  observation: >
+    The routine template runs the change's own code only in a target job with no persisted
+    token and hands the gate job only raw reports, so the engine, baseline and run the gate
+    reads are checked out afresh where nothing of the change ran.
+  evidence: ["routine/assay-routine.yml:40-47", "routine/assay-routine.yml:52-64", "routine/README.md:130-153"]
+  confidence: confirmed
+
+- id: F-437
+  dimension: delegation
+  polarity: fact
+  subject_type: control
+  label: "the gate's hold is set outside the template"
+  observation: >
+    The routine's gate blocks a merge only if the steward makes the routine job a required
+    check and adds CODEOWNERS for packet/ and .github/workflows/, which the README asks for
+    but the template cannot set, since a pull request runs its own copy of the workflow.
+  evidence: ["routine/README.md:223-241", "routine/assay-routine.yml:97-103"]
+  confidence: confirmed
+
+- id: F-438
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "baseline promotion by a steward"
+  observation: >
+    A new gate baseline graduates only through a named steward's reviewed commit: `ratchet
+    --write-baseline` writes to disk only, and a pull request is graded against the base
+    branch's baseline and packet, never its own.
+  evidence: ["routine/README.md:170-177", "routine/README.md:183-196", "routine/run.mjs:34-48"]
+  confidence: confirmed
+
+- id: F-439
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  label: "AI authorship of the remediation diff"
+  observation: >
+    The plan prompts have a model session land a diff or pull request in the target
+    repository with no instruction to disclose that a model wrote it; the only provenance
+    line is START-HERE's footer naming the engine.
+  evidence: ["views/improve/handoff.mjs:342-350", "views/improve/handoff.mjs:433-435", "views/improve/handoff.mjs:589-591", "views/improve/handoff.mjs:245"]
+  confidence: confirmed
+
+- id: F-440
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "a public repository's uploaded run"
+  observation: >
+    The template uploads the whole run (secret-scan locations and injection sinks included)
+    for ninety days on every trigger, so for a public stewarded repository the gap list is
+    downloadable by anyone signed in to GitHub, and the template says nothing about it.
+  evidence: ["routine/assay-routine.yml:12-13", "routine/assay-routine.yml:181-188"]
+  confidence: plausible
+
+- id: F-441
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "the run record"
+  observation: >
+    Every instrument a run draws leaves a machine-parseable row in map/scanners.yaml (ran,
+    skipped or failed, with reason, duration and the engine commit), so each local effect
+    has a record a halt could read.
+  evidence: ["map/start.mjs:276-282", "map/start.mjs:292-294", "map/start.mjs:469"]
+  confidence: confirmed
+
+- id: F-442
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  label: "branch deletion staged as plan then delete"
+  observation: >
+    branch-cleanup separates a read-only plan from a delete job that refuses any entry not
+    shaped branch@sha or naming the default or a KEEP branch, and a run started by hand is a
+    dry run unless a person turns it off.
+  evidence: [".github/workflows/branch-cleanup.yml:38-43", ".github/workflows/branch-cleanup.yml:104-108", ".github/workflows/branch-cleanup.yml:121-130"]
+  confidence: confirmed
+
+- id: F-443
+  dimension: delegation
+  polarity: fact
+  subject_type: control
+  label: "controls by modality"
+  observation: >
+    The automation gets output checks (a positive control that must fire before opengrep's
+    target run counts), while the review sessions get behavioral specs (the lanes' HARD
+    RULES) and the consumer's validation of what they publish, with no record in assay of
+    what a session actually did.
+  evidence: ["map/start.mjs:252-254", "map/scanners/adapters/practice-review/lane.md:12", "map/scanners/adapters/practice-review/lane.md:22", "map/lane.mjs:4-11"]
+  confidence: confirmed

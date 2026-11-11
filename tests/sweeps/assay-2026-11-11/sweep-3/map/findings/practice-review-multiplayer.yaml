@@ -1,0 +1,442 @@
+# practice-review pass 7 — multiplayer (assay at 4b81665)
+# Census agent-access-surface (canonical subject_type contract): F-601..F-636, one finding
+# per enumerated interface, strength = consumable by an agent through a documented format
+# contract, gap = not. F-637..F-647: shared substrate, authority domains, consent, telemetry.
+
+# ── census: agent-access-surface ─────────────────────────────────────────────
+- id: F-601
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `yardstick [--floor] --json` prints the register's rows as `{ floor, requirements: [{ id, title, tier, topic, tags, harm }] }`, a shape CONSUMERS.md states and tells a consumer to read instead of naming floor rows by heart.
+  evidence: ["CONSUMERS.md:35", "CONSUMERS.md:42-52", "yardstick/list.mjs:9-11", "yardstick/list.mjs:33"]
+  confidence: confirmed
+
+- id: F-602
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `lane --list --json` prints every lane unfilled as `{ lanes: [{ scanner, lane, outputs, inputs, passes }] }`, documented on the consumer page and pinned by a test that keeps its `passes` equal to the files the projector reads.
+  evidence: ["CONSUMERS.md:22", "map/lane.mjs:21-29", "map/lane.mjs:81-87", "map/lane.mjs:92-96"]
+  confidence: confirmed
+
+- id: F-603
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `lane <scanner> --name` prints the filled seed as JSON (`lane, scanner, title, artifact, outputs, inputs, passes, prompt`), whose fields the scanner contract §3h defines and which refuses to seed (exit 2) rather than emit a seed missing its inputs directory or pinned commit.
+  evidence: ["CONSUMERS.md:21", "map/scanners/CONTRACT.md:912-920", "map/lane.mjs:54-78", "map/lane.mjs:98-105"]
+  confidence: confirmed
+
+- id: F-604
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `project <run> --json` prints `{ run, axes, unmapped, needs_axis, chains: { live, lead } }` read straight off the findings, documented in CONSUMERS.md, and exits 1 with the payload still printed when a row is unmapped.
+  evidence: ["CONSUMERS.md:26", "map/project.mjs:364-385"]
+  confidence: confirmed
+
+- id: F-605
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `toolchain <checkout> --json` prints the checkout's toolchain record with a closed `family` vocabulary that CONSUMERS.md states, for a consumer dispatching the fresh-clone measurement.
+  evidence: ["CONSUMERS.md:27", "map/toolchain.mjs:10", "map/toolchain.mjs:22"]
+  confidence: confirmed
+
+- id: F-606
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `compare <previous> <current> --json` prints `{ previousVersion, currentVersion, versionChanged, rows: [{ id, classification, previous, current }] }` with a closed classification set and distinct exit codes, all stated in CONSUMERS.md.
+  evidence: ["CONSUMERS.md:30", "yardstick/compare.mjs:199"]
+  confidence: confirmed
+
+- id: F-607
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `variance <run> <run> --json` prints `{ pct, union, core, byDimension, byModelPair, descriptors }`, documented on the consumer page and pinned by the consumer-reads block.
+  evidence: ["CONSUMERS.md:32", "map/variance.mjs:341", "tests/blocks/consumer-reads.mjs:10-11"]
+  confidence: confirmed
+
+- id: F-608
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `maturity <run> --write` writes `views/improve/maturity-grades.yaml` carrying `schema: coverage`, whose shape CONSUMERS.md and SCHEMA.md §6b state and whose numbers validate recomputes and fails on drift.
+  evidence: ["CONSUMERS.md:31", "views/improve/maturity.mjs:155", "views/improve/maturity.mjs:231", "map/validate.mjs:596"]
+  confidence: confirmed
+
+- id: F-609
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every routine firing writes `routine.yaml` (`routine: 1`, commit, engine, trigger, gate, failures, refused, exit) on every exit path, documented so a fleet collector reading only the uploaded run knows the outcome without CI logs.
+  evidence: ["CONSUMERS.md:33", "routine/README.md:39-68", "routine/run.mjs:190-200"]
+  confidence: confirmed
+
+- id: F-610
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run record (`map/scanners.yaml`) and the findings files (`map/findings/<scanner>.yaml`) are the run's base, placed by `lib/run-layout.mjs`, formatted by SCHEMA.md §1/§5a, and refused fail-closed by validate when malformed.
+  evidence: ["CONSUMERS.md:88-91", "lib/run-layout.mjs:52-58", "map/templates/scanners.yaml:1-26"]
+  confidence: confirmed
+
+- id: F-611
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `yardstick.yaml` (the measurement, `schema: yardstick`) is on the consumer run layout, described in yardstick/README.md, and recomputed by validate from the base so a stale file fails.
+  evidence: ["CONSUMERS.md:92", "yardstick/README.md:10", "yardstick/measure.mjs:462", "map/validate.mjs:691-699"]
+  confidence: confirmed
+
+- id: F-612
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `views/intake.yaml` has its full field shape stated in views/README.md and is on the consumer run layout, though it carries no versioned schema id and validate's read-back list does not include it.
+  evidence: ["views/README.md:31-61", "views/intake.mjs:224-227", "CONSUMERS.md:93", "map/validate.mjs:670-678"]
+  confidence: confirmed
+
+- id: F-613
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `views/maintain.yaml` is documented as Intake's shape with `view: maintain` and a per-row `floor` flag, and is on the consumer run layout.
+  evidence: ["views/README.md:95-101", "views/maintain.mjs:93-96", "CONSUMERS.md:93"]
+  confidence: confirmed
+
+- id: F-614
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `views/owner.yaml` has its field shape, closed status vocabulary and the meaning of `where`/`findings`/`decided_by` stated in views/README.md, so the owner's register is readable as data as well as OWNER.md.
+  evidence: ["views/README.md:105-149", "views/owner.mjs:236-239"]
+  confidence: confirmed
+
+- id: F-615
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `views/improve.yaml` is documented as `topics: [{ topic, met, unmet, mixed, not_measured, not_applicable, rows: [{ id, title, status }] }]`.
+  evidence: ["views/README.md:159", "views/improve/topics.mjs:73"]
+  confidence: confirmed
+
+- id: F-616
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `views/since.yaml` has its full shape documented, including the re-ruled and not-run splits and the rule that a no-longer-found finding never reads fixed.
+  evidence: ["views/README.md:196-242", "views/since.mjs:250-253"]
+  confidence: confirmed
+
+- id: F-617
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `views/improve/chains.json` carries a versioned schema id (`assay.chains/1`), is checked by `checkChains` before it is written, and is read back fail-closed by validate against the run's finding ids.
+  evidence: ["views/README.md:165", "lib/run-data.mjs:13-49", "map/validate.mjs:674"]
+  confidence: confirmed
+
+- id: F-618
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `views/improve/report.json` (`assay.improve-report/1`) carries the report's model with labels applied so a renderer imports nothing, checked on write and read back by validate.
+  evidence: ["views/README.md:166", "lib/run-data.mjs:51-54", "lib/run-data.mjs:69-144", "map/validate.mjs:675"]
+  confidence: confirmed
+
+- id: F-619
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `handoff/sequence.json` (`assay.handoff-sequence/1`) gives an agent the fix order as data, each item's kind, provenance voice, finding ids and plan file plus the pending ids, checked before write and read back by validate.
+  evidence: ["views/README.md:164", "lib/run-data.mjs:146-172", "views/improve/handoff.mjs:184-194", "map/validate.mjs:676"]
+  confidence: confirmed
+
+- id: F-620
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `handoff/plan/NN-*.md` are self-contained session prompts for an agent working in the target, with scanner text fenced as data under a per-run hash tag and a standing guard against reaching outside the checkout.
+  evidence: ["views/README.md:163", "views/improve/handoff.mjs:26-38", "views/improve/handoff.mjs:149-155"]
+  confidence: confirmed
+
+- id: F-621
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner packet (`packet/manifest.yaml`) has one documented format and a fail-closed validator whose every violation is one plain line meant to be pasted back into the owner's AI conversation.
+  evidence: ["owner/PACKET.md:18-32", "owner/PACKET.md:66-107", "yardstick/packet.mjs:23"]
+  confidence: confirmed
+
+- id: F-622
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `ask-owner [--run]` prints a prompt written for the owner's own AI tool that ends in a fixed-key YAML block, so the owner-interview capability is itself an agent-consumable interface returning the packet format.
+  evidence: ["owner/ask-owner.mjs:37", "owner/ask-owner.md:13-27", "owner/ask-owner.md:86-97", "owner/PACKET.md:13-15"]
+  confidence: confirmed
+
+- id: F-623
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner triage overlay `owner/decisions.yaml` has a stated schema (finding, action, reason, by, at, snooze_until) in METHOD.md and decisions.mjs that validate enforces fail-closed, though CONSUMERS.md's run layout does not list it.
+  evidence: ["map/decisions.mjs:14-21", "map/METHOD.md:631-640", "map/validate.mjs:394-423", "CONSUMERS.md:88-97"]
+  confidence: confirmed
+
+- id: F-624
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `validate` promises a consumer only its exit code; its violation list is human text on stderr, and the `--json` payload (`ok, total, errors, warnings, evidencePathErrors`) is marked as for backlog.mjs and absent from CONSUMERS.md.
+  evidence: ["CONSUMERS.md:25", "map/validate.mjs:734-745"]
+  confidence: confirmed
+
+- id: F-625
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `tools verify` and `tools install` report each tool's status only as human lines (consumers get the exit code), and `tools check --json` exists but is not on the consumer page.
+  evidence: ["CONSUMERS.md:18-19", "map/tools.mjs:27", "map/tools.mjs:241-247"]
+  confidence: confirmed
+
+- id: F-626
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `ratchet` reports which requirements regressed only as `✗`-prefixed stderr lines, which the routine itself scrapes by prefix to fill `routine.yaml`'s `failures`.
+  evidence: ["CONSUMERS.md:29", "yardstick/ratchet.mjs:261-265", "routine/run.mjs:112-125"]
+  confidence: confirmed
+
+- id: F-627
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `measure <run> --json` prints `{ summary, requirements }` but the command is not on CONSUMERS.md's command table, so its stdout shape is internal by the page's own rule.
+  evidence: ["yardstick/measure.mjs:25", "yardstick/measure.mjs:516", "CONSUMERS.md:3-7", "CONSUMERS.md:16-35"]
+  confidence: confirmed
+
+- id: F-628
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `enumerate --run --json` (the coverage gate's uncovered population members) is labeled machine-readable for backlog.mjs only and is not on the consumer page.
+  evidence: ["map/enumerate.mjs:309", "map/enumerate.mjs:388-392", "CONSUMERS.md:16-35"]
+  confidence: confirmed
+
+- id: F-629
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `score <run> --answers --json` prints the grading result as JSON but neither the command nor its shape is on CONSUMERS.md.
+  evidence: ["map/score.mjs:41", "map/score.mjs:187", "CONSUMERS.md:16-35"]
+  confidence: confirmed
+
+- id: F-630
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `roster` (per scanner: what it alone decides, unique recoveries, corroborations, cost over runs) has no `--json` and prints human text only.
+  evidence: ["map/roster.mjs:35", "map/roster.mjs:114"]
+  confidence: confirmed
+
+- id: F-631
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `migrate-run` reports what it would change only as human text, with no machine-readable dry-run payload.
+  evidence: ["map/migrate-run.mjs:24", "CONSUMERS.md:34"]
+  confidence: confirmed
+
+- id: F-632
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The axis walk (per axis: what to preserve, ranked risks, the requirements on that topic) is written only as `views/improve/axes.md`; `project --json` carries axis counts but not that content.
+  evidence: ["views/README.md:160", "views/improve/axes.mjs:284", "CONSUMERS.md:26"]
+  confidence: confirmed
+
+- id: F-633
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The engine backlog's computed and authored halves (`map/backlog.yaml`, `map/backlog-authored.yaml`) have closed classes and id forms checked by run-data.mjs and read back fail-closed by validate.
+  evidence: ["lib/run-data.mjs:174-228", "map/validate.mjs:677-678"]
+  confidence: confirmed
+
+- id: F-634
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The practice-review lane names its run-path outputs in frontmatter and publishes each one verbatim between `--- <path> (verbatim) ---` delimiters, the collection format CONTRACT §3h defines and `validate --lane` checks.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:7-8", "map/scanners/adapters/practice-review/lane.md:24", "map/scanners/CONTRACT.md:917-918"]
+  confidence: confirmed
+
+- id: F-635
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The deep-code-review lane declares no `outputs` in its frontmatter, so `lane --list --json` reports `outputs: []` for it, and its body publishes `findings-<date>.yaml` between delimiters that are not a run path as CONTRACT §3h describes.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:1-8", "map/scanners/adapters/deep-code-review/lane.md:23", "map/lane.mjs:85", "map/scanners/CONTRACT.md:917-918"]
+  confidence: confirmed
+
+- id: F-636
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The instruments' raw reports enter the map through one documented port (CONTRACT §2) via `ingest`, each instrument's measured fields described in its own CONTRACT section, though the raw JSON paths are not on the consumer run layout.
+  evidence: ["map/scanners/CONTRACT.md:40-52", "map/scanners/CONTRACT.md:214-232", "CONSUMERS.md:23", "CONSUMERS.md:88-97"]
+  confidence: plausible
+
+# ── the contract as a mechanism ──────────────────────────────────────────────
+- id: F-637
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    The consumer surface is a closed, enforced list: a commit touching a surface file needs a `Consumer:` trailer checked by `release-notes --check` in the harness, and a test pins that every command a consumer read is on the page.
+  evidence: ["CONSUMERS.md:3-7", "CONSUMERS.md:117-136", "tests/blocks/consumer-contract.mjs:1-6", "tests/blocks/consumer-reads.mjs:1-11"]
+  confidence: confirmed
+
+# ── shared substrate ─────────────────────────────────────────────────────────
+- id: F-638
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The run directory is the single shared context store (no service, database or queue), laid out by one module, and is shared only by moving files, as the routine does by uploading it as a 90-day workflow artifact readable at the stewarded repository's own Actions access.
+  evidence: ["README.md:138-141", "lib/run-layout.mjs:1-33", "routine/assay-routine.yml:182-188"]
+  confidence: confirmed
+
+- id: F-639
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    Owner triage lives in one run's `owner/decisions.yaml`, keyed by finding ids that carry no meaning across runs, and the routine never writes or carries it, so a waiver does not persist into the next run of the same repository.
+  evidence: ["map/decisions.mjs:5-7", "map/decisions.mjs:14-15", "views/README.md:233-236", "routine/README.md:125-127", "lib/run-layout.mjs:96"]
+  confidence: confirmed
+
+- id: F-640
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The packet is a shared substrate that travels with the repository, kept beside it before adoption and committed in it after, read the same way from either place, and copied into a run so a re-compile reproduces without reaching outside the run.
+  evidence: ["owner/PACKET.md:7-11", "lib/run-layout.mjs:97-100"]
+  confidence: confirmed
+
+# ── authority domains ────────────────────────────────────────────────────────
+- id: F-641
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    An `accept` in `owner/decisions.yaml` moves a gap off the open count on a self-asserted `by` role or handle that validate checks only for shape, so whoever can write the run directory can waive a gap in the owner's name, while compile does disclose that triage was applied.
+  evidence: ["map/decisions.mjs:49-55", "map/validate.mjs:419-420", "views/compile.mjs:177"]
+  confidence: confirmed
+
+- id: F-642
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The run record has no structured field for who operated or decided (`record` takes no actor flag), leaving actor identity to a "decided by <role>" convention inside free-text `reason`.
+  evidence: ["map/record.mjs:12", "map/templates/scanners.yaml:17-22", "map/templates/scanners.yaml:30-32"]
+  confidence: confirmed
+
+- id: F-643
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    README names three roles and says assay does not use "steward", yet `ratchet --write-baseline` records `accepted.by: steward` when `--by` is omitted and the packet, routine and Maintain contracts act through a steward role the front door does not define.
+  evidence: ["README.md:24-30", "yardstick/ratchet.mjs:201-210", "yardstick/ratchet.mjs:294", "owner/PACKET.md:75-76", "routine/README.md:169-173", "views/README.md:96"]
+  confidence: confirmed
+
+- id: F-644
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Context entries carry origin labels: every finding names its `source` scanner, Since matches findings by a scanner-keyed fingerprint, and each handoff sequence item carries a provenance voice (eval-authored, triage, scanner-verbatim) checked against its kind.
+  evidence: ["map/scanners/CONTRACT.md:42-43", "views/README.md:233-238", "lib/run-data.mjs:147-149", "lib/run-data.mjs:163-165"]
+  confidence: confirmed
+
+# ── consent semantics ────────────────────────────────────────────────────────
+- id: F-645
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: >
+    Owner sharing is a conscious act: the prompt tells the owner the block becomes the packet kept in the app's code and shown on the team's intake page, the owner copies the block back by hand, and secrets and names are refused both in the prompt and by the validator.
+  evidence: ["owner/ask-owner.md:13-17", "owner/ask-owner.md:24-27", "owner/ask-owner.md:39-45", "owner/PACKET.md:41-53"]
+  confidence: confirmed
+
+- id: F-646
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: >
+    Both review lanes publish exactly one private artifact page and forbid pushing, commenting or opening issues anywhere, so a review's output is shared only when the consumer collects it.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:12", "map/scanners/adapters/deep-code-review/lane.md:11"]
+  confidence: confirmed
+
+- id: F-647
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    The run-level `confidential` flag marks only Markdown page frontmatter and footers; the data files (sequence.json, chains.json, the view YAMLs) carry no marker, and no contract doc names the flag.
+  evidence: ["views/compile.mjs:61-66", "views/improve/handoff.mjs:87-89", "views/improve/handoff.mjs:184-191", "views/improve/report.mjs:450-457", "views/intake.mjs:155"]
+  confidence: confirmed
+
+# ── population-level usage / outcome telemetry ──────────────────────────────
+- id: F-648
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    Cross-run outcome and cost aggregation exists only as roster's human text over free-text `spend:`/`duration:` values, so the per-run `routine.yaml` records have no aggregator in assay that a fleet-level reader could consume as data.
+  evidence: ["map/roster.mjs:27-35", "map/record.mjs:19-22", "routine/README.md:39-42"]
+  confidence: confirmed

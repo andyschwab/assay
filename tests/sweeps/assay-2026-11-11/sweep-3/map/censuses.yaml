@@ -1,0 +1,113 @@
+# map/censuses.yaml — authored depth and sampled censuses (SCHEMA §6b), one block per
+# dimension pass; counted measures are computed from the base by maturity.mjs.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instances reconstruct a non-obvious decision fully from files, naming the
+      threat or failure that forced it (the two-job routine's self-grading change, F-004;
+      gate doctrine once restated in four files, F-010; strict YAML from a fail-closed
+      lesson, F-001), though two decisions' reasons live only in an issue or a passing
+      phrase (F-002, F-012).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious design decisions whose rationale reconstructs from files alone, citing where"
+        met: 10
+        of: 12
+        method: "12 decisions enumerated from the legibility slice (README, CLAUDE.md, SCHEMA, scanner CONTRACT, routine/yardstick/views READMEs, CONSUMERS, header comments of child-env/doctrine/chains/yaml-min), each judged by whether its reason (not just its statement) is written in a file: strict fail-closed YAML subset met F-001; zero runtime dependencies not met F-002; ids carry no dimension met F-003; two-job routine met F-004; child env allow-list met F-005; no history file met F-006; core names no scanner/adapters met F-007; chains computed not authored met F-008; no verdict/price/deploy gate met F-009; one home for gate doctrine met F-010; offline = no hosting API met F-011; pinned tools a precondition never a skip not met F-012"
+        primary: true
+  - dimension: context-economy
+    depth: >
+      The best instance is strong: a short agent contract and a front door route a stranger to
+      per-module contracts that each load standalone (F-110, F-111, F-103, F-104, F-106), and a
+      harness block reads the docs' claims off the code (F-115). That block checks only some claims,
+      so stale prose survives elsewhere (F-116..F-121), map/ and yardstick/ import each other (F-112),
+      and the spend meter records model and spend with no tier rationale or re-qualification
+      (F-123..F-128).
+    sampled:
+      - name: modules-standalone
+        what: "a bounded context can load the module standalone: an entry doc or headers that route, and a clear boundary"
+        met: 8
+        of: 9
+        method: "9, the module directories the brief names, each read for an entry doc or headers and its routing: map/ not met, no entry doc and a library list missing three modules (F-101; boundary F-112); map/scanners/ met (F-102); yardstick/ met (F-103); views/ incl. views/improve/ met (F-104); owner/ met through the README paragraph and one-home docs (F-105); routine/ met (F-106); lib/ met by per-module headers (F-107); tests/ met (F-108); .github/ met by per-file headers (F-109)"
+        primary: true
+      - name: doc-freshness
+        what: "a claim in a contract doc or header comment matches the code or the files it names"
+        met: 7
+        of: 12
+        method: "12 claims sampled from README.md, CLAUDE.md, RUNBOOK.md, INTAKE.md, CONTRACT.md, views/README.md and assay.mjs/roster.mjs headers, each checked against code or git ls-files: quickstart commands exist in assay.mjs, met (F-122); CLAUDE.md-cited harness files exist, met (F-122); assay.mjs:16-17 named libraries exist, met; README adapter roster matches adapters/ (scorecard retired), met; README fixtures claim matches tests/fixtures/README.md, met; views/README improve/ file names exist, met; CONTRACT.md:14 CANDIDATES link resolves, met; help grouping 'map / yardstick / views', not met (F-121); missing tool reads skipped vs start refuses, not met (F-118); 'three places and only these' outbound reach, not met (F-119); RUNBOOK manual tagging vs release.yml, not met (F-120); 'CLAUDE.md rule 5' in INTAKE.md and roster.mjs, not met (F-117)"
+        primary: false
+  - dimension: deterministic-gates
+    depth: >
+      The best instance is strong: the harness fails closed at every layer (F-212, F-213), pins the validator with precise negative fixtures (F-215) and the strict YAML reader (F-218), and gates the CI file itself (F-220), but it leaves several validator vocabulary checks unpinned (F-216, F-217), its lint and build are a parse check only (F-205, F-207), and whether CI is a required check is not visible from files (F-222).
+    sampled:
+      - name: gates-coverage
+        what: "each CI job/step on pull_request to main, and each gate script it invokes, runs pre-merge and fails loud"
+        met: 14
+        of: 14
+        method: "14, enumerated from .github/workflows/*.yml (only ci.yml triggers on pull_request, F-227) plus the scripts its steps invoke: test job met (F-201); checkout met (F-202); setup-node matrix met (F-203); npm ci met (F-204); lint met, parse-only (F-205); typecheck met (F-206); build met, duplicates lint (F-207); tools action step met (F-208); npm test met (F-209); lib/check-syntax.mjs met (F-210); tsconfig.json met, tests/ excluded and non-strict (F-211); tests/regression.mjs met (F-212); tests/harness.mjs met (F-213); .github/actions/tools/action.yml met (F-214). Pre-merge = triggered on pull_request; required-check status unverified (F-222)."
+        primary: true
+    enforced:
+      claim: true
+      why: "CI runs every gate on each pull request, and a harness block fails if ci.yml drops lint, typecheck, build or test"
+      evidence: [F-201, F-220]
+  - dimension: verification
+    depth: >
+      The best instance is strong: an instrument counts as clean only when its exit, report shape and
+      envelope agree, and opengrep's positive control has to fire before zero results mean clean
+      (F-302, F-311, F-312, F-313). A calibration harness gates repeatability and recall in CI
+      (F-326, F-327). The weakness is at the edge: the four GitHub-side effects are proven only by a
+      command's exit status (F-307, F-308, F-309, F-310), and four of five scanners have no
+      positive control (F-314).
+    sampled:
+      - name: effect-provability
+        what: "the effect channel proves its effect happened (re-read, shape/agreement check, or downstream consumer check), not only a return code or success report"
+        met: 6
+        of: 10
+        method: "10, every channel in the Pass 0 terrain effect inventory, one finding each (F-301..F-310): run-dir-write met (F-301, validate re-reads the written run; drift recomputed); instrument-run met (F-302, envelope+exit+shape ingest, opengrep control); fresh-clone-exec met (F-303, per-step status, test counts beyond exit 0); dependency-audit met (F-304, report shape required, error doc never clean); structure-scan-exec met (F-305, jscpd exit 0 without report fails); tools-install met (F-306, sha256 before install, verify after); tools-check-issue not met (F-307, gh exit only); branch-delete not met (F-308, pre-delete re-read but no post-delete read); release-publish not met (F-309, gh exit only); routine-artifact-upload not met (F-310, handoff proven downstream but run upload unchecked and gate skipped exits 0)"
+        primary: true
+    enforced:
+      claim: true
+      why: "CI runs the regression harness on every push and PR, and its blocks pin the fail-closed instrument intake, the opengrep control, the missing-handoff path and the sweep gate"
+      evidence: [F-313, F-320, F-326]
+  - dimension: delegation
+    depth: >
+      The best instance is the routine template's credential handling: the change's code runs
+      only in a token-less job, the gate job's one fetch takes its read token from step env
+      never .git/config, and every checkout but ci.yml's is pinned non-persisting by a harness
+      block (F-417, F-436, F-425); the gaps are file credentials under HOME, a token in curl's
+      argv, and review and handoff sessions bounded only by prose (F-426, F-411, F-420, F-422).
+    sampled:
+      - name: credential
+        what: "credential held below the prompt/child boundary (no model or target child sees it, not persisted where target code runs) with least scope"
+        met: 6
+        of: 9
+        method: "9, enumerated from terrain.md's credential list plus the job token of each workflow job that holds one (grep of github.token, secrets.*, process.env tokens): GITHUB_TOKEN in map/tools.mjs not met (F-411, curl argv, issues-write token for a public read); ci.yml job token not met (F-412, persisted to .git/config during npm ci/test); tools-check token met (F-413); branch-cleanup plan token met (F-414); branch-cleanup delete token met (F-415); release token met (F-416, step-scoped); routine FETCH_TOKEN met (F-417); ASSAY_READ_TOKEN not met (F-418, present in the job that runs the change, scope unstated); proxy userinfo met (F-419, dropped fail-closed)"
+        primary: true
+  - dimension: improvement-loop
+    depth: >
+      Where the loop exists it is exemplary: recorded incidents and earlier-run review findings
+      become named harness blocks CI runs on every pull request, each citing the issue it closes
+      (F-501, F-504, F-508, F-513, F-516), with the run record emitting per-scanner cost and
+      model by design (F-523); the weak spots are two calibration lessons held only as prose or
+      a recall-only listing (F-511, F-512) and a red-then-green rule nothing checks in practice (F-518).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "a lesson the repository records in a file is now held by a mechanism (a harness block, validator rule or workflow), cited beside the lesson"
+        met: 12
+        of: 14
+        method: "14, enumerated from the calibration incidents METHOD.md/SCHEMA.md narrate and the issue numbers cited in code headers and contracts (no git history): #47 isolation met (F-501); #65 proxy userinfo met (F-502); #88 tree not repo met (F-503); #172 read-only leg met (F-504); #38 gate vocabulary met (F-505); #201 lane reviewed met (F-506); #228 reviewer commit pin met (F-507); queued code scanner never run met (F-508); pinned-prior canon met (F-509); missed channels met, detector pinned but not gated (F-510); docker-socket false strength not met, container classes recall-only and untested (F-511); cal5/cal6 census subject_type flip not met, prose and canon-file check only (F-512); #57 sweep gate met (F-513); #30 step not run met (F-514)"
+        primary: true
+  - dimension: multiplayer
+    depth: >
+      The best instances are agent-first by construction: handoff/sequence.json, chains.json and report.json carry versioned schema ids checked on write and read back fail-closed (F-617, F-618, F-619), the plan prompts fence target text as data (F-620), and the consumer surface is a closed list a trailer check and a test enforce (F-637); the shared-context layer is thinner, with owner triage stranded per run on a self-asserted actor (F-639, F-641) and confidentiality marked only on pages (F-647).
+    sampled:
+      - name: agent-access-surface
+        what: "an interface (command output, run data file, prompt or handoff format) consumable by an agent through a documented format contract"
+        met: 26
+        of: 36
+        method: "36 interfaces enumerated from assay.mjs's command table, CONSUMERS.md's commands and run layout, views/README.md, owner/ and the lanes, one finding each (F-601..F-636). Met: yardstick --json F-601; lane --list --json F-602; lane seed JSON F-603; project --json F-604; toolchain --json F-605; compare --json F-606; variance --json F-607; maturity-grades.yaml F-608; routine.yaml F-609; run record + findings F-610; yardstick.yaml F-611; intake.yaml F-612; maintain.yaml F-613; owner.yaml F-614; improve.yaml F-615; since.yaml F-616; chains.json F-617; report.json F-618; handoff/sequence.json F-619; handoff plan prompts F-620; owner packet + validate-packet F-621; ask-owner prompt F-622; owner/decisions.yaml F-623; backlog files F-633; practice-review lane publication F-634; instrument raw reports via the ingest port F-636 (plausible). Not met: validate payload F-624; tools verify/install/check F-625; ratchet failures F-626; measure --json F-627; enumerate --json F-628; score --json F-629; roster F-630; migrate-run F-631; axis walk axes.md F-632; deep-code-review lane outputs F-635. Pages (INDEX/INTAKE/...md) not counted separately: each has a data twin above, except axes.md (F-632)."
+        primary: true
+    enforced:
+      claim: true
+      why: "The consumer half of the surface is machine-checked: a commit touching a surface file without a Consumer: trailer fails release-notes --check in the harness, and consumer-reads pins that every listed command and data file is on the page; chains.json, report.json and sequence.json are read back fail-closed by validate."
+      evidence: [F-637, F-617, F-618, F-619]
