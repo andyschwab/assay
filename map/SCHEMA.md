@@ -98,7 +98,8 @@ requirement lives in the yardstick, which names the population each requirement 
 (#257 Q1), so `validate` refuses a value that is one of its ids. It is free observation:
 any finding may carry one, and none must. It matters on the findings no requirement
 takes (`yardstick/untaken.mjs`: cited by no row of the measurement, a member of no
-census, covering no effect-triage candidate). After measuring, `compile` lists those,
+census, covering no effect-triage candidate, and in no facet rule's population: not an
+effect or capability finding). After measuring, `compile` lists those,
 grouped by `property` (the ones that name none as unnamed), in
 `views/improve/candidates.yaml` and `IMPROVE.md` §8: the run's candidate properties,
 what the yardstick has no row for yet (`views/README.md`). A candidate is not asked to
