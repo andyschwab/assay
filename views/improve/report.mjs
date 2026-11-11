@@ -27,6 +27,7 @@ import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterF
 import { loadDecisions, decideProjected } from '../../map/decisions.mjs';
 import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '../../yardstick/measure.mjs';
 import { buildTopicsForRun } from './topics.mjs';
+import { buildCandidates, candidatesMd } from './candidates.mjs';
 import { buildRoadmap, buildSequence, urgentNote } from './sequence.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -437,6 +438,7 @@ const repl = {
   '{{COMPILE:capabilities}}': capabilities(),
   '{{COMPILE:handoff_guide}}': handoffGuide(),
   '{{COMPILE:requirements_by_topic}}': requirementsByTopic(),
+  '{{COMPILE:candidates}}': candidatesMd(buildCandidates(runDir), new Map(findings.map((f) => [String(f.id), f]))),
 };
 
 // strip the leading template HTML comment (the how-to block), keep section comments out of output
