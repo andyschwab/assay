@@ -20,6 +20,85 @@ tags: [floor, fleet, ai-operating]
 # gap can cause harm to data, to people, to money or to recovery (yardstick/README.md, #161).
 harms: [data, people, money, recovery]
 
+# members: the closed vocabulary a facet or census row's population is drawn from (yardstick/README.md,
+# "The four deciding kinds"). Each facet and census row's check opens "Population: every <term> ...",
+# naming one term here, and no two rows name the same one, so a finding a reader places on a term
+# lands on one requirement (yardstick/population.mjs requirementTaking). subject_types: the finding
+# subject types a member may carry; record: the effect or capability finding this term takes by its
+# own facets, with no reader's word (halt-class-effect, effect, capability). A term no row names is a
+# stated boundary: a finding placed on it is taken by no requirement, and the term says why.
+members:
+  - term: halt-class effect
+    subject_types: [effect, control]
+    record: halt-class-effect
+    means: an irreversible or external effect, its own finding, or a finding about whether a gate stands in front of it
+  - term: halt-class effect's record
+    subject_types: [control, process]
+    means: whether a halt-class effect leaves any durable record
+  - term: effect gate
+    subject_types: [control, contract]
+    means: the gate in front of a gated effect, and how it fails when what it needs is absent
+  - term: effect
+    subject_types: [effect, control, process]
+    record: effect
+    means: an effect that is not halt-class, its own finding, or the form of any effect's record
+  - term: AI context
+    subject_types: [capability, control]
+    record: capability
+    means: one model call site with the input, data and effects within its reach
+  - term: enumerated candidate
+    subject_types: []
+    means: a channel candidate, route handler or effect-site member of map/raw/enumerate.json; not a finding
+  - term: secret
+    subject_types: [control, artifact]
+    means: a secret the running application reads, and what it can reach
+  - term: doc claim
+    subject_types: [artifact, process, contract]
+    means: a concrete statement in the prose docs (README, the pages it routes to, the agent contract) the code can be checked against
+  - term: non-obvious decision
+    subject_types: [artifact, process]
+    means: a choice a newcomer would question, and whether its why can be read from the files
+  - term: module
+    subject_types: [artifact, contract]
+    means: a source file, package or directory an agent loads to change one concern
+  - term: interface
+    subject_types: [contract, artifact]
+    means: what the application offers a caller (a route, a command, a tool, a screen, a data file or format)
+  - term: lesson
+    subject_types: [process, control, artifact]
+    means: an incident, correction or recorded lesson, and whether it became a mechanism
+  - term: change gate
+    subject_types: [contract, control, process]
+    means: a check the repository runs on a change before it lands or ships (a CI job or step, a hook, a config-driven check)
+  # stated boundaries: no facet or census row takes these (a claim or instrument row may name the property)
+  - term: code comment
+    subject_types: [artifact, contract]
+    means: a comment or header inside code, stale or not; no row takes it until a docs-current-with-code row is promoted (#257)
+  - term: second account
+    subject_types: [artifact]
+    means: a fact stated in two places; d-one-home-per-fact is a claim row and takes no finding
+  - term: spend ceiling
+    subject_types: [control, process]
+    means: a per-run or per-process ceiling on paid calls enforced before the call; no row takes it (the paid-spend-capped candidate, #257)
+  - term: billing alert
+    subject_types: [control, process]
+    means: an alert on an account's bill after the spend; d-cost-alerts is decided by the repo census's owner-evidence transcript alone
+  - term: model call record
+    subject_types: [control, process]
+    means: a record of a model call and what it spent; d-model-call-telemetry is a claim row and takes no finding
+  - term: request authorization
+    subject_types: [control, contract]
+    means: whether the server checks who is asking before it answers; d-routes-authorized takes only its instruments' rows
+  - term: data scope
+    subject_types: [control, artifact, contract]
+    means: whose data a request or an effect reaches; d-tenant-isolation-in-data-layer takes only its instruments' rows
+  - term: acting principal
+    subject_types: [control, artifact, contract]
+    means: whom an effect or an agent acts as; no row takes it (the effects-attributed-to-verified-actor candidate, #257)
+  - term: test
+    subject_types: [contract, control, process]
+    means: whether a test exercises a path; d-effect-sites-tested is a claim row, and the suite's run is fresh-clone's
+
 requirements:
 
   # ── custody: we cannot carry what we do not control ──────────────────────
@@ -46,7 +125,7 @@ requirements:
     decide:
       kind: census
       measures: [credentials-below-boundary, credential-boundary, credential]
-    check: the credential census, one row per secret, boundary traced not guessed
+    check: "Population: every secret the running application reads (an environment variable, a config value or a key file that grants access to an account, a service or data), one finding per secret listed as the credential census's members; excluded: secret-named constants no site reads from the environment, inert strings planted in test fixtures, and the accounts themselves (d-accounts-enumerated). Question: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed? A census with no members never reads met"
     sources: [floor/c-credentials, manifest/d5-secrets-below-artifact, method/credential-census]
     status: draft
     owner:
@@ -173,7 +252,7 @@ requirements:
     decide:
       kind: facet
       rule: halts-gated
-    check: the effect inventory shows zero halt-class effects without a gate that holds (doctrine.mjs); one authenticated person's own recorded act (gate_type initiated-by-person) holds, an unattended job doing the same write does not
+    check: "Population: every halt-class effect (irreversible, or leaving the trust boundary) in the run's triaged effect inventory, the effect finding itself and any finding about whether a gate stands in front of it; excluded: reversible internal effects, how a gate in front of an effect fails (open, or never ending), which is d-gates-fail-closed's, and gates on a change (CI, hooks, config), which are d-change-gates-fail-closed's. Question: does a gate that holds stand in front of it? Read off the effect facets (doctrine.mjs): zero halt-class effects without a gate that holds; one authenticated person's own recorded act (gate_type initiated-by-person) holds, an unattended job doing the same write does not"
     sources: [floor/s-effects-gated, manifest/d5-halt-tripwire, foundation/halts, takeover-eval/weekly-publish-unrecallable]
     status: draft
     owner:
@@ -188,7 +267,7 @@ requirements:
     decide:
       kind: facet
       rule: halts-traced
-    check: the effect inventory shows zero halt-class effects with no telemetry
+    check: "Population: every halt-class effect's record, one per halt-class effect in the run's triaged effect inventory; excluded: reversible internal effects, and whether a record is structured or audited enough to prove the effect by, which is d-effects-provable's. Question: does the effect leave a durable record at all? Read off the effect facets: zero halt-class effects with telemetry none"
     sources: [floor/s-effects-traced, foundation/structural-rule-2]
     status: draft
     owner:
@@ -203,7 +282,7 @@ requirements:
     decide:
       kind: facet
       rule: gates-fail-closed
-    check: zero gated effects with fail_mode open or unterminated, each counted apart; a gate whose secret or tool is missing goes red, never green, and a gate check that never finishes is no verdict
+    check: "Population: every effect gate, the gate in front of each gated effect (gate_type other than none) in the run's triaged effect inventory; excluded: effects with no gate, which are d-effects-gated's, and gates on a change (CI jobs, hooks, config checks), which are d-change-gates-fail-closed's. Question: when a dependency it needs is absent, or its check runs without end, does it refuse? Read off the effect facets: zero gated effects with fail_mode open or unterminated, each counted apart; a gate whose secret or tool is missing goes red, never green, and a gate check that never finishes is no verdict"
     sources: [foundation/never-skip-a-test, takeover-eval/privacy-gate-passes-unset, manifest/d3-guards-bite]
     status: draft
     owner:
@@ -218,7 +297,7 @@ requirements:
     decide:
       kind: facet
       rule: trifecta
-    check: no capability finding holds all three legs and reaches an effect with no gate that holds
+    check: "Population: every AI context, one per capability finding (a model call site and the input, data and effects within its reach); excluded: a scheduled job's trifecta-shaped reach with no model call, which is an effect, and the effects themselves, which are the effect rows'. Question: does it hold untrusted input, private data and an outward effect at once while reaching an effect with no gate that holds? No capability finding holds all three legs and reaches an effect with no gate that holds"
     sources: [floor/s-trifecta, manifest/d5-capability-budget, method/trifecta-screen]
     status: draft
     owner:
@@ -406,6 +485,21 @@ requirements:
     owner:
       risk: "Without an automatic check that runs on every change to the main version of the app and blocks anything that fails, a broken change can reach the live app before a person happens to notice."
       fix: "Have your AI set up an automatic check that runs the tests on every change and blocks it from merging if anything fails."
+  - id: d-change-gates-fail-closed
+    title: No gate a change passes through reads green when what it checks is absent or never finishes
+    tier: verification
+    topic: deterministic-gates
+    tags: [floor, fleet]
+    harm: [people]
+    decide:
+      kind: census
+      measures: [change-gates, change-gates-fail-closed]
+    check: "Population: every change gate, each check the repository runs on a change before it lands or ships (a CI job or step, a commit or push hook, a config-driven lint, typecheck, test, scan or schema check), one finding per gate listed as the change-gates census's members; excluded: gates in front of the application's own effects, which are d-gates-fail-closed's, whether a CI workflow on the default branch exists and runs the gates, which is d-ci-gate-on-default-branch's, and whether branch protection requires a check, which the tree does not show. Question: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green? A step that swallows its own exit, or skips its work when a variable is unset, passes nothing; a census with no members never reads met"
+    sources: [issue/257, issue/261, takeover-eval/privacy-gate-passes-unset, foundation/never-skip-a-test]
+    status: draft
+    owner:
+      risk: "If an automatic check on a change quietly passes when the tool, key or file it needs is missing, or when it never finishes, a broken or unsafe change can reach your users while every check shows green, and the green tells you nothing."
+      fix: "Have your AI list every automatic check a change passes through (in CI, in commit hooks, in config), remove what each one needs in turn, and confirm the check goes red instead of passing; give each a time limit after which it fails."
   - id: d-guards-bite
     title: Every shipped check carries a negative fixture that fails when the check is disabled
     tier: verification
@@ -461,7 +555,7 @@ requirements:
     decide:
       kind: facet
       rule: effects-provable
-    check: effects with a structured or audited record, of all effects
+    check: "Population: every effect in the run's triaged effect inventory, halt-class or not, through the record it leaves (the effect finding itself when it is not halt-class, and any finding about the form of an effect's record); excluded: whether a halt-class effect leaves any record at all, which is d-effects-traced's, and a halt-class effect's own finding, which is d-effects-gated's. Question: is its record structured or audited, so the effect can be proved from outside the AI? Read off the effect facets: effects with a structured or audited record, of all effects"
     sources: [method/verification-measure]
     status: draft
     owner:
@@ -517,7 +611,7 @@ requirements:
     decide:
       kind: census
       measures: [doc-freshness]
-    check: concrete doc claims replayed in the fresh-clone run
+    check: "Population: every doc claim, a concrete statement in the repository's prose docs (the README, the doc pages it routes to, the agent contract file) of a command, a count, a path, an endpoint or a capability the code is said to have; excluded: comments and headers in code, which no requirement takes until a docs-current-with-code row is promoted (#257), a second account of one fact, decision rationale, which is d-decisions-reconstruct's, and whether the agent contract file exists, which is d-agent-contract's. Question: does it hold when replayed against the code or checked in the fresh-clone run?"
     sources: [floor/l-readme, method/docs-freshness-probe]
     status: draft
     owner:
@@ -531,7 +625,7 @@ requirements:
     decide:
       kind: census
       measures: [decision-reconstruction, decision-rationale, patch-rationale]
-    check: the decision census, n decisions frozen before assessment
+    check: "Population: every non-obvious decision the terrain enumerates and freezes before assessment (a choice a newcomer would question: a dependency, a shortcut, a default, a boundary), one finding per decision; excluded: choices the code alone makes obvious, a stale claim in the docs, which is d-readme-true's, and a lesson from a past failure, which is d-corrections-become-mechanisms'. Question: can a newcomer reconstruct why it was made from the repository's files alone?"
     sources: [floor/l-decisions, manifest/d1-decision-container, method/pass-1]
     status: draft
     owner:
@@ -545,7 +639,7 @@ requirements:
     decide:
       kind: census
       measures: [modules-standalone, module-standalone, module-loadability, control-plane-modules-standalone]
-    check: the module census
+    check: "Population: every module in the terrain's module population, a source file, package or directory an agent loads to change one concern; excluded: generated and vendored code, tests, the prose docs (d-readme-true) and a stale comment inside a module, which no requirement takes. Question: can an agent load it alone, with something to read and something to run, and change it without loading the rest?"
     sources: [method/pass-2]
     status: draft
     owner:
@@ -798,7 +892,7 @@ requirements:
     decide:
       kind: facet
       rule: channels-triaged
-    check: every channel candidate, route handler and effect-site member the run's enumeration lists (map/raw/enumerate.json, written by assay start) is triaged in map/effect-triage.yaml, to the effect finding that covers it or out of scope with the reason
+    check: "Population: every enumerated candidate, each channel candidate, route handler and effect-site member the run's enumeration lists (map/raw/enumerate.json, written by assay start); excluded: an effect the list does not name, which is still a finding and closes no candidate. Question: is it triaged in map/effect-triage.yaml, to the effect finding that covers it or out of scope with the reason? A candidate is not a finding, so this row takes no finding: the effect findings a triage names are the effect rows'"
     sources: [method/canon, method/enumerate]
     status: draft
     owner:
@@ -877,7 +971,7 @@ requirements:
     decide:
       kind: census
       measures: [agent-access-surface, agent-consumable-surface]
-    check: the interface census, interfaces consumable by an agent of all interfaces
+    check: "Population: every interface the application offers a caller, person or program (an HTTP route, a command, a tool or MCP tool, a screen, a data file or format other tools read); excluded: internal functions nothing outside the code reaches, whether the server checks who is asking (d-routes-authorized), whose data a request reaches (d-tenant-isolation-in-data-layer) and whom an effect acts as, which no census takes. Question: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen? Interfaces consumable by an agent, of all interfaces"
     sources: [manifest/d7-agent-surface, manifest/d7-format-contracts, foundation/structural-rule-4]
     status: draft
     owner:
@@ -891,7 +985,7 @@ requirements:
     decide:
       kind: census
       measures: [incidents-became-mechanisms, incident-lesson, lessons-mechanized]
-    check: the incident census, lessons that became a mechanism of lessons recorded
+    check: "Population: every lesson the repository records, an incident, postmortem, review correction, lessons-file entry or fix that names its cause; excluded: plans and backlog items nothing has yet been learned from, and decision rationale, which is d-decisions-reconstruct's. Question: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again? Lessons that became a mechanism, of lessons recorded"
     sources: [manifest/d6-correction-capture, foundation/lesson-with-its-incident]
     status: draft
     owner:

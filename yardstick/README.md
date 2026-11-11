@@ -111,6 +111,72 @@ record does not produce as drift.
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). The claim rows a packet never speaks to are the list of instruments still to build |
 
+**A facet or census row's check names its population and its question** (#261, M3 of #257).
+If two careful readers holding the yardstick put one finding on different rows, the
+measurement cannot place it either. So every `facet` and `census` row's `check:` is one string
+in one form:
+
+```
+Population: every <term> <scope>; excluded: <what>. Question: <one question>? <how the row reads>
+```
+
+- `<term>` is one entry of `requirements.yaml`'s closed `members:` vocabulary. Each entry
+  has a `term`, the finding `subject_types` a member may carry, and what it `means`.
+- The scope says which members count. `excluded:` says what does not count, and names the
+  row that takes a near neighbour.
+- The question is the one question asked of each member. Exactly one question mark appears,
+  and the row's reading follows it.
+- No two rows' populations name the same term.
+
+`yardstick/population.mjs` holds the form (`parseCheck`, `validatePopulations`), and
+`tests/blocks/check-names-population.mjs` enforces it.
+
+**Which requirement takes a finding** is one reading, `requirementTaking(finding, { member })` in
+`yardstick/population.mjs`. Every route that answers adds a candidate. The finding is taken when
+exactly one candidate answers, and is taken by no requirement when none does. Two candidates
+read as ambiguous, never as one of them. The routes are:
+
+1. **An instrument row** takes its deciders' rows: a finding whose scanner and native category
+   (or a fact category its `not_applicable_when` / `not_measured_when` reads) a binding decides
+   the row on.
+2. **An effect or capability finding** is taken by its own facets: the term whose `record:` is
+   `halt-class-effect` (`isHaltClass`), `effect` or `capability`. The four effect rows all *read*
+   an effect finding through its facets, but one row *takes* it:
+   - `d-effects-gated` takes a halt-class effect, whose polarity is the answer to that row's
+     question (`map/SCHEMA.md` §8);
+   - `d-effects-provable` takes any other effect.
+3. **Any other finding** is taken by the row whose population names the term its `member` gives.
+   In a run, `member` is the census the finding is listed in; a reader supplies it otherwise.
+
+Findings carry no requirement id (#257 Q1), and a term no row names is a stated boundary. These
+are the boundaries #257 named:
+
+- **Stale docs.** A concrete claim in the README, a doc page it routes to, or the agent contract
+  file is a `doc claim`, which `d-readme-true` takes. A stale comment or header in code is a
+  `code comment`, which no requirement takes until a docs-current-with-code row is promoted. A
+  second account of one fact is `d-one-home-per-fact`'s, which is a claim row and takes no finding.
+- **Spend.** No row takes a per-run or per-process ceiling enforced before a paid call (the
+  paid-spend-capped candidate). `d-cost-alerts` covers an alert on the bill after the spend, and
+  only the repo census's owner-evidence transcript decides it. A per-call record of spend is
+  `d-model-call-telemetry`'s, which is a claim row.
+- **The multiplayer principals.** `d-agent-consumable-surface` takes an `interface` (can an agent
+  use it through a contract stated outside the code?). Whether the server checks who is asking
+  (`d-routes-authorized`) and whose data a request reaches (`d-tenant-isolation-in-data-layer`)
+  are instrument rows: they take their instruments' rows and no judgment finding. Whom an effect
+  acts as is taken by no row.
+
+`tests/mapping/MAPPING.yaml` is the known-answer set: public findings, each with the
+requirement that takes it, or `none`. `tests/blocks/finding-maps-to-one-requirement.mjs` holds
+the yardstick to it. The block goes red when one row's population is blurred, or is moved onto
+another row's term.
+
+**Gates on a change** (#257 Q5). `d-gates-fail-closed` keeps the gates in front of the
+application's effects. `d-change-gates-fail-closed` is a separate census row (`change-gates`).
+Its population is every check the repository runs on a change before it lands or ships: a CI
+job or step, a commit or push hook, a config-driven check. It asks of each whether the check goes
+red when what it needs is absent or never finishes. `d-ci-gate-on-default-branch` keeps the
+repo census's own reading: whether a CI workflow on the default branch exists and runs the gates.
+
 **The effect population** (#259, the remaining case of #53). A rule over the effect
 findings reads only what the run recorded, so an effect nobody wrote down could leave it
 met. The population is therefore closed by the run, not by the reader: `assay start` writes
