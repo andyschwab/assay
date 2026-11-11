@@ -1,0 +1,64 @@
+- id: F-601
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  label: "incidents-became-mechanisms: no members"
+  property: recorded-lessons-absent
+  observation: >
+    Read in full, none of the twelve files records a lesson (no incident, postmortem, review correction, lessons entry or fix naming its cause): the README is endpoints, running and testing, the ADR is decision rationale, and the code comments state design intent or assumptions (the demo-lockout fallback, the rare-failure belief about the backup relay), not anything learned from a failure.
+  evidence: [README.md:1-35, docs/adr/0001-storage-choice.md:1-29, package.json:1-9, test/smoke.mjs:1-11, lib/auth.mjs:9-12, lib/sync.mjs:7, lib/db.mjs:1, lib/agent.mjs:1-7, lib/mailer.mjs:1-2, config/settings.mjs:1-9, routes/admin.mjs:1-5, server.mjs:1-2]
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  property: agent-spec-absent
+  observation: >
+    The target holds no agent spec or contributor rules file that could accumulate the team's taste and rules, and the README, its only routing doc, has no conventions or contributing section, only endpoints, running and testing.
+  evidence: [README.md:12-35, package.json:1-9]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: standing-rule-home-absent
+  observation: >
+    A "we never do X here" rule has no place to be written that sticks: the one dated durable record is a single ADR (dated 2026-05-02) that records a storage decision rather than a rule or correction, and nothing (no test, lint, hook or script) would enforce such a rule if it were written.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, docs/adr/0001-storage-choice.md:12-17, package.json:6-8, test/smoke.mjs:7-11]
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: intent-unmechanized
+  observation: >
+    The intent to move the backup key out of source "before launch" exists only as a TODO comment above a literal key, with no check (test, lint or boot-time guard) that would fail while the literal remains, so the intent cannot hold itself.
+  evidence: [config/settings.mjs:5-6, test/smoke.mjs:4-11, package.json:6-8, lib/sync.mjs:10]
+  confidence: confirmed
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: deferred-intent-untracked
+  observation: >
+    Other deferred intents are likewise prose only, with no trigger or expiry: the demo-only admin fallback for unknown tokens carries no removal condition, and the ADR's "first thing the production milestone fixes" (persistence) and the store's "real deployments swap this for the SQLite adapter" name follow-ups that no file or check tracks.
+  evidence: [lib/auth.mjs:9-12, docs/adr/0001-storage-choice.md:22-23, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-606
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: impact-self-measurement-absent
+  observation: >
+    The system records nothing about its own worth or delta: the package carries a version but no changelog, release notes or before/after record, and the ADR names the assistant as the differentiator without any usage or outcome measure behind that claim.
+  evidence: [package.json:2-3, README.md:1-5, docs/adr/0001-storage-choice.md:27-29]
+  confidence: confirmed
+- id: F-607
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  property: structured-outcome-records-absent
+  observation: >
+    The app emits no structured usage or outcome record by design: its only output besides responses is two console.log lines (the startup banner and a key=value mail log line), while the request dispatcher, the assistant call, the backup push and the purge write no record at all.
+  evidence: [server.mjs:26-57, server.mjs:60, lib/mailer.mjs:7, lib/agent.mjs:33-43, lib/sync.mjs:5-13, routes/admin.mjs:6-11]
+  confidence: confirmed

@@ -1,0 +1,90 @@
+- id: F-401
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "notes-create reports from its own write"
+  observation: >
+    The notes-create channel answers 201 with the new note's id only after the synchronous in-process write has completed, and that id names a record a caller can read back through GET /notes, so its success report is derived from the effect rather than asserted beside it.
+  evidence: [server.mjs:35-40, server.mjs:30-33]
+  confidence: plausible
+  property: success-report-derived-from-effect
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "assistant-email-send reports a send that never happens"
+  observation: >
+    The assistant-email-send channel reports success regardless of the effect: the mailer's log-only transport returns a constant sent-true without sending, and the assistant ignores even that return value and reports the recipient as emailed.
+  evidence: [lib/mailer.mjs:1-8, lib/agent.mjs:39-40]
+  confidence: confirmed
+  property: success-reported-without-effect
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "workspace-backup-push reports ok before the push resolves"
+  observation: >
+    The workspace-backup-push channel fires the backup POST without awaiting it, discards every failure with an empty catch, and returns ok with a pushed count taken from the local store size, so the caller is told the backup succeeded whether or not the service received anything.
+  evidence: [lib/sync.mjs:5-13, server.mjs:47-50]
+  confidence: confirmed
+  property: success-reported-without-effect
+- id: F-404
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "admin-purge reports after a synchronous clear"
+  observation: >
+    The admin-purge channel returns its purged-true report only after the synchronous in-memory clear of every note and every user's note list has run in the same call, so the report cannot outrun the effect, though it is a constant literal carrying no count or post-check of what was removed.
+  evidence: [lib/db.mjs:27-31, routes/admin.mjs:8-10]
+  confidence: plausible
+  property: success-report-derived-from-effect
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  label: "the only test demonstrates no endpoint behaviour"
+  observation: >
+    The one test file asserts only that a known bearer token resolves to some user, exercising no route, no effect channel and no negative case (an unknown token, which falls back to an admin identity, would pass the same truthiness assertion).
+  evidence: [test/smoke.mjs:4-11, lib/auth.mjs:9-12]
+  confidence: confirmed
+  property: tests-demonstrate-behaviour
+- id: F-406
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  label: "server importable without listening"
+  observation: >
+    The server module exports its request handler and only listens when run directly, and the store ships seeded users, notes and session tokens, so every route could be driven in-process against known data, an affordance no test currently uses.
+  evidence: [server.mjs:59-63, lib/db.mjs:2-17]
+  confidence: confirmed
+  property: runnable-in-process-fixture
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "model output acted on unchecked"
+  observation: >
+    The assistant acts on the model's output without any check of it: a regex match for a TOOL send_email line goes straight to sendEmail with the model-chosen recipient and subject and the full workspace note text, with no validation of recipient, content or intent between the parse and the send.
+  evidence: [lib/agent.mjs:33-41]
+  confidence: confirmed
+  property: model-output-checked-before-action
+- id: F-408
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  label: "no calibration harness for the assistant"
+  observation: >
+    Nothing measures the assistant: there is no eval, frozen-input set or repeated-run comparison of its prompt or output anywhere in the tree, the deterministic stub model is used by no test, and the only test imports the auth module alone.
+  evidence: [lib/agent.mjs:23-31, test/smoke.mjs:5, package.json:6-8]
+  confidence: confirmed
+  property: ai-step-calibrated
+- id: F-409
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  label: "no effect observability beyond one log line"
+  observation: >
+    The only runtime record any effect channel emits is the mailer's unstructured console line, and the request handler logs nothing per route, so no run can show from its own output which notes were written, pushed or purged.
+  evidence: [lib/mailer.mjs:7, server.mjs:26-57]
+  confidence: confirmed
+  property: effects-observable

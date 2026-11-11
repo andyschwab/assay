@@ -1,0 +1,28 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/assay-2026-11-11c
+#
+# BLIND, the sweep after M3 (#261, #279) at v0.8.0: three practice-review lanes over this repository
+# at the SAME commit as assay-2026-11-11b (2b247c0), so only the method changed. Each lane was a fresh
+# child session seeded by `assay lane practice-review` at v0.8.0, all passes claude-opus-5-5, the
+# target read-only, given the run's map/raw/enumerate.json (identical to 11b's). At v0.8.0 the lane
+# writes the change-gates census, lists each finding in its census, and validates its own files before
+# it publishes (#278). What the record should know:
+# - No send-back: every lane's own check ran clean, and every run validated on first collection.
+# - sweep-1's terrain listed tests/sweeps' four subdirectory names (no file opened); no other deviation.
+# - Spend per session (practice-review row of each run record): USD 21.91, 19.58, 19.23.
+# Against assay-2026-11-11b read at the same engine: decided requirements 12 -> 13 (the new
+# d-change-gates-fail-closed), identical in all three 7 -> 7; d-gates-fail-closed now agrees, while
+# d-credentials-enumerated, d-capability-budget, d-readme-true and d-agent-consumable-surface still part,
+# and d-change-gates-fail-closed and d-decisions-reconstruct part: M3 scoped the populations, but the
+# verdicts on their members still differ run to run. Met and mixed rows cite 114, 73 and 64 strengths
+# (37, 38, 61 in 11b); the engine places 59%, 49% and 47% of findings on a requirement.
+target: "andyschwab/assay, this repository (public), at the commit below"
+target_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
+method_commit: "8d533a56718234258a1e9c2d25ddd91d5bf830ca"
+date: "2026-11-11"
+blind: true
+threshold:
+  fact_presence: 32          # measured 12 of 38 union facts caught by all three (32%)
+  descriptor_agreement: 30   # measured 3 of 10 shared effect channels identical on all six descriptors (30%)
+  requirement_agreement: 54  # measured 7 of 13 decided requirements identical in all three (54%)
+sweeps: [sweep-1, sweep-2, sweep-3]

@@ -1,0 +1,222 @@
+# Pass 2: context economy. Censuses doc-freshness (F-201..F-208) and
+# modules-standalone (F-211..F-218), in terrain order; further findings from F-230.
+
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README claim C1 that the API exposes 4 endpoints does not hold: the server dispatches five routes, the fifth being POST /admin/purge, which the README's endpoint list omits.
+  evidence: [README.md:14-19, server.mjs:30-54]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-202
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README claim C2 that GET /notes lists your notes holds: the handler returns only the notes whose owner is the resolved caller's id.
+  evidence: [README.md:16, server.mjs:30-33]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README claim C3 that POST /notes creates a note holds: the handler reads the body and sets a new note owned by the caller in the store.
+  evidence: [README.md:17, server.mjs:35-39]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-204
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README claim C4 that POST /assistant asks the AI assistant, which can email summaries, holds in shape: the route calls ask, which calls sendEmail when the model output carries a send directive, though the mailer in this build only logs and the body sent is every note rather than a summary.
+  evidence: [README.md:18, server.mjs:42-44, lib/agent.mjs:33-41, lib/mailer.mjs:1-8]
+  confidence: plausible
+  property: docs-match-code
+
+- id: F-205
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README claim C5 that POST /sync pushes the workspace to the backup service holds: the route calls pushBackup, which POSTs every note to the configured backup URL.
+  evidence: [README.md:19, server.mjs:47-49, lib/sync.mjs:5-13]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-206
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README claim C6 that node server.mjs runs the app holds: the module starts listening on the configured port when it is the process entry, and the package start script is the same command.
+  evidence: [README.md:24, server.mjs:59-61, package.json:7]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README claim C7 that npm run test:all runs the full suite does not hold: package.json defines only a start script and no test:all script.
+  evidence: [README.md:32, package.json:6-8]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README claim C8 that every endpoint is covered by the smoke suite does not hold: the one test file calls authenticate directly and exercises none of the five HTTP routes.
+  evidence: [README.md:35, test/smoke.mjs:4-11, server.mjs:30-54]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs cannot be changed alone: it imports six modules, handles the two notes routes inline against the store's Map rather than delegating as its header says, and no test exercises any route.
+  evidence: [server.mjs:1-9, server.mjs:30-39, test/smoke.mjs:4-11]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-212
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs has a header to read but nothing to run, and it reaches into the store's raw notes Map and users array and calls the mailer directly, so a change to it needs the store and mailer loaded too.
+  evidence: [lib/agent.mjs:1-9, lib/agent.mjs:12-13, lib/agent.mjs:38-39, test/smoke.mjs:4-5]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-213
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs loads alone: seventeen lines with a header comment, one import of the store's sessions.lookup surface, and the smoke test runs authenticate against it.
+  evidence: [lib/auth.mjs:1-17, test/smoke.mjs:5-9]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs has a header pointing to ADR-0001 but nothing to run, and its callers use the raw notes Map and users array directly, so changing the store means loading server.mjs and lib/agent.mjs, contrary to the ADR's claim that nothing above lib/ changes.
+  evidence: [lib/db.mjs:1-11, docs/adr/0001-storage-choice.md:14-17, server.mjs:31, server.mjs:38, lib/agent.mjs:12-13]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-215
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs is small and readable alone with one import, but has nothing to run: no test calls sendEmail.
+  evidence: [lib/mailer.mjs:1-9, test/smoke.mjs:4-11]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-216
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs is readable alone with a header and two imports, but has nothing to run: no test calls pushBackup.
+  evidence: [lib/sync.mjs:1-14, test/smoke.mjs:4-11]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-217
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs has nothing to run, and its comment names the route DELETE /admin/purge while the server dispatches it as POST, so reading it alone misleads.
+  evidence: [routes/admin.mjs:5-11, server.mjs:52-53, test/smoke.mjs:4-11]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-218
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs has nothing to run and its header sends the reader to README environment notes that the README does not contain, while every value is inline rather than read from the environment.
+  evidence: [config/settings.mjs:1-9, README.md:21-35]
+  confidence: confirmed
+  property: module-loadable-alone
+
+- id: F-230
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No entry point routes a stranger to the code: the README covers endpoints, running and testing but no module map, and the tree holds no agent-facing file, so the module layout is learned only by opening each file.
+  evidence: [README.md:1-35, server.mjs:1-9]
+  confidence: confirmed
+  property: entry-point-routes-stranger
+
+- id: F-231
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No model tier or model id is recorded anywhere, with or without rationale: the assistant's model call is a local stub and neither the settings nor the package name a model.
+  evidence: [lib/agent.mjs:23-31, config/settings.mjs:2-9, package.json:1-9]
+  confidence: confirmed
+  property: model-tier-recorded
+
+- id: F-232
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    Inference spend is not metered: ask builds a prompt over every note in the workspace on each call and records no token, size or cost figure anywhere.
+  evidence: [lib/agent.mjs:11-20, lib/agent.mjs:33-43, server.mjs:42-44]
+  confidence: confirmed
+  property: inference-spend-metered
+
+- id: F-233
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    Nothing re-qualifies the assistant when a model ships: there is no eval, fixture or test for ask or callModel, and the only test touches authentication.
+  evidence: [lib/agent.mjs:27-43, test/smoke.mjs:4-11, package.json:6-8]
+  confidence: confirmed
+  property: model-requalified-on-release
+
+- id: F-234
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The server header says route handlers delegate to lib/ and routes/ so each concern lives in one place, but the two notes handlers read and write the store inline in the router.
+  evidence: [server.mjs:1-2, server.mjs:30-39]
+  confidence: confirmed
+  property: docs-match-code
+
+- id: F-235
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Progressive disclosure exists for the storage choice: the store's header points to ADR-0001, which states the decision, its interface and why SQLite was deferred.
+  evidence: [lib/db.mjs:1, docs/adr/0001-storage-choice.md:12-29]
+  confidence: confirmed
+  property: module-links-rationale

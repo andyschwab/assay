@@ -1,0 +1,70 @@
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is a complete decision record: ADR-0001 states context, decision,
+      consequences and the rejected alternative for the storage choice (F-101, F-120); the
+      security-bearing decisions have no record at all (F-125).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions whose rationale reconstructs from the files alone"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108]
+        method: "every non-obvious decision the terrain froze before assessment, D1-D8, one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "concrete README claims that hold against the code"
+        members: [F-111, F-112, F-113, F-114, F-115, F-116, F-117, F-118]
+        method: "every concrete claim in README.md (C1-C8), checked by reading the code; nothing was run"
+  - dimension: context-economy
+    depth: >
+      The route table delegates each endpoint in one line and every module carries a header
+      comment (F-211, F-213), but only the auth module has something to run (F-203).
+    sampled:
+      - name: modules-standalone
+        what: "source modules an agent can load alone with something to read and something to run"
+        members: [F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208]
+        method: "every source module in the tree (8), one finding each"
+        primary: true
+  - dimension: deterministic-gates
+    depth: >
+      The one check is fast and exits non-zero on failure (F-315), but its single assertion
+      cannot go red while authentication falls back to a default identity (F-301).
+    sampled:
+      - name: change-gates
+        what: "change gates that go red when what they check is absent or never finishes"
+        members: [F-301]
+        method: "every check a change to the target passes through; the tree holds one, the smoke suite"
+        primary: true
+  - dimension: verification
+    depth: >
+      Only the in-process note write can show its effect (F-401); the backup push and the
+      email report success without confirming the effect (F-402, F-403).
+    sampled:
+      - name: effect-provability
+        what: "effect channels that can prove their effect happened"
+        members: [F-401, F-402, F-403, F-404]
+        method: "every effect channel in the terrain's inventory (4), one finding each"
+        primary: true
+  - dimension: delegation
+    depth: >
+      The token table's reach is traceable to one role check (F-507), but that check is
+      defeated by the admin-role default identity (F-510, F-504) and the assistant holds the
+      full trifecta (F-505).
+    sampled:
+      - name: credential
+        what: "secrets the running application reads whose reach is traced in the code"
+        members: [F-506, F-507]
+        method: "every secret the app reads: the backup API key and the bearer token table"
+  - dimension: improvement-loop
+    depth: >
+      No lesson, incident or agent contract is recorded in the tree, so no correction has a
+      durable home (F-601); the incidents census population is empty and is not listed.
+  - dimension: multiplayer
+    depth: >
+      The README names four of the five routes, but no interface carries a request or
+      response contract stated outside the code (F-701, F-705).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces an agent can use through a contract stated outside the code"
+        members: [F-701, F-702, F-703, F-704, F-705]
+        method: "every HTTP route server.mjs dispatches (5), one finding each"
+        primary: true

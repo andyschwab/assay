@@ -1,0 +1,271 @@
+# practice-review — multiplayer pass, assay @ 2b247c0
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The assay command line is a stated contract outside the code: CONSUMERS.md lists each
+    command a consumer may call with its flags and output shapes, and states that a command
+    that cannot do its work exits non-zero and never prints an empty result with exit 0.
+  evidence: [CONSUMERS.md:11-38, assay.mjs:18-58]
+  confidence: confirmed
+  property: cli-contract-stated
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The view data files (views/intake.yaml, maintain.yaml, owner.yaml, since.yaml, improve.yaml)
+    have their field shapes stated in views/README.md, which calls each data file the contract a
+    publisher builds on and each page its plain rendering.
+  evidence: [views/README.md:22-27, views/README.md:34-62, views/README.md:115-135, views/README.md:200-235, CONSUMERS.md:95]
+  confidence: confirmed
+  property: view-data-format-stated
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The yardstick.yaml measurement carries a schema name and version in the file and its shape
+    ({ version, requirements: [{ id, status, basis, findings, note }] }) is stated in
+    yardstick/README.md, with its statuses listed in CONSUMERS.md.
+  evidence: [yardstick/README.md:7-12, yardstick/README.md:309-311, yardstick/measure.mjs:520-526, CONSUMERS.md:94]
+  confidence: confirmed
+  property: measurement-format-stated
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The handoff folder exposes its fix sequence as handoff/sequence.json under a versioned schema
+    (assay.handoff-sequence/1) whose fields are stated in views/README.md and read back by
+    validate, and each sequence item names its plan/NN-*.md session prompt.
+  evidence: [views/README.md:167-168, lib/run-data.mjs:147-155, map/validate.mjs:721, views/improve/handoff.mjs:31-38]
+  confidence: confirmed
+  property: handoff-format-stated
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    views/improve/chains.json carries a versioned schema (assay.chains/1) whose fields are stated
+    in views/README.md and map/SCHEMA.md §6d, and validate checks it on read-back.
+  evidence: [views/README.md:169, map/SCHEMA.md:788-799, lib/run-data.mjs:14-23, map/validate.mjs:719]
+  confidence: confirmed
+  property: chains-format-stated
+- id: F-706
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The review-lane seeds are reachable as JSON through `assay lane --list --json` and the seed
+    command, both with their output shapes stated in CONSUMERS.md and the script header, and a
+    harness block pins the listing's shape.
+  evidence: [CONSUMERS.md:21-22, map/lane.mjs:25-29, map/lane.mjs:89-100, tests/blocks/lane-list.mjs:1-6]
+  confidence: confirmed
+  property: lane-listing-json
+- id: F-707
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The requirement register is listed for a consumer through `assay yardstick [--floor] --json`,
+    its JSON shape stated in CONSUMERS.md and the script header, and a register that does not
+    validate lists nothing and exits 1.
+  evidence: [CONSUMERS.md:35, CONSUMERS.md:40-52, yardstick/list.mjs:9-11, yardstick/list.mjs:29-33]
+  confidence: confirmed
+  property: register-listing-json
+- id: F-708
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The run format is stated in map/SCHEMA.md (the finding fields, closed vocabularies and the
+    canonical run directory layout), and CONSUMERS.md routes a consumer to it for the findings files.
+  evidence: [map/SCHEMA.md:22-40, map/SCHEMA.md:274-300, CONSUMERS.md:91]
+  confidence: confirmed
+  property: run-format-stated
+- id: F-709
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    owner/PACKET.md is the stated format of a repository's packet (manifest.yaml with a format
+    version, claims keyed by requirement id), validated fail-closed by `assay validate-packet`
+    with one plain error line per field meant to be pasted back to the owner or their AI.
+  evidence: [owner/PACKET.md:15-30, owner/PACKET.md:68-82]
+  confidence: confirmed
+  property: packet-format-stated
+- id: F-710
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The tools composite action's call form, its single input `dir`, and its behaviour on a failed
+    install are stated in CONSUMERS.md and the action header.
+  evidence: [CONSUMERS.md:54-73, .github/actions/tools/action.yml:1-18]
+  confidence: confirmed
+  property: composite-action-contract
+- id: F-711
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The branch-cleanup workflow declares workflow_call with one input dry_run, and its header and
+    CONSUMERS.md show the full caller, the permissions it must grant and that github.* is the
+    caller's run.
+  evidence: [CONSUMERS.md:75-81, .github/workflows/branch-cleanup.yml:9-24, .github/workflows/branch-cleanup.yml:44-49]
+  confidence: confirmed
+  property: reusable-workflow-contract
+- id: F-712
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine workflow template's adoption steps are in its header and routine/README.md states
+    what each firing writes, including routine.yaml with its field shape and closed gate values.
+  evidence: [routine/assay-routine.yml:1-13, routine/README.md:18-26, routine/README.md:39-62]
+  confidence: confirmed
+  property: routine-template-contract
+- id: F-713
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Each human page (INTAKE.md, MAINTAIN.md, OWNER.md, SINCE.md, IMPROVE.md) is the rendering of
+    a data file with a stated format (the view YAMLs, and views/improve/report.json for IMPROVE.md),
+    and CONSUMERS.md marks the pages as for a person.
+  evidence: [README.md:15-22, views/README.md:22-27, views/README.md:170, CONSUMERS.md:95-98]
+  confidence: confirmed
+  property: page-has-data-twin
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CONSUMERS.md declares itself the whole contract to a pinning consumer, says anything not on it
+    is internal and may change without notice, requires pinning to a release tag, and names the two
+    importable modules.
+  evidence: [CONSUMERS.md:1-9, CONSUMERS.md:101-109]
+  confidence: confirmed
+  property: consumer-contract-page
+- id: F-715
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A commit touching the declared consumer surface must carry a Consumer: trailer saying what a
+    consumer must change, which heads the release notes, and release-notes --check, run by the
+    harness, names any surface commit without one.
+  evidence: [CONSUMERS.md:119-138, lib/release-notes.mjs:6-16, lib/release-notes.mjs:105-113, tests/blocks/consumer-contract.mjs:1-12]
+  confidence: confirmed
+  property: consumer-change-trailer
+- id: F-716
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The consumer surface block that the Consumer: trailer rule watches lists eight files and omits
+    map/SCHEMA.md, owner/PACKET.md, routine/README.md, routine/assay-routine.yml and
+    lib/run-data.mjs, though CONSUMERS.md and views/README.md route consumers to the formats they state.
+  evidence: [CONSUMERS.md:129-138, CONSUMERS.md:91, CONSUMERS.md:99, views/README.md:168]
+  confidence: confirmed
+  property: consumer-surface-coverage
+- id: F-717
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The view YAML files carry `view`, `run` and the yardstick version but no format version of
+    their own, while yardstick.yaml, chains.json and sequence.json each carry a schema name and version.
+  evidence: [views/floor-fleet.mjs:130-132, views/README.md:34-38, yardstick/measure.mjs:526, lib/run-data.mjs:14, lib/run-data.mjs:147]
+  confidence: confirmed
+  property: data-format-versioned
+- id: F-718
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The per-axis profiles in views/improve/axes.md (what to preserve, ranked risks, posture per
+    axis) are written only as markdown; the stated data form of the projection, `assay project
+    --json`, carries axis counts, unmapped rows and chain counts only.
+  evidence: [views/improve/axes.mjs:1-13, views/README.md:164, CONSUMERS.md:26]
+  confidence: confirmed
+  property: page-has-data-twin
+- id: F-719
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    A run lives with its subject as a runs/<slug>-<date>/ directory, and every view is computed
+    from the one measurement in that directory, so people and agents reading any view share one
+    context.
+  evidence: [map/SCHEMA.md:274-281, views/README.md:7-20, README.md:15-17]
+  confidence: confirmed
+  property: shared-run-substrate
+- id: F-720
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Owner triage is an optional overlay, owner/decisions.yaml, whose entries record action, reason,
+    who decided (a role or handle, never a name or email) and when, which every compiler folds in
+    without deleting a finding and validate checks fail-closed when present.
+  evidence: [map/decisions.mjs:1-20, map/METHOD.md:645-653, map/SCHEMA.md:328]
+  confidence: confirmed
+  property: attributed-decision-overlay
+- id: F-721
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Each workflow acts as the repository's own run token with permissions declared per job:
+    contents read at the workflow level, issues write only on the tools-check job, contents write
+    only on the release job and on the branch-cleanup delete job.
+  evidence: [.github/workflows/tools-check.yml:11-19, .github/workflows/release.yml:17-24, .github/workflows/release.yml:45, .github/workflows/branch-cleanup.yml:50, .github/workflows/branch-cleanup.yml:59-61, .github/workflows/branch-cleanup.yml:106-112, routine/assay-routine.yml:32-33]
+  confidence: confirmed
+  property: actor-per-job-scope
+- id: F-722
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: >
+    Sending the package is stated as a human's act (the halt), every handoff plan prompt forbids
+    deploying, publishing or sending, and the practice-review lane publishes only one private
+    artifact that the seeding consumer collects and validates.
+  evidence: [map/METHOD.md:763-767, map/METHOD.md:620-627, views/improve/handoff.mjs:342-349, map/scanners/adapters/practice-review/lane.md:11-13]
+  confidence: confirmed
+  property: sharing-is-explicit-act
+- id: F-723
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Context carries origin labels: each finding names its producing scanner in `source`, the run
+    record keeps the model and pinned method commit a session ran with, and the handoff labels
+    three voices and fences scanner text under a per-run hash tag as data, not instructions.
+  evidence: [map/SCHEMA.md:105-109, CONSUMERS.md:23-24, CONSUMERS.md:90, views/improve/handoff.mjs:5-15, views/improve/handoff.mjs:26-30, views/improve/handoff.mjs:149-155]
+  confidence: confirmed
+  property: context-origin-labelled
+- id: F-724
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    routine/README.md states that the uploaded run artifact is readable by anyone who can read the
+    repository's workflow runs for its retention period, and that ingest drops instrument output
+    tails and duplicated code text before archiving for that reason.
+  evidence: [routine/README.md:28-37, routine/assay-routine.yml:184-188]
+  confidence: confirmed
+  property: reader-asymmetry-disclosed
+- id: F-725
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Every routine firing writes routine.yaml, a structured outcome record (commit, engine, trigger,
+    baseline source, gate value) so a fleet collector reading only the uploaded artifact knows the
+    outcome without the CI logs.
+  evidence: [routine/README.md:39-62, CONSUMERS.md:99]
+  confidence: confirmed
+  property: outcome-record-emitted

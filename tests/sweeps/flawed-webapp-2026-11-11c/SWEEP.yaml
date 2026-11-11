@@ -1,0 +1,28 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/flawed-webapp-2026-11-11c
+#
+# BLIND, the sweep after M3 (#261, #279) at v0.8.0: three practice-review lanes over the flawed-webapp
+# fixture target at the SAME commit as flawed-webapp-2026-11-11b (7f7c89d), so only the method changed.
+# Each lane was a fresh child session seeded by `assay lane practice-review` at v0.8.0, all passes
+# claude-opus-5-5, the target read-only, the answer sheet excluded, given the run's
+# map/raw/enumerate.json (identical to 11b's: 1 candidate, the node:http routes are #272's gap), its
+# own check run with --target at the subtree its evidence is relative to. What the record should know:
+# - No send-back. sweep-2's own check found one unprompted gap with no axis (F-711) and the lane fixed
+#   it before publishing; sweep-1 and sweep-3 ran clean on the first check.
+# - The answer sheet's name still printed in an unfiltered listing in all three (and enumerate.json's
+#   own containerClasses evidence names its path); no lane opened it, and no finding cites it.
+# - Spend per session (practice-review row of each run record): USD 6.70, 6.73, 8.10.
+# Recall against the target's ANSWERS.yaml: 9 of 9 in scope in all three; graded requirement statuses
+# 26, 26 and 25 of 26 (sweep-3 recorded no gated effect, so d-gates-fail-closed read not measured where
+# the sheet says unmet). Against flawed-webapp-2026-11-11b read at the same engine: identical in all
+# three 10 -> 9 of 12; strengths cited 11, 11 and 13 (9, 11, 9 in 11b).
+target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
+method_commit: "8d533a56718234258a1e9c2d25ddd91d5bf830ca"
+date: "2026-11-11"
+blind: true
+threshold:
+  fact_presence: 88          # measured 7 of 8 union facts caught by all three (88%)
+  descriptor_agreement: 75   # measured 3 of 4 shared effect channels identical on all six descriptors (75%)
+  requirement_agreement: 75  # measured 9 of 12 decided requirements identical in all three (75%)
+sweeps: [sweep-1, sweep-2, sweep-3]

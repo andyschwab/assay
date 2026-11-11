@@ -1,0 +1,247 @@
+# practice-review — gates pass, assay @ 2b247c0
+# change-gates census (contract), members in order: F-301..F-313. Other gates findings: F-314..F-327.
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml `npm ci` step installs from a committed lockfileVersion 3 package-lock.json whose two devDependencies carry sha512 integrity values, so a missing or out-of-sync lockfile stops the job before any later step.
+  evidence: [.github/workflows/ci.yml:30, package-lock.json:4, package-lock.json:25, package-lock.json:35, package.json:18]
+  confidence: confirmed
+  property: lockfile-install-refuses-drift
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml `npm run lint` step runs lib/check-syntax.mjs, which exits 1 when git ls-files lists no module, exits 1 naming every tracked module `node --check` cannot parse, and throws when git cannot list.
+  evidence: [.github/workflows/ci.yml:31, package.json:10, lib/check-syntax.mjs:11-15]
+  confidence: confirmed
+  property: syntax-gate-refuses-empty-input
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml `npm run typecheck` step runs `tsc -p tsconfig.json` with checkJs and noEmit over every engine directory's .mjs files, so a type error, or a tsc missing after a failed install, fails the step.
+  evidence: [.github/workflows/ci.yml:32, package.json:11, tsconfig.json:3-12]
+  confidence: confirmed
+  property: typecheck-gate
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml `npm run build` step runs the same lib/check-syntax.mjs as lint, so it fails closed on the same conditions and checks nothing lint did not already check.
+  evidence: [.github/workflows/ci.yml:33, package.json:10-12, lib/check-syntax.mjs:13-15]
+  confidence: confirmed
+  property: build-gate-duplicates-lint
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml tools step runs the composite action under `set -euo pipefail`, where `tools install --run` exits 1 on a failed or unsupported tool, a checksum mismatch installs nothing, `tools verify --run` exits 1 unless every tool is on PATH answering its pin (a 60-second version probe that times out reads broken), and tests/blocks/ci-interface.mjs and tests/blocks/tools-precondition.mjs pin that a failed install or verify fails the step, puts nothing on PATH, and runs before `npm test`.
+  evidence: [.github/workflows/ci.yml:38, .github/actions/tools/action.yml:25-31, map/tools.mjs:127, map/tools.mjs:140-157, map/tools.mjs:230-244, tests/blocks/ci-interface.mjs:74-77, tests/blocks/tools-precondition.mjs:86-95]
+  confidence: confirmed
+  property: tool-install-verified-before-use
+- id: F-306
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The ci.yml `npm test` step goes red on a block failure, a thrown or unloadable block, or golden drift, but its structure-scan block, when jscpd or knip cannot be installed from the npm registry, prints a SKIPPED warning to stderr and records no failure, so the step exits 0 with the real-tool case unproven and the block's label still on the gate line.
+  evidence: [.github/workflows/ci.yml:39, tests/blocks/structure-scan.mjs:131-136, tests/harness.mjs:111-117]
+  confidence: confirmed
+  property: test-gate-skips-on-unreachable-registry
+  explained_by: [F-314]
+- id: F-307
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml test job carries `timeout-minutes: 15`, so a gate that never finishes ends the job as a failure, and tests/blocks/ci-workflow.mjs fails the harness when any ci.yml job lacks a timeout-minutes line.
+  evidence: [.github/workflows/ci.yml:19, tests/blocks/ci-workflow.mjs:34-41]
+  confidence: confirmed
+  property: ci-job-bounded
+- id: F-308
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml version step runs under `set -euo pipefail` and exits 1 when the dispatched version is not vX.Y.Z or its tag already exists, and tests/blocks/consumer-contract.mjs fails the harness when release.yml loses the vX.Y.Z pattern.
+  evidence: [.github/workflows/release.yml:33-38, tests/blocks/consumer-contract.mjs:137]
+  confidence: confirmed
+  property: release-version-refusal
+- id: F-309
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml `npm ci` step installs from the same committed integrity-pinned lockfile as ci.yml, so a missing or out-of-sync lockfile stops the release before it tags.
+  evidence: [.github/workflows/release.yml:39, package-lock.json:4, package-lock.json:25]
+  confidence: confirmed
+  property: lockfile-install-refuses-drift
+- id: F-310
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml tools step calls the same composite action as ci.yml, whose install or verify failure fails the step under `set -euo pipefail` before `npm test` and the tag step run.
+  evidence: [.github/workflows/release.yml:40, .github/actions/tools/action.yml:25-31, map/tools.mjs:240-244]
+  confidence: confirmed
+  property: tool-install-verified-before-use
+- id: F-311
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The release.yml `npm test` step runs the same harness as ci.yml, so a release can be tagged while the structure-scan block's real-tool case was skipped for an unreachable registry with no failure recorded.
+  evidence: [.github/workflows/release.yml:41, tests/blocks/structure-scan.mjs:131-136]
+  confidence: confirmed
+  property: test-gate-skips-on-unreachable-registry
+  explained_by: [F-314]
+- id: F-312
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml `release-notes --check` step exits 1 on a shallow history, on a CONSUMERS.md with no surface block, on any git error, and on each surface-touching commit without a Consumer trailer, and tests/blocks/consumer-contract.mjs proves the refusal on a planted repository and runs the check over this repository's own history.
+  evidence: [.github/workflows/release.yml:42-43, lib/release-notes.mjs:69, lib/release-notes.mjs:96-111, tests/blocks/consumer-contract.mjs:108-110, tests/blocks/consumer-contract.mjs:122-128]
+  confidence: confirmed
+  property: release-trailer-check-fails-closed
+- id: F-313
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The harness runner refuses an empty or missing blocks directory, a block that does not load, a label that is not its filename, a missing run function, an empty or doubly claimed gate label, an after cycle, a thrown block, a missing NEGATIVE or SCORED export, and a missing golden.json, each as a failure or a non-zero exit, and refuses a --bless over any failure.
+  evidence: [tests/regression.mjs:28-44, tests/harness.mjs:70-107, tests/harness.mjs:111-118, tests/harness.mjs:128-141, tests/blocks/block-runner.mjs:52-60]
+  confidence: confirmed
+  property: harness-refuses-what-it-cannot-run
+- id: F-314
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    tests/blocks/structure-scan.mjs case (d) runs the real jscpd and knip only when both install, and otherwise writes a console.error warning instead of calling fail(), so the block passes with nothing about the real tools proven.
+  evidence: [tests/blocks/structure-scan.mjs:10-13, tests/blocks/structure-scan.mjs:131-136]
+  confidence: confirmed
+  property: tool-absent-skips-silently
+- id: F-315
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    tests/blocks/gitleaks-target.mjs runs its repository-top-level scan assertion only when `gitleaks version` exits 0 and has no else branch for that case, so with gitleaks absent from PATH the case is omitted without a failure or a printed note.
+  evidence: [tests/blocks/gitleaks-target.mjs:24, tests/blocks/gitleaks-target.mjs:46-51]
+  confidence: confirmed
+  property: tool-absent-skips-silently
+- id: F-316
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    tests/blocks/branch-cleanup.mjs fails, rather than skips, when bash or jq is not on PATH, and states that rule in its header.
+  evidence: [tests/blocks/branch-cleanup.mjs:6, tests/blocks/branch-cleanup.mjs:110]
+  confidence: confirmed
+  property: tool-absent-fails
+- id: F-317
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `tools verify` exits 0 when its selection is empty because every() over no rows is true, and tests/blocks/ci-interface.mjs pins exit 0 for `tools verify --run --only no-such-scanner`, while only tests/blocks/refusal-commands.mjs separately asserts the `--run` set is non-empty.
+  evidence: [map/tools.mjs:168-171, map/tools.mjs:241-244, tests/blocks/ci-interface.mjs:101-102, tests/blocks/refusal-commands.mjs:19-20]
+  confidence: confirmed
+  property: empty-selection-reads-ready
+- id: F-318
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    tests/golden.json pins recall, recovered, in-scope, missed, mis-homed and false-positive counts for the notesbox, cleanlib and fixtures-root runs plus corroboration, roster and requirements entries, and the verdict compares every key in both directions so an added, removed or moved score is drift.
+  evidence: [tests/golden.json:1-35, tests/golden.json:176, tests/blocks/fixture-recall.mjs:14-29, tests/harness.mjs:142-151]
+  confidence: confirmed
+  property: pinned-score-drift
+- id: F-319
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    tests/negative/ holds 44 malformed-run directories; tests/blocks/negative-fixtures.mjs runs map/validate.mjs over the 31 its NEGATIVE list names and fails unless each goes red, for its own named violation, with no stray violation, and the other 13 are read by the fail-closed, findings-loader, censuses and packet blocks.
+  evidence: [tests/blocks/negative-fixtures.mjs:9-16, tests/blocks/negative-fixtures.mjs:64-76]
+  confidence: confirmed
+  property: negative-fixtures-pin-own-reason
+- id: F-320
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The typecheck checks JSDoc-annotated JavaScript with no strict or noImplicitAny option, includes no file under tests/, and resolves Node types from @types/node 20.19.43 while package.json declares Node >=22.
+  evidence: [tsconfig.json:2-12, package.json:17-18, lib/release-notes.mjs:23-35]
+  confidence: confirmed
+  property: typecheck-over-jsdoc
+- id: F-321
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The lint script is a parse check only (`node --check` per module) with no rule-based linter, and the build script is the same command.
+  evidence: [package.json:10-12, lib/check-syntax.mjs:1-5, lib/check-syntax.mjs:14]
+  confidence: confirmed
+  property: lint-is-syntax-only
+- id: F-322
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    ci.yml runs Node 22 and 24, and tests/blocks/ci-workflow.mjs asserts the matrix contains the package.json engines floor and 22 though its header says every major up to the current one, while release.yml runs its gate on Node 22 only.
+  evidence: [.github/workflows/ci.yml:20-29, tests/blocks/ci-workflow.mjs:1-5, tests/blocks/ci-workflow.mjs:43-50, .github/workflows/release.yml:30-32]
+  confidence: confirmed
+  property: node-matrix-vs-engines
+- id: F-323
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every third-party action in ci.yml and release.yml is pinned to a 40-hex commit SHA, and the harness fails when a ci.yml or release.yml pin is not a SHA or a ci.yml pin differs from the routine template's.
+  evidence: [.github/workflows/ci.yml:24, .github/workflows/ci.yml:27, .github/workflows/release.yml:26, .github/workflows/release.yml:30, tests/blocks/ci-workflow.mjs:16-23, tests/blocks/consumer-contract.mjs:141]
+  confidence: confirmed
+  property: actions-pinned-to-sha
+- id: F-324
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    release.yml runs `npm ci`, the tools action, `npm test` and the trailer check but no lint, typecheck or build step, and tests/blocks/consumer-contract.mjs requires only `npm test` and the trailer check before the tag.
+  evidence: [.github/workflows/release.yml:39-43, .github/workflows/ci.yml:31-33, tests/blocks/consumer-contract.mjs:139]
+  confidence: confirmed
+  property: release-gate-subset-of-ci
+- id: F-325
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A subtle regression in map/validate.mjs is caught when `npm test` runs, by the negative fixtures that each require its own named violation and by blocks that require well-formed runs to validate green, and ci.yml runs that on every pull request and push to main, before merge.
+  evidence: [.github/workflows/ci.yml:8-11, .github/workflows/ci.yml:39, tests/blocks/negative-fixtures.mjs:66-75, tests/blocks/engine-pipeline.mjs:37]
+  confidence: confirmed
+  property: central-module-regression-caught-pre-merge
+- id: F-326
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    No commit or push hook exists in the tree and package.json declares no prepare or hook script, so a local `npm test` before a pull request is a written instruction, and whether ci.yml is a required check for merging is not recorded in the repository.
+  evidence: [package.json:8-16, CONTRIBUTING.md:4-5]
+  confidence: confirmed
+  property: no-local-hook
+- id: F-327
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The harness runs blocks sequentially with no per-block time limit, so a local `npm test` whose block hangs never finishes, while in CI the 15-minute job timeout bounds it; the tools install downloads with curl with no maximum time, bounded in CI by the same job timeout.
+  evidence: [tests/harness.mjs:111-118, map/tools.mjs:73, .github/workflows/ci.yml:19]
+  confidence: confirmed
+  property: harness-unbounded-locally
