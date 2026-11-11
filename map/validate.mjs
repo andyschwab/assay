@@ -594,6 +594,34 @@ if (canonName) {
   }
 }
 
+// authored censuses (optional, SCHEMA.md §6b): read whenever present, whether or not a
+// grades file has been generated yet. The measurement reads this file with the same strict
+// reader (yardstick/measure.mjs), so a file validate let through unread would crash
+// variance and compile instead of failing here, naming the file (#267).
+const censusesLabel = 'map/censuses.yaml';
+let censusDims = {};
+if (existsSync(censusesPath(runDir))) {
+  let cz = null;
+  try { cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8')); }
+  catch (e) { err(censusesLabel, `YAML parse failed (fail-closed; the measurement reads this file with the same reader): ${e.message}`); }
+  if (cz) {
+    if (!Array.isArray(cz.dimensions)) err(censusesLabel, `dimensions must be a list`);
+    else for (const [i, x] of cz.dimensions.entries()) {
+      const at = `${censusesLabel}:${x && x.dimension || `[${i}]`}`;
+      if (!x || !DIMENSIONS.has(x.dimension)) { err(at, `bad or missing dimension`); continue; }
+      censusDims[x.dimension] = x;
+      if (x.sampled === undefined) continue;
+      if (!Array.isArray(x.sampled)) { err(at, `sampled must be a list`); continue; }
+      for (const s of x.sampled) {
+        const sat = `${at}:${s && s.name || '??'}`;
+        if (!s || !s.name) { err(sat, `a sampled census must name its measure`); continue; }
+        if (typeof s.met !== 'number' || typeof s.of !== 'number' || s.of < 1) err(sat, `a sampled census needs numeric met/of`);
+        if (!s.method) err(sat, `a sampled census must state its method`);
+      }
+    }
+  }
+}
+
 // maturity grades tail (optional): coverage schema (SCHEMA.md §6b) + drift check.
 // The file is GENERATED (views/improve/maturity.mjs --write); the counted numbers are
 // recomputed here from the base and any mismatch is an error — the maturity
@@ -615,13 +643,7 @@ if (existsSync(gradesPath)) {
       // sampled rows are re-derived from their authored source, map/censuses.yaml, the way
       // counted rows are re-derived from the base: a sampled number hand-edited in the
       // generated file (and the aggregate re-pooled to match) must not validate.
-      let censusDims = {};
-      if (existsSync(censusesPath(runDir))) {
-        try {
-          const cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8'));
-          censusDims = Object.fromEntries(((cz && cz.dimensions) || []).filter((x) => x && x.dimension).map((x) => [x.dimension, x]));
-        } catch (e) { err('map/censuses.yaml', `YAML parse failed (fail-closed): ${e.message}`); }
-      }
+      // (censusDims: parsed and shape-checked above, whether or not this file exists)
       const sampledDrift = (at, dim, row) => {
         if (!row.name) { err(at, `sampled coverage must name its measure (the census row it comes from)`); return; }
         const src = ((censusDims[dim] && censusDims[dim].sampled) || []).find((x) => x && x.name === row.name);

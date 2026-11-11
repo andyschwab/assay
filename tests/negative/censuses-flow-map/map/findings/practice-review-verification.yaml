@@ -1,0 +1,23 @@
+# Verification pass over the notesbox fixture target.
+- id: F-030
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The smoke suite asserts that a valid token resolves a user, but never asserts that an
+    invalid token is rejected, so it stays green while the auth fail-open and the missing
+    authorization on /sync both stand — a test that reassures without checking the thing that
+    matters.
+  evidence: [test/smoke.mjs:9]
+  confidence: confirmed
+
+- id: F-031
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    pushBackup fires the backup POST without awaiting it and swallows any failure with
+    .catch(() => {}), then returns { ok: true } unconditionally, so it reports success while the
+    effect may have dropped — the return value is trusted, never the effect.
+  evidence: [lib/sync.mjs:12]
+  confidence: confirmed

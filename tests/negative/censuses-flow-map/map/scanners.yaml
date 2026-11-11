@@ -1,0 +1,35 @@
+# scanners.yaml — run manifest (SCHEMA.md §5a). Negative fixture (censuses-flow-map): only the base passes ran.
+engine: fixture
+scanners:
+  practice-review:
+    status: ran
+  deep-code-review:
+    status: skipped
+    reason: "fixture: not executed"
+  gitleaks:
+    status: skipped
+    reason: "fixture: not executed"
+  fresh-clone:
+    status: skipped
+    reason: "fixture: not executed"
+  dependency-scan:
+    status: skipped
+    reason: "fixture: not executed"
+  repo-census:
+    status: skipped
+    reason: "fixture: not executed"
+  structure-scan:
+    status: skipped
+    reason: "fixture run: structure-scan was not executed over this public target"
+  zizmor:
+    status: skipped
+    reason: "fixture: not executed"
+  osv-scanner:
+    status: skipped
+    reason: "fixture: not executed"
+  checkov:
+    status: skipped
+    reason: "fixture: not executed"
+  opengrep:
+    status: skipped
+    reason: "fixture: not executed"

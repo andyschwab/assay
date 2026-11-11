@@ -650,6 +650,11 @@ coverage states its `method`; counted numbers match recomputation from the base;
 sampled numbers (primary or secondary) match the `map/censuses.yaml` row they name, so a
 sample cannot be hand-inflated in the generated file with the aggregate re-pooled to hide it;
 every dimension carries a `depth`; flags are `false` or evidenced claims.
+`map/censuses.yaml` itself is read whenever it is present, whether or not a grades file
+has been generated yet, with the same strict reader the measurement uses: a construct the
+reader refuses (a flow map, for one) is a violation naming the file, never a crash later in
+`measure`, `variance` or `compile`; each entry names a dimension (§2), and each `sampled`
+entry names its measure and states numeric `met`/`of` and a `method`.
 
 ### 6c. `views/improve/prose.yaml` — the authored narrative + decision structure
 
