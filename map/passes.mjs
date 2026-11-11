@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-export const PASSES_FILE = join(HERE, 'passes.yaml');
+const PASSES_FILE = join(HERE, 'passes.yaml');
 export const METHOD_FILE = join(HERE, 'METHOD.md');
 export const SCHEMA_FILE = join(HERE, 'SCHEMA.md');
 
@@ -125,11 +125,11 @@ function sectionAt(text, find) {
   return lines.slice(h.line, next ? next.line : lines.length).join('\n').replace(/\s+$/, '') + '\n';
 }
 /** SCHEMA.md's section by number ("1", "6b"), or null. @param {string} text @param {string} n */
-export function sectionByNumber(text, n) {
+function sectionByNumber(text, n) {
   return sectionAt(text, (h) => h.level <= 3 && h.title.startsWith(`${n}. `));
 }
 /** A section by the start of its heading's title, or null. @param {string} text @param {string} title */
-export function sectionByTitle(text, title) {
+function sectionByTitle(text, title) {
   return sectionAt(text, (h) => h.title.startsWith(title));
 }
 // the passes' introduction: the "Passes 1–7" heading up to the first pass's own section
@@ -162,7 +162,7 @@ const close = (id) => `<!-- /passes:${id} -->`;
 
 /** The block at the head of a pass's section, rendered from the map and the yardstick.
  * @param {any} pass @param {any} reg */
-export async function renderBlock(pass, reg) {
+async function renderBlock(pass, reg) {
   const { parseCheck } = await import('../yardstick/population.mjs');
   const terms = (reg.members || []).map((m) => m.term);
   const rows = new Map((reg.requirements || []).map((d) => [d.id, d]));
