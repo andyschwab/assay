@@ -37,7 +37,9 @@ import { censusesPath, yardstickPath, ownerDir, packetManifestPath } from '../li
 import { isHalt, isHaltClass, gateHolds, effectLeg, isMain } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 import { loadPacket, validatePacket, decidePacketClaim } from './packet.mjs';
-import { loadChannelFiles, channelPopulation } from '../map/effect-triage.mjs';
+import { loadChannelFiles, channelPopulation, CANDIDATE_POPULATIONS } from '../map/effect-triage.mjs';
+import { loadCensusTriage, censusClosure } from '../map/census-triage.mjs';
+import { ENUMERATE_POPULATIONS } from '../map/enumerate-populations.mjs';
 import { censusCount } from '../map/census.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
@@ -46,6 +48,11 @@ export const KINDS = ['facet', 'census', 'instrument', 'claim'];
 const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable', 'channels-triaged'];
 // the four rules that read the effect population: each reads met only over a closed one (#259)
 const EFFECT_RULES = new Set(['halts-gated', 'halts-traced', 'effects-provable', 'gates-fail-closed']);
+// the enumerate populations a census row may name as its candidates: every population but the
+// three the effect triage closes (map/effect-triage.mjs), and the constants enumerate's shape
+// filter set apart as not credentials (map/enumerate.mjs: a name assigned an identifier or a
+// number and never read from the environment is not a candidate of any census)
+const CENSUS_LISTABLE = ENUMERATE_POPULATIONS.filter((p) => !CANDIDATE_POPULATIONS.includes(p) && p !== 'secretConstants');
 export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured', 'not-applicable'];
 const STRUCTURED = new Set(['structured-event', 'audited']);
 // TOPICS — the roster a requirement's `topic:` must land on: the axis roster
@@ -113,6 +120,15 @@ export function validateYardstick(reg) {
       } else if (d.decide.scanner !== undefined || d.decide.category !== undefined) errors.push(...validateDecider(d.decide, `${at}: instrument`));
       if (d.decide.any_gap !== undefined && d.decide.any_gap !== 'unmet') errors.push(`${at}: decide.any_gap may only be "unmet" (a check every listed property must hold)`);
     }
+    // a census row's population (#286, M6): the enumerate population(s) that list its candidates
+    // (decide.candidates), or why no tool can list them (decide.open), exactly one of the two
+    if (d.decide && d.decide.kind === 'census') {
+      const hasC = d.decide.candidates !== undefined, hasO = d.decide.open !== undefined;
+      if (hasC === hasO) errors.push(`${at}: a census row names the enumerate population(s) listing its candidates (decide.candidates) or says why no tool can list them (decide.open), exactly one`);
+      if (hasC && !(Array.isArray(d.decide.candidates) && d.decide.candidates.length && d.decide.candidates.every((p) => typeof p === 'string' && p))) errors.push(`${at}: decide.candidates must be a non-empty list of enumerate populations (${CENSUS_LISTABLE.join(', ')})`);
+      else if (hasC) for (const p of d.decide.candidates) if (!CENSUS_LISTABLE.includes(p)) errors.push(`${at}: decide.candidates names "${p}", not an enumerate population a census may close (${CENSUS_LISTABLE.join(', ')}; ${CANDIDATE_POPULATIONS.join(', ')} are the effect triage's)`);
+      if (hasO && !(typeof d.decide.open === 'string' && d.decide.open.trim())) errors.push(`${at}: decide.open must be a sentence (why no tool lists this population from the tree)`);
+    } else if (d.decide && (d.decide.candidates !== undefined || d.decide.open !== undefined)) errors.push(`${at}: decide.candidates and decide.open are a census row's`);
     // why this kind decides the row (#262): optional, one sentence where given
     if (d.decide && d.decide.why !== undefined && !(typeof d.decide.why === 'string' && d.decide.why.trim())) errors.push(`${at}: decide.why must be a sentence (why this kind decides the row)`);
     // a claim row's context (#262): the context lists in map/censuses.yaml whose findings it
@@ -128,6 +144,12 @@ export function validateYardstick(reg) {
     // required on every row, fail-closed, the same as check/sources above — a row with no
     // owner register would read as an owner page with a blank line, never an absence.
     if (!d.owner || !d.owner.risk || !d.owner.fix) errors.push(`${at}: owner.risk and owner.fix required (the Owner view's register)`);
+  }
+  // an enumerate population closes one census: a candidate is one row's member
+  const listedBy = new Map();
+  for (const d of reg.requirements) for (const p of d?.decide?.kind === 'census' && Array.isArray(d.decide.candidates) ? d.decide.candidates : []) {
+    if (listedBy.has(p)) errors.push(`yardstick: ${d.id}: decide.candidates names "${p}", already ${listedBy.get(p)}'s: a candidate would be two censuses' member`);
+    else listedBy.set(p, d.id);
   }
   // a name is a census's or a context list's, never both, and a context list is one row's
   const measured = new Set(reg.requirements.flatMap((d) => (d?.decide?.kind === 'census' && Array.isArray(d.decide.measures) ? d.decide.measures : [])));
@@ -285,6 +307,22 @@ function byCensus(d, inputs, findingsById = new Map()) {
   else if (unjudged.length) status = strengths.length ? 'mixed' : 'not-measured';
   else status = 'met';
   return row(status, 'census', c.members, note, { met, of, measure: s.name });
+}
+
+// A census a tool can list (#286, M6 of #257; yardstick/README.md, "A census a tool can list").
+// The row names the enumerate population(s) listing its candidates, and the lane triages each
+// once (map/census-triage.mjs). Its census reading stands only over a closed list: no list reads
+// not measured, with the reason; an untriaged candidate turns met into mixed and is named, and an
+// unmet or not-measured reading stays as it is with them named too, as the effect rows read (#259).
+function closedCensus(r, cl) {
+  if (!cl.listed) return row('not-measured', 'census', [], `census population not closed: ${cl.reason}`);
+  const n = cl.candidates.length;
+  if (!cl.untriaged.length) {
+    if (n && cl.outOfScope.length === n && r.status === 'not-measured') return { ...r, note: `${r.note}; every one of the ${n} candidate(s) is triaged out of scope, so no member is judged` };
+    return r;
+  }
+  const tail = `${cl.untriaged.length} of ${n} candidate(s) untriaged: ${cl.untriaged.join(', ')}`;
+  return { ...r, status: r.status === 'met' ? 'mixed' : r.status, note: `${r.note}; ${tail}` };
 }
 
 // A claim row's context (#262, M4 of #257): the finding ids the run's context lists name for its
@@ -475,7 +513,9 @@ function withLanes(d, r, adapters, disp) {
 
 // channels: the run's channel candidates and their triage (map/effect-triage.mjs loadChannelFiles);
 // absent, the effect population is not closed and the effect rows read not measured.
-export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null, channels = null }, reg = loadYardstick()) {
+// census: the run's enumerated populations and its census triage (map/census-triage.mjs
+// loadCensusTriage); absent, a census row that names its candidates reads not measured.
+export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null, channels = null, census = null }, reg = loadYardstick()) {
   const disp = dispositionsOf(manifest);
   adapters ??= (ADAPTERS ??= loadAdapters());
   const contradictions = [];
@@ -485,7 +525,10 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
   const rows = reg.requirements.map((d) => {
     let r, basis = 'run';
     if (d.decide.kind === 'facet') r = byFacet(d, findings, ch, lanesDeciding(d, adapters, disp));
-    else if (d.decide.kind === 'census') r = byCensus(d, inputs, findingsById);
+    else if (d.decide.kind === 'census') {
+      r = byCensus(d, inputs, findingsById);
+      if (Array.isArray(d.decide.candidates)) r = closedCensus(r, censusClosure(d, census || {}, inputs, findingsById));
+    }
     else if (d.decide.kind === 'instrument') r = decideInstrument(d, findings, disp, coverage || {}, adapters);
     else {
       const pd = decidePacketClaim(d.id, packet);
@@ -520,7 +563,7 @@ export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   // this guards against (CLAUDE.md rule 3: fail loud, never empty; a clean run with an
   // explicit run record is a valid measurement, not an absent one).
   if (!findings.length && !manifest) throw new Error(`no findings under ${runDir}`);
-  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir) }, reg);
+  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir), census: loadCensusTriage(runDir) }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what the four views (Intake, Maintain, Improve's topic

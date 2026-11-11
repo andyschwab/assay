@@ -151,7 +151,8 @@ requirements:
     decide:
       kind: census
       measures: [credentials-below-boundary, credential-boundary, credential]
-    check: "Population: every secret the running application reads (an environment variable, a config value or a key file that grants access to an account, a service or data), one finding per secret listed as the credential census's members; excluded: secret-named constants no site reads from the environment, inert strings planted in test fixtures, and the accounts themselves (d-accounts-enumerated). Question: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed? A census with no members never reads met"
+      candidates: [secrets]
+    check: "Population: every secret the running application reads (an environment variable, a config value or a key file that grants access to an account, a service or data), each secret name map/raw/enumerate.json lists in populations.secrets one candidate, triaged once in map/census-triage.yaml to the one finding that judges it, listed as the credential census's member; excluded: secret-named constants no site reads from the environment (enumerate's secretConstants, never a candidate), a candidate that is an inert string planted in a test fixture or a name that grants nothing, each triaged out of scope with the reason, and the accounts themselves (d-accounts-enumerated). Question: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed? A census with no members never reads met"
     sources: [floor/c-credentials, manifest/d5-secrets-below-artifact, method/credential-census]
     status: draft
     owner:
@@ -369,6 +370,7 @@ requirements:
     decide:
       kind: census
       measures: [ingested-content, ingestion-points]
+      open: "no tool lists it from the tree: outside text enters through an upload, a fetch, an inbound message or a file read, and enumerate lists only some of those shapes (route handlers, http writes), while whether a read takes in outside text is read at the site"
       why: "census (#262): a run closes the population by reading the tree, since outside text enters only through an upload, a fetch, an inbound route, webhook or feed, or a file read the code makes, and how it is kept, rendered and used is read where it lands"
     check: "Population: every ingestion point, each place where text from outside the team enters the application (an upload, a fetch, an inbound message, webhook or feed, a file or page read in) and is stored, rendered or handed to a model, one finding per point listed as the ingested-content census's members; excluded: whether request input is checked before it reaches a dangerous sink, which is d-untrusted-input-checked's, what a model call can reach, the AI context's, and the effects a reply drives, which the effect rows take. Question: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction? A census with no members never reads met"
     sources: [foundation/ingested-content-is-data, method/acting-from]
@@ -522,7 +524,8 @@ requirements:
     decide:
       kind: census
       measures: [change-gates, change-gates-fail-closed]
-    check: "Population: every change gate, each check the repository runs on a change before it lands or ships (a CI job or step, a commit or push hook, a config-driven lint, typecheck, test, scan or schema check), one finding per gate listed as the change-gates census's members; excluded: gates in front of the application's own effects, which are d-gates-fail-closed's, whether a CI workflow on the default branch exists and runs the gates, which is d-ci-gate-on-default-branch's, and whether branch protection requires a check, which the tree does not show. Question: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green? A step that swallows its own exit, or skips its work when a variable is unset, passes nothing; a census with no members never reads met"
+      candidates: [changeGates]
+    check: "Population: every change gate, each check the repository runs on a change before it lands or ships (a CI job or step, a commit or push hook, a config-driven lint, typecheck, test, scan or schema check), each member map/raw/enumerate.json lists in populations.changeGates one candidate (a CI step, a job with no steps, a hook, a package script named for a check), triaged once in map/census-triage.yaml to the one finding that judges it, listed as the change-gates census's member, or out of scope with the reason (a setup step that checks nothing); excluded: gates in front of the application's own effects, which are d-gates-fail-closed's, whether a CI workflow on the default branch exists and runs the gates, which is d-ci-gate-on-default-branch's, and whether branch protection requires a check, which the tree does not show. Question: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green? A step that swallows its own exit, or skips its work when a variable is unset, passes nothing; a census with no members never reads met"
     sources: [issue/257, issue/261, takeover-eval/privacy-gate-passes-unset, foundation/never-skip-a-test]
     status: draft
     owner:
@@ -643,6 +646,7 @@ requirements:
     decide:
       kind: census
       measures: [doc-freshness]
+      open: "no tool lists it from the tree: a doc claim is a sentence of prose, and which sentences state a command, a count, a path or an endpoint the code can be checked against is read, not listed"
     check: "Population: every doc claim, a concrete statement in the repository's prose docs (the README, the doc pages it routes to, the agent contract file) of a command, a count, a path, an endpoint or a capability the code is said to have; excluded: comments and headers in code, which no requirement takes until a docs-current-with-code row is promoted (#257), a second account of one fact, decision rationale, which is d-decisions-reconstruct's, and whether the agent contract file exists, which is d-agent-contract's. Question: does it hold when replayed against the code or checked in the fresh-clone run?"
     sources: [floor/l-readme, method/docs-freshness-probe]
     status: draft
@@ -657,6 +661,7 @@ requirements:
     decide:
       kind: census
       measures: [decision-reconstruction, decision-rationale, patch-rationale]
+      open: "no tool lists it from the tree: a non-obvious decision is a choice a newcomer would question, and nothing in the files marks one as such"
     check: "Population: every non-obvious decision the terrain enumerates and freezes before assessment (a choice a newcomer would question: a dependency, a shortcut, a default, a boundary), one finding per decision; excluded: choices the code alone makes obvious, a stale claim in the docs, which is d-readme-true's, and a lesson from a past failure, which is d-corrections-become-mechanisms'. Question: can a newcomer reconstruct why it was made from the repository's files alone?"
     sources: [floor/l-decisions, manifest/d1-decision-container, method/pass-1]
     status: draft
@@ -671,6 +676,7 @@ requirements:
     decide:
       kind: census
       measures: [modules-standalone, module-standalone, module-loadability, control-plane-modules-standalone]
+      open: "no tool lists it from the tree: the tree lists files, packages and directories, and which of them is the unit an agent loads to change one concern is the terrain's judgment"
     check: "Population: every module in the terrain's module population, a source file, package or directory an agent loads to change one concern; excluded: generated and vendored code, tests, the prose docs (d-readme-true) and a stale comment inside a module, which no requirement takes. Question: can an agent load it alone, with something to read and something to run, and change it without loading the rest?"
     sources: [method/pass-2]
     status: draft
@@ -943,7 +949,8 @@ requirements:
       kind: census
       measures: [model-call-telemetry, model-calls]
       why: "census (#262): a run closes the population by reading the tree, since every model call is a provider SDK import or a call to a provider's API in the code, and whether the call writes a record is read at the call site"
-    check: "Population: every model call site, each place in the code that calls a model through a provider's SDK or HTTP API, one finding per call site listed as the model-call-telemetry census's members; excluded: what the call can reach, the AI context's (d-capability-budget), a ceiling on spend enforced before the call, which no row takes, and an alert on the bill after it, which is d-cost-alerts'. Question: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome? A census with no members never reads met"
+      candidates: [modelCalls]
+    check: "Population: every model call site, each place in the code that calls a model through a provider's SDK or HTTP API, each file map/raw/enumerate.json lists in populations.modelCalls one candidate, triaged once in map/census-triage.yaml to the one finding that judges the calls in it, listed as the model-call-telemetry census's member, or out of scope with the reason (an import no call uses); excluded: what the call can reach, the AI context's (d-capability-budget), a ceiling on spend enforced before the call, which no row takes, and an alert on the bill after it, which is d-cost-alerts'. Question: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome? A census with no members never reads met"
     sources: [manifest/d6-telemetry-native, method/spend-meter]
     status: draft
     owner:
@@ -1017,6 +1024,7 @@ requirements:
     decide:
       kind: census
       measures: [agent-access-surface, agent-consumable-surface]
+      open: "no tool lists it from the tree: routeHandlers and channelCandidates list some interfaces (an HTTP route, a command, a tool), but a screen, or a data file or format other tools read, has no listing, and routeHandlers and contracts do not close a target's interfaces"
     check: "Population: every interface the application offers a caller, person or program (an HTTP route, a command, a tool or MCP tool, a screen, a data file or format other tools read); excluded: internal functions nothing outside the code reaches, whether the server checks who is asking (d-routes-authorized), whose data a request reaches (d-tenant-isolation-in-data-layer) and whom an effect acts as, which no census takes. Question: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen? Interfaces consumable by an agent, of all interfaces"
     sources: [manifest/d7-agent-surface, manifest/d7-format-contracts, foundation/structural-rule-4]
     status: draft
@@ -1031,6 +1039,7 @@ requirements:
     decide:
       kind: census
       measures: [incidents-became-mechanisms, incident-lesson, lessons-mechanized]
+      open: "no tool lists it from the tree: a lesson is recorded in prose (an incident note, a postmortem, a review correction, a lessons-file entry), and which prose records one is read, not listed"
     check: "Population: every lesson the repository records, an incident, postmortem, review correction, lessons-file entry or fix that names its cause; excluded: plans and backlog items nothing has yet been learned from, and decision rationale, which is d-decisions-reconstruct's. Question: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again? Lessons that became a mechanism, of lessons recorded"
     sources: [manifest/d6-correction-capture, foundation/lesson-with-its-incident]
     status: draft

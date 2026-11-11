@@ -1,0 +1,28 @@
+- id: F-001
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The deploy token is read from the environment at one site, and what it may do there is
+    traced: it pushes one branch and nothing else.
+  evidence: [deploy.mjs:3]
+  confidence: confirmed
+
+- id: F-002
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The search key is read from the environment at one site and sent only to the search
+    service's read endpoint.
+  evidence: [search.mjs:2]
+  confidence: confirmed
+
+- id: F-003
+  dimension: delegation
+  polarity: gap
+  subject_type: process
+  observation: >
+    Nothing records who may rotate either key.
+  evidence: [README.md:1]
+  confidence: confirmed

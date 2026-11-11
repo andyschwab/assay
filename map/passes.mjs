@@ -172,7 +172,12 @@ async function renderBlock(pass, reg) {
     const c = parseCheck(d.check, terms);
     if (!c) throw new Error(`${id}: its check names no population term (yardstick/population.mjs)`);
     const how = d.decide.kind === 'census' ? `census \`${asList(d.decide.measures)[0]}\`` : `facet \`${d.decide.rule}\``;
-    return `  - \`${id}\` (${how}): population every ${c.term}; asks: ${c.question}`;
+    // a census closed over a listed population (#286): the pass is given its candidates and
+    // triages each once; an open census says no tool lists it
+    const listed = d.decide.kind === 'census' && Array.isArray(d.decide.candidates)
+      ? `; candidates: ${d.decide.candidates.map((p) => `\`populations.${p}\``).join(', ')} of \`map/raw/enumerate.json\`, each triaged once in \`map/census-triage.yaml\``
+      : d.decide.kind === 'census' ? '; no tool lists its members, so the terrain draws them' : '';
+    return `  - \`${id}\` (${how}): population every ${c.term}${listed}; asks: ${c.question}`;
   });
   const discovery = pass.discovery.map((q) => `  - \`${q.property}\`: ${q.question}`);
   return [

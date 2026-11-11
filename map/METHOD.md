@@ -191,8 +191,8 @@ fails on drift), never hand-edited.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-decisions-reconstruct` (census `decision-reconstruction`): population every non-obvious decision; asks: can a newcomer reconstruct why it was made from the repository's files alone?
-  - `d-readme-true` (census `doc-freshness`): population every doc claim; asks: does it hold when replayed against the code or checked in the fresh-clone run?
+  - `d-decisions-reconstruct` (census `decision-reconstruction`): population every non-obvious decision; no tool lists its members, so the terrain draws them; asks: can a newcomer reconstruct why it was made from the repository's files alone?
+  - `d-readme-true` (census `doc-freshness`): population every doc claim; no tool lists its members, so the terrain draws them; asks: does it hold when replayed against the code or checked in the fresh-clone run?
 - **Discovery**: none.
 - **Opens on** the ground rules, the passes' introduction, this section, and `SCHEMA.md` §1, §2, §3, §6b, §9.
 <!-- /passes:legibility -->
@@ -212,8 +212,8 @@ is asked here once; the context pass no longer spot-checks it.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-modules-standalone` (census `modules-standalone`): population every module; asks: can an agent load it alone, with something to read and something to run, and change it without loading the rest?
-  - `d-model-call-telemetry` (census `model-call-telemetry`): population every model call site; asks: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome?
+  - `d-modules-standalone` (census `modules-standalone`): population every module; no tool lists its members, so the terrain draws them; asks: can an agent load it alone, with something to read and something to run, and change it without loading the rest?
+  - `d-model-call-telemetry` (census `model-call-telemetry`): population every model call site; candidates: `populations.modelCalls` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `entry-docs-route-a-stranger`: do the entry-point docs route a stranger to the one subsystem a task needs, disclosing the rest progressively?
   - `model-tier-rationale-recorded`: is each model-tier choice recorded with its rationale, and re-measured when a model ships?
@@ -234,7 +234,7 @@ nobody re-measures, and spend nobody meters, are what the spend questions name.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-change-gates-fail-closed` (census `change-gates`): population every change gate; asks: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green?
+  - `d-change-gates-fail-closed` (census `change-gates`): population every change gate; candidates: `populations.changeGates` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `central-regression-caught`: if a change introduced a subtle regression in the central module, which gate catches it, and when (pre-commit, CI, by hand, never)?
   - `interface-contract-enforced`: does an interface validate what crosses it, so a wrong input fails loudly rather than silently?
@@ -285,8 +285,8 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
   - `d-effects-traced` (facet `halts-traced`): population every halt-class effect's record; asks: does the effect leave a durable record at all?
   - `d-effects-provable` (facet `effects-provable`): population every effect; asks: is its record structured or audited, so the effect can be proved from outside the AI?
   - `d-capability-budget` (facet `trifecta`): population every AI context; asks: does it hold untrusted input, private data and an outward effect at once while reaching an effect with no gate that holds?
-  - `d-credentials-enumerated` (census `credentials-below-boundary`): population every secret; asks: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed?
-  - `d-ingested-content-is-data` (census `ingested-content`): population every ingestion point; asks: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction?
+  - `d-credentials-enumerated` (census `credentials-below-boundary`): population every secret; candidates: `populations.secrets` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed?
+  - `d-ingested-content-is-data` (census `ingested-content`): population every ingestion point; no tool lists its members, so the terrain draws them; asks: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `acting-principal-stated`: for each connector, tool surface and effect, can you say who is acting as whom, with per-identity scoping and a stated role, rather than one opaque principal?
   - `scope-promotion-path`: where capability is scoped (per user, room or tenant), is there a sanctioned, gated way for it to graduate beyond its scope?
@@ -341,7 +341,7 @@ anything cover authorship?).
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-corrections-become-mechanisms` (census `incidents-became-mechanisms`): population every lesson; asks: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again?
+  - `d-corrections-become-mechanisms` (census `incidents-became-mechanisms`): population every lesson; no tool lists its members, so the terrain draws them; asks: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `impact-self-measured`: does the system know what it is worth (impact fields on shipped work, before-and-after records, its own delta legible without a study)?
   - `usage-outcome-records-emitted`: does the artifact emit structured usage and outcome records by its own design, aggregated at the population level?
@@ -363,7 +363,7 @@ eval's scope). Usage and outcome telemetry endpoints are asked here, once.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-agent-consumable-surface` (census `agent-access-surface`): population every interface; asks: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen?
+  - `d-agent-consumable-surface` (census `agent-access-surface`): population every interface; no tool lists its members, so the terrain draws them; asks: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `shared-context-substrate`: are context stores shared, private or consent-governed, consolidated rather than bespoke per integration, and is a shared scope (room, channel, project) a principal with its own memory and permissions?
   - `sharing-is-consented`: is sharing a conscious act rather than automatic surfacing, and is any privileged reader (an admin who can read content) disclosed by structure?
@@ -525,7 +525,16 @@ is no binning.
  stored verbatim with its provenance, rendered escaped and never acted on as an instruction).
  Each census's population and question are the
  `check:` of the requirement that reads it (`yardstick/README.md`): list a finding in the
- census whose population it is a member of, and in no other. A finding on the population of a
+ census whose population it is a member of, and in no other. Three censuses draw their
+members from a list, not from the terrain (#286, `SCHEMA.md` §6f): the credential census
+from `map/raw/enumerate.json`'s `populations.secrets`, `change-gates` from
+`populations.changeGates` (each CI step, job without steps, hook and check script) and
+`model-call-telemetry` from `populations.modelCalls` (each file that calls a model). Each
+candidate is one member: write one finding per in-scope candidate, list it in the census,
+and triage every candidate once in `map/census-triage.yaml`, to that finding or out of
+scope with the reason, never one finding for two candidates nor two for one. The row reads
+met only over a complete triage. The other censuses' rows say why no tool lists them
+(`decide.open`), and the terrain draws their members as before. A finding on the population of a
  claim row the owner decides goes in that row's **context list** instead (`context:` in
  `map/censuses.yaml`, `SCHEMA.md` §6b), which decides nothing: `second-accounts`,
  `model-qualification`, `ai-disclosure`, `guard-fixtures`, `backlog-records`,

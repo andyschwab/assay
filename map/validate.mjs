@@ -700,6 +700,22 @@ if (existsSync(censusesPath(runDir))) {
   }
 }
 
+// the census triage (map/census-triage.yaml, SCHEMA.md §6f, #286): optional, like the effect
+// triage, and held when present: every candidate of a census a row closes over a listed population
+// triaged exactly once, to a member of that census or out of scope with a reason, and no member
+// judging two candidates. A candidate list or a triage that does not read is an error.
+{
+  const { loadCensusTriage, censusTriageErrors } = await import('./census-triage.mjs');
+  const files = loadCensusTriage(runDir);
+  if (files.triage !== null) {
+    for (const e of files.errors) if (!errors.includes(e)) errors.push(e);
+    const { loadYardstick } = await import('../yardstick/measure.mjs');
+    let censusesDoc = null;
+    try { censusesDoc = existsSync(censusesPath(runDir)) ? parseYaml(readFileSync(censusesPath(runDir), 'utf8')) : null; } catch { /* reported above */ }
+    for (const e of censusTriageErrors(files, loadYardstick(), censusesDoc, findingOf)) errors.push(e);
+  } else for (const e of files.errors) if (/census-triage/.test(e)) errors.push(e);
+}
+
 // maturity grades tail (optional): coverage schema (SCHEMA.md §6b) + drift check.
 // The file is GENERATED (views/improve/maturity.mjs --write); the counted numbers are
 // recomputed here from the base and any mismatch is an error — the maturity

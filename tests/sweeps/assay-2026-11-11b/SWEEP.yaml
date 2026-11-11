@@ -28,5 +28,5 @@ blind: true
 threshold:
   fact_presence: 31          # measured 14 of 45 union facts caught by all three (31%)
   descriptor_agreement: 33   # measured 4 of 12 shared effect channels identical on all six descriptors (33%)
-  requirement_agreement: 58  # measured 7 of 12 decided requirements identical in all three (58%)
+  requirement_agreement: 67  # measured 7 of 12 decided requirements identical in all three (58%). Re-blessed with #286 (M6): d-credentials-enumerated reads over the 21 secrets enumerate listed, and no sweep triaged them (map/census-triage.yaml), so met, mixed, met reads mixed in all three; 8 of 12 agree (67%). The rise is a met that went, not a judgment that converged
 sweeps: [sweep-1, sweep-2, sweep-3]

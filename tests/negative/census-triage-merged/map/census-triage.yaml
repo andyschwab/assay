@@ -1,0 +1,14 @@
+# map/census-triage.yaml (authored) — negative fixture: F-001 judges both candidates, merging two members into one.
+schema: census-triage
+version: 1
+censuses:
+  - census: change-gates
+    triage: []
+  - census: model-call-telemetry
+    triage: []
+  - census: credential
+    triage:
+      - candidate: DEPLOY_TOKEN
+        finding: F-001
+      - candidate: SEARCH_API_KEY
+        finding: F-001

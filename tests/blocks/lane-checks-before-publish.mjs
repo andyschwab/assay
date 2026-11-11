@@ -57,7 +57,7 @@ export async function run() {
       writeFileSync(join(dir, 'map', 'raw', 'enumerate.json'), JSON.stringify({ schema: 'enumerate', version: 1, target: 'checkout', files: 1, populations: { channelCandidates: [], routeHandlers: [], effectSites: [] } }));
       for (const o of seed.outputs.filter((x) => !drop.includes(x))) {
         const body = o === bad ? 'dimensions:\n  - dimension: verification\n    enforced: { claim: true, why: { text: "nested" } }\n'
-          : o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('effect-triage.yaml') ? 'schema: effect-triage\nversion: 1\ntriage: []\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : o.endsWith('-legibility.yaml') ? finding : '[]\n';
+          : o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('effect-triage.yaml') ? 'schema: effect-triage\nversion: 1\ntriage: []\n' : o.endsWith('census-triage.yaml') ? 'schema: census-triage\nversion: 1\ncensuses: []\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : o.endsWith('-legibility.yaml') ? finding : '[]\n';
         writeFileSync(join(dir, o), body);
       }
       return dir;

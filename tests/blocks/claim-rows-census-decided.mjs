@@ -11,6 +11,8 @@
 //       claim (how: census);
 //   (d) the members are taken by the row (requirementTaking, through the census's term), so they
 //       are no discovery candidates.
+// d-model-call-telemetry reads over enumerate's model call sites since #286 (M6), so the run is
+// given that list (notesbox's one call site) and its triage to the census's member.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, appendFileSync, rmSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -18,7 +20,7 @@ import { join } from 'node:path';
 import { projectRun, loadYardstick } from '../../yardstick/measure.mjs';
 import { untakenFindings } from '../../yardstick/untaken.mjs';
 import { loadFindings } from '../../map/project.mjs';
-import { censusesPath, viewPath } from '../../lib/run-layout.mjs';
+import { censusesPath, viewPath, enumeratePath, censusTriagePath } from '../../lib/run-layout.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
@@ -84,6 +86,10 @@ export async function run() {
     cpSync(join(HERE, 'fixtures', 'notesbox'), run, { recursive: true });
     rmSync(join(run, 'ANSWERS.yaml'), { force: true });
     for (const [file, body] of Object.entries(FINDINGS)) appendFileSync(join(run, 'map', 'findings', file), body);
+    const list = JSON.parse(readFileSync(enumeratePath(run), 'utf8'));
+    list.populations.modelCalls = [{ member: 'model call: lib/agent.mjs', note: 'a model call site', gateable: true, evidence: ['lib/agent.mjs:19'] }];
+    writeFileSync(enumeratePath(run), JSON.stringify(list, null, 2) + '\n');
+    const triage = (id) => writeFileSync(censusTriagePath(run), `schema: census-triage\nversion: 1\ncensuses:\n  - census: model-call-telemetry\n    triage:\n      - candidate: "model call: lib/agent.mjs"\n        finding: ${id}\n`);
     const rows = () => Object.fromEntries(projectRun(run).map((x) => [x.id, x]));
 
     // (c) no census: not measured, by census, never met
@@ -94,6 +100,7 @@ export async function run() {
 
     // (a) every member a strength: met, citing them
     writeFileSync(censusesPath(run), censuses((x) => [x.strength]));
+    triage(ROWS['d-model-call-telemetry'].strength);
     r = rows();
     for (const [id, x] of Object.entries(ROWS)) {
       if (r[id]?.status !== 'met' || JSON.stringify(r[id].findings) !== JSON.stringify([x.strength]) || r[id].of !== 1) fail(`${id}: a ${x.census} census of one strength reads met, 1 of 1, citing ${x.strength} (got ${r[id]?.status} ${r[id]?.met}/${r[id]?.of} [${r[id]?.findings}]: ${r[id]?.note})`);
@@ -122,6 +129,7 @@ export async function run() {
 
     // (b) a gap member: unmet, citing the gap
     writeFileSync(censusesPath(run), censuses((x) => [x.gap]));
+    triage(ROWS['d-model-call-telemetry'].gap);
     r = rows();
     for (const [id, x] of Object.entries(ROWS)) {
       if (r[id]?.status !== 'unmet' || JSON.stringify(r[id].findings) !== JSON.stringify([x.gap])) fail(`${id}: a ${x.census} census with a gap member reads unmet, citing ${x.gap} (got ${r[id]?.status} [${r[id]?.findings}]: ${r[id]?.note})`);

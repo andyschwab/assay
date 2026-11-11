@@ -1,0 +1,12 @@
+# map/census-triage.yaml (authored) — negative fixture: SEARCH_API_KEY is never triaged.
+schema: census-triage
+version: 1
+censuses:
+  - census: change-gates
+    triage: []
+  - census: model-call-telemetry
+    triage: []
+  - census: credential
+    triage:
+      - candidate: DEPLOY_TOKEN
+        finding: F-001

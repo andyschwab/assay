@@ -321,6 +321,7 @@ runs/<slug>-<date>/
 │   ├── coverage/<scanner>.yaml      # §5a — a peer scanner's own per-domain coverage (written by ingest.mjs)
 │   ├── censuses.yaml                # §6b — authored depth / censuses / earned flags
 │   ├── effect-triage.yaml           # §6e — the channel candidates' triage (the practice-review lane writes it)
+│   ├── census-triage.yaml           # §6f — a listed census's candidates' triage (the practice-review lane writes it)
 │   ├── backlog.yaml                 # §5b — the engine's own optimization backlog (computed half; map/backlog.mjs)
 │   ├── backlog-authored.yaml        # §5b — its authored half: curated items + the run's 1–5 surprise notes
 │   ├── native/<scanner>.md          # a peer scanner's own report, kept verbatim
@@ -976,6 +977,56 @@ file, nothing is refused (a run whose lane has not run has none): the yardstick 
 candidate untriaged, so a met effect row reads mixed, and `d-effect-channels-enumerated`
 reads not measured, naming the lane (#275), since nothing was triaged.
 
+### 6f. The census triage — `map/raw/enumerate.json` (written) → `map/census-triage.yaml` (authored)
+
+A census whose population the tree lists deterministically is closed the way the effects are
+(§6e, #286). Its requirement names the enumerate population(s) that list its candidates
+(`decide.candidates` in `yardstick/requirements.yaml`); today three do:
+
+| requirement | census | candidates (`populations.<name>`) | one candidate is |
+|---|---|---|---|
+| `d-credentials-enumerated` | `credential` | `secrets` | a secret name the tree reads or declares |
+| `d-change-gates-fail-closed` | `change-gates` | `changeGates` | a CI step (`ci step: <workflow>/<job>: <step>`), a job with no steps (`ci job: …`), a hook (`hook: …`), or a package script named for a check (`script: …`) |
+| `d-model-call-telemetry` | `model-call-telemetry` | `modelCalls` | a file that calls a model through a provider's SDK or API (`model call: <path>`) |
+
+`secretConstants` is no census's candidate: enumerate's shape filter set each apart as an
+identifier or a constant that no site reads from the environment, which the credential row's
+check excludes. A credential the filter set apart wrongly is a fault in the filter, fixed there.
+A census row whose population no tool can list says why on the row (`decide.open`) and is
+read off its members as before (§6b).
+
+The lane is given the file (`inputs:`), and the pass that owns each such row (`map/passes.yaml`)
+records one entry per candidate, its `candidate` written exactly as the file writes it:
+
+```yaml
+# map/census-triage.yaml (authored)
+schema: census-triage
+version: 1
+censuses:
+  - census: credential                 # the census's name in map/censuses.yaml (one of the row's measures)
+    triage:
+      - candidate: "STRIPE_SECRET_KEY"   # a member of the row's populations, as enumerate.json writes it
+        finding: F-421                   # the census member that judges it: one candidate, one member
+      - candidate: "TEST_API_KEY"
+        out_of_scope: "an inert string planted in a test fixture"   # or out of scope, with the reason
+  - census: change-gates
+    triage: []                         # a population enumerate listed empty is closed and empty
+```
+
+Validator-checked, when the file is present (the contract §6e states, with one difference):
+the run carries `map/raw/enumerate.json` and it lists each population the row names; each
+`census` is a census a row closes, once; every candidate is triaged exactly once; every entry
+carries exactly one of `finding` or `out_of_scope`; every `out_of_scope` gives its reason; every
+`finding` is a member of that census (its `members:` in `map/censuses.yaml`); and, unlike an
+effect finding that may cover several channels, **no finding judges two candidates**, so a lane
+can neither split one candidate into several members nor merge several into one. A closed row
+whose population lists candidates and has no `census:` entry is untriaged, and refused.
+A member the list does not name (a hardcoded credential under a name enumerate's pattern does
+not read) is still listed in the census and still counts; the triage closes the list, it does
+not bound the census. With no file, nothing is refused: the yardstick reads every candidate
+untriaged, so a met row reads mixed, naming them (`yardstick/README.md`, "A census a tool can
+list").
+
 ---
 
 ## 7. What `map/validate.mjs` enforces
@@ -1040,6 +1091,11 @@ a pass (the run's own CI-1 lesson, applied to the checker):
 14. **A finding's `property`, when present** (§1, #264): kebab-case
    (`^[a-z0-9]+(-[a-z0-9]+)*$`), and not a requirement id of the yardstick
    (`yardstick/requirements.yaml`); a yardstick that does not read is an error, never a pass.
+
+15. **The census triage, when present** (§6f): every candidate of a census a row closes over a
+   listed population triaged exactly once, to a member of that census or out of scope with a
+   reason, and no member judging two candidates; a candidate list that lacks a population the
+   row names is an error.
 
 The validator is **zero-dependency** (its YAML reader, `lib/yaml-min.mjs`, reads the subset
 §9 states and refuses the rest), so it copies into any target repo alongside `METHOD.md`.

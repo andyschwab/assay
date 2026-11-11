@@ -67,6 +67,6 @@ export async function run() {
   // (d)
   const pr = all.find((l) => l.scanner === 'practice-review');
   const outputs = pr ? laneSeed('practice-review', { name: 'Demo', inputsDir: '/inputs' }, adapters).outputs : [];
-  const want = ['map/terrain.md', 'map/censuses.yaml', 'map/effect-triage.yaml', ...Object.keys(PRACTICE_REVIEW_PASSES).map((p) => `map/findings/practice-review-${p}.yaml`)];
+  const want = ['map/terrain.md', 'map/censuses.yaml', 'map/effect-triage.yaml', 'map/census-triage.yaml', ...Object.keys(PRACTICE_REVIEW_PASSES).map((p) => `map/findings/practice-review-${p}.yaml`)];
   if (JSON.stringify([...outputs].sort()) !== JSON.stringify([...want].sort())) fail(`(d) the practice-review lane publishes exactly the engine's pass files, the terrain, the censuses and the triage (lane: ${outputs.join(' ')}; engine: ${want.join(' ')})`);
 }
