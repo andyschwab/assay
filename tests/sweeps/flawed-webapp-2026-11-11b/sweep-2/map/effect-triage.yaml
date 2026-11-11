@@ -1,0 +1,8 @@
+schema: effect-triage
+version: 1
+# Candidates: populations.channelCandidates (empty), populations.routeHandlers (empty) and
+# populations.effectSites (one member) of map/raw/enumerate.json. The five hand-routed HTTP
+# routes the enumerator did not list are assessed by the passes (terrain.md, "HTTP routes").
+triage:
+  - candidate: "http write (js)"
+    finding: F-403

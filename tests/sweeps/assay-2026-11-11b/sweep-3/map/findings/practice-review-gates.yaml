@@ -1,0 +1,218 @@
+# Pass 3 — deterministic gates (census: gates-coverage, F-201..F-205)
+- id: F-201
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `lint` (the ci.yml step `npm run lint`) runs lib/check-syntax.mjs, which only runs `node --check` over every tracked module and so catches parse errors alone, with no lint rule (unused bindings, shadowing, unsafe patterns) applied.
+  evidence: [".github/workflows/ci.yml:31", "package.json:10", "lib/check-syntax.mjs:1-5", "lib/check-syntax.mjs:14-15"]
+  confidence: confirmed
+- id: F-202
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `typecheck` (the ci.yml step `npm run typecheck`) runs `tsc -p tsconfig.json` with allowJs and checkJs over the root, lib, map, owner, routine, views and yardstick scripts, with TypeScript pinned at an exact version, and no source file carries a ts-nocheck or ts-ignore escape.
+  evidence: [".github/workflows/ci.yml:32", "package.json:11", "package.json:18", "tsconfig.json:3-5", "tsconfig.json:12"]
+  confidence: confirmed
+- id: F-203
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `build` (the ci.yml step `npm run build`) runs the same lib/check-syntax.mjs as lint, so it repeats the lint step and builds nothing, and the ci-workflow block requires the duplicate step to exist.
+  evidence: [".github/workflows/ci.yml:33", "package.json:10", "package.json:12", "tests/blocks/ci-workflow.mjs:54-57"]
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `tools action` (the ci.yml step `./.github/actions/tools`) runs under `set -euo pipefail`, installs each pinned tool checked against its adapter's sha256 and then verifies each answers at its pin before appending it to PATH, and the tools-precondition block fails the harness if the step loses set -e, verify, or gains continue-on-error or an `|| true`.
+  evidence: [".github/workflows/ci.yml:34-38", ".github/actions/tools/action.yml:6-10", ".github/actions/tools/action.yml:26-31", "tests/blocks/tools-precondition.mjs:92-95"]
+  confidence: confirmed
+- id: F-205
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    `npm test` (the ci.yml step) runs tests/regression.mjs, which exits non-zero on any unit or negative failure, any drift from tests/golden.json, a missing golden.json, a block that does not load or throws, and an empty blocks directory.
+  evidence: [".github/workflows/ci.yml:39", "package.json:9", "tests/regression.mjs:28-44", "tests/harness.mjs:70-73", "tests/harness.mjs:109-117", "tests/harness.mjs:141", "tests/harness.mjs:152-163"]
+  confidence: confirmed
+# ── beyond the census ──
+- id: F-206
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The harness loader refuses a block whose label is not its filename, a block with no run function, an empty or duplicated gate label, an after naming no block, and an after cycle, each recorded as a failure rather than a skip.
+  evidence: ["tests/harness.mjs:66-69", "tests/harness.mjs:78-95", "tests/harness.mjs:100-103"]
+  confidence: confirmed
+- id: F-207
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    `--bless` refuses to rewrite tests/golden.json when any unit/negative invariant fails or any scorer errored, and the bless-guard block pins that refusal against a scratch golden file.
+  evidence: ["tests/harness.mjs:128-136", "tests/blocks/bless-guard.mjs:17-23"]
+  confidence: confirmed
+- id: F-208
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    The rule that a moved score is a reviewed re-bless is held only by prose (CLAUDE.md, the PR template, RUNBOOK) — a pull request that re-runs --bless and commits golden.json passes CI with no mechanism checking that a reason was given, and the tracked tree has no CODEOWNERS file that would require a reviewer for tests/golden.json.
+  evidence: ["CLAUDE.md:51-53", ".github/PULL_REQUEST_TEMPLATE.md:7-11", "RUNBOOK.md:27-32", "tests/harness.mjs:137-139"]
+  confidence: confirmed
+- id: F-209
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    Each negative fixture must make map/validate.mjs exit red with its named violation and with no other violation, so a fixture red for an unrelated reason fails the harness instead of passing as cover for a removed check.
+  evidence: ["tests/blocks/negative-fixtures.mjs:9-15", "tests/blocks/negative-fixtures.mjs:64-76", "tests/negative/bad-polarity/map/findings/practice-review-delegation.yaml:1-8"]
+  confidence: confirmed
+- id: F-210
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    map/validate.mjs has 174 `err(` call sites while the negative-fixtures block lists 31 validator fixtures, and no block maps validator rules to fixtures, so a weakened rule with no fixture of its own is caught only if another block happens to exercise it.
+  evidence: ["map/validate.mjs:110-113", "tests/blocks/negative-fixtures.mjs:16-62", "tests/blocks/negative-fixtures.mjs:41-43"]
+  confidence: plausible
+- id: F-211
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    map/validate.mjs fails closed: every YAML parse failure is an error, a projection gate that cannot run is an error, a legacy-format run exits 1, and the --json mode still exits non-zero on any violation.
+  evidence: ["map/validate.mjs:8-10", "map/validate.mjs:104-105", "map/validate.mjs:206-207", "map/validate.mjs:449-455", "map/validate.mjs:779-790"]
+  confidence: confirmed
+- id: F-212
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    lib/yaml-min.mjs throws on every construct outside its subset (flow maps, anchors, aliases, chomped block scalars, unclosed or nested flow lists, unbalanced quotes, duplicate keys, a __proto__ key, bad indentation, trailing content), and the fail-closed block pins that a flow map and an anchor throw.
+  evidence: ["lib/yaml-min.mjs:1-6", "lib/yaml-min.mjs:41-43", "lib/yaml-min.mjs:52", "lib/yaml-min.mjs:62", "lib/yaml-min.mjs:66", "lib/yaml-min.mjs:131-139", "lib/yaml-min.mjs:151", "tests/blocks/fail-closed.mjs:12-14"]
+  confidence: confirmed
+- id: F-213
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run's data files have schemas at both ends of the interface: views/improve/report.mjs checks chains.json and report.json against lib/run-data.mjs before writing and exits 1 on a violation, and map/validate.mjs reads them back through the same checks.
+  evidence: ["lib/run-data.mjs:1-5", "views/improve/report.mjs:475-477", "views/improve/report.mjs:524-526", "map/validate.mjs:719"]
+  confidence: confirmed
+- id: F-214
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The doctrine-lockstep block asserts that the maturity halts-gated count and the supervision split compute the same numbers from one planted base, so the gate rule in map/doctrine.mjs cannot drift between its consumers.
+  evidence: ["tests/blocks/doctrine-lockstep.mjs:1-4", "tests/blocks/doctrine-lockstep.mjs:26-30"]
+  confidence: confirmed
+- id: F-215
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    CLAUDE.md rule 7 (the core names no external scanner) is mechanized: core-names-no-scanner reads the scanner ids from the adapters directory and fails on any core file naming one, with a residue list that fails when an entry goes stale.
+  evidence: ["CLAUDE.md:33-41", "tests/blocks/core-names-no-scanner.mjs:19-20", "tests/blocks/core-names-no-scanner.mjs:47-61"]
+  confidence: confirmed
+- id: F-216
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The core-names-no-scanner header says operator names are held only as SHA-256 digests so the public file does not name them, yet the block also carries a plaintext operator word list beside the digests.
+  evidence: ["tests/blocks/core-names-no-scanner.mjs:7-10", "tests/blocks/core-names-no-scanner.mjs:28-32"]
+  confidence: confirmed
+- id: F-217
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The no-history-file block tests its own predicate against planted history paths and ordinary paths before it sweeps every tracked and untracked file, and fails when git lists nothing.
+  evidence: ["tests/blocks/no-history-file.mjs:30-34", "tests/blocks/no-history-file.mjs:37-40", "tests/blocks/no-history-file.mjs:42-53"]
+  confidence: confirmed
+- id: F-218
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The no-history-file predicate flags a HISTORY.md, a history/ folder or a dated log file, so an undated CHANGELOG.md or similar narrative file outside tests/ passes it.
+  evidence: ["tests/blocks/no-history-file.mjs:18-26", "CLAUDE.md:70-72"]
+  confidence: confirmed
+- id: F-219
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    Every action in ci.yml is pinned to a 40-hex commit SHA, and the ci-workflow block fails the harness on an unpinned ref, a pin that differs from the routine template's, permissions other than `contents: read`, a job without timeout-minutes, or a Node matrix missing the engines floor.
+  evidence: [".github/workflows/ci.yml:13-14", ".github/workflows/ci.yml:19-22", ".github/workflows/ci.yml:24", ".github/workflows/ci.yml:27", "tests/blocks/ci-workflow.mjs:20-23", "tests/blocks/ci-workflow.mjs:25-41", "tests/blocks/ci-workflow.mjs:43-50"]
+  confidence: confirmed
+- id: F-220
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    tsconfig.json enables no `strict` (nor noImplicitAny or strictNullChecks) and its include list leaves out tests/, so the harness and its 161 blocks are never type-checked.
+  evidence: ["tsconfig.json:2-12"]
+  confidence: confirmed
+- id: F-221
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: >
+    Whether the ci `test` job is a required status check cannot be seen from the tree: the engine's own contract says branch-protection requiredness is not visible from a checkout, and while routine/README.md tells a consumer to make its job required and add CODEOWNERS, the engine's tracked files carry no CODEOWNERS of their own.
+  evidence: ["map/scanners/CONTRACT.md:552-553", "routine/README.md:223-226", "routine/README.md:231", ".github/workflows/ci.yml:8-11"]
+  confidence: unverified
+- id: F-222
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    No pre-commit or pre-push hook is tracked (no .husky, .githooks, lefthook or pre-commit config), so the earliest automatic gate is CI on push to main or on a pull request; CONTRIBUTING asks a contributor to run npm test by hand first.
+  evidence: [".github/workflows/ci.yml:8-11", "CONTRIBUTING.md:4-5"]
+  confidence: confirmed
+- id: F-223
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: >
+    A subtle regression in map/validate.mjs is caught when CI (or a manual npm test) runs the negative fixtures that shell out to it and the other blocks that run it, and a regression in views/improve/report.mjs is caught by the report.json/chains.json schema check at write time and by blocks that spawn report.mjs and assert specific outputs, while the harness by design does not snapshot full report output.
+  evidence: ["tests/blocks/negative-fixtures.mjs:64-71", "views/improve/report.mjs:524-526", "tests/blocks/improve-report-data.mjs:40-43", "tests/blocks/report-chain-cuts.mjs:39-40", "tests/blocks/lead-exposures.mjs:26-30", "tests/regression.mjs:4-11"]
+  confidence: confirmed
+- id: F-224
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    The release workflow re-runs npm ci, the tools action and npm test on Node 22 before tagging but runs neither lint nor typecheck, so a tagged commit is not re-checked by those two gates.
+  evidence: [".github/workflows/release.yml:30-32", ".github/workflows/release.yml:39-43"]
+  confidence: confirmed
+- id: F-225
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: >
+    The harness has no selective-run option (its only flag is --bless) and runs every block sequentially, 107 of which spawn subprocesses, under a 15-minute CI job timeout; its wall-clock duration is not stated in any doc read.
+  evidence: ["tests/harness.mjs:33", "tests/harness.mjs:111-117", ".github/workflows/ci.yml:19"]
+  confidence: unverified
+- id: F-226
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The syntax gate refuses an empty module list as not clean and exempts only fixture targets under tests/, keeping the harness's own blocks and runner in scope.
+  evidence: ["lib/check-syntax.mjs:2-5", "lib/check-syntax.mjs:11-13"]
+  confidence: confirmed
+- id: F-227
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    The "red, then green" rule (confirm a new assertion red with its rule reverted) is recorded only as prose in CLAUDE.md, CONTRIBUTING and the PR template, and no CI step or block checks that a new block was ever seen failing.
+  evidence: ["CLAUDE.md:59-64", "CONTRIBUTING.md:6-8", ".github/workflows/ci.yml:30-39"]
+  confidence: confirmed

@@ -1,0 +1,81 @@
+# map/censuses.yaml — authored (census-augmented mode). Counts are read off members; none typed.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is ADR-0001, which records context, decision, consequences and the
+      rejected alternative and is cross-linked from the code it governs (F-001, F-008); the
+      other decisions live as one-line code comments, and the /sync authorization choice
+      reconstructs from nothing (F-007, F-009).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions whose rationale reconstructs from files alone"
+        members: [F-001, F-002, F-003, F-004, F-005, F-006]
+        method: "every decision the terrain lists, D1-D6, one finding each"
+        primary: true
+  - dimension: context-economy
+    depth: >
+      Leaf modules (auth, mailer, sync) load standalone, but the one declared boundary,
+      ADR-0001's storage interface, is already crossed by the assistant importing the user
+      list (F-102, F-104), and three of four checkable README claims are false (F-109, F-111,
+      F-112); no model tier or spend is recorded (F-115, F-116).
+    sampled:
+      - name: modules-standalone
+        what: "modules a bounded context can load and change without the rest, within their declared boundary"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108]
+        method: "every module the terrain lists (server.mjs, lib/*, routes/admin.mjs, config/settings.mjs), one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "checkable README claims that are true against the code"
+        members: [F-109, F-110, F-111, F-112]
+        method: "every checkable README claim the terrain lists, R1-R4, one finding each"
+  - dimension: deterministic-gates
+    depth: >
+      No route handler is covered by a test that can fail, the one assertion cannot fail
+      because unknown tokens resolve to an admin identity, and no script, lint, typecheck or
+      CI runs anything (F-206, F-207, F-208, F-215); the one strength is that the server is
+      importable in-process, so a real suite is cheap to add (F-216).
+    sampled:
+      - name: gates-coverage
+        what: "route handlers with a test that fails on a regression"
+        members: [F-201, F-202, F-203, F-204, F-205]
+        method: "every route handler the terrain enumerates from server.mjs, one finding each"
+        primary: true
+  - dimension: verification
+    depth: >
+      Only note creation can prove itself (F-301); the email send and the backup push report
+      success they never observed (F-302, F-303), the purge leaves no record (F-304), and
+      nothing checks the model's tool directive before acting on it (F-305).
+    sampled:
+      - name: effect-provability
+        what: "effect channels that verify the effect rather than report success"
+        members: [F-301, F-302, F-303, F-304]
+        method: "every effect channel in the terrain's inventory, one finding each"
+        primary: true
+  - dimension: delegation
+    depth: >
+      The one held boundary is that no credential reaches the model (F-407) and GET /notes
+      is scoped per user (F-411); every effect otherwise runs ungated or behind a gate that
+      fails open to the unauthenticated admin default identity (F-402, F-403, F-404, F-410),
+      and the assistant holds the full trifecta (F-405).
+    sampled:
+      - name: credential
+        what: "runtime secrets held out of source and below the prompt boundary"
+        members: [F-406]
+        method: "every credential the terrain enumerates (one: the backup key), one finding each"
+        primary: true
+  - dimension: improvement-loop
+    depth: >
+      The only working loop is the dated ADR home, used once (F-502); there is no agent spec
+      (F-501), temporary measures persist as comments nothing tracks (F-503, F-504), and the
+      app emits no structured outcome records (F-507).
+  - dimension: multiplayer
+    depth: >
+      Every route speaks JSON through one helper (F-606) and the assistant prompt labels each
+      note's origin (F-611), but no route is documented as a contract an agent could find
+      (F-601 to F-605), and the assistant reads every user's notes for any caller (F-617).
+    sampled:
+      - name: agent-access-surface
+        what: "route handlers consumable by an agent and documented as a findable contract"
+        members: [F-601, F-602, F-603, F-604, F-605]
+        method: "every route handler the terrain enumerates from server.mjs, one finding each"
+        primary: true

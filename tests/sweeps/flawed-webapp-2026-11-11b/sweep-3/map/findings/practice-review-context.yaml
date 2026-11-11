@@ -1,0 +1,145 @@
+# Pass 2 — Context economy (blind). Census-augmented: modules-standalone (F-101..F-108),
+# doc-freshness R1-R4 (F-109..F-112), then other context-economy findings (F-113..F-117).
+
+# ── census: modules-standalone (subject_type artifact), terrain order ──
+- id: F-101
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "server.mjs — its header says route handlers delegate to lib/ and routes/ so each concern lives in one place, yet the GET and POST /notes handlers read and write the notes map inline and the /sync handler carries its authorization decision only as a comment."
+  evidence: ["server.mjs:1-2", "server.mjs:5", "server.mjs:30-40", "server.mjs:47-50"]
+  confidence: confirmed
+  source: practice-review
+- id: F-102
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "lib/agent.mjs — it imports and searches the `users` array from lib/db.mjs, a surface outside the ADR-0001 interface (`lookup`, the `notes` map surface, `purgeAll`) that the adapter must satisfy."
+  evidence: ["lib/agent.mjs:8", "lib/agent.mjs:13", "docs/adr/0001-storage-choice.md:14-17"]
+  confidence: confirmed
+  source: practice-review
+- id: F-103
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "lib/auth.mjs — a 17-line module whose only storage dependency is `sessions.lookup`, the lookup member the ADR-0001 interface names, with its fallback behaviour stated in an inline comment."
+  evidence: ["lib/auth.mjs:1-2", "lib/auth.mjs:7", "lib/auth.mjs:9-12", "docs/adr/0001-storage-choice.md:14-17"]
+  confidence: confirmed
+  source: practice-review
+- id: F-104
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "lib/db.mjs — it cites ADR-0001 and has no imports, but it exports a `users` array that the ADR's declared interface does not list, so an adapter written to the ADR alone would break lib/agent.mjs."
+  evidence: ["lib/db.mjs:1-6", "lib/db.mjs:19-31", "docs/adr/0001-storage-choice.md:14-17", "lib/agent.mjs:8"]
+  confidence: confirmed
+  reaches: [F-102]
+  source: practice-review
+- id: F-105
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "lib/mailer.mjs — a 9-line module importing only config/settings.mjs, whose header states its log-only transport, so it can be read and changed without loading any other module."
+  evidence: ["lib/mailer.mjs:1-3", "lib/mailer.mjs:5-9"]
+  confidence: confirmed
+  source: practice-review
+- id: F-106
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "lib/sync.mjs — a 14-line module whose storage use (`notes.values()`, `notes.size`) stays within the ADR-0001 `notes` map surface and whose only other import is config/settings.mjs."
+  evidence: ["lib/sync.mjs:2-3", "lib/sync.mjs:6", "lib/sync.mjs:13", "docs/adr/0001-storage-choice.md:14-17"]
+  confidence: confirmed
+  source: practice-review
+- id: F-107
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "routes/admin.mjs — it uses only `purgeAll` and `requireAdmin`, within the declared interface, but its comment names the route DELETE /admin/purge while server.mjs dispatches it as POST /admin/purge."
+  evidence: ["routes/admin.mjs:2-3", "routes/admin.mjs:5", "server.mjs:52-54"]
+  confidence: confirmed
+  source: practice-review
+- id: F-108
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "config/settings.mjs — a 9-line import-free module whose header points the reader to the README for environment notes, while the README has only Endpoints, Running and Testing sections and no environment notes."
+  evidence: ["config/settings.mjs:1", "README.md:12", "README.md:21", "README.md:27"]
+  confidence: confirmed
+  source: practice-review
+
+# ── census: doc-freshness (subject_type artifact), R1-R4 ──
+- id: F-109
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "R1 — the README says the API exposes 4 endpoints and lists four, while server.mjs dispatches five, the fifth being POST /admin/purge."
+  evidence: ["README.md:14-19", "server.mjs:30", "server.mjs:35", "server.mjs:42", "server.mjs:47", "server.mjs:52"]
+  confidence: confirmed
+  source: practice-review
+- id: F-110
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "R2 — the README's run command `node server.mjs` matches the code: server.mjs listens on the configured port when run as the main module, and package.json's start script is the same command."
+  evidence: ["README.md:24", "server.mjs:59-61", "package.json:6-8"]
+  confidence: confirmed
+  source: practice-review
+- id: F-111
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "R3 — the README says to run the full suite with `npm run test:all`, while package.json defines only a `start` script."
+  evidence: ["README.md:29-33", "package.json:6-8"]
+  confidence: confirmed
+  source: practice-review
+- id: F-112
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "R4 — the README says every endpoint is covered by the smoke suite, while test/smoke.mjs calls only `authenticate` with a valid token and issues no request to any endpoint."
+  evidence: ["README.md:35", "test/smoke.mjs:5-11"]
+  confidence: confirmed
+  source: practice-review
+
+# ── other context-economy findings ──
+- id: F-113
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "The README, the only entry-point doc, lists endpoints, a run command and a test command but has no module map, does not link the ADR, and the target holds no agent-facing file (no CLAUDE.md or AGENTS.md)."
+  evidence: ["README.md:12-35", "docs/adr/0001-storage-choice.md:1"]
+  confidence: confirmed
+  source: practice-review
+- id: F-114
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: "lib/db.mjs opens with a pointer to ADR-0001, which states the storage interface the module must keep, so a context loading the store reaches its contract in one hop."
+  evidence: ["lib/db.mjs:1", "docs/adr/0001-storage-choice.md:12-17"]
+  confidence: confirmed
+  source: practice-review
+- id: F-115
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "The assistant's model call is a stub with no model id, tier choice or rationale recorded anywhere in the target, and nothing describes re-measuring a tier when models change."
+  evidence: ["lib/agent.mjs:4-7", "lib/agent.mjs:27-31", "docs/adr/0001-storage-choice.md:27-28"]
+  confidence: confirmed
+  source: practice-review
+- id: F-116
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: "No inference spend is metered: `ask` returns only the answer and any emailed recipient, and neither it nor the /assistant route records tokens, cost or a work class per call."
+  evidence: ["lib/agent.mjs:33-43", "server.mjs:42-45"]
+  confidence: confirmed
+  source: practice-review
+- id: F-117
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: "Every assistant prompt concatenates the text of every note in the workspace, whatever the question or caller, with no selection, size bound or budget on the prompt."
+  evidence: ["lib/agent.mjs:11-20", "lib/agent.mjs:34"]
+  confidence: confirmed
+  source: practice-review

@@ -1,0 +1,80 @@
+# Pass 4 — Verification affordances (practice-review). Census: effect-provability (control),
+# one finding per effect channel in the terrain's order, then the pass's other probes.
+- id: F-301
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "notes-create — POST /notes writes the note to the in-memory map synchronously and returns 201 with the very id it wrote, which GET /notes can read back for the same owner."
+  evidence: [server.mjs:35-40, server.mjs:30-33]
+  confidence: confirmed
+  reaches: [F-401]
+  source: practice-review
+- id: F-302
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "assistant-email-send — sendEmail returns a constant {sent: true} from a log-only transport, and ask discards that return and reports emailed to the recipient regardless of any delivery outcome."
+  evidence: [lib/mailer.mjs:1-2, lib/mailer.mjs:5-8, lib/agent.mjs:39-40]
+  confidence: confirmed
+  reaches: [F-402]
+  source: practice-review
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "backup-push — pushBackup fires the fetch without awaiting it, swallows any rejection with an empty catch, never reads the backup service's response, and returns ok true with pushed set to the local note count, which POST /sync relays as HTTP 200."
+  evidence: [lib/sync.mjs:7-13, server.mjs:47-50]
+  confidence: confirmed
+  reaches: [F-403]
+  source: practice-review
+- id: F-304
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "workspace-purge — purgeAll returns a constant {purged: true} without counting what it removed or checking the store afterwards, and the purge handler emits no log or record of who purged or what was cleared."
+  evidence: [lib/db.mjs:27-31, routes/admin.mjs:6-11]
+  confidence: confirmed
+  reaches: [F-404]
+  source: practice-review
+- id: F-305
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "The model's output is acted on by a regex match for a TOOL:send_email line with no check of the directive's provenance, its relevance to the user's question, or the recipient against the workspace's users or configured admin addresses before the send."
+  evidence: [lib/agent.mjs:33-39, lib/agent.mjs:27-31, config/settings.mjs:8]
+  confidence: confirmed
+  reaches: [F-402]
+  explained_by: [F-405]
+  source: practice-review
+- id: F-306
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "Of the four effects, only the email send writes a runtime line (an unstructured console.log); note creation, backup push and purge emit nothing, so no effect leaves a record a change could be checked against."
+  evidence: [lib/mailer.mjs:7, server.mjs:35-40, lib/sync.mjs:5-14, lib/db.mjs:27-31]
+  confidence: confirmed
+  source: practice-review
+- id: F-307
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "server.mjs exports the server and only listens when run directly, and lib/db.mjs seeds fixed users, notes and demo tokens, so the routes can be exercised in-process against known state."
+  evidence: [server.mjs:59-63, lib/db.mjs:2-17]
+  confidence: confirmed
+  source: practice-review
+- id: F-308
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: "The only test imports authenticate alone and asserts that one valid token resolves a user; no test or runnable example drives a route or observes any of the four effects, and the file's own header says it checks that endpoints respond, not that they respond correctly."
+  evidence: [test/smoke.mjs:1-11, package.json:6-8]
+  confidence: confirmed
+  source: practice-review
+- id: F-309
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: "No calibration harness exists: the assistant's inline prompt and its directive parsing are never run against a frozen input or measured across repeated runs; the only model is a deterministic stub with no test around it."
+  evidence: [lib/agent.mjs:16-19, lib/agent.mjs:23-31, test/smoke.mjs:4-9]
+  confidence: confirmed
+  source: practice-review

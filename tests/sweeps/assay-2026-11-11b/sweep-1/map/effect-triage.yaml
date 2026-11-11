@@ -1,0 +1,29 @@
+schema: effect-triage
+version: 1
+triage:
+  - candidate: "surface: migrate-run.mjs"
+    finding: F-408
+  - candidate: "route: ANY /api/hooks"
+    out_of_scope: "test fixture under tests/enumerate-fixture/: a planted input the enumerate tests read; assay serves no HTTP route"
+  - candidate: "route: DELETE /api/users/[id]"
+    out_of_scope: "test fixture under tests/enumerate-fixture/: a planted input the enumerate tests read; assay serves no HTTP route"
+  - candidate: "route: GET /api/users/[id]"
+    out_of_scope: "test fixture under tests/enumerate-fixture/: a planted input the enumerate tests read; assay serves no HTTP route"
+  - candidate: "route: GET /health"
+    out_of_scope: "test fixture under tests/enumerate-fixture/: a planted input the enumerate tests read; assay serves no HTTP route"
+  - candidate: "route: HEAD /health"
+    out_of_scope: "test fixture under tests/enumerate-fixture/: a planted input the enumerate tests read; assay serves no HTTP route"
+  - candidate: "route: PATCH /api/users/[id]"
+    out_of_scope: "test fixture under tests/enumerate-fixture/: a planted input the enumerate tests read; assay serves no HTTP route"
+  - candidate: "docker control"
+    out_of_scope: "the cited lines are the enumerator's own detection regexes (map/enumerate.mjs:85, :182, :232); no docker call exists in the tree"
+  - candidate: "git push"
+    out_of_scope: "the cited line is the enumerator's detection regex (map/enumerate.mjs:181); nothing in the tree pushes"
+  - candidate: "http write"
+    out_of_scope: "the cited lines are sink patterns in the vendored opengrep taint rules (data, never executed)"
+  - candidate: "http write (js)"
+    finding: F-412
+  - candidate: "message/mail send"
+    out_of_scope: "the cited line is the enumerator's detection regex (map/enumerate.mjs:180); nothing in the tree sends a message or mail"
+  - candidate: "shell exec"
+    finding: F-402

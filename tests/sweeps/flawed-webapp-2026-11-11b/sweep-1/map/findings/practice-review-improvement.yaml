@@ -1,0 +1,76 @@
+# map/findings/practice-review-improvement.yaml — Pass 6 (improvement-loop), targets/flawed-webapp @ 7f7c89d, blind
+# Census: incidents-became-mechanisms has an empty population (terrain: no incident or
+# lesson record exists in the target), so no census members are emitted here.
+- id: F-501
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No agent spec or rules file exists in the target (none of the 12 tracked files is a
+    CLAUDE.md, AGENTS.md or equivalent), and the README, the only top-level doc, holds
+    endpoints, a run command and a test command but no team conventions or "we never do X"
+    rules an agent would load.
+  evidence: [README.md:12-35, package.json:1-9]
+  confidence: confirmed
+- id: F-502
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The repository keeps a numbered, dated decision record with a status line
+    (ADR-0001, accepted, dated 2026-05-02) carrying context, decision, consequences and a
+    rejected alternative, so a durable home for decisions exists and has been used once.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, docs/adr/0001-storage-choice.md:12-29]
+  confidence: confirmed
+- id: F-503
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    No durable home for lessons, review comments or incidents exists: the docs tree holds
+    the single storage ADR and the README has no conventions, contributing or lessons
+    section, so a correction has nowhere to be written down to stick.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, README.md:12-35]
+  confidence: confirmed
+- id: F-504
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    A known correction (move the backup key out of source into the environment) is
+    recorded only as an inline TODO above a credential-suffixed string constant, with no
+    check, test or tracked item that would hold the lesson or fail when it is ignored.
+  evidence: [config/settings.mjs:5-6, package.json:6-8, test/smoke.mjs:4-11]
+  confidence: confirmed
+- id: F-505
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The ADR's committed follow-up (persistence "is the first thing the production
+    milestone fixes", via a SQLite adapter) lives only in prose; the store module still
+    names the adapter as the real-deployment path and nothing in the target tracks or
+    checks the follow-up.
+  evidence: [docs/adr/0001-storage-choice.md:15-17, docs/adr/0001-storage-choice.md:22-23, lib/db.mjs:1]
+  confidence: plausible
+- id: F-506
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The system records nothing about its own worth: the assistant, named the
+    differentiator, returns an answer (and the address it emailed) with no feedback
+    capture, outcome field or before/after record, so its impact is not legible without
+    a separate study.
+  evidence: [lib/agent.mjs:33-42, server.mjs:42-45, docs/adr/0001-storage-choice.md:27-28]
+  confidence: confirmed
+- id: F-507
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The app emits no structured usage or outcome records by its own design: its only
+    output lines are a key=value console line per email send and a startup banner, while
+    assistant calls, note creation, backup pushes and purges write no record at all.
+  evidence: [lib/mailer.mjs:7, server.mjs:60, lib/agent.mjs:33-42, server.mjs:35-40, lib/sync.mjs:5-13, routes/admin.mjs:6-11]
+  confidence: confirmed

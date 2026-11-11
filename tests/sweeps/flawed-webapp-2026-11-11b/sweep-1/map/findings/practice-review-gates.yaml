@@ -1,0 +1,115 @@
+# map/findings/practice-review-gates.yaml — Pass 3 (deterministic-gates), targets/flawed-webapp @ 7f7c89d, blind
+#
+# Census gates-coverage (contract): one finding per route handler in server.mjs,
+# F-201..F-205 in terrain order. Further probe findings follow from F-206.
+
+- id: F-201
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The GET /notes handler, which filters notes to the caller's owner id, is exercised by
+    no test: the only test file imports authenticate alone and never loads the server or
+    issues a request, so a regression in the owner filter would pass.
+  evidence: [server.mjs:30-33, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-202
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /notes handler (body parse, id mint, insert with the caller as owner) is
+    exercised by no test, so a regression in its ownership or body handling would pass the
+    single smoke assert.
+  evidence: [server.mjs:35-40, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-203
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /assistant handler and the ask() path it calls (prompt build, tool-directive
+    parse, email send) are exercised by no test, so nothing would fail on a change to what
+    the assistant reads or to when it sends.
+  evidence: [server.mjs:42-45, lib/agent.mjs:33-42, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-204
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /sync handler, which has no authorization check and pushes every note to the
+    backup URL, is exercised by no test, so neither its missing authorization nor its
+    payload is pinned by any check.
+  evidence: [server.mjs:47-50, lib/sync.mjs:5-13, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-205
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /admin/purge handler and its requireAdmin check are exercised by no test, so no
+    check asserts that a member or a missing-token caller is refused before purgeAll runs.
+  evidence: [server.mjs:52-54, routes/admin.mjs:6-8, lib/auth.mjs:15-17, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-206
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    The documented test entry point `npm run test:all` does not exist: package.json scripts
+    hold only `start`, so the suite has no wired command and the README's claim that every
+    endpoint is covered is not backed by any runnable gate.
+  evidence: [package.json:6-8, README.md:29-35]
+  confidence: confirmed
+
+- id: F-207
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The one smoke assert cannot fail on an authentication regression: it checks only that
+    authenticate returns a truthy value, and authenticate returns a truthy default identity
+    with an admin role for any unknown or missing token, so a broken token lookup still
+    passes.
+  evidence: [test/smoke.mjs:7-9, lib/auth.mjs:6-12]
+  confidence: confirmed
+
+- id: F-208
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    No automated gate exists inside the target: no test, lint or typecheck script in
+    package.json, no CI workflow or lint/type config in the target directory, and plain .mjs
+    with no type annotations, so a subtle regression in the central router would be caught
+    by nothing before merge (CI outside the target was not read and is not credited).
+  evidence: [package.json:1-9, server.mjs:26-57]
+  confidence: confirmed
+
+- id: F-209
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Request bodies have no schema at the HTTP interface and fail silently rather than
+    loudly: a malformed JSON body is swallowed into an empty object and missing fields are
+    coerced to empty strings, so a bad request yields a 2xx instead of a 400.
+  evidence: [server.mjs:11-19, server.mjs:38, server.mjs:44]
+  confidence: confirmed
+
+- id: F-210
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The server is testable in-process: server.mjs exports the http server and only listens
+    when run as the entry module, and the app has zero dependencies, so a route test could
+    import it with node:assert and no harness, a seam the existing test does not use.
+  evidence: [server.mjs:59-63, package.json:1-9, test/smoke.mjs:4-5]
+  confidence: confirmed

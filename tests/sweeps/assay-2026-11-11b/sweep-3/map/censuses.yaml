@@ -1,0 +1,94 @@
+# map/censuses.yaml — authored censuses for the practice review of assay at 2b247c0
+# (census-augmented mode: one finding per member; met/of are read off members:, never typed).
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is the one-rule architecture: the reason a finding never asserts a
+      severity is written beside the rule, naming the failure it prevents (F-001), and the
+      fixed census subject_type reconstructs with its measured reason (F-009); the gaps are
+      dangling labels (F-016, F-017) and an operator rule whose motive lives only in an
+      issue number (F-007).
+    sampled:
+      - name: decision-reconstruction
+        what: "CLAUDE.md ground rules whose rationale reconstructs from files alone"
+        members: [F-001, F-002, F-003, F-004, F-005, F-006, F-007]
+        method: "every numbered ground rule in CLAUDE.md, rules 1-7, one finding each"
+        primary: true
+  - dimension: context-economy
+    depth: >
+      Routing is strong where it exists: CLAUDE.md is a compact router (F-120) and the
+      command table indexes every command (F-121), but map/ has no index (F-102), the
+      method a lane loads is about 129 KB with no byte budget (F-123, F-124), and model-tier
+      choice is never recorded with a rationale (F-132).
+    sampled:
+      - name: modules-standalone
+        what: "top-level code modules a bounded context can load standalone"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108]
+        method: "every module dir in the terrain: lib, map, map/scanners, yardstick, views, routine, owner, tests; one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "contract docs whose spot-checked claims hold against the code"
+        members: [F-109, F-110, F-111, F-112, F-113, F-114, F-115, F-116, F-117, F-118, F-119]
+        method: "every root or directory contract doc listed in the terrain, 1-3 concrete claims each checked against code"
+  - dimension: deterministic-gates
+    depth: >
+      The best gate is the harness itself: npm test fails closed, refuses a bless over a red
+      tree and holds each negative fixture red for its own reason (F-205, F-207, F-209); the
+      lint step is a syntax check only and build repeats it (F-201, F-203).
+    sampled:
+      - name: gates-coverage
+        what: "CI gate steps on pull_request that are real, fail-loud checks of what they name"
+        members: [F-201, F-202, F-203, F-204, F-205]
+        method: "every gate step of the test job in .github/workflows/ci.yml, in order; one finding each"
+        primary: true
+    enforced:
+      claim: true
+      why: "ci.yml runs lint, typecheck and npm test on every push and pull request, and a harness block pins the workflow's shape"
+      evidence: [F-205, F-219]
+  - dimension: verification
+    depth: >
+      The engine proves its own effects well (eleven of the fourteen channels read back or
+      fail loud, F-301 to F-311) and calibrates itself against known answers and blind sweep
+      sets (F-319, F-320); the three workflow channels trust an API exit code (F-312 to F-314)
+      and only opengrep carries a planted positive control (F-316).
+    sampled:
+      - name: effect-provability
+        what: "effect channels that prove the effect happened rather than trust a report"
+        members: [F-301, F-302, F-303, F-304, F-305, F-306, F-307, F-308, F-309, F-310, F-311, F-312, F-313, F-314]
+        method: "every effect channel in the terrain's effect inventory, in table order; one finding each"
+        primary: true
+  - dimension: delegation
+    depth: >
+      Credentials are the run's own scoped tokens with per-job grants (F-419 to F-422) and the
+      release is a person's dispatched act (F-413, F-427); the open halts are the executing
+      scanners, whose child-environment allow-list is not a filesystem or network boundary
+      and whose opt-in exists only in assay start (F-407, F-409, F-424, F-425).
+    sampled:
+      - name: credential
+        what: "runtime credentials held least-privilege and below the prompt boundary"
+        members: [F-419, F-420, F-421, F-422]
+        method: "every secret in enumerate.json read from the environment or a workflow secret outside tests/, constants excluded; one finding each"
+        primary: true
+  - dimension: improvement-loop
+    depth: >
+      Corrections compound: eight of nine measured lessons in METHOD.md and SCHEMA.md became a
+      validator rule or a test block (F-501 to F-509), and CLAUDE.md's never-rules are held by
+      blocks (F-510); red-then-green and the backlog stay prose or optional (F-511, F-515).
+    sampled:
+      - name: lessons-mechanized
+        what: "measured past failures that became a durable mechanism"
+        members: [F-501, F-502, F-503, F-504, F-505, F-506, F-507, F-508, F-509]
+        method: "every past failure recorded as measured in map/METHOD.md or map/SCHEMA.md, in file order; one finding each"
+        primary: true
+  - dimension: multiplayer
+    depth: >
+      Nearly every command speaks a machine format an agent can consume, with versioned
+      handoff and chain files and a lock for concurrent run writers (F-601 to F-631, F-636,
+      F-638); dispositions in the run record carry no actor (F-645) and several --json modes
+      are missing from the consumer contract (F-633).
+    sampled:
+      - name: agent-access-surface
+        what: "assay commands exposing an agent-consumable output"
+        members: [F-601, F-602, F-603, F-604, F-605, F-606, F-607, F-608, F-609, F-610, F-611, F-612, F-613, F-614, F-615, F-616, F-617, F-618, F-619, F-620, F-621, F-622, F-623, F-624, F-625, F-626, F-627, F-628, F-629, F-630, F-631]
+        method: "every command in assay.mjs's GROUPS table, in table order; one finding each"
+        primary: true

@@ -1,0 +1,163 @@
+# Pass 6 — improvement loop (practice-review), TARGET assay @ 2b247c0
+# Census incidents-became-mechanisms: F-601..F-610 (CLAUDE.md ground rules 1-7 + the three "How a change lands" bullets)
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Rule 1 (the map states what is, no severity or verdict) is held by running harness blocks: instrument-severity fails when any converted instrument row carries a severity field, owner-view fails when OWNER.md carries a score or grade line, and doc-consistency keeps the rule's sentence homed in README.md; validate.mjs's native-finding check has no unknown-key rule, so a severity key on a practice-review finding is not refused there.
+  evidence: ["CLAUDE.md:11-14", "tests/blocks/instrument-severity.mjs:1-4", "tests/blocks/instrument-severity.mjs:18-19", "tests/blocks/owner-view.mjs:53-56", "tests/blocks/doc-consistency.mjs:140-146", "map/validate.mjs:136-143"]
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Rule 2 (no claim without evidence) is held by the validator, which requires a non-empty evidence list of path:line strings and, with --target, fails on a cited path or line the target lacks, and compile runs that validator before anything else; negative fixtures pin each refusal.
+  evidence: ["CLAUDE.md:15-16", "map/validate.mjs:72-80", "map/validate.mjs:136-143", "map/validate.mjs:376-380", "views/compile.mjs:68-72", "tests/blocks/negative-fixtures.mjs:32-34", "tests/blocks/negative-fixtures.mjs:50-54"]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Rule 3 (fail loud, never empty) is held by running checks: negative fixtures refuse a missing run record, a skip with no reason and a ran-with-no-rows scanner, fail-closed refuses an unmapped category, step-not-run pins not-run steps as not measured, and run-manifest pins that compile refuses a run with no manifest.
+  evidence: ["CLAUDE.md:17-21", "tests/blocks/negative-fixtures.mjs:23-25", "tests/blocks/fail-closed.mjs:15-18", "tests/blocks/step-not-run.mjs:1-7", "tests/blocks/run-manifest.mjs:52-54", "map/record.mjs:14-16"]
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Rule 4 (every view reads the same measurement) is held by the validator's drift check on yardstick.yaml (the descriptors-drift negative) and by counts-read-measurement, which compares INDEX and IMPROVE counts to yardstick.yaml; intake-maintain-improve states the views read only yardstick.yaml but asserts row presence, not that a view's statuses equal the measurement.
+  evidence: ["CLAUDE.md:22-25", "tests/blocks/negative-fixtures.mjs:30", "tests/blocks/counts-read-measurement.mjs:24-30", "views/compile.mjs:71-74", "tests/blocks/intake-maintain-improve.mjs:1-3", "tests/blocks/intake-maintain-improve.mjs:35-43"]
+  confidence: plausible
+- id: F-605
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Rule 5's shared-axis and not-measured clauses are held (run-manifest pins that a skipped scanner's axes read not measured, corroboration pins one fact from two scanners counting once), while its property-named-never-tool-named clause has no check: validate.mjs builds the axis set from whatever adapters contribute or map to.
+  evidence: ["CLAUDE.md:26-28", "tests/blocks/run-manifest.mjs:1-4", "tests/blocks/run-manifest.mjs:46-47", "tests/blocks/corroboration.mjs:1-5", "map/validate.mjs:48-54"]
+  confidence: plausible
+- id: F-606
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Rule 6 (no confidential material) is held only in part: core-names-no-scanner refuses operator names held as digests and gitleaks-target requires a commented .gitleaksignore, but no CI step or harness block scans assay's own tree for credentials or private-repository links (gitleaks-target runs gitleaks only over planted temp trees).
+  evidence: ["CLAUDE.md:29-32", "tests/blocks/core-names-no-scanner.mjs:64-80", "tests/blocks/gitleaks-target.mjs:41", "tests/blocks/gitleaks-target.mjs:66-77", ".github/workflows/ci.yml:23-39"]
+  confidence: confirmed
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Rule 7 (scanners arrive as adapters) names its mechanism, and tests/blocks/core-names-no-scanner.mjs checks it: it reads scanner ids from the adapters directory and fails any core file (map, yardstick, views, lib, routine outside adapters) that names an external scanner, with a shrink-only PENDING list.
+  evidence: ["CLAUDE.md:33-41", "tests/blocks/core-names-no-scanner.mjs:19-26", "tests/blocks/core-names-no-scanner.mjs:47-62"]
+  confidence: confirmed
+- id: F-608
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    "Red, then green" is prose-held: doc-consistency checks only that CLAUDE.md states the rule and the PR template prompts for it, and nothing reads a pull request body or commit message for the confirmed-red record the rule requires (the nearest structure is one negative fixture per validator rule).
+  evidence: ["CLAUDE.md:60-64", "tests/blocks/doc-consistency.mjs:89-90", ".github/PULL_REQUEST_TEMPLATE.md:7-9", "tests/blocks/negative-fixtures.mjs:41"]
+  confidence: confirmed
+- id: F-609
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    "Engine learnings go to the issue tracker" is held only as prose presence (doc-consistency checks CLAUDE.md names the issue tracker); nothing checks that a landing change cites its issue, and the "taste never only in a code comment" clause has no check.
+  evidence: ["CLAUDE.md:65-70", "tests/blocks/doc-consistency.mjs:89-91", "CONTRIBUTING.md:12-13"]
+  confidence: confirmed
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    "The change record is git" names tests/blocks/no-history-file.mjs, which fails on any HISTORY.md, history/ folder or dated log file outside tests/ and on any file naming HISTORY.md, with planted positive and negative cases; the clause that a removing commit's subject says what went and why has no check.
+  evidence: ["CLAUDE.md:71-73", "tests/blocks/no-history-file.mjs:18-26", "tests/blocks/no-history-file.mjs:31-35", "tests/blocks/no-history-file.mjs:42-54"]
+  confidence: confirmed
+# Other improvement-loop findings
+- id: F-620
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Lessons land as harness blocks that name their origin: 101 of the 161 files in tests/blocks/ head with an issue number and 52 cite a prior run's finding ids, and each header states the incident it pins (e.g. a crash that wrote an empty backlog class, a variance gate that exited 0 at any agreement), with blocks last changed 2026-10-30 (git timestamp).
+  evidence: ["tests/blocks/instrument-severity.mjs:1", "tests/blocks/sweep-gate.mjs:1-3", "tests/blocks/backlog.mjs:1-4", "tests/blocks/step-not-run.mjs:1-2", "tests/blocks/no-history-file.mjs:1", "CLAUDE.md:55-56"]
+  confidence: confirmed
+- id: F-621
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The pull request template asks for concrete verification evidence, the confirmed-red record and a same-PR golden re-bless with its reason, as a comment prompt that no workflow or block reads.
+  evidence: [".github/PULL_REQUEST_TEMPLATE.md:1-11", "CONTRIBUTING.md:14-15"]
+  confidence: confirmed
+- id: F-622
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The Consumer: trailer rule is a commit-message rule held mechanically: lib/release-notes.mjs --check names any commit since the last tag that touches the CONSUMERS.md surface without the trailer, the harness runs it over assay's own history (full-depth checkout in CI) and release.yml runs it before tagging.
+  evidence: ["lib/release-notes.mjs:4-17", "lib/release-notes.mjs:36-38", "tests/blocks/consumer-contract.mjs:122-126", ".github/workflows/ci.yml:24-26", ".github/workflows/release.yml:43", "CONSUMERS.md:118-125"]
+  confidence: confirmed
+- id: F-623
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Each run carries an engine backlog as a lessons rail: map/backlog.mjs computes determinism gaps the run exposed (unenumerated members, bad evidence, prior-run divergence) into map/backlog.yaml beside an authored half whose schema requires an issue link on a filed item, both validated fail-closed; the rail lives in the run directory, and nothing carries an item to the tracker.
+  evidence: ["map/backlog.mjs:1-24", "map/SCHEMA.md:493-517", "lib/run-data.mjs:207", "lib/run-data.mjs:222", "tests/blocks/backlog.mjs:1-4"]
+  confidence: confirmed
+- id: F-624
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine measures itself: score.mjs grades runs against planted known-answer sheets with recall pinned in tests/golden.json, variance.mjs measures fact presence, descriptor agreement and requirement agreement, sweep-gate gates each committed sweep set at its own threshold, and SCHEMA.md reports its own measured repeatability (38% fact presence, 20% descriptor agreement on the first blind set over this repository).
+  evidence: ["map/score.mjs:1-8", "tests/golden.json:11-20", "tests/blocks/fixture-recall.mjs:10-17", "map/variance.mjs:23-31", "map/variance.mjs:45", "tests/blocks/sweep-gate.mjs:1-5", "map/SCHEMA.md:208-211"]
+  confidence: confirmed
+- id: F-625
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The "reviewed re-bless, never silent drift" rule for pinned scores is held: the harness verdict refuses --bless over any unit or negative failure or scorer error, and bless-guard pins that refusal on a scratch golden.
+  evidence: ["CLAUDE.md:51-53", "tests/harness.mjs:125-138", "tests/blocks/bless-guard.mjs:1-4", "tests/blocks/bless-guard.mjs:17-20"]
+  confidence: confirmed
+- id: F-626
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Duration is emitted by design: assay start and the routine write a whole-seconds duration on every instrument row that ran or failed, an empty duration is an error, a block pins it, and map/roster.mjs reads it as each scanner's cost.
+  evidence: ["map/SCHEMA.md:398-404", "tests/blocks/instrument-durations.mjs:1-7", "map/roster.mjs:29-30", "map/roster.mjs:87-88"]
+  confidence: confirmed
+- id: F-627
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Model and spend are optional free text on the run record, set by hand through record --model/--spend; a judgment scanner with no model only warns, and the roster passes spend through as strings with no aggregation, so inference spend is not a structured outcome record.
+  evidence: ["map/record.mjs:18-21", "map/SCHEMA.md:395-397", "map/SCHEMA.md:431-433", "map/roster.mjs:87-88", "tests/blocks/model-of-record.mjs:1-4"]
+  confidence: confirmed
+- id: F-628
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    Dated history narration sits in a code comment and in the schema contract (variance.mjs "History: before 2026-08-05", SCHEMA.md's off-repo field figures "are history"), which the no-history-file block does not detect because it checks file paths and HISTORY.md mentions only.
+  evidence: ["map/variance.mjs:19-21", "map/SCHEMA.md:203-207", "tests/blocks/no-history-file.mjs:18-25"]
+  confidence: confirmed
+- id: F-629
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    CLAUDE.md's numbered rules are addressable and kept consistent: doc-consistency fails any tracked file citing "CLAUDE.md rule N" for a number CLAUDE.md lacks or a phrase belonging to another rule, and engine code cites rules by number at the point they apply.
+  evidence: ["tests/blocks/doc-consistency.mjs:68-83", "map/record.mjs:14-16", "yardstick/ratchet.mjs:7", "map/project.mjs:334"]
+  confidence: confirmed

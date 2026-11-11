@@ -1,0 +1,218 @@
+# Pass 7 — Multiplayer (practice-review). Census: agent-access-surface (contract), then
+# shared substrate, authority domains, consent semantics. Credential-boundary and gate
+# facts are delegation's (F-401..F-405) and are not repeated here.
+
+# ── Census: agent-access-surface (one per route handler, terrain order) ──
+
+- id: F-601
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    GET /notes — the handler answers JSON (`{notes: [...]}` via the shared `send` helper),
+    but the README documents it only as a one-line name ("list your notes") with no
+    authentication scheme, response shape or error shape an agent could find.
+  evidence: ["server.mjs:30-33", "server.mjs:21-24", "README.md:16"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-602
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /notes — the handler takes a JSON body whose `text` field it reads and answers
+    `201 {id}`, but the README names only "create a note", documenting neither the `text`
+    field, the bearer header nor the response, so the input contract exists only in code.
+  evidence: ["server.mjs:35-40", "README.md:17"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-603
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /assistant — the handler takes a JSON `question` and answers `{answer}` or
+    `{answer, emailed}`, but the README describes it only as "ask the AI assistant (it can
+    email summaries for you)", leaving the request field, the response fields and the
+    email-trigger behaviour undocumented for an agent caller.
+  evidence: ["server.mjs:42-45", "lib/agent.mjs:33-43", "README.md:18"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-604
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /sync — the handler answers JSON `{ok, pushed}`, but the README documents it only
+    as "push the workspace to the backup service", with no response shape and no statement
+    of who may call it.
+  evidence: ["server.mjs:47-50", "lib/sync.mjs:13", "README.md:19"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-605
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /admin/purge — the route is absent from the README's endpoint list, and the
+    handler's own comment names it `DELETE /admin/purge` while the dispatcher matches
+    `POST`; its refusal path answers plain text ("admin only") rather than the JSON the
+    other routes return.
+  evidence: ["server.mjs:52-54", "routes/admin.mjs:5-7", "README.md:14-19"]
+  confidence: confirmed
+  source: practice-review
+
+# ── Agent access surface (beyond the census) ──
+
+- id: F-606
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every route except the purge refusal answers through one helper that sets
+    `content-type: application/json` and serializes an object, including the 404 fallback,
+    so the whole HTTP surface is machine-readable with no human UI in front of it.
+  evidence: ["server.mjs:21-24", "server.mjs:32", "server.mjs:39", "server.mjs:44", "server.mjs:49", "server.mjs:56"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-607
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The identity model has two roles, member and admin, and no agent or service principal,
+    so an agent reaches the API only by presenting a person's bearer token and its calls
+    are indistinguishable from that person's.
+  evidence: ["lib/db.mjs:2-6", "lib/db.mjs:13-17", "lib/auth.mjs:5-8"]
+  confidence: confirmed
+  source: practice-review
+
+# ── Shared substrate ──
+
+- id: F-608
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    All notes live in one process-global map keyed by note id with an `owner` user id per
+    note, and no workspace entity exists (no workspace id, membership or permissions), so
+    "the workspace" the README and comments name is only the set of every stored note.
+  evidence: ["lib/db.mjs:8-11", "README.md:3", "lib/sync.mjs:1", "routes/admin.mjs:5"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-609
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Note ownership is recorded twice — an `owner` field on each note and a `notes` id list
+    on each user — and POST /notes writes only the `owner` field, so a created note never
+    appears in its author's `notes` list.
+  evidence: ["lib/db.mjs:3-5", "lib/db.mjs:9-10", "server.mjs:38"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-610
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Every request whose token is missing or unknown resolves to one shared principal with
+    id `default`, so notes created by any tokenless caller are owned by `default` and
+    GET /notes returns them to every other tokenless caller, with no way to tell the
+    authors apart.
+  evidence: ["lib/auth.mjs:9-12", "server.mjs:31", "server.mjs:38"]
+  confidence: confirmed
+  source: practice-review
+
+# ── Authority domains (as / within / on / from) ──
+
+- id: F-611
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Acting from — the assistant prompt prefixes each note with its owner's email (or the
+    raw owner id when no user record matches), so every note in the context carries an
+    origin label naming whose note it is.
+  evidence: ["lib/agent.mjs:12-15"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-612
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Acting as — `buildPrompt` receives the calling user but never uses it, so the prompt
+    labels the question only as "USER QUESTION" without naming the caller, and the model
+    cannot tell which notes are the caller's own.
+  evidence: ["lib/agent.mjs:11", "lib/agent.mjs:16-19"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-613
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Acting as / on — the assistant's email is sent from the single configured assistant
+    sender address whatever the caller, and its body is every stored note's text joined
+    without the owner labels the prompt carried, although the module header says it emails
+    "on the user's behalf".
+  evidence: ["lib/agent.mjs:1-2", "lib/agent.mjs:38-39", "lib/mailer.mjs:7", "config/settings.mjs:7"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-614
+  dimension: multiplayer
+  polarity: fact
+  subject_type: contract
+  observation: >
+    Acting on — `pushBackup` takes no caller argument and serializes every note of every
+    user, so the backup push's scope is the whole store regardless of who triggered it.
+  evidence: ["lib/sync.mjs:5-6", "server.mjs:49"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-615
+  dimension: multiplayer
+  polarity: fact
+  subject_type: contract
+  observation: >
+    Acting on — `purgeAll` clears every note and empties every user's note list in one
+    call, with no per-user or per-workspace scope parameter.
+  evidence: ["lib/db.mjs:27-31", "routes/admin.mjs:8"]
+  confidence: confirmed
+  source: practice-review
+
+# ── Consent semantics ──
+
+- id: F-616
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    A note is stored as id, owner and text only, with no visibility or sharing field and no
+    share route, so no act by its author marks a note shared or private.
+  evidence: ["server.mjs:38", "lib/db.mjs:9-10", "server.mjs:30-56"]
+  confidence: confirmed
+  source: practice-review
+
+- id: F-617
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Privileged reader — GET /notes filters to the caller's own notes, but the assistant
+    builds its prompt from every user's notes for any caller, while the README says it
+    answers questions about "your notes", so the assistant's read-all reach is undisclosed.
+  evidence: ["server.mjs:31", "lib/agent.mjs:12-15", "README.md:3-5"]
+  confidence: confirmed
+  source: practice-review
