@@ -74,6 +74,8 @@ console.log('· validate …');                  run('../map/validate.mjs', targ
 // validator drift-checks it on the next validate, so a stale read cannot outlive its base
 console.log('· measure  (yardstick) …');      run('../yardstick/measure.mjs', ['--write', ...packetArgs]);
 console.log('· topics   (improve.yaml) …');   run('improve/topics.mjs', ['--write']);
+// the findings no requirement takes, by the property each names (#264): read after measuring
+console.log('· candidates (improve/candidates.yaml) …'); run('improve/candidates.mjs', ['--write']);
 
 // ── the four views ───────────────────────────────────────────────────────────
 console.log('· walk     (improve/axes) …');   run('improve/axes.mjs', confArgs);
@@ -200,6 +202,7 @@ ${descSum.decided} of ${descSum.of} requirements decided by this run (met ${desc
 | [\`views/maintain.yaml\`](views/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |
 | [\`views/owner.yaml\`](views/owner.yaml) | machine | Owner's floor and beyond-floor rows, each joined with the owner's risk/fix register, plus what was not looked at. |${sinceOk ? `\n| [\`views/since.yaml\`](views/since.yaml) | machine | What changed vs \`${basename(previousRun)}\`: regressed, improved, newly/no-longer measured, findings new/no-longer-found. |` : ''}
 | [\`views/improve.yaml\`](views/improve.yaml) | machine | Every requirement on the yardstick, grouped by topic. |
+| [\`views/improve/candidates.yaml\`](views/improve/candidates.yaml) | machine | The findings no requirement takes, grouped by the property each names: what the yardstick has no row for yet. |
 | [\`yardstick.yaml\`](yardstick.yaml) | machine, and what a repository's own claims are compared against | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
 | [\`views/improve/axes.md\`](views/improve/axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register, requirements by topic. |
 | [\`handoff/START-HERE.md\`](handoff/START-HERE.md) | machine / agent | How to act, sequenced worst-first. |
