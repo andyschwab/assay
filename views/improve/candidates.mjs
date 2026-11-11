@@ -6,8 +6,7 @@
 // finding that names none is grouped as unnamed. Each is a fact the run recorded about a
 // property the yardstick has no row for yet: listed, never priced, never promoted here
 // (promotion across targets is #265's). A candidate is not asked to repeat across runs.
-// Reads the measurement (yardstick.yaml), the census members, the effect triage and the
-// findings; decides no requirement.
+// Reads the findings and the census members after measuring; decides no requirement.
 //
 // Usage: node views/improve/candidates.mjs <run-dir> [--write]
 //   --write   regenerate views/improve/candidates.yaml (generated; never hand-edit)
@@ -16,7 +15,6 @@ import { dirname, basename } from 'node:path';
 import { parseYaml, q } from '../../lib/yaml-min.mjs';
 import { candidatesDataPath, censusesPath } from '../../lib/run-layout.mjs';
 import { loadFindings } from '../../map/project.mjs';
-import { loadChannelFiles } from '../../map/effect-triage.mjs';
 import { loadYardstick, loadMeasurement } from '../../yardstick/measure.mjs';
 import { untakenFindings } from '../../yardstick/untaken.mjs';
 import { isMain } from '../../map/doctrine.mjs';
@@ -26,13 +24,12 @@ import { isMain } from '../../map/doctrine.mjs';
 //   properties: [{ property, findings: [F-…] }], unnamed: [F-…] }
 // properties sorted by name; finding ids in the base's order.
 export function buildCandidates(runDir, reg = loadYardstick()) {
-  const measurement = loadMeasurement(runDir);
-  if (!measurement) return null;
+  // read after measuring: a run with no measurement has no candidates yet
+  if (!loadMeasurement(runDir)) return null;
   const findings = loadFindings(runDir);
   const cp = censusesPath(runDir);
   const censuses = existsSync(cp) ? parseYaml(readFileSync(cp, 'utf8')) : null;
-  const { triage } = loadChannelFiles(runDir);
-  const untaken = untakenFindings({ findings, measurement, censuses, triage });
+  const untaken = untakenFindings({ findings, censuses, reg });
   const byProperty = new Map();
   const unnamed = [];
   for (const f of untaken) {

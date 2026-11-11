@@ -4,8 +4,9 @@
 // run's candidates, the findings no requirement takes (yardstick/untaken.mjs, the one
 // definition), grouped by property, in views/improve/candidates.yaml and IMPROVE.md §8.
 // Pinned:
-//  1. untakenFindings: a finding cited by a measurement row, a census member, or a triage
-//     covering finding is taken; every other finding is not;
+//  1. untakenFindings reads the yardstick's requirementTaking (yardstick/population.mjs): an
+//     instrument's bound row, an effect finding, and a member of a census a row measures are
+//     taken; a member of a census no row measures, and any other finding, is not;
 //  2. a fixture run with a finding no requirement reads lists it under its property, and one
 //     that names none under unnamed;
 //  3. a finding a requirement takes never appears as a candidate, whatever property it names
@@ -40,12 +41,17 @@ export async function run() {
   const assay = (...a) => spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), ...a], { encoding: 'utf8' });
 
   // (1) the one definition, over each route by which a requirement takes a finding
-  const fs = ['F-001', 'F-002', 'F-003', 'F-004'].map((id) => ({ id }));
-  const left = (o) => untakenFindings({ findings: fs, ...o }).map((f) => f.id).join(',');
-  if (left({}) !== 'F-001,F-002,F-003,F-004') fail(`with nothing measured, every finding is untaken (got ${left({})})`);
-  if (left({ measurement: [{ id: 'd-x', findings: ['F-002'] }] }) !== 'F-001,F-003,F-004') fail('a finding a measurement row cites is taken');
-  if (left({ censuses: { dimensions: [{ sampled: [{ name: 'c', members: ['F-003'] }] }] } }) !== 'F-001,F-002,F-004') fail('a census member is taken');
-  if (left({ triage: [{ candidate: 'x', finding: 'F-004' }, { candidate: 'y', out_of_scope: 'read-only' }] }) !== 'F-001,F-002,F-003') fail('a triage covering finding is taken, and an out-of-scope entry takes none');
+  const fs = [
+    { id: 'F-001', source: 'fresh-clone', native_category: 'install', polarity: 'gap' },   // an instrument row d-fresh-clone-runs decides on
+    { id: 'F-002', subject_type: 'effect', effect: { channel: 'x', reversibility: 'reversible', external: false, gate_type: 'none', telemetry: 'audited', blast_scope: 'user' } },
+    { id: 'F-003', subject_type: 'artifact' },   // listed in a census a row measures
+    { id: 'F-004', subject_type: 'artifact' },   // listed in a census no row measures
+    { id: 'F-005', subject_type: 'artifact' },   // nothing takes it
+  ];
+  const censuses = { dimensions: [{ sampled: [{ name: 'decision-reconstruction', members: ['F-003'] }, { name: 'no-row-measures-this', members: ['F-004'] }] }] };
+  const left = untakenFindings({ findings: fs, censuses }).map((f) => f.id).join(',');
+  if (left !== 'F-004,F-005') fail(`an instrument's bound row, an effect finding and a member of a census a row measures are taken; a member of a census no row measures and a plain finding are not (untaken: ${left}, want F-004,F-005)`);
+  if (untakenFindings({ findings: fs }).map((f) => f.id).join(',') !== 'F-003,F-004,F-005') fail('with no census, F-003 is taken by no requirement');
 
   const tmp = mkdtempSync(join(tmpdir(), 'assay-property-candidates-'));
   try {

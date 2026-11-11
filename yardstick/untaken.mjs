@@ -1,38 +1,47 @@
 // untaken.mjs — the findings no requirement takes (#264, D1 of #257).
 //
-// The ONE definition of "a finding no requirement takes". The run's candidates
-// (views/improve/candidates.mjs) and the harness (tests/blocks/finding-property-candidates.mjs)
-// both read it here, so the two cannot disagree. A finding is taken when the measurement
-// reaches it through a requirement's population:
-//   • a row of the measurement (yardstick.yaml) cites it in `findings:` (an effect facet row
-//     the effect findings it read, an instrument row its rows, a met row what it was met by);
-//   • it is a member of a census (map/censuses.yaml `members:`, map/census.mjs);
-//   • it is the finding an effect-triage entry names as covering a candidate
-//     (map/effect-triage.yaml, map/effect-triage.mjs), the population d-effect-channels-enumerated reads;
-//   • it is in a facet rule's population (yardstick/measure.mjs byEffects): an effect finding
-//     (`subject_type: effect` with an `effect` facet), which the effect rules read, or a
-//     capability finding (`subject_type: capability` with a `capabilities` facet), which the
-//     trifecta rule reads. A facet row cites only part of what it read (an unmet effect row its
-//     failing effects, the trifecta rule the capabilities holding all three legs), so a
-//     finding the rule read and passed is cited by no row, and is taken all the same.
-// Every other finding observes a property no requirement reads yet: a discovery candidate.
-// The link lives in the yardstick, never on the finding (#257 Q1): a finding's `property:`
-// names what it observes and plays no part here. When the yardstick states for itself which
-// requirement takes a finding (#261), this function reads that instead; its signature stays.
+// The run's discovery candidates: the findings no requirement takes. "Which requirement takes
+// this finding" has one reading in the engine, the yardstick's own (yardstick/population.mjs
+// requirementTaking, #261), and this module only applies it to a run: a finding is taken when
+// requirementTaking names a requirement or candidates for it. Its routes, in its order:
+//   1. an instrument row takes its deciders' rows (scanner and native category);
+//   2. an effect or capability finding is taken by its own facets, whether or not a row cites it
+//      (an unmet effect row cites only its failing effects, the trifecta row only the full ones);
+//   3. a finding listed in a census's `members:` is taken by the row whose population names that
+//      census's term: the term the check of the census row whose `decide.measures` names the
+//      census opens on. A census no row measures gives its members no term: no requirement
+//      takes them.
+// The two routes this module read before M3 landed are covered by these and dropped: a finding
+// a row of the measurement cites is an instrument's row, an effect or capability finding, or a
+// census member (routes 1-3), and an effect-triage covering finding is an effect finding
+// (route 2). A finding's `property:` names what it observes and plays no part here (#257 Q1).
+// requirementTaking throws on a census member its own facets or subject type contradict: that
+// fails loud (CLAUDE.md rule 3), never reads as untaken.
+import { loadAdapters } from '../map/project.mjs';
+import { loadYardstick } from './measure.mjs';
+import { requirementTaking, parseCheck } from './population.mjs';
 
-// the facet rules' populations, by the selectors yardstick/measure.mjs byEffects uses
-const inFacetPopulation = (f) => (f.subject_type === 'effect' && !!f.effect) || (f.subject_type === 'capability' && !!f.capabilities);
-const ids = (xs) => (Array.isArray(xs) ? xs : []).filter((x) => x != null && x !== '').map(String);
+// census name → the term its census row's population names (null when its check names none)
+function censusTerms(reg) {
+  const terms = (reg.members || []).map((m) => m.term);
+  const out = new Map();
+  for (const d of reg.requirements || []) {
+    if (d?.decide?.kind !== 'census') continue;
+    const p = parseCheck(d.check, terms);
+    for (const name of d.decide.measures || []) out.set(String(name), p ? p.term : null);
+  }
+  return out;
+}
 
-// { findings, measurement, censuses, triage } → the findings no requirement takes, in input order.
-//   findings     the run's findings (map/project.mjs loadFindings)
-//   measurement  the measurement's rows (yardstick/measure.mjs loadMeasurement), each with `findings`
-//   censuses     map/censuses.yaml as parsed (`dimensions[].sampled[].members`), or null
-//   triage       map/effect-triage.yaml's `triage:` entries, or null
-export function untakenFindings({ findings = [], measurement = [], censuses = null, triage = null }) {
-  const taken = new Set();
-  for (const r of measurement || []) for (const id of ids(r && r.findings)) taken.add(id);
-  for (const dim of (censuses && censuses.dimensions) || []) for (const s of (dim && dim.sampled) || []) for (const id of ids(s && s.members)) taken.add(id);
-  for (const t of triage || []) if (t && t.finding != null && t.finding !== '') taken.add(String(t.finding));
-  return findings.filter((f) => f && !taken.has(String(f.id)) && !inFacetPopulation(f));
+// { findings, censuses, reg, adapters } → the findings no requirement takes, in input order.
+//   findings       the run's findings (map/project.mjs loadFindings)
+//   censuses       map/censuses.yaml as parsed (`dimensions[].sampled[]`: name, members), or null
+//   reg, adapters  the yardstick and the adapters (loaded when omitted)
+export function untakenFindings({ findings = [], censuses = null, reg = loadYardstick(), adapters = loadAdapters() }) {
+  const termOf = censusTerms(reg);
+  const memberOf = new Map();
+  for (const dim of (censuses && censuses.dimensions) || []) for (const s of (dim && dim.sampled) || []) {
+    for (const id of Array.isArray(s && s.members) ? s.members : []) if (id != null && id !== '') memberOf.set(String(id), termOf.get(String(s.name)) ?? null);
+  }
+  return findings.filter((f) => f && !requirementTaking(f, { member: memberOf.get(String(f.id)) ?? null, reg, adapters }).candidates.length);
 }
