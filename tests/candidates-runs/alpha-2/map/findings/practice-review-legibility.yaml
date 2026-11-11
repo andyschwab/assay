@@ -1,0 +1,25 @@
+# Legibility pass of the alpha-2 tally fixture run: candidate findings no requirement takes.
+- id: F-001
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "The release workflow publishes the package with no signature or provenance step."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: release-signing
+- id: F-002
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "The backup job copies the database off the host on a schedule, and its log line carries no destination."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: backup-push
+- id: F-003
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "Audit log files are rotated daily and deleted after seven days."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: audit-log-retained

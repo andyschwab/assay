@@ -87,7 +87,7 @@ that places them, and `views/README.md` states each data format.
 
 | Path in a run | What it holds |
 | --- | --- |
-| `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason, and for a reviewer pinned by commit the method it read (`method: { release, commit }`) |
+| `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason, and for a reviewer pinned by commit the method it read (`method: { release, commit }`); the target's identity (`identity: { repository, path }`, never a local path) and the day it was drawn (`drawn:`), written by `start` (`map/SCHEMA.md` §5a, #265) |
 | `map/findings/<scanner>.yaml` | the findings, one file per scanner (`map/SCHEMA.md`) |
 | `map/raw/enumerate.json` | the target's enumerated populations, written by `start` (`map/SCHEMA.md` §6e); the practice-review lane's input |
 | `map/effect-triage.yaml` | the practice-review lane's triage of every channel candidate, route handler and effect-site member in `map/raw/enumerate.json`: the effect finding that covers it, or out of scope with the reason (`map/SCHEMA.md` §6e) |
