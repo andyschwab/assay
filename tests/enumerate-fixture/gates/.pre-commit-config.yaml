@@ -1,0 +1,7 @@
+repos:
+  - repo: local
+    hooks:
+      - id: no-large-files
+        name: no large files
+        entry: ./scripts/check-size.sh
+        language: script

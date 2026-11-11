@@ -1,0 +1,21 @@
+# a fixture workflow: enumerate reads it as text and runs nothing
+name: ci
+on:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+      - run: |
+          npm run lint
+          npm test
+      - run: npm test
+      - run: npm test
+  release:
+    uses: ./.github/workflows/release.yml
+    secrets: inherit

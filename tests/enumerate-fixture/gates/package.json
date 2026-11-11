@@ -1,0 +1,12 @@
+{
+  "name": "gates-fixture",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test",
+    "test:unit": "node --test unit",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "start": "node server.mjs"
+  }
+}
