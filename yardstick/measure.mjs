@@ -311,18 +311,44 @@ function byCensus(d, inputs, findingsById = new Map()) {
 
 // A census a tool can list (#286, M6 of #257; yardstick/README.md, "A census a tool can list").
 // The row names the enumerate population(s) listing its candidates, and the lane triages each
-// once (map/census-triage.mjs). Its census reading stands only over a closed list: no list reads
-// not measured, with the reason; an untriaged candidate turns met into mixed and is named, and an
-// unmet or not-measured reading stays as it is with them named too, as the effect rows read (#259).
-function closedCensus(r, cl) {
+// once (map/census-triage.mjs). It reads only over a closed list: no list reads not measured,
+// with the reason. Over the list, a member is in the list when the triage names it for a
+// candidate, and outside it otherwise; the rule is asymmetric (#286, the owner's decision):
+//   • a gap counts wherever it sits, so a gap outside the list holds the row down (unmet, or
+//     mixed beside an in-list strength on a mixable row), as any census gap does;
+//   • only in-list members count toward met: met needs every candidate triaged and every in-list
+//     member a strength, so a strength outside the list is cited in the note and decides nothing,
+//     and a list that is empty or all out of scope, with no gap, reads not measured;
+//   • the note names the members outside the list, each a pointer to an enumerate gap (#292).
+// An untriaged candidate turns met into mixed and is named. A census that lists no members (an
+// authored count) keeps its census reading, which never reads met.
+function closedCensus(r, cl, d, findingsById = new Map()) {
   if (!cl.listed) return row('not-measured', 'census', [], `census population not closed: ${cl.reason}`);
   const n = cl.candidates.length;
-  if (!cl.untriaged.length) {
-    if (n && cl.outOfScope.length === n && r.status === 'not-measured') return { ...r, note: `${r.note}; every one of the ${n} candidate(s) is triaged out of scope, so no member is judged` };
-    return r;
+  const untriaged = cl.untriaged.length ? `; ${cl.untriaged.length} of ${n} candidate(s) untriaged: ${cl.untriaged.join(', ')}` : '';
+  const members = r.measure && Array.isArray(r.findings) ? r.findings : [];
+  if (!members.length) {
+    const scoped = n && cl.outOfScope.length === n && r.status === 'not-measured' ? `; every one of the ${n} candidate(s) is triaged out of scope, so no member is judged` : '';
+    return { ...r, status: r.status === 'met' && cl.untriaged.length ? 'mixed' : r.status, note: `${r.note}${scoped}${untriaged}` };
   }
-  const tail = `${cl.untriaged.length} of ${n} candidate(s) untriaged: ${cl.untriaged.join(', ')}`;
-  return { ...r, status: r.status === 'met' ? 'mixed' : r.status, note: `${r.note}; ${tail}` };
+  const pol = (id) => findingsById.get(id)?.polarity;
+  const listed = new Set(cl.judged.values());
+  const inside = members.filter((id) => listed.has(id)), outside = members.filter((id) => !listed.has(id));
+  const strengths = inside.filter((id) => pol(id) === 'strength');
+  const gaps = members.filter((id) => pol(id) === 'gap');
+  const unjudged = inside.filter((id) => pol(id) !== 'strength' && pol(id) !== 'gap');
+  let status;
+  if (gaps.length) status = strengths.length && mixable(d) ? 'mixed' : 'unmet';
+  else if (!inside.length) status = 'not-measured';
+  else if (unjudged.length) status = strengths.length ? 'mixed' : 'not-measured';
+  else status = 'met';
+  if (status === 'met' && cl.untriaged.length) status = 'mixed';
+  const say = (xs, w) => xs.length ? `; ${xs.length} ${w}: ${xs.join(', ')}` : '';
+  const why = !inside.length && !gaps.length ? `; no listed candidate is judged by a member (${n ? `of ${n}: ${cl.untriaged.length} untriaged, ${cl.outOfScope.length} out of scope` : 'enumerate listed none'}), and a member outside the list never reads the row met` : '';
+  const out = outside.length ? `; ${outside.length} member(s) outside the candidate list: ${outside.join(', ')} (a gap there counts, a strength decides nothing; each is a candidate enumerate did not list, #292)` : '';
+  const note = `${strengths.length} of ${inside.length} in-list member(s) of census ${r.measure} a strength${say(gaps, 'gap')}${say(unjudged, 'in-list with no verdict (a fact, or no finding in this run)')}${why}${out}${untriaged}`;
+  const outGaps = outside.filter((id) => pol(id) === 'gap').length;
+  return row(status, 'census', members, note, { met: strengths.length, of: inside.length + outGaps, measure: r.measure });
 }
 
 // A claim row's context (#262, M4 of #257): the finding ids the run's context lists name for its
@@ -527,7 +553,7 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
     if (d.decide.kind === 'facet') r = byFacet(d, findings, ch, lanesDeciding(d, adapters, disp));
     else if (d.decide.kind === 'census') {
       r = byCensus(d, inputs, findingsById);
-      if (Array.isArray(d.decide.candidates)) r = closedCensus(r, censusClosure(d, census || {}, inputs, findingsById));
+      if (Array.isArray(d.decide.candidates)) r = closedCensus(r, censusClosure(d, census || {}, inputs, findingsById), d, findingsById);
     }
     else if (d.decide.kind === 'instrument') r = decideInstrument(d, findings, disp, coverage || {}, adapters);
     else {

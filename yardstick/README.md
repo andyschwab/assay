@@ -254,14 +254,22 @@ population(s) (`map/raw/enumerate.json`), the row's `check:` states that one can
 member, and the lane triages each candidate once in `map/census-triage.yaml`, to the census
 member that judges it or out of scope with a reason (`map/SCHEMA.md` §6f, `map/census-triage.mjs`).
 `validate` refuses a missed candidate, a candidate triaged twice, a finding that is not a member
-of that census, and a member judging two candidates. Such a row reads its members as any census
-does, then over the list, as the effect rows read (#259):
+of that census, and a member judging two candidates. Such a row reads only over the list, as
+the effect rows do (#259): with **no list**, or a list that lacks the row's population (an
+enumeration older than it), it reads **not measured** with that reason, whatever its census says.
+Over the list, a census member the triage names for a candidate is **in the list**; any other
+member is **outside it** (a hardcoded credential under a name enumerate's pattern does not read,
+or any member a lane recorded and did not triage). The rule is asymmetric (#286):
 
-- **not measured** when the run carries no list, or a list that lacks the row's population (an
-  enumeration older than it), whatever its census says, with that reason;
-- its census reading when every candidate is triaged (a list enumerate wrote empty is closed);
-- **mixed** where that reading would be met and a candidate is untriaged, naming each one; an
-  unmet or not-measured reading stays as it is, naming them too.
+- **A gap counts wherever it sits.** A gap outside the list holds the row down as any census gap
+  does: unmet, or mixed beside an in-list strength on a row that may read mixed.
+- **Only in-list members count toward met.** The row reads met only when every candidate is
+  triaged and every in-list member is a strength. A strength outside the list is cited and decides
+  nothing, so a list that is empty or all out of scope, with no gap, reads **not measured**,
+  naming why, never met; and a run that triaged nothing reads not measured, or unmet on a gap.
+- **Every member outside the list is named** in the row's note, since each is a candidate
+  enumerate did not list (#292).
+- An untriaged candidate turns a met reading **mixed**, and is named.
 
 `d-credentials-enumerated` reads over `secrets`, `d-change-gates-fail-closed` over
 `changeGates`, and `d-model-call-telemetry` over `modelCalls`. `secretConstants` is no row's

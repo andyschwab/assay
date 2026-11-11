@@ -50,7 +50,7 @@ export async function run() {
   r = measure(creds, credIn, { populations: secrets, triage: [{ census: 'credential', triage: full[0].triage.slice(0, 2) }] })['d-credentials-enumerated'];
   if (r?.status !== 'mixed' || !/1 of 3 candidate\(s\) untriaged: TEST_API_KEY/.test(r.note)) fail(`a credential census with one candidate untriaged reads mixed, naming it (got ${r?.status}: ${r?.note})`);
   r = measure(creds, credIn, { populations: secrets, triage: null })['d-credentials-enumerated'];
-  if (r?.status !== 'mixed' || !/3 of 3 candidate\(s\) untriaged/.test(r.note)) fail(`a credential census with no triage at all reads mixed, naming every candidate (got ${r?.status}: ${r?.note})`);
+  if (r?.status !== 'not-measured' || !/3 of 3 candidate\(s\) untriaged/.test(r.note)) fail(`a credential census with no triage at all reads not measured, naming every candidate: its members all sit outside the list, and a strength there decides nothing (got ${r?.status}: ${r?.note})`);
   r = measure(creds, credIn, { populations: secrets, triage: [{ census: 'credential', triage: [{ candidate: 'DEPLOY_TOKEN', finding: 'F-9' }, ...full[0].triage.slice(1)] }] })['d-credentials-enumerated'];
   if (r?.status !== 'mixed' || !/untriaged: DEPLOY_TOKEN/.test(r.note)) fail(`a candidate triaged to a finding that is no member counts untriaged (got ${r?.status}: ${r?.note})`);
   r = measure(creds, credIn, null)['d-credentials-enumerated'];

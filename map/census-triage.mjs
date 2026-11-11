@@ -9,9 +9,11 @@
 //   • validate holds it (censusTriageErrors): every candidate triaged exactly once, to a member of
 //     that census (map/censuses.yaml `members:`) or out of scope with the reason, and no member
 //     judging two candidates: one candidate, one member, so every sweep judges the same members;
-//   • the yardstick reads it (censusClosure): such a row reads met only when every candidate is
-//     triaged; an untriaged candidate turns met into mixed, naming it; with no list the row reads
-//     not measured, naming why (yardstick/README.md, "A census a tool can list").
+//   • the yardstick reads it (censusClosure, then yardstick/measure.mjs closedCensus): such a row
+//     reads met only when every candidate is triaged and every in-list member is a strength; a
+//     member outside the list can hold the row down (a gap) but never reads it met (a strength),
+//     and is named; an untriaged candidate turns met into mixed, naming it; with no list the row
+//     reads not measured, naming why (yardstick/README.md, "A census a tool can list").
 // A census row whose population no tool can list states why on the row (`decide.open`) and reads
 // its members as before. The triage names findings, never requirements (#257 Q1).
 import { readFileSync, existsSync } from 'node:fs';

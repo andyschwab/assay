@@ -1021,11 +1021,12 @@ carries exactly one of `finding` or `out_of_scope`; every `out_of_scope` gives i
 effect finding that may cover several channels, **no finding judges two candidates**, so a lane
 can neither split one candidate into several members nor merge several into one. A closed row
 whose population lists candidates and has no `census:` entry is untriaged, and refused.
-A member the list does not name (a hardcoded credential under a name enumerate's pattern does
-not read) is still listed in the census and still counts; the triage closes the list, it does
-not bound the census. With no file, nothing is refused: the yardstick reads every candidate
-untriaged, so a met row reads mixed, naming them (`yardstick/README.md`, "A census a tool can
-list").
+A member the triage names for no candidate (a hardcoded credential under a name enumerate's
+pattern does not read) is still listed in the census, and sits outside the list: its gap holds the
+row down, its strength never reads it met, and the row's note names it (#292). With no file,
+nothing is refused: the yardstick reads every candidate untriaged and every member outside the
+list, so the row reads not measured, or unmet on a gap (`yardstick/README.md`, "A census a tool
+can list").
 
 ---
 
