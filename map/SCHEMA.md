@@ -669,7 +669,7 @@ sample cannot be hand-inflated in the generated file with the aggregate re-poole
 every dimension carries a `depth`; flags are `false` or evidenced claims.
 `map/censuses.yaml` itself is read whenever it is present, whether or not a grades file
 has been generated yet, with the same strict reader the measurement uses: a construct the
-reader refuses (a flow map, for one) is a violation naming the file, never a crash later in
+reader refuses (§9: a nested flow map, for one) is a violation naming the file, never a crash later in
 `measure`, `variance` or `compile`; each entry names a dimension (§2), and each `sampled`
 entry names its measure, a `method`, and either `members:` (each id a finding of this run,
 none twice, any authored `met`/`of` equal to the count the members give) or, for a census
@@ -952,7 +952,7 @@ a pass (the run's own CI-1 lesson, applied to the checker):
    `views/improve/prose.yaml`'s `canon:` (the flag wins), names a `canon/<name>.yaml`.
    If the file is named but missing, that is an **error**
    (fail-closed — you referenced a contract that is not there), and so is a canon that
-   does not parse (flow maps included) or a census population with no membership
+   does not parse (§9) or a census population with no membership
    `rule` or an unknown `subject_type`. If present, the run's
    effect-channel population is checked against it and any drift is surfaced as
    **advisory warnings** (non-fatal, exit stays 0): a run effect channel not in the
@@ -968,8 +968,8 @@ a pass (the run's own CI-1 lesson, applied to the checker):
    and `handoff/sequence.json` hold their schemas and name only ids in this base;
    `map/backlog.yaml` and `map/backlog-authored.yaml` hold theirs (§5b).
 
-The validator is **zero-dependency** (a minimal YAML reader tuned to this schema),
-so it copies into any target repo alongside `METHOD.md`.
+The validator is **zero-dependency** (its YAML reader, `lib/yaml-min.mjs`, reads the subset
+§9 states and refuses the rest), so it copies into any target repo alongside `METHOD.md`.
 
 ---
 
@@ -1045,9 +1045,10 @@ credential_population:      # the runtime secrets the credential census traces; 
 
 **Block style.** A canon is written in block style, like an adapter
 (`map/scanners/CONTRACT.md`): one key per line, nested maps indented. The validator's
-YAML reader (`lib/yaml-min.mjs`) refuses a flow map (`{subject_type: artifact}`), and a
-canon that does not parse fails the check closed. A flow list of scalars
-(`evidence: [path:line]`) is fine.
+YAML reader (`lib/yaml-min.mjs`) reads the subset §9 states: a flow list of scalars
+(`evidence: [path:line]`) and a single-level flow map (`{subject_type: artifact}`) read,
+a nested flow collection, an anchor or a tag does not, and a canon that does not parse
+fails the check closed.
 
 **Every census population states its membership rule.** `subject_type` fixes what a
 member *is*; `rule` fixes *which* members count: what is included and what is excluded.
@@ -1123,3 +1124,60 @@ grep-detectable populations so a base pass assesses a list, not a sample, and it
 `--run` coverage gate reports enumerated members no finding cites. Together with the
 `--target` check above and the cross-run diff, these are the mechanisms that keep
 coverage repeatable rather than dependent on what a given run happened to notice.
+
+---
+
+## 9. What the reader reads
+
+Every YAML file assay reads (a run's files, an adapter, a canon, the yardstick) goes through
+one reader, `lib/yaml-min.mjs`. It reads the ordinary YAML that has one meaning, and it
+refuses the rest with a message that names the plain form to write instead: it never
+turns input it cannot read into a misleading value. This section is the subset's one home;
+`tests/blocks/yaml-subset.mjs` parses every example below and holds the reader to it.
+
+In an example, `\n` is a line break. The reader drops a block scalar's trailing line
+breaks, whichever chomping indicator is written, so `>-`, `>+`, `|-` and `|+` read exactly
+as `>` and `|`; `>` folds its lines into one, collapsing runs of space; `|` keeps its line
+breaks and the indentation past the block's first line.
+
+**What is read.**
+
+| Construct | Example | Reads as (JSON) |
+|---|---|---|
+| block map | `key: value` | `{"key":"value"}` |
+| nested block map | `a:\n  b: 1` | `{"a":{"b":1}}` |
+| block sequence | `- a\n- b` | `["a","b"]` |
+| map in a sequence item | `- id: F-001\n  polarity: gap` | `[{"id":"F-001","polarity":"gap"}]` |
+| integer, boolean, null | `n: 3\nok: true\nx: ~` | `{"n":3,"ok":true,"x":null}` |
+| double-quoted string | `a: "x: y # z"` | `{"a":"x: y # z"}` |
+| single-quoted string | `a: 'it''s'` | `{"a":"it's"}` |
+| comment | `a: 1 # note` | `{"a":1}` |
+| flow list | `a: [x, "y, z"]` | `{"a":["x","y, z"]}` |
+| flow list as an item | `- [x, y]` | `[["x","y"]]` |
+| flow map | `a: {b: x, c: [y, z]}` | `{"a":{"b":"x","c":["y","z"]}}` |
+| flow map as an item | `- {b: x}` | `[{"b":"x"}]` |
+| folded block `>` | `a: >\n  one\n  two` | `{"a":"one two"}` |
+| folded block `>-` | `a: >-\n  one\n  two` | `{"a":"one two"}` |
+| folded block `>+` | `a: >+\n  one\n  two\n` | `{"a":"one two"}` |
+| literal block `\|` | `a: \|\n  one\n    two` | `{"a":"one\n  two"}` |
+| literal block `\|-` | `a: \|-\n  one\n  two` | `{"a":"one\ntwo"}` |
+| literal block `\|+` | `a: \|+\n  one\n  two\n` | `{"a":"one\ntwo"}` |
+| a leading document start | `---\na: 1` | `{"a":1}` |
+
+**What is refused**, and the plain form to write instead (the refusal names it).
+
+| Construct | Example | Write instead |
+|---|---|---|
+| flow map in a flow map | `a: {b: {c: 1}}` | write the inner collection as block lines under its key |
+| flow list in a flow list | `a: [[1, 2]]` | write the inner collection as block lines under its key |
+| flow map in a flow list | `a: [{b: 1}]` | write the inner collection as block lines under its key |
+| flow map across lines | `a: {b: 1,\n  c: 2}` | write the map as block lines (key: value) |
+| flow map entry with no value | `a: {b, c}` | write the map as block lines (key: value) |
+| anchor | `a: &x 1` | write the value in full at each place it is used |
+| alias | `b: *x` | write the value in full here |
+| tag | `a: !!str 1` | drop the tag and write the plain value |
+| second document | `a: 1\n---\nb: 2` | write one document per file |
+| block indentation indicator | `a: \|2\n  x` | write the block scalar as > (folded) or \| (literal) |
+| duplicate key | `a: 1\na: 2` | write each key once |
+| duplicate key in a flow map | `a: {b: 1, b: 2}` | write each key once |
+| `__proto__` key | `__proto__: 1` | rename the key |

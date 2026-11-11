@@ -2,7 +2,7 @@
 // A run fresh from its lane has no views/improve/maturity-grades.yaml yet. validate once
 // parsed the censuses only while checking a grades file, so a censuses file the strict
 // reader refuses passed validate and then threw in the measurement (variance, compile).
-// The fixture holds a flow-map enforced: and no grades file; it must go red naming the
+// The fixture holds an enforced: written as a nested flow map (still refused, #278) and no grades file; it must go red naming the
 // file, for that reason only.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';

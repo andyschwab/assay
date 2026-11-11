@@ -130,9 +130,10 @@ capabilities:          # optional — executable specialties the engine routes t
     invoke: "re-run the scanner scoped to the finding's evidence path"
 ```
 
-Block style only — the minimal YAML reader (`lib/yaml-min.mjs`) **throws** on
-inline flow maps `{…}`, anchors, and chomped block scalars, so a naturally-written
-`{axis: x}` fails loud rather than silently dropping its findings.
+Block style — the YAML reader (`lib/yaml-min.mjs`) reads the subset `map/SCHEMA.md` §9,
+"What the reader reads", states, and **throws** on the rest (a nested flow collection, an
+anchor, a tag), so a construct it cannot read fails loud rather than silently dropping its
+findings.
 
 **Naming an axis:** name the property, never the tool ("code correctness", never
 the reviewer's name), and before minting a new axis check whether an existing one
