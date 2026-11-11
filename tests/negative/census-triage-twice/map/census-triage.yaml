@@ -1,0 +1,16 @@
+# map/census-triage.yaml (authored) — negative fixture: DEPLOY_TOKEN is triaged twice.
+schema: census-triage
+version: 1
+censuses:
+  - census: change-gates
+    triage: []
+  - census: model-call-telemetry
+    triage: []
+  - census: credential
+    triage:
+      - candidate: DEPLOY_TOKEN
+        finding: F-001
+      - candidate: SEARCH_API_KEY
+        finding: F-002
+      - candidate: DEPLOY_TOKEN
+        out_of_scope: "a second entry for one candidate"

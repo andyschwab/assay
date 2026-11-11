@@ -1,0 +1,23 @@
+{
+  "schema": "enumerate",
+  "version": 1,
+  "target": "census-fixture",
+  "files": 3,
+  "populations": {
+    "channelCandidates": [],
+    "routeHandlers": [],
+    "secrets": [
+      { "member": "DEPLOY_TOKEN", "note": "referenced in code", "gateable": true, "evidence": ["deploy.mjs:3"] },
+      { "member": "SEARCH_API_KEY", "note": "referenced in code", "gateable": true, "evidence": ["search.mjs:2"] }
+    ],
+    "secretConstants": [],
+    "changeGates": [],
+    "modelCalls": [],
+    "socketMounts": [],
+    "containerClasses": [],
+    "effectSites": [],
+    "egressControls": [],
+    "contracts": [],
+    "reportPaths": []
+  }
+}

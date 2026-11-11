@@ -16,9 +16,9 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { enumeratePath, effectTriagePath } from '../lib/run-layout.mjs';
+import { entryErrors, closure } from './triage.mjs';
 
 const TRIAGE_SCHEMA = 'effect-triage';
-const TRIAGE_KEYS = ['candidate', 'finding', 'out_of_scope'];
 const ENUMERATE_FILE = 'map/raw/enumerate.json';
 const TRIAGE_FILE = 'map/effect-triage.yaml';
 // the populations whose members the triage closes (#269): the agentic channels, and for a target
@@ -55,35 +55,27 @@ export function loadChannelFiles(run) {
   return { candidates, triage, errors };
 }
 
-const reasonOf = (x) => typeof x.out_of_scope === 'string' ? x.out_of_scope.trim() : '';
 const isEffect = (f) => f && f.subject_type === 'effect' && f.effect && typeof f.effect === 'object';
 
-// validate's check of the triage against the list and the base. findingsById: id → finding.
+// validate's check of the triage against the list and the base (map/triage.mjs holds the rules
+// both closed populations share). findingsById: id → finding.
 export function triageErrors({ candidates, triage }, findingsById) {
-  const errors = [];
-  if (triage === null) return errors;   // no triage file: nothing to hold; the measurement reads every candidate untriaged
-  if (candidates === null) { errors.push(`${TRIAGE_FILE}: triages channel candidates, and the run carries no candidate list (${ENUMERATE_FILE}, which assay start writes)`); return errors; }
-  const listed = new Set(candidates), seen = new Map();
-  triage.forEach((x, i) => {
-    const at = `${TRIAGE_FILE}[${i}]`;
-    if (!x || typeof x !== 'object' || Array.isArray(x)) { errors.push(`${at}: an entry is a map (candidate, and finding or out_of_scope)`); return; }
-    for (const k of Object.keys(x)) if (!TRIAGE_KEYS.includes(k)) errors.push(`${at}: unknown key "${k}" (${TRIAGE_KEYS.join(', ')})`);
-    const c = typeof x.candidate === 'string' ? x.candidate : null;
-    if (!c) errors.push(`${at}: missing candidate (a member of ${ENUMERATE_FILE}'s ${CANDIDATE_POPULATIONS.join(', ')}, as it is written there)`);
-    else if (!listed.has(c)) errors.push(`${at}: "${c}" is not a channel candidate in ${ENUMERATE_FILE} (${CANDIDATE_POPULATIONS.join(', ')})`);
-    else if (seen.has(c)) errors.push(`${at}: "${c}" is triaged twice (also ${TRIAGE_FILE}[${seen.get(c)}]): one entry per candidate`);
-    if (c && !seen.has(c)) seen.set(c, i);
-    const hasF = x.finding !== undefined && x.finding !== null && x.finding !== '', hasO = x.out_of_scope !== undefined;
-    if (hasF === hasO) errors.push(`${at}: give exactly one of finding (the effect finding that covers it) or out_of_scope (the reason)`);
-    else if (hasF) {
-      const f = findingsById.get(String(x.finding));
-      if (!f) errors.push(`${at}: finding ${x.finding} is not in this run`);
-      else if (!isEffect(f)) errors.push(`${at}: finding ${x.finding} is not an effect finding (subject_type ${f.subject_type}); a candidate is covered by the effect finding that records its channel`);
-    } else if (!reasonOf(x)) errors.push(`${at}: out_of_scope needs the reason (for example, read-only: writes nothing)`);
+  if (triage === null) return [];   // no triage file: nothing to hold; the measurement reads every candidate untriaged
+  if (candidates === null) return [`${TRIAGE_FILE}: triages channel candidates, and the run carries no candidate list (${ENUMERATE_FILE}, which assay start writes)`];
+  return entryErrors(triage, candidates, {
+    at: TRIAGE_FILE,
+    missingCandidate: `a member of ${ENUMERATE_FILE}'s ${CANDIDATE_POPULATIONS.join(', ')}, as it is written there`,
+    notListed: () => `is not a channel candidate in ${ENUMERATE_FILE} (${CANDIDATE_POPULATIONS.join(', ')})`,
+    exactlyOne: 'finding (the effect finding that covers it) or out_of_scope (the reason)',
+    reasonHint: 'for example, read-only: writes nothing',
+    findingError: (id) => {
+      const f = findingsById.get(id);
+      if (!f) return 'is not in this run';
+      if (!isEffect(f)) return `is not an effect finding (subject_type ${f.subject_type}); a candidate is covered by the effect finding that records its channel`;
+      return null;
+    },
+    missing: (cs) => `${TRIAGE_FILE}: ${cs.length} channel candidate(s) not triaged: ${cs.join(', ')} — record each as the effect finding that covers it, or out of scope with the reason`,
   });
-  const missing = candidates.filter((c) => !seen.has(c));
-  if (missing.length) errors.push(`${TRIAGE_FILE}: ${missing.length} channel candidate(s) not triaged: ${missing.join(', ')} — record each as the effect finding that covers it, or out of scope with the reason`);
-  return errors;
 }
 
 // the measurement's read of the population: { listed, triaged, candidates, untriaged, covered, outOfScope, reason }.
@@ -96,14 +88,7 @@ export function channelPopulation({ candidates, triage, errors = [] } = /** @typ
     const why = errors.length ? `the candidate list does not read (${errors[0]})` : `the run carries no channel candidate list (${ENUMERATE_FILE}, which assay start writes)`;
     return { listed: false, triaged: false, candidates: [], untriaged: [], covered: [], outOfScope: [], reason: `effect population not closed: ${why}` };
   }
-  const ok = new Map();
-  for (const x of Array.isArray(triage) ? triage : []) {
-    if (!x || typeof x !== 'object' || typeof x.candidate !== 'string' || ok.has(x.candidate)) continue;
-    if (x.finding != null && x.finding !== '' && isEffect(byId.get(String(x.finding)))) ok.set(x.candidate, { finding: String(x.finding) });
-    else if ((x.finding == null || x.finding === '') && reasonOf(x)) ok.set(x.candidate, { out_of_scope: reasonOf(x) });
-  }
-  const untriaged = candidates.filter((c) => !ok.has(c));
-  const covered = [...new Set(candidates.filter((c) => ok.get(c)?.finding).map((c) => ok.get(c).finding))];
-  const outOfScope = candidates.filter((c) => ok.get(c)?.out_of_scope);
+  const { untriaged, judged, outOfScope } = closure(candidates, triage, (id) => isEffect(byId.get(id)));
+  const covered = [...new Set(judged.values())];
   return { listed: true, triaged: Array.isArray(triage), candidates, untriaged, covered, outOfScope, reason: null };
 }

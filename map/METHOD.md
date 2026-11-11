@@ -198,8 +198,8 @@ fails on drift), never hand-edited.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-decisions-reconstruct` (census `decision-reconstruction`): population every non-obvious decision; asks: can a newcomer reconstruct why it was made from the repository's files alone?
-  - `d-readme-true` (census `doc-freshness`): population every doc claim; asks: does it hold when replayed against the code or checked in the fresh-clone run?
+  - `d-decisions-reconstruct` (census `decision-reconstruction`): population every non-obvious decision; no tool lists its members, so the terrain draws them; asks: can a newcomer reconstruct why it was made from the repository's files alone?
+  - `d-readme-true` (census `doc-freshness`): population every doc claim; no tool lists its members, so the terrain draws them; asks: does it hold when replayed against the code or checked in the fresh-clone run?
 - **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
   - `d-one-home-per-fact` (context list `second-accounts`): population every second account; asks: does one home stay authoritative, a docs guard refusing a second account of a list and one store per remembered fact in code?
 - **Discovery**: none.
@@ -221,8 +221,8 @@ is asked here once; the context pass no longer spot-checks it.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-modules-standalone` (census `modules-standalone`): population every module; asks: can an agent load it alone, with something to read and something to run, and change it without loading the rest?
-  - `d-model-call-telemetry` (census `model-call-telemetry`): population every model call site; asks: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome?
+  - `d-modules-standalone` (census `modules-standalone`): population every module; no tool lists its members, so the terrain draws them; asks: can an agent load it alone, with something to read and something to run, and change it without loading the rest?
+  - `d-model-call-telemetry` (census `model-call-telemetry`): population every model call site; candidates: `populations.modelCalls` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome?
 - **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
   - `d-model-qualification` (context list `model-qualification`): population every model in use; asks: is there a dated qualification record for it, with the rationale for the choice and the trigger that re-qualifies it when models ship?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
@@ -244,7 +244,7 @@ tier, spend or outcome is the model-call census's.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-change-gates-fail-closed` (census `change-gates`): population every change gate; asks: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green?
+  - `d-change-gates-fail-closed` (census `change-gates`): population every change gate; candidates: `populations.changeGates` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green?
 - **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
   - `d-guards-bite` (context list `guard-fixtures`): population every guard fixture; asks: does the self-test flip red when that one check is weakened?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
@@ -301,8 +301,8 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
   - `d-effects-traced` (facet `halts-traced`): population every halt-class effect's record; asks: does the effect leave a durable record at all?
   - `d-effects-provable` (facet `effects-provable`): population every effect; asks: is its record structured or audited, so the effect can be proved from outside the AI?
   - `d-capability-budget` (facet `trifecta`): population every AI context; asks: does it hold untrusted input, private data and an outward effect at once while reaching an effect with no gate that holds?
-  - `d-credentials-enumerated` (census `credentials-below-boundary`): population every secret; asks: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed?
-  - `d-ingested-content-is-data` (census `ingested-content`): population every ingestion point; asks: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction?
+  - `d-credentials-enumerated` (census `credentials-below-boundary`): population every secret; candidates: `populations.secrets` of `map/raw/enumerate.json`, each triaged once in `map/census-triage.yaml`; asks: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed?
+  - `d-ingested-content-is-data` (census `ingested-content`): population every ingestion point; no tool lists its members, so the terrain draws them; asks: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction?
 - **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
   - `d-ai-disclosure` (context list `ai-disclosure`): population every outward AI output; asks: does the channel name its disclosure mechanism, or record why its audience needs none?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
@@ -359,7 +359,7 @@ context list's, not a discovery question.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-corrections-become-mechanisms` (census `incidents-became-mechanisms`): population every lesson; asks: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again?
+  - `d-corrections-become-mechanisms` (census `incidents-became-mechanisms`): population every lesson; no tool lists its members, so the terrain draws them; asks: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again?
 - **Context, never a decision**: the owner decides each row; list this run's findings on its population in its context list (`map/censuses.yaml`, `SCHEMA.md` §6b):
   - `d-backlog-is-issues` (context list `backlog-records`): population every backlog record; asks: is it an issue on the repository's tracker, labelled by need-by, kind and size and closed by the change that finishes it, with no list file carrying rows?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
@@ -383,7 +383,7 @@ eval's scope). Usage and outcome telemetry endpoints are asked here, once.
 Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edited.
 
 - **Decides**, asked of every member of each population:
-  - `d-agent-consumable-surface` (census `agent-access-surface`): population every interface; asks: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen?
+  - `d-agent-consumable-surface` (census `agent-access-surface`): population every interface; no tool lists its members, so the terrain draws them; asks: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `shared-context-substrate`: are context stores shared, private or consent-governed, consolidated rather than bespoke per integration, and is a shared scope (room, channel, project) a principal with its own memory and permissions?
   - `sharing-is-consented`: is sharing a conscious act rather than automatic surfacing, and is any privileged reader (an admin who can read content) disclosed by structure?
@@ -545,7 +545,16 @@ is no binning.
  stored verbatim with its provenance, rendered escaped and never acted on as an instruction).
  Each census's population and question are the
  `check:` of the requirement that reads it (`yardstick/README.md`): list a finding in the
- census whose population it is a member of, and in no other. A finding on the population of a
+ census whose population it is a member of, and in no other. Three censuses draw their
+members from a list, not from the terrain (#286, `SCHEMA.md` §6f): the credential census
+from `map/raw/enumerate.json`'s `populations.secrets`, `change-gates` from
+`populations.changeGates` (each CI step, job without steps, hook and check script) and
+`model-call-telemetry` from `populations.modelCalls` (each file that calls a model). Each
+candidate is one member: write one finding per in-scope candidate, list it in the census,
+and triage every candidate once in `map/census-triage.yaml`, to that finding or out of
+scope with the reason, never one finding for two candidates nor two for one. The row reads
+met only over a complete triage. The other censuses' rows say why no tool lists them
+(`decide.open`), and the terrain draws their members as before. A finding on the population of a
  claim row the owner decides goes in that row's **context list** instead (`context:` in
  `map/censuses.yaml`, `SCHEMA.md` §6b), which decides nothing: `second-accounts`,
  `model-qualification`, `ai-disclosure`, `guard-fixtures`, `backlog-records`,

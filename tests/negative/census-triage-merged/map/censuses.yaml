@@ -1,0 +1,11 @@
+# map/censuses.yaml (authored) — negative fixture: the credential census, two members.
+dimensions:
+  - dimension: delegation
+    depth: >
+      Both runtime keys are traced to where they are read and what they may do (F-001, F-002).
+    sampled:
+      - name: credential
+        what: "secrets whose reach is traced in the code"
+        members: [F-001, F-002]
+        method: "every secret enumerate lists, one finding each"
+        primary: true

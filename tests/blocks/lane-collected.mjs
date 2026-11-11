@@ -39,7 +39,7 @@ export async function run() {
     mkdirSync(join(dir, 'map', 'raw'), { recursive: true });
     writeFileSync(join(dir, 'map', 'raw', 'enumerate.json'), JSON.stringify({ schema: 'enumerate', version: 1, target: 'target', files: 1, populations: { channelCandidates: [], routeHandlers: [], effectSites: [] } }));
     for (const o of outputs.filter((x) => !drop.includes(x))) {
-      const body = o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('effect-triage.yaml') ? 'schema: effect-triage\nversion: 1\ntriage: []\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : o.endsWith('-legibility.yaml') ? finding : '[]\n';
+      const body = o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('effect-triage.yaml') ? 'schema: effect-triage\nversion: 1\ntriage: []\n' : o.endsWith('census-triage.yaml') ? 'schema: census-triage\nversion: 1\ncensuses: []\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : o.endsWith('-legibility.yaml') ? finding : '[]\n';
       writeFileSync(join(dir, o), body);
     }
     return dir;

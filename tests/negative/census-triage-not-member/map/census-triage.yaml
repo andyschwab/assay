@@ -1,0 +1,14 @@
+# map/census-triage.yaml (authored) — negative fixture: F-003 judges a candidate, and is no member of the credential census.
+schema: census-triage
+version: 1
+censuses:
+  - census: change-gates
+    triage: []
+  - census: model-call-telemetry
+    triage: []
+  - census: credential
+    triage:
+      - candidate: DEPLOY_TOKEN
+        finding: F-001
+      - candidate: SEARCH_API_KEY
+        finding: F-003

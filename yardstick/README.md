@@ -246,6 +246,40 @@ run's own two files, the way the other facet rules are computed from the finding
 nothing in it can be hand-inflated. Binding lives on the yardstick side (#257 Q1): the
 triage names findings, and no finding carries a requirement id.
 
+**A census a tool can list** (#286, M6 of #257). Before M6 each lane drew a census's members
+itself, at its own grain, so two sweeps of one target parted on rows they judged alike: one
+counted one workflow token per workflow, another one token. A census row whose population the
+tree lists deterministically now names it: `decide.candidates` lists the enumerate
+population(s) (`map/raw/enumerate.json`), the row's `check:` states that one candidate is one
+member, and the lane triages each candidate once in `map/census-triage.yaml`, to the census
+member that judges it or out of scope with a reason (`map/SCHEMA.md` §6f, `map/census-triage.mjs`).
+`validate` refuses a missed candidate, a candidate triaged twice, a finding that is not a member
+of that census, and a member judging two candidates. Such a row reads only over the list, as
+the effect rows do (#259): with **no list**, or a list that lacks the row's population (an
+enumeration older than it), it reads **not measured** with that reason, whatever its census says.
+Over the list, a census member the triage names for a candidate is **in the list**; any other
+member is **outside it** (a hardcoded credential under a name enumerate's pattern does not read,
+or any member a lane recorded and did not triage). The rule is asymmetric (#286):
+
+- **A gap counts wherever it sits.** A gap outside the list holds the row down as any census gap
+  does: unmet, or mixed beside an in-list strength on a row that may read mixed.
+- **Only in-list members count toward met.** The row reads met only when every candidate is
+  triaged and every in-list member is a strength. A strength outside the list is cited and decides
+  nothing, so a list that is empty or all out of scope, with no gap, reads **not measured**,
+  naming why, never met; and a run that triaged nothing reads not measured, or unmet on a gap.
+- **Every member outside the list is named** in the row's note, since each is a candidate
+  enumerate did not list (#292).
+- An untriaged candidate turns a met reading **mixed**, and is named.
+
+`d-credentials-enumerated` reads over `secrets`, `d-change-gates-fail-closed` over
+`changeGates`, and `d-model-call-telemetry` over `modelCalls`. `secretConstants` is no row's
+candidate list: enumerate already set each apart as a constant no site reads from the
+environment, which the credential check excludes. Every other census row says on the row,
+in `decide.open`, why no tool lists its population (doc claims, non-obvious decisions, modules,
+interfaces, lessons, ingestion points); its members are drawn by the terrain and read as
+before, and its agreement across sweeps is tracked, not forced. A census row carries exactly
+one of the two, and an enumerate population closes at most one census.
+
 **Met needs positive evidence** (#260, M2 of #257). A requirement reads met by what the run
 saw in place, never by the absence of a gap, and its row cites what that was:
 

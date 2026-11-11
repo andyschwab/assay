@@ -29,6 +29,7 @@ import { join, relative, extname, basename, resolve } from 'node:path';
 import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { secretShape } from '../yardstick/packet.mjs';
+import { ENUMERATE_POPULATIONS } from './enumerate-populations.mjs';
 
 const target = process.argv[2];
 if (!target || target.startsWith('--')) {
@@ -76,6 +77,8 @@ function lines(f) { try { return readFileSync(f, 'utf8').split('\n'); } catch { 
 const pops = {
   secrets: new Map(),        // credential names → credential census
   secretConstants: new Map(),// credential-named identifiers/constants the shape filter set apart
+  changeGates: new Map(),    // CI steps, hooks, config-driven checks → the change-gates census (#286)
+  modelCalls: new Map(),     // files calling a model through a provider's SDK or API → the model-call census (#286)
   routeHandlers: new Map(),  // Next.js app-router handlers / pages-router API routes → HTTP surface
   socketMounts: new Map(),   // docker.sock / privilege → blast-scope / escapes
   contracts: new Map(),      // frozen dataclass / __post_init__ / schema → interface contracts
@@ -293,10 +296,138 @@ for (const f of files) {
   }
 }
 
+// 9. change gates (#286) — the checks a change passes through before it lands or ships, read from
+// the tree as written, never run: one member per CI step (a GitHub Actions workflow's job steps,
+// keyed `ci step: <workflow>/<job>: <step>`; a job with no steps, a reusable workflow call, is
+// one `ci job:` member), one per hook (.husky/, .githooks/, a pre-commit or lefthook config, a
+// package.json hooks block), and one per package.json script named for a check (test, lint,
+// typecheck, check, verify, validate, audit, or a `:`-variant of one). The member is the grain the
+// census judges: a step's job timeout and the script it runs are read on that step's finding.
+// Test files and runs/ are skipped: a fixture's workflow is not this repository's gate.
+const GIT_HOOKS = 'applypatch-msg|pre-applypatch|post-applypatch|pre-commit|pre-merge-commit|prepare-commit-msg|commit-msg|post-commit|pre-rebase|post-checkout|post-merge|pre-push|pre-receive|update|post-receive|post-update|push-to-checkout|pre-auto-gc|post-rewrite';
+const CHECK_SCRIPT = /^(?:test|lint|typecheck|type-check|check|verify|validate|audit|format:check|fmt:check)(?::[\w:.-]+)?$|^(?:lint|test|check|verify|validate|typecheck):/;
+const indentOf = (l) => l.length - l.trimStart().length;
+const blank = (l) => !l.trim() || /^\s*#/.test(l);
+const unquote = (v) => v.trim().replace(/\s+#.*$/, '').replace(/^(['"])(.*)\1$/, '$2');
+function workflowGates(r, ls) {
+  const wf = basename(r);
+  const jobsAt = ls.findIndex((l) => /^jobs:\s*(?:#.*)?$/.test(l));
+  if (jobsAt < 0) return;
+  let jobIndent = -1;
+  for (let i = jobsAt + 1; i < ls.length; i++) {
+    const l = ls[i];
+    if (blank(l)) continue;
+    const ind = indentOf(l);
+    if (ind === 0) break;                         // the next top-level key ends jobs:
+    if (jobIndent < 0) jobIndent = ind;
+    if (ind !== jobIndent) continue;
+    const jm = l.match(/^\s*([A-Za-z_][\w-]*)\s*:\s*(?:#.*)?$/);
+    if (!jm) continue;
+    const job = jm[1];
+    let end = i + 1;
+    while (end < ls.length && (blank(ls[end]) || indentOf(ls[end]) > jobIndent)) end++;
+    const body = ls.slice(i + 1, end);
+    const stepsRel = body.findIndex((x) => /^\s*steps:\s*(?:#.*)?$/.test(x));
+    const seen = new Map();
+    const add = (label, at) => {
+      const key = `ci step: ${wf}/${job}: ${label}`;
+      const n = (seen.get(key) || 0) + 1;
+      seen.set(key, n);
+      hit('changeGates', n > 1 ? `${key} #${n}` : key, r, at, 'a CI step a change passes through: does it go red when what it needs is absent, or never finishes?');
+    };
+    if (stepsRel < 0) {
+      hit('changeGates', `ci job: ${wf}/${job}`, r, i, 'a CI job with no steps of its own (a reusable workflow call): does it go red when what it needs is absent?');
+    } else {
+      const stepsIndent = indentOf(body[stepsRel]);
+      let itemIndent = -1;
+      for (let k = stepsRel + 1; k < body.length; k++) {
+        const x = body[k];
+        if (blank(x)) continue;
+        const ind = indentOf(x);
+        if (ind <= stepsIndent && !/^\s*-\s/.test(x)) break;
+        if (!/^\s*-\s/.test(x)) continue;
+        if (itemIndent < 0) itemIndent = ind;
+        if (ind !== itemIndent) continue;
+        // the step's own keys: the item line, and the lines indented under it
+        let e = k + 1;
+        while (e < body.length && (blank(body[e]) || indentOf(body[e]) > itemIndent)) e++;
+        const keys = {};
+        const step = [x.replace(/^(\s*)-\s/, '$1  '), ...body.slice(k + 1, e)];
+        const keyIndent = itemIndent + 2;
+        step.forEach((y, j) => {
+          const km = y.match(/^(\s*)(name|run|uses)\s*:\s*(.*)$/);
+          if (!km || km[1].length !== keyIndent || keys[km[2]] !== undefined) return;
+          let v = km[3];
+          if (/^[|>][-+]?\s*(?:#.*)?$/.test(v.trim())) v = (step.slice(j + 1).find((z) => !blank(z)) || '').trim();
+          keys[km[2]] = unquote(v);
+        });
+        const label = keys.name || keys.run || (keys.uses ? keys.uses.replace(/@.*$/, '') : '') || `step ${k - stepsRel}`;
+        add(label.replace(/\s+/g, ' ').slice(0, 80), i + 1 + k);
+        k = e - 1;
+      }
+    }
+    i = end - 1;
+  }
+}
+function hookGates(r, ls) {
+  const b = basename(r);
+  if (/^\.husky\/[^/_.][^/]*$/.test(r)) hit('changeGates', `hook: ${b} (.husky)`, r, 0, 'a git hook a commit or push runs: does it go red when what it needs is absent?');
+  if (/^\.githooks\/[^/.][^/]*$/.test(r)) hit('changeGates', `hook: ${b} (.githooks)`, r, 0, 'a git hook a commit or push runs: does it go red when what it needs is absent?');
+  if (/^\.pre-commit-config\.ya?ml$/.test(r)) ls.forEach((l, i) => {
+    const m = l.match(/^\s*-\s*id\s*:\s*(\S+)/);
+    if (m) hit('changeGates', `hook: pre-commit ${unquote(m[1])}`, r, i, 'a pre-commit hook: does it go red when what it needs is absent?');
+  });
+  if (/^\.?lefthook\.ya?ml$/.test(r)) ls.forEach((l, i) => {
+    const m = l.match(new RegExp(`^(${GIT_HOOKS})\\s*:`));
+    if (m) hit('changeGates', `hook: ${m[1]} (lefthook)`, r, i, 'a git hook lefthook runs: does it go red when what it needs is absent?');
+  });
+}
+function packageGates(r, ls) {
+  if (basename(r) !== 'package.json') return;
+  let pkg;
+  try { pkg = JSON.parse(ls.join('\n')); } catch { return; }
+  const lineOf = (key, from = 0) => { const i = ls.findIndex((l, j) => j >= from && l.includes(JSON.stringify(key))); return i < 0 ? 0 : i; };
+  const at = r === 'package.json' ? '' : ` (${r})`;
+  const scripts = pkg && typeof pkg.scripts === 'object' && pkg.scripts ? pkg.scripts : {};
+  const from = lineOf('scripts');
+  for (const name of Object.keys(scripts)) if (CHECK_SCRIPT.test(name))
+    hit('changeGates', `script: ${name}${at}`, r, lineOf(name, from), 'a config-driven check (a package script named for one): does it go red when what it needs is absent?');
+  for (const block of ['simple-git-hooks', 'husky']) {
+    const o = pkg && pkg[block];
+    const hooks = block === 'husky' ? o && o.hooks : o;
+    if (hooks && typeof hooks === 'object') for (const h of Object.keys(hooks)) if (new RegExp(`^(?:${GIT_HOOKS})$`).test(h))
+      hit('changeGates', `hook: ${h} (package.json ${block})`, r, lineOf(h, lineOf(block)), 'a git hook declared in package.json: does it go red when what it needs is absent?');
+  }
+}
+
+// 10. model call sites (#286) — a file that calls a model through a provider's SDK or HTTP API,
+// one member per file (`model call: <path>`), every import, call and endpoint line its evidence.
+// Each pattern names a provider's published package, method or endpoint so the tree can be read
+// for it; none names a scanner (CLAUDE.md rule 7). A literal `.` or `(` is written `[.]` / `[(]`
+// so this file's own patterns are not a call site. Test files and runs/ are skipped.
+const MODEL_IMPORT = /(?:from\s+|require\(\s*|import\(\s*|import\s+)['"](?:@anthropic-ai\/[\w-]+|openai|@google\/(?:generative-ai|genai)|@google-cloud\/vertexai|@mistralai\/[\w-]+|cohere-ai|groq-sdk|ollama|ai|@ai-sdk\/[\w-]+|@aws-sdk\/client-bedrock-runtime)['"]|^\s*(?:import|from)\s+(?:anthropic|openai|google\.generativeai|google\.genai|mistralai|cohere|groq|ollama|litellm)\b|^\s*from\s+google\s+import\s+genai\b/;
+const MODEL_CALL = /[.]messages[.](?:create|stream)\s*[(]|[.]chat[.]completions[.](?:create|stream|parse)\s*[(]|[.]responses[.](?:create|stream)\s*[(]|\bChatCompletion[.]create\s*[(]|[.]generateContent(?:Stream)?\s*[(]|\b(?:generateText|streamText|generateObject|streamObject)\s*[(]|\bInvoke(?:Model|ModelWithResponseStream)Command\b|\blitellm[.]completion\s*[(]/;
+const MODEL_ENDPOINT = /\bapi\.anthropic\.com\b|\bapi\.openai\.com\b|\bgenerativelanguage\.googleapis\.com\b|\bapi\.mistral\.ai\b|\bapi\.groq\.com\b|\bapi\.cohere\.(?:ai|com)\b|\bbedrock-runtime\.[\w-]+\.amazonaws\.com\b/;
+
+for (const f of files) {
+  const r = rel(f), b = basename(f);
+  if (isTestFile(r, b) || /(^|\/)runs\//.test(r)) continue;
+  const ls = lines(f);
+  if (/^\.github\/workflows\/[^/]+\.ya?ml$/.test(r)) workflowGates(r, ls);
+  hookGates(r, ls);
+  packageGates(r, ls);
+  if (/\.(?:[mc]?[jt]sx?|py)$/.test(b)) ls.forEach((l, i) => {
+    if (l.length > 2000) return;
+    if (MODEL_IMPORT.test(l) || MODEL_CALL.test(l) || MODEL_ENDPOINT.test(l)) hit('modelCalls', `model call: ${r}`, r, i, 'a model call site: does it emit one structured record of its tier, spend and outcome?');
+  });
+}
+
 // ── output ──
 const LABEL = {
   secrets: 'SECRETS (→ credential census: each below/above the prompt boundary?)',
   secretConstants: 'SECRET-NAMED CONSTANTS (shape filter: an identifier or constant, not a credential — recall only)',
+  changeGates: 'CHANGE GATES (→ change-gates census: does each go red when what it needs is absent or never finishes?)',
+  modelCalls: 'MODEL CALL SITES (→ model-call census: does each call emit a structured record of tier, spend and outcome?)',
   routeHandlers: 'ROUTE HANDLERS (→ HTTP surface: assess each handler\'s auth, input and effects)',
   socketMounts: 'SOCKET / PRIVILEGE MOUNTS (→ blast-scope: does it escape the tenant ceiling?)',
   contracts: 'INTERFACE CONTRACTS (→ deterministic-gates/verification: does it fail loud?)',
@@ -306,7 +437,7 @@ const LABEL = {
   containerClasses: 'CONTAINER / AGENT CLASSES (→ assess EACH class separately — admin ≠ user)',
   channelCandidates: 'CHANNEL CANDIDATES (→ terrain effect inventory: derive it from THIS, not memory)',
 };
-const order = ['channelCandidates', 'routeHandlers', 'secrets', 'secretConstants', 'socketMounts', 'containerClasses', 'effectSites', 'egressControls', 'contracts', 'reportPaths'];
+const order = ENUMERATE_POPULATIONS;
 
 const JSON_MODE = process.argv.includes('--json');   // suppress the pretty enumeration; emit only JSON
 

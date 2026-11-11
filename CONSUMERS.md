@@ -89,8 +89,9 @@ that places them, and `views/README.md` states each data format.
 | --- | --- |
 | `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason, and for a reviewer pinned by commit the method it read (`method: { release, commit }`); the target's identity (`identity: { repository, path }`, never a local path) and the day it was drawn (`drawn:`), written by `start` (`map/SCHEMA.md` §5a, #265) |
 | `map/findings/<scanner>.yaml` | the findings, one file per scanner (`map/SCHEMA.md`) |
-| `map/raw/enumerate.json` | the target's enumerated populations, written by `start` (`map/SCHEMA.md` §6e); the practice-review lane's input |
+| `map/raw/enumerate.json` | the target's enumerated populations, written by `start` (`map/SCHEMA.md` §6e, §6f); the practice-review lane's input |
 | `map/effect-triage.yaml` | the practice-review lane's triage of every channel candidate, route handler and effect-site member in `map/raw/enumerate.json`: the effect finding that covers it, or out of scope with the reason (`map/SCHEMA.md` §6e) |
+| `map/census-triage.yaml` | the practice-review lane's triage of every candidate of a census its row closes over a listed population (`populations.secrets`, `changeGates`, `modelCalls` in `map/raw/enumerate.json`): the one census member that judges it, or out of scope with the reason (`map/SCHEMA.md` §6f, #286) |
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable; a claim row the run saw evidence on carries `context:`, those finding ids, never part of its status (#262) |
 | `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data (`views/README.md`); a met row in `intake.yaml` and `maintain.yaml` carries `findings:`, what it was met by, and every `owner.yaml` row carries `seen:`, a met row's cited strengths' observations (#260); a claim row the run saw evidence on carries `context:` (and in `owner.yaml` `context_seen:`, their observations), shown as context and never as met or unmet (#262) |
 | `views/improve/chains.json`, `handoff/sequence.json` | Improve's ranked chains and its fix sequence as data |
