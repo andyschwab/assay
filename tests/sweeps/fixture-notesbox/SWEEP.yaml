@@ -13,4 +13,5 @@ blind: false
 threshold:
   fact_presence: 80
   descriptor_agreement: 50
+  requirement_agreement: 100  # the dropped finding and the re-judged descriptor move no verdict: 4 of 4 identical
 sweeps: [sweep-1, sweep-2, sweep-3]

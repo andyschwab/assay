@@ -7,7 +7,7 @@ title: "tests/sweeps — committed sweep sets and the repeatability gate"
 A **sweep set** is N runs of the same judgment passes over one frozen target, kept so
 a repeatability figure is a number the tree reproduces instead of prose. `npm test`
 measures every set here with `node assay.mjs variance --set <set>` and fails when
-either measure falls below the set's own threshold.
+any measure falls below the set's own threshold.
 
 ```
 tests/sweeps/<set>/
@@ -29,6 +29,7 @@ blind: true | false        # true only for fresh contexts that never saw an answ
 threshold:
   fact_presence: <0–100>         # % of union facts every sweep caught (measure 1)
   descriptor_agreement: <0–100>  # % of shared effect channels with all six descriptors identical (measure 2)
+  requirement_agreement: <0–100> # % of requirements any sweep decides whose status is identical in every sweep (measure 3)
 sweeps: [sweep-1, sweep-2, …]    # at least two directory names inside the set
 ```
 
