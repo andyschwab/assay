@@ -106,10 +106,37 @@ record does not produce as drift.
 
 | Kind | Decided from | Reads |
 |---|---|---|
-| `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`) | met or unmet with the population; not-measured when the map has no effects |
+| `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below) | met or unmet with the population; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
 | `census` | an authored, enumerated population in the run's `map/censuses.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). The claim rows a packet never speaks to are the list of instruments still to build |
+
+**The effect population** (#259, the remaining case of #53). A rule over the effect
+findings reads only what the run recorded, so an effect nobody wrote down could leave it
+met. The population is therefore closed by the run, not by the reader: `assay start` writes
+the deterministic enumeration into the run (`map/raw/enumerate.json`), the practice-review
+lane is given it and triages every channel candidate in `map/effect-triage.yaml` to the
+effect finding that covers it or out of scope with a reason (`map/SCHEMA.md` §6e), and the
+yardstick reads both (`map/effect-triage.mjs`). The four effect rules (`halts-gated`,
+`halts-traced`, `effects-provable`, `gates-fail-closed`) read:
+
+- **not measured** when the run carries no candidate list, whatever effect findings it
+  holds, with that reason: a population never enumerated is missing data, never met;
+- their own rule over the effect findings when every candidate is triaged (an empty list is
+  closed: enumerate lists no CLI, skill, tool definition or MCP toolset in the tree);
+- **mixed** where that rule would read met and a candidate is untriaged, the note naming each
+  one; an unmet or not-measured reading stays as it is, its note naming them too, since a gap
+  the run did record stands.
+
+`d-effect-channels-enumerated` is decided by the triage itself, as the `facet` rule
+`channels-triaged`: met when every candidate is triaged (`met of N`, citing the effect
+findings that cover them), unmet naming the untriaged ones, and not measured without a list
+or over an empty one (the invocable surface is then the route and effect-library topology,
+which no candidate list closes). It is a `facet` row, not a `census` one: a census reads
+authored `met`/`of` numbers from `map/censuses.yaml`, while this row is computed from the
+run's own two files, the way the other facet rules are computed from the finding facets, so
+nothing in it can be hand-inflated. Binding lives on the yardstick side (#257 Q1): the
+triage names findings, and no finding carries a requirement id.
 
 **Who decides an `instrument` row.** The row may name one decider itself (`scanner`,
 `category` and its conditions on `decide`), a list of them (`decide.deciders`), or none:

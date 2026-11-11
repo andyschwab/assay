@@ -21,7 +21,7 @@ export async function run() {
   const adapters = loadAdapters();
   const target = join(scratch, 'target'); mkdirSync(target);
   writeFileSync(join(target, 'README.md'), '# Demo\n');
-  const outputs = laneSeed('practice-review', { name: 'Demo' }, adapters).outputs;
+  const outputs = laneSeed('practice-review', { name: 'Demo', inputsDir: 'the-run' }, adapters).outputs;
   const runWith = (name, passFiles) => {
     const dir = join(scratch, name);
     mkdirSync(join(dir, 'map', 'findings'), { recursive: true });
@@ -29,9 +29,12 @@ export async function run() {
       ? `  ${id}:\n    status: ran\n    model: "a-model"`
       : `  ${id}:\n    status: skipped\n    reason: "not in this block"`);
     writeFileSync(join(dir, 'map', 'scanners.yaml'), `engine: block\nscanners:\n${rows.join('\n')}\n`);
+    // the lane's input, as assay start writes it (#259): a tree with no channel candidate
+    mkdirSync(join(dir, 'map', 'raw'), { recursive: true });
+    writeFileSync(join(dir, 'map', 'raw', 'enumerate.json'), JSON.stringify({ schema: 'enumerate', version: 1, target: 'target', files: 1, populations: { channelCandidates: [] } }));
     for (const o of outputs) {
       if (o.startsWith('map/findings/') && !passFiles) continue;
-      writeFileSync(join(dir, o), o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : '[]\n');
+      writeFileSync(join(dir, o), o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('effect-triage.yaml') ? 'schema: effect-triage\nversion: 1\ntriage: []\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : '[]\n');
     }
     return dir;
   };

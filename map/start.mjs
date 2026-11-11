@@ -15,7 +15,10 @@
 // Usage: node assay.mjs start --out <run> [<target>] [--allow-exec]
 //   <target> given  — refuses (exit 3, nothing written: #197) until every pinned tool is
 //                      on PATH and answers at its pin (map/tools.mjs verify, #198);
-//                      then runs repo-census, dependency-scan (from scratch copies of
+//                      then writes the deterministic enumeration to
+//                      map/raw/enumerate.json (map/enumerate.mjs --json, which reads the
+//                      tree and executes nothing of it: the channel candidates the
+//                      practice-review lane triages, #259), runs repo-census, dependency-scan (from scratch copies of
 //                      each lockfile, never the target's own configuration),
 //                      structure-scan (jscpd and knip installed into its own
 //                      scratch; knip only under --allow-exec, since it imports
@@ -55,7 +58,7 @@ import { isMain } from './doctrine.mjs';
 import { childEnv } from './child-env.mjs';
 import { loadAdapters, adoptedAdapters } from './project.mjs';
 import { toolsNotReady, REFUSED_EXIT } from './tools.mjs';
-import { scannersPath, findingsDir } from '../lib/run-layout.mjs';
+import { scannersPath, findingsDir, enumeratePath, rawDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // map/
@@ -418,6 +421,28 @@ function isRepoTopLevel(dir) {
   return top.status === 0 && realpathSync(String(top.stdout).trim()) === realpathSync(dir);
 }
 
+// The deterministic enumeration, written into the run (#259): `assay enumerate <target> --json`
+// reads the tree and executes nothing of the target. Its channel candidates are the population
+// the practice-review lane triages (map/effect-triage.mjs), and the yardstick reads an effect
+// row met only over a list that exists, so a failure here is printed and leaves no file: the
+// effect rows then read not measured, naming the missing list, never met.
+export function writeEnumeration(repoDir, outDir, log = /** @type {(msg: string) => void} */ (() => {})) {
+  log('· enumerate …');
+  const r = assay(['enumerate', repoDir, '--json']);
+  let doc = null;
+  try { doc = r.status === 0 ? JSON.parse(String(r.stdout)) : null; } catch { doc = null; }
+  if (!doc || doc.schema !== 'enumerate') {
+    const reason = `enumerate exited ${r.status == null ? '(no exit code — process error)' : r.status}: ${String(r.stderr || r.stdout || '').trim().split('\n').slice(-3).join(' | ') || 'no output'}`;
+    log(`  ✗ enumerate failed, so the run carries no channel candidate list: ${reason}`);
+    return { ok: false, reason };
+  }
+  mkdirSync(rawDir(outDir), { recursive: true });
+  writeFileSync(enumeratePath(outDir), JSON.stringify(doc, null, 2) + '\n');
+  const n = doc.populations.channelCandidates.length;
+  log(`  ✓ enumerate wrote map/raw/enumerate.json (${n} channel candidate${n === 1 ? '' : 's'})`);
+  return { ok: true, candidates: n };
+}
+
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) runCli();
 
@@ -454,8 +479,10 @@ function runCli() {
   const adopted = adoptedAdapters(adapters);
 
   let rows = {};
+  let enumeration = null;
   if (target) {
     const repoDir = resolve(target);
+    enumeration = writeEnumeration(repoDir, outDir, log);
     const freshCloneSkipReason = !args.includes('--allow-exec') ? NO_EXEC_REASON : isRepoTopLevel(repoDir) ? null : NOT_A_REPO_REASON;
     rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), freshCloneSkipReason, structureScanNoExec: !args.includes('--allow-exec') }, log);
   }
@@ -481,6 +508,7 @@ function runCli() {
   console.log(`  ran: ${ran.length ? ran.join(', ') : '(none)'}`);
   if (skipped.length) { console.log('  skipped:'); for (const [id, r] of skipped) console.log(`    - ${id}: ${r.reason}`); }
   if (failed.length) { console.log('  failed:'); for (const [id, r] of failed) console.log(`    - ${id}: ${r.reason}`); }
+  if (enumeration) console.log(enumeration.ok ? `  enumerated: ${enumeration.candidates} channel candidate(s) in map/raw/enumerate.json, for the practice-review lane to triage (--inputs-dir ${outArg})` : `  enumerate failed: ${enumeration.reason} — the effect rows read not measured until map/raw/enumerate.json is written`);
   console.log('\nNext:');
   console.log(`  node assay.mjs ingest ${outArg} --tool <scanner> --raw <report> --exit <code>   # ingest a report — this also records it ran`);
   console.log(`  node assay.mjs record ${outArg} <scanner> ran|skipped|failed [--reason "<text>"]   # record one directly (a judgment scanner's review, a skip decision)`);

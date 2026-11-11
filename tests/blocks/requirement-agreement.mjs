@@ -52,6 +52,10 @@ export async function run() {
   rmSync(tmp, { recursive: true, force: true });
   try {
     cpSync(fx, tmp, { recursive: true });
+    // the effect rows read only over a closed candidate list (#259); the frozen sweeps carry none, so
+    // the copy is given the list flawed-webapp's enumeration yields (no channel candidate), as start writes it
+    for (const sw of readdirSync(tmp).filter((x) => /^sweep-\d+$/.test(x)))
+      cpSync(join(HERE, 'fixtures', 'notesbox', 'map', 'raw', 'enumerate.json'), join(tmp, sw, 'map', 'raw', 'enumerate.json'));
     const del = join(tmp, 'sweep-3', 'map', 'findings', 'practice-review-delegation.yaml');
     const src = readFileSync(del, 'utf8');
     const flipped = src.replace(/^(\s*)gate_type: none$/gm, '$1gate_type: deterministic-halt\n$1fail_mode: closed');

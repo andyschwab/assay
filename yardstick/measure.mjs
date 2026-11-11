@@ -35,11 +35,14 @@ import { censusesPath, yardstickPath, ownerDir, packetManifestPath } from '../li
 import { isHalt, isHaltClass, gateHolds, effectLeg, isMain } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 import { loadPacket, validatePacket, decidePacketClaim } from './packet.mjs';
+import { loadChannelFiles, channelPopulation } from '../map/effect-triage.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
 export const KINDS = ['facet', 'census', 'instrument', 'claim'];
-const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable'];
+const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable', 'channels-triaged'];
+// the four rules that read the effect population: each reads met only over a closed one (#259)
+const EFFECT_RULES = new Set(['halts-gated', 'halts-traced', 'effects-provable', 'gates-fail-closed']);
 export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured', 'not-applicable'];
 const STRUCTURED = new Set(['structured-event', 'audited']);
 // TOPICS — the roster a requirement's `topic:` must land on: the axis roster
@@ -158,7 +161,39 @@ const isInstrument = (scanner) => { ADAPTERS ??= loadAdapters(); return ADAPTERS
 // ── deciders ──────────────────────────────────────────────────────────────────
 const row = (status, how, ids, note, extra = {}) => ({ status, how, findings: ids, note, ...extra });
 
-function byFacet(d, fs) {
+// The effect population, closed (#259; yardstick/README.md "The effect population"). A rule
+// over the effect findings reads only what the run recorded; it may say met only when the
+// run's channel candidates (map/raw/enumerate.json) were all triaged (map/effect-triage.yaml),
+// so an effect nobody wrote down cannot leave a row met. No list: not measured, with the
+// reason. An untriaged candidate turns a met row mixed and is named; an unmet row stays
+// unmet (a gap the run did record), and a row with nothing to read stays not measured, each
+// naming the candidates too.
+function closedOver(r, ch) {
+  if (!ch.listed) return row('not-measured', 'facet', [], ch.reason);
+  if (!ch.untriaged.length) return r;
+  const tail = `${ch.untriaged.length} of ${ch.candidates.length} channel candidate(s) untriaged: ${ch.untriaged.join(', ')}`;
+  return { ...r, status: r.status === 'met' ? 'mixed' : r.status, note: `${r.note}; ${tail}` };
+}
+// channels-triaged (d-effect-channels-enumerated): the triage itself, as the decision. Met when
+// every candidate is triaged; unmet naming the ones that are not; not measured without a list,
+// and over an empty one (enumerate lists no CLI, skill, tool definition or MCP toolset, so the
+// invocable surface is the route and effect-library topology, which no candidate list closes).
+function byChannels(ch) {
+  if (!ch.listed) return row('not-measured', 'facet', [], ch.reason);
+  const n = ch.candidates.length;
+  if (!n) return row('not-measured', 'facet', [], 'enumerate listed no channel candidates: the invocable surface is the route and effect-library topology (METHOD.md, Pass 0), which no candidate list closes');
+  const triaged = n - ch.untriaged.length;
+  const split = `${ch.covered.length} effect finding(s) cover them, ${ch.outOfScope.length} out of scope`;
+  if (!ch.untriaged.length) return row('met', 'facet', ch.covered, `${n} of ${n} channel candidates triaged: ${split}`, { met: n, of: n });
+  return row('unmet', 'facet', ch.covered, `${triaged} of ${n} channel candidates triaged (${split}); untriaged: ${ch.untriaged.join(', ')}`, { met: triaged, of: n });
+}
+
+function byFacet(d, fs, ch = channelPopulation()) {
+  if (d.decide.rule === 'channels-triaged') return byChannels(ch);
+  if (EFFECT_RULES.has(d.decide.rule)) return closedOver(byEffects(d, fs), ch);
+  return byEffects(d, fs);
+}
+function byEffects(d, fs) {
   const effects = fs.filter((f) => f.subject_type === 'effect' && f.effect);
   const halts = effects.filter((f) => isHaltClass(f.effect));
   const r = d.decide.rule;
@@ -383,14 +418,17 @@ function withLanes(d, r, adapters, disp) {
   return reviewed.length ? { ...r, reviewed } : r;
 }
 
-export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null }, reg = loadYardstick()) {
+// channels: the run's channel candidates and their triage (map/effect-triage.mjs loadChannelFiles);
+// absent, the effect population is not closed and the effect rows read not measured.
+export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null, channels = null }, reg = loadYardstick()) {
   const disp = dispositionsOf(manifest);
   adapters ??= (ADAPTERS ??= loadAdapters());
   const contradictions = [];
   const claims = packet && Array.isArray(packet.claims) ? packet.claims : [];
+  const ch = channelPopulation(channels || {}, findings);
   const rows = reg.requirements.map((d) => {
     let r, basis = 'run';
-    if (d.decide.kind === 'facet') r = byFacet(d, findings);
+    if (d.decide.kind === 'facet') r = byFacet(d, findings, ch);
     else if (d.decide.kind === 'census') r = byCensus(d, inputs);
     else if (d.decide.kind === 'instrument') r = decideInstrument(d, findings, disp, coverage || {}, adapters);
     else {
@@ -423,7 +461,7 @@ export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   // this guards against (CLAUDE.md rule 3: fail loud, never empty; a clean run with an
   // explicit run record is a valid measurement, not an absent one).
   if (!findings.length && !manifest) throw new Error(`no findings under ${runDir}`);
-  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet }, reg);
+  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir) }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what the four views (Intake, Maintain, Improve's topic

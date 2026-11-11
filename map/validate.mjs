@@ -423,6 +423,18 @@ if (existsSync(decPath)) {
   }
 }
 
+// the effect-channel triage (map/effect-triage.yaml, SCHEMA.md §6e, #259): optional, since a
+// run whose practice-review lane has not run has none, but when present the yardstick reads it
+// as the closed effect population, so it is held: every candidate in map/raw/enumerate.json
+// triaged exactly once, every finding an effect finding of this run, every out-of-scope entry a
+// reason. A candidate list or a triage that does not read is an error, never an empty one.
+{
+  const { loadChannelFiles, triageErrors } = await import('./effect-triage.mjs');
+  const files = loadChannelFiles(runDir);
+  for (const e of files.errors) errors.push(e);
+  for (const e of triageErrors(files, new Map([...allById].map(([id, v]) => [id, v.f])))) errors.push(e);
+}
+
 // fail-closed PROJECTION gate (coverage integrity, CI-enforced — not render-only):
 // every finding must project onto an axis through its scanner's adapter, or be an
 // explicitly-classified `unprompted` finding. An unmapped native category halts here,

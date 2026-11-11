@@ -318,10 +318,10 @@ requirements:
     note: "claim-only: decided by the owner, never inferred from a run"
   - id: d-effect-channels-enumerated
     status: not-measured
-    how: claim
+    how: facet
     basis: run
     findings: []
-    note: "claim-only: decided by the owner, never inferred from a run"
+    note: "effect population not closed: the run carries no channel candidate list (map/raw/enumerate.json, which assay start writes)"
   - id: d-model-call-telemetry
     status: not-measured
     how: claim

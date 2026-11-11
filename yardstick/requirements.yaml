@@ -791,13 +791,14 @@ requirements:
 
   # ── ai-operating: the model-call layer, on top of any foundation ─────────
   - id: d-effect-channels-enumerated
-    title: Every channel through which an AI surface produces effects is enumerated in a declared canon
+    title: Every channel through which an AI surface produces effects is enumerated, and each is triaged
     tier: safety
     topic: delegation
     tags: [ai-operating]
     decide:
-      kind: claim
-    check: a canon file names the channels, AI surfaces, and census subject types; the run reads it rather than re-deriving
+      kind: facet
+      rule: channels-triaged
+    check: every channel candidate the run's enumeration lists (map/raw/enumerate.json, written by assay start) is triaged in map/effect-triage.yaml, to the effect finding that covers it or out of scope with the reason
     sources: [method/canon, method/enumerate]
     status: draft
     owner:

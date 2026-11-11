@@ -30,7 +30,7 @@ export async function run() {
     ];
     const inputs = { dimensions: [{ dimension: 'artifact-legibility', sampled: [{ name: 'decision-reconstruction', what: 'w', met: 3, of: 4 }] }] };
     const ran = [{ scanner: 'gitleaks', status: 'ran' }, { scanner: 'practice-review', status: 'ran' }];
-    const rows = measureRun({ findings: base, manifest: ran, inputs, coverage: {} }, reg);
+    const rows = measureRun({ findings: base, manifest: ran, inputs, coverage: {}, channels: { candidates: [], triage: [] } }, reg);   // a closed, empty candidate list (#259): the effect rules read their own rule
     const by = Object.fromEntries(rows.map((r) => [r.id, r]));
     if (by['d-effects-gated']?.status !== 'unmet' || !by['d-effects-gated'].findings.includes('F-1')) fail('an unheld halt must read d-effects-gated unmet, citing it');
     if (by['d-gates-fail-closed']?.status !== 'unmet' || !by['d-gates-fail-closed'].findings.includes('F-2')) fail('a gate with fail_mode open must read d-gates-fail-closed unmet, citing it');

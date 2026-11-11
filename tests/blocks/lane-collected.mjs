@@ -25,7 +25,7 @@ export async function run() {
   const target = join(scratch, 'target'); mkdirSync(target);
   writeFileSync(join(target, 'README.md'), '# Demo\n\nWhat it is.\n');
   const finding = '- id: F-001\n  dimension: artifact-legibility\n  polarity: strength\n  subject_type: artifact\n  observation: >\n    The README says what the repository is.\n  evidence: [README.md:1]\n  confidence: confirmed\n';
-  const outputs = laneSeed('practice-review', { name: 'Demo' }, adapters).outputs;
+  const outputs = laneSeed('practice-review', { name: 'Demo', inputsDir: 'the-run' }, adapters).outputs;
   // a run whose only scanner that ran is practice-review, every other one recorded skipped
   const runWith = (name, { pr = 'ran', drop = [], dcr = 'skipped' } = {}) => {
     const dir = join(scratch, name);
@@ -35,8 +35,11 @@ export async function run() {
       return [`  ${id}:`, `    status: ${status}`, ...(status === 'ran' ? ['    model: "a-model"'] : ['    reason: "not in this block"'])].join('\n');
     });
     writeFileSync(join(dir, 'map', 'scanners.yaml'), `engine: block\nscanners:\n${rows.join('\n')}\n`);
+    // the lane's input, as assay start writes it (#259): a tree with no channel candidate
+    mkdirSync(join(dir, 'map', 'raw'), { recursive: true });
+    writeFileSync(join(dir, 'map', 'raw', 'enumerate.json'), JSON.stringify({ schema: 'enumerate', version: 1, target: 'target', files: 1, populations: { channelCandidates: [] } }));
     for (const o of outputs.filter((x) => !drop.includes(x))) {
-      const body = o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : o.endsWith('-legibility.yaml') ? finding : '[]\n';
+      const body = o.endsWith('.md') ? '# Terrain\n\nA planted target with one README.\n' : o.endsWith('effect-triage.yaml') ? 'schema: effect-triage\nversion: 1\ntriage: []\n' : o.endsWith('censuses.yaml') ? 'dimensions: []\n' : o.endsWith('-legibility.yaml') ? finding : '[]\n';
       writeFileSync(join(dir, o), body);
     }
     return dir;

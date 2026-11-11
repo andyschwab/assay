@@ -33,7 +33,7 @@ export async function run() {
     }
     if (!(doc.lanes || []).some((l) => l.scanner === 'practice-review')) fail('the practice-review lane must be listed');
   }
-  const seed = assay(['lane', 'practice-review', '--name', 'Example', '--assay', 'v0.0.0', '--date', '2026-01-01']);
+  const seed = assay(['lane', 'practice-review', '--name', 'Example', '--assay', 'v0.0.0', '--date', '2026-01-01', '--inputs-dir', 'the-run']);
   let s = null;
   try { s = JSON.parse(seed.stdout); } catch { /* read below */ }
   if (seed.status !== 0 || !s || JSON.stringify(s.passes) !== JSON.stringify(passes)) fail(`the practice-review seed must carry its passes ${JSON.stringify(passes)} (got ${seed.status}: ${JSON.stringify(s && s.passes)})`);

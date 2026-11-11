@@ -918,7 +918,8 @@ and the prompt. Its frontmatter:
 - `outputs`: the run files the lane publishes, each verbatim between `--- <path> (verbatim)
   ---` and `--- end <path> ---` on that page; a consumer collects them into the run.
 - `inputs`: run files the lane reads that ran before it (an instrument's raw report,
-  `map/raw/<scanner>.json`). A lane with inputs is never seeded without `--inputs-dir`.
+  `map/raw/<scanner>.json`, or the enumeration `assay start` writes, `map/raw/enumerate.json`,
+  which the practice-review lane triages into `map/effect-triage.yaml`, `map/SCHEMA.md` §6e). A lane with inputs is never seeded without `--inputs-dir`.
 
 The consumer collects what the session publishes into the run, records it ran (with its
 model), and checks it whole: `node assay.mjs validate <run> --target <checkout> --lane
