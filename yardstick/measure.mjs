@@ -36,6 +36,7 @@ import { isHalt, isHaltClass, gateHolds, effectLeg, isMain } from '../map/doctri
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 import { loadPacket, validatePacket, decidePacketClaim } from './packet.mjs';
 import { loadChannelFiles, channelPopulation } from '../map/effect-triage.mjs';
+import { censusCount } from '../map/census.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
@@ -209,13 +210,13 @@ function byEffects(d, fs) {
       bad = of.filter((f) => open.includes(f) || unt.includes(f));
       if (!of.length) return row('not-measured', 'facet', [], 'population empty (gated effects)');
       const ch = (xs) => xs.length ? ': ' + xs.map((f) => f.effect.channel).filter(Boolean).join(', ') : '';
-      return row(bad.length ? 'unmet' : 'met', 'facet', bad.map((f) => f.id),
+      return row(bad.length ? 'unmet' : 'met', 'facet', (bad.length ? bad : of).map((f) => f.id),
         `${bad.length} of ${of.length} gated effects whose gate does not end in a refusal: ${open.length} fails open${ch(open)}; ${unt.length} never terminates${ch(unt)}`,
         { met: of.length - bad.length, of: of.length, open: open.length, unterminated: unt.length });
     }
     if (r === 'effects-provable') { of = effects; bad = effects.filter((f) => !STRUCTURED.has(f.effect.telemetry)); what = 'effects with no structured or audited record'; }
     if (!of.length) return row('not-measured', 'facet', [], `population empty (${what.split(' with')[0]})`);
-    return row(bad.length ? 'unmet' : 'met', 'facet', bad.map((f) => f.id), `${bad.length} of ${of.length} ${what}${bad.length ? ': ' + bad.map((f) => f.effect.channel).filter(Boolean).join(', ') : ''}`, { met: of.length - bad.length, of: of.length });
+    return row(bad.length ? 'unmet' : 'met', 'facet', (bad.length ? bad : of).map((f) => f.id), `${bad.length} of ${of.length} ${what}${bad.length ? ': ' + bad.map((f) => f.effect.channel).filter(Boolean).join(', ') : ''}`, { met: of.length - bad.length, of: of.length });
   }
   if (r === 'trifecta') {
     const caps = fs.filter((f) => f.subject_type === 'capability' && f.capabilities);
@@ -233,15 +234,35 @@ function byEffects(d, fs) {
   throw new Error(`facet rule ${r}`);
 }
 
-function byCensus(d, inputs) {
+// A census row (#260; yardstick/README.md, "Met needs positive evidence"). The census lists its
+// members (map/census.mjs): gaps decide unmet, strengths support met, and a strength never
+// offsets a gap (a safety row stays a cleanliness claim: mixable). Met needs every member to
+// carry a verdict, and the row cites every member, on met as on unmet, so a reader sees why.
+// A census with no members: list has only an authored count, which is not evidence: it keeps
+// what it says against the bar, and a count that would read met reads mixed, with the reason.
+function byCensus(d, inputs, findingsById = new Map()) {
   const names = new Set(d.decide.measures);
   const hits = [];
   for (const dim of inputs?.dimensions || []) for (const s of dim.sampled || []) if (names.has(s.name)) hits.push({ ...s, dimension: dim.dimension });
   if (!hits.length) return row('not-measured', 'census', [], `no census named ${d.decide.measures.join(' | ')} in map/censuses.yaml`);
   const s = hits[0];
-  const met = Number(s.met), of = Number(s.of);
-  if (!(of > 0)) return row('not-measured', 'census', [], `census ${s.name} has an empty population`);
-  return row(met === of ? 'met' : met === 0 ? 'unmet' : 'mixed', 'census', [], `${met} of ${of} ${s.what ?? s.name} (census ${s.name}, ${s.dimension})`, { met, of, measure: s.name });
+  const c = censusCount(s, findingsById);
+  const what = `${s.what ?? s.name} (census ${s.name}, ${s.dimension})`;
+  if (!c.listed) {
+    const { met, of } = c;
+    if (!(of > 0)) return row('not-measured', 'census', [], `census ${s.name} has an empty population`);
+    if (met === of) return row('mixed', 'census', [], `${met} of ${of} ${what}, an authored count: the census lists no members, and a count typed by hand is not evidence, so it cannot read met`, { met, of, measure: s.name });
+    return row(met === 0 ? 'unmet' : 'mixed', 'census', [], `${met} of ${of} ${what}; the census lists no members (an authored count)`, { met, of, measure: s.name });
+  }
+  const { met, of, strengths, gaps, unjudged } = c;
+  if (!of) return row('not-measured', 'census', [], `census ${s.name} has an empty population`);
+  const say = (xs, w) => xs.length ? `; ${xs.length} ${w}: ${xs.join(', ')}` : '';
+  const note = `${met} of ${of} ${what}${say(gaps, 'gap')}${say(unjudged, 'with no verdict (a fact, or no finding in this run)')}`;
+  let status;
+  if (gaps.length) status = strengths.length && mixable(d) ? 'mixed' : 'unmet';
+  else if (unjudged.length) status = strengths.length ? 'mixed' : 'not-measured';
+  else status = 'met';
+  return row(status, 'census', c.members, note, { met, of, measure: s.name });
 }
 
 // one listed category's own "no gap rows" verdict — a deterministic INSTRUMENT that ran
@@ -426,10 +447,11 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
   const contradictions = [];
   const claims = packet && Array.isArray(packet.claims) ? packet.claims : [];
   const ch = channelPopulation(channels || {}, findings);
+  const findingsById = new Map(findings.map((f) => [String(f.id), f]));
   const rows = reg.requirements.map((d) => {
     let r, basis = 'run';
     if (d.decide.kind === 'facet') r = byFacet(d, findings, ch);
-    else if (d.decide.kind === 'census') r = byCensus(d, inputs);
+    else if (d.decide.kind === 'census') r = byCensus(d, inputs, findingsById);
     else if (d.decide.kind === 'instrument') r = decideInstrument(d, findings, disp, coverage || {}, adapters);
     else {
       const pd = decidePacketClaim(d.id, packet);

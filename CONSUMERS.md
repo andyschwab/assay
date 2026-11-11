@@ -92,7 +92,7 @@ that places them, and `views/README.md` states each data format.
 | `map/raw/enumerate.json` | the target's enumerated populations, written by `start` (`map/SCHEMA.md` §6e); the practice-review lane's input |
 | `map/effect-triage.yaml` | the practice-review lane's triage of every channel candidate, route handler and effect-site member in `map/raw/enumerate.json`: the effect finding that covers it, or out of scope with the reason (`map/SCHEMA.md` §6e) |
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable |
-| `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data |
+| `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data (`views/README.md`); a met row in `intake.yaml` and `maintain.yaml` carries `findings:`, what it was met by, and every `owner.yaml` row carries `seen:`, a met row's cited strengths' observations (#260) |
 | `views/improve/chains.json`, `handoff/sequence.json` | Improve's ranked chains and its fix sequence as data |
 | `views/improve/report.json` | the Improve report's model, labels applied: capabilities with their counts and trace phrases, the chains with each live chain's cuts and, when tentative, its weakest step, every entry naming a finding with its confidence and word, the supervision split with its fixes, the label tables (the confidence words among them) and the how-to text; a renderer of the report reads it with `views/improve/prose.yaml`, `security-gate.yaml` and `maturity-grades.yaml`, and imports nothing |
 | `INDEX.md`, `INTAKE.md`, `MAINTAIN.md`, `IMPROVE.md`, `OWNER.md`, `SINCE.md` | the pages, for a person |

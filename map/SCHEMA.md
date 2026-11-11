@@ -571,10 +571,10 @@ dimension:
 
 - **coverage** — the share of a review-enumerated population meeting the dimension's
   bar. `kind: counted` (computed from base fields: `telemetry`, `gate_type`,
-  `fail_mode`, the trifecta legs) or `kind: sampled` (from an authored census with
-  `met`/`of`/`method` — n and method always stated, and the full item list with
-  per-item verdicts + evidence recorded in `map/censuses.md`, enumerate-before-assess
-  so the sample cannot cherry-pick). A dimension with no measure yet
+  `fail_mode`, the trifecta legs) or `kind: sampled` (from a census whose `members:`
+  lists the finding ids of its population, one per member, with its `method` stated:
+  enumerate-before-assess, so the sample cannot cherry-pick; `met`/`of` are read off the
+  members, below). A dimension with no measure yet
   carries `not_measured:` with the reason instead of a faked number. Every fraction is
   "M of the N the review enumerated", never "of the system".
 - **depth** — one authored, judged sentence: how good the *best instance* is, with
@@ -612,6 +612,22 @@ cite the same per-item paths, rather than each noticing a different subset. Use 
 when repeatability of the *findings* (not just the verdict) matters; a base sweep remains
 fine for a one-off client read.
 
+**A census lists its members (#260).** Each `sampled:` entry names its population in
+`members:`, the finding ids that are its members, one id per member, each a finding of this
+run. The count is read off them (`map/census.mjs`), never typed by hand:
+
+- a `strength` member meets the census's bar: it counts in `met` and `of`;
+- a `gap` member does not: it counts in `of` only;
+- a `fact` member records what is and carries no verdict against the bar, so it counts in
+  `of` and never in `met`. The census cannot read met while it holds one: a member nobody
+  judged is the census's version of an untriaged candidate (§6e), and the yardstick names it.
+
+An authored `met`/`of` beside `members:` is optional; one that disagrees with the members is
+a validate error. A `sampled:` entry with no `members:` keeps its authored `met`/`of`, and the
+yardstick never reads it met: a count typed by hand is not evidence (`yardstick/README.md`,
+"Met needs positive evidence"). In census-augmented mode the review already writes one
+finding per member, so `members:` is that list of ids.
+
 **Per member, or one finding for a family — what the coverage gate counts.** The
 `enumerate --run` gate (`map/enumerate.mjs`, §8) reads a finding's `evidence` and `covers` lists
 with the YAML parser, block or flow form, whatever the cited file's type; a path named
@@ -637,9 +653,10 @@ dimensions:
     # sampled:                        # optional — supplies coverage for uncounted dimensions
     #   - name: decision-reconstruction
     #     what: "non-obvious decisions reconstructable from files alone"
-    #     met: 7
-    #     of: 10
-    #     method: "sampled 10 decisions listed in the census appendix"
+    #     members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108, F-109, F-110]
+    #                                   # one finding id per member: strength met, gap not,
+    #                                   # fact no verdict; met/of are read off these
+    #     method: "every decision listed in the terrain, D1-D10, one finding each"
     #     primary: true
     # enforced: { claim: true, why: "...", evidence: [F-044] }   # optional earned flag
 ```
@@ -654,7 +671,10 @@ every dimension carries a `depth`; flags are `false` or evidenced claims.
 has been generated yet, with the same strict reader the measurement uses: a construct the
 reader refuses (a flow map, for one) is a violation naming the file, never a crash later in
 `measure`, `variance` or `compile`; each entry names a dimension (§2), and each `sampled`
-entry names its measure and states numeric `met`/`of` and a `method`.
+entry names its measure, a `method`, and either `members:` (each id a finding of this run,
+none twice, any authored `met`/`of` equal to the count the members give) or, for a census
+drawn before #260, numeric `met`/`of`. Sampled numbers in the grades file are checked against
+the members' count where the census lists them.
 
 ### 6c. `views/improve/prose.yaml` — the authored narrative + decision structure
 

@@ -397,9 +397,12 @@ is no binning.
 - **Sampled censuses** cover what has no counted field: artifact-legibility (sample
  n non-obvious decisions, count how many reconstruct from files alone),
  context-economy (module census: loadable standalone; instruction files vs their
- stated budget), delegation's credential census. State n, method, and the item
- list; record results in `map/censuses.yaml`. Until a census runs, the
- dimension reads `not_measured` — an honest gap beats a judged grade.
+ stated budget), delegation's credential census. State the method, write one
+ finding per member (a strength where it meets the bar, a gap where it does not),
+ and list those ids as the census's `members:` in `map/censuses.yaml`
+ (`SCHEMA.md` §6b): the count is read off them, and a census that lists no members
+ never reads a requirement met, because a typed count is not evidence. Until a
+ census runs, the dimension reads `not_measured` — an honest gap beats a judged grade.
 - **A census outranks a blind pass on its own axis.** Where a delegation pass's
  blind claim about a secret's boundary disagrees with the credential census, the
  **census wins** — it traced the actual strip, the blind pass guessed. A blind

@@ -106,8 +106,8 @@ record does not produce as drift.
 
 | Kind | Decided from | Reads |
 |---|---|---|
-| `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below) | met or unmet with the population; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
-| `census` | an authored, enumerated population in the run's `map/censuses.yaml`, by measure name | met (all), unmet (none), mixed (some), with `met of N`; not-measured when no census of that name ran |
+| `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below) | met or unmet with the population, a met effect row citing the effect findings it read; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
+| `census` | an enumerated population in the run's `map/censuses.yaml`, by measure name, read off the finding ids its `members:` lists (below) | met only when every member is a strength, citing them; unmet on a gap (mixed when a strength sits beside it, except on a `safety` row); mixed when a member carries no verdict; with `met of N`; not-measured when no census of that name ran. A census with no `members:` never reads met |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). The claim rows a packet never speaks to are the list of instruments still to build |
 
@@ -136,10 +136,37 @@ yardstick reads both (`map/effect-triage.mjs`). The four effect rules (`halts-ga
 findings that cover them), unmet naming the untriaged ones, and not measured without a list
 or over an empty one (nothing was triaged, so nothing is decided). For a web app it is
 decided over the route handlers and effect-site members. It is a `facet` row, not a `census` one: a census reads
-authored `met`/`of` numbers from `map/censuses.yaml`, while this row is computed from the
+the members a review session lists in `map/censuses.yaml`, while this row is computed from the
 run's own two files, the way the other facet rules are computed from the finding facets, so
 nothing in it can be hand-inflated. Binding lives on the yardstick side (#257 Q1): the
 triage names findings, and no finding carries a requirement id.
+
+**Met needs positive evidence** (#260, M2 of #257). A requirement reads met by what the run
+saw in place, never by the absence of a gap, and its row cites what that was:
+
+- **A census lists its members.** Each `sampled:` entry in `map/censuses.yaml` names its
+  population in `members:`, the finding ids that are its members, one per member
+  (`map/SCHEMA.md` §6b, read by `map/census.mjs`). Its `met`/`of` are read off them: a
+  `strength` member is met, a `gap` member is not, and a `fact` member records what is
+  without a verdict against the bar, so it counts in `of` and never in `met`. An authored
+  `met`/`of` that disagrees with the members fails `validate`.
+- **Met needs every member to have a verdict.** A census row reads met only when every
+  member is a strength. A member with no verdict (a fact, or an id the run does not carry)
+  holds the row mixed, named in the note; a census whose members all lack one reads not
+  measured. The row's `findings:` cites every member, on met as on unmet, so a reader sees
+  why it is met. A census with no `members:` has only an authored count, which is not
+  evidence: it cannot read met (a count that says all reads mixed, with that reason), and
+  otherwise keeps what it says.
+- **Gaps decide unmet; strengths support met; a strength never offsets a gap.** A gap member
+  reads the row unmet, or mixed where a strength sits beside it on a row that is mixable; a
+  `safety` row stays a cleanliness claim, and one gap reads it unmet, the instrument rule's
+  own.
+- **A met effect row cites what it read.** The four effect rules read met only over a closed
+  population (above), and a met row cites the effect findings in the rule's population, the
+  ones the triage drew in; an unmet row cites the ones that fail.
+
+The views show it: Intake and Maintain carry a met row's `findings:`, and Owner says what was
+seen in place, the cited strengths' observations, under "Holds" (`views/README.md`).
 
 **Who decides an `instrument` row.** The row may name one decider itself (`scanner`,
 `category` and its conditions on `decide`), a list of them (`decide.deciders`), or none:
