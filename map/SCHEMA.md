@@ -839,23 +839,34 @@ a chain, as `unresolved` items.
 The effect inventory is a **closed population**, not whatever the run noticed (#259). `assay
 start` runs the deterministic enumeration over the target (`node assay.mjs enumerate <target>
 --json`, which reads the tree and executes nothing of it) and writes it to
-`map/raw/enumerate.json`. Its `populations.channelCandidates` list is the candidate effect
-channels: one entry per `member` (`cli: …`, `skill: …`, `surface: …`, `tool: …`,
-`mcp-toolset: …`), with its evidence and note. The practice-review lane is given the file
-(`inputs:`) and Pass 0 records one triage entry per candidate:
+`map/raw/enumerate.json`. Three of its populations together are the candidate list the
+triage closes (`CANDIDATE_POPULATIONS` in `map/effect-triage.mjs`), each `member` with its
+evidence and note:
+
+- `channelCandidates`, the agentic channels (`cli: …`, `skill: …`, `surface: …`, `tool: …`,
+  `mcp-toolset: …`);
+- `routeHandlers`, the HTTP surface (`route: POST /api/notes`, one member per exported method);
+- `effectSites`, the effect call sites, one member per kind as enumerate collapses them
+  (`http write (js)`, `shell exec`, …), so a member groups every call line of its kind.
+
+The last two close a target with no agentic channel, such as a web app, where an empty
+`channelCandidates` once read as a closed list (#269). The practice-review lane is given the
+file (`inputs:`) and Pass 0 records one triage entry per candidate:
 
 ```yaml
 # map/effect-triage.yaml (authored)
 schema: effect-triage
 version: 1
 triage:
-  - candidate: "tool: send_invoice"      # a member of channelCandidates, exactly as enumerate.json writes it
+  - candidate: "tool: send_invoice"      # a member of the three populations, exactly as enumerate.json writes it
     finding: F-052                       # the effect finding that covers it (several candidates may share one)
   - candidate: "tool: read_invoice"
     out_of_scope: "read-only: returns a record, writes nothing"   # or out of scope, with the reason
+  - candidate: "http write (js)"         # an effect-site member: every fetch/axios write in the tree
+    finding: F-053
 ```
 
-A list with no candidates is closed and empty (`triage: []`). The triage names findings and
+A list with no candidates in any of the three populations is closed and empty (`triage: []`). The triage names findings and
 never requirements: a finding carries no requirement id, and the yardstick reads the
 population (#257 Q1; `yardstick/README.md`, "The effect population"). An effect the list
 does not name is still recorded as a finding: the triage closes the list, it does not bound
@@ -865,7 +876,8 @@ Validator-checked, when the triage file is present: the run carries `map/raw/enu
 and it reads; every candidate is triaged exactly once; every entry names a candidate on the
 list; each entry carries exactly one of `finding` or `out_of_scope`; every `finding` resolves
 to a finding of this run whose `subject_type` is `effect`; every `out_of_scope` gives its
-reason. A candidate list that does not read is an error, never an empty list. With no triage
+reason. A candidate list that does not read, or that lacks one of the three populations, is
+an error, never an empty list. With no triage
 file, nothing is refused (a run whose lane has not run has none), and the yardstick reads
 every candidate untriaged.
 
@@ -922,8 +934,8 @@ a pass (the run's own CI-1 lesson, applied to the checker):
    because a canon may deliberately lead or lag a single run; closing the drift is a
    canon-maintenance decision, not a per-run gate.
 
-12. **The effect-channel triage, when present** (§6e): every channel candidate in
-   `map/raw/enumerate.json` triaged exactly once, to an `effect` finding of this run or out of
+12. **The effect-channel triage, when present** (§6e): every channel candidate, route handler
+   and effect-site member in `map/raw/enumerate.json` triaged exactly once, to an `effect` finding of this run or out of
    scope with a reason; a candidate list that does not read is an error.
 
 13. **The run's data files, when present** (`lib/run-data.mjs`): `views/improve/chains.json`

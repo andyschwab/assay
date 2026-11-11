@@ -90,7 +90,7 @@ that places them, and `views/README.md` states each data format.
 | `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason, and for a reviewer pinned by commit the method it read (`method: { release, commit }`) |
 | `map/findings/<scanner>.yaml` | the findings, one file per scanner (`map/SCHEMA.md`) |
 | `map/raw/enumerate.json` | the target's enumerated populations, written by `start` (`map/SCHEMA.md` §6e); the practice-review lane's input |
-| `map/effect-triage.yaml` | the practice-review lane's triage of every channel candidate: the effect finding that covers it, or out of scope with the reason (`map/SCHEMA.md` §6e) |
+| `map/effect-triage.yaml` | the practice-review lane's triage of every channel candidate, route handler and effect-site member in `map/raw/enumerate.json`: the effect finding that covers it, or out of scope with the reason (`map/SCHEMA.md` §6e) |
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable |
 | `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data |
 | `views/improve/chains.json`, `handoff/sequence.json` | Improve's ranked chains and its fix sequence as data |

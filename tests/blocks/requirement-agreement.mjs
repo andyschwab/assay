@@ -4,7 +4,7 @@
 // requirementAgreement counts a requirement any sweep decides, agrees when its status is identical
 // in all of them, and the sweep gate holds it to SWEEP.yaml's requirement_agreement threshold.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, rmSync, cpSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, rmSync, cpSync, readdirSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
@@ -53,9 +53,14 @@ export async function run() {
   try {
     cpSync(fx, tmp, { recursive: true });
     // the effect rows read only over a closed candidate list (#259); the frozen sweeps carry none, so
-    // the copy is given the list flawed-webapp's enumeration yields (no channel candidate), as start writes it
-    for (const sw of readdirSync(tmp).filter((x) => /^sweep-\d+$/.test(x)))
-      cpSync(join(HERE, 'fixtures', 'notesbox', 'map', 'raw', 'enumerate.json'), join(tmp, sw, 'map', 'raw', 'enumerate.json'));
+    // the copy is given a closed, empty one: flawed-webapp's enumeration with its one effect call site
+    // (#269) left out, since each frozen sweep names its own finding ids and carries no triage to cover it
+    const closedEmpty = JSON.parse(readFileSync(join(HERE, 'fixtures', 'notesbox', 'map', 'raw', 'enumerate.json'), 'utf8'));
+    closedEmpty.populations.effectSites = [];
+    for (const sw of readdirSync(tmp).filter((x) => /^sweep-\d+$/.test(x))) {
+      mkdirSync(join(tmp, sw, 'map', 'raw'), { recursive: true });
+      writeFileSync(join(tmp, sw, 'map', 'raw', 'enumerate.json'), JSON.stringify(closedEmpty, null, 2) + '\n');
+    }
     const del = join(tmp, 'sweep-3', 'map', 'findings', 'practice-review-delegation.yaml');
     const src = readFileSync(del, 'utf8');
     const flipped = src.replace(/^(\s*)gate_type: none$/gm, '$1gate_type: deterministic-halt\n$1fail_mode: closed');

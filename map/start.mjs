@@ -60,6 +60,7 @@ import { loadAdapters, adoptedAdapters } from './project.mjs';
 import { toolsNotReady, REFUSED_EXIT } from './tools.mjs';
 import { scannersPath, findingsDir, enumeratePath, rawDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
+import { CANDIDATE_POPULATIONS } from './effect-triage.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // map/
 const ASSAY_ROOT = join(HERE, '..');
@@ -438,8 +439,9 @@ export function writeEnumeration(repoDir, outDir, log = /** @type {(msg: string)
   }
   mkdirSync(rawDir(outDir), { recursive: true });
   writeFileSync(enumeratePath(outDir), JSON.stringify(doc, null, 2) + '\n');
-  const n = doc.populations.channelCandidates.length;
-  log(`  ✓ enumerate wrote map/raw/enumerate.json (${n} channel candidate${n === 1 ? '' : 's'})`);
+  const counts = CANDIDATE_POPULATIONS.map((p) => (Array.isArray(doc.populations?.[p]) ? doc.populations[p].length : 0));
+  const n = counts.reduce((a, b) => a + b, 0);
+  log(`  ✓ enumerate wrote map/raw/enumerate.json (${n} candidate${n === 1 ? '' : 's'} to triage: ${CANDIDATE_POPULATIONS.map((p, i) => `${counts[i]} ${p}`).join(', ')})`);
   return { ok: true, candidates: n };
 }
 

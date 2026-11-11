@@ -115,15 +115,18 @@ record does not produce as drift.
 findings reads only what the run recorded, so an effect nobody wrote down could leave it
 met. The population is therefore closed by the run, not by the reader: `assay start` writes
 the deterministic enumeration into the run (`map/raw/enumerate.json`), the practice-review
-lane is given it and triages every channel candidate in `map/effect-triage.yaml` to the
+lane is given it and triages every candidate (the channel candidates, route handlers and
+effect-site members, #269) in `map/effect-triage.yaml` to the
 effect finding that covers it or out of scope with a reason (`map/SCHEMA.md` §6e), and the
 yardstick reads both (`map/effect-triage.mjs`). The four effect rules (`halts-gated`,
 `halts-traced`, `effects-provable`, `gates-fail-closed`) read:
 
 - **not measured** when the run carries no candidate list, whatever effect findings it
   holds, with that reason: a population never enumerated is missing data, never met;
-- their own rule over the effect findings when every candidate is triaged (an empty list is
-  closed: enumerate lists no CLI, skill, tool definition or MCP toolset in the tree);
+- their own rule over the effect findings when every candidate is triaged. A web app with no
+  CLI, skill, tool definition or MCP toolset still has a list: its route handlers and effect
+  call sites. A list empty in all three populations is closed: enumerate found nothing that
+  acts;
 - **mixed** where that rule would read met and a candidate is untriaged, the note naming each
   one; an unmet or not-measured reading stays as it is, its note naming them too, since a gap
   the run did record stands.
@@ -131,8 +134,8 @@ yardstick reads both (`map/effect-triage.mjs`). The four effect rules (`halts-ga
 `d-effect-channels-enumerated` is decided by the triage itself, as the `facet` rule
 `channels-triaged`: met when every candidate is triaged (`met of N`, citing the effect
 findings that cover them), unmet naming the untriaged ones, and not measured without a list
-or over an empty one (the invocable surface is then the route and effect-library topology,
-which no candidate list closes). It is a `facet` row, not a `census` one: a census reads
+or over an empty one (nothing was triaged, so nothing is decided). For a web app it is
+decided over the route handlers and effect-site members. It is a `facet` row, not a `census` one: a census reads
 authored `met`/`of` numbers from `map/censuses.yaml`, while this row is computed from the
 run's own two files, the way the other facet rules are computed from the finding facets, so
 nothing in it can be hand-inflated. Binding lives on the yardstick side (#257 Q1): the

@@ -1,6 +1,10 @@
-# map/effect-triage.yaml — the channel candidates' triage (map/SCHEMA.md §6e).
-# enumerate lists no channel candidate in flawed-webapp at assay-fixtures fe1ca28 (a web app
-# with no CLI, skill, tool definition or MCP toolset), so the list is closed and empty.
+# map/effect-triage.yaml — the effect candidates' triage (map/SCHEMA.md §6e).
+# enumerate over flawed-webapp at assay-fixtures fe1ca28 (a web app with no CLI, skill, tool
+# definition or MCP toolset, and no recognised route handler) lists one effect call site,
+# `http write (js)` at lib/sync.mjs:8: the backup push, which F-053 records. The mail send in
+# lib/mailer.mjs is no enumerated member; F-052 records it from the read.
 schema: effect-triage
 version: 1
-triage: []
+triage:
+  - candidate: "http write (js)"
+    finding: F-053
