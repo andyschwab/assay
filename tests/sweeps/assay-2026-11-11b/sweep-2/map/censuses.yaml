@@ -1,0 +1,84 @@
+# map/censuses.yaml (authored) — SCHEMA §6b. Populations fixed in map/terrain.md; one finding per member;
+# met/of are read off the members, never typed.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      Where a rationale is written it sits beside the code it governs and says why, not only what: the two-job routine
+      (F-102), the base-branch baseline (F-110) and the declared canon (F-109); the gaps are rules stated without a reason
+      (F-106, F-108) and rationale pointers into run history the tree does not keep (F-123).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious design decisions whose rationale reconstructs from files alone"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108, F-109, F-110]
+        method: "every decision D1-D10 the terrain lists, one finding each, judged blind from the files"
+        primary: true
+  - dimension: context-economy
+    depth: >
+      The best instance is a module with its own contract doc and a drift check behind it (F-202, F-205, F-231); the
+      weak spots are the core map/ and views/improve/ with no entry doc (F-201, F-204), three stale entry docs (F-211,
+      F-213, F-216) and spend recorded as free text with no tier rationale (F-236, F-237).
+    sampled:
+      - name: modules-standalone
+        what: "top-level modules a bounded context can load standalone"
+        members: [F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208, F-209]
+        method: "every module directory the terrain lists, one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "entry and contract docs whose spot-checked claims hold against the code"
+        members: [F-211, F-212, F-213, F-214, F-215, F-216, F-217, F-218, F-219, F-220]
+        method: "every doc the terrain lists, one to three concrete claims spot-checked against the code"
+  - dimension: deterministic-gates
+    depth: >
+      The harness fails closed on its own machinery with one negative run per validator refusal (F-310, F-311, F-312),
+      and every workflow job is pinned, least-privilege and timed (F-301-F-305); lint and build are a syntax pass and
+      the typecheck is not strict (F-315), with no pre-commit gate (F-316).
+    sampled:
+      - name: gates-coverage
+        what: "workflow jobs holding deterministic, fail-closed checks for what they do"
+        members: [F-301, F-302, F-303, F-304, F-305]
+        method: "every job under .github/workflows/, one finding each"
+        primary: true
+  - dimension: verification
+    depth: >
+      The opengrep positive control and the known-answer and sweep harnesses verify the instrument itself (F-421,
+      F-423, F-424); the effects that leave the run directory, the release, the branch delete and the issue, end at the
+      API call without reading the result back (F-411, F-412, F-413).
+    sampled:
+      - name: effect-provability
+        what: "effect channels that verify their effect rather than trusting a return code"
+        members: [F-401, F-402, F-403, F-404, F-405, F-406, F-407, F-408, F-409, F-410, F-411, F-412, F-413]
+        method: "every effect channel in the terrain's inventory, one finding each"
+        primary: true
+  - dimension: delegation
+    depth: >
+      Credentials are scoped per job and kept out of code the change controls (F-516, F-518, F-522); the exposure is
+      code execution of the target outside the --allow-exec opt-in, with HOME passed to the child (F-502, F-504, F-509,
+      F-521), and lanes bounded by prose only (F-527).
+    sampled:
+      - name: credential
+        what: "runtime credentials held below the code boundary with least privilege"
+        members: [F-516, F-517, F-518, F-519]
+        method: "every credential the terrain's credential rule admits from map/raw/enumerate.json secrets, one finding each"
+        primary: true
+  - dimension: improvement-loop
+    depth: >
+      Lessons become named harness blocks that cite their origin (F-620) and the engine measures its own recall and
+      repeatability (F-624); three of the agent contract's ten rules are prose with no running check (F-606, F-608,
+      F-609).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "CLAUDE.md rules held by a mechanism that runs"
+        members: [F-601, F-602, F-603, F-604, F-605, F-606, F-607, F-608, F-609, F-610]
+        method: "every rule CLAUDE.md states (ground rules 1-7 and the three 'How a change lands' bullets), one finding each"
+        primary: true
+  - dimension: multiplayer
+    depth: >
+      Every view writes a data file beside its page (F-701-F-706) and the consumer contract names the machine forms
+      (F-711); five view formats carry no versioned schema or checker (F-710) and the confidential mark does not reach
+      the data files (F-719).
+    sampled:
+      - name: agent-access-surface
+        what: "views exposing an agent-consumable form with a written contract"
+        members: [F-701, F-702, F-703, F-704, F-705, F-706]
+        method: "every view a run writes, one finding each"
+        primary: true

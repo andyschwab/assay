@@ -1,0 +1,141 @@
+# Pass 3 — deterministic gates (census gates-coverage F-301..F-305, then gate findings F-310..)
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The ci.yml test job runs on every pull request and push to main with a contents: read token, a 15-minute timeout, actions pinned to 40-hex commit SHAs, and fails on the first red step of npm ci, lint, typecheck, build, the pinned-tools install and npm test, over Node 22 and 24; tests/blocks/ci-workflow.mjs holds those invariants of the file."
+  evidence: [".github/workflows/ci.yml:8-14", ".github/workflows/ci.yml:17-22", ".github/workflows/ci.yml:24-39", "tests/blocks/ci-workflow.mjs:16-58"]
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The release.yml release job is dispatch-only and default-branch-only, has a 20-minute timeout and SHA-pinned actions, holds contents: write over a contents: read default, checks out without persisted credentials, and refuses a malformed or existing version, then runs npm test and the Consumer trailer check, all before gh release create; tests/blocks/consumer-contract.mjs pins that order."
+  evidence: [".github/workflows/release.yml:10-18", ".github/workflows/release.yml:20-32", ".github/workflows/release.yml:33-50", "tests/blocks/consumer-contract.mjs:130-141"]
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The tools-check.yml check job has a 10-minute timeout, a SHA-pinned checkout without persisted credentials, job permissions of contents: read plus issues: write, runs its script under set -euo pipefail, reads an unreadable upstream as unknown rather than current, and searches for the open issue and compares the last body before it creates or comments."
+  evidence: [".github/workflows/tools-check.yml:11-23", ".github/workflows/tools-check.yml:24-35", "map/tools.mjs:212-218"]
+  confidence: confirmed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The branch-cleanup.yml plan job holds only contents: read and pull-requests: read, has a 10-minute timeout, uses no third-party action, runs under set -euo pipefail so a failed API read fails the run, never reads past the default branch, a KEEP name or a protected branch, and emits a dry_run output that is true unless the event is a push; tests/blocks/branch-cleanup.mjs runs the step against a fake gh."
+  evidence: [".github/workflows/branch-cleanup.yml:50-61", ".github/workflows/branch-cleanup.yml:66-78", ".github/workflows/branch-cleanup.yml:103-105", "tests/blocks/branch-cleanup.mjs:1-17"]
+  confidence: confirmed
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "The branch-cleanup.yml delete job runs only when the plan says not a dry run and named branches, alone holds contents: write, has a 10-minute timeout, refuses any entry without a planned sha or naming the default branch or a KEEP pattern before deleting anything, and re-reads each branch to skip one that moved or became protected since the plan."
+  evidence: [".github/workflows/branch-cleanup.yml:106-112", ".github/workflows/branch-cleanup.yml:117-125", ".github/workflows/branch-cleanup.yml:127-134", "tests/blocks/branch-cleanup.mjs:15-17"]
+  confidence: confirmed
+- id: F-310
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: "The regression runner fails closed on its own machinery: an empty blocks directory, a block that does not load, a label that is not its filename, a missing run function, an empty or duplicated gate label, an after cycle, and a block that throws are each recorded as failures, and the exit code is non-zero on any failure or score drift."
+  evidence: ["tests/harness.mjs:70-106", "tests/harness.mjs:111-117", "tests/harness.mjs:152-163", "tests/regression.mjs:28-44"]
+  confidence: confirmed
+- id: F-311
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: "tests/blocks/negative-fixtures.mjs runs map/validate.mjs over 31 malformed runs under tests/negative/, one per validator rule, and fails if a run validates green, if its expected violation does not fire, or if it is red for any other violation too."
+  evidence: ["tests/blocks/negative-fixtures.mjs:9-15", "tests/blocks/negative-fixtures.mjs:16-62", "tests/blocks/negative-fixtures.mjs:64-76"]
+  confidence: confirmed
+- id: F-312
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: "map/validate.mjs checks every native finding against closed vocabularies, the mandatory keys, the filename-to-dimension rule and the conditional effect and capability facets, turns any YAML parse failure into an error rather than a skip, and exits non-zero on any violation, in --json mode too."
+  evidence: ["map/validate.mjs:31-42", "map/validate.mjs:136-150", "map/validate.mjs:151-195", "map/validate.mjs:202-207", "map/validate.mjs:779-789"]
+  confidence: confirmed
+- id: F-313
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: "map/validate.mjs checks a native finding's listed keys only and holds no allow-list of keys and no refusal of a severity or priority key, so a native finding that asserts a severity, or carries a misspelled optional key, validates green."
+  evidence: ["map/validate.mjs:136-150", "map/validate.mjs:151-200"]
+  confidence: confirmed
+- id: F-314
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: "Evidence citations are resolved against files and line counts only when validate is given --target; without it a path:line string is checked for shape and not for existence."
+  evidence: ["map/validate.mjs:86-94", "map/validate.mjs:360-380"]
+  confidence: confirmed
+- id: F-315
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: "npm run lint and npm run build are the same command, a node --check syntax parse of every tracked module, and npm run typecheck runs tsc with checkJs but without strict and with tests/ outside its include list, so no semantic lint runs and the harness blocks are not type-checked."
+  evidence: ["package.json:8-16", "lib/check-syntax.mjs:1-5", "lib/check-syntax.mjs:14-16", "tsconfig.json:1-13", "README.md:158-160"]
+  confidence: confirmed
+- id: F-316
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: "No pre-commit hook exists (no .husky, .githooks or prepare script); running npm test before a pull request is a written instruction in CONTRIBUTING.md and the pull-request template, so the first automatic run of the harness is CI."
+  evidence: ["package.json:8-16", "CONTRIBUTING.md:4-5", ".github/PULL_REQUEST_TEMPLATE.md:8-9"]
+  confidence: confirmed
+- id: F-317
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: control
+  observation: "Nothing in the tree shows that the ci test job is a required status check on this repository's default branch; the only branch-protection instruction is routine/README.md's step telling a stewarded repository to require its routine job."
+  evidence: [".github/workflows/ci.yml:8-11", "routine/README.md:223-225"]
+  confidence: unverified
+- id: F-318
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: "A drift in a pinned score is cleared by --bless rewriting tests/golden.json in the same commit; the bless refuses only when a unit or negative invariant or a scorer errors, so a regression that only moves scores is held by human review of the golden.json diff."
+  evidence: ["tests/harness.mjs:128-139", "tests/harness.mjs:158-161", "tests/blocks/bless-guard.mjs:1-4", "CLAUDE.md:50-52"]
+  confidence: confirmed
+- id: F-319
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: "The measurement is gated twice: tests/blocks/yardstick-known-answers.mjs grades each scored fixture's computed requirement statuses against known answers pinned in golden.json, and validate recomputes a run's yardstick.yaml from the base and fails on any status, mechanism, basis or contradiction drift."
+  evidence: ["tests/blocks/yardstick-known-answers.mjs:1-12", "map/validate.mjs:740-770", "tests/blocks/negative-fixtures.mjs:30"]
+  confidence: confirmed
+- id: F-320
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: "tools-check.yml is the one workflow that no harness block reads: ci.yml, release.yml, branch-cleanup.yml and the routine template each have a block holding their invariants, while a grep of tests/blocks/ for tools-check finds nothing."
+  evidence: [".github/workflows/tools-check.yml:13-35", "tests/blocks/ci-workflow.mjs:12-14", "tests/blocks/consumer-contract.mjs:130-132", "tests/blocks/routine-workflow.mjs:10-12"]
+  confidence: confirmed
+- id: F-321
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: "release.yml runs npm test and the trailer check before it tags, but not npm run lint, typecheck or build that ci.yml runs, and on Node 22 only, and it does not read the ci result of the commit it tags."
+  evidence: [".github/workflows/release.yml:30-43", ".github/workflows/ci.yml:20-33"]
+  confidence: confirmed
+- id: F-322
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: "The routine template's ratchet gate reads its baseline from the base branch on a pull request, still runs when the target job fails, and fails with exit 1 on a regressed or dropped requirement or any contradiction and exit 2 on any unreadable input, validating the baseline before use."
+  evidence: ["routine/assay-routine.yml:84-88", "routine/assay-routine.yml:97-115", "routine/assay-routine.yml:153-168", "yardstick/ratchet.mjs:43-56", "yardstick/ratchet.mjs:70-80"]
+  confidence: confirmed
+- id: F-323
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: "When no packet/baseline.yaml is committed, at the base ref or in the working tree, the routine prints a warning, records gate skipped and exits 0, so the template's required check reads green until a steward commits a first baseline."
+  evidence: ["routine/run.mjs:29-31", "routine/run.mjs:307-310", "routine/run.mjs:325-330", "routine/assay-routine.yml:169-172"]
+  confidence: confirmed
+- id: F-324
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: "A subtle regression an agent introduced in map/validate.mjs or yardstick/measure.mjs is caught first by the ci test job on the pull request or the push to main, where npm test runs the per-rule negative fixtures, the known-answer recall and requirement grades, and the golden.json pins; nothing runs before commit, and a score-only drift can be re-blessed in the same diff."
+  evidence: [".github/workflows/ci.yml:8-11", ".github/workflows/ci.yml:39", "tests/blocks/negative-fixtures.mjs:64-76", "tests/blocks/fixture-recall.mjs:11-18", "tests/harness.mjs:128-139"]
+  confidence: confirmed

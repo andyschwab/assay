@@ -1,0 +1,33 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/flawed-webapp-2026-11-11b
+#
+# BLIND, the re-sweep after M1 and M2 (#257 step 0; #259, #269, #260): three practice-review lanes
+# over the flawed-webapp fixture target, each a fresh child session seeded by
+# `assay lane practice-review` at v0.7.0, all passes claude-opus-5-5, the target read-only, the
+# answer sheet and every prior run excluded by the seed, and every listing or search command told
+# to exclude ANSWERS.yaml in the command itself. Each lane was given the run's map/raw/enumerate.json
+# (assay start at v0.7.0: 1 candidate; the node:http routes are #272's gap) and wrote
+# map/effect-triage.yaml and census members:. What the record should know:
+# - The answer sheet's name still printed in an unfiltered listing in all three (sweep-1 two
+#   listings, sweep-2 two, sweep-3 one, plus enumerate.json's own containerClasses evidence naming
+#   its path); no lane opened it, and no finding cites it. Unlike the baseline, no pass was re-run.
+# - sweep-3 was sent back once: practice-review-multiplayer.yaml wrote 17 `observation: >-`
+#   scalars, which the reader refused at v0.7.0 (#278), and was republished with `>` and nothing
+#   else changed. sweep-1 and sweep-2 validated on first collection.
+# - Spend per session (practice-review row of each run record): USD 7.86, 7.52, 7.92 (with the
+#   send-back).
+# Recall against the target's ANSWERS.yaml: 9 of 9 in scope in all three, and 26 of 26 graded
+# requirement statuses agree in all three. Measured against tests/sweeps/flawed-webapp-2026-11-11
+# (the baseline, read at the same engine): decided requirements rise from 6 to 12, 10 identical in
+# all three; descriptor agreement rises from 50% to 75%; met and mixed rows now cite 9, 11 and 9
+# strengths (none at the baseline).
+target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
+method_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
+date: "2026-11-11"
+blind: true
+threshold:
+  fact_presence: 100         # measured 7 of 7 union facts caught by all three (100%; 12 files, so the fact key folds most findings)
+  descriptor_agreement: 75   # measured 3 of 4 shared effect channels identical on all six descriptors (75%)
+  requirement_agreement: 83  # measured 10 of 12 decided requirements identical in all three (83%)
+sweeps: [sweep-1, sweep-2, sweep-3]

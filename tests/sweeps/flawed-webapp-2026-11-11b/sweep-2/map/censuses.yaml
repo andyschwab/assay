@@ -1,0 +1,68 @@
+schema: coverage
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is ADR-0001, a dated record that states context, decision, consequences and the rejected alternative (F-001), and the store module links back to it (F-006).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious design decisions whose rationale reconstructs from files alone"
+        members: [F-001, F-002, F-003, F-004, F-005]
+        method: "every decision listed in the terrain, D1-D5, one finding each"
+        primary: true
+  - dimension: context-economy
+    depth: >
+      Small single-purpose modules with a header comment each load standalone (F-102, F-104, F-106, F-107, F-108), but the entry docs make false claims about endpoints and tests (F-109, F-111, F-112).
+    sampled:
+      - name: modules-standalone
+        what: "modules loadable and understandable on their own through a narrow interface"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108]
+        method: "every code module listed in the terrain (8), one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "claims in the README and ADR that match the code"
+        members: [F-109, F-110, F-111, F-112, F-113]
+        method: "every checkable claim listed in the terrain, C1-C5, one finding each"
+  - dimension: deterministic-gates
+    depth: >
+      No route is exercised by an automated check; the one test asserts something that cannot fail (F-206) and nothing runs it (F-207, F-210).
+    sampled:
+      - name: gates-coverage
+        what: "HTTP routes whose behavior an automated check exercises"
+        members: [F-201, F-202, F-203, F-204, F-205]
+        method: "every HTTP route in the terrain (5), one finding each"
+        primary: true
+  - dimension: verification
+    depth: >
+      Only note creation can prove it happened, by reading the note back (F-304); the other three effects report success they never checked (F-301, F-302, F-303).
+    sampled:
+      - name: effect-provability
+        what: "effect channels whose reported success reflects the effect"
+        members: [F-301, F-302, F-303, F-304]
+        method: "every effect channel in the terrain's inventory (4), one finding each"
+        primary: true
+  - dimension: delegation
+    depth: >
+      The one real control is the per-user filter on the direct read (F-409); the admin check before the purge (F-410) fails open through the identity fallback (F-408), and both credentials are literals in code (F-406, F-407).
+    sampled:
+      - name: credential
+        what: "secrets held out of source and below the prompt boundary"
+        members: [F-406, F-407]
+        method: "every credential listed in the terrain, K1-K2, one finding each"
+  - dimension: improvement-loop
+    depth: >
+      Decisions have a durable dated home (F-504), but neither recorded lesson became a mechanism (F-501, F-502) and there is no agent spec (F-503).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "recorded lessons or deferred fixes that became a durable mechanism"
+        members: [F-501, F-502]
+        method: "every lesson or deferral marker listed in the terrain, L1-L2, one finding each"
+        primary: true
+  - dimension: multiplayer
+    depth: >
+      The read-only routes return JSON and are listed in the README (F-601, F-604); the routes that take input state their fields only in code, and the purge route is undocumented (F-602, F-603, F-605).
+    sampled:
+      - name: agent-consumable-surface
+        what: "HTTP routes documented and consumable by an agent"
+        members: [F-601, F-602, F-603, F-604, F-605]
+        method: "every HTTP route in the terrain (5), one finding each"
+        primary: true

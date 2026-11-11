@@ -1,0 +1,164 @@
+# Pass 4 — Verification affordances (practice-review), target andyschwab/assay @ 2b247c0
+# Census effect-provability (subject_type control): F-401..F-413, one per terrain effect channel, terrain table order.
+- id: F-401
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "run-draw: `assay start` writes map/scanners.yaml and then runs `validate` over the run it just wrote (with --target), exiting non-zero when that read-back fails, and an adapter instrument with a positive control is recorded failed rather than clean when the planted hits are missing."
+  evidence: ["map/start.mjs:256-263", "map/start.mjs:498-503", "map/start.mjs:519"]
+  confidence: confirmed
+- id: F-402
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "fresh-clone-exec: the instrument does not take a test step's exit code as the suite having run; it parses the runner's own pass/skip/fail counts (recording `unparsed` otherwise), records an undeclared step as `not-declared` never `passed`, and sets its document exit to 1 on any failed or timed-out step or missing README claim."
+  evidence: ["map/fresh-clone.mjs:17-21", "map/fresh-clone.mjs:84-88", "map/fresh-clone.mjs:241-246", "map/fresh-clone.mjs:318-322", "map/fresh-clone.mjs:654-662"]
+  confidence: confirmed
+- id: F-403
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "dependency-audit: each audit's report is checked for the expected `vulnerabilities` + `metadata` shape so an npm error document (e.g. no registry reachable) is recorded `failed`, never clean, and a manifest with dependencies but no lockfile, or a lockfile not run, keeps the document exit at 1."
+  evidence: ["map/dependency-scan.mjs:39-59", "map/dependency-scan.mjs:398-407", "map/dependency-scan.mjs:430-440"]
+  confidence: confirmed
+- id: F-404
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "structure-scan-exec: after npm reports the pinned tools installed, the scan reads each installed package's own bin back and records the tool skipped when it is absent, and a jscpd that exits 0 without a readable report carrying duplicates and statistics.total is recorded failed."
+  evidence: ["map/structure-scan.mjs:38-41", "map/structure-scan.mjs:112-118", "map/structure-scan.mjs:130-139", "map/structure-scan.mjs:424"]
+  confidence: confirmed
+- id: F-405
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "tools-install: each download's sha256 is compared to the pin before anything is installed, the installed binary's own sha256 is stamped, and the composite action follows install with `tools verify --run`, which requires each tool on PATH to exit 0 and print its pinned version."
+  evidence: ["map/tools.mjs:122-133", "map/tools.mjs:146-158", ".github/actions/tools/action.yml:29-31"]
+  confidence: confirmed
+- id: F-406
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "run-map-write: ingest requires the tool's own exit code and halts when it falls outside the success set or disagrees with the report, writes an explicit zero-findings file for a verified-clean run rather than nothing, and after ingest or record re-measures an already-measured run, halting loud when it cannot."
+  evidence: ["map/ingest.mjs:7-14", "map/ingest.mjs:1244-1256", "map/record.mjs:173-181"]
+  confidence: confirmed
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "run-views-write: `compile` validates its input first but treats each child view compiler's exit 0 as the view having been written, never reads INTAKE.md, MAINTAIN.md, OWNER.md or the handoff back, and prints the package as assembled from those return codes alone."
+  evidence: ["views/compile.mjs:55-59", "views/compile.mjs:72-89", "views/compile.mjs:232-233"]
+  confidence: confirmed
+- id: F-408
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "migrate-run-write: a rewrite is written only after each rewritten flow list reads back under the strict reader to exactly what the legacy rule read and the whole file then parses, a rename that would land on an existing path is refused, and the command is a dry run without --write."
+  evidence: ["map/migrate-run.mjs:16-24", "map/migrate-run.mjs:84-93", "map/migrate-run.mjs:96-99"]
+  confidence: confirmed
+- id: F-409
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "routine-run: the routine writes scanners.yaml and then validates the run against the target before compiling, routes every failure, refusal and crash path through `finish()` so routine.yaml records gate and reason, and reads ratchet exit 2 as `not-run` rather than as a held gate."
+  evidence: ["routine/run.mjs:190-209", "routine/run.mjs:236-244", "routine/run.mjs:346-351"]
+  confidence: confirmed
+- id: F-410
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "routine-workflow: the gate job downloads the target job's handoff with continue-on-error, and a missing or unreadable handoff is recorded as fresh-clone and structure-scan failed with the reason (never run in the gate, never clean), which a harness block asserts."
+  evidence: ["routine/assay-routine.yml:143-151", "map/start.mjs:392-400", "tests/blocks/routine-handoff.mjs:54-62"]
+  confidence: confirmed
+- id: F-411
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "branch-cleanup-delete: the delete job re-reads each branch's sha and protection before deleting it, but after `gh api -X DELETE` it prints `deleted $b` and counts it on the call's exit status alone, with no read-back that the ref is gone."
+  evidence: [".github/workflows/branch-cleanup.yml:127-134"]
+  confidence: confirmed
+- id: F-412
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "release-publish: the release job gates on version format, tag absence, `npm test` and the trailer check before tagging, but ends at `gh release create` with no read-back of the created tag or release."
+  evidence: [".github/workflows/release.yml:33-50"]
+  confidence: confirmed
+- id: F-413
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "tools-check-issue: an unreadable upstream reads `unknown` and is reported as not current, and the job reads the open issue's last body to avoid a duplicate comment, but it never reads back the issue it creates or the comment it posts."
+  evidence: ["map/tools.mjs:212-217", ".github/workflows/tools-check.yml:27-35"]
+  confidence: confirmed
+# Other verification findings
+- id: F-420
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: "The harness carries runnable known-answer fixture runs (notesbox, the cleanlib control target, lockfiles, fixtures-root, infra) whose recall, false positives and requirement agreement are re-derived every `npm test` and pinned in tests/golden.json, with the README stating they are not blind and prove the pipeline and recall floor only."
+  evidence: ["tests/fixtures/README.md:7-31", "tests/fixtures/README.md:58-67", "tests/README.md:3-5", "tests/golden.json:10-17"]
+  confidence: confirmed
+- id: F-421
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "The opengrep instrument runs over vendored planted cases before the target, and a missing planted hit or a tool failure on them records the instrument failed and the target not run, so a zero-result target is clean only beside a control that fired; a harness block asserts both the fire and the non-fire path."
+  evidence: ["map/scanners/adapters/opengrep/control/CONTROL.md:7-13", "map/scanners/adapters/opengrep.yaml:55-64", "map/start.mjs:198-217", "map/scanners/CONTRACT.md:806-813", "tests/blocks/opengrep-instrument.mjs:13-16"]
+  confidence: confirmed
+- id: F-422
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "Only opengrep's adapter declares a positive control; gitleaks, osv-scanner, checkov and zizmor are run by the same adapter runner with no control, so a zero-result run of any of them is ingested as verified-clean on a success exit and an empty report alone."
+  evidence: ["map/scanners/adapters/gitleaks.yaml:41-55", "map/scanners/adapters/osv-scanner.yaml:27-40", "map/scanners/adapters/checkov.yaml:20-44", "map/scanners/adapters/zizmor.yaml:34-43", "map/scanners/CONTRACT.md:796", "map/ingest.mjs:12-14"]
+  confidence: confirmed
+- id: F-423
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "A calibration harness measures the judgment method's repeatability: variance.mjs computes fact presence, descriptor agreement (with divergence direction) and requirement agreement over N sweeps, `--set` exits 1 below a committed SWEEP.yaml threshold, and the sweep-gate block runs every committed set and proves the fixture set can go red."
+  evidence: ["map/variance.mjs:24-62", "map/variance.mjs:303-314", "map/variance.mjs:403-404", "tests/sweeps/README.md:7-10", "tests/sweeps/README.md:52-63", "tests/blocks/sweep-gate.mjs:17-31"]
+  confidence: confirmed
+- id: F-424
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "score.mjs grades a run against a planted answer sheet mechanically, reporting a path match on the wrong axis as mis-homed rather than recovered, reading a missed item as missed when its method ran clean, and scoring a control target inversely as false positives."
+  evidence: ["map/score.mjs:4-31"]
+  confidence: confirmed
+- id: F-425
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "The decay condition is met only structurally: `validate --target` fails a cited path that does not exist or a line past the file's end, and states that it cannot check that the cited line says what the observation claims, so a fluent judgment finding with resolving citations passes every gate in the run."
+  evidence: ["map/validate.mjs:360-383"]
+  confidence: confirmed
+- id: F-426
+  dimension: verification
+  polarity: strength
+  subject_type: contract
+  observation: "The yardstick reads a requirement met only on positive evidence seen in place, never on the absence of a gap, and a census reads met only when every listed member is a strength."
+  evidence: ["yardstick/README.md:146-156"]
+  confidence: confirmed
+- id: F-427
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "A success-on-failure seam in the routine: when writing routine.yaml throws, `finish()` only logs a warning and returns the caller's ok/exitCode, so a run can exit 0 with gate held while the record a fleet collector reads was never written."
+  evidence: ["routine/run.mjs:190-202"]
+  confidence: confirmed
+- id: F-428
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: "With no committed packet/baseline.yaml (working tree or base ref), the routine prints a warning, records gate skipped, and exits 0, so the workflow's required status check goes green with no regression gate having run."
+  evidence: ["routine/run.mjs:307-311", "routine/run.mjs:325-330", "routine/assay-routine.yml:43-44"]
+  confidence: confirmed
+- id: F-429
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: "A failed enumeration during `assay start` writes no map/raw/enumerate.json and says so, so the yardstick's effect rows read not measured naming the missing list, never met over an empty population."
+  evidence: ["map/start.mjs:425-439", "map/start.mjs:513"]
+  confidence: confirmed

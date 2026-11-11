@@ -1,0 +1,136 @@
+- id: F-301
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant-email-send channel reports success without verifying delivery:
+    sendEmail only logs and returns a constant `{ sent: true }`, and ask() ignores
+    that return value and reports `emailed: to` to the caller regardless.
+  evidence: ["lib/mailer.mjs:1-2", "lib/mailer.mjs:5-8", "lib/agent.mjs:39-40"]
+  confidence: confirmed
+  source: practice-review
+- id: F-302
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The workspace-purge channel returns a hard-coded `{ purged: true }` as a 200
+    response rather than a report derived from the post-state (no count removed,
+    no check that the note store is empty), so the response carries no proof of
+    the effect.
+  evidence: ["lib/db.mjs:27-31", "routes/admin.mjs:8-10"]
+  confidence: confirmed
+  source: practice-review
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The workspace-backup-push channel fires an un-awaited fetch whose failure is
+    swallowed by an empty catch, then returns `{ ok: true, pushed: notes.size }`
+    (the local note count, not a backup-service acknowledgement), which POST /sync
+    relays as a 200.
+  evidence: ["lib/sync.mjs:7-13", "server.mjs:47-49"]
+  confidence: confirmed
+  source: practice-review
+- id: F-304
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The note-create channel writes synchronously to the store before returning,
+    and the id it reports in the 201 is the key it wrote, which the owner can read
+    back through GET /notes, so the effect is provable by a read-back.
+  evidence: ["server.mjs:35-39", "server.mjs:30-32"]
+  confidence: confirmed
+  source: practice-review
+- id: F-305
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    POST /notes picks a random six-character id and calls notes.set without
+    checking the id is free, so a collision would overwrite an existing note
+    (possibly another user's) while still reporting 201 with the id.
+  evidence: ["server.mjs:37-39"]
+  confidence: plausible
+  source: practice-review
+- id: F-306
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    readBody resolves malformed JSON to an empty object instead of failing, so a
+    POST /notes with an unparseable body creates an empty-text note and reports
+    201 success.
+  evidence: ["server.mjs:15-17", "server.mjs:36-39"]
+  confidence: confirmed
+  source: practice-review
+- id: F-307
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The smoke test's one assertion checks only that authenticate returns a truthy
+    value for a valid token, which it would also do for any unknown or missing
+    token because of the admin fallback, so the check cannot fail on the auth
+    behaviour it appears to cover.
+  evidence: ["test/smoke.mjs:7-9", "lib/auth.mjs:9-12"]
+  confidence: confirmed
+  source: practice-review
+- id: F-308
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the assistant's model output before acting on it: any line
+    matching `TOOL:send_email <to> <subject>` is parsed and sent with the whole
+    note set as the body, with no recipient allowlist, content check, or
+    confirmation however the output reads.
+  evidence: ["lib/agent.mjs:34-39"]
+  confidence: confirmed
+  source: practice-review
+- id: F-309
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    There is no calibration or evaluation harness for the assistant prompt: the
+    only scripts entry is `start`, the only test file exercises authenticate, and
+    no frozen input or repeated-run measurement of the prompt exists.
+  evidence: ["package.json:6-8", "test/smoke.mjs:4-11", "lib/agent.mjs:11-21"]
+  confidence: confirmed
+  source: practice-review
+- id: F-310
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Observability of effects is limited to one unstructured console.log in the
+    mail transport; purge, backup push, note creation and assistant calls emit no
+    log or record at all.
+  evidence: ["lib/mailer.mjs:7", "routes/admin.mjs:6-11", "lib/sync.mjs:5-13", "server.mjs:35-45"]
+  confidence: confirmed
+  source: practice-review
+- id: F-311
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The server module exports its server and only listens when run directly, and
+    the store is seeded with users, notes and tokens, so a change can be
+    demonstrated in-process against known state without a network or database.
+  evidence: ["server.mjs:59-63", "lib/db.mjs:2-17"]
+  confidence: confirmed
+  source: practice-review
+- id: F-312
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The model call is a deterministic in-process stub that echoes any injected
+    TOOL line, so the assistant path is runnable offline, but no test or example
+    drives it.
+  evidence: ["lib/agent.mjs:23-31", "test/smoke.mjs:4-5"]
+  confidence: confirmed
+  source: practice-review

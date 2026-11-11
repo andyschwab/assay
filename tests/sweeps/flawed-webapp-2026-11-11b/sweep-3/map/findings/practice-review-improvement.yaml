@@ -1,0 +1,64 @@
+- id: F-501
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: "The target holds no agent spec (no CLAUDE.md, AGENTS.md, .cursorrules or equivalent) among its 12 files; the README covers endpoints, running and testing only, and package.json declares a single start script."
+  evidence: [README.md:12-35, package.json:6-8]
+  confidence: confirmed
+  source: practice-review
+- id: F-502
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "A dated decision-record home exists and has been used once: ADR-0001 is marked accepted with a date of 2026-05-02, and the store module it governs points back to it."
+  evidence: [docs/adr/0001-storage-choice.md:1-4, lib/db.mjs:1]
+  confidence: confirmed
+  source: practice-review
+- id: F-503
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "The ADR's committed follow-up (persistence is the first thing the production milestone fixes) has no tracked home in the target beyond the ADR prose itself, and the store remains in-memory."
+  evidence: [docs/adr/0001-storage-choice.md:21-23, lib/db.mjs:1-11]
+  confidence: confirmed
+  source: practice-review
+- id: F-504
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "Known temporary measures are recorded only as inline code comments with no check or tracked item enforcing their removal: a TODO to move the backup key to the environment before launch, an admin-role fallback identity justified as a demo convenience, and a purge route described as used between demo cycles."
+  evidence: [config/settings.mjs:5-6, lib/auth.mjs:9-12, routes/admin.mjs:5]
+  confidence: confirmed
+  source: practice-review
+- id: F-505
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "The smoke suite's own header records that it asserts endpoints respond rather than respond correctly, and the suite still holds one assertion; the known limitation is written as a comment, not turned into a test or a tracked item."
+  evidence: [test/smoke.mjs:1-3, test/smoke.mjs:7-9]
+  confidence: confirmed
+  source: practice-review
+- id: F-506
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: "The assistant's behavioural instructions exist only as an inline string array inside buildPrompt, with no versioned prompt file, behavioural spec or eval case where a correction to the assistant's behaviour could be recorded and re-checked."
+  evidence: [lib/agent.mjs:11-21, test/smoke.mjs:4-9]
+  confidence: confirmed
+  source: practice-review
+- id: F-507
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: "The app emits no structured usage or outcome record by its own design: the assistant returns its answer without logging the request or result, the backup push returns a count without recording delivery, and the only output is two free-text console.log lines (the mailer's send line and the server's listen line)."
+  evidence: [lib/agent.mjs:33-43, lib/sync.mjs:5-14, lib/mailer.mjs:7, server.mjs:60]
+  confidence: confirmed
+  source: practice-review
+- id: F-508
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "Nothing in the target measures its own impact: the README states the assistant as the product's purpose and the ADR names it the differentiator, but no field, counter or before/after record captures whether assistant answers or emailed summaries are used or useful."
+  evidence: [README.md:3-5, docs/adr/0001-storage-choice.md:27-28, lib/agent.mjs:33-43, package.json:1-9]
+  confidence: confirmed
+  source: practice-review

@@ -1,0 +1,155 @@
+# practice-review Pass 1 — artifact legibility (census-augmented: decision-reconstruction D1-D10 = F-101..F-110)
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D1 (ids carry no dimension): the rationale is written beside the rule in map/SCHEMA.md §3 — a per-dimension range is an arbitrary budget a dense repo overflows and would only duplicate the dimension field, which the filename-to-dimension check makes the single source of truth."
+  evidence: ["map/SCHEMA.md:217-232", "map/SCHEMA.md:241-242"]
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D2 (routine runs as two jobs): the template's jobs comment and routine/README.md \"Two jobs\" both state why — whatever the change runs can write the engine checkout, the run directory and the base ref, so a test script could make its own gate read held; the gate job therefore never executes the change."
+  evidence: ["routine/assay-routine.yml:40-47", "routine/README.md:130-137", "routine/README.md:155-160"]
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D3 (zero-dependency minimal YAML reader): the reader's header gives the fail-closed rationale (a checker that silently accepts unparseable input hides what it exists to catch) and map/SCHEMA.md §7 gives the zero-dependency rationale (the validator copies into any target repo beside METHOD.md), though the second reason lives in the schema, not in lib/yaml-min.mjs itself."
+  evidence: ["lib/yaml-min.mjs:1-6", "lib/yaml-min.mjs:37-43", "map/SCHEMA.md:971-972", "README.md:158-160"]
+  confidence: confirmed
+- id: F-104
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D4 (fresh-clone only under --allow-exec): map/start.mjs's usage header and its NO_EXEC_REASON string state why — fresh-clone runs the target's own install, lifecycle scripts and tests on this machine — and the README repeats it with the disposable-container instruction."
+  evidence: ["map/start.mjs:23-33", "map/start.mjs:414", "README.md:165-168"]
+  confidence: confirmed
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D5 (branch-cleanup deletes on push without dispatch): the workflow's header states the reason — a session cannot delete a ref and a slice ends with the run on its merge commit with nobody to dispatch it — together with the issue numbers (#170, #173) and the dry-run default for a hand-started run."
+  evidence: [".github/workflows/branch-cleanup.yml:1-7", ".github/workflows/branch-cleanup.yml:25-33"]
+  confidence: confirmed
+- id: F-106
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: "D6 (tool downloads sha256-pinned before execution): map/tools.mjs, map/scanners/CONTRACT.md §3g and routine/README.md describe what is pinned and that a mismatching sum is refused, and give the rationale for tools being a precondition (#198) and for pins moving with ASSAY_REF, but no file states why a binary is pinned by content hash rather than by version (the integrity threat it answers), and the PyPI exception notes only that its dependencies float."
+  evidence: ["map/tools.mjs:1-22", "map/tools.mjs:126-127", "map/scanners/CONTRACT.md:877-881", "routine/README.md:241-251", "routine/assay-routine.yml:131-137"]
+  confidence: plausible
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D7 (the base asserts no severity and no deploy verdict): README.md holds the rule as its one home with the reason it makes the evaluation honest, map/METHOD.md adds that it keeps the evidence reusable and stops a strengths-first framing from muting a critical finding, and CLAUDE.md rule 1 cites the README home."
+  evidence: ["README.md:32-37", "README.md:41", "map/METHOD.md:24-28", "CLAUDE.md:11-14"]
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: "D8 (a new harness block is a new file only): tests/README.md, CLAUDE.md and the runner's header state the rule and the discovery mechanism that implements it, but none says why no existing file may be edited to add a block (for example, what editing a shared list or the gate line would break)."
+  evidence: ["tests/README.md:23-26", "CLAUDE.md:55-56", "tests/regression.mjs:15-17"]
+  confidence: confirmed
+- id: F-109
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D9 (canon is a declared contract, never a copied prior run): map/SCHEMA.md §8 states the reason — reusing a prior run's answers makes any enumeration-determinism claim tautological — cites a calibration in which a blind re-derivation caught surfaces a pinned prior run had missed, and draws the declared-contract versus last-run-findings distinction."
+  evidence: ["map/SCHEMA.md:976-995"]
+  confidence: confirmed
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "D10 (the routine reads its baseline from the base branch): the fetch step's comment and routine/README.md state why — a pull request's own working tree could carry an edited packet/baseline.yaml and so switch off the gate meant to hold it — and the run step repeats the reason where --base-ref is set."
+  evidence: ["routine/assay-routine.yml:97-103", "routine/assay-routine.yml:160-165", "routine/README.md:183-197"]
+  confidence: confirmed
+- id: F-120
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "Every workflow file and the composite action open with a header comment that states what the job does and why it is shaped that way (who dispatches it, which job holds write, what it never runs), with the issue number it came from."
+  evidence: [".github/workflows/ci.yml:1-6", ".github/workflows/release.yml:1-8", ".github/workflows/tools-check.yml:1-5", ".github/workflows/branch-cleanup.yml:1-7", ".github/actions/tools/action.yml:1-6"]
+  confidence: confirmed
+- id: F-121
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "Issue-number references in engine code sit beside a prose statement of the reason rather than standing alone as a pointer into the tracker; a search for bare `see #N` or comment-only `#N` lines in map/, views/, yardstick/, lib/, routine/ and owner/ found none."
+  evidence: ["map/doctrine.mjs:20-22", "yardstick/ratchet.mjs:224-225", "map/tools.mjs:3-6", "map/start.mjs:16-17"]
+  confidence: confirmed
+- id: F-122
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "tests/README.md asks each block to open with a header naming what it pins and the issue it came from; all 161 files under tests/blocks/ open with a `// ──` header line and 101 of those header lines cite an issue number."
+  evidence: ["tests/README.md:28-30", "tests/blocks/yaml-strict.mjs:1", "tests/blocks/zizmor-instrument.mjs:1", "tests/blocks/yardstick-register.mjs:1"]
+  confidence: confirmed
+- id: F-123
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: "Test and code comments cite finding ids from earlier assay runs (F-1203, F-1214, F-1232 and others, in 25 files) as provenance for a rule, but the repository keeps no run history, so those ids resolve to nothing a reader can open in the tree."
+  evidence: ["tests/blocks/yaml-strict.mjs:1", "tests/blocks/routine-workflow.mjs:68", "tests/blocks/shared-helpers.mjs:1", "tests/blocks/engine-pipeline.mjs:30", "CLAUDE.md:29-31"]
+  confidence: plausible
+- id: F-124
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: "map/SCHEMA.md §3 contradicts itself on renumbering: one sentence justifies dimension-free ids because ids are renumbered across independent runs anyway, while the same section says ids are never renumbered and the schema's preamble says stable ids let a later run diff \"still open?\" by id."
+  evidence: ["map/SCHEMA.md:14-15", "map/SCHEMA.md:228-231", "map/SCHEMA.md:248-250"]
+  confidence: confirmed
+- id: F-125
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "Contract docs give each rule or format one named home that other pages cite instead of restating it, and the one rule's single home in README.md is checked by a regression block."
+  evidence: ["README.md:36-37", "routine/README.md:171", "yardstick/README.md:371", "views/README.md:179", "tests/blocks/doc-consistency.mjs:140-145"]
+  confidence: confirmed
+- id: F-126
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "CLAUDE.md requires that taste the code relies on be written in CLAUDE.md or the contract that owns it, never only in a code comment, which names where rationale is expected to live; no regression block that enforces this sentence was found."
+  evidence: ["CLAUDE.md:69-70"]
+  confidence: confirmed
+- id: F-127
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "The repository has no decision-record directory (no docs/, adr/ or decisions/); decisions and their reasons live inline in the contract docs CLAUDE.md names, in subsystem READMEs and in file-header comments."
+  evidence: ["CLAUDE.md:3-7", "routine/README.md:130-137", "map/SCHEMA.md:217-232"]
+  confidence: confirmed
+- id: F-128
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "The change record is git only: no history file or dated log is kept, a removal's reason goes in its commit subject, and release notes are compiled from commit messages, so the rationale for a superseded or removed decision exists only in git history, not in the tree."
+  evidence: ["CLAUDE.md:71-73", ".github/workflows/release.yml:1-3"]
+  confidence: confirmed
+- id: F-129
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "map/SCHEMA.md labels the provenance of its own empirical rationale: it says the off-repo calibration figures behind the descriptor-agreement rule are history, not a check, because those runs are not in the tree, and points to the committed sweep set as the number the tree reproduces."
+  evidence: ["map/SCHEMA.md:203-212"]
+  confidence: confirmed
+- id: F-130
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "Contract docs open by saying why the contract exists before specifying it: map/SCHEMA.md explains why the format is pinned (comparability across runs via closed vocabularies and stable ids), and map/METHOD.md says which failure the no-severity base exists to prevent."
+  evidence: ["map/SCHEMA.md:14-18", "map/METHOD.md:24-28"]
+  confidence: confirmed
+- id: F-131
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: "Deliberate omissions are documented where a reader would look for them: the routine template explains why --since is not wired in (it would need an actions: read permission the template deliberately does not add), and routine/README.md has its own section saying so."
+  evidence: ["routine/assay-routine.yml:173-179", "routine/README.md:253-262"]
+  confidence: confirmed

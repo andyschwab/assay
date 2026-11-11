@@ -1,0 +1,147 @@
+# Pass 7 — Multiplayer (shared context + agent access). Census agent-access-surface: F-701..F-706.
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "The Intake view writes views/intake.yaml beside INTAKE.md, and its shape (counts, open, met, to_run, not_applicable, not_seen, contradictions, owner) is a written contract in views/README.md that CONSUMERS.md lists among the run paths a consumer may read."
+  evidence: ["views/intake.mjs:8-10", "views/intake.mjs:222-227", "views/floor-fleet.mjs:130-141", "views/README.md:29-62", "CONSUMERS.md:95"]
+  confidence: confirmed
+  label: "Intake as data"
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "The Maintain view writes views/maintain.yaml beside MAINTAIN.md through the same row writer as Intake, and views/README.md states its shape (Intake's, plus view: maintain and floor: true|false per row) as what a steward's routines read without a person looking."
+  evidence: ["views/maintain.mjs:9-13", "views/maintain.mjs:91-96", "views/floor-fleet.mjs:130-141", "views/README.md:94-102", "CONSUMERS.md:95"]
+  confidence: confirmed
+  label: "Maintain as data"
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "Improve exposes three data files beside IMPROVE.md (views/improve.yaml, views/improve/chains.json as assay.chains/1, views/improve/report.json as assay.improve-report/1), each documented in views/README.md, the two JSON files schema-checked by lib/run-data.mjs before writing and read back fail-closed by validate, so a renderer can consume the report while importing nothing."
+  evidence: ["views/improve/topics.mjs:4", "views/improve/topics.mjs:44-47", "views/improve/report.mjs:4-6", "views/improve/report.mjs:476-477", "lib/run-data.mjs:14", "lib/run-data.mjs:51-54", "views/README.md:161-170", "map/validate.mjs:718-720", "CONSUMERS.md:96-97"]
+  confidence: confirmed
+  label: "Improve as data"
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "The Owner view writes views/owner.yaml beside OWNER.md, its floor/beyond_floor rows with status, risk, fix, where, findings, seen and decided_by documented in views/README.md, and its page's fix list is stated to agree by id and status with Intake's open list."
+  evidence: ["views/owner.mjs:20", "views/owner.mjs:122", "views/owner.mjs:244-247", "views/README.md:104-153", "CONSUMERS.md:95"]
+  confidence: confirmed
+  label: "Owner as data"
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "The Since view writes views/since.yaml beside SINCE.md with a documented shape that separates the repository's moves from the engine's re-rulings and splits findings by whether their scanner ran in both runs, each finding row carrying its fingerprint and source."
+  evidence: ["views/since.mjs:14-18", "views/since.mjs:118", "views/since.mjs:250-253", "views/README.md:172-246", "CONSUMERS.md:95"]
+  confidence: confirmed
+  label: "Since as data"
+- id: F-706
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "The handoff writes handoff/sequence.json (assay.handoff-sequence/1) beside START-HERE.md, REMEDIATION.md and the plan prompts, with each item's kind, provenance voice, source, finding ids and plan file; the writer checks it against lib/run-data.mjs checkSequence before writing and validate reads it back."
+  evidence: ["views/improve/handoff.mjs:31-39", "views/improve/handoff.mjs:183-194", "lib/run-data.mjs:146-172", "views/README.md:167-168", "map/validate.mjs:721", "CONSUMERS.md:96"]
+  confidence: confirmed
+  label: "the handoff as data"
+- id: F-710
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: "The five view YAML files carry a view name but no versioned schema id and have no checker in lib/run-data.mjs, and validate reads back only chains.json, report.json, sequence.json and the two backlog files, so the Intake, Maintain, Owner, Since and improve.yaml formats are held by prose in views/README.md and harness blocks rather than a schema a consumer can check against."
+  evidence: ["views/floor-fleet.mjs:132", "views/owner.mjs:122", "views/since.mjs:118", "lib/run-data.mjs:1-5", "map/validate.mjs:713-724", "lib/run-data.mjs:14", "lib/run-data.mjs:147"]
+  confidence: confirmed
+- id: F-711
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The CLI's read surfaces expose JSON modes with their output shapes written into the consumer contract (lane --list --json, project --json, toolchain --json, compare --json, variance --json, yardstick --floor --json), and CONSUMERS.md declares everything it does not name internal."
+  evidence: ["CONSUMERS.md:3-7", "CONSUMERS.md:22", "CONSUMERS.md:26-27", "CONSUMERS.md:30", "CONSUMERS.md:32", "CONSUMERS.md:46-49", "map/lane.mjs:89-97"]
+  confidence: confirmed
+- id: F-712
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: "validate has a --json mode emitting { ok, total, errors, warnings, evidencePathErrors } with the exit code preserved, but the consumer contract lists validate without it, so by CONSUMERS.md's own rule that machine form is internal and only map/backlog.mjs may rely on it."
+  evidence: ["map/validate.mjs:779-784", "map/validate.mjs:364", "CONSUMERS.md:4-7", "CONSUMERS.md:25"]
+  confidence: confirmed
+- id: F-713
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "A judgment scanner's review is handed to a person-started session as a lane seed: lane.mjs fills the versioned lane file into JSON { lane, scanner, title, artifact, outputs, inputs, passes, prompt }, refuses a lane with inputs unless told where they are, and the seed itself says the session publishes one private artifact that the consumer collects and validates."
+  evidence: ["map/lane.mjs:4-11", "map/lane.mjs:27", "map/lane.mjs:61-62", "map/lane.mjs:78", "map/scanners/adapters/practice-review/lane.md:11", "map/scanners/adapters/practice-review/lane.md:13", "CONSUMERS.md:21"]
+  confidence: confirmed
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: "The run record, the one file several writers update, is edited only through updateRunRecord under an exclusively created map/scanners.yaml.lock that waits up to 30 s and then fails loud naming the lock, while findings are split one file per scanner and per pass so parallel authors write disjoint files."
+  evidence: ["map/record.mjs:5-10", "map/record.mjs:146-170", "CONSUMERS.md:91", "map/scanners/adapters/practice-review/lane.md:8"]
+  confidence: confirmed
+- id: F-715
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: "Durable shared state is per run directory plus the repository's own packet/ folder: the engine keeps no store across runs, the routine hands its run to whoever watches the workflow as an artifact, and a fleet collector is named only as an external reader of that artifact's routine.yaml."
+  evidence: ["CONSUMERS.md:83-99", "routine/README.md:20-26", "routine/README.md:38-41", "owner/PACKET.md:7-11", "README.md:249-250"]
+  confidence: confirmed
+- id: F-716
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "Owner triage is a separate overlay file, owner/decisions.yaml, whose rows record who decided (a role or handle, never an email or a name) and when, annotate rather than delete findings, and are validated fail-closed whenever present, so a second person's judgment sits beside the base with its origin attached."
+  evidence: ["map/decisions.mjs:2-20", "map/decisions.mjs:26-36", "map/METHOD.md:655-663"]
+  confidence: confirmed
+- id: F-717
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "Context entries carry origin labels across the views: handoff items are labeled scanner-verbatim, triage or eval-authored with scanner text fenced as data from the scanned repo, view rows carry basis run|owner, and the Intake owner block carries the packet's answered date, by and via."
+  evidence: ["views/improve/handoff.mjs:3-30", "views/improve/handoff.mjs:149-155", "lib/run-data.mjs:148-149", "lib/run-data.mjs:163-165", "views/README.md:53", "views/README.md:64-69"]
+  confidence: confirmed
+- id: F-718
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: "A finding's origin label `source` is self-declared and defaults to practice-review when absent, and validate checks the dimension of a practice-review pass file against its filename but never checks a finding's source against the map/findings/<scanner>.yaml file that carries it."
+  evidence: ["map/project.mjs:298", "map/validate.mjs:121", "map/validate.mjs:149-150", "map/validate.mjs:215-218", "map/validate.mjs:231", "CONSUMERS.md:91"]
+  confidence: confirmed
+- id: F-719
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: "The run-level confidential flag (--confidential or prose.yaml confidential: true) is written only into the Markdown pages' frontmatter and footers; the data files a publisher is told to build on (views/*.yaml, chains.json, report.json, handoff/sequence.json) carry no confidentiality marker."
+  evidence: ["views/improve/report.mjs:450-457", "views/intake.mjs:218-221", "views/floor-fleet.mjs:130-133", "views/improve/handoff.mjs:183-190", "views/improve/handoff.mjs:601", "views/compile.mjs:61-66", "views/README.md:23-24"]
+  confidence: confirmed
+- id: F-720
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: "Sharing a run is stated to be a person's act ('Sending any of it is the halt — a human sends it'), and the one automatic share, the routine's uploaded run artifact, is disclosed structurally: routine/README.md says anyone who can read the workflow runs can download it for its retention, and ingest strips echoed tool output before archiving for that reason."
+  evidence: ["map/METHOD.md:764-767", "routine/README.md:28-36", "routine/assay-routine.yml:181-188"]
+  confidence: confirmed
+- id: F-721
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: "Every workflow acts as the run's own github.token with permissions granted per job (read at workflow level, write only on the job that tags, deletes or files an issue), and the routine template holds contents: read with persist-credentials off where the target's code runs, so each effect's acting-as principal is named in the file."
+  evidence: [".github/workflows/release.yml:17", ".github/workflows/release.yml:24", ".github/workflows/branch-cleanup.yml:50", ".github/workflows/branch-cleanup.yml:59-61", ".github/workflows/branch-cleanup.yml:111-112", ".github/workflows/tools-check.yml:11", ".github/workflows/tools-check.yml:17-20", "routine/assay-routine.yml:32-33", "routine/assay-routine.yml:56"]
+  confidence: confirmed
+- id: F-722
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The routine's two jobs pass context across a trust split by a declared handoff: the target job uploads only fresh-clone's and structure-scan's raw reports, and the gate job takes them as data it ingests and validates, reading its baseline from the base branch on a pull request."
+  evidence: ["routine/assay-routine.yml:40-47", "routine/assay-routine.yml:73-82", "routine/assay-routine.yml:143-152", "routine/assay-routine.yml:160-166"]
+  confidence: confirmed
+- id: F-723
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The owner packet is an agent-consumable exchange format: validate-packet reports each violation as one plain line meant to be pasted back into the owner's conversation so they or their AI can fix it, and treats the packet as data, never instructions."
+  evidence: ["owner/PACKET.md:7-16", "owner/PACKET.md:21-31"]
+  confidence: confirmed

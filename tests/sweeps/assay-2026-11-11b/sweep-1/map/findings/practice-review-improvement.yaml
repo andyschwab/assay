@@ -1,0 +1,184 @@
+# Pass 6, improvement loop (census-augmented). lessons-mechanized census: F-501..F-512,
+# one per CLAUDE.md rule, subject_type process; strength = a mechanism catches a violation.
+- id: F-501
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "R1 (the map states what is, never a severity, priority, price or verdict): the instrument-severity block refuses a severity on converted instrument rows and owner-view refuses a score line in OWNER.md, but validate checks only the mandatory keys of a native finding and refuses no severity or priority key on one."
+  evidence: ["CLAUDE.md:11-14", "tests/blocks/instrument-severity.mjs:1-4", "tests/blocks/owner-view.mjs:53", "map/validate.mjs:136-146"]
+  confidence: plausible
+- id: F-502
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "R2 (no claim without evidence): validate refuses a finding with no evidence, a non path:line citation, a path the target lacks and a line past the end of the file, each pinned by a negative fixture that must go red for that one reason."
+  evidence: ["CLAUDE.md:15-16", "tests/blocks/negative-fixtures.mjs:9-15", "tests/blocks/negative-fixtures.mjs:32-34", "tests/blocks/negative-fixtures.mjs:51-54", "map/validate.mjs:380"]
+  confidence: confirmed
+- id: F-503
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "R3 (fail loud, never empty): negative fixtures pin a missing run manifest, a skip with no reason and ran-with-no-rows, fail-closed pins the strict reader and unmapped categories, adapter-runner pins an absent binary as skipped never clean, and met-needs-positive-evidence pins that a requirement never reads met by the absence of a gap."
+  evidence: ["CLAUDE.md:17-21", "tests/blocks/negative-fixtures.mjs:20-26", "tests/blocks/fail-closed.mjs:11-18", "tests/blocks/adapter-runner.mjs:5", "tests/blocks/met-needs-positive-evidence.mjs:1-6"]
+  confidence: confirmed
+- id: F-504
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "R4 (every view reads the same measurement): validate recomputes every yardstick.yaml status and a negative fixture pins drift, and intake-maintain-improve checks three views' rows against the yardstick, but no block pins that a view never decides a requirement on its own while the report and owner views load the findings base directly."
+  evidence: ["CLAUDE.md:22-25", "map/validate.mjs:736-740", "tests/blocks/negative-fixtures.mjs:28-30", "tests/blocks/intake-maintain-improve.mjs:1-4", "views/improve/report.mjs:40", "views/owner.mjs:84"]
+  confidence: plausible
+- id: F-505
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "R5 (axes and topics property-named and shared): corroboration pins one fact from two scanners counting once on a shared axis, adapter-runner pins an unrun scanner as never clean, and core-names-no-scanner keeps scanner ids out of the yardstick and views, though the axis names adapters contribute are accepted by validate without any check against tool names."
+  evidence: ["CLAUDE.md:26-28", "tests/blocks/corroboration.mjs:1-3", "tests/blocks/adapter-runner.mjs:5", "tests/blocks/core-names-no-scanner.mjs:1-6", "tests/blocks/core-names-no-scanner.mjs:19", "map/validate.mjs:48-54"]
+  confidence: plausible
+- id: F-506
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "R6 (no confidential material): core-names-no-scanner refuses any tracked file naming the operator or an integration's project by word or digest, but no block or CI step scans assay's own tree for secret-shaped values or target names, the secret-shape sweep applying only to packets and owner input."
+  evidence: ["CLAUDE.md:29-32", "tests/blocks/core-names-no-scanner.mjs:7-10", "tests/blocks/packet.mjs:25", "tests/blocks/ask-owner.mjs:61", ".github/workflows/ci.yml:30-39"]
+  confidence: plausible
+- id: F-507
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "R7 (scanners arrive as adapters, operators as consumers): core-names-no-scanner reads the scanner ids off the adapters directory and fails any core file naming an external scanner, with a residue list that may only shrink and fails when stale."
+  evidence: ["CLAUDE.md:33-41", "tests/blocks/core-names-no-scanner.mjs:1-6", "tests/blocks/core-names-no-scanner.mjs:21-26"]
+  confidence: confirmed
+- id: F-508
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Re-bless rule: any drift from tests/golden.json turns the harness red, and the harness verdict refuses --bless over a unit or negative failure or a scorer error (pinned by bless-guard), while the reviewed part rests on the PR template since the repository has no code-owner file."
+  evidence: ["CLAUDE.md:51-53", "tests/harness.mjs:125-136", "tests/harness.mjs:153-161", "tests/blocks/bless-guard.mjs:1-4", ".github/PULL_REQUEST_TEMPLATE.md:9-11"]
+  confidence: confirmed
+- id: F-509
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "New-block rule: the runner discovers tests/blocks/<label>.mjs and composes the gate line, and block-runner fails if regression.mjs holds a block or writes the gate line by hand, so adding a block needs no edit to an existing file."
+  evidence: ["CLAUDE.md:55-56", "tests/blocks/block-runner.mjs:1-6", "tests/blocks/block-runner.mjs:17-19", "tests/README.md:25-26"]
+  confidence: confirmed
+- id: F-510
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "Red-then-green: doc-consistency only checks that CLAUDE.md still states the rule, and the confirmed-red record is asked for by the PR template and CONTRIBUTING, with no check on the commit or pull request that lands an assertion."
+  evidence: ["CLAUDE.md:60-64", "tests/blocks/doc-consistency.mjs:89-90", ".github/PULL_REQUEST_TEMPLATE.md:7-9", "CONTRIBUTING.md:6-8"]
+  confidence: confirmed
+- id: F-511
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "Engine learnings to the issue tracker: doc-consistency only checks that CLAUDE.md names the issue tracker, and nothing checks that a change cites its issue or that taste is not held only in a code comment."
+  evidence: ["CLAUDE.md:65-70", "tests/blocks/doc-consistency.mjs:91", "CONTRIBUTING.md:12-13"]
+  confidence: confirmed
+- id: F-512
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Change record is git: no-history-file refuses a HISTORY.md, a history/ folder or a dated log outside tests/ and any file naming a HISTORY.md, with its predicate probed on planted paths, though the removal-commit subject rule has no check."
+  evidence: ["CLAUDE.md:71-73", "tests/blocks/no-history-file.mjs:1-8", "tests/blocks/no-history-file.mjs:18-26", "tests/blocks/no-history-file.mjs:31-35"]
+  confidence: confirmed
+- id: F-513
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: contract
+  observation: "The agent spec is kept coherent with its citers: doc-consistency parses CLAUDE.md's numbered rules and fails any tracked file citing a rule number CLAUDE.md lacks or citing a rule's phrase under the wrong number."
+  evidence: ["tests/blocks/doc-consistency.mjs:68-80", "views/severity.mjs:4", "yardstick/ratchet.mjs:279"]
+  confidence: confirmed
+- id: F-514
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: "Corrected names and pointers are mechanized so the fix sticks: doc-consistency fails any file naming one of eight stale pointers with the reason each is wrong, and retired-names keeps renamed scanner ids out of the tree outside the migration code."
+  evidence: ["tests/blocks/doc-consistency.mjs:93-102", "tests/blocks/retired-names.mjs:1-5"]
+  confidence: confirmed
+- id: F-515
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Lessons have a durable home in the blocks themselves: block headers name the issue each came from and often the finding id of an earlier assay run over itself, so a run's finding becomes an issue and then a pinned check."
+  evidence: ["tests/README.md:29", "tests/blocks/backlog.mjs:1-4", "tests/blocks/instrument-severity.mjs:1", "tests/blocks/model-of-record.mjs:1-4", "tests/blocks/sweep-gate.mjs:1-4"]
+  confidence: confirmed
+- id: F-516
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: "The consumer change rule is mechanized: a commit touching the CONSUMERS.md surface must carry a Consumer: trailer, lib/release-notes.mjs --check names any commit without one and fails loud on shallow history, the harness runs it on this repository's own history, and CI fetches full history for it."
+  evidence: ["CONSUMERS.md:118-126", "lib/release-notes.mjs:1-16", "tests/blocks/consumer-contract.mjs:12-16", ".github/workflows/ci.yml:24-26"]
+  confidence: confirmed
+- id: F-517
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "The method has its own feedback hook: every run's second output is an engine backlog, a computed half from backlog.mjs plus an authored half with schemas in lib/run-data.mjs that validate reads back, exercised by the backlog block."
+  evidence: ["map/METHOD.md:786-798", "map/backlog.mjs:1-23", "lib/run-data.mjs:207", "tests/blocks/backlog.mjs:1-4"]
+  confidence: confirmed
+- id: F-518
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: "The step from a run's backlog to the issue tracker is manual: an authored item's status filed and its issue link are typed by the analyst, and the schema only requires a filed item to name an issue, so a proposed item can stay proposed with nothing surfacing it."
+  evidence: ["map/backlog.mjs:17-22", "lib/run-data.mjs:207", "lib/run-data.mjs:222"]
+  confidence: plausible
+- id: F-519
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: "Tool-pin drift reaches the issue tracker by itself: the weekly tools-check workflow opens one issue for pins behind upstream, or comments on the open one only when the list changed."
+  evidence: [".github/workflows/tools-check.yml:1-5", ".github/workflows/tools-check.yml:30-35"]
+  confidence: confirmed
+- id: F-520
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: "The pinned recall of 100 on the scored fixtures is graded over each fixture's committed findings, so it measures projection and scoring of a frozen map rather than how much a fresh review catches."
+  evidence: ["tests/blocks/fixture-recall.mjs:11-13", "tests/blocks/fixture-recall.mjs:23-28", "tests/golden.json:11-17"]
+  confidence: confirmed
+- id: F-521
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "assay measures its own repeatability on committed sweep sets and publishes the low figures (38% fact presence, 20% descriptor agreement over three blind contexts on itself), gating each set at its threshold and adding requirement-level verdict agreement."
+  evidence: ["tests/blocks/sweep-gate.mjs:1-5", "tests/blocks/requirement-agreement.mjs:1-5", "map/METHOD.md:421-425", "map/SCHEMA.md:209-213"]
+  confidence: confirmed
+- id: F-522
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: "Each scanner's worth is computed rather than asserted: roster joins per scanner the requirements it alone decides, its unique known-answer recoveries, its corroborations, its fail-loud block and its cost, and the harness pins the roster in golden.json."
+  evidence: ["map/roster.mjs:1-25", "tests/golden.json:35-47"]
+  confidence: confirmed
+- id: F-523
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: "The before/after delta is legible without a study: Since compares the stored previous measurement, the previous map re-measured under today's engine, and this run, so what the repository moved is kept apart from what the engine re-ruled."
+  evidence: ["views/since.mjs:1-11"]
+  confidence: confirmed
+- id: F-524
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: "The run record emits usage by design: each scanner row in map/scanners.yaml carries status, model, spend and duration, practice-review records model and spend per pass, validate type-checks them, and instrument-durations pins that every instrument run writes its wall time."
+  evidence: ["map/templates/scanners.yaml:17-22", "map/validate.mjs:252-256", "map/validate.mjs:288-293", "tests/blocks/instrument-durations.mjs:1-7", "tests/blocks/model-of-record.mjs:1-4"]
+  confidence: confirmed
+- id: F-525
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: "Inference cost is not aggregable across runs: spend is optional and may be free text with its own unit, and a judgment scanner with no model recorded only warns, so the record cannot mechanically total what a review cost."
+  evidence: ["map/templates/scanners.yaml:17-19", "map/validate.mjs:254-255", "map/validate.mjs:297-302"]
+  confidence: plausible
+- id: F-526
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: contract
+  observation: "Outcome records have a schema: an owner's triage lands in owner/decisions.yaml as action, reason, role and date per finding, validated when present and never deleting a finding, so held, accepted and open stay distinguishable."
+  evidence: ["map/decisions.mjs:1-21"]
+  confidence: confirmed

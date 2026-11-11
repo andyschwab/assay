@@ -1,0 +1,31 @@
+# map/effect-triage.yaml — Pass 0's triage of map/raw/enumerate.json (SCHEMA §6e)
+# 13 candidates: populations.channelCandidates (1), routeHandlers (6), effectSites (6).
+schema: effect-triage
+version: 1
+triage:
+  - candidate: "surface: migrate-run.mjs"
+    finding: F-508
+  - candidate: "route: ANY /api/hooks"
+    out_of_scope: "inert enumeration fixture under tests/enumerate-fixture/nextjs/, read by the enumerate tests and never served or run; assay ships no HTTP surface"
+  - candidate: "route: DELETE /api/users/[id]"
+    out_of_scope: "inert enumeration fixture under tests/enumerate-fixture/nextjs/, read by the enumerate tests and never served or run; assay ships no HTTP surface"
+  - candidate: "route: GET /api/users/[id]"
+    out_of_scope: "inert enumeration fixture under tests/enumerate-fixture/nextjs/, read by the enumerate tests and never served or run; assay ships no HTTP surface"
+  - candidate: "route: GET /health"
+    out_of_scope: "inert enumeration fixture under tests/enumerate-fixture/nextjs/, read by the enumerate tests and never served or run; assay ships no HTTP surface"
+  - candidate: "route: HEAD /health"
+    out_of_scope: "inert enumeration fixture under tests/enumerate-fixture/nextjs/, read by the enumerate tests and never served or run; assay ships no HTTP surface"
+  - candidate: "route: PATCH /api/users/[id]"
+    out_of_scope: "inert enumeration fixture under tests/enumerate-fixture/nextjs/, read by the enumerate tests and never served or run; assay ships no HTTP surface"
+  - candidate: "docker control"
+    out_of_scope: "every live-tree hit is a pattern line in the enumeration's own regex tables (map/enumerate.mjs:85, :182, :232); assay launches no container"
+  - candidate: "git push"
+    out_of_scope: "the live-tree hit is the enumeration's own regex (map/enumerate.mjs:181); no code path pushes to git"
+  - candidate: "http write"
+    out_of_scope: "hits are sink patterns inside the vendored opengrep taint rules (map/scanners/adapters/opengrep/taint/py.yml), data the instrument reads, not call sites"
+  - candidate: "http write (js)"
+    finding: F-505
+  - candidate: "message/mail send"
+    out_of_scope: "the hit is the enumeration's own regex (map/enumerate.mjs:180); nothing sends mail or messages"
+  - candidate: "shell exec"
+    out_of_scope: "hits are the opengrep positive control (inert, map/scanners/adapters/opengrep/control/CONTROL.md) and taint-rule patterns; the live process-execution channels (Node spawnSync) are recorded from the listing as run-draw, fresh-clone-exec, dependency-audit and structure-scan-exec"

@@ -1,0 +1,177 @@
+# map/findings/practice-review-multiplayer.yaml — Pass 7 (multiplayer), targets/flawed-webapp @ 7f7c89d, blind
+#
+# Census agent-access-surface (contract): the five routes, F-601..F-605 in member order
+# (GET /notes, POST /notes, POST /assistant, POST /sync, POST /admin/purge).
+# Bar: an agent can consume the interface from a stated contract (machine-readable
+# request/response shape and documented behaviour) with a clear acting identity.
+
+- id: F-601
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    GET /notes is described only by a prose bullet with no response shape, and a request
+    with a missing or unknown token is not refused but answered as the shared default
+    identity with an empty-or-foreign 200 list, so an agent cannot tell a bad credential
+    from having no notes.
+  evidence: [server.mjs:30-33, README.md:16, lib/auth.mjs:9-12]
+  confidence: confirmed
+
+- id: F-602
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /notes has no stated request schema (it reads an undocumented `text` field), a
+    malformed JSON body is silently coerced to an empty object and still yields a 201 with
+    an empty note, and an unauthenticated write is recorded as owned by the shared default
+    identity rather than refused.
+  evidence: [server.mjs:35-40, server.mjs:16, README.md:17, lib/auth.mjs:12]
+  confidence: confirmed
+
+- id: F-603
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /assistant documents only that it "can email summaries for you", while its
+    undocumented response varies between `{answer}` and `{answer, emailed}` and the email it
+    may send carries every workspace note to a model-chosen recipient, behaviour no
+    contract states to the calling agent.
+  evidence: [server.mjs:42-45, lib/agent.mjs:35-42, README.md:18]
+  confidence: confirmed
+
+- id: F-604
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /sync is a prose bullet with no shape, never consults the caller (the resolved user
+    is not passed to `pushBackup`), and always answers `{ok: true, pushed}` whatever the
+    outcome, so its acting identity is the app's backup key rather than any principal the
+    caller can name.
+  evidence: [server.mjs:47-50, lib/sync.mjs:5-13, README.md:19]
+  confidence: confirmed
+
+- id: F-605
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /admin/purge is absent from the README's endpoint list (which says 4 endpoints),
+    its own header comment names it DELETE while the router matches POST, and its refusal is
+    a plain-text 403 unlike the JSON every other route returns, so no stated contract exists
+    for an agent to consume.
+  evidence: [server.mjs:52-54, routes/admin.mjs:5-7, README.md:14-19]
+  confidence: confirmed
+
+- id: F-606
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every capability the app has is reachable over a JSON HTTP API with bearer-token
+    authentication and no human-only UI, so the surface is agent-reachable by construction
+    even where its contract is unstated.
+  evidence: [server.mjs:21-24, server.mjs:26-56, lib/auth.mjs:5-8]
+  confidence: confirmed
+
+- id: F-607
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Credentials map one opaque token to one human user with no service-account, agent or
+    scoped-token form, so an agent acting for a person is indistinguishable from that person
+    and cannot be granted less than the person's whole authority.
+  evidence: [lib/db.mjs:13-17, lib/db.mjs:19-25, lib/auth.mjs:5-8]
+  confidence: confirmed
+
+- id: F-608
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The workspace is not a principal: durable state is one global notes map keyed only by
+    per-note owner, with no workspace or team entity carrying its own membership, memory or
+    permissions.
+  evidence: [lib/db.mjs:2-11, server.mjs:38]
+  confidence: confirmed
+
+- id: F-609
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Note ownership is recorded twice, as each user's `notes` array and as each note's
+    `owner` field, and POST /notes writes only the owner field (the arrays are touched only
+    by purge), so the two accounts of who holds what drift on the first write.
+  evidence: [lib/db.mjs:3-5, server.mjs:38, lib/db.mjs:27-30]
+  confidence: confirmed
+
+- id: F-610
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    Every caller with a missing or unknown token shares the single `default` identity, so
+    unrelated anonymous people and agents write into and list one another's notes through
+    GET and POST /notes as if they were one user.
+  evidence: [lib/auth.mjs:9-12, server.mjs:31, server.mjs:38]
+  confidence: confirmed
+
+- id: F-611
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    The human listing route scopes its context read to the caller: GET /notes returns only
+    notes whose owner equals the resolved user's id.
+  evidence: [server.mjs:30-33]
+  confidence: confirmed
+
+- id: F-612
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant's context read is workspace-wide rather than the asker's (it loads every
+    note with its owner's email), with no opt-in by note authors and while the README says it
+    answers about "your notes", so any member becomes an undisclosed privileged reader of
+    everyone's notes and addresses.
+  evidence: [lib/agent.mjs:11-15, README.md:3-5, server.mjs:31]
+  confidence: confirmed
+
+- id: F-613
+  dimension: multiplayer
+  polarity: fact
+  subject_type: control
+  observation: >
+    Context entries in the assistant prompt carry an origin label (the owner's email per
+    note, and a USER QUESTION heading), but the labels are inline text in the same channel
+    every note author writes into, not a structural provenance the model or the tool parse
+    can rely on.
+  evidence: [lib/agent.mjs:14, lib/agent.mjs:19, lib/agent.mjs:28, lib/agent.mjs:35]
+  confidence: confirmed
+
+- id: F-614
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant's email is described as sent on the user's behalf, yet it goes out from the
+    app-wide assistant address and the mail record logs recipient, sender, subject and size
+    but not the requesting user, so after the fact nobody can say whose authority sent it.
+  evidence: [lib/agent.mjs:1-2, lib/agent.mjs:39, lib/mailer.mjs:5-8, config/settings.mjs:7]
+  confidence: confirmed
+
+- id: F-615
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    Who holds admin is declared in two places, a role field in the user table and an
+    `adminEmails` setting, and only the role field is read by `requireAdmin`, so the settings
+    list is a dead second account of the privileged reader set.
+  evidence: [config/settings.mjs:8, lib/db.mjs:5, lib/auth.mjs:15-17]
+  confidence: confirmed

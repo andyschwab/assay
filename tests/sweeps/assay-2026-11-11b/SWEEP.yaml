@@ -1,0 +1,32 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/assay-2026-11-11b
+#
+# BLIND, the re-sweep after M1 and M2 (#257 step 0; #259, #269, #260): three practice-review lanes
+# over this repository at v0.7.0, each a fresh child session seeded by `assay lane practice-review`
+# at the same tag, all passes claude-opus-5-5, the target read-only. tests/sweeps/,
+# tests/fixtures/*/map/ and every ANSWERS.yaml were excluded by the seed, and every listing or
+# search command had to exclude them in the command itself. Each lane was given the run's
+# map/raw/enumerate.json (assay start at v0.7.0: 13 candidates) and wrote map/effect-triage.yaml and
+# census members:, the first real lanes to write either. What the record should know:
+# - sweep-1 was sent back once: practice-review-delegation.yaml wrote 38 `observation: >-` scalars,
+#   which the reader refused at v0.7.0 (#278), and was republished with `>` and nothing else changed.
+#   sweep-2 and sweep-3 validated on first collection.
+# - No blindness deviation was stated by any lane.
+# - Spend per session (practice-review row of each run record): USD 20.78 (with the send-back),
+#   19.36, 21.29.
+# Measured against tests/sweeps/assay-2026-11-11 (the baseline, read at the same engine): decided
+# requirements rise from 7 to 12 and the ones identical in all three from 5 to 7; the effect rows
+# are decided because the population is closed, and descriptor agreement rises from 11% to 33%
+# over 12 shared channels (9 at the baseline). Met and mixed rows now cite 37, 38 and 61 strengths
+# (none at the baseline). The five rows that part (d-credentials-enumerated, d-gates-fail-closed,
+# d-capability-budget, d-readme-true, d-agent-consumable-surface) are the judgment M3 (#261) scopes.
+target: "andyschwab/assay, this repository (public), at the commit below"
+target_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
+method_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
+date: "2026-11-11"
+blind: true
+threshold:
+  fact_presence: 31          # measured 14 of 45 union facts caught by all three (31%)
+  descriptor_agreement: 33   # measured 4 of 12 shared effect channels identical on all six descriptors (33%)
+  requirement_agreement: 58  # measured 7 of 12 decided requirements identical in all three (58%)
+sweeps: [sweep-1, sweep-2, sweep-3]
