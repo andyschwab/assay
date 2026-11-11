@@ -903,8 +903,9 @@ list; each entry carries exactly one of `finding` or `out_of_scope`; every `find
 to a finding of this run whose `subject_type` is `effect`; every `out_of_scope` gives its
 reason. A candidate list that does not read, or that lacks one of the three populations, is
 an error, never an empty list. With no triage
-file, nothing is refused (a run whose lane has not run has none), and the yardstick reads
-every candidate untriaged.
+file, nothing is refused (a run whose lane has not run has none): the yardstick reads every
+candidate untriaged, so a met effect row reads mixed, and `d-effect-channels-enumerated`
+reads not measured, naming the lane (#275), since nothing was triaged.
 
 ---
 

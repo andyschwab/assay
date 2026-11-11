@@ -9,7 +9,8 @@
 //  4. the four effect facet rules read met only when the list exists and every candidate is
 //     triaged: an untriaged candidate turns met mixed, naming it; no list reads not measured
 //     with the reason;
-//  5. d-effect-channels-enumerated is decided by the triage: met / unmet / not measured.
+//  5. d-effect-channels-enumerated is decided by the triage: met / unmet / not measured (no list,
+//     or no triage at all: #275).
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -87,7 +88,7 @@ export async function run() {
     if (r?.status !== 'unmet' || !/untriaged: mcp-toolset: analytics/.test(r.note)) fail(`a triage missing a candidate must read d-effect-channels-enumerated unmet naming it (got ${r?.status}: ${r?.note})`);
     rmSync(effectTriagePath(run));
     r = enumerated();
-    if (r?.status !== 'unmet' || r.met !== 0) fail(`a candidate list with no triage must read d-effect-channels-enumerated unmet, 0 triaged (got ${r?.status} ${r?.met}/${r?.of})`);
+    if (r?.status !== 'not-measured' || !/ lane (not run|wrote no triage)/.test(r.note)) fail(`a candidate list with no triage must read d-effect-channels-enumerated not measured, naming the lane (#275; got ${r?.status}: ${r?.note})`);
     rmSync(enumeratePath(run));
     r = enumerated();
     if (r?.status !== 'not-measured' || !/no channel candidate list/.test(r.note)) fail(`no candidate list must read d-effect-channels-enumerated not measured with the reason (got ${r?.status}: ${r?.note})`);
