@@ -110,12 +110,32 @@ const allById = new Map();       // id -> {finding, file}
 let laneScratch = false;         // --lane over a run with no run record: a lane's own check (#278)
 const passFiles = readdirSync(evalDir).filter((f) => f.endsWith('.yaml')).sort();
 
+// `property:` (optional, SCHEMA.md §1; #264): a stack-free kebab-case name for the property
+// the finding observes. It states what is, never a requirement id (#257 Q1): the link between
+// a finding and a requirement lives in the yardstick, so a value that is one of its ids is refused.
+const PROPERTY = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+let requirementIds = null;
+function yardstickIds() {
+  if (requirementIds) return requirementIds;
+  const reg = parseYaml(readFileSync(join(HERE, '..', 'yardstick', 'requirements.yaml'), 'utf8'));
+  requirementIds = new Set((reg && Array.isArray(reg.requirements) ? reg.requirements : []).map((d) => d && d.id).filter(Boolean));
+  return requirementIds;
+}
+function checkProperty(f, at) {
+  if (f.property === undefined) return;
+  if (typeof f.property !== 'string' || !PROPERTY.test(f.property)) { err(at, `bad property ${JSON.stringify(f.property)} (want a kebab-case name for the property observed, ^[a-z0-9]+(-[a-z0-9]+)*$)`); return; }
+  let reqIds;
+  try { reqIds = yardstickIds(); } catch (e) { err(at, `property: cannot read the yardstick to check it is no requirement id (fail-closed): ${e.message}`); return; }
+  if (reqIds.has(f.property)) err(at, `property "${f.property}" is a requirement id of the yardstick: a finding names the property it observes, never a requirement (the yardstick holds that link, #257 Q1)`);
+}
+
 function checkFinding(f, fileLabel, expectDim) {
   const id = f.id;
   const at = `${fileLabel}:${id || '??'}`;
   if (!id || !/^F-\d{3,}$/.test(String(id))) { err(at, `bad or missing id (want F-###: three or more digits — an instrument can return more rows than three digits hold)`); return; }
   if (allById.has(id)) err(at, `duplicate id (also in ${allById.get(id).file})`);
   else allById.set(id, { f, file: fileLabel });
+  checkProperty(f, at);
   // External-scanner findings (overlay, SCHEMA §2a): a finding from another
   // evaluator carries `source` + `native_category` and is validated under the
   // PORT (map/scanners/CONTRACT.md §1), not the native practice-review schema —

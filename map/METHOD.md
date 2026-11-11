@@ -332,7 +332,19 @@ is `SCHEMA.md` §9, "What the reader reads": read it before writing the files.
  # strength findings establish (e.g. reaches the host or fleet
  # despite per-tenant isolation) — makes "escapes the ceiling"
  # computable, not narrated; the security view weights it heavily
+ property: secrets-rotated # optional: the property observed, kebab-case, stack-free;
+ # never a requirement id (validate refuses one)
 ```
+
+**`property:` — name what you observed (optional, `SCHEMA.md` §1).** When a finding
+observes a property, name it: kebab-case, stack-free (`secrets-rotated`,
+`migrations-reversible`, never a tool or framework name), stated as what is. It is never
+a requirement id: the yardstick decides which findings a requirement reads, and a
+finding never names one. Observe freely; nothing here limits what a pass records, and a
+finding need not carry one. After measuring, `compile` lists the findings no requirement
+takes, grouped by `property:` (`views/improve/candidates.yaml`, `IMPROVE.md` §8): the
+properties the yardstick has no row for yet. Reuse a name an earlier finding in the run
+already gave the same property, so the two group together.
 
 **Conditional-required rule (load-bearing):** effect/capability facets are not
 globally required, but *if `subject_type: effect`* the `effect` facet

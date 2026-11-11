@@ -79,6 +79,13 @@ title: "assay maintainer report — structural template"
      with no requirements today still reads as measured, never silently clean. -->
 {{COMPILE:requirements_by_topic}}
 
+## 8. What no requirement reads yet
+<!-- SOURCE: views/improve/candidates.yaml (computed by views/improve/candidates.mjs): the findings
+     no requirement takes (yardstick/untaken.mjs), grouped by the property each names
+     (`property:`, map/SCHEMA.md §1), the unnamed last. Discovery candidates, listed, never
+     priced; promotion to a requirement needs more than one target (#257). -->
+{{COMPILE:candidates}}
+
 ## Appendix A — In plain terms
 <!-- SOURCE: views/improve/templates/concepts.md (the primer) + views/improve/templates/glossary.yaml (core + concepts).
      The plain-language reference: the ideas the report runs on, then the terms it uses. -->

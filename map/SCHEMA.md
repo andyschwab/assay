@@ -55,6 +55,8 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
                                #   a boolean still reads: true is write, false none
   label: "control of every workspace"  # optional short human name; the chain view renders
                                         # it verbatim (entry / sink / cut). See §6d.
+  property: release-signing    # optional: the property the finding observes, a stack-free
+                               #   kebab-case name; never a requirement id (below)
   # ── optional links (all values are F-### ids, except preconditions) ──
   preconditions: [prompt-injection]   # closed vocab §2; attacker requirement(s)
   reaches: [F-055]             # findings reachable from here in one context (the chain graph)
@@ -85,8 +87,23 @@ under is part of the gate:
   must carry `confidence: plausible` (or `unverified`), never `confirmed`.
 
 **Optional keys:** `preconditions`, `reaches`, `explained_by`, `escapes`, `covers`, `label`,
-the two facets (which become mandatory under §4), and the **overlay** fields
+`property`, the two facets (which become mandatory under §4), and the **overlay** fields
 `axis` / `also_axes` / `source` (§2a).
+
+**`property` (#264).** The property the finding observes, named so two runs, or two
+targets, that observe it meet on one name: kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`),
+stack-free (`secrets-rotated`, never a tool, framework or vendor), and stated as what is,
+never as a verdict. It is never a requirement id: the link between a finding and a
+requirement lives in the yardstick, which names the population each requirement reads
+(#257 Q1), so `validate` refuses a value that is one of its ids. It is free observation:
+any finding may carry one, and none must. It matters on the findings no requirement
+takes (`yardstick/untaken.mjs`, which reads the yardstick's own `requirementTaking`,
+`yardstick/population.mjs`: no instrument row's binding, no effect or capability facet,
+and no census whose row names a population). After measuring, `compile` lists those,
+grouped by `property` (the ones that name none as unnamed), in
+`views/improve/candidates.yaml` and `IMPROVE.md` §8: the run's candidate properties,
+what the yardstick has no row for yet (`views/README.md`). A candidate is not asked to
+repeat across runs.
 
 ### 2a. Overlay layer (optional; the axis projection)
 
@@ -967,6 +984,10 @@ a pass (the run's own CI-1 lesson, applied to the checker):
 13. **The run's data files, when present** (`lib/run-data.mjs`): `views/improve/chains.json`
    and `handoff/sequence.json` hold their schemas and name only ids in this base;
    `map/backlog.yaml` and `map/backlog-authored.yaml` hold theirs (§5b).
+
+14. **A finding's `property`, when present** (§1, #264): kebab-case
+   (`^[a-z0-9]+(-[a-z0-9]+)*$`), and not a requirement id of the yardstick
+   (`yardstick/requirements.yaml`); a yardstick that does not read is an error, never a pass.
 
 The validator is **zero-dependency** (its YAML reader, `lib/yaml-min.mjs`, reads the subset
 §9 states and refuses the rest), so it copies into any target repo alongside `METHOD.md`.
