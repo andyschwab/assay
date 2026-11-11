@@ -19,6 +19,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { isMain } from './doctrine.mjs';
+import { loadPasses } from './passes.mjs';
 import { findingsDir, scannersPath, coverageDir, prosePath } from '../lib/run-layout.mjs';
 import { buildChains } from './chains.mjs';
 
@@ -174,11 +175,10 @@ export function notRunPhrase(manifest, id) {
 // ── models of record (SCHEMA.md §5a) ─────────────────────────────────────────
 // The built-in scanner's passes: the pass name its file carries
 // (map/findings/practice-review-<pass>.yaml, a `passes:` key in its manifest row) → the
-// dimension every finding in that file carries.
-export const PRACTICE_REVIEW_PASSES = {
-  legibility: 'artifact-legibility', context: 'context-economy', gates: 'deterministic-gates',
-  verification: 'verification', delegation: 'delegation', improvement: 'improvement-loop', multiplayer: 'multiplayer',
-};
+// dimension every finding in that file carries. Read off map/passes.yaml, the one home of the
+// passes and the requirements each feeds (#263).
+/** @type {Record<string, string>} */
+export const PRACTICE_REVIEW_PASSES = Object.fromEntries(loadPasses().map((p) => [String(p.id), String(p.dimension)]));
 
 // The model a scanner (or one practice-review pass) ran on: the pass's own model, else the
 // row's, else null — never a guess.
