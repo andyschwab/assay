@@ -42,7 +42,8 @@ met:               # findings: what the row was met by (#260): a census's member
                    # findings a met effect row read, an instrument's strength rows; [] when none
   - { id, tier, topic, title, basis, findings: [F-…], note }
 to_run:            # status not-measured
-  - { id, tier, topic, title, check, decided_by, basis, note }
+  - { id, tier, topic, title, check, decided_by, basis, note, context: [F-…] }
+                   # context: on a claim row only, and only when the run saw any (#262)
 not_applicable:    # status not-applicable — decided from the map, NEVER counted as met
   - { id, tier, topic, title, basis, note }
 not_seen:          # every run-record row that did not run
@@ -67,6 +68,13 @@ owner:             # what the run's own packet says about itself, facts only (In
 `owner/PACKET.md`). `basis` (`run | owner`) is who decided the row THIS run —
 `owner` only where a repository's own packet decided it (`yardstick/measure.mjs
 --packet`, `owner/PACKET.md`); the page renders it as "met, by the owner's word".
+`context` (#262, M4 of #257) is a claim row's: the finding ids the run listed on that
+row's population (its context list, `map/SCHEMA.md` §6b), read off `yardstick.yaml`'s
+`context:`. It is what the run saw bearing on a row only the owner decides, never what
+its status rests on: it is not `findings`, it rides on whichever list the row's status
+put it in (`to_run` without a packet, `met`/`open` when the packet decided it), and the
+page renders it as "Seen in this run (context, not a decision): F-…", a label that never
+reads as met or unmet. It appears only when the run saw any.
 `not_applicable` rows are listed on their own, separate from `met` — a
 requirement that does not apply was not satisfied, and it is never counted or
 rendered as met (`yardstick/README.md`'s `not-applicable` status: decided only
@@ -120,8 +128,8 @@ counts: { floor_open, floor_not_measured, floor_met, floor_not_applicable, beyon
 floor:                # the same population Intake reads (tags: [floor])
   open:
     - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], check, reason }
-  not_measured:
-    - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, decided_by, reason }
+  not_measured:       # context / context_seen: a claim row's, only when the run saw any (#262)
+    - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, context: [F-…], context_seen: ["…"], decided_by, reason }
   met:                # seen: the observations of the strengths the row cites, what was seen in place (#260)
     - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], seen: ["…"], check, reason }
   not_applicable:    # decided from the map as having nothing to apply to; listed, never counted as met
@@ -147,7 +155,10 @@ on a `met` row, the observations of the strengths it cites, which `OWNER.md` ren
 was found missing; `[]` on every other row and on a met row that cites no strength. `decided_by` names what would decide a
 `not_measured` row (a scanner, `census`, or `owner` for a claim only the
 owner can make) — present only there, the same convention as Intake's
-`to_run`. `OWNER.md` renders `floor` in full (one fix prompt per open row, in
+`to_run`. A claim row the run saw evidence on carries `context` (the ids, as Intake's) and
+`context_seen` (their observations, in the owner's words), kept apart from `findings`,
+`where` and `seen` so they never read as what the status rests on; `OWNER.md` renders them
+after "What would tell" as "Seen in this run (context, not a decision): …". `OWNER.md` renders `floor` in full (one fix prompt per open row, in
 tier order) and `beyond_floor` compactly; its "Fix in this order" list and
 `floor.open` always agree by id and status with Intake's `open` list — same
 measurement, never a second opinion.

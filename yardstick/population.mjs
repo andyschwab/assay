@@ -16,8 +16,10 @@
 //      (decidersOf, the same resolution measureRun uses);
 //   2. an effect or capability finding is taken by its own facets: the term whose `record:` is
 //      halt-class-effect (isHaltClass), effect, or capability;
-//   3. a finding a reader places on a term (`member`, the census it is listed in) is taken by
-//      the row whose population names that term.
+//   3. a finding a reader places on a term (`member`, the census or context list it is listed
+//      in) is taken by the row whose population names that term. A claim row that carries a
+//      context list (#262, M4) names a population in the same form: it takes the findings placed
+//      on its term as context, shown beside its status and never deciding it.
 // None of them: the finding is taken by no requirement (`requirement: null`), what #264 (D1)
 // reads as a finding that binds no requirement.
 import { isHaltClass } from '../map/doctrine.mjs';
@@ -45,8 +47,13 @@ export function parseCheck(check, terms) {
   return { term, population, excluded, question, rest };
 }
 
+// the rows whose check names a population: every facet and census row, and a claim row that
+// carries a context list (#262): the run places findings on its term as context
+const namesPopulation = (d) => ['facet', 'census'].includes(d?.decide?.kind) || (d?.decide?.kind === 'claim' && d.decide.context !== undefined);
+
 /** Every error in the vocabulary and the rows' populations: an empty list when each facet and
- * census row's check is in the form, names a term, and no two rows name one.
+ * census row's check, and each claim row's with a context list, is in the form, names a term,
+ * and no two rows name one.
  * @param {any} reg */
 export function validatePopulations(reg) {
   const errors = [];
@@ -68,7 +75,7 @@ export function validatePopulations(reg) {
   for (const r of RECORDS) if (!records.has(r)) errors.push(`yardstick: members: no term takes the ${r} record`);
   const owner = new Map();
   for (const d of reg.requirements || []) {
-    if (!['facet', 'census'].includes(d?.decide?.kind)) continue;
+    if (!namesPopulation(d)) continue;
     const p = parseCheck(d.check, [...seen]);
     if (!p) { errors.push(`yardstick: ${d.id}: a ${d.decide.kind} row's check reads "Population: every <term> <scope>; excluded: <what>. Question: <one question>?", <term> one of members: (got "${String(d.check).slice(0, 80)}")`); continue; }
     if (owner.has(p.term)) errors.push(`yardstick: ${d.id}: its population names "${p.term}", already ${owner.get(p.term)}'s: a member would land on two requirements`);
@@ -77,12 +84,12 @@ export function validatePopulations(reg) {
   return errors;
 }
 
-// the term each facet or census row's population names, read off its check
+// the term each row's population names, read off its check
 function owners(reg) {
   const terms = (reg.members || []).map((m) => m.term);
   const out = new Map();
   for (const d of reg.requirements || []) {
-    if (!['facet', 'census'].includes(d?.decide?.kind)) continue;
+    if (!namesPopulation(d)) continue;
     const p = parseCheck(d.check, terms);
     if (p) out.set(p.term, [...(out.get(p.term) || []), d.id]);
   }

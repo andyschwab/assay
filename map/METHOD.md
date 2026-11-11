@@ -213,6 +213,7 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
 
 - **Decides**, asked of every member of each population:
   - `d-modules-standalone` (census `modules-standalone`): population every module; asks: can an agent load it alone, with something to read and something to run, and change it without loading the rest?
+  - `d-model-call-telemetry` (census `model-call-telemetry`): population every model call site; asks: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `entry-docs-route-a-stranger`: do the entry-point docs route a stranger to the one subsystem a task needs, disclosing the rest progressively?
   - `model-tier-rationale-recorded`: is each model-tier choice recorded with its rationale, and re-measured when a model ships?
@@ -285,6 +286,7 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
   - `d-effects-provable` (facet `effects-provable`): population every effect; asks: is its record structured or audited, so the effect can be proved from outside the AI?
   - `d-capability-budget` (facet `trifecta`): population every AI context; asks: does it hold untrusted input, private data and an outward effect at once while reaching an effect with no gate that holds?
   - `d-credentials-enumerated` (census `credentials-below-boundary`): population every secret; asks: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed?
+  - `d-ingested-content-is-data` (census `ingested-content`): population every ingestion point; asks: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction?
 - **Discovery**, read by no requirement yet; a finding answering one carries its `property:`:
   - `acting-principal-stated`: for each connector, tool surface and effect, can you say who is acting as whom, with per-identity scoping and a stated role, rather than one opaque principal?
   - `scope-promotion-path`: where capability is scoped (per user, room or tenant), is there a sanctioned, gated way for it to graduate beyond its scope?
@@ -516,9 +518,18 @@ is no binning.
  census (`change-gates`: every check the repository runs on a change before it lands or
  ships, a CI job or step, a hook, a config-driven check, each asked whether it goes red
  when what it needs is absent or never finishes; the gates in front of the app's own
- effects stay on the effect facets). Each census's population and question are the
+ effects stay on the effect facets), context-economy's model-call census
+ (`model-call-telemetry`: every place the code calls a model, each asked whether it emits a
+ structured record of its tier, spend and outcome), and delegation's ingestion census
+ (`ingested-content`: every place outside text enters, each asked whether it is kept as data,
+ stored verbatim with its provenance, rendered escaped and never acted on as an instruction).
+ Each census's population and question are the
  `check:` of the requirement that reads it (`yardstick/README.md`): list a finding in the
- census whose population it is a member of, and in no other. State the method, write one
+ census whose population it is a member of, and in no other. A finding on the population of a
+ claim row the owner decides goes in that row's **context list** instead (`context:` in
+ `map/censuses.yaml`, `SCHEMA.md` §6b), which decides nothing: `second-accounts`,
+ `model-qualification`, `ai-disclosure`, `guard-fixtures`, `backlog-records`,
+ `ai-feature-evals`, `rubric-calibration`, `change-verification`. State the method, write one
  finding per member (a strength where it meets the bar, a gap where it does not),
  and list those ids as the census's `members:` in `map/censuses.yaml`
  (`SCHEMA.md` §6b): the count is read off them, and a census that lists no members

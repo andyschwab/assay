@@ -650,7 +650,9 @@ if (existsSync(censusesPath(runDir))) {
   try { cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8')); }
   catch (e) { err(censusesLabel, `YAML parse failed (fail-closed; the measurement reads this file with the same reader): ${e.message}`); }
   if (cz) {
-    if (!Array.isArray(cz.dimensions)) err(censusesLabel, `dimensions must be a list`);
+    // a file holding only context lists (#262) has no dimensions to grade
+    if (cz.dimensions === undefined && cz.context !== undefined) { /* context lists only */ }
+    else if (!Array.isArray(cz.dimensions)) err(censusesLabel, `dimensions must be a list`);
     else for (const [i, x] of cz.dimensions.entries()) {
       const at = `${censusesLabel}:${x && x.dimension || `[${i}]`}`;
       if (!x || !DIMENSIONS.has(x.dimension)) { err(at, `bad or missing dimension`); continue; }
@@ -668,6 +670,31 @@ if (existsSync(censusesPath(runDir))) {
           for (const e of memberErrors(s, findingOf, sat)) errors.push(e);
         } else if (typeof s.met !== 'number' || typeof s.of !== 'number' || s.of < 1) err(sat, `a sampled census needs members: (the finding ids of its population) or numeric met/of`);
         if (!s.method) err(sat, `a sampled census must state its method`);
+      }
+    }
+    // context lists (#262, M4 of #257): the findings a run saw on a claim row's population, each
+    // list named by one claim row's decide.context. A context list decides nothing and counts in
+    // no coverage; its members are this run's findings, each listed once, in no census as well.
+    if (cz.context !== undefined) {
+      const { loadYardstick } = await import('../yardstick/measure.mjs');
+      const named = new Set(loadYardstick().requirements.flatMap((d) => (d.decide.kind === 'claim' && Array.isArray(d.decide.context) ? d.decide.context : [])));
+      const inCensus = new Set();
+      for (const x of Array.isArray(cz.dimensions) ? cz.dimensions : []) for (const s of (x && Array.isArray(x.sampled) ? x.sampled : [])) for (const id of (s && Array.isArray(s.members) ? s.members : [])) inCensus.add(String(id));
+      const listed = new Set();
+      if (!Array.isArray(cz.context)) err(censusesLabel, `context must be a list (each entry: name, members)`);
+      else for (const [i, c] of cz.context.entries()) {
+        const cat = `${censusesLabel}:context:${c && c.name || `[${i}]`}`;
+        if (!c || !c.name) { err(cat, `a context list must name the claim row's list (decide.context in yardstick/requirements.yaml)`); continue; }
+        if (!named.has(c.name)) err(cat, `no claim row names the context list "${c.name}" (decide.context): a list no row reads shows nothing`);
+        for (const k of ['met', 'of']) if (c[k] !== undefined) err(cat, `a context list carries no ${k}: it decides nothing and counts in no coverage`);
+        if (!Array.isArray(c.members) || !c.members.length) { err(cat, `members must be a non-empty list of the finding ids the run saw on the row's population`); continue; }
+        for (const id of c.members) {
+          if (typeof id !== 'string' || !id) { err(cat, `members: ${JSON.stringify(id)} is not a finding id`); continue; }
+          if (!findingOf.has(id)) err(cat, `members: ${id} is not a finding in this run`);
+          if (listed.has(id)) err(cat, `members: ${id} is listed in two context lists (a finding is listed once, on the one population it is a member of)`);
+          if (inCensus.has(id)) err(cat, `members: ${id} is also a census member (a finding is listed once, on the one population it is a member of)`);
+          listed.add(id);
+        }
       }
     }
   }
@@ -805,6 +832,7 @@ if (existsSync(yardstickResultPath)) {
         if (r.status !== x.status) err(at, `requirement drift: file says ${r.status}, the map computes ${x.status} — regenerate: node assay.mjs measure <run-dir> --write`);
         if (r.how !== x.how) err(at, `mechanism drift: file says ${r.how}, the yardstick decides by ${x.how}`);
         if (JSON.stringify(r.reviewed || null) !== JSON.stringify(x.reviewed || null)) err(at, `reviewed drift: the file's reviewed: does not match the run record's review of its lanes — regenerate: node assay.mjs measure <run-dir> --write`);
+        if (JSON.stringify(r.context || []) !== JSON.stringify(x.context || [])) err(at, `context drift: the file's context: does not match the run's context lists (map/censuses.yaml) — regenerate: node assay.mjs measure <run-dir> --write`);
         if ((r.basis || 'run') !== (x.basis || 'run')) err(at, `basis drift: file says ${r.basis || 'run'}, the map computes ${x.basis || 'run'} (owner/PACKET.md) — regenerate: node assay.mjs measure <run-dir> --write`);
       }
       // contradictions (owner/PACKET.md "Claims and a run, compared"): a packet claim of

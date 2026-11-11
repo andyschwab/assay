@@ -15,7 +15,7 @@
 // Usage: node assay.mjs maintain <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows, toYaml, basisNote, joinContradictions } from './floor-fleet.mjs';
+import { buildRows, toYaml, basisNote, contextText, joinContradictions } from './floor-fleet.mjs';
 import { loadYardstick, loadContradictions } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -34,19 +34,19 @@ export function renderMd(runId, built, confidential = false, contradictions = []
 
   out.push('## Open', '');
   if (open.length) {
-    for (const r of open) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. Today: ${r.status}${basisNote(r)}${r.of != null ? ` (${r.met} of ${r.of})` : ''} — ${r.note}. Proving check: ${r.check}.`);
+    for (const r of open) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. Today: ${r.status}${basisNote(r)}${r.of != null ? ` (${r.met} of ${r.of})` : ''} — ${r.note}. Proving check: ${r.check}.${contextText(r)}`);
   } else out.push('_Nothing open._');
   out.push('');
 
   out.push('## Met', '');
   if (met.length) {
-    for (const r of met) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. ${r.note} (met${basisNote(r)}${r.findings && r.findings.length ? `; evidence ${r.findings.join(', ')}` : ''}).`);
+    for (const r of met) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. ${r.note} (met${basisNote(r)}${r.findings && r.findings.length ? `; evidence ${r.findings.join(', ')}` : ''}).${contextText(r)}`);
   } else out.push('_Nothing met yet._');
   out.push('');
 
   out.push('## To run', '');
   if (to_run.length) {
-    for (const r of to_run) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. Decided by ${r.decided_by}. Proving check: ${r.check}. ${r.note}`);
+    for (const r of to_run) out.push(`- **${r.id}**${r.floor ? ' _(floor)_' : ''} _(${r.tier}/${r.topic})_ — ${r.title}. Decided by ${r.decided_by}. Proving check: ${r.check}. ${r.note}${contextText(r)}`);
   } else out.push('_Nothing left to run._');
   out.push('');
 

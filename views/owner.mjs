@@ -22,7 +22,7 @@
 // Usage: node assay.mjs owner <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows } from './floor-fleet.mjs';
+import { buildRows, CONTEXT_LABEL } from './floor-fleet.mjs';
 import { loadFindings } from '../map/project.mjs';
 import { loadYardstick } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
@@ -69,6 +69,12 @@ export function ownerRow(r, status, byId, findingById) {
   const seen = status === 'met' ? findings.map((id) => findingById.get(id)).filter((f) => f && f.polarity === 'strength' && f.observation).map((f) => String(f.observation).trim()) : [];
   const out = { id: r.id, tier: r.tier, topic: r.topic, title: r.title, status, risk: o.risk || '', fix: o.fix || '', where, findings, seen, check: r.check };
   if (lens) out.lens = lens;
+  // a claim row's context (#262): what the run saw on its population, in the owner's words, kept
+  // apart from findings/where/seen so it never reads as what the status rests on
+  if (r.context && r.context.length) {
+    out.context = r.context;
+    out.context_seen = r.context.map((id) => findingById.get(id)).filter((f) => f && f.observation).map((f) => String(f.observation).trim());
+  }
   if (r.decided_by) out.decided_by = r.decided_by;
   out.reason = r.note;
   return out;
@@ -106,6 +112,10 @@ function rowYaml(r, pad) {
   // free text: a block sequence, since a flow list's commas would split an item on read-back
   L.push((r.seen || []).length ? [`${pad}  seen:`, ...r.seen.map((x) => `${pad}    - ${q(x)}`)].join('\n') : `${pad}  seen: []`);
   L.push(`${pad}  check: ${q(r.check)}`);
+  if (r.context && r.context.length) {
+    L.push(`${pad}  context: [${r.context.join(', ')}]`);
+    L.push(r.context_seen.length ? [`${pad}  context_seen:`, ...r.context_seen.map((x) => `${pad}    - ${q(x)}`)].join('\n') : `${pad}  context_seen: []`);
+  }
   if (r.decided_by) L.push(`${pad}  decided_by: ${r.decided_by}`);
   L.push(`${pad}  reason: ${q(r.reason)}`);
   return L.join('\n');
@@ -132,6 +142,8 @@ export function toYaml(runId, yardstickVersion, built) {
 // ── the page ──────────────────────────────────────────────────────────────────
 // a met row's cited strengths, in the owner's words: what was seen in place, then where
 const seenText = (r) => (r.seen && r.seen.length ? `${/[.!?]$/.test(String(r.reason || '').trim()) ? '' : '.'} Seen in place: ${r.seen.map((x) => mdText(x).replace(/\.$/, '')).join('; ')}. Where: ${whereText(r)}.` : '');
+// a claim row's context (#262), labelled so it never reads as met or unmet
+const contextSeenText = (r) => (r.context && r.context.length ? ` ${CONTEXT_LABEL}: ${(r.context_seen.length ? r.context_seen.map((x) => mdText(x).replace(/\.$/, '')).join('; ') : r.context.join(', '))}.` : '');
 const whereText = (r) => (r.where && r.where.length ? r.where.map(mdCode).join(', ') + (r.lens ? ` (${r.lens})` : '')
   : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : mdText(r.reason));
 
@@ -172,14 +184,14 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
     for (const r of floor.not_measured) {
       const asQuestion = r.decided_by === 'owner';
       const titlePart = asQuestion ? `${r.title.replace(/\.$/, '')}?` : `${r.title}.`;
-      out.push(`- **${titlePart}** ${mdText(r.reason)} What would tell: ${r.check}`);
+      out.push(`- **${titlePart}** ${mdText(r.reason)} What would tell: ${r.check}${contextSeenText(r)}`);
     }
   } else out.push('_Every floor requirement was measured this run._');
   out.push('');
 
   out.push('## Holds', '');
   if (floor.met.length) {
-    for (const r of floor.met) out.push(`- **${r.title}.** ${mdText(r.reason)}${seenText(r)}`);
+    for (const r of floor.met) out.push(`- **${r.title}.** ${mdText(r.reason)}${seenText(r)}${contextSeenText(r)}`);
   } else out.push('_Nothing on the floor is met yet._');
   out.push('');
 
@@ -200,12 +212,12 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
   out.push('');
   out.push('### Could not tell', '');
   if (beyond_floor.not_measured.length) {
-    for (const r of beyond_floor.not_measured) out.push(`- **${r.title}** — ${mdText(r.reason)} What would tell: ${r.check}`);
+    for (const r of beyond_floor.not_measured) out.push(`- **${r.title}** — ${mdText(r.reason)} What would tell: ${r.check}${contextSeenText(r)}`);
   } else out.push('_Nothing left to run._');
   out.push('');
   out.push('### Holds', '');
   if (beyond_floor.met.length) {
-    for (const r of beyond_floor.met) out.push(`- **${r.title}** — ${mdText(r.reason)}${seenText(r)}`);
+    for (const r of beyond_floor.met) out.push(`- **${r.title}** — ${mdText(r.reason)}${seenText(r)}${contextSeenText(r)}`);
   } else out.push('_Nothing met yet._');
   out.push('');
   if (beyond_floor.not_applicable.length) {

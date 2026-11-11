@@ -62,6 +62,9 @@ export function buildRows(runDir, tag, { withFloor = false } = {}) {
     // without re-deciding anything; the existing per-view YAML/MD renderers below
     // cherry-pick only the named fields they already used, so this is invisible there.
     const base = { id: d.id, tier: d.tier, topic: d.topic, title: d.title, basis: m.basis || 'run', check: d.check, findings: m.findings || [] };
+    // a claim row's context (#262): what the run saw on its population, carried beside the row and
+    // never in its findings:, so it cannot read as the evidence a status rests on
+    if (Array.isArray(m.context) && m.context.length) base.context = m.context.map(String);
     if (withFloor) base.floor = (d.tags || []).includes('floor');
     if (m.status === 'met') {
       met.push({ ...base, note: m.note });
@@ -90,12 +93,18 @@ export function buildRows(runDir, tag, { withFloor = false } = {}) {
 
 // ── shared YAML emission (yaml-min's constrained block-only subset) ──────────
 const q = (s) => yq(s == null ? '' : s);
+// a claim row's context (#262): only when the run saw any, so a row without it reads as before
+const contextYaml = (r) => (r.context && r.context.length ? [`    context: [${r.context.join(', ')}]`] : []);
+// the label the pages put on a claim row's context, worded so it never reads as met or unmet
+export const CONTEXT_LABEL = 'Seen in this run (context, not a decision)';
+export const contextText = (r) => (r.context && r.context.length ? ` ${CONTEXT_LABEL}: ${r.context.join(', ')}.` : '');
 function openRowYaml(r) {
   const L = [`  - id: ${r.id}`, `    tier: ${r.tier}`, `    topic: ${r.topic}`];
   if (r.floor !== undefined) L.push(`    floor: ${r.floor}`);
   L.push(`    title: ${q(r.title)}`, `    status: ${r.status}`, `    basis: ${r.basis || 'run'}`);
   if (r.of != null) L.push(`    met: ${r.met}`, `    of: ${r.of}`);
   L.push(`    findings: [${(r.findings || []).join(', ')}]`, `    note: ${q(r.note)}`, `    check: ${q(r.check)}`);
+  L.push(...contextYaml(r));
   return L.join('\n');
 }
 function metRowYaml(r) {
@@ -106,12 +115,14 @@ function metRowYaml(r) {
   // effect row read, an instrument's strength rows); a not-applicable row cites nothing
   if (r.met_row) L.push(`    findings: [${(r.findings || []).join(', ')}]`);
   L.push(`    note: ${q(r.note)}`);
+  L.push(...contextYaml(r));
   return L.join('\n');
 }
 function toRunRowYaml(r) {
   const L = [`  - id: ${r.id}`, `    tier: ${r.tier}`, `    topic: ${r.topic}`];
   if (r.floor !== undefined) L.push(`    floor: ${r.floor}`);
   L.push(`    title: ${q(r.title)}`, `    check: ${q(r.check)}`, `    decided_by: ${r.decided_by}`, `    basis: ${r.basis || 'run'}`, `    note: ${q(r.note)}`);
+  L.push(...contextYaml(r));
   return L.join('\n');
 }
 function notSeenRowYaml(r) {

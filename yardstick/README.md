@@ -109,12 +109,12 @@ record does not produce as drift.
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below) | met or unmet with the population, a met effect row citing the effect findings it read; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
 | `census` | an enumerated population in the run's `map/censuses.yaml`, by measure name, read off the finding ids its `members:` lists (below) | met only when every member is a strength, citing them; unmet on a gap (mixed when a strength sits beside it, except on a `safety` row); mixed when a member carries no verdict; with `met of N`; not-measured when no census of that name ran. A census with no `members:` never reads met |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
-| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). The claim rows a packet never speaks to are the list of instruments still to build |
+| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). A claim row with a `decide.context` also carries the findings the run listed on its population as `context:`, never as `findings:` (below). The claim rows a packet never speaks to are the list of instruments still to build |
 
 **A facet or census row's check names its population and its question** (#261, M3 of #257).
 If two careful readers holding the yardstick put one finding on different rows, the
-measurement cannot place it either. So every `facet` and `census` row's `check:` is one string
-in one form:
+measurement cannot place it either. So every `facet` and `census` row's `check:`, and every
+`claim` row's that carries a context list (#262), is one string in one form:
 
 ```
 Population: every <term> <scope>; excluded: <what>. Question: <one question>? <how the row reads>
@@ -146,7 +146,9 @@ read as ambiguous, never as one of them. The routes are:
      question (`map/SCHEMA.md` §8);
    - `d-effects-provable` takes any other effect.
 3. **Any other finding** is taken by the row whose population names the term its `member` gives.
-   In a run, `member` is the census the finding is listed in; a reader supplies it otherwise.
+   In a run, `member` is the census or context list the finding is listed in; a reader supplies
+   it otherwise. A claim row with a `decide.context` names its population in the same form, and
+   takes a finding as context only (below).
 
 Findings carry no requirement id (#257 Q1), and a term no row names is a stated boundary. These
 are the boundaries #257 named:
@@ -154,11 +156,12 @@ are the boundaries #257 named:
 - **Stale docs.** A concrete claim in the README, a doc page it routes to, or the agent contract
   file is a `doc claim`, which `d-readme-true` takes. A stale comment or header in code is a
   `code comment`, which no requirement takes until a docs-current-with-code row is promoted. A
-  second account of one fact is `d-one-home-per-fact`'s, which is a claim row and takes no finding.
+  second account of one fact is `d-one-home-per-fact`'s population, a claim row that takes it as
+  context, never as a decision (below).
 - **Spend.** No row takes a per-run or per-process ceiling enforced before a paid call (the
   paid-spend-capped candidate). `d-cost-alerts` covers an alert on the bill after the spend, and
-  only the repo census's owner-evidence transcript decides it. A per-call record of spend is
-  `d-model-call-telemetry`'s, which is a claim row.
+  only the repo census's owner-evidence transcript decides it. Whether a model call site records
+  its spend is `d-model-call-telemetry`'s, a census row (below).
 - **The multiplayer principals.** `d-agent-consumable-surface` takes an `interface` (can an agent
   use it through a contract stated outside the code?). Whether the server checks who is asking
   (`d-routes-authorized`) and whose data a request reaches (`d-tenant-isolation-in-data-layer`)
@@ -169,6 +172,40 @@ are the boundaries #257 named:
 requirement that takes it, or `none`. `tests/blocks/finding-maps-to-one-requirement.mjs` holds
 the yardstick to it. The block goes red when one row's population is blurred, or is moved onto
 another row's term.
+
+**The claim rows a run evidences** (#262, M4 of #257). In one run, 23 findings bore on ten
+claim rows and every one read not measured. Each of the ten carries one reviewed disposition
+on the row, `decide.why`, which opens with the kind and `(#262)`:
+
+- **Census-decided** where a run can close the population by reading the tree. The row is a
+  `census` row in the form above, and its census is in `map/METHOD.md`'s census list and the
+  practice-review lane's instructions.
+  - `d-model-call-telemetry` (`model call site`, census `model-call-telemetry`): every model
+    call is a provider SDK import or a call to a provider's API in the code.
+  - `d-ingested-content-is-data` (`ingestion point`, census `ingested-content`): outside text
+    enters only through an upload, a fetch, an inbound route, webhook or feed, or a file read
+    the code makes.
+- **A claim** where only the owner can attest it. The row stays `claim`, and when unsure it
+  stays one: a census that cannot be closed from the tree would read met over a population
+  nobody enumerated. It still names its population in the form above, so the one reading of
+  which requirement takes a finding (`requirementTaking`) places a finding on it, and its
+  `decide.context` names the **context list** the review writes for it (`map/SCHEMA.md` §6b).
+  The row's status stays not measured, or the packet's claim; the list's ids ride on the row as
+  `context:`, never in `findings:`, and the views show them as "Seen in this run (context, not
+  a decision)" (`views/README.md`).
+  - `d-one-home-per-fact` (`second account`): no listing closes the facts a system relies on.
+  - `d-model-qualification` (`model in use`): a qualification happens off the repository.
+  - `d-ai-disclosure` (`outward AI output`): whether a disclosure meets its audience's norms
+    is the owner's to say.
+  - `d-guards-bite` (`guard fixture`): seeing a check go red when weakened takes a mutation run
+    the lane does not make, and the checks are the change-gates census's population.
+  - `d-backlog-is-issues` (`backlog record`): the issues and their labels live on the forge.
+  - `d-ai-feature-evals` (`AI feature`): which features ship is a product boundary the tree
+    does not draw.
+  - `d-calibration-harness` (`relied-on rubric`): which rubrics are relied on is the owner's to
+    say, and the repeated runs happen in a model.
+  - `d-change-carries-verification` (`change verification`): the changes live in the forge's
+    history, not the tree.
 
 **Gates on a change** (#257 Q5). `d-gates-fail-closed` keeps the gates in front of the
 application's effects. `d-change-gates-fail-closed` is a separate census row (`change-gates`).

@@ -29,7 +29,7 @@ passes:
     pass: 2
     dimension: context-economy
     title: Context economy
-    decides: [d-modules-standalone]
+    decides: [d-modules-standalone, d-model-call-telemetry]
     discovery:
       - property: entry-docs-route-a-stranger
         question: do the entry-point docs route a stranger to the one subsystem a task needs, disclosing the rest progressively?
@@ -68,7 +68,7 @@ passes:
     pass: 5
     dimension: delegation
     title: Delegation surface
-    decides: [d-effect-channels-enumerated, d-effects-gated, d-gates-fail-closed, d-effects-traced, d-effects-provable, d-capability-budget, d-credentials-enumerated]
+    decides: [d-effect-channels-enumerated, d-effects-gated, d-gates-fail-closed, d-effects-traced, d-effects-provable, d-capability-budget, d-credentials-enumerated, d-ingested-content-is-data]
     discovery:
       - property: acting-principal-stated
         question: for each connector, tool surface and effect, can you say who is acting as whom, with per-identity scoping and a stated role, rather than one opaque principal?

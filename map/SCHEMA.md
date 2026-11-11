@@ -668,6 +668,35 @@ yardstick never reads it met: a count typed by hand is not evidence (`yardstick/
 "Met needs positive evidence"). In census-augmented mode the review already writes one
 finding per member, so `members:` is that list of ids.
 
+**A claim row's context list (#262).** A claim row the owner decides can still be one a run
+sees evidence on. Its `decide.context` (`yardstick/requirements.yaml`) names a **context list**,
+and the review lists the findings it saw on that row's population there, under a top-level
+`context:` in `map/censuses.yaml`:
+
+```yaml
+context:
+  - name: model-qualification     # a claim row's decide.context
+    members: [F-218, F-228]       # this run's findings on the row's population, one id each
+```
+
+A context list is not a census: it carries no `met`/`of`, no `method` and no dimension, counts in
+no coverage, and decides nothing. The measurement carries its ids on the claim row as
+`context:`, beside its status and never in its `findings:`, and the views show them under
+"Seen in this run (context, not a decision)" (`views/README.md`). `validate` refuses a list no
+claim row names, an id the run does not carry, an id listed twice, and an id that is also a
+census member: a finding is listed once, on the one population it is a member of.
+
+| claim row | context list |
+|---|---|
+| `d-one-home-per-fact` | `second-accounts` |
+| `d-model-qualification` | `model-qualification` |
+| `d-ai-disclosure` | `ai-disclosure` |
+| `d-guards-bite` | `guard-fixtures` |
+| `d-backlog-is-issues` | `backlog-records` |
+| `d-ai-feature-evals` | `ai-feature-evals` |
+| `d-calibration-harness` | `rubric-calibration` |
+| `d-change-carries-verification` | `change-verification` |
+
 **Per member, or one finding for a family — what the coverage gate counts.** The
 `enumerate --run` gate (`map/enumerate.mjs`, §8) reads a finding's `evidence` and `covers` lists
 with the YAML parser, block or flow form, whatever the cited file's type; a path named
@@ -1117,6 +1146,8 @@ the yardstick's):
 | `d-agent-consumable-surface` | `agent-access-surface` · `agent-consumable-surface` |
 | `d-corrections-become-mechanisms` | `incidents-became-mechanisms` · `incident-lesson` · `lessons-mechanized` |
 | `d-change-gates-fail-closed` | `change-gates` · `change-gates-fail-closed` |
+| `d-model-call-telemetry` | `model-call-telemetry` · `model-calls` |
+| `d-ingested-content-is-data` | `ingested-content` · `ingestion-points` |
 
 A population no requirement reads by census (`effect-provability`, `gates-coverage`) keeps
 a descriptive name; it still carries `subject_type` and `rule`.

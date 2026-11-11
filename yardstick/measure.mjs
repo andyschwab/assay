@@ -17,7 +17,9 @@
 //     reads not-measured;
 //   • a `claim` requirement always reads not-measured from a run UNLESS a
 //     repository's own packet (owner/PACKET.md) decides it — then it reads from
-//     the packet, `basis: owner` on the row, never inferred from a run;
+//     the packet, `basis: owner` on the row, never inferred from a run; what the
+//     run saw on its population (its context list, #262) rides beside it as
+//     `context:`, never in `findings:` and never in its status;
 //   • a claim on a row the RUN decides (facet/census/instrument) never changes
 //     that row's status — a claim never lets presence stand in for enforcement.
 //     `satisfied` against a run-`unmet` row is a contradiction, recorded, not merged.
@@ -111,6 +113,14 @@ export function validateYardstick(reg) {
       } else if (d.decide.scanner !== undefined || d.decide.category !== undefined) errors.push(...validateDecider(d.decide, `${at}: instrument`));
       if (d.decide.any_gap !== undefined && d.decide.any_gap !== 'unmet') errors.push(`${at}: decide.any_gap may only be "unmet" (a check every listed property must hold)`);
     }
+    // why this kind decides the row (#262): optional, one sentence where given
+    if (d.decide && d.decide.why !== undefined && !(typeof d.decide.why === 'string' && d.decide.why.trim())) errors.push(`${at}: decide.why must be a sentence (why this kind decides the row)`);
+    // a claim row's context (#262): the context lists in map/censuses.yaml whose findings it
+    // shows beside its status, never as its decision; only a claim row has one
+    if (d.decide && d.decide.context !== undefined) {
+      if (d.decide.kind !== 'claim') errors.push(`${at}: decide.context is a claim row's (a run-decided row cites what decides it)`);
+      else if (!Array.isArray(d.decide.context) || !d.decide.context.length || !d.decide.context.every((x) => typeof x === 'string' && x)) errors.push(`${at}: decide.context must be a non-empty list of context list names`);
+    }
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
     if (!Array.isArray(d.sources) || !d.sources.length) errors.push(`${at}: sources required (extracted, not designed)`);
     if (!['draft', 'stable', 'deprecated'].includes(d.status)) errors.push(`${at}: status must be draft|stable|deprecated`);
@@ -118,6 +128,14 @@ export function validateYardstick(reg) {
     // required on every row, fail-closed, the same as check/sources above — a row with no
     // owner register would read as an owner page with a blank line, never an absence.
     if (!d.owner || !d.owner.risk || !d.owner.fix) errors.push(`${at}: owner.risk and owner.fix required (the Owner view's register)`);
+  }
+  // a name is a census's or a context list's, never both, and a context list is one row's
+  const measured = new Set(reg.requirements.flatMap((d) => (d?.decide?.kind === 'census' && Array.isArray(d.decide.measures) ? d.decide.measures : [])));
+  const contextOf = new Map();
+  for (const d of reg.requirements) for (const name of Array.isArray(d?.decide?.context) ? d.decide.context : []) {
+    if (measured.has(name)) errors.push(`yardstick: ${d.id}: context list "${name}" is a census name: a census decides a row, a context list never does`);
+    if (contextOf.has(name)) errors.push(`yardstick: ${d.id}: context list "${name}" is already ${contextOf.get(name)}'s`);
+    else contextOf.set(name, d.id);
   }
   return errors;
 }
@@ -267,6 +285,18 @@ function byCensus(d, inputs, findingsById = new Map()) {
   else if (unjudged.length) status = strengths.length ? 'mixed' : 'not-measured';
   else status = 'met';
   return row(status, 'census', c.members, note, { met, of, measure: s.name });
+}
+
+// A claim row's context (#262, M4 of #257): the finding ids the run's context lists name for its
+// population (map/censuses.yaml `context:`, map/SCHEMA.md §6b), in list order, each once. They
+// are what the run saw bearing on a row only the owner decides: shown beside its status, never
+// in its findings:, so nothing the run saw reads the row met or unmet.
+function contextOfClaim(d, inputs) {
+  const names = new Set(Array.isArray(d?.decide?.context) ? d.decide.context : []);
+  if (!names.size) return [];
+  const ids = [];
+  for (const c of Array.isArray(inputs?.context) ? inputs.context : []) if (c && names.has(c.name)) for (const id of Array.isArray(c.members) ? c.members : []) ids.push(String(id));
+  return [...new Set(ids)];
 }
 
 // one listed category's own "no gap rows" verdict — a deterministic INSTRUMENT that ran
@@ -461,6 +491,9 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
       const pd = decidePacketClaim(d.id, packet);
       if (pd) { r = row(pd.status, 'claim', [], pd.note); basis = 'owner'; }
       else r = row('not-measured', 'claim', [], 'claim-only: decided by the owner, never inferred from a run');
+      // what the run saw on the row's population (#262): shown beside the status, never part of it
+      const context = contextOfClaim(d, inputs);
+      if (context.length) r = { ...r, context };
     }
     if (d.decide.kind !== 'claim') r = withLanes(d, r, adapters, disp);
     if (d.decide.kind !== 'claim') {
@@ -531,6 +564,8 @@ export function toYaml(rows, runName) {
     L.push(`  - id: ${r.id}`, `    status: ${r.status}`, `    how: ${r.how}`, `    basis: ${r.basis || 'run'}`);
     if (r.of != null) L.push(`    met: ${r.met}`, `    of: ${r.of}`);
     L.push(`    findings: [${r.findings.join(', ')}]`, `    note: ${q(r.note)}`);
+    // a claim row's context (#262): what the run saw on its population, never its decision
+    if (Array.isArray(r.context) && r.context.length) L.push(`    context: [${r.context.join(', ')}]`);
     if (Array.isArray(r.reviewed) && r.reviewed.length) {
       L.push('    reviewed:');
       for (const v of r.reviewed) L.push(`      - by: ${v.by}`, ...(v.head ? [`        head: ${q(v.head)}`] : []), ...(v.date ? [`        date: ${q(v.date)}`] : []));

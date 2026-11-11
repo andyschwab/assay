@@ -197,13 +197,13 @@ entries:
   - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
     finding: F-718
     member: second account
-    requirement: none
-    why: "admin membership in two places: d-one-home-per-fact is a claim row"
+    requirement: d-one-home-per-fact
+    why: "admin membership in two places: d-one-home-per-fact's population, a claim row that takes it as context (#262)"
   - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
     finding: F-707
     member: second account
-    requirement: none
-    why: "note ownership recorded twice"
+    requirement: d-one-home-per-fact
+    why: "note ownership recorded twice, taken as context (#262)"
   # ── boundaries: spend ──
   - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
     finding: F-222
@@ -212,9 +212,50 @@ entries:
     why: "no per-user or per-request budget before the call: the paid-spend-capped candidate, not d-cost-alerts (an alert after the bill)"
   - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-2
     finding: F-120
-    member: model call record
-    requirement: none
-    why: "spend not metered per call: d-model-call-telemetry is a claim row"
+    member: model call site
+    requirement: d-model-call-telemetry
+    why: "the assistant's model call records no token count, cost or usage: a model call site that emits no record, d-model-call-telemetry's census (#262)"
+  # ── the census rows #262 moved off claim, and the claim rows that take findings as context ──
+  - run: tests/sweeps/assay-2026-11-11/sweep-3
+    finding: F-433
+    member: ingestion point
+    requirement: d-ingested-content-is-data
+    why: "prose a review session wrote after reading the untrusted target reaches the handoff unfenced: outside text not kept as data, d-ingested-content-is-data's census (#262)"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-218
+    member: model in use
+    requirement: d-model-qualification
+    why: "no model-tier choice recorded with a rationale or a re-qualification trigger: context on a claim row"
+  - run: tests/sweeps/assay-2026-11-11/sweep-3
+    finding: F-439
+    member: outward AI output
+    requirement: d-ai-disclosure
+    why: "a model session lands a change in another repository with no instruction to disclose that a model wrote it: context on a claim row"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-309
+    member: guard fixture
+    requirement: d-guards-bite
+    why: "each validate negative fixture must go red for its own violation: context on a claim row, which the run cannot decide without a mutation run"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-615
+    member: backlog record
+    requirement: d-backlog-is-issues
+    why: "the run's engine backlog stops at a file and moving an item to an issue is a person's act: context on a claim row"
+  - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
+    finding: F-223
+    member: AI feature
+    requirement: d-ai-feature-evals
+    why: "no eval, fixture or test of the assistant's answers: context on a claim row"
+  - run: tests/sweeps/assay-2026-11-11/sweep-3
+    finding: F-326
+    member: relied-on rubric
+    requirement: d-calibration-harness
+    why: "variance measures repeatability across blind sweeps of one frozen target: context on a claim row"
+  - run: tests/sweeps/assay-2026-11-11/sweep-1
+    finding: F-610
+    member: change verification
+    requirement: d-change-carries-verification
+    why: "the red-then-green statement a change must carry is held only as text, no check reads the pull request body: context on a claim row"
   # ── boundaries: the multiplayer principals ──
   - run: tests/sweeps/flawed-webapp-2026-11-11/sweep-1
     finding: F-500
