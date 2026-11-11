@@ -86,15 +86,16 @@ export function triageErrors({ candidates, triage }, findingsById) {
   return errors;
 }
 
-// the measurement's read of the population: { listed, candidates, untriaged, covered, outOfScope, reason }.
+// the measurement's read of the population: { listed, triaged, candidates, untriaged, covered, outOfScope, reason }.
+// triaged is whether the run carries a triage at all (#275): a list nobody triaged decides nothing.
 // A candidate counts triaged only by an entry that holds (an effect finding of this run, or a
 // reason); anything else leaves it untriaged, so a bad entry never reads as a closed one.
-export function channelPopulation({ candidates, triage, errors = [] } = /** @type {any} */ ({}), findings = []) {
+// byId: id → finding, the run's findings.
+export function channelPopulation({ candidates, triage, errors = [] } = /** @type {any} */ ({}), byId = new Map()) {
   if (!Array.isArray(candidates)) {
     const why = errors.length ? `the candidate list does not read (${errors[0]})` : `the run carries no channel candidate list (${ENUMERATE_FILE}, which assay start writes)`;
-    return { listed: false, candidates: [], untriaged: [], covered: [], outOfScope: [], reason: `effect population not closed: ${why}` };
+    return { listed: false, triaged: false, candidates: [], untriaged: [], covered: [], outOfScope: [], reason: `effect population not closed: ${why}` };
   }
-  const byId = new Map(findings.map((f) => [String(f.id), f]));
   const ok = new Map();
   for (const x of Array.isArray(triage) ? triage : []) {
     if (!x || typeof x !== 'object' || typeof x.candidate !== 'string' || ok.has(x.candidate)) continue;
@@ -104,5 +105,5 @@ export function channelPopulation({ candidates, triage, errors = [] } = /** @typ
   const untriaged = candidates.filter((c) => !ok.has(c));
   const covered = [...new Set(candidates.filter((c) => ok.get(c)?.finding).map((c) => ok.get(c).finding))];
   const outOfScope = candidates.filter((c) => ok.get(c)?.out_of_scope);
-  return { listed: true, candidates, untriaged, covered, outOfScope, reason: null };
+  return { listed: true, triaged: Array.isArray(triage), candidates, untriaged, covered, outOfScope, reason: null };
 }

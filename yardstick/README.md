@@ -133,8 +133,10 @@ yardstick reads both (`map/effect-triage.mjs`). The four effect rules (`halts-ga
 
 `d-effect-channels-enumerated` is decided by the triage itself, as the `facet` rule
 `channels-triaged`: met when every candidate is triaged (`met of N`, citing the effect
-findings that cover them), unmet naming the untriaged ones, and not measured without a list
-or over an empty one (nothing was triaged, so nothing is decided). For a web app it is
+findings that cover them), unmet naming the untriaged ones when a triage exists, and not
+measured without a list, over an empty one, or with no triage at all (#275). A run whose lane
+did not triage (a routine run, a lane skipped) holds a review that did not happen, never a gap
+in the target: the note names the lane, "not run" or "wrote no triage". For a web app it is
 decided over the route handlers and effect-site members. It is a `facet` row, not a `census` one: a census reads
 the members a review session lists in `map/censuses.yaml`, while this row is computed from the
 run's own two files, the way the other facet rules are computed from the finding facets, so

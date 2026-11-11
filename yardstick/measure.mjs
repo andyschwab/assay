@@ -177,20 +177,24 @@ function closedOver(r, ch) {
 }
 // channels-triaged (d-effect-channels-enumerated): the triage itself, as the decision. Met when
 // every candidate is triaged (channel candidates, route handlers and effect call sites, #269);
-// unmet naming the ones that are not; not measured without a list, and over an empty one
-// (enumerate found nothing to triage, which decides nothing).
-function byChannels(ch) {
+// unmet naming the ones that are not; not measured without a list, over an empty one
+// (enumerate found nothing to triage, which decides nothing), and with no triage at all (#275):
+// a list no lane triaged is a review that did not happen, never a gap in the target. lanes: the
+// lanes that decide the row (lanesDeciding), named in the note; a lane with no ran disposition
+// has its note replaced by "<lane> lane not run" (withLanes).
+function byChannels(ch, lanes = []) {
   if (!ch.listed) return row('not-measured', 'facet', [], ch.reason);
   const n = ch.candidates.length;
   if (!n) return row('not-measured', 'facet', [], 'enumerate listed no channel candidate, route handler or effect call site: an empty list decides nothing');
+  if (!ch.triaged) return row('not-measured', 'facet', [], `${lanes.length ? `the ${lanes.join(', ')} lane` : 'no lane'} wrote no triage (map/effect-triage.yaml) of the ${n} candidate(s) map/raw/enumerate.json lists: nothing was triaged, so nothing is decided`);
   const triaged = n - ch.untriaged.length;
   const split = `${ch.covered.length} effect finding(s) cover them, ${ch.outOfScope.length} out of scope`;
   if (!ch.untriaged.length) return row('met', 'facet', ch.covered, `${n} of ${n} channel candidates triaged: ${split}`, { met: n, of: n });
   return row('unmet', 'facet', ch.covered, `${triaged} of ${n} channel candidates triaged (${split}); untriaged: ${ch.untriaged.join(', ')}`, { met: triaged, of: n });
 }
 
-function byFacet(d, fs, ch = channelPopulation()) {
-  if (d.decide.rule === 'channels-triaged') return byChannels(ch);
+function byFacet(d, fs, ch = channelPopulation(), lanes = []) {
+  if (d.decide.rule === 'channels-triaged') return byChannels(ch, lanes);
   if (EFFECT_RULES.has(d.decide.rule)) return closedOver(byEffects(d, fs), ch);
   return byEffects(d, fs);
 }
@@ -446,11 +450,11 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
   adapters ??= (ADAPTERS ??= loadAdapters());
   const contradictions = [];
   const claims = packet && Array.isArray(packet.claims) ? packet.claims : [];
-  const ch = channelPopulation(channels || {}, findings);
   const findingsById = new Map(findings.map((f) => [String(f.id), f]));
+  const ch = channelPopulation(channels || {}, findingsById);
   const rows = reg.requirements.map((d) => {
     let r, basis = 'run';
-    if (d.decide.kind === 'facet') r = byFacet(d, findings, ch);
+    if (d.decide.kind === 'facet') r = byFacet(d, findings, ch, lanesDeciding(d, adapters, disp));
     else if (d.decide.kind === 'census') r = byCensus(d, inputs, findingsById);
     else if (d.decide.kind === 'instrument') r = decideInstrument(d, findings, disp, coverage || {}, adapters);
     else {

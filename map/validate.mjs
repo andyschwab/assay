@@ -424,6 +424,9 @@ if (existsSync(decPath)) {
   }
 }
 
+// id → finding, the run's findings: the triage and census checks below both resolve ids against it
+const findingOf = new Map([...allById.entries()].map(([id, v]) => [id, v.f]));
+
 // the effect-channel triage (map/effect-triage.yaml, SCHEMA.md §6e, #259): optional, since a
 // run whose practice-review lane has not run has none, but when present the yardstick reads it
 // as the closed effect population, so it is held: every candidate in map/raw/enumerate.json
@@ -433,7 +436,7 @@ if (existsSync(decPath)) {
   const { loadChannelFiles, triageErrors } = await import('./effect-triage.mjs');
   const files = loadChannelFiles(runDir);
   for (const e of files.errors) errors.push(e);
-  for (const e of triageErrors(files, new Map([...allById].map(([id, v]) => [id, v.f])))) errors.push(e);
+  for (const e of triageErrors(files, findingOf)) errors.push(e);
 }
 
 // fail-closed PROJECTION gate (coverage integrity, CI-enforced — not render-only):
@@ -601,7 +604,6 @@ if (canonName) {
 // variance and compile instead of failing here, naming the file (#267).
 const censusesLabel = 'map/censuses.yaml';
 let censusDims = {};
-const findingOf = new Map([...allById.entries()].map(([id, v]) => [id, v.f]));
 if (existsSync(censusesPath(runDir))) {
   let cz = null;
   try { cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8')); }
