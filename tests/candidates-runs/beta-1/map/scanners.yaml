@@ -1,0 +1,40 @@
+# scanners.yaml — a #265 tally fixture run (tests/candidates-runs/README.md): inert, on an example.org target.
+engine: fixture
+identity:
+  repository: "https://example.org/fixtures/mono"
+  path: "services/beta"
+drawn: "2026-03-10"
+scanners:
+  practice-review:
+    status: ran
+    model: "fixture-model"
+  deep-code-review:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  gitleaks:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  fresh-clone:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  dependency-scan:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  repo-census:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  structure-scan:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  osv-scanner:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  checkov:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  zizmor:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"
+  opengrep:
+    status: skipped
+    reason: "tally fixture: only practice-review findings are carried"

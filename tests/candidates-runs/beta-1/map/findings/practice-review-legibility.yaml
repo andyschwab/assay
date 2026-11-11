@@ -1,0 +1,24 @@
+# Legibility pass of the beta-1 tally fixture run: candidate findings no requirement takes.
+- id: F-001
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "The service image is pushed to its registry unsigned."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: release-signing
+- id: F-002
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "Each release carries a CHANGELOG.md entry naming the change and its pull request."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: changelog-kept
+- id: F-003
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "The service reads its port from an environment variable with no default."
+  evidence: [README.md:1]
+  confidence: confirmed

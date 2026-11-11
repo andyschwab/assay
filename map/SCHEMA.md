@@ -398,6 +398,10 @@ it, never writing unlocked.
 ```yaml
 # map/scanners.yaml — template: map/templates/scanners.yaml
 engine: 759240a               # the engine commit the run executed under (warned if absent)
+identity:                     # the target, as the run states it (#265); optional, written by start
+  repository: "https://github.com/<owner>/<repo>"   # the origin remote, userinfo stripped
+  path: "."                   # the target's path within the repository: `.`, or e.g. targets/<name>
+drawn: "2026-11-11"           # the day the run was drawn, YYYY-MM-DD; optional, written by start
 scanners:
   practice-review:
     status: ran
@@ -408,6 +412,25 @@ scanners:
     status: failed
     reason: "<instrument> exited 2: <the tail of its error>"
 ```
+
+**What the run states of itself (#265).** `identity:` names the target the same way on
+every machine: `repository`, the target repository's remote (the origin remote, with any
+`user:password@` userinfo stripped), and `path`, the target's path within that repository
+(`.` at its top level, `targets/flawed-webapp` for a subtree). It is never a local path: a
+local path describes the machine the run was drawn on, not the target, and two checkouts
+of one repository must read as one target. `drawn:` is the day the run was drawn.
+`assay start` writes both (`map/target-identity.mjs` reads the identity through git, whose
+upward discovery finds the repository that holds a subtree); over a tree with no origin
+remote, or one whose origin is itself a local path, it writes no `identity:` and says so.
+`validate` refuses an `identity:` whose repository is a local path, carries userinfo or is
+not a remote, or whose path is absolute or has a `.`, `..` or empty segment, and a `drawn:`
+that is not a day; a run drawn before the fields carries neither and validates and
+measures as before. The cross-run tally (`node assay.mjs candidates`, `views/README.md`)
+reads them: runs of one target count once (one repository over https and ssh, with or
+without `.git`, is one target; two paths within it are two), a run that states no
+identity is refused, naming the field, and `--target <run>=<repository>[#<path>]` states
+it for a stored run, never a directory name. The tally's date is `drawn:`, else the latest
+`reviewed.date` on a row, else `--date <run>=YYYY-MM-DD`; never the file system's.
 
 A row may carry `model:`, the model id a judgment scanner ran on (practice-review,
 a peer reviewer, a census authored by a model), and `spend:`, what its inference spent,

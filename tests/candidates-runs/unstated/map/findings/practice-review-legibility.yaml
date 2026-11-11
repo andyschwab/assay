@@ -1,0 +1,9 @@
+# Legibility pass of the unstated tally fixture run: candidate findings no requirement takes.
+- id: F-001
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "No CHANGELOG is kept; the release notes are the commit subjects."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: changelog-kept

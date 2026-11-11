@@ -170,6 +170,34 @@ over `views/improve/templates/`). It needs the run's authored
 | `views/improve/chains.json` | the ranked chains as data (`assay.chains/1`, `map/SCHEMA.md` §6d): `{ schema, run, live: [{ rank, entry: { id, label }, headline: { id, label }, sinks: [{ id, label, blast }], blast, difficulty_rank, difficulty_why, path: [F-…], tentative }], held: [{ entry, holds: [{ id, label, by }] }], contained: [{ id, label, why }], unresolved: [{ kind, id, label, why }] }`; `report.mjs` checks it before writing, `validate` reads it back |
 | `views/improve/report.json` | the report's model as data, labels applied, for a renderer of the report that imports nothing (`assay.improve-report/1`, `lib/run-data.mjs` `checkImproveReport`): `{ schema, run, labels: { dimension, who, group, confidence }, capabilities: { counts: { kinds, unguarded, byGroup }, groups: [{ group, label, kinds, unguarded, channels: [{ channel, label, what, findings: [F-…], external, reversibility, telemetry, trace, blast, gates, halt }] }] }, chains: { live: [chains.json's live row, plus blast_word, difficulty, cuts: [{ id, label }], weakest: { id, confidence, word } \| null], held, contained, unresolved }, supervision: { total, supervised, unsupervised, kinds: [{ channel, label, sites, ids: [F-…], fixes: [{ n, slug }] }], fixes: [n], any_unplanned }, howto }`; a live chain's `cuts` are the control or process gaps that stop it (`[]` when none) and its `weakest` the step a tentative chain rests on (`confidence` `plausible` or `unverified`, `word` the report's phrase for it), `null` when the chain is not tentative, both as `map/chains.mjs` computes them; every entry naming a finding by `id` (each `entry`, `headline`, sink, hold, cut, `weakest`, `contained` and `unresolved` row) carries that finding's `confidence` and `word`, the phrase `labels.confidence` gives it (`{ plausible, unverified }` → the report's hedge), `null` when confirmed, so a renderer never maps a confidence to words itself and `checkImproveReport` refuses an entry without both; `howto` is the report's how-to text, markdown; `report.mjs` checks it before writing, `validate` reads it back |
 
+### Across runs: the candidates tally (#265)
+
+`node assay.mjs candidates <run> <run> … [--json]` (`views/improve/tally.mjs`) tallies the
+candidate properties of several measured runs, reading each run's candidates through
+`buildCandidates` (`views/improve/candidates.mjs`), so a run counts once measured, whether
+or not `compile` has written its `candidates.yaml`. A target is what the run states of
+itself, `identity: { repository, path }` in `map/scanners.yaml` (`map/SCHEMA.md` §5a):
+runs of one target count once. A property seen on two or more independent targets is
+**proposed**, one seen on one target **held** (#257 Q2). Proposing edits nothing: a
+proposed property becomes a requirement only by a reviewed change to
+`yardstick/requirements.yaml` that names its sources, as every row does, and the output
+says so. **Saturation** (D3): the runs in the date each records (`drawn:`, else the latest
+`reviewed.date` on a row; never the file system's), each with the number of properties it
+adds that no earlier run carried; that number falling means the yardstick is converging.
+`--json` writes, to stdout and nowhere in a run:
+
+`{ runs: [{ run, target, date, added }], properties: [{ property, status: proposed | held, targets: [<identity>], findings, first }], unnamed }`
+
+`runs` in date order (ties keep the order given), each `target` as its target's first run
+states it (`<repository>`, or `<repository>#<path>` for a subtree); `properties` proposed
+first, then by the number of targets, then by name, `findings` the candidate findings that
+name it over every run and `first` the run it first appeared in; `unnamed` the number of
+candidate findings that name no property, counted, never as one property. A run that
+states no identity, records no date, or has no `yardstick.yaml` is refused, naming what is
+missing, and nothing is tallied; `--target <run>=<repository>[#<path>]` and `--date
+<run>=YYYY-MM-DD` state them for a stored run drawn before the fields, and a statement
+that contradicts the run's own record is refused.
+
 ## Since: what changed?
 
 `views/since.mjs` → `views/since.yaml` and `SINCE.md`, written by

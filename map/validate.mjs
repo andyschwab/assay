@@ -27,6 +27,7 @@ import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
 import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
 import { legacyIn } from './migrate-run.mjs';
 import { censusCount, memberErrors } from './census.mjs';
+import { identityProblems } from './target-identity.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -277,6 +278,9 @@ for (const file of passFiles) {
         err(MANIFEST_FILE, `needs a top-level scanners: map (one row per adopted scanner)`);
       } else {
         if (!m.engine) warn(MANIFEST_FILE, `no engine: SHA recorded — a determinism claim cannot separate method drift from engine drift without it`);
+        // what the run states of itself (#265): its target's identity, never a local path, and the day it was drawn
+        if (m.identity !== undefined) for (const p of identityProblems(m.identity)) err(`${MANIFEST_FILE}:identity`, p);
+        if (m.drawn !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(m.drawn))) err(`${MANIFEST_FILE}:drawn`, `drawn is the day the run was drawn, YYYY-MM-DD`);
         const adopted = adoptedAdapters(ADAPTERS);
         for (const id of Object.keys(adopted)) if (!m.scanners[id]) err(`${MANIFEST_FILE}:${id}`, `adopted scanner has no disposition — record ran, skipped (with the reason), or failed (with the error)`);
         for (const [id, row] of Object.entries(m.scanners)) {

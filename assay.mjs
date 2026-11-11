@@ -54,6 +54,7 @@ const GROUPS = [
     'owner': ['views/owner.mjs', "the Owner view alone: what is true of it, in the owner's own register"],
     'since': ['views/since.mjs', 'what changed since a previous run — regressions, improvements, new/gone findings'],
     'maturity': ['views/improve/maturity.mjs', "Improve's maturity coverage per dimension"],
+    'candidates': ['views/improve/tally.mjs', 'candidate properties tallied across measured runs: proposed when seen on two independent targets, held when on one, and the saturation series (the properties each run adds, in date order); each run states its target (identity:) ([--json] [--target <run>=<repository>[#<path>]] [--date <run>=YYYY-MM-DD])'],
   }],
 ];
 

@@ -1,0 +1,24 @@
+# Legibility pass of the alpha-1 tally fixture run: candidate findings no requirement takes.
+- id: F-001
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "Release tags are pushed unsigned; the release script runs git tag with no -s."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: release-signing
+- id: F-002
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "A nightly job pushes the notes database to a second host with no record of what it sent."
+  evidence: [README.md:1]
+  confidence: confirmed
+  property: backup-push
+- id: F-003
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: "The README names a maintainer channel and no response time."
+  evidence: [README.md:1]
+  confidence: confirmed
