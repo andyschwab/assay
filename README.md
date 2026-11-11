@@ -220,13 +220,15 @@ planted defect and strength is documented, in
 `npm test` pins those scores with the rest of the regression harness, so a change
 that misfiles a finding turns the suite red.
 
-Repeatability is two numbers. **Fact presence** asks whether every run recorded a
+Repeatability is three numbers. **Fact presence** asks whether every run recorded a
 fact about the same thing; **descriptor agreement** asks whether the runs judged
 it the same way (reversibility, gate type and the other finding descriptors the
-views compute from). `node assay.mjs variance <run> <run> …` reports both, with a
-direction for each divergence: all one way is consistent with the target having
-changed; both ways at once is judgment drift. `npm test` measures every sweep
-set committed under `tests/sweeps/` and fails when either number falls below the
+views compute from); **requirement agreement** asks whether the runs reached the
+same verdict on each requirement the yardstick decides from them, the layer a
+reader acts on. `node assay.mjs variance <run> <run> …` reports all three, with a
+direction for each descriptor divergence: all one way is consistent with the target
+having changed; both ways at once is judgment drift. `npm test` measures every sweep
+set committed under `tests/sweeps/` and fails when any number falls below the
 set's threshold; the blind set there is the repeatability figure the gate holds
 (`tests/sweeps/README.md`).
 

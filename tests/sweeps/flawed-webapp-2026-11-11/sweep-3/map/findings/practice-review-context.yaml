@@ -1,0 +1,173 @@
+# map/findings/practice-review-context.yaml
+# Pass 2 — context economy (dimension: context-economy; unprompted allowed)
+# Target: targets/flawed-webapp (notesbox) — run flawed-webapp-2026-11-11
+# Census-augmented: one finding per modules-standalone item (7) and per doc-freshness item (2),
+# plus entry-point routing and the spend side. Evidence paths are relative to targets/flawed-webapp/.
+
+# ── modules-standalone census (subject_type: artifact; met = loadable/understandable standalone at a clean boundary)
+
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs's header says route handlers delegate to the lib/ and routes/ modules so each
+    concern lives in one place, but the GET /notes and POST /notes handlers are written inline
+    and read and write the notes Map imported from lib/db.mjs directly.
+  evidence: [server.mjs:1-2, server.mjs:5, server.mjs:30-40]
+  confidence: confirmed
+
+- id: F-202
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs is a 17-line module with one import (sessions from lib/db.mjs) and two exports,
+    and its unknown-token fallback to a default admin identity is explained in an inline comment
+    beside the code that does it.
+  evidence: [lib/auth.mjs:1-2, lib/auth.mjs:5-13, lib/auth.mjs:15-17]
+  confidence: confirmed
+
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/db.mjs has no imports and loads on its own, exporting its raw stores (the users array and
+    the notes Map) alongside sessions.lookup and purgeAll.
+  evidence: [lib/db.mjs:1-2, lib/db.mjs:8, lib/db.mjs:19-25, lib/db.mjs:27-31]
+  confidence: confirmed
+
+- id: F-204
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs opens with a header comment stating what the module does, that the model call is
+    a stub, and the data flow from prompt to email send, and it imports only lib/db.mjs and
+    lib/mailer.mjs.
+  evidence: [lib/agent.mjs:1-9]
+  confidence: confirmed
+
+- id: F-205
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs is a 10-line module with a header stating its transport is log-only in this
+    build, one import (config/settings.mjs) and one export, sendEmail.
+  evidence: [lib/mailer.mjs:1-3, lib/mailer.mjs:5-9]
+  confidence: confirmed
+
+- id: F-206
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs is a 15-line module with a one-line purpose header, two imports (lib/db.mjs and
+    config/settings.mjs) and one export, pushBackup.
+  evidence: [lib/sync.mjs:1-3, lib/sync.mjs:5-14]
+  confidence: confirmed
+
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs documents its handler as DELETE /admin/purge, while server.mjs dispatches it
+    on POST /admin/purge.
+  evidence: [routes/admin.mjs:5-6, server.mjs:52-54]
+  confidence: confirmed
+
+# ── doc-freshness census (subject_type: artifact; met = its concrete claims match the code)
+
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md says the API exposes 4 endpoints, names `npm run test:all` and says every endpoint is
+    covered by the smoke suite, while server.mjs routes 5 endpoints (POST /admin/purge is not
+    listed), package.json defines only a start script, and test/smoke.mjs asserts only that
+    authenticate resolves a user for one valid token; its run command (node server.mjs) does match.
+  evidence: [README.md:14-19, README.md:24, README.md:32, README.md:35, server.mjs:30-54, server.mjs:59-61, package.json:6-8, test/smoke.mjs:5-9]
+  confidence: confirmed
+
+- id: F-209
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    ADR-0001's concrete claims match the code: the store is in memory in lib/db.mjs, the data model
+    is users, notes and sessions, purgeAll and sessions.lookup exist, there is no database
+    dependency, and nothing persists across a restart.
+  evidence: [docs/adr/0001-storage-choice.md:9-10, docs/adr/0001-storage-choice.md:14-17, docs/adr/0001-storage-choice.md:21-23, lib/db.mjs:1-31, package.json:1-9]
+  confidence: confirmed
+
+# ── module coupling and stale pointers
+
+- id: F-210
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs imports and reads the users export of lib/db.mjs, which is not among the
+    interface members (lookup, the notes map surface, purgeAll) that ADR-0001 says a replacement
+    storage adapter must satisfy.
+  evidence: [lib/agent.mjs:8, lib/agent.mjs:13, lib/db.mjs:2-6, docs/adr/0001-storage-choice.md:15-17]
+  confidence: confirmed
+
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs points the reader to the README for environment notes, but README.md
+    contains no environment section and no file in the target reads the environment.
+  evidence: [config/settings.mjs:1, README.md:1-35, config/settings.mjs:2-9]
+  confidence: confirmed
+
+# ── entry-point routing for a stranger
+
+- id: F-212
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md, the only entry-point document, lists endpoints, a run command and a test command but
+    does not name the module layout (lib/, routes/, config/), the ADR under docs/adr/, or any agent
+    instruction file, and no CLAUDE.md, AGENTS.md or equivalent exists among the target's files.
+  evidence: [README.md:12-35, server.mjs:1-9]
+  confidence: confirmed
+
+# ── spend side
+
+- id: F-213
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant's model call is a stub function with no model identifier, tier choice, rationale
+    or re-qualification note anywhere in the code, config or docs.
+  evidence: [lib/agent.mjs:4-5, lib/agent.mjs:27-31, config/settings.mjs:2-9, docs/adr/0001-storage-choice.md:25-29]
+  confidence: confirmed
+
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    ask() calls the model and returns without recording tokens, cost or any per-call usage record;
+    the only logging in the target is the mailer line and the server boot line.
+  evidence: [lib/agent.mjs:33-43, lib/mailer.mjs:7, server.mjs:60]
+  confidence: confirmed
+
+- id: F-215
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    buildPrompt places every note in the workspace, with its owner's email, into each assistant
+    prompt regardless of the question, with no selection, truncation or size budget.
+  evidence: [lib/agent.mjs:11-21]
+  confidence: confirmed

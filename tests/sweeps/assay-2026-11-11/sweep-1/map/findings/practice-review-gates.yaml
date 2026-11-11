@@ -1,0 +1,325 @@
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The one workflow that runs on pull_request, .github/workflows/ci.yml, triggers on every
+    pull request and on push to main, runs a test job across Node 22 and 24 with a 15-minute
+    timeout and a read-only token, and uses checkout and setup-node pinned to 40-hex commit SHAs.
+  evidence:
+    - .github/workflows/ci.yml:8-11
+    - .github/workflows/ci.yml:13-14
+    - .github/workflows/ci.yml:17-22
+    - .github/workflows/ci.yml:24
+    - .github/workflows/ci.yml:27
+    - .github/workflows/branch-cleanup.yml:35-38
+    - .github/workflows/release.yml:10-11
+    - .github/workflows/tools-check.yml:7-10
+  confidence: confirmed
+
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    CI installs dependencies with `npm ci` against the committed package-lock.json, so a pull
+    request is tested with the locked dev toolchain (typescript and @types/node at exact versions).
+  evidence:
+    - .github/workflows/ci.yml:30
+    - package-lock.json:1-2
+    - package.json:18
+  confidence: confirmed
+
+- id: F-303
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The CI lint step (`npm run lint`) is `node --check` over every tracked engine module, a
+    parse-only check, and the repository declares no semantic linter (no ESLint or equivalent in
+    devDependencies or scripts), so unused variables, shadowing or unreachable code pass it.
+  evidence:
+    - package.json:10
+    - package.json:18
+    - lib/check-syntax.mjs:1-5
+    - lib/check-syntax.mjs:14
+    - .github/workflows/ci.yml:31
+  confidence: confirmed
+
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    CI runs `tsc -p tsconfig.json` with allowJs and checkJs over the engine's own trees (root,
+    lib, map, owner, routine, views, yardstick), type-checking the zero-dependency JavaScript
+    without a build; the config is not strict and excludes tests/, so the harness's own code is
+    type-checked by nothing.
+  evidence:
+    - package.json:11
+    - tsconfig.json:3-4
+    - tsconfig.json:12
+    - .github/workflows/ci.yml:32
+  confidence: confirmed
+
+- id: F-305
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The CI build step (`npm run build`) runs the same `node lib/check-syntax.mjs` as the lint
+    step, so the step named build adds no check the lint step did not already make.
+  evidence:
+    - package.json:10
+    - package.json:12
+    - .github/workflows/ci.yml:31
+    - .github/workflows/ci.yml:33
+  confidence: confirmed
+
+- id: F-306
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    Before the harness, CI calls the composite tools action, which installs the pinned
+    instruments under `set -euo pipefail`, verifies each at its pin and only then appends the
+    directory to PATH, so a failed install or verify fails the step; a harness block runs the
+    action's script against a planted assay.mjs.
+  evidence:
+    - .github/workflows/ci.yml:34-38
+    - .github/actions/tools/action.yml:6-11
+    - .github/actions/tools/action.yml:26-31
+    - tests/blocks/ci-interface.mjs:5-7
+  confidence: confirmed
+
+- id: F-307
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    `npm test` (the last CI step) is a fail-closed harness that discovers 155 block files, refuses
+    an empty blocks directory, a mislabelled or unloadable block, and counts a block that throws
+    as a failure, then exits non-zero on any unit/negative failure or any drift from the scores
+    pinned in tests/golden.json.
+  evidence:
+    - .github/workflows/ci.yml:39
+    - package.json:9
+    - tests/harness.mjs:70-81
+    - tests/harness.mjs:111-116
+    - tests/harness.mjs:141-163
+    - tests/regression.mjs:28-44
+    - tests/README.md:3-5
+  confidence: confirmed
+
+- id: F-308
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The findings contract in map/validate.mjs rejects out-of-vocabulary confidence,
+    effect.reversibility, effect.telemetry, effect.blast_scope and precondition values, but none
+    of the 31 negative fixtures the validate gate runs targets those rules and no block names
+    their messages, despite the fixture list's comment that each validator rule has one, so
+    deleting one of those checks would plausibly leave npm test green.
+  evidence:
+    - map/validate.mjs:141
+    - map/validate.mjs:157
+    - map/validate.mjs:159-160
+    - map/validate.mjs:198
+    - tests/blocks/negative-fixtures.mjs:41-61
+  confidence: plausible
+
+- id: F-309
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    Each validate negative fixture must go red, fire its own named violation, and fire no other
+    violation, so a fixture that stays red for an unrelated reason cannot mask a removed check;
+    the harness also confirms a valid run validates green (engine-pipeline, all-clean-run).
+  evidence:
+    - tests/blocks/negative-fixtures.mjs:9-15
+    - tests/blocks/negative-fixtures.mjs:64-76
+    - tests/blocks/engine-pipeline.mjs:36
+    - tests/blocks/all-clean-run.mjs:32
+  confidence: confirmed
+
+- id: F-310
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The chains/report/sequence/backlog data files have schema checkers in lib/run-data.mjs that
+    validate.mjs imports, and harness blocks mutate a compiled report.json and require the
+    checker to refuse each malformed live chain.
+  evidence:
+    - map/validate.mjs:23
+    - lib/run-data.mjs:18-30
+    - tests/blocks/run-data.mjs:1-3
+    - tests/blocks/report-chain-cuts.mjs:54-58
+  confidence: confirmed
+
+- id: F-311
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The chain ranking in map/chains.mjs (sink ordering, minimax path difficulty, live sort) is
+    pinned against independent expected values only for a single-capability contained/unresolved
+    case; the other chain blocks compare report output to buildChains' own output and golden.json
+    pins only _score, so a subtle ranking regression in chains.mjs would plausibly pass CI.
+  evidence:
+    - map/chains.mjs:108-109
+    - map/chains.mjs:149
+    - tests/blocks/capability-read-leg.mjs:44-49
+    - tests/blocks/report-chain-cuts.mjs:42
+    - tests/blocks/report-chain-cuts.mjs:48-51
+    - tests/blocks/project-command.mjs:44-46
+    - tests/golden.json:1-2
+  confidence: plausible
+
+- id: F-312
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    loadAdapters silently skips any adapter YAML that lacks `scanner` or `map` rather than
+    failing loud at the adapter contract; the drop would surface only indirectly, as drift in the
+    per-scanner roster golden.json pins.
+  evidence:
+    - map/project.mjs:84-91
+    - map/validate.mjs:46-53
+    - tests/blocks/instrument-roster.mjs:11-12
+    - tests/blocks/instrument-roster.mjs:194
+  confidence: plausible
+
+- id: F-313
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The yardstick register and the owner packet are gated fail-closed: the register must load
+    and validate with closed vocabulary and sourced rows, a duplicated/missing requirement row is
+    a negative fixture, and each packet negative fixture must exit 1 for its own reason.
+  evidence:
+    - tests/blocks/yardstick-register.mjs:1-5
+    - tests/blocks/yardstick-register.mjs:14
+    - tests/blocks/negative-fixtures.mjs:55
+    - tests/blocks/packet.mjs:1-5
+    - tests/blocks/packet.mjs:37-40
+  confidence: confirmed
+
+- id: F-314
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The consumer contract is read off the code by a harness block: every command CONSUMERS.md
+    names must exist, every surface file must exist, a commit touching the surface must carry a
+    Consumer: trailer, and a shallow history fails loud; ci.yml checks out full history for it.
+  evidence:
+    - tests/blocks/consumer-contract.mjs:1-19
+    - .github/workflows/ci.yml:25-26
+  confidence: confirmed
+
+- id: F-315
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The gate doctrine is held in lockstep by blocks: maturity, supervision and the unheld-halt
+    flag must agree with map/doctrine.mjs, and every gate_type/fail_mode/verified_as value in
+    validate.mjs must appear in SCHEMA.md §2, METHOD.md and the glossary.
+  evidence:
+    - tests/blocks/doctrine-lockstep.mjs:1-4
+    - tests/blocks/gate-vocabulary.mjs:80-93
+  confidence: confirmed
+
+- id: F-316
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The CI workflow is itself gated: a block fails npm test unless ci.yml's actions are
+    SHA-pinned to the routine template's pins and ci.yml runs exactly `npm run lint`,
+    `npm run typecheck`, `npm run build` and `npm test`, so dropping a step from CI turns the
+    harness red.
+  evidence:
+    - tests/blocks/ci-workflow.mjs:1-5
+    - tests/blocks/ci-workflow.mjs:19-22
+    - tests/blocks/ci-workflow.mjs:54-57
+  confidence: confirmed
+
+- id: F-317
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    Nothing runs before a change reaches CI: the repository has no pre-commit hook configuration
+    (no .husky, .githooks or .pre-commit-config.yaml, no prepare script), and running npm test
+    before a pull request is a contributor instruction only.
+  evidence:
+    - package.json:8-16
+    - CONTRIBUTING.md:4-5
+    - CLAUDE.md:45-49
+  confidence: confirmed
+
+- id: F-318
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    Whether CI is a required merge check is not visible in the repository: .github holds only the
+    PR template, the tools action and four workflows (no CODEOWNERS or settings/ruleset file), and
+    the merge rule exists only as prose naming a `ci` check while the workflow's check runs are
+    named after the matrix job `test`.
+  evidence:
+    - RUNBOOK.md:11-12
+    - .github/PULL_REQUEST_TEMPLATE.md:7-10
+    - .github/workflows/ci.yml:7
+    - .github/workflows/ci.yml:17-22
+    - routine/README.md:223-225
+  confidence: unverified
+
+- id: F-319
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The harness runs every block sequentially in one process with no per-block timeout and no
+    option to run a single block (the runner reads only --bless), so a hung block is bounded only
+    by CI's 15-minute job timeout and a contributor cannot run just the block for the module they
+    changed.
+  evidence:
+    - tests/harness.mjs:33
+    - tests/harness.mjs:111-116
+    - tests/regression.mjs:21-30
+    - .github/workflows/ci.yml:19
+  confidence: confirmed
+
+- id: F-320
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    Re-pinning scores cannot read green over a red tree: --bless refuses and writes nothing when
+    any unit/negative invariant fails or a scorer errors, and a block probes that refusal on a
+    scratch golden.
+  evidence:
+    - tests/harness.mjs:128-139
+    - tests/blocks/bless-guard.mjs:1-4
+    - tests/blocks/bless-guard.mjs:17-22
+  confidence: confirmed
+
+- id: F-321
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The release workflow re-runs the gate on the dispatched commit (npm ci, the tools action,
+    npm test, the Consumer: trailer check) before it tags, independent of whatever ran on the
+    pull request.
+  evidence:
+    - .github/workflows/release.yml:6-8
+    - .github/workflows/release.yml:39-43
+  confidence: confirmed

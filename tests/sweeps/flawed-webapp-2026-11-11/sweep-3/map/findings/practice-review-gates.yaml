@@ -1,0 +1,146 @@
+# map/findings/practice-review-gates.yaml
+# Pass 3 — deterministic gates (census-augmented: gates-coverage, subject_type contract)
+# Target: targets/flawed-webapp/ (andyschwab/assay-fixtures @ 7f7c89d)
+# Run: flawed-webapp-2026-11-11
+# Evidence paths are relative to targets/flawed-webapp/. Blind pass; nothing executed.
+
+# ── gates-coverage census: one finding per HTTP route handler (5), met = a test or
+#    schema would fail loudly on a regression in it. 0 of 5 met.
+
+- id: F-301
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The GET /notes handler's owner filter is exercised by no test or schema, since the
+    only test file imports lib/auth.mjs alone and never loads server.mjs or issues a request.
+  evidence: [server.mjs:30-33, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-302
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /notes handler, which writes a note with owner and coerced text, is exercised
+    by no test or schema; the only test file imports lib/auth.mjs alone.
+  evidence: [server.mjs:35-40, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-303
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /assistant handler and the ask() function it calls, including the tool-directive
+    parse that triggers sendEmail, are exercised by no test or schema.
+  evidence: [server.mjs:42-45, lib/agent.mjs:33-43, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-304
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /sync handler and pushBackup(), which returns ok without awaiting the fetch,
+    are exercised by no test or schema.
+  evidence: [server.mjs:47-50, lib/sync.mjs:5-13, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+- id: F-305
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The POST /admin/purge handler and its requireAdmin check in handlePurge() are exercised
+    by no test or schema.
+  evidence: [server.mjs:52-54, routes/admin.mjs:6-11, lib/auth.mjs:15-17, test/smoke.mjs:4-9]
+  confidence: confirmed
+
+# ── test runner wiring, lint/typecheck/CI, interface schemas, the central-module probe
+
+- id: F-306
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    package.json defines only a start script and no test script, while the README tells
+    readers to run `npm run test:all`, a script that does not exist.
+  evidence: [package.json:6-8, README.md:27-33]
+  confidence: confirmed
+
+- id: F-307
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The single assertion in the smoke test checks only that authenticate() returns a truthy
+    value, which it does for every request because unknown or missing tokens fall back to
+    a default admin identity.
+  evidence: [test/smoke.mjs:7-9, lib/auth.mjs:5-13]
+  confidence: confirmed
+
+- id: F-308
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The target has no lint, typecheck or CI configuration: package.json declares no such
+    script or dev dependency and the tree holds no linter, tsconfig or workflow file
+    (inspected the full 12-file listing).
+  evidence: [package.json:1-9]
+  confidence: confirmed
+
+- id: F-309
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Request bodies are parsed with no schema, a JSON parse error resolves silently to an
+    empty object, and handlers coerce missing fields to empty strings rather than rejecting
+    the request.
+  evidence: [server.mjs:11-19, server.mjs:38, server.mjs:44]
+  confidence: confirmed
+
+- id: F-310
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    ADR-0001 names a storage interface (lookup, the notes map surface, purgeAll) that a
+    future SQLite adapter must satisfy, and no test or schema pins that interface in
+    lib/db.mjs.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, lib/db.mjs:8-31, test/smoke.mjs:4-5]
+  confidence: confirmed
+
+- id: F-311
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    A subtle regression in the central router server.mjs (or in lib/db.mjs, which it, auth,
+    agent, sync and the admin route import) would be caught by no automated check at any stage, since the
+    only test imports lib/auth.mjs, no test script is wired, and no CI exists.
+  evidence: [server.mjs:26-57, server.mjs:4-9, lib/auth.mjs:2, lib/agent.mjs:8, lib/sync.mjs:2, routes/admin.mjs:2, test/smoke.mjs:4-5, package.json:6-8]
+  confidence: confirmed
+
+- id: F-312
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README states that every endpoint is covered by the smoke suite, while the smoke
+    suite holds one assertion on authenticate() and loads no endpoint.
+  evidence: [README.md:35, test/smoke.mjs:4-11]
+  confidence: confirmed
+
+- id: F-313
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    server.mjs exports the server object and only calls listen when run as the entry
+    point, and the app has no dependencies, so a test can import and drive the routes
+    in-process without a build or install.
+  evidence: [server.mjs:59-63, package.json:1-9]
+  confidence: confirmed

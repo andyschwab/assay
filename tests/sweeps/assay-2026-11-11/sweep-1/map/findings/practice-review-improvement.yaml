@@ -1,0 +1,254 @@
+# Pass 6: improvement loop. Census incidents-became-mechanisms = F-601..F-610 (one per recorded lesson).
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a dated history file restates git (#164) is CLAUDE.md's change-record rule and is held
+    by a harness block whose predicate refuses HISTORY.md, history/ folders and dated log files and fails
+    any non-test file that names HISTORY.md.
+  evidence:
+    - CLAUDE.md:71-73
+    - tests/blocks/no-history-file.mjs:1-8
+    - tests/blocks/no-history-file.mjs:18-26
+    - tests/blocks/no-history-file.mjs:46-53
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that the core must not name an external scanner or operator (#147) is CLAUDE.md rule 7, which
+    names its own holding block, and that block keeps a residue list that may only shrink and fails when an
+    entry goes stale.
+  evidence:
+    - CLAUDE.md:33-41
+    - tests/blocks/core-names-no-scanner.mjs:1-10
+    - tests/blocks/core-names-no-scanner.mjs:22-25
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident that the target's package manager could run with the evaluator's environment (#47, with the
+    proxy-userinfo follow-up #65) became an allow-listed child environment plus an isolation block pinning
+    scratch-dir audits and the --allow-exec opt-in.
+  evidence:
+    - tests/blocks/isolation.mjs:1-10
+    - map/child-env.mjs:14-25
+    - map/child-env.mjs:27-30
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident that an uploaded run archive could carry an output tail or credential (#49) became a block
+    pinning that map/raw/ holds no step output or stderr tail and that URL userinfo is stripped.
+  evidence:
+    - tests/blocks/raw-minimised.mjs:1-7
+  confidence: confirmed
+- id: F-605
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The rule that a moved score is a reviewed re-bless and a failing unit or negative assertion is never
+    re-blessed is backed by a bless-guard block (#52) proving --bless exits 1 and writes nothing over a red tree.
+  evidence:
+    - CLAUDE.md:51-53
+    - tests/blocks/bless-guard.mjs:1-4
+    - tests/blocks/bless-guard.mjs:17-21
+  confidence: confirmed
+- id: F-606
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The finding that the agreement figures the docs cited could not be reproduced from the tree (#57) became a
+    sweep gate holding every committed sweep set at its own threshold, with a fixture set proving the gate can
+    go red, and METHOD.md now quotes the gated in-tree figure beside the off-repo one.
+  evidence:
+    - tests/blocks/sweep-gate.mjs:1-5
+    - tests/blocks/sweep-gate.mjs:18-25
+    - map/METHOD.md:404-411
+  confidence: confirmed
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident in which a floor move (#161) turned a consumer's fixture red became a consumer contract (#229)
+    whose check refuses any commit touching the CONSUMERS.md surface without a Consumer git trailer, run over
+    this repository's own history in CI with full fetch depth.
+  evidence:
+    - tests/blocks/consumer-contract.mjs:1-19
+    - lib/release-notes.mjs:1-16
+    - .github/workflows/ci.yml:26
+  confidence: confirmed
+- id: F-608
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The calibration lesson that every missed effect channel was one a hand-drafted inventory forgot is written
+    both in METHOD.md and at the enumerate code it motivated, which prints channel candidates and a coverage
+    gate that exits non-zero on uncovered members, and backlog.mjs turns those members into
+    un-enumerated-population items.
+  evidence:
+    - map/METHOD.md:91-93
+    - map/enumerate.mjs:244-251
+    - map/enumerate.mjs:332
+    - map/enumerate.mjs:403
+    - map/backlog.mjs:69
+    - tests/blocks/enumerate-gate.mjs:1-4
+  confidence: confirmed
+- id: F-609
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The calibration lesson that a sampled strength certified safety over an un-inspected class (the
+    docker-socket case) lives only as METHOD.md prose and an authored backlog class; the validator checks a
+    strength finding only for its polarity value, so nothing refuses a population-wide strength that names no
+    enumerated population.
+  evidence:
+    - map/METHOD.md:39-45
+    - map/validate.mjs:32
+    - map/backlog.mjs:18-20
+  confidence: plausible
+- id: F-610
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The red-then-green rule is held only as text: doc-consistency fails if CLAUDE.md stops stating it, but no
+    check reads a pull request body or commit message for the confirmed-red record the rule and the PR template
+    require.
+  evidence:
+    - CLAUDE.md:60-64
+    - tests/blocks/doc-consistency.mjs:86-87
+    - .github/PULL_REQUEST_TEMPLATE.md:7-11
+    - .github/workflows/ci.yml:11
+    - .github/workflows/ci.yml:39
+  confidence: plausible
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md is a 73-line agent spec whose ground rules and change rules each name their own mechanism
+    (validate fails closed, golden re-bless, one block per file, the no-history block, the core-names block),
+    and it states that taste the code relies on is written there or in the owning contract, never only in a
+    code comment.
+  evidence:
+    - CLAUDE.md:15-16
+    - CLAUDE.md:41
+    - CLAUDE.md:51-56
+    - CLAUDE.md:65-73
+  confidence: confirmed
+- id: F-612
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    Citations of CLAUDE.md are themselves checked: doc-consistency fails a file that cites a rule number
+    CLAUDE.md lacks, a rule under the wrong number, a phrase CLAUDE.md does not say, or a CLAUDE.md that no
+    longer names the issue tracker as where engine learnings go.
+  evidence:
+    - tests/blocks/doc-consistency.mjs:75-83
+    - tests/blocks/doc-consistency.mjs:86-88
+  confidence: confirmed
+- id: F-613
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The "engine learnings go to the issue tracker" rule is visibly used: 95 of the 155 harness block files open
+    with a header citing the issue (and often the run finding id) whose failure the block pins.
+  evidence:
+    - CLAUDE.md:65-68
+    - tests/blocks/model-of-record.mjs:1-3
+    - tests/blocks/instrument-durations.mjs:1-3
+    - tests/blocks/gitleaks-target.mjs:1
+    - tests/blocks/repo-census-imports.mjs:1
+    - tests/blocks/capability-read-leg.mjs:1
+  confidence: confirmed
+- id: F-614
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Every evaluation is specified to emit a second output, an engine backlog with a computed half from
+    enumerate, validate and a prior-run diff in a closed set of classes and an authored half plus 2-5 surprise
+    notes, read back by validate fail-closed.
+  evidence:
+    - map/METHOD.md:772-796
+    - map/backlog.mjs:1-23
+    - map/backlog.mjs:67-73
+  confidence: confirmed
+- id: F-615
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    Moving a backlog item upstream is a person's act: no tool or workflow files the run's engine backlog as an
+    issue, and the only issue-writing automation is the weekly tools-check job for pinned tools behind upstream.
+  evidence:
+    - map/METHOD.md:779-785
+    - .github/workflows/tools-check.yml:9
+    - .github/workflows/tools-check.yml:30-35
+  confidence: plausible
+- id: F-616
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    The engine measures its own worth: score grades recall and false positives against known-answer sheets
+    under a pinned recall floor, and roster joins each scanner's unique recoveries, corroborated facts and
+    recorded duration and spend into one row per adapter.
+  evidence:
+    - map/METHOD.md:755-768
+    - tests/blocks/fixture-recall.mjs:1
+    - tests/harness.mjs:37-38
+    - map/roster.mjs:1-30
+  confidence: confirmed
+- id: F-617
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Runs emit structured outcome records by design: the routine writes routine.yaml as its last step on every
+    return so a fleet collector reads the outcome without CI logs, and run-record rows carry duration (#159)
+    and, for judgment scanners, model and spend.
+  evidence:
+    - routine/run.mjs:127-129
+    - routine/run.mjs:138-145
+    - routine/run.mjs:190
+    - tests/blocks/instrument-durations.mjs:1-7
+    - map/scanners/INTAKE.md:35-37
+  confidence: confirmed
+- id: F-618
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    Before/after is computed rather than studied: since separates what the repository moved from what the
+    engine re-ruled (#183), and ratchet fails loud when a requirement held in a reviewed, person-committed
+    baseline gets worse or leaves the measured scale.
+  evidence:
+    - views/since.mjs:1-12
+    - yardstick/ratchet.mjs:1-11
+  confidence: confirmed
+- id: F-619
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The 48%-to-78% repeatability gain METHOD.md cites for census-augmented runs was measured off-repo and cannot
+    be reproduced from the tree; the in-tree figure it sits beside is the committed blind set's, which the
+    sweep gate holds.
+  evidence:
+    - map/METHOD.md:404-411
+  confidence: confirmed

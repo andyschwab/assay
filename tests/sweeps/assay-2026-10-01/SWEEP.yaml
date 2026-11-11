@@ -6,4 +6,5 @@ blind: true
 threshold:
   fact_presence: 38          # measured 9 of 24 union facts caught by all three (38%); set at the measurement
   descriptor_agreement: 20   # measured 1 of 5 shared effect channels identical on all six descriptors (20%)
+  requirement_agreement: 40  # measured at 4b81665's yardstick: 2 of 5 decided requirements identical in all three (40%); set at the measurement (#258)
 sweeps: [sweep-1, sweep-2, sweep-3]

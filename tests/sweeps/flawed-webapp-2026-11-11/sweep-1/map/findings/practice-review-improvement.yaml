@@ -1,0 +1,128 @@
+# Pass 6 — improvement loop (dimension: improvement-loop), blind single-dimension pass
+# Target: andyschwab/assay-fixtures targets/flawed-webapp/ (notesbox), evidence repo-relative to that subtree
+# Head: 7f7c89d8 — ids F-600..; lessons/incident census population is empty (confirmed absence, F-601)
+
+- id: F-600
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The subtree has no agent spec or contributor guide (no CLAUDE.md, AGENTS.md,
+    CONTRIBUTING or rules file), so there is no file where the team's taste or a
+    "we never do X here" rule would be written for an agent or reviewer to load;
+    the only top-level docs are the README and one ADR.
+  evidence: [README.md:1-35, package.json:1-9, docs/adr/0001-storage-choice.md:1-4]
+  confidence: confirmed
+
+- id: F-601
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The lessons/incident census is empty: no CHANGELOG, incidents directory,
+    postmortem, review-comment log or lessons file exists in the 11-file subtree,
+    so no recorded correction can be traced to a durable mechanism.
+  evidence: [README.md:1-35, docs/adr/0001-storage-choice.md:1-29, package.json:1-9]
+  confidence: confirmed
+
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    A durable, dated decision home exists: `docs/adr/` holds ADR-0001 with a
+    status, a date, context, decision, consequences and a rejected alternative,
+    and the code it governs points back to it.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, docs/adr/0001-storage-choice.md:12-17, docs/adr/0001-storage-choice.md:25-29, lib/db.mjs:1]
+  confidence: confirmed
+
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The ADR home was used once (one record, dated 2026-05-02) and none of the
+    later non-obvious choices (the admin fallback identity, the unauthenticated
+    sync route, the fire-and-forget backup) were recorded there; they live only
+    in inline comments.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, lib/auth.mjs:9-12, server.mjs:48, lib/sync.mjs:7]
+  confidence: confirmed
+
+- id: F-604
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    A known correction (moving the backup key out of source) is tracked only as an
+    in-code TODO with no owner, date or issue reference, conditioned on a "launch"
+    that nothing in the tree defines or checks.
+  evidence: [config/settings.mjs:5]
+  confidence: confirmed
+
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The ADR's deferred fix (persistence, "the first thing the production milestone
+    fixes") points to no tracked item or milestone record in the tree, while the
+    store's header comment already speaks of the SQLite adapter as if it existed.
+  evidence: [docs/adr/0001-storage-choice.md:22-23, lib/db.mjs:1]
+  confidence: confirmed
+
+- id: F-606
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    No mechanism exists that could hold a lesson once written: the manifest wires
+    no test, lint or hook script, and the one test file asserts only that a valid
+    token resolves a user, so a correction can only be recorded as prose.
+  evidence: [package.json:6-8, test/smoke.mjs:7-9]
+  confidence: confirmed
+
+- id: F-607
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The app carries no impact self-measurement: it is versioned (0.3.1) but has
+    no release notes, changelog, impact field or before/after record, and the
+    README states the assistant's purpose without any measure of its use or value.
+  evidence: [package.json:3, README.md:1-5, docs/adr/0001-storage-choice.md:27-29]
+  confidence: confirmed
+
+- id: F-608
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The app emits no structured usage or outcome records by its own design: its
+    only output records are two free-text console.log lines (a mailer send line and
+    a listen banner), and none of the five route handlers logs the request, actor
+    or result.
+  evidence: [lib/mailer.mjs:7, server.mjs:60, server.mjs:26-57]
+  confidence: confirmed
+
+- id: F-609
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The AI assistant, the app's stated differentiator, records nothing about its
+    own use: no question, model output, parsed tool directive or outcome is
+    logged in the ask path, so its quality and impact cannot be measured from
+    the artifact.
+  evidence: [lib/agent.mjs:33-43, docs/adr/0001-storage-choice.md:27-28]
+  confidence: confirmed
+
+- id: F-610
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The only codified house convention ("each concern lives in one place") and
+    the stated rationale for risky shortcuts are header comments in code, which
+    nothing checks or aggregates.
+  evidence: [server.mjs:1-2, lib/auth.mjs:9-11, lib/mailer.mjs:1-2]
+  confidence: confirmed

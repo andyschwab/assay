@@ -1,0 +1,332 @@
+# practice-review — Pass 4, verification (census-augmented: effect-provability, one finding per
+# terrain effect channel, F-301..F-310; then the effects-vs-reports seams, the decay condition
+# and the calibration harness). Target: assay @ 4b81665. Read-only; nothing executed.
+
+# ── census: effect-provability (subject_type control, one per channel) ──
+- id: F-301
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "effect-provability: run-dir-write"
+  observation: >
+    The run-directory writes prove themselves by re-reading what was written: `start` writes
+    map/scanners.yaml and then runs `validate` over the run before it exits, `record` edits one
+    row under an exclusive lock, `compile` validates before it compiles, and the validator
+    recomputes the generated maturity grades from the base and fails on any counted or sampled drift.
+  evidence: ["map/start.mjs:469-489", "map/record.mjs:153-170", "views/compile.mjs:68-72", "map/validate.mjs:610-645"]
+  confidence: confirmed
+
+- id: F-302
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "effect-provability: instrument-run"
+  observation: >
+    An adapter-run instrument is recorded ran only after its envelope (exit, report, stderr) ingests
+    against the tool's success set and report shape, so a crash, a missing report, or an exit that
+    disagrees with the report is recorded failed rather than clean; only opengrep additionally proves
+    it can detect, via a positive control run before the target.
+  evidence: ["map/start.mjs:100-116", "map/start.mjs:252-272", "map/ingest.mjs:1076-1080", "map/ingest.mjs:963-966"]
+  confidence: confirmed
+  explained_by: [F-314]
+
+- id: F-303
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "effect-provability: fresh-clone-exec"
+  observation: >
+    fresh-clone records each executed step with its own status (passed, failed, timed-out,
+    not-declared, skipped) and, for the test step, the runner's parsed pass/skip/fail counts or
+    `unparsed`, so an exit code of 0 is not read as the suite having run.
+  evidence: ["map/fresh-clone.mjs:17-20", "map/fresh-clone.mjs:308-325", "map/fresh-clone.mjs:327-342"]
+  confidence: confirmed
+
+- id: F-304
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "effect-provability: dependency-audit"
+  observation: >
+    dependency-scan accepts an audit only when the exit is 0 or 1 and the JSON carries the expected
+    vulnerabilities and metadata shape, and records an error document, a timeout, an unavailable
+    package manager or an uncovered manifest as failed, not-run or no-lockfile, never as clean.
+  evidence: ["map/dependency-scan.mjs:38-56", "map/dependency-scan.mjs:285-305", "map/dependency-scan.mjs:392-411"]
+  confidence: confirmed
+
+- id: F-305
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "effect-provability: structure-scan-exec"
+  observation: >
+    structure-scan does not trust jscpd's exit 0: a run with no readable report, no statistics
+    totals, or a duplicate missing a location is recorded failed, and knip runs from the scratch
+    install's own bin rather than a PATH lookup.
+  evidence: ["map/structure-scan.mjs:111-121", "map/structure-scan.mjs:131-149", "map/structure-scan.mjs:196-201"]
+  confidence: confirmed
+
+- id: F-306
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "effect-provability: tools-install"
+  observation: >
+    tools install checks every download's sha256 against the adapter's pin before installing
+    (refusing a mismatch with both sums), re-checks the stamped sha256 before calling a tool
+    current, and the CI action then runs `tools verify --run` so a tool not answering its pin fails
+    the step.
+  evidence: ["map/tools.mjs:91-136", "map/tools.mjs:146-159", ".github/actions/tools/action.yml:25-31"]
+  confidence: confirmed
+  explained_by: [F-323, F-324]
+
+- id: F-307
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "effect-provability: tools-check-issue"
+  observation: >
+    The weekly job treats an unreadable upstream as not current (so a read error files an issue rather
+    than reading clean), but the issue create or comment itself is proven only by the gh command's
+    exit status; nothing re-reads the issue after writing it.
+  evidence: [".github/workflows/tools-check.yml:24-35", "map/tools.mjs:212-219"]
+  confidence: confirmed
+
+- id: F-308
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "effect-provability: branch-delete"
+  observation: >
+    The delete job re-reads each branch's tip and protection before deleting it, but after the
+    DELETE call it echoes "deleted" on the gh exit status alone and never re-reads the ref to show it
+    is gone.
+  evidence: [".github/workflows/branch-cleanup.yml:127-134"]
+  confidence: confirmed
+
+- id: F-309
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "effect-provability: release-publish"
+  observation: >
+    The release job checks the version format and that the tag does not exist before publishing, then
+    relies on `gh release create`'s exit status; no step reads the tag or release back after it is
+    created.
+  evidence: [".github/workflows/release.yml:33-50"]
+  confidence: confirmed
+
+- id: F-310
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "effect-provability: routine-artifact-upload"
+  observation: >
+    The handoff upload is proven downstream (the gate records fresh-clone and structure-scan failed
+    when the handoff is missing or unreadable), but the run-artifact upload sets no
+    if-no-files-found and nothing reads it back, and the routine step exits 0 with gate skipped when
+    no baseline is committed.
+  evidence: ["routine/assay-routine.yml:77-82", "routine/assay-routine.yml:181-188", "map/start.mjs:388-401", "routine/run.mjs:325-330"]
+  confidence: confirmed
+  explained_by: [F-318, F-322]
+
+# ── effects-vs-reports seams ──
+- id: F-311
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    ingest requires the tool's actual exit code as digits and halts on any exit outside the tool's
+    success set, so an unset `--exit` cannot file an empty report as a verified-clean run.
+  evidence: ["map/ingest.mjs:7-14", "map/ingest.mjs:719-727"]
+  confidence: confirmed
+
+- id: F-312
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    For leak-list instruments ingest cross-checks the envelope's recorded exit against the given one
+    and the exit against the report, refusing a found exit over an empty list or a clean exit over a
+    non-empty one as a report that does not describe its run.
+  evidence: ["map/ingest.mjs:880-893"]
+  confidence: confirmed
+
+- id: F-313
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    opengrep runs its vendored rules over planted command-injection cases before the target, and zero
+    results on the target count as clean only beside a control that fired; a control that misses an
+    expected hit fails the instrument and the target is not scanned.
+  evidence: ["map/start.mjs:190-214", "map/start.mjs:252-259", "map/scanners/adapters/opengrep.yaml:55-65", "tests/blocks/opengrep-instrument.mjs:9-16"]
+  confidence: confirmed
+
+- id: F-314
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Of the five adapter-run instruments only opengrep carries a positive control; gitleaks, zizmor,
+    checkov and osv-scanner (and the dependency-scan audit) prove they ran and parsed, not that they
+    can detect, so a tool or advisory source that silently returns an empty well-formed report reads
+    clean.
+  evidence: ["map/scanners/adapters/opengrep.yaml:55", "map/scanners/adapters/gitleaks.yaml:41-56", "map/scanners/adapters/zizmor.yaml:34-44", "map/scanners/adapters/checkov.yaml:20-44", "map/scanners/adapters/osv-scanner.yaml:27-40"]
+  confidence: confirmed
+
+- id: F-315
+  dimension: verification
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run manifest separates not-run from ran-clean: start records every adopted scanner with a
+    status and reason, and validate fails a row marked ran with no rows and no explicit findings file,
+    rows from a scanner marked skipped or failed, and rows from a scanner with no manifest row.
+  evidence: ["map/start.mjs:462-467", "map/validate.mjs:305-314", "map/SCHEMA.md:357-366"]
+  confidence: confirmed
+
+- id: F-316
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    For a judgment scanner the ran status is the operator's own `record ... ran`, and an explicit
+    empty findings file satisfies validate as a clean run, so a review recorded as ran that looked at
+    nothing is indistinguishable from one that found nothing.
+  evidence: ["map/record.mjs:12-33", "map/validate.mjs:304-308"]
+  confidence: confirmed
+
+- id: F-317
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    validate --target mechanically fails any finding whose cited path is absent from the target or
+    whose cited line is past the end of the file, whatever the observation says, and states that it
+    cannot check that the line supports the claim.
+  evidence: ["map/validate.mjs:359-381"]
+  confidence: confirmed
+
+- id: F-318
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    With no committed packet/baseline.yaml the routine skips the ratchet and exits 0, so the required
+    status check reads green while no regression gate ran; only routine.yaml (gate skipped) and a
+    printed warning say so.
+  evidence: ["routine/run.mjs:307-310", "routine/run.mjs:325-330", "routine/README.md:179-182"]
+  confidence: confirmed
+
+- id: F-319
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The routine writes routine.yaml as the last act of every path, including refusal (exit 3, gate
+    refused, tools listed), an unevaluable ratchet (gate not-run) and an uncaught crash, so the
+    uploaded run always says what happened instead of only a CI colour.
+  evidence: ["routine/run.mjs:190-209", "routine/run.mjs:219-223", "routine/run.mjs:346-351", "map/tools.mjs:184-193"]
+  confidence: confirmed
+
+- id: F-320
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    When the target job fails the gate job still runs, and a missing or unreadable handoff is recorded
+    as that instrument failed with the reason, never executed in the gate and never clean; a test pins
+    both.
+  evidence: ["routine/assay-routine.yml:84-86", "routine/assay-routine.yml:143-147", "map/start.mjs:388-401", "tests/blocks/routine-handoff.mjs:58-62"]
+  confidence: confirmed
+
+- id: F-321
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    The handed-forward fresh-clone and structure-scan reports are written in the job that runs the
+    change's own scripts (knip loading the target's configs after fresh-clone's report is written),
+    so the gate validates their shape but cannot prove they describe what ran; routine/README.md
+    states this limit.
+  evidence: ["map/start.mjs:370-387", "routine/README.md:155-160"]
+  confidence: confirmed
+
+- id: F-322
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Neither upload-artifact step sets if-no-files-found, so an empty run directory uploads with the
+    action's default warning rather than failing, and the run upload has no consumer in the workflow
+    that would notice.
+  evidence: ["routine/assay-routine.yml:77-82", "routine/assay-routine.yml:181-188"]
+  confidence: plausible
+
+- id: F-323
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    `tools verify --only <scanner>` with a name that selects no tool verifies an empty list and exits
+    0, and the test suite pins that exit as expected behaviour.
+  evidence: ["map/tools.mjs:168-171", "map/tools.mjs:241-244", "tests/blocks/ci-interface.mjs:101-102"]
+  confidence: confirmed
+
+- id: F-324
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    `tools verify` (the precondition start and the routine hold) proves only that the binary PATH
+    resolves prints the pinned version string, not that it is the sha256-checked install, and a
+    PyPI-installed tool is stamped with no sha256 at all.
+  evidence: ["map/tools.mjs:138-158", "map/tools.mjs:100", "map/tools.mjs:116"]
+  confidence: confirmed
+
+- id: F-325
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    osv-scanner extraction failures, reported only on stderr, are captured by an adapter regex and
+    filed as source-failed rows rather than lost behind a clean exit.
+  evidence: ["map/scanners/adapters/osv-scanner.yaml:45-49", "map/scanners/adapters/osv-scanner.yaml:57", "map/ingest.mjs:1016"]
+  confidence: confirmed
+
+# ── calibration harness ──
+- id: F-326
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    A calibration harness exists: variance.mjs measures fact presence and descriptor agreement across
+    blind sweeps of one frozen target, with divergence direction, and `--set` exits 1 below a
+    committed set's threshold; the sweep-gate test runs every committed set and proves the gate goes
+    red one point above the measured value.
+  evidence: ["map/variance.mjs:23-53", "map/variance.mjs:267-279", "map/variance.mjs:357", "tests/blocks/sweep-gate.mjs:20-50"]
+  confidence: confirmed
+
+- id: F-327
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    score.mjs grades a run against a fixture answer sheet with recall, mis-homed and out-of-scope
+    classes, reading ran from the manifest so a clean instrument that missed an item scores MISSED,
+    and the fixture-recall block pins the floor in the regression gate.
+  evidence: ["map/score.mjs:9-31", "map/score.mjs:62-66", "tests/blocks/fixture-recall.mjs:11-15"]
+  confidence: confirmed
+
+- id: F-328
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The sweep and recall gates re-measure committed run outputs; a sweep set records its
+    method_commit only as a required string, and re-running the blind sweeps when METHOD.md or
+    SCHEMA.md changes is a prose instruction with no check comparing the set's method commit to the
+    method's current state.
+  evidence: ["map/variance.mjs:248-264", "map/METHOD.md:768-769", "tests/blocks/sweep-gate.mjs:20-23"]
+  confidence: plausible

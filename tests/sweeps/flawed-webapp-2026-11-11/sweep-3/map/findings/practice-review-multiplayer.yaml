@@ -1,0 +1,165 @@
+# map/findings/practice-review-multiplayer.yaml
+# Pass 7 (multiplayer) — practice-review findings
+# Target: targets/flawed-webapp/ (andyschwab/assay-fixtures @ 7f7c89d)
+# Run: flawed-webapp-2026-11-11
+# Census agent-access-surface (subject_type artifact): F-701..F-705, one per HTTP route in the terrain.
+# Evidence paths are relative to targets/flawed-webapp/.
+
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    GET /notes returns a JSON object of the caller's own notes through the shared JSON
+    responder (content-type application/json) and is listed in the README's endpoint list.
+  evidence: ["server.mjs:30-33", "server.mjs:21-24", "README.md:16"]
+  confidence: confirmed
+
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    POST /notes takes a JSON body field `text` and answers 201 with a JSON `{ id }`, and is
+    listed in the README, though the body field is named only in code and an unparseable
+    body is silently read as an empty object rather than rejected.
+  evidence: ["server.mjs:35-40", "server.mjs:16", "README.md:17"]
+  confidence: confirmed
+
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    POST /assistant takes a JSON body field `question` and returns JSON `{ answer }`, or
+    `{ answer, emailed }` when a send was triggered, and is listed in the README.
+  evidence: ["server.mjs:42-45", "lib/agent.mjs:40-42", "README.md:18"]
+  confidence: confirmed
+
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    POST /sync takes no body and returns JSON `{ ok, pushed }`, and is listed in the README.
+  evidence: ["server.mjs:47-50", "lib/sync.mjs:13", "README.md:19"]
+  confidence: confirmed
+
+- id: F-705
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    POST /admin/purge is absent from the README, which states the API exposes 4 endpoints,
+    its handler comment documents it as `DELETE /admin/purge` while the server routes it on
+    POST, and its 403 refusal is a plain-text body rather than JSON.
+  evidence: ["README.md:14-19", "routes/admin.mjs:5", "server.mjs:52-54", "routes/admin.mjs:7", "routes/admin.mjs:9-10"]
+  confidence: confirmed
+
+- id: F-706
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The store holds one global users array and one global notes map with no workspace,
+    room or team entity that carries its own memory or permissions, and the ADR names the
+    data model as users, notes and sessions only.
+  evidence: ["lib/db.mjs:2-11", "docs/adr/0001-storage-choice.md:9-10"]
+  confidence: confirmed
+
+- id: F-707
+  dimension: unprompted
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Note ownership is recorded twice — an `owner` field on each note and a per-user `notes`
+    id list — and POST /notes sets only the former while no route reads the latter, so the
+    per-user list is written only by the seed data and purgeAll.
+  evidence: ["lib/db.mjs:3-5", "lib/db.mjs:29", "server.mjs:38", "server.mjs:31"]
+  confidence: confirmed
+  axis: multiplayer
+
+- id: F-708
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    A note has no visibility or sharing field (only id, owner and text), yet every note is
+    placed into the assistant's context for any asker, so surfacing to other users is
+    automatic rather than a conscious act by the author.
+  evidence: ["server.mjs:38", "lib/db.mjs:9-10", "lib/agent.mjs:12-15"]
+  confidence: confirmed
+
+- id: F-709
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    The two read paths disagree on scope: GET /notes filters to the caller's own notes,
+    while the assistant's prompt builder receives the asking user but never uses it and
+    reads every note in the store.
+  evidence: ["server.mjs:31", "lib/agent.mjs:11-15", "lib/agent.mjs:33-34"]
+  confidence: confirmed
+
+- id: F-710
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Each note enters the assistant's prompt prefixed with its owner's email (or the raw
+    owner id when no user matches), so the context carries a per-entry author label for
+    content written by other users.
+  evidence: ["lib/agent.mjs:12-15"]
+  confidence: confirmed
+
+- id: F-711
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README describes the assistant as answering questions about "your notes" while its
+    prompt instructs it to answer from all workspace notes, so the assistant's cross-user
+    read is not disclosed in the documentation.
+  evidence: ["README.md:3-5", "README.md:18", "lib/agent.mjs:12-17"]
+  confidence: confirmed
+
+- id: F-712
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    Every request with an unknown or missing token resolves to the same synthetic identity
+    id `default`, so notes created by any such caller share one owner and are listed by
+    GET /notes to every other such caller.
+  evidence: ["lib/auth.mjs:9-12", "server.mjs:38", "server.mjs:31"]
+  confidence: confirmed
+
+- id: F-713
+  dimension: multiplayer
+  polarity: fact
+  subject_type: control
+  observation: >
+    No route gives the admin role read access to other users' note content: GET /notes
+    filters by caller id for every role and the only admin-gated route is the purge.
+  evidence: ["server.mjs:30-33", "routes/admin.mjs:6-7", "lib/auth.mjs:15-17"]
+  confidence: confirmed
+
+- id: F-714
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    None of the five routes exposes usage or outcome records, and the only runtime records
+    are two console.log lines (the mailer's per-send log and the boot banner).
+  evidence: ["server.mjs:30-56", "lib/mailer.mjs:7", "server.mjs:60"]
+  confidence: confirmed
+
+- id: F-715
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The route contract exists only as README prose and inline handler code: the tree ships
+    no machine-readable API description, and request bodies are parsed with no schema.
+  evidence: ["README.md:12-19", "server.mjs:11-19", "package.json:1-9"]
+  confidence: confirmed

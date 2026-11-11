@@ -1,0 +1,347 @@
+# practice-review — Pass 2, context-economy (assay at 4b81665)
+# Census modules-standalone: F-101..F-109 (one per bounded context, subject_type artifact).
+# Census doc-freshness (secondary): F-117..F-122.
+# Spend side: F-123..F-128.
+
+- id: F-101
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "map/ has no entry doc"
+  observation: >
+    map/ (25 modules beside METHOD.md and SCHEMA.md) has no directory entry doc that routes
+    among its modules: the README gives it one line, and the nearest router, assay.mjs's
+    command table, names only four of its seven library modules (doctrine, child-env and
+    projects are unnamed), though every module opens with a header comment stating its role.
+  evidence: ["README.md:237", "assay.mjs:15-17", "assay.mjs:19-38", "map/doctrine.mjs:1-6", "map/child-env.mjs:1-6", "map/projects.mjs:1-6"]
+  confidence: confirmed
+  explained_by: [F-112]
+
+- id: F-102
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "map/scanners/ loads standalone"
+  observation: >
+    map/scanners/ has an entry contract that states its scope and routes to its sibling pages
+    (CANDIDATES.md for the roster, INTAKE.md for adoption), and its boundary is a written rule
+    held by a named harness block: the core names no external scanner, everything about one is
+    a field of its adapter.
+  evidence: ["map/scanners/CONTRACT.md:5-14", "map/scanners/INTAKE.md:1-10", "CLAUDE.md:33-41"]
+  confidence: confirmed
+
+- id: F-103
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "yardstick/ loads standalone"
+  observation: >
+    yardstick/README.md opens by naming requirements.yaml, measure.mjs and the yardstick.yaml it
+    writes, and has its own sections for running it, grading on fixtures and comparing two
+    measurements (compare, ratchet), so a task on the measurement can start from that one page.
+  evidence: ["yardstick/README.md:5-12", "yardstick/README.md:201", "yardstick/README.md:214", "yardstick/README.md:248"]
+  confidence: confirmed
+
+- id: F-104
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "views/ loads standalone"
+  observation: >
+    views/README.md opens with the one command that writes every view and has one section per
+    view, and its Improve section names the views/improve/ files (report.mjs over templates/,
+    sequence.mjs, the maturity and axis outputs), so views/ including views/improve/ is routed
+    from one page.
+  evidence: ["views/README.md:1-21", "views/README.md:151-166", "views/improve/sequence.mjs:1-3"]
+  confidence: confirmed
+
+- id: F-105
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "owner/ loads standalone"
+  observation: >
+    owner/ has no directory README, but the front door's owner paragraph routes its three parts
+    (evidence/, ask-owner.md, PACKET.md) and each part declares itself the one home of its format,
+    linking rather than restating.
+  evidence: ["README.md:126-136", "owner/PACKET.md:18-19", "owner/evidence/README.md:13-17", "owner/ask-owner.md:5-11"]
+  confidence: confirmed
+
+- id: F-106
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "routine/ loads standalone"
+  observation: >
+    routine/README.md states what the routine is and names its two files (the workflow template
+    and the run.mjs driver), and run.mjs's header points back to the README as the contract, so
+    the routine is one self-contained context.
+  evidence: ["routine/README.md:5-17", "routine/README.md:268", "routine/run.mjs:1-5"]
+  confidence: confirmed
+
+- id: F-107
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "lib/ headers route"
+  observation: >
+    lib/ has no README beyond the front door's "shared helpers" line, but each of its six modules
+    opens with a header stating its role and its one-home claim (run-layout the only module that
+    knows run paths, yaml-min the strict reader, run-data the run data schemas).
+  evidence: ["README.md:242", "lib/run-layout.mjs:1-6", "lib/yaml-min.mjs:1-6", "lib/run-data.mjs:1-5", "lib/display.mjs:1-4", "lib/check-syntax.mjs:1-5", "lib/release-notes.mjs:2-6"]
+  confidence: confirmed
+
+- id: F-108
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "tests/ loads standalone"
+  observation: >
+    tests/README.md describes the runner, the harness and each subdirectory and says how a block
+    is added, and a harness block fails the suite if that README stops saying so.
+  evidence: ["tests/README.md:1-21", "tests/blocks/doc-consistency.mjs:119-123"]
+  confidence: confirmed
+
+- id: F-109
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: ".github/ headers route"
+  observation: >
+    Every file under .github/ that runs (four workflows and the tools action) opens with a header
+    comment saying what it does, when it runs and what it may write, though the README's layout
+    block does not list .github/.
+  evidence: [".github/workflows/ci.yml:1-6", ".github/workflows/tools-check.yml:1-5", ".github/workflows/branch-cleanup.yml:1-6", ".github/workflows/release.yml:1-8", ".github/actions/tools/action.yml:1-6", "README.md:235-245"]
+  confidence: confirmed
+
+- id: F-110
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "short agent contract that routes"
+  observation: >
+    CLAUDE.md is a 73-line agent contract that routes in its first paragraph to the front door and
+    the four authoritative contracts (SCHEMA, METHOD, the yardstick and views READMEs) and states
+    the checks to run, rather than restating them.
+  evidence: ["CLAUDE.md:3-7", "CLAUDE.md:43-56"]
+  confidence: confirmed
+
+- id: F-111
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "front door with progressive disclosure"
+  observation: >
+    README.md routes a stranger from a four-view table to a three-layer architecture to a
+    quickstart and a layout table, and `assay help` prints every command grouped by layer with
+    a one-line purpose, so the first context needs one page and one command.
+  evidence: ["README.md:7-12", "README.md:44-55", "README.md:156-204", "README.md:233-245", "assay.mjs:18-58", "assay.mjs:62-72"]
+  confidence: confirmed
+
+- id: F-112
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "map and yardstick import each other"
+  observation: >
+    The layers the README draws as a pipeline (map then yardstick then views) import each other
+    both ways: map/record, map/roster and map/score import yardstick/measure, which imports
+    map/project and map/doctrine, and lib/ imports isMain from map/doctrine, so a task cannot
+    load map/ or yardstick/ without the other.
+  evidence: ["README.md:46-47", "map/record.mjs:40", "map/roster.mjs:44-45", "map/score.mjs:47", "yardstick/measure.mjs:35-36", "lib/release-notes.mjs:21", "map/doctrine.mjs:58"]
+  confidence: confirmed
+
+- id: F-113
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "review lane loads ~120KB of contract first"
+  observation: >
+    The practice-review lane tells a session to read METHOD.md in full and then SCHEMA.md before
+    any pass, two contracts of 799 and 1046 lines (about 55KB and 68KB), with no per-pass slice of
+    either; the scanner contract beside them is 1060 lines.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:18", "README.md:182-183", "map/METHOD.md:147-163", "map/SCHEMA.md:1-20", "map/scanners/CONTRACT.md:1-16"]
+  confidence: confirmed
+
+- id: F-114
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  label: "no size budget on contract docs"
+  observation: >
+    No harness block bounds the size of a contract doc: the only size checks found in
+    tests/blocks/ skip files over 4MB from their scans rather than budget a doc.
+  evidence: ["tests/blocks/core-names-no-scanner.mjs:74", "tests/blocks/no-history-file.mjs:49", "tests/README.md:1-21"]
+  confidence: plausible
+
+- id: F-115
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  label: "doc claims read off the code"
+  observation: >
+    A harness block holds the front door and contracts to the code: it derives the view count
+    from lib/run-layout.mjs, probes the fingerprint's parts off fingerprintFinding, checks CLAUDE.md
+    rule citations, keeps a list of retired file names out of every tracked doc, and checks that
+    `assay help` names every instrument that executes target code.
+  evidence: ["tests/blocks/doc-consistency.mjs:1-4", "tests/blocks/doc-consistency.mjs:22-40", "tests/blocks/doc-consistency.mjs:64-85", "tests/blocks/doc-consistency.mjs:88-103", "tests/blocks/doc-consistency.mjs:153-155"]
+  confidence: confirmed
+
+- id: F-116
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  label: "rule-number cites checked for existence only"
+  observation: >
+    The CLAUDE.md citation check fails a bare "CLAUDE.md rule N" only when rule N does not exist,
+    and checks meaning only when a phrase follows the number, so a numbered citation whose rule
+    was renumbered or never said the thing passes.
+  evidence: ["tests/blocks/doc-consistency.mjs:64-78"]
+  confidence: plausible
+  reaches: [F-117]
+
+- id: F-117
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "stale CLAUDE.md rule 5 citation"
+  observation: >
+    map/scanners/INTAKE.md and map/roster.mjs both cite "CLAUDE.md rule 5" for a scanner earning
+    its place by what it decides, corroborates and costs, but CLAUDE.md rule 5 is that axes are
+    property-named, and no CLAUDE.md rule states the earning criteria.
+  evidence: ["map/scanners/INTAKE.md:3-5", "map/roster.mjs:4-6", "CLAUDE.md:26-28"]
+  confidence: confirmed
+  explained_by: [F-116]
+
+- id: F-118
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "README says missing tools skip; start refuses"
+  observation: >
+    The README says the four adapter-run instruments read skipped with their install line when
+    their binary is not on PATH, while the same README's quickstart, start.mjs and routine/run.mjs
+    say a missing pinned tool makes start and the routine refuse to draw a map.
+  evidence: ["README.md:80-82", "README.md:174-175", "map/start.mjs:16-17", "map/start.mjs:445", "routine/run.mjs:7-8"]
+  confidence: confirmed
+
+- id: F-119
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "outbound-reach list is incomplete"
+  observation: >
+    The README says assay reaches outside the checkout in three places "and only these" (the
+    package registry, binaries on PATH, GitHub Actions), but osv-scanner fetches the OSV database
+    over the network and `tools install` downloads pinned binaries by curl or installs from PyPI.
+  evidence: ["README.md:141-154", "map/scanners/adapters/osv-scanner.yaml:21-22", "map/scanners/adapters/osv-scanner.yaml:29-30", "map/tools.mjs:73", "map/tools.mjs:101-110"]
+  confidence: confirmed
+
+- id: F-120
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "RUNBOOK release predates release.yml"
+  observation: >
+    RUNBOOK.md's release procedure has a person tag the merge commit by hand and never names the
+    release workflow, while release.yml says it is the only thing in the repository that tags, and
+    runs the gate and the Consumer trailer check before it does.
+  evidence: ["RUNBOOK.md:9-19", ".github/workflows/release.yml:1-8", ".github/workflows/release.yml:40-50"]
+  confidence: confirmed
+
+- id: F-121
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "help grouping described as three groups"
+  observation: >
+    The quickstart comment says `assay help` lists every command "grouped map / yardstick / views",
+    but assay.mjs prints four groups, Routine among them.
+  evidence: ["README.md:163", "assay.mjs:19", "assay.mjs:39", "assay.mjs:47", "assay.mjs:50"]
+  confidence: confirmed
+
+- id: F-122
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "front-door commands and cited files resolve"
+  observation: >
+    Every assay command the README's quickstart and CLAUDE.md name (start, tools, ingest, record,
+    lane, validate, compile, migrate-run, ratchet, yardstick, score, variance, measure, ask-owner,
+    validate-packet) is in assay.mjs's command table, and the harness files CLAUDE.md cites
+    (core-names-no-scanner, no-history-file) are tracked.
+  evidence: ["README.md:170-203", "CLAUDE.md:41", "CLAUDE.md:72", "assay.mjs:18-58", "tests/blocks/core-names-no-scanner.mjs:1-12", "tests/blocks/no-history-file.mjs:1-9"]
+  confidence: confirmed
+
+- id: F-123
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  label: "model and spend on the run record, per pass"
+  observation: >
+    The run record carries the model id and inference spend of a judgment scanner on its row and,
+    for practice-review, per pass, plus a duration on any row; `record` writes them, validate
+    rejects a malformed value and warns when a judgment scanner ran with no model.
+  evidence: ["map/record.mjs:12-26", "map/SCHEMA.md:393-396", "map/SCHEMA.md:427-436", "map/validate.mjs:251-255", "map/validate.mjs:296-303"]
+  confidence: confirmed
+
+- id: F-124
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  label: "agreement measured per model pair"
+  observation: >
+    variance resolves each sweep's model of record per dimension (the pass's model, else the row's)
+    and reports fact agreement per model pair, so a model change reads as its own row rather than
+    blended into the whole.
+  evidence: ["map/variance.mjs:96-101", "map/variance.mjs:134-147"]
+  confidence: confirmed
+
+- id: F-125
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  label: "cost joined per scanner"
+  observation: >
+    roster joins, per scanner (the engine's work class), the duration and spend each run recorded
+    on its row beside what it alone decides and corroborates, and prints "not recorded" or "not
+    measured" rather than zero when there is none.
+  evidence: ["map/roster.mjs:4-6", "map/roster.mjs:29-35", "map/roster.mjs:87-88", "map/roster.mjs:106-107", "map/scanners/INTAKE.md:87-88"]
+  confidence: confirmed
+
+- id: F-126
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  label: "missing spend is silent"
+  observation: >
+    A judgment scanner that ran with no spend recorded passes validate without a warning (only a
+    missing model warns), and the practice-review lane asks the session to report the model and
+    wall clock per pass but not its spend.
+  evidence: ["map/validate.mjs:253-254", "map/validate.mjs:296-303", "map/scanners/adapters/practice-review/lane.md:24", "map/scanners/adapters/practice-review/lane.md:26"]
+  confidence: confirmed
+
+- id: F-127
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  label: "no model-tier rationale"
+  observation: >
+    assay records which model ran but never which model should run or why: a lane names no model
+    and leaves it to the consumer, and neither the lane contract nor the practice-review lane holds
+    a tier choice or its rationale.
+  evidence: ["map/lane.mjs:10-11", "map/scanners/CONTRACT.md:930-931", "map/scanners/adapters/practice-review/lane.md:1-9"]
+  confidence: confirmed
+
+- id: F-128
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  label: "no re-qualification when models ship"
+  observation: >
+    Nothing re-measures the method when a new model ships: tool pins get a weekly upstream check,
+    but no workflow or rule ties a model release to a variance sweep, though assay's own yardstick
+    asks a target for a dated qualification record per model with a named re-qualification trigger.
+  evidence: [".github/workflows/tools-check.yml:1-5", "yardstick/requirements.yaml:819-831", "map/variance.mjs:48-52"]
+  confidence: confirmed
+  explained_by: [F-127]

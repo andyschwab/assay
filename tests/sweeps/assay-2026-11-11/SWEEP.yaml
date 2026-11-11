@@ -1,0 +1,25 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/assay-2026-11-11
+#
+# BLIND, the baseline for #257's measurement channel (#258): three practice-review lanes over this
+# repository at 4b81665, each a fresh child session seeded by `assay lane practice-review` at the
+# same commit, all passes claude-opus-5-5, the target read-only, tests/sweeps/, tests/fixtures/*/map/
+# and every ANSWERS.yaml excluded by the seed. What the record should know about how they ran:
+# - sweep-1 Pass 3 ran one node -e to list tests/golden.json's keys and one grep across tests/ that
+#   matched nothing; sweep-2 Pass 6 ran one git log and Pass 4 opened tests/sweeps/README.md (the
+#   contract, not a run). No finding cites any of them.
+# - sweep-3 was sent back once: its censuses.yaml wrote two `enforced:` values as flow maps, which
+#   the strict reader refuses and validate did not catch (#267); republished as block maps.
+# - Spend per session (practice-review row of each run record): USD 17.13, 21.93, 19.66.
+# The effect inventory is where the sweeps part: 29 channel slugs across the three, 9 shared by two
+# or more (the same effects named at different grain), the open-population drift #259 closes.
+target: "andyschwab/assay, this repository (public), at the commit below"
+target_commit: "4b81665457efa1435da9420028738acdfdcb1832"
+method_commit: "4b81665457efa1435da9420028738acdfdcb1832"
+date: "2026-11-11"
+blind: true
+threshold:
+  fact_presence: 29          # measured 11 of 38 union facts caught by all three (29%); set at the measurement
+  descriptor_agreement: 11   # measured 1 of 9 shared effect channels identical on all six descriptors (11%)
+  requirement_agreement: 64  # measured 7 of 11 decided requirements identical in all three (64%)
+sweeps: [sweep-1, sweep-2, sweep-3]

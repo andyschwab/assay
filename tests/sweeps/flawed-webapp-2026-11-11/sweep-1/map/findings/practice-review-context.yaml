@@ -1,0 +1,273 @@
+# Pass 2 — context economy (dimension: context-economy), blind
+# Target: andyschwab/assay-fixtures targets/flawed-webapp/ (notesbox)
+# Head: 7f7c89d8 — census: 8 modules (F-200..F-207), 10 doc claims (F-208..F-217), then spend side
+
+# ── Module census (terrain "Modules (context census population)", 8 items) ──
+
+- id: F-200
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    server.mjs is loadable standalone as the entry point: its header states its role and the
+    whole route table sits in one 32-line block, so a routing task finds every path and its
+    handler without opening another file.
+  evidence: [server.mjs:1-2, server.mjs:26-57]
+  confidence: confirmed
+
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs is not loadable standalone: its comment names the route DELETE while the
+    router matches POST, and its requireAdmin check only reads as a gate once lib/auth.mjs
+    shows that any missing or unknown token resolves to an admin identity.
+  evidence: [routes/admin.mjs:5-7, server.mjs:52-54, lib/auth.mjs:9-12, lib/auth.mjs:15-17]
+  confidence: confirmed
+
+- id: F-202
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs is loadable standalone: in 17 lines it states its purpose, depends only on
+    sessions.lookup, and its comment spells out the default-identity fallback and that it is
+    treated as admin.
+  evidence: [lib/auth.mjs:1-2, lib/auth.mjs:5-13, lib/auth.mjs:15-17]
+  confidence: confirmed
+
+- id: F-203
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs is not loadable standalone: it exports a raw mutable Map and a users array that
+    three other modules read and write directly (server.mjs, lib/agent.mjs, lib/sync.mjs), so a
+    storage change cannot be bounded to this file, and its header points to a SQLite adapter
+    that does not exist.
+  evidence: [lib/db.mjs:1-11, lib/db.mjs:27-31, server.mjs:5, server.mjs:31, server.mjs:38, lib/agent.mjs:8, lib/agent.mjs:12-13, lib/agent.mjs:38, lib/sync.mjs:2, lib/sync.mjs:6, lib/sync.mjs:13]
+  confidence: confirmed
+
+- id: F-204
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs is loadable standalone: its header describes the prompt-over-notes and
+    email-on-directive shape, and prompt build, model call, directive parse and send dispatch
+    all sit in one 43-line file.
+  evidence: [lib/agent.mjs:1-7, lib/agent.mjs:11-21, lib/agent.mjs:27-31, lib/agent.mjs:33-43]
+  confidence: confirmed
+
+- id: F-205
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs is loadable standalone: its header accurately states that this build only
+    logs, and the single function body does exactly that.
+  evidence: [lib/mailer.mjs:1-2, lib/mailer.mjs:5-9]
+  confidence: confirmed
+
+- id: F-206
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs is loadable standalone: one 14-line function whose header states it pushes the
+    full note set, with its only inputs being the notes map and two settings fields; its inline
+    network claim is assessed separately (F-217).
+  evidence: [lib/sync.mjs:1-3, lib/sync.mjs:5-14]
+  confidence: confirmed
+
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs is not loadable standalone: its header says values are read at boot and
+    routes to README environment notes that do not exist, every value is a literal, and it
+    carries an adminEmails list that no module reads.
+  evidence: [config/settings.mjs:1-9, README.md:12-35, lib/auth.mjs:15-17]
+  confidence: confirmed
+
+# ── Doc freshness census (terrain "Docs (freshness population)", 10 claims) ──
+
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README's endpoint count is stale: it says the API exposes 4 endpoints while the router
+    matches 5 method-and-path pairs.
+  evidence: [README.md:14, server.mjs:30, server.mjs:35, server.mjs:42, server.mjs:47, server.mjs:52]
+  confidence: confirmed
+
+- id: F-209
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README's endpoint list is incomplete: the four listed routes exist, but POST
+    /admin/purge, which clears the whole workspace, is absent from it.
+  evidence: [README.md:16-19, server.mjs:52-54]
+  confidence: confirmed
+
+- id: F-210
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's run command is accurate: `node server.mjs` starts the listener because the
+    module listens when it is the process entry, matching the package start script.
+  evidence: [README.md:24, server.mjs:59-61, package.json:7]
+  confidence: confirmed
+
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README's test command is false: `npm run test:all` names a script the package manifest
+    does not define, its only script being start.
+  evidence: [README.md:32, package.json:6-8]
+  confidence: confirmed
+
+- id: F-212
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README's coverage claim is false: the smoke suite exercises no endpoint, only calling
+    authenticate once with a valid token and asserting a user comes back.
+  evidence: [README.md:35, test/smoke.mjs:4-11]
+  confidence: confirmed
+
+- id: F-213
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    ADR-0001's interface claim holds above lib/: lookup, the notes map and purgeAll exist and
+    are the only db surface server.mjs and routes/admin.mjs import, though lib/agent.mjs also
+    reads a users export the ADR does not name.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, lib/db.mjs:8, lib/db.mjs:19-25, lib/db.mjs:27, server.mjs:5, routes/admin.mjs:2, lib/agent.mjs:8]
+  confidence: confirmed
+
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs's header claim that real deployments swap in a SQLite adapter is stale: no
+    adapter exists in the tree, the manifest has no dependencies, and the ADR itself says the
+    adapter has not landed.
+  evidence: [lib/db.mjs:1, package.json:1-9, docs/adr/0001-storage-choice.md:15]
+  confidence: confirmed
+
+- id: F-215
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs's header claim is false: the README it points to has no environment
+    notes, and the settings are literals with no environment read.
+  evidence: [config/settings.mjs:1-9, README.md:1-35]
+  confidence: confirmed
+
+- id: F-216
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs's comment names the purge route DELETE /admin/purge, but the router only
+    dispatches it on POST.
+  evidence: [routes/admin.mjs:5, server.mjs:52]
+  confidence: confirmed
+
+- id: F-217
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs's comment that the relay accepts within our VPC is not supported by the code:
+    the configured backup URL is a public https hostname and nothing in the tree establishes a
+    private network path.
+  evidence: [lib/sync.mjs:7-8, config/settings.mjs:4]
+  confidence: plausible
+
+# ── Routing, progressive disclosure, and inline claims outside the census ──
+
+- id: F-218
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    All 8 modules in the terrain's module population open with a header comment naming the
+    module's purpose, and none exceeds 63 lines, so the purpose of each loads from its first
+    lines.
+  evidence: [server.mjs:1-2, routes/admin.mjs:1, lib/auth.mjs:1, lib/db.mjs:1, lib/agent.mjs:1-2, lib/mailer.mjs:1-2, lib/sync.mjs:1, config/settings.mjs:1]
+  confidence: confirmed
+
+- id: F-219
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README routes a stranger only to endpoints, run and test commands; it names no module,
+    no directory layout, and does not link the one ADR.
+  evidence: [README.md:1-35, docs/adr/0001-storage-choice.md:1]
+  confidence: confirmed
+
+- id: F-220
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs's header says route handlers delegate to lib/ and routes/ so each concern lives
+    in one place, but the two notes handlers are inline and read and write the db Map directly.
+  evidence: [server.mjs:1-2, server.mjs:30-40]
+  confidence: confirmed
+
+# ── Spend side (the assistant surface, lib/agent.mjs) ──
+
+- id: F-221
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No model tier is named or justified anywhere: the assistant's model call is an
+    unparameterised stub, and neither the ADR, the README nor settings records a model choice.
+  evidence: [lib/agent.mjs:4-7, lib/agent.mjs:27-31, config/settings.mjs:2-9, docs/adr/0001-storage-choice.md:12-17]
+  confidence: confirmed
+
+- id: F-222
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    Inference spend is not metered: ask() builds a prompt, calls the model and returns without
+    counting tokens, recording the call, or applying any per-user or per-request budget.
+  evidence: [lib/agent.mjs:33-43, server.mjs:42-45]
+  confidence: confirmed
+
+- id: F-223
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    Nothing re-qualifies the assistant when a model changes: there is no eval, fixture or test
+    of its answers, the only test touching no part of lib/agent.mjs.
+  evidence: [test/smoke.mjs:4-11, package.json:6-8]
+  confidence: confirmed
+
+- id: F-224
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Each assistant call loads every note from every user into the prompt with no filter by the
+    asking user and no size bound, so per-call context and spend grow with the whole workspace.
+  evidence: [lib/agent.mjs:11-21, lib/agent.mjs:34]
+  confidence: confirmed

@@ -1,0 +1,139 @@
+# Pass 1 — artifact legibility (dimension: artifact-legibility), census-augmented over decisions D1–D8.
+# Target: andyschwab/assay-fixtures, subtree targets/flawed-webapp/ (notesbox); evidence repo-relative to that subtree.
+# Head: 7f7c89d8 (7f7c89d823153c702c207b1f36c6c2ce26217ceb); read-only, nothing executed.
+
+# ── Census: decisions D1–D8 (one artifact finding per decision; met = strength, not met = gap) ──
+
+- id: F-100
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D1 (in-memory store behind a narrow interface, SQLite later) reconstructs from files alone:
+    ADR-0001 states the context, the decision with the named interface, the consequences, and why
+    SQLite was not adopted now, and the store module points back to that ADR.
+  evidence: [docs/adr/0001-storage-choice.md:6-17, docs/adr/0001-storage-choice.md:19-29, lib/db.mjs:1]
+  confidence: confirmed
+
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D2 (an unknown or missing token falls back to a default identity with the admin role) has its
+    rationale written at the site, namely keeping the demo from being locked out during deploys and
+    keeping ops tooling working, though only as an inline comment with no decision record or
+    weighed alternative.
+  evidence: [lib/auth.mjs:9-12]
+  confidence: confirmed
+
+- id: F-102
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D3 (the /sync route carries no authorization check) is stated as a fact in a route comment but
+    no file gives a reason for it, and the README lists the endpoint without mentioning who may call it.
+  evidence: [server.mjs:47-50, README.md:19, docs/adr/0001-storage-choice.md:1-29]
+  confidence: confirmed
+
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D4 (the backup push is fire-and-forget with errors swallowed) has its rationale stated inline,
+    that the relay accepts within the VPC so failures are rare, though no file substantiates that
+    premise and the configured backup URL is a public https hostname.
+  evidence: [lib/sync.mjs:7-13, config/settings.mjs:4]
+  confidence: confirmed
+
+- id: F-104
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D5 (the assistant emails on a model-emitted tool line with no confirm step) is described as
+    behaviour in the module header and the README, but no app-voice file explains why no
+    confirmation or recipient check sits between the parse and the send; the only text naming that
+    shape is the fixture notice, not the maintainers' record.
+  evidence: [lib/agent.mjs:1-2, lib/agent.mjs:4-7, lib/agent.mjs:35-40, README.md:3-5, README.md:18]
+  confidence: confirmed
+
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D6 (the mailer is log-only in this build) reconstructs from the mailer's header, which says
+    production posts to the mail relay and this build only logs so nothing sends, though the README
+    describes the assistant as emailing without noting the log-only transport.
+  evidence: [lib/mailer.mjs:1-2, lib/mailer.mjs:6-8, README.md:18]
+  confidence: confirmed
+
+- id: F-106
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D7 (zero dependencies, node:http only) is stated as a fact in the server header and the manifest
+    declares no dependencies, but no file gives the reason for it beyond the ADR's narrower
+    consequence that the demo ships without a database dependency.
+  evidence: [server.mjs:1-2, package.json:1-9, docs/adr/0001-storage-choice.md:21]
+  confidence: confirmed
+
+- id: F-107
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D8 (the backup key held as a literal in source until launch) is recorded only as a TODO with no
+    reason for holding it in source, and the settings header points to README environment notes
+    that the README does not contain.
+  evidence: [config/settings.mjs:1, config/settings.mjs:5-6, README.md:1-35]
+  confidence: confirmed
+
+# ── Other legibility facts ──
+
+- id: F-108
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The decision-record home holds one ADR, covering D1 of the eight enumerated decisions D1–D8, so
+    the other seven (including the auth fallback, the unauthenticated sync and the unconfirmed
+    assistant email) live only in inline comments or nowhere, and the README does not link the ADR
+    directory at all.
+  evidence: [docs/adr/0001-storage-choice.md:1, lib/db.mjs:1, README.md:1-35]
+  confidence: confirmed
+
+- id: F-109
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    ADR-0001 is a well-formed decision record, carrying status, date, context, decision,
+    consequences and a rejected-alternative section with its reason.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, docs/adr/0001-storage-choice.md:6-29]
+  confidence: confirmed
+
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README opens with the product's intent, a team notes app with member and admin roles and an
+    AI assistant that answers questions and can email summaries, in the app's own voice.
+  evidence: [README.md:1-5]
+  confidence: confirmed
+
+- id: F-111
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Every module in the enumerated population of eight carries a header comment naming its role
+    (server, admin routes, auth, store, assistant, mailer, sync, settings), though several state only
+    what the module does and not why.
+  evidence: [server.mjs:1-2, routes/admin.mjs:1, lib/auth.mjs:1, lib/db.mjs:1, lib/agent.mjs:1-2, lib/mailer.mjs:1-2, lib/sync.mjs:1, config/settings.mjs:1]
+  confidence: confirmed

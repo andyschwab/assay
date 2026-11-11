@@ -1,0 +1,31 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/flawed-webapp-2026-11-11
+#
+# BLIND, the baseline for #257's measurement channel (#258): three practice-review lanes over the
+# flawed-webapp fixture target, each a fresh child session seeded by `assay lane practice-review`
+# at 4b81665, all passes claude-opus-5-5, the target read-only, the answer sheet and every prior
+# run excluded by the seed. What the record should know about how they ran:
+# - Each session reports one pass whose file listing printed ANSWERS.yaml by accident; that pass's
+#   output was discarded and the pass re-run in a fresh context limited to the target's files
+#   (sweep-1 multiplayer, sweep-2 verification, sweep-3 context). Every published pass is blind.
+# - Each was sent back once for the same refusal, an unprompted gap with no axis (validate), and
+#   republished with that one field added (sweep-1 F-718, sweep-2 F-620, sweep-3 F-707).
+# - sweep-2 rooted its evidence at the fixtures repository (targets/flawed-webapp/...) where the
+#   others rooted it at the target; the prefix was removed from sweep-2's evidence lists at
+#   collection so all three cite the same tree. Nothing else was edited.
+# - Spend per session (practice-review row of each run record): USD 8.27 to 8.88.
+# Recall against the target's ANSWERS.yaml: 9 of 9 in scope in all three sweeps (the fixture is
+# saturated: it cannot separate a better method from a worse one).
+# Fact presence reads high here because the target is 12 files: the fact key (dimension + a shared
+# evidence path) folds most of a dimension's findings into one fact, so 300 findings make 9 facts.
+# On a target this small, requirement agreement is the measure that carries information.
+target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
+method_commit: "4b81665457efa1435da9420028738acdfdcb1832"
+date: "2026-11-11"
+blind: true
+threshold:
+  fact_presence: 89          # measured 8 of 9 union facts caught by all three (89%); see above on why it reads high
+  descriptor_agreement: 50   # measured 2 of 4 shared effect channels identical on all six descriptors (50%)
+  requirement_agreement: 100 # measured 10 of 10 decided requirements identical in all three (100%)
+sweeps: [sweep-1, sweep-2, sweep-3]

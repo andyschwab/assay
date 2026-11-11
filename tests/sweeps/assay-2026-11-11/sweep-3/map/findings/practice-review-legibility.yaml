@@ -1,0 +1,254 @@
+# census: decision-reconstruction (F-001..F-012, one per decision); others F-013..F-023
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: strict fail-closed YAML subset"
+  observation: >
+    The choice to read only a constrained YAML subset and throw on anything else
+    reconstructs from the reader's own header and inline comments, which state the
+    fail-closed lesson and name the constructs (flow map, anchor, alias, chomped
+    scalar) that would otherwise silently become strings and drop findings.
+  evidence: ["lib/yaml-min.mjs:1-6", "lib/yaml-min.mjs:37-43", "lib/yaml-min.mjs:47-49", "map/SCHEMA.md:969"]
+  confidence: confirmed
+- id: F-002
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  label: "decision: zero runtime dependencies"
+  observation: >
+    The engine-wide choice of zero runtime dependencies is stated in the README but its
+    reason does not reconstruct from the files read: the only engine-level hint is the
+    phrase "portable zero-dep core" inside one candidates-table row, and the routine
+    driver's comment gives a reason for that one file only.
+  evidence: ["README.md:158-160", "map/scanners/CANDIDATES.md:106", "routine/run.mjs:23-25"]
+  confidence: plausible
+- id: F-003
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: ids carry no dimension"
+  observation: >
+    Why finding ids encode no dimension reconstructs from SCHEMA section 3, which gives
+    the reason (a per-dimension range is a budget a dense repo overflows, and ids are
+    renumbered across runs anyway) and names the filename-to-dimension check that
+    replaces it.
+  evidence: ["map/SCHEMA.md:217-232", "map/SCHEMA.md:248-251"]
+  confidence: confirmed
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: two-job routine"
+  observation: >
+    The split of the routine template into a target job and a gate job reconstructs from
+    routine/README.md, which names the threat (a change's test script rewriting the
+    ratchet or the run's yardstick.yaml to make its own gate read held) and what each job
+    may and may not touch.
+  evidence: ["routine/README.md:130-137", "routine/README.md:139-153", "routine/README.md:155-164"]
+  confidence: confirmed
+- id: F-005
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: child environment allow-list"
+  observation: >
+    The allow-listed child environment reconstructs from the module header (no inherited
+    tokens, cloud keys or sockets; proxy plumbing kept only without userinfo, with issue
+    references) and from the README, which states plainly that it is not a sandbox.
+  evidence: ["map/child-env.mjs:1-8", "map/child-env.mjs:12-18", "README.md:93-97"]
+  confidence: confirmed
+- id: F-006
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: no history file"
+  observation: >
+    The ban on a history file or dated log reconstructs from the agent contract and the
+    pinning block's header, which gives the reason (a dated history file restates the
+    commit) and where the confirmed-red record goes instead.
+  evidence: ["CLAUDE.md:71-73", "tests/blocks/no-history-file.mjs:1-8"]
+  confidence: confirmed
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: scanners as adapters; core names none"
+  observation: >
+    The rule that the core names no external scanner reconstructs from the agent
+    contract plus the scanner contract, which says the engine interfaces with a scanner
+    and never forks its logic and shows the adapter absorbing a scanner's evolution as one
+    mapping row.
+  evidence: ["CLAUDE.md:33-41", "map/scanners/CONTRACT.md:7-10", "map/scanners/CONTRACT.md:985-993"]
+  confidence: confirmed
+- id: F-008
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: attack chains computed, not authored"
+  observation: >
+    Why attack chains are computed rather than authored reconstructs from the chains
+    module header and SCHEMA section 6d, which name determinism as the reason, define the
+    live/held/contained states, and fix a single owned difficulty scale.
+  evidence: ["map/chains.mjs:1-17", "map/SCHEMA.md:761-780"]
+  confidence: confirmed
+- id: F-009
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: no verdict, no price, no deploy gate"
+  observation: >
+    The decision that assay issues no verdict, price or deploy gate reconstructs from the
+    README's one-rule paragraph and the scanner contract's guarantee that severity is a
+    property and the go/no-go is the reader's.
+  evidence: ["README.md:32-42", "map/scanners/CONTRACT.md:999-1005", "views/README.md:11-16"]
+  confidence: confirmed
+- id: F-010
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: one home for gate doctrine"
+  observation: >
+    Why gate doctrine lives in one module reconstructs from its header, which states the
+    failure it prevents (the doctrine restated in four files and the severity ranking in
+    three, agreeing by coincidence) and that the harness pins the shared rule.
+  evidence: ["map/doctrine.mjs:1-8", "map/doctrine.mjs:30-39"]
+  confidence: confirmed
+- id: F-011
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: offline means no hosting-platform API"
+  observation: >
+    The definition of offline (no repo-hosting platform API, while a package registry may
+    be reached) reconstructs from the scanner contract, which gives the reason: a tool
+    needing a remote configuration API is a forever-fail whose absence reads as coverage,
+    so it may be integrated but not adopted.
+  evidence: ["map/scanners/CONTRACT.md:168-175", "README.md:149-152"]
+  confidence: confirmed
+- id: F-012
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  label: "decision: pinned tools are a precondition, never a skip"
+  observation: >
+    The decision that a missing pinned tool refuses the run instead of recording a skip
+    with a reason (the rule every other absent scanner follows) is stated in six places
+    but its reason is written in none of them; each cites issue #198 for it.
+  evidence: ["map/tools.mjs:3-6", "routine/README.md:105-109", "map/scanners/CONTRACT.md:890-896", "map/start.mjs:441-442", "routine/run.mjs:215-217", "tests/blocks/tools-precondition.mjs:1-2"]
+  confidence: confirmed
+  explained_by: [F-022]
+- id: F-013
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: process
+  observation: >
+    Contract docs name a single home for each rule and cite it instead of restating it:
+    the README holds the one rule and says every other page cites it there, and the
+    routine and yardstick contracts point to owner/PACKET.md and the ratchet section as
+    the one home of their formats.
+  evidence: ["README.md:32-37", "CLAUDE.md:11", "routine/README.md:120-121", "routine/README.md:171", "yardstick/README.md:193-196"]
+  confidence: confirmed
+- id: F-014
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: process
+  observation: >
+    The agent contract requires that taste the code relies on be written in CLAUDE.md or
+    the owning contract, never only in a code comment, and that engine learnings become
+    issues landed as reviewed changes that cite them.
+  evidence: ["CLAUDE.md:65-70"]
+  confidence: confirmed
+- id: F-015
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README describes the four run-off-adapter instruments as reading skipped with
+    their install line when their binary is absent, while later on the same page and in
+    the scanner contract the pinned tools are a precondition that refuses the run; the
+    reconciling sentence (the skip row survives only for a runner called as a library)
+    appears only in the scanner contract.
+  evidence: ["README.md:80-82", "README.md:174-175", "map/scanners/CONTRACT.md:778", "map/scanners/CONTRACT.md:890-896", "map/scanners/CONTRACT.md:901-902"]
+  confidence: confirmed
+- id: F-016
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The repo-census gap text and its fix line tell a target to move history into a
+    separate co-located history file as the canon convention, while assay's own contract
+    bans a history file because git is the change record; no file read explains why the
+    two conventions differ.
+  evidence: ["map/repo-census.mjs:421", "map/ingest.mjs:628", "CLAUDE.md:71-73", "tests/blocks/no-history-file.mjs:1-4"]
+  confidence: plausible
+- id: F-017
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The format contract and README record the method's own measured weakness in place
+    (the first blind sweep over this repository measured fact presence at 38% and
+    descriptor agreement at 20%) and name which figures are history versus reproduced by
+    the tree.
+  evidence: ["map/SCHEMA.md:204-213", "README.md:223-231"]
+  confidence: confirmed
+- id: F-018
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Not adopting a scanner is kept as a recorded decision rather than a deletion: an
+    adapter with adopted false carries a retired note stating why and stays loadable.
+  evidence: ["map/scanners/CONTRACT.md:980-983"]
+  confidence: confirmed
+- id: F-019
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The candidates roster records why a candidate scanner is held beside the engine
+    rather than adopted, including license reasoning and native-dependency concerns, so
+    adoption decisions read from a file.
+  evidence: ["map/scanners/CANDIDATES.md:106"]
+  confidence: confirmed
+- id: F-020
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CONSUMERS.md draws the line between what a consumer may rely on and what is internal,
+    states that anything not on it may change in any commit, and names who owns breakage
+    past it.
+  evidence: ["CONSUMERS.md:1-9", "README.md:206-207"]
+  confidence: confirmed
+- id: F-021
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The repository keeps no decision-record directory; design rationale lives in the
+    contract docs and in module header comments that cite issue numbers, by the agent
+    contract's own rule.
+  evidence: ["CLAUDE.md:65-73", "map/child-env.mjs:1-2", "map/doctrine.mjs:1-8", "map/tools.mjs:1-3"]
+  confidence: confirmed
+- id: F-022
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    Where a header comment cites an issue number as the source of a decision, the reason
+    sometimes stays in the issue tracker rather than the file, as for the tools
+    precondition (#198), so its rationale does not reconstruct from the tree alone.
+  evidence: ["map/tools.mjs:3-6", "routine/README.md:105", "map/start.mjs:441"]
+  confidence: plausible
+- id: F-023
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The yardstick contract states why stage and urgency are never an input to the
+    measurement (they are a reader's lens above it) and how a consumer should show
+    deferred rows instead of reading them as not-applicable or met.
+  evidence: ["yardstick/README.md:51-58"]
+  confidence: confirmed

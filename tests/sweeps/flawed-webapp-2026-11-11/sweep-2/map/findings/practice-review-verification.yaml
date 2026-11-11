@@ -1,0 +1,147 @@
+# Pass 4 — Verification affordances (census-augmented: effect-provability, subject_type control)
+- id: F-300
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The note-create effect can be read back by its caller, because POST /notes writes synchronously
+    and returns the new note id, and GET /notes returns the caller's own notes from the same store,
+    though the proof lasts only for the life of the process.
+  evidence:
+    - server.mjs:35-39
+    - server.mjs:30-32
+    - docs/adr/0001-storage-choice.md:22-23
+  confidence: confirmed
+- id: F-301
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The email-send effect cannot prove it happened: sendEmail is a log-only transport that returns
+    a hard-coded sent flag, and ask() ignores that return value and reports the recipient as emailed
+    regardless, while the module's own header says production posts to a mail relay.
+  evidence:
+    - lib/mailer.mjs:1-2
+    - lib/mailer.mjs:5-8
+    - lib/agent.mjs:39-40
+  confidence: confirmed
+- id: F-302
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The backup-push effect reports success without verifying it: pushBackup fires fetch without
+    awaiting it, swallows any rejection with an empty catch, and returns ok true with a pushed count,
+    which POST /sync relays to the caller as a 200.
+  evidence:
+    - lib/sync.mjs:7-13
+    - server.mjs:47-49
+  confidence: confirmed
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The workspace-purge effect leaves no trace beyond its HTTP response: purgeAll returns a
+    hard-coded purged flag, and neither it nor handlePurge logs or records who purged or when, so
+    afterwards an empty store cannot be told apart from the restart data loss the ADR accepts.
+  evidence:
+    - lib/db.mjs:27-31
+    - routes/admin.mjs:6-10
+    - docs/adr/0001-storage-choice.md:22-23
+  confidence: confirmed
+- id: F-304
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the model's output before it is acted on: ask() parses any TOOL:send_email line
+    from the model answer and sends every note to the parsed address, with no check of the recipient
+    against the workspace's users or the admin list and no check of the content.
+  evidence:
+    - lib/agent.mjs:34-39
+    - config/settings.mjs:8
+  confidence: confirmed
+- id: F-305
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The only test assertion cannot fail on the defect it sits beside: smoke.mjs asserts that
+    authenticate returns a truthy user for a valid token, but authenticate returns a default admin
+    identity for any token, so the assertion passes whether or not the token is valid.
+  evidence:
+    - test/smoke.mjs:8-9
+    - lib/auth.mjs:7-12
+  confidence: confirmed
+- id: F-306
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No change can demonstrate itself through a runnable check: package.json defines only a start
+    script, so the test:all command the README names does not exist, and no test exercises any of
+    the five routes despite the README's claim that every endpoint is covered.
+  evidence:
+    - package.json:6-8
+    - README.md:29-35
+    - test/smoke.mjs:4-11
+  confidence: confirmed
+- id: F-307
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The server is importable for in-process testing without binding a port, since it is exported
+    and listen runs only when the file is executed directly.
+  evidence:
+    - server.mjs:59-63
+  confidence: confirmed
+- id: F-308
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The model call is a deterministic offline stub that reproduces an injected TOOL directive from
+    its input, which would let the assistant's injection path be reproduced in a test, though no
+    test uses it.
+  evidence:
+    - lib/agent.mjs:4-7
+    - lib/agent.mjs:23-31
+    - test/smoke.mjs:5
+  confidence: confirmed
+- id: F-309
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No calibration harness exists for the assistant: its prompt and tool-directive protocol are
+    inline strings, and the target's only test file holds no frozen inputs, expected outputs or
+    repeated runs that would measure the prompt's behaviour.
+  evidence:
+    - lib/agent.mjs:16-20
+    - test/smoke.mjs:1-11
+  confidence: confirmed
+- id: F-310
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    A malformed request body is reported as success: readBody turns a JSON parse error into an empty
+    object, so POST /notes stores an empty note and returns 201 rather than failing loud.
+  evidence:
+    - server.mjs:15-16
+    - server.mjs:36-39
+  confidence: confirmed
+- id: F-311
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The app has no observability of its own beyond two unstructured console lines (the mailer's log
+    line and the listen banner); no route, backup push or purge emits a request or outcome record.
+  evidence:
+    - lib/mailer.mjs:7
+    - server.mjs:60
+    - server.mjs:26-57
+  confidence: confirmed

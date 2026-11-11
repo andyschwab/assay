@@ -1,0 +1,195 @@
+# practice-review pass 1: artifact legibility (census-augmented: decision-reconstruction, 10 items)
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: zero-dependency YAML reader"
+  observation: >
+    The zero-dependency YAML reader's rationale is written down: SCHEMA.md says the validator is zero-dependency so it copies into any target repo beside METHOD.md, and the reader's own header says it throws on unparsed constructs because a checker that silently accepts unparseable input hides what it exists to catch.
+  evidence: ["map/SCHEMA.md:892-893", "lib/yaml-min.mjs:1-6", "lib/yaml-min.mjs:36-39"]
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: ids carry no dimension"
+  observation: >
+    SCHEMA.md section 3 states why finding ids encode no dimension (a fixed per-dimension range is a budget a dense repo overflows, it would duplicate the dimension field, and ids are renumbered across runs anyway) and names the validator check that replaces it.
+  evidence: ["map/SCHEMA.md:217-232"]
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: child-process env allow-list"
+  observation: >
+    The child-env module's header explains the allow-list (which names are kept and why PATH, HOME and proxy plumbing are needed, which kinds of secret are dropped), cites the issues behind it, and points to the owning contract section CONTRACT.md 3a.
+  evidence: ["map/child-env.mjs:1-8", "map/child-env.mjs:12-17"]
+  confidence: confirmed
+- id: F-104
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: no deploy verdict, no stage scale"
+  observation: >
+    SCHEMA.md 6a states why a run carries no deployment-stage scale (a per-exposure stage is a risk-tolerance verdict that belongs to the reader, and the file already carries the properties a stage would composite), and CONTRACT.md 6 restates it as illuminate-over-enforce.
+  evidence: ["map/SCHEMA.md:557-562", "map/scanners/CONTRACT.md:999-1003"]
+  confidence: confirmed
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: core names no scanner"
+  observation: >
+    The rule that the core names no external scanner is stated in CLAUDE.md rule 7 with its pinning test, and its rationale (interface with a scanner, never fork its logic; the adapter absorbs a scanner's evolution) is written in the scanner contract.
+  evidence: ["CLAUDE.md:33-41", "map/scanners/CONTRACT.md:7-10", "map/scanners/CONTRACT.md:985-993"]
+  confidence: confirmed
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: per-target canon file"
+  observation: >
+    SCHEMA.md 8 and map/canon/README.md state why a canon file exists (decide-once needs a home, otherwise it collapses into copying the last run's answers) and cite a calibration measurement that motivated it.
+  evidence: ["map/SCHEMA.md:899-916", "map/canon/README.md:1-14"]
+  confidence: confirmed
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: target execution only under --allow-exec"
+  observation: >
+    start.mjs's header explains that fresh-clone and knip run only under --allow-exec because they run the target's own install, lifecycle scripts, tests or tool configs on the machine, and the skip reason written into the run record repeats that rationale.
+  evidence: ["map/start.mjs:15-29", "map/start.mjs:410"]
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: routine reads the baseline from the base branch"
+  observation: >
+    The routine template comments on the base-branch fetch step that a pull request's own copy of the workflow could edit packet/baseline.yaml, so the accepted baseline is read from origin/base, and they point to the routine/README.md section that owns the rule.
+  evidence: ["routine/assay-routine.yml:97-105", "routine/README.md:169-177"]
+  confidence: confirmed
+- id: F-109
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  label: "decision: release only by person dispatch"
+  observation: >
+    release.yml's header, CONSUMERS.md and RUNBOOK.md state that a person dispatches the release and nothing else tags, and list what the job checks, but no file states why releasing is a person's dispatch rather than automatic on merge.
+  evidence: [".github/workflows/release.yml:1-8", "CONSUMERS.md:111-115", "RUNBOOK.md:1-19"]
+  confidence: confirmed
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  label: "decision: lanes execute nothing"
+  observation: >
+    lane.mjs's header and CONTRACT.md 3h state that a review lane executes nothing because everything that executes ran in the deterministic phase as instruments whose output the review reads, and that the consumer validates what the session publishes; the remaining why is deferred to issue #201.
+  evidence: ["map/lane.mjs:4-11", "map/scanners/CONTRACT.md:906-912"]
+  confidence: confirmed
+- id: F-111
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The repository keeps no decision-record directory (no ADR files); design rationale lives inline in the contract docs CLAUDE.md names (SCHEMA.md, METHOD.md, yardstick/README.md, views/README.md) and in module header comments, and the only tracked file named for decisions is the owner-triage overlay map/decisions.mjs.
+  evidence: ["CLAUDE.md:3-7", "map/decisions.mjs:1-7"]
+  confidence: confirmed
+- id: F-112
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README front door explains intent before mechanics: the question each view answers, who runs it and for whom, the one rule and where it lives, and what assay is not.
+  evidence: ["README.md:1-43"]
+  confidence: confirmed
+- id: F-113
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CLAUDE.md requires that taste the code relies on be written in CLAUDE.md or the contract that owns it, never only in a code comment, so rationale is directed to contracts over comments.
+  evidence: ["CLAUDE.md:69-70"]
+  confidence: confirmed
+- id: F-114
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: control
+  observation: >
+    A harness block checks contract-doc statements against the code itself (view count, fingerprint parts, cited ground rules), so the docs that carry rationale are held to the code they describe.
+  evidence: ["tests/blocks/doc-consistency.mjs:1-4"]
+  confidence: confirmed
+- id: F-115
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    Much of the rationale in files ends at an issue number (for example #47, #65 and #201 in child-env.mjs, lane.mjs and CONTRACT.md 3h), so the full reasoning behind those choices lives in the issue tracker, not in the tree.
+  evidence: ["map/child-env.mjs:2", "map/child-env.mjs:12", "map/lane.mjs:2", "map/scanners/CONTRACT.md:906-907"]
+  confidence: confirmed
+- id: F-116
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    No history file is allowed by an enforced rule (the change record is git), so the alternatives a decision superseded are recorded only in commit messages and pull requests, not in a file a reader of the tree sees.
+  evidence: ["CLAUDE.md:71-73", "tests/blocks/no-history-file.mjs:1-7"]
+  confidence: confirmed
+- id: F-117
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    routine/README.md is a design doc beside the code it governs: its sections are headed with the decision itself ("Two jobs: the change's code never shares a job with its gate", "The baseline: accepted by a named steward") and give the threat that motivated each.
+  evidence: ["routine/README.md:130-137", "routine/README.md:169-177"]
+  confidence: confirmed
+- id: F-118
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine template carries the reason for each non-obvious setting inline: a full commit SHA rather than a branch for ASSAY_REF, an off-the-hour cron, a push trigger beside pull_request, and the two-job split.
+  evidence: ["routine/assay-routine.yml:4-6", "routine/assay-routine.yml:18-20", "routine/assay-routine.yml:24-30", "routine/assay-routine.yml:40-47"]
+  confidence: confirmed
+- id: F-119
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Decisions about which external scanners to adopt or reject are recorded with reasons: CANDIDATES.md gives each candidate's verdict and why (Trivy declined for supply-chain risk), and a retired adapter must carry a retired note that says why (scorecard).
+  evidence: ["map/scanners/CANDIDATES.md:79", "map/scanners/CONTRACT.md:979-982", "map/scanners/adapters/scorecard.yaml:18-19"]
+  confidence: confirmed
+- id: F-120
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The owner-triage overlay is described as "root's own decision model" in both decisions.mjs and METHOD.md, and nothing in the tree defines what root is, so that reference cannot be reconstructed from files.
+  evidence: ["map/decisions.mjs:9-12", "map/METHOD.md:630-633"]
+  confidence: confirmed
+- id: F-121
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    RUNBOOK.md's release procedure says to tag the merge commit and never names release.yml, while release.yml and CONSUMERS.md say the dispatched workflow is the only thing that tags, so the two accounts of how a release is cut differ.
+  evidence: ["RUNBOOK.md:9-19", ".github/workflows/release.yml:3-4", "CONSUMERS.md:111-112"]
+  confidence: confirmed
+- id: F-122
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Module headers state purpose and point to the owning contract section: start.mjs explains why it is the one sequence both the CLI and the routine share, and decisions.mjs explains why a decision never deletes a finding (held versus accepted versus open).
+  evidence: ["map/start.mjs:1-13", "map/decisions.mjs:3-12"]
+  confidence: confirmed
+- id: F-123
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    assay does not declare a canon for itself: map/canon/ tracks only its README, though SCHEMA.md 8 makes the canon the home of a target's enumeration decisions.
+  evidence: ["map/canon/README.md:1-6", "map/SCHEMA.md:908-912"]
+  confidence: confirmed

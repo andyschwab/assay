@@ -1,0 +1,257 @@
+# Pass 6 — improvement loop (census-augmented). Census incidents-became-mechanisms:
+# closed list = every distinct (#NNN) cited in map/SCHEMA.md (6), map/scanners/CONTRACT.md §3a
+# (lines 142-213: 2) and yardstick/README.md (6 not already listed); CLAUDE.md cites none.
+# One finding per lesson, F-601..F-614; met = a tests/blocks/*.mjs block names the issue and asserts the rule.
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #172 lesson in SCHEMA.md (a capability whose outward leg only reads is not a full trifecta) is pinned by tests/blocks/capability-read-leg.mjs, which names #172 and asserts how effectLeg reads each value.
+  evidence: ["map/SCHEMA.md:54", "map/SCHEMA.md:264", "tests/blocks/capability-read-leg.mjs:1", "tests/blocks/capability-read-leg.mjs:28"]
+  confidence: confirmed
+  label: "#172 read-leg pinned"
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #38 gate-descriptor lesson in SCHEMA.md (initiated-by-person, unterminated, verified_as) is pinned by tests/blocks/gate-vocabulary.mjs, which names #38 and asserts gateHolds over those descriptors.
+  evidence: ["map/SCHEMA.md:70", "tests/blocks/gate-vocabulary.mjs:1", "tests/blocks/gate-vocabulary.mjs:28"]
+  confidence: confirmed
+  label: "#38 gate vocabulary pinned"
+- id: F-603
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #88 lesson in SCHEMA.md §5a (fresh-clone over an exported tree reads skipped with its reason) is pinned by tests/blocks/start-tree.mjs, which asserts the skipped row and reason.
+  evidence: ["map/SCHEMA.md:370", "tests/blocks/start-tree.mjs:1", "tests/blocks/start-tree.mjs:31"]
+  confidence: confirmed
+  label: "#88 start over a tree pinned"
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #159 lesson in SCHEMA.md §5a (every instrument row carries its wall time) is pinned by tests/blocks/instrument-durations.mjs, which asserts a whole-seconds duration on every non-skipped row.
+  evidence: ["map/SCHEMA.md:401", "tests/blocks/instrument-durations.mjs:1", "tests/blocks/instrument-durations.mjs:35-36"]
+  confidence: confirmed
+  label: "#159 durations pinned"
+- id: F-605
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #201 lesson in SCHEMA.md §5a (a lane's row records the head and date it reviewed) is pinned by tests/blocks/lane-reviewed.mjs, which asserts record writes reviewed head and date.
+  evidence: ["map/SCHEMA.md:404", "tests/blocks/lane-reviewed.mjs:1", "tests/blocks/lane-reviewed.mjs:32"]
+  confidence: confirmed
+  label: "#201 lane reviewed pinned"
+- id: F-606
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #228 lesson in SCHEMA.md §5a (a reviewer's method is pinned by verified_against release and commit) is pinned by tests/blocks/reviewer-pinned-by-commit.mjs, which asserts a full commit sha and that the seed fetches exactly that commit.
+  evidence: ["map/SCHEMA.md:407", "tests/blocks/reviewer-pinned-by-commit.mjs:1", "tests/blocks/reviewer-pinned-by-commit.mjs:42", "tests/blocks/reviewer-pinned-by-commit.mjs:50"]
+  confidence: confirmed
+  label: "#228 reviewer pin pinned"
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #47 lesson in CONTRACT.md §3a (a target's code runs only with the allow-listed child environment) is pinned by tests/blocks/isolation.mjs, which names #47 and fails when a fresh-clone step sees any name outside the allow-list.
+  evidence: ["map/scanners/CONTRACT.md:180-189", "tests/blocks/isolation.mjs:1", "tests/blocks/isolation.mjs:52"]
+  confidence: confirmed
+  label: "#47 isolation pinned"
+- id: F-608
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #65 lesson in CONTRACT.md §3a (network plumbing passes through, a proxy URL with userinfo is dropped) is pinned by tests/blocks/isolation.mjs, which asserts the plumbing arrives and a userinfo proxy URL never reaches the step.
+  evidence: ["map/scanners/CONTRACT.md:186-189", "tests/blocks/isolation.mjs:54", "tests/blocks/isolation.mjs:63-66"]
+  confidence: confirmed
+  label: "#65 network plumbing pinned"
+- id: F-609
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #161 lesson in yardstick/README.md (the floor holds only rows whose gap can cause harm) is pinned by tests/blocks/yardstick-floor-harm.mjs, which asserts the rows #161 moved are not tagged floor.
+  evidence: ["yardstick/README.md:87", "tests/blocks/yardstick-floor-harm.mjs:1", "tests/blocks/yardstick-floor-harm.mjs:44"]
+  confidence: confirmed
+  label: "#161 floor-harm pinned"
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #177 lesson in yardstick/README.md (with several deciders a gap from any decider decides the row) is pinned by tests/blocks/yardstick-deciders.mjs, which asserts the row reads unmet beside a strength.
+  evidence: ["yardstick/README.md:120", "tests/blocks/yardstick-deciders.mjs:1", "tests/blocks/yardstick-deciders.mjs:28-29"]
+  confidence: confirmed
+  label: "#177 several deciders pinned"
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #232 lesson in yardstick/README.md (any hit of the vendored taint rules reads d-untrusted-input-checked unmet, beside a positive control) is pinned by tests/blocks/opengrep-instrument.mjs, which asserts the floor reads unmet on a planted flow and a silent positive control fails the row.
+  evidence: ["yardstick/README.md:140", "tests/blocks/opengrep-instrument.mjs:1", "tests/blocks/opengrep-instrument.mjs:101", "tests/blocks/opengrep-instrument.mjs:113"]
+  confidence: confirmed
+  label: "#232 taint instrument pinned"
+- id: F-612
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #121 lesson in yardstick/README.md (unused-code rows without a knip configuration are flagged unconfigured and set aside) is pinned by tests/blocks/yardstick-maintainability.mjs, which asserts the flag appears only when the target has no knip configuration.
+  evidence: ["yardstick/README.md:179", "tests/blocks/yardstick-maintainability.mjs:16", "tests/blocks/yardstick-maintainability.mjs:90", "tests/blocks/yardstick-maintainability.mjs:94"]
+  confidence: confirmed
+  label: "#121 unconfigured knip pinned"
+- id: F-613
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #18 lesson in yardstick/README.md (a decider change that moves a fixture's status is caught) is pinned by tests/blocks/yardstick-known-answers.mjs, which asserts an edited answer sheet grades disagree and turns the harness red.
+  evidence: ["yardstick/README.md:219", "tests/blocks/yardstick-known-answers.mjs:1", "tests/blocks/yardstick-known-answers.mjs:58-60"]
+  confidence: confirmed
+  label: "#18 known answers pinned"
+- id: F-614
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The #183 lesson in yardstick/README.md (a rule change between engines reads re-ruled, never a move of the repository) is pinned by tests/blocks/since-re-ruled.mjs, which asserts the row reads re-ruled and never regressed.
+  evidence: ["yardstick/README.md:286", "tests/blocks/since-re-ruled.mjs:1", "tests/blocks/since-re-ruled.mjs:53-54"]
+  confidence: confirmed
+  label: "#183 re-ruled pinned"
+# ── probes beyond the census ──
+- id: F-615
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    CLAUDE.md names where "we never do X" goes (engine learnings to the issue tracker, landing as a reviewed change that cites the issue; taste written in CLAUDE.md or the owning contract, never only in a code comment), and tests/blocks/doc-consistency.mjs fails if CLAUDE.md stops naming the issue tracker or the red-then-green rule; CLAUDE.md was last changed 2026-10-15, 18 days before head.
+  evidence: ["CLAUDE.md:65-70", "tests/blocks/doc-consistency.mjs:86-88"]
+  confidence: confirmed
+  label: "where taste is written"
+- id: F-616
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    CLAUDE.md rules point at the test block that holds them (rule 7 at core-names-no-scanner.mjs, the git-is-the-record rule at no-history-file.mjs), and both blocks name their originating issue (#147, #164).
+  evidence: ["CLAUDE.md:41", "CLAUDE.md:71-72", "tests/blocks/core-names-no-scanner.mjs:1-2", "tests/blocks/no-history-file.mjs:1-4"]
+  confidence: confirmed
+  label: "agent spec rules carry their mechanism"
+- id: F-617
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    tests/blocks/doc-consistency.mjs fails when any tracked file cites a CLAUDE.md rule number that does not exist, cites it under the wrong number, or quotes CLAUDE.md for a phrase CLAUDE.md does not say.
+  evidence: ["tests/blocks/doc-consistency.mjs:65-84"]
+  confidence: confirmed
+  label: "agent-spec citations checked"
+- id: F-618
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The red-then-green rule (a new assertion is confirmed red with its rule reverted, and the PR body and commit message say so) is held only as text: doc-consistency.mjs checks that CLAUDE.md states it, the PR template asks for it in a comment, and ci.yml has no step that reads a PR body or commit message for the statement.
+  evidence: ["CLAUDE.md:60-64", ".github/PULL_REQUEST_TEMPLATE.md:5-11", "tests/blocks/doc-consistency.mjs:87", ".github/workflows/ci.yml:23-39"]
+  confidence: confirmed
+  label: "red-then-green unchecked"
+- id: F-619
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    A commit touching the consumer surface must carry a Consumer git trailer; lib/release-notes.mjs --check refuses this repository's own history without one (run by the harness on every push via consumer-contract.mjs, and by release.yml before it tags), and the release notes lead with those trailers.
+  evidence: ["lib/release-notes.mjs:2-17", "CONSUMERS.md:117-124", "tests/blocks/consumer-contract.mjs:122-127", ".github/workflows/release.yml:43-48"]
+  confidence: confirmed
+  label: "Consumer trailers enforced"
+- id: F-620
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Every run is specified to produce an engine backlog in two halves, a computed map/backlog.yaml (un-enumerated population, evidence inaccuracy, coverage divergence) and an authored map/backlog-authored.yaml whose items move proposed, filed or dropped, and the validator refuses a filed item that names no issue.
+  evidence: ["map/METHOD.md:772-776", "map/backlog.mjs:2-24", "map/SCHEMA.md:491-517", "lib/run-data.mjs:207", "lib/run-data.mjs:222"]
+  confidence: confirmed
+  label: "engine backlog loop"
+- id: F-621
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The backlog stops at a file: backlog.mjs writes only map/backlog.yaml with every item status proposed, and moving an item to an issue is the analyst's authored act; no tool in the repo files or reads back backlog items against the issue tracker.
+  evidence: ["map/backlog.mjs:15-23", "map/SCHEMA.md:497-503"]
+  confidence: plausible
+  label: "backlog to issue is manual"
+- id: F-622
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Findings from earlier runs of the method on assay itself became test blocks: score-backlog-exit.mjs names #53 and run finding ids F-1228 and F-308 for a backlog that once read a crashed sub-tool as zero items and exited 0, and backlog.mjs records the same lesson where the class is computed.
+  evidence: ["tests/blocks/score-backlog-exit.mjs:1-3", "map/backlog.mjs:46-50"]
+  confidence: confirmed
+  label: "run findings became mechanisms"
+- id: F-623
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    tools-check.yml reads every pinned scanner tool against its latest upstream release weekly, never reads an unreadable upstream as current, and opens one issue or comments on the open one only when the list changed.
+  evidence: [".github/workflows/tools-check.yml:1-9", ".github/workflows/tools-check.yml:28-35", "map/tools.mjs:212-218", "tests/blocks/tools.mjs:67"]
+  confidence: confirmed
+  label: "tool-pin drift loop"
+- id: F-624
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    No test block reads .github/workflows/tools-check.yml (a search of tests/blocks for "tools-check" finds nothing; the workflow-reading blocks open ci.yml, branch-cleanup.yml and release.yml), so its schedule, permissions and issue-dedup step are unpinned while checkTools itself is unit-tested.
+  evidence: [".github/workflows/tools-check.yml:11-17", ".github/workflows/tools-check.yml:32-35", "tests/blocks/ci-workflow.mjs:14", "tests/blocks/tools.mjs:67"]
+  confidence: confirmed
+  label: "tools-check workflow unpinned"
+- id: F-625
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The engine emits structured outcome records by its own design: routine.yaml records date, repository, commit, engine, trigger, baseline source, gate, failures, refused tools, contradictions and exit so a fleet collector reads the outcome without CI logs, and every instrument row on the run record carries its wall-time duration.
+  evidence: ["routine/run.mjs:127-160", "map/SCHEMA.md:396-401"]
+  confidence: confirmed
+  label: "structured outcome records"
+- id: F-626
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    A judgment scanner's model and inference spend are optional on its run-record row ("A row may carry model: ... and spend:"), and its duration arrives only if the operator passes record --duration, so usage of the model-run lanes is not recorded by design.
+  evidence: ["map/SCHEMA.md:393-395", "map/SCHEMA.md:401-402"]
+  confidence: confirmed
+  label: "lane usage optional"
+- id: F-627
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: control
+  observation: >
+    assay measures its own quality: score.mjs grades a run's recall, mis-homing and false positives against planted known-answer fixtures, the results are pinned in tests/golden.json, and variance.mjs measures repeatability across blind sweeps of one target.
+  evidence: ["map/score.mjs:1-8", "tests/golden.json:10-17", "map/variance.mjs:1-7"]
+  confidence: confirmed
+  label: "self-measured recall and variance"
+- id: F-628
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Nothing records what assay is worth to a consumer: no impact field or before/after record ties a handoff remedy to a measured change (a search for "impact" outside tests finds only METHOD.md's probe and a CANDIDATES.md row), and the Since view reports what a target moved between runs without attributing it.
+  evidence: ["map/METHOD.md:236-238", "views/since.mjs:1-12"]
+  confidence: plausible
+  label: "no impact self-measurement"

@@ -1,0 +1,144 @@
+# Pass 4 — verification affordances (census-augmented: effect-provability, subject_type control)
+# Target: andyschwab/assay-fixtures, subtree targets/flawed-webapp/ (notesbox)
+# Head: 7f7c89d8 — evidence repo-relative to the subtree; nothing executed
+
+# ── Census: effect-provability, one finding per terrain effect channel ──
+
+- id: F-400
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The note-create channel's report is derived from the write itself: the handler sets
+    the note in the store synchronously and returns 201 with that same id, and GET /notes
+    lets the owner read the note back, so the report cannot outrun the effect.
+  evidence: [server.mjs:37-39, server.mjs:30-32]
+  confidence: confirmed
+
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant-email-send channel reports `emailed: <to>` without checking the mailer's
+    result, and the mailer's log-only transport returns `{ sent: true }` unconditionally,
+    so the success report is produced whether or not any mail is delivered.
+  evidence: [lib/agent.mjs:39-40, lib/mailer.mjs:1-2, lib/mailer.mjs:5-8]
+  confidence: confirmed
+
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The backup-push channel fires an un-awaited fetch whose rejection is swallowed by an
+    empty catch and returns `{ ok: true, pushed: N }` before the request resolves, so it
+    reports success regardless of whether the backup service received anything.
+  evidence: [lib/sync.mjs:7-13, server.mjs:47-50]
+  confidence: confirmed
+
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The workspace-purge channel returns the constant literal `{ purged: true }` rather than
+    anything derived from post-purge state (no count, no readback), and no route reads the
+    workspace as a whole to confirm it (GET /notes filters to the caller's own notes).
+  evidence: [lib/db.mjs:27-31, routes/admin.mjs:8-10, server.mjs:31]
+  confidence: confirmed
+
+# ── What the smoke test actually verifies ──
+
+- id: F-404
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The smoke suite's single assertion is that `authenticate` returns a truthy value for a
+    valid token, which cannot fail because `authenticate` returns a default identity for
+    any unknown or missing token.
+  evidence: [test/smoke.mjs:7-9, lib/auth.mjs:7-12]
+  confidence: confirmed
+
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The smoke suite imports only the auth module and exercises no route or effect channel,
+    while the README states every endpoint is covered by it.
+  evidence: [test/smoke.mjs:4-5, test/smoke.mjs:1-3, README.md:35]
+  confidence: confirmed
+
+# ── Success-on-failure seam at an input boundary ──
+
+- id: F-406
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    `readBody` resolves a malformed JSON body to `{}`, so POST /notes stores an empty-text
+    note and reports 201 with an id when the client's input was lost.
+  evidence: [server.mjs:16, server.mjs:36-39]
+  confidence: confirmed
+
+# ── Decay condition ──
+
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the assistant's output regardless of how it reads: the model's answer is
+    returned to the caller and its tool line acted on with no content check, and no test
+    imports the agent module.
+  evidence: [lib/agent.mjs:33-43, test/smoke.mjs:4-5]
+  confidence: confirmed
+
+# ── Calibration harness ──
+
+- id: F-408
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    No calibration harness exists: the assistant's prompt is fixed in code and its model is
+    a deterministic stub, but nothing freezes an input, runs it repeatedly, or measures
+    divergence, and the package defines no script beyond `start`.
+  evidence: [lib/agent.mjs:11-21, lib/agent.mjs:23-31, package.json:6-8, test/smoke.mjs:1-11]
+  confidence: confirmed
+
+# ── Runnable examples / fixtures / observability ──
+
+- id: F-409
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The server module binds its port only when run as the entry point and exports the
+    server, so a test can drive the routes in-process without a listening process.
+  evidence: [server.mjs:59-63]
+  confidence: confirmed
+
+- id: F-410
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The in-memory store ships seeded users, notes and session tokens, and the model is an
+    offline deterministic stub, which together form a runnable fixture for every route,
+    though no test or documented example uses them.
+  evidence: [lib/db.mjs:2-17, lib/agent.mjs:23-31, README.md:21-25]
+  confidence: confirmed
+
+- id: F-411
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The only record any effect emits is the mailer's console line, which logs the attempt
+    rather than delivery; backup-push, workspace-purge and note-create emit nothing to
+    verify an effect against.
+  evidence: [lib/mailer.mjs:7, lib/sync.mjs:5-13, lib/db.mjs:27-31, server.mjs:35-40]
+  confidence: confirmed

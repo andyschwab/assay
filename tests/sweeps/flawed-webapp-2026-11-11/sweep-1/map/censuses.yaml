@@ -1,0 +1,116 @@
+# map/censuses.yaml — authored censuses + depth for flawed-webapp (notesbox),
+# head 7f7c89d8, practice-review run 2026-11-11. Populations are the terrain's
+# enumerated lists (map/terrain.md); per-item verdicts cite the finding that holds
+# each item. Counted measures (effects/halts/AI surfaces) are computed by the
+# engine from the base, not authored here.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is a complete decision record: ADR-0001 states context, decision,
+      consequences and the rejected alternative, and the store module points back to it
+      (F-100, F-109). It is the only one; the riskier choices live in code comments or
+      nowhere (F-102, F-104, F-108).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious design decisions whose rationale reconstructs from files alone"
+        met: 4
+        of: 8
+        method: >
+          Enumerated all 8 non-obvious decisions in the terrain (D1-D8), no sampling.
+          Met: D1 in-memory store (F-100), D2 auth fallback (F-101), D4 fire-and-forget
+          backup (F-103), D6 log-only mailer (F-105). Not met: D3 unauthenticated /sync
+          (F-102), D5 email with no confirm (F-104), D7 zero dependencies (F-106),
+          D8 key in source (F-107).
+        primary: true
+  - dimension: context-economy
+    depth: >
+      Modules are small and each opens with a purpose comment (F-218), so most load
+      standalone (F-200, F-204); but the docs a stranger would route by are mostly
+      stale, 8 of 10 checked claims are false (F-208, F-211, F-212), and the assistant's
+      spend side is unrecorded (F-221, F-222).
+    sampled:
+      - name: modules-standalone
+        what: "modules a task can load and act on without reading another module"
+        met: 5
+        of: 8
+        method: >
+          Enumerated all 8 modules in the terrain. Met: server.mjs (F-200), lib/auth.mjs
+          (F-202), lib/agent.mjs (F-204), lib/mailer.mjs (F-205), lib/sync.mjs (F-206).
+          Not met: routes/admin.mjs (F-201), lib/db.mjs (F-203), config/settings.mjs (F-207).
+        primary: true
+      - name: doc-freshness
+        what: "README, ADR and inline doc claims that hold against the code"
+        met: 2
+        of: 10
+        method: >
+          Enumerated the 10 doc claims listed in the terrain and checked each against code.
+          True: run command README.md:24 (F-210), ADR-0001 interface (F-213). False:
+          endpoint count (F-208), endpoint list (F-209), test command (F-211), coverage
+          claim (F-212), SQLite adapter (F-214), environment notes (F-215), DELETE method
+          (F-216), VPC relay (F-217, plausible).
+  - dimension: deterministic-gates
+    depth: >
+      There is no working gate to judge the best of: the one test asserts something that
+      cannot fail (F-307), no script runs it (F-305), and nothing runs pre-merge (F-309);
+      the only enabling fact is that the server is importable for in-process tests (F-311).
+    sampled:
+      - name: gates-coverage
+        what: "HTTP routes covered by a test or gate that would catch a regression"
+        met: 0
+        of: 5
+        method: >
+          Enumerated the 5 routes R1-R5 from server.mjs:26-57. None is covered: R1 (F-300),
+          R2 (F-301), R3 (F-302), R4 (F-303), R5 (F-304).
+        primary: true
+  - dimension: verification
+    depth: >
+      The one channel that proves its effect does so by returning the id it wrote and
+      allowing readback (F-400); every other channel reports success unconditionally
+      (F-401, F-402, F-403), and the smoke test cannot fail (F-404).
+    sampled:
+      - name: effect-provability
+        what: "effect channels whose reported success depends on the effect having happened"
+        met: 1
+        of: 4
+        method: >
+          Enumerated the terrain's 4 effect channels. Provable: note-create (F-400). Not
+          provable: assistant-email-send (F-401), backup-push (F-402), workspace-purge (F-403).
+  - dimension: delegation
+    depth: >
+      The strongest control is a narrow one: GET /notes filters to the caller's own notes
+      (F-503) and the backup destination cannot be steered by input (F-512); both are
+      undercut by the admin fallback identity every request can fall into (F-500), and
+      the one AI surface holds all three trifecta legs with an ungated outbound email (F-508, F-505).
+    sampled:
+      - name: credential
+        what: "runtime credentials held below the prompt boundary and supplied out of band (not a literal in source)"
+        met: 0
+        of: 2
+        method: >
+          Enumerated the 2 credentials in the terrain (C1 backup key, C2 session token
+          table). Both are below the prompt boundary but both are literals in source, so
+          neither meets the bar: C1 (F-509), C2 (F-510).
+        primary: true
+  - dimension: improvement-loop
+    depth: >
+      The one durable home for decisions is real and dated (F-602) but was used once
+      (F-603); there is no agent spec (F-600), no lessons record (F-601), and fixes are
+      tracked only as an ownerless TODO (F-604). The incidents/lessons population is empty,
+      so no lesson census can be taken (F-601).
+  - dimension: multiplayer
+    depth: >
+      The best instance is the assistant's context read, where each note carries an origin
+      label naming its owner (F-714); but the labels are forgeable in-band text (F-715),
+      the workspace is not a principal (F-706), and sharing with the assistant, email
+      recipients and the backup is automatic and undisclosed (F-716, F-717).
+    sampled:
+      - name: agent-access-surface
+        what: "HTTP routes an agent can consume through a stated contract (named in the README, shape not left to the code alone)"
+        met: 2
+        of: 5
+        method: >
+          Enumerated the 5 routes R1-R5 from server.mjs:26-57. All five are JSON over HTTP
+          with no human UI. Met: R1 GET /notes (F-700), R4 POST /sync (F-703, named in the
+          README; response shape only in code). Not met: R2 POST /notes (F-701), R3 POST
+          /assistant (F-702), R5 POST /admin/purge (F-704).
+        primary: true

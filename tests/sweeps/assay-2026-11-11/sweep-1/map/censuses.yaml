@@ -1,0 +1,150 @@
+# map/censuses.yaml (authored) — assay at 4b81665, practice-review lane, 2026-11-11.
+# Each census enumerated its population before assessing it; every item is one finding in
+# map/findings/ (census-augmented mode), so the item list with per-item verdicts and evidence
+# is the finding set the ids below name. No canon exists for this target (map/canon/ ships
+# empty); the populations were derived blind and are proposed in map/terrain.md §6-§7.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      Nine of ten sampled non-obvious decisions reconstruct from the files alone, because the
+      rationale sits in contracts and module headers beside the code it governs (F-101 to F-107,
+      F-109, F-110), a practice CLAUDE.md requires (F-113); the weak spot is release: no file says
+      why a release needs a person (F-108), RUNBOOK.md still says to tag by hand where the
+      workflow is the only tagger (F-111), and with no decision records some background lives in
+      issue threads outside the tree (F-112).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious design decisions whose rationale reconstructs from the repository's files alone"
+        met: 9
+        of: 10
+        method: >
+          enumerated 10 non-obvious decisions from the terrain and the contracts (zero-dependency
+          YAML reader, two-job routine, allow-listed child env, ids carry no dimension, canon vs
+          prior run, no history file, property-named axes, release only by dispatch,
+          branch-cleanup re-reads tips, scorecard retired); one finding each, F-101 to F-110;
+          met when a file states the reason, not only the rule; issue threads and git history
+          not used
+        primary: true
+
+  - dimension: context-economy
+    depth: >
+      A stranger is routed cheaply and most modules load standalone (F-201, F-203 to F-210), but
+      the map layer imports upward and circularly (F-202, F-207), three README and tests claims
+      have drifted outside what doc-consistency checks (F-211 to F-213 against F-215), no size
+      budget holds the large contract docs sessions load (F-216), and model and spend are
+      recorded (F-217) with no model-tier rationale or re-qualification trigger (F-218).
+    sampled:
+      - name: modules-standalone
+        what: "top-level module directories a task can load standalone (own README or contract, imports only down the layering)"
+        met: 7
+        of: 9
+        method: >
+          enumerated map/, map/scanners/, yardstick/, views/, views/improve/, lib/, routine/,
+          owner/, tests/; checked each for its own contract doc and grepped each directory's
+          import lines against the layering the README draws; one finding each (F-202 to F-210)
+        primary: true
+      - name: doc-freshness
+        what: "concrete claims in README, CLAUDE.md, CONSUMERS.md and tests/README that match the code"
+        met: 5
+        of: 7
+        method: >
+          picked 7 checkable claims and read the code each names; stale claims are F-211,
+          F-212, F-213; the five fresh ones are recorded together in F-214
+        primary: false
+
+  - dimension: deterministic-gates
+    depth: >
+      The best instance is strong: each negative fixture must be red for its own reason (F-309),
+      and the CI workflow and --bless are themselves gated (F-316, F-320); but a subtle
+      regression in the central modules is caught pre-merge only where a fixture pins it, so
+      changes to validate.mjs's unfixtured vocabulary checks or chains.mjs's ranking would
+      plausibly pass (F-308, F-311), nothing runs before CI (F-317), and whether CI blocks a
+      merge is not visible from the repository (F-318).
+    sampled:
+      - name: gates-coverage
+        what: "CI steps on pull_request to the default branch, and interface contracts, that fail loud on a regression"
+        met: 9
+        of: 13
+        method: >
+          read every workflow trigger (only ci.yml runs on pull_request); counted the job and
+          each check step of it, plus the six interface contracts the terrain lists; one finding
+          each (F-301 to F-308, F-310, F-312 to F-315); verdict from the config and the harness
+          blocks that pin it
+        primary: true
+
+  - dimension: verification
+    depth: >
+      At its best the repository checks the effect, not the report: zero findings read clean
+      only beside a positive control that fired (F-418), audit and duplication reports must
+      parse to shape (F-402, F-403), every claimed run is re-read by a fail-closed validate
+      (F-406, F-407, F-410), and repeatability is a committed, gated number (F-421); this does
+      not reach the four Actions channels, which trust exit codes (F-412 to F-415), nor four of
+      five pinned scanners, whose silence reads clean (F-417), and the sweep gate does not notice
+      when the method moves (F-422).
+    sampled:
+      - name: effect-provability
+        what: "effect channels whose effect is checked (re-read, parsed, validated), not inferred from an exit code"
+        met: 11
+        of: 15
+        method: >
+          one finding per channel in the terrain §6 effect inventory (F-401 to F-415); read the
+          code at each effect site and asked whether anything checks the effect itself
+        primary: true
+
+  - dimension: delegation
+    depth: >
+      The halt is real where it matters most (release and fresh-clone wait on a person's act,
+      F-513, F-501; branch deletion re-reads every tip, F-514) and three of four credentials sit
+      below the prompt boundary at least privilege (F-516, F-517, F-519); the deepest exposure is
+      the supply-chain path in tools-install, where a PyPI tool installs by version with no hash
+      into assay's release job and every consumer's routine gate job (F-504, F-523), escaping the
+      two-job containment (F-524), with the ambient GITHUB_TOKEN (F-518) and HOME reaching the
+      target's scripts (F-525) as the residual credential gaps.
+    sampled:
+      - name: credentials-below-boundary
+        what: "credentials in the terrain's population held below the prompt boundary with least privilege"
+        met: 3
+        of: 4
+        method: >
+          traced each credential the terrain lists (github.token per workflow, ASSAY_READ_TOKEN,
+          the env GITHUB_TOKEN map/tools.mjs reads, proxy userinfo) to every site that reads or
+          passes it; one finding each (F-516 to F-519)
+        primary: true
+
+  - dimension: improvement-loop
+    depth: >
+      The best lessons close the whole loop, incident to issue to CLAUDE.md rule to a harness
+      block that fails on regression (F-601, F-602, F-605, F-607), and rule citations are
+      themselves checked (F-612); the two that slipped are judgment habits whose wording is
+      enforced but whose practice is not (F-609, F-610), and moving an engine learning upstream
+      still waits on a person (F-615).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "recorded lessons that became a mechanism (a test, a tool or a check)"
+        met: 8
+        of: 10
+        method: >
+          enumerated 10 lessons recorded in the tree (issue numbers in tests/blocks/ headers,
+          the calibration lessons in map/METHOD.md, CLAUDE.md rules naming a holding block); one
+          finding each (F-601 to F-610); met when a mechanism enforces the lesson, not only text
+        primary: true
+
+  - dimension: multiplayer
+    depth: >
+      The agent surface is mostly contracted (F-701 to F-704, F-710 to F-715, F-717) and held by
+      CONSUMERS.md's trailer-checked change rule (F-728); the five view YAML files carry no
+      schema id and are never read back (F-705 to F-709, F-718), routine.yaml's failures are
+      scraped from human stderr (F-725), the run-record lock covers scanners.yaml only (F-719,
+      F-720), the decisions overlay's `by` is self-declared (F-721), and the reusable
+      branch-cleanup workflow returns its plan only as log text (F-716).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces consumable by an agent (machine format plus schema or contract), not human-UI only"
+        met: 16
+        of: 17
+        method: >
+          enumerated the four command groups in assay.mjs, each view's data file, the handoff
+          sequence, chains, report data and maturity sidecars, the lanes, the tools action, the
+          reusable branch-cleanup workflow and the owner packet; one finding each (F-701 to
+          F-717)
+        primary: true

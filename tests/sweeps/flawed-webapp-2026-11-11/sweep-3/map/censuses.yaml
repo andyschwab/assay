@@ -1,0 +1,122 @@
+# map/censuses.yaml — authored censuses, depth and earned flags (SCHEMA §6b)
+# Target: andyschwab/assay-fixtures targets/flawed-webapp/ at 7f7c89d; run flawed-webapp-2026-11-11.
+# Populations are the terrain's closed lists (map/terrain.md), derived blind (no canon exists).
+# Each census emitted one finding per member (census-augmented mode); the per-item verdicts
+# are those findings, listed in the comments under each census. Counted measures (effects,
+# AI surfaces) are computed by maturity.mjs from the base and are not restated here.
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is ADR-0001, which carries context, decision, consequences and the
+      rejected alternative and matches the code (F-101); inline rationale also exists for the
+      auth fallback (F-102), but the README contradicts the code on endpoint count, test
+      command and coverage (F-108, F-109, F-110).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious design decisions whose rationale reconstructs from files alone"
+        met: 2
+        of: 5
+        method: "every decision the terrain enumerated (ADR-0001 store, auth fallback, log-only mailer, fire-and-forget backup push, zero dependencies), one finding each"
+        primary: true
+        # items: F-101 met (ADR-0001) · F-102 met (auth fallback) · F-103 not met (log-only mailer)
+        #        · F-104 not met (backup push) · F-105 not met (zero dependencies)
+    enforced: false
+    generative: false
+  - dimension: context-economy
+    depth: >
+      Library modules load standalone behind one-line header comments (F-202 to F-206), but the
+      router and admin route misstate their own boundaries (F-201, F-207), the README is stale on
+      three claims (F-208), and model tier and spend are not recorded or metered (F-213, F-214).
+    sampled:
+      - name: modules-standalone
+        what: "modules loadable and understandable standalone at a clean boundary"
+        met: 5
+        of: 7
+        method: "every module the terrain enumerated (server.mjs, lib/auth, lib/db, lib/agent, lib/mailer, lib/sync, routes/admin), one finding each"
+        primary: true
+        # items: F-201 not met (server.mjs) · F-202 met (lib/auth.mjs) · F-203 met (lib/db.mjs)
+        #        · F-204 met (lib/agent.mjs) · F-205 met (lib/mailer.mjs) · F-206 met (lib/sync.mjs)
+        #        · F-207 not met (routes/admin.mjs)
+      - name: doc-freshness
+        what: "docs whose concrete claims match the code"
+        met: 1
+        of: 2
+        method: "every doc the terrain enumerated (README.md, ADR-0001), each concrete claim spot-checked against code"
+        # items: F-208 not met (README.md) · F-209 met (ADR-0001)
+    enforced: false
+    generative: false
+  - dimension: deterministic-gates
+    depth: >
+      There is no working gate: one smoke assertion that passes for every request because of the
+      auth fallback (F-307), no test script (F-306), no lint, typecheck or CI (F-308), and no route
+      exercised (F-301 to F-305); the only asset is a server that a test could import (F-313).
+    sampled:
+      - name: gates-coverage
+        what: "HTTP route handlers where a test or schema fails loudly on a regression"
+        met: 0
+        of: 5
+        method: "every route the terrain enumerated in server.mjs, one finding each"
+        primary: true
+        # items: F-301 GET /notes · F-302 POST /notes · F-303 POST /assistant · F-304 POST /sync
+        #        · F-305 POST /admin/purge — all not met
+    enforced: false
+    generative: false
+  - dimension: verification
+    depth: >
+      Only note-create can show its effect, by reading the note back (F-403, plausible); the
+      other three channels report fixed success values (F-401, F-402, F-404, F-405), and the
+      deterministic stub model that would make a reproducible fixture is unused (F-411).
+    sampled:
+      - name: effect-provability
+        what: "effect channels that can prove the effect happened rather than trusting a return value"
+        met: 1
+        of: 4
+        method: "every effect channel the terrain enumerated, one finding each"
+        primary: true
+        # items: F-401 not met (email-send) · F-402 not met (backup-push) · F-403 met (note-create)
+        #        · F-404 not met (workspace-purge)
+    enforced: false
+    generative: false
+  - dimension: delegation
+    depth: >
+      The one isolation strength is the per-user filter on GET /notes (F-511), and the assistant
+      pierces it (F-501 escapes F-511); the assistant holds all three trifecta legs (F-505), any
+      unauthenticated caller becomes admin (F-506), and both credentials sit in source (F-508, F-509).
+    sampled:
+      - name: credential
+        what: "runtime credentials held below the prompt boundary and out of source"
+        met: 0
+        of: 2
+        method: "every credential the terrain enumerated (backup-api-key, session-tokens), traced to definition and use"
+        primary: false
+        # items: F-508 not met (backup-api-key: below the prompt, but literal in source)
+        #        · F-509 not met (session-tokens: static literal table in source)
+    enforced: false
+    generative: false
+  - dimension: improvement-loop
+    depth: >
+      No loop exists: no agent spec (F-601), no lessons store (F-602), deferred work never
+      became a mechanism (F-604, F-605), and nothing emits structured usage or outcome records
+      (F-608); the ADR directory is the only durable home and holds one record (F-603).
+    not_measured: >
+      The incidents-became-mechanisms population is empty: the terrain and F-602 confirm no
+      incident log, changelog or lessons file in the tree, so there is no denominator.
+    enforced: false
+    generative: false
+  - dimension: multiplayer
+    depth: >
+      Four of five routes are JSON contracts an agent can call (F-701 to F-704) and assistant
+      context carries per-note owner labels (F-710), but there is no machine-readable API
+      description (F-715), no shared-scope principal (F-706), and the assistant surfaces every
+      user's notes to any caller with no sharing act (F-708, F-709).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces consumable by an agent through a machine-readable request/response contract"
+        met: 4
+        of: 5
+        method: "every HTTP route the terrain enumerated, one finding each"
+        primary: true
+        # items: F-701 met (GET /notes) · F-702 met (POST /notes) · F-703 met (POST /assistant)
+        #        · F-704 met (POST /sync) · F-705 not met (POST /admin/purge)
+    enforced: false
+    generative: false

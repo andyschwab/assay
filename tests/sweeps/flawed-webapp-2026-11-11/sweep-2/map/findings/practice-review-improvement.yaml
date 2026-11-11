@@ -1,0 +1,129 @@
+# Pass 6 — Improvement loop (practice-review). Blind pass; every file under
+# targets/flawed-webapp/ read (12 files). Census: incidents-became-mechanisms (0 members).
+- id: F-500
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The incidents-became-mechanisms census is empty: the README, the single ADR, package.json
+    and the only test file record no incident, postmortem, changelog entry or lesson, so no
+    correction in the target can be traced to a mechanism it produced.
+  evidence:
+    - README.md:12-35
+    - docs/adr/0001-storage-choice.md:1-29
+    - package.json:1-9
+    - test/smoke.mjs:4-11
+  confidence: confirmed
+- id: F-501
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No agent spec or contributor rulebook exists to hold a "we never do X here" rule: the docs
+    surface is the README (endpoints, run, test) and one ADR, and the only standing
+    instructions to the model are a hard-coded two-line prompt string in code.
+  evidence:
+    - README.md:12-35
+    - docs/adr/0001-storage-choice.md:1-4
+    - lib/agent.mjs:16-20
+  confidence: confirmed
+- id: F-502
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The known issue that the backup API key is a literal in source is recorded only as an
+    undated TODO comment beside the value ("move to env before launch"), with no issue,
+    check or other durable record that would make the fix happen or catch a recurrence.
+  evidence:
+    - config/settings.mjs:5-6
+    - package.json:6-8
+  confidence: confirmed
+- id: F-503
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The ADR's stated follow-up (persistence "is the first thing the production milestone
+    fixes") has no tracking record in the target, no SQLite adapter exists, and the store's
+    header comment describes the swap as already how "real deployments" work.
+  evidence:
+    - docs/adr/0001-storage-choice.md:22-23
+    - lib/db.mjs:1
+    - package.json:1-9
+  confidence: confirmed
+- id: F-504
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The repository has a durable, dated decision home that was actually used: ADR-0001 carries
+    a status and date (2026-05-02) and records context, decision, consequences and the
+    rejected alternative.
+  evidence:
+    - docs/adr/0001-storage-choice.md:1-4
+    - docs/adr/0001-storage-choice.md:19-29
+  confidence: confirmed
+- id: F-505
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The ADR's standing rule (any storage adapter must satisfy `lookup`, the `notes` map
+    surface and `purgeAll`, and nothing above lib/ changes) lives only in prose: the sole
+    test exercises authenticate() and nothing pins the storage interface.
+  evidence:
+    - docs/adr/0001-storage-choice.md:14-17
+    - test/smoke.mjs:5-9
+    - lib/db.mjs:19-31
+  confidence: confirmed
+- id: F-506
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Known defects are acknowledged only in inline comments (the /sync route notes it has "no
+    authorization check"; the auth fallback notes it is "treated as admin"), and no test,
+    check or tracked item encodes either as something to fix or guard against.
+  evidence:
+    - server.mjs:47-49
+    - lib/auth.mjs:9-12
+    - test/smoke.mjs:7-9
+  confidence: confirmed
+- id: F-507
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The system has no impact self-measurement: the ADR names the assistant as the
+    differentiator, but ask() returns its answer without recording any usage, outcome or
+    value field, and no before/after record exists anywhere in the target.
+  evidence:
+    - docs/adr/0001-storage-choice.md:27-29
+    - lib/agent.mjs:33-42
+    - README.md:3-5
+  confidence: confirmed
+- id: F-508
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The app emits no structured usage or outcome records by its own design: its only output
+    traces are two free-text console.log lines (the mailer's send line and the listen
+    banner), and the backup push discards its own failure signal with an empty catch.
+  evidence:
+    - lib/mailer.mjs:7
+    - server.mjs:59-61
+    - lib/sync.mjs:8-13
+  confidence: confirmed
+- id: F-509
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The settings module points to the README for "environment notes", but the README holds no
+    environment section, so the named home for operational knowledge is aspirational.
+  evidence:
+    - config/settings.mjs:1
+    - README.md:12-35
+  confidence: confirmed

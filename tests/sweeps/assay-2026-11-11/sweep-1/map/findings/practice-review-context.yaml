@@ -1,0 +1,261 @@
+# Pass 2 — context economy (assay at 4b81665). Read-only; nothing executed.
+- id: F-201
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    A stranger is routed in two short hops: CLAUDE.md (73 lines) names the front door and
+    the four contract docs by role, and README.md closes with a one-line-per-directory
+    layout map that says what each top-level module holds.
+  evidence:
+    - CLAUDE.md:3-7
+    - README.md:233-245
+    - README.md:206-212
+  confidence: confirmed
+- id: F-202
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/ has no README or module index of its own: its contract docs are the finding
+    format and the method (METHOD.md, SCHEMA.md), and its modules import upward into
+    yardstick/ (record, score, roster, validate, enumerate, repo-census) and into views/
+    (project.mjs imports views/severity.mjs, which imports project.mjs back), so a task
+    in map/ cannot load it with bounded imports.
+  evidence:
+    - CLAUDE.md:5-7
+    - map/project.mjs:30
+    - views/severity.mjs:19
+    - map/record.mjs:40
+    - map/score.mjs:47
+    - map/roster.mjs:44-45
+    - map/validate.mjs:25
+    - map/enumerate.mjs:29
+    - map/repo-census.mjs:103
+  confidence: confirmed
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/scanners/ loads standalone: CONTRACT.md declares itself the canonical home for the
+    axis model, the port, the adapter format and the fail-closed rule, points to
+    CANDIDATES.md for the roster, and the directory holds no engine code, only that
+    contract and per-scanner adapters.
+  evidence:
+    - map/scanners/CONTRACT.md:1-16
+    - CLAUDE.md:33-41
+  confidence: confirmed
+- id: F-204
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/ loads standalone: its README is the requirements and measurement contract,
+    and its modules import only downward (lib/ helpers and map/'s loaders and doctrine),
+    in the direction the README's three-layer architecture draws.
+  evidence:
+    - yardstick/README.md:1-12
+    - yardstick/measure.mjs:33-37
+    - README.md:46-55
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    views/ loads standalone: its README states the compile entry and every view's data
+    file schema, and its modules import only lib/, map/ and yardstick/ (the layers below).
+  evidence:
+    - views/README.md:1-25
+    - views/severity.mjs:19
+    - README.md:118-124
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    views/improve/ has no README of its own but is covered by a section of views/README.md
+    that names its lead page, report model, templates and data files, and each module
+    opens with a header comment; it imports only downward.
+  evidence:
+    - views/README.md:153-166
+    - views/improve/report.mjs:1-3
+    - views/improve/report.mjs:16-24
+  confidence: plausible
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/ ("shared helpers") has no README; only run-layout.mjs is documented as contract
+    (CONSUMERS.md) and its other helpers are described only in their headers and in
+    scattered SCHEMA/CONTRACT mentions, and release-notes.mjs imports upward from
+    map/doctrine.mjs, so lib/ is not a dependency-free leaf.
+  evidence:
+    - README.md:242
+    - CONSUMERS.md:104-107
+    - lib/run-layout.mjs:1-6
+    - lib/yaml-min.mjs:1-6
+    - lib/release-notes.mjs:21
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    routine/ loads standalone: its README is the routine contract (what it produces, why
+    each trigger exists), and run.mjs, the top of the stack, imports only map/, yardstick/
+    and lib/.
+  evidence:
+    - routine/README.md:1-17
+    - routine/run.mjs:75-82
+  confidence: confirmed
+- id: F-209
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    owner/ loads standalone: PACKET.md declares itself the one home of the packet format,
+    evidence/README.md names the six evidence rows and their keys, and ask-owner.mjs
+    imports only lib/, map/ and yardstick/ helpers.
+  evidence:
+    - owner/PACKET.md:1-19
+    - owner/evidence/README.md:7
+    - owner/evidence/README.md:31
+    - owner/ask-owner.mjs:41-46
+  confidence: confirmed
+- id: F-210
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    tests/ loads standalone: its README gives the runner, the harness, the one-block-per-file
+    layout and the four exports a block may carry, so a task adds a block without reading
+    the other blocks.
+  evidence:
+    - tests/README.md:1-21
+    - tests/README.md:23-55
+    - CLAUDE.md:55-56
+  confidence: confirmed
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md states each executing child sees only PATH, HOME, CI and npm_config_*
+    settings, but child-env.mjs also passes HTTPS_PROXY, HTTP_PROXY, NO_PROXY,
+    NODE_EXTRA_CA_CERTS and SSL_CERT_FILE (proxy URLs without userinfo), which
+    CONSUMERS.md describes correctly.
+  evidence:
+    - README.md:93-95
+    - map/child-env.mjs:10
+    - map/child-env.mjs:15
+    - map/child-env.mjs:32
+    - CONSUMERS.md:107
+  confidence: confirmed
+- id: F-212
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md's quickstart says `help` groups every command as map / yardstick / views,
+    while assay.mjs groups them in four, with a separate Routine group.
+  evidence:
+    - README.md:163
+    - assay.mjs:18-58
+    - assay.mjs:47
+  confidence: confirmed
+- id: F-213
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    tests/README.md's layout block omits two directories the harness reads,
+    tests/enumerate-fixture/ and tests/sidecar-fixture/.
+  evidence:
+    - tests/README.md:9-18
+    - tests/blocks/enumerate-gate.mjs:14
+    - tests/blocks/exposures-sidecar.mjs:12
+  confidence: confirmed
+- id: F-214
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Spot-checked pointers hold against the tree: the blocks CLAUDE.md cites exist, the
+    run-layout functions CONSUMERS.md names are exported, the lane flags CONSUMERS.md
+    lists are the ones lane.mjs parses, and README's "six" owner-evidence rows match
+    owner/evidence/.
+  evidence:
+    - CLAUDE.md:41
+    - CLAUDE.md:72
+    - CONSUMERS.md:106
+    - lib/run-layout.mjs:55
+    - lib/run-layout.mjs:91-92
+    - CONSUMERS.md:21
+    - map/lane.mjs:99
+    - README.md:128-129
+    - owner/evidence/README.md:31
+  confidence: confirmed
+- id: F-215
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    Doc freshness is partly mechanized: the doc-consistency harness block reads view
+    counts, the fingerprint, CLAUDE.md rule citations, retired pointers and the
+    executing-instrument count off the code and fails when a page disagrees.
+  evidence:
+    - tests/blocks/doc-consistency.mjs:1-4
+    - tests/blocks/doc-consistency.mjs:23
+    - tests/blocks/doc-consistency.mjs:65
+    - tests/blocks/doc-consistency.mjs:90
+    - tests/blocks/doc-consistency.mjs:139-150
+  confidence: confirmed
+- id: F-216
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The contract docs an agent session loads are large (METHOD.md about 55 KB, SCHEMA.md
+    about 68 KB, CONTRACT.md about 73 KB) and METHOD.md is the practice-review session's
+    opening context, yet no harness block or check holds a size budget on any
+    instruction or contract file.
+  evidence:
+    - README.md:182-183
+    - CLAUDE.md:43-56
+    - tests/README.md:9-18
+  confidence: plausible
+- id: F-217
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    Inference spend is metered per scanner and per practice-review pass: record takes
+    --model and --spend (per pass for practice-review), a judgment scanner with no model
+    warns, INDEX.md names the models of record, roster reports each scanner's recorded
+    cost, and variance reports agreement per model pair.
+  evidence:
+    - map/record.mjs:18-25
+    - map/SCHEMA.md:426-436
+    - views/compile.mjs:178
+    - map/roster.mjs:29
+    - map/roster.mjs:88
+    - map/variance.mjs:134-151
+  confidence: confirmed
+- id: F-218
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    No model-tier choice for assay's own judgment lanes is recorded with rationale or a
+    re-qualification trigger: lanes deliberately name no model and leave it to the
+    consumer, and the yardstick's own d-model-qualification requirement is a draft
+    owner claim that assay does not answer for itself.
+  evidence:
+    - map/lane.mjs:10-11
+    - map/scanners/CONTRACT.md:930
+    - yardstick/requirements.yaml:819-827
+  confidence: plausible

@@ -1,0 +1,170 @@
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The decision to keep the engine zero-dependency with a hand-written constrained YAML
+    reader reconstructs from files: the front door states it, the tools say they copy into
+    any target, and the reader's header and the method say it fails closed because a checker
+    that silently accepts unparseable input hides what it exists to catch.
+  evidence:
+    - "README.md:158-160"
+    - "lib/yaml-min.mjs:1-6"
+    - "map/validate.mjs:8-10"
+    - "map/enumerate.mjs:12"
+    - "map/METHOD.md:490-491"
+    - "map/scanners/CANDIDATES.md:106"
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The two-job routine split (a `target` job that alone executes the change, a `routine`
+    gate job that never does) has its rationale written beside it in the contract and the
+    template: a change's test script could otherwise rewrite the ratchet or the run and make
+    its own gate read held.
+  evidence:
+    - "routine/README.md:130-153"
+    - "routine/assay-routine.yml:40-47"
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The allow-listed child environment reconstructs from files: the module header and the
+    scanner contract name what passes (PATH, HOME, CI, npm_config_*, proxy plumbing), why
+    everything else is dropped (tokens, cloud keys, agent sockets), why proxy userinfo counts
+    as a credential, and that it is not a sandbox.
+  evidence:
+    - "map/child-env.mjs:1-8"
+    - "map/child-env.mjs:12-14"
+    - "map/scanners/CONTRACT.md:180-199"
+  confidence: confirmed
+- id: F-104
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The choice that finding ids carry no dimension is explained in the schema itself: a fixed
+    per-dimension range is an arbitrary budget a dense repo overflows and would only duplicate
+    the dimension field, which the validator enforces via filename-to-dimension instead.
+  evidence:
+    - "map/SCHEMA.md:217-232"
+  confidence: confirmed
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The distinction between reusing a canon and reusing a prior run is argued in the schema
+    and the canon directory's README, including the calibration observation that motivated it
+    (a blind re-derivation found effect surfaces a pinned prior run had missed).
+  evidence:
+    - "map/SCHEMA.md:897-918"
+    - "map/canon/README.md:6-14"
+  confidence: confirmed
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The no-history-file rule states its rationale in the agent contract and the test that
+    pins it: a dated history file restates the commit that made the change, so the record
+    rides the commit message and pull request body.
+  evidence:
+    - "CLAUDE.md:71-73"
+    - "tests/blocks/no-history-file.mjs:1-7"
+  confidence: confirmed
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Property-named, shared axes are explained consistently across the agent contract, the
+    schema and the axis view: two scanners measuring one property corroborate on one axis,
+    and an axis no scanner measures reads not measured rather than clean.
+  evidence:
+    - "CLAUDE.md:26-28"
+    - "map/SCHEMA.md:94-99"
+    - "views/improve/axes.mjs:5-10"
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    That a release is cut only when a person dispatches the release workflow is stated
+    repeatedly as a fact, but no file says why a person rather than an automatic tag on
+    merge; the reason has to be inferred from the gate doctrine and from consumers pinning
+    to tags.
+  evidence:
+    - ".github/workflows/release.yml:1-4"
+    - ".github/workflows/release.yml:9-11"
+    - "CONSUMERS.md:9"
+    - "CONSUMERS.md:111-112"
+    - "RUNBOOK.md:6-7"
+    - "map/doctrine.mjs:13-17"
+  confidence: plausible
+- id: F-109
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Branch cleanup re-reading each branch tip before deleting is explained in the
+    workflow's own header (the plan names branch@sha, the API has no conditional delete, a
+    branch that moved or became protected since the plan is skipped), and the delete step
+    does exactly that.
+  evidence:
+    - ".github/workflows/branch-cleanup.yml:25-33"
+    - ".github/workflows/branch-cleanup.yml:124-130"
+  confidence: confirmed
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Retiring the Scorecard adapter is recorded in the adapter file and the candidates list
+    with its reason (it needs live GitHub API access and cannot run offline against a local
+    checkout) and why the adapter is kept (frozen runs still project).
+  evidence:
+    - "map/scanners/adapters/scorecard.yaml:12-19"
+    - "map/scanners/CANDIDATES.md:51"
+  confidence: confirmed
+- id: F-111
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The RUNBOOK's release procedure tells the operator to tag the merge commit by hand,
+    while the release workflow and CONSUMERS.md say the dispatched workflow cuts the tag and
+    nothing else in the repository tags.
+  evidence:
+    - "RUNBOOK.md:9-16"
+    - ".github/workflows/release.yml:1-4"
+    - "CONSUMERS.md:111-112"
+  confidence: confirmed
+- id: F-112
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The repository keeps no decision-record directory; rationale lives inline in contract
+    docs and module headers, often anchored to issue numbers (#47, #65, #229) whose
+    discussion is outside the tree.
+  evidence:
+    - "map/child-env.mjs:1-8"
+    - ".github/workflows/release.yml:1-2"
+    - "map/decisions.mjs:1-7"
+  confidence: confirmed
+- id: F-113
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: process
+  observation: >
+    The agent contract requires that taste the code relies on be written in CLAUDE.md or the
+    owning contract, never only in a code comment.
+  evidence:
+    - "CLAUDE.md:69-70"
+  confidence: confirmed

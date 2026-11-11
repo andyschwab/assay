@@ -1,0 +1,91 @@
+# map/findings/practice-review-improvement.yaml — Pass 6, improvement loop
+# target: targets/flawed-webapp/ (andyschwab/assay-fixtures @ 7f7c89d)
+# run: flawed-webapp-2026-11-11
+# Blind pass, read-only. Evidence paths are relative to targets/flawed-webapp/.
+# The terrain's file listing (12 files) is the inspected tree for every confirmed absence below.
+
+- id: F-601
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The tree holds no agent spec (no CLAUDE.md, AGENTS.md, .cursorrules or equivalent), and
+    neither the README nor package.json names any rules or conventions for contributors or agents.
+  evidence: [README.md:12-35, package.json:1-9]
+  confidence: confirmed
+
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The incidents-became-mechanisms census has 0 members: the tree holds no incident log,
+    changelog, lessons file or review-comment record, and the README and the one ADR record no
+    lesson learned.
+  evidence: [README.md:12-35, docs/adr/0001-storage-choice.md:1-29, package.json:1-9]
+  confidence: confirmed
+
+- id: F-603
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The only durable home where a "we never do X here" rule could be written is docs/adr/, which
+    holds a single ADR dated 2026-05-02 about storage and no record of any rule or convention after it.
+  evidence: [docs/adr/0001-storage-choice.md:1-4, docs/adr/0001-storage-choice.md:12-17]
+  confidence: confirmed
+
+- id: F-604
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    ADR-0001 defers persistence as "the first thing the production milestone fixes", but the store
+    is still the in-memory module and no test, script or other marker in the tree tracks or
+    enforces that deferral.
+  evidence: [docs/adr/0001-storage-choice.md:21-23, lib/db.mjs:1, package.json:6-8, test/smoke.mjs:4-11]
+  confidence: confirmed
+
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    A TODO to move the backup credential to the environment "before launch" sits directly above a
+    literal high-entropy token in source, with no environment read anywhere and no check that would
+    fail while the literal remains.
+  evidence: [config/settings.mjs:5-6, package.json:6-8, test/smoke.mjs:4-11]
+  confidence: confirmed
+
+- id: F-606
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The assistant's only behavioral instructions are string literals inside buildPrompt, so any
+    correction to how the model should behave would be an inline code edit with no separate spec or
+    record.
+  evidence: [lib/agent.mjs:11-21]
+  confidence: confirmed
+
+- id: F-607
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Nothing in the tree records impact or outcomes of shipped work: the package carries a version
+    number with no changelog or release notes, and the assistant's ask returns its answer without
+    recording whether it was used or what it did.
+  evidence: [package.json:3, lib/agent.mjs:33-43, README.md:1-5]
+  confidence: confirmed
+
+- id: F-608
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The app emits no structured usage or outcome records by design: its only output records are two
+    free-text console.log lines (the mailer's send line and the boot line), and the request router
+    and assistant call log nothing.
+  evidence: [lib/mailer.mjs:7, server.mjs:60, server.mjs:26-57, lib/agent.mjs:33-43]
+  confidence: confirmed

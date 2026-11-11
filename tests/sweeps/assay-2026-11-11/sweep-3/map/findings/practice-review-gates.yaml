@@ -1,0 +1,255 @@
+- id: F-201
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "ci test job"
+  observation: >
+    The ci workflow's single test job runs on every pull_request and on push to main, under a read-only token, with a 15-minute timeout and a Node 22/24 matrix, so any failing step fails the job before merge.
+  evidence: [".github/workflows/ci.yml:8-22"]
+  confidence: confirmed
+- id: F-202
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  label: "checkout step"
+  observation: >
+    The checkout step is SHA-pinned and fetches full history so the harness's Consumer-trailer rule can read commits since the last tag; it is a precondition of the gates, not a check itself.
+  evidence: [".github/workflows/ci.yml:24-26", "tests/blocks/ci-workflow.mjs:19-23"]
+  confidence: confirmed
+- id: F-203
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "setup-node matrix"
+  observation: >
+    setup-node takes its version from a 22/24 matrix, and a harness block fails if the matrix omits the package.json engines floor or 22, so the declared floor is exercised on every pull request.
+  evidence: [".github/workflows/ci.yml:20-22", ".github/workflows/ci.yml:27-29", "tests/blocks/ci-workflow.mjs:43-50", "package.json:17"]
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "npm ci"
+  observation: >
+    npm ci installs the two pinned devDependencies from package-lock.json and fails the job when the lockfile and package.json disagree.
+  evidence: [".github/workflows/ci.yml:30", "package.json:18"]
+  confidence: plausible
+- id: F-205
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "npm run lint"
+  observation: >
+    The lint step runs pre-merge and fails loud, but it is only `node --check` over tracked modules (a parse check); no linter is installed or configured, so unused variables, shadowing or unreachable code in a central module pass it.
+  evidence: [".github/workflows/ci.yml:31", "package.json:10", "package.json:18", "lib/check-syntax.mjs:14-15"]
+  confidence: confirmed
+- id: F-206
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "npm run typecheck"
+  observation: >
+    The typecheck step runs `tsc -p tsconfig.json` with checkJs over the engine's JavaScript on every pull request, failing the job on any type error tsc infers.
+  evidence: [".github/workflows/ci.yml:32", "package.json:11", "tsconfig.json:3-5"]
+  confidence: confirmed
+- id: F-207
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  label: "npm run build"
+  observation: >
+    The build step runs the same script as lint (`node lib/check-syntax.mjs`); the engine has no build artifact, so the step re-runs the parse check and adds no independent gate.
+  evidence: [".github/workflows/ci.yml:33", "package.json:10", "package.json:12"]
+  confidence: confirmed
+- id: F-208
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "tools action step"
+  observation: >
+    Before npm test, CI calls the repository's own tools action, so the harness runs with every pinned instrument installed, sha256-checked and version-verified, and a harness block fails if CI or the routine template stops doing so.
+  evidence: [".github/workflows/ci.yml:34-38", "tests/blocks/tools-precondition.mjs:10-13", "tests/blocks/ci-interface.mjs:4-9"]
+  confidence: confirmed
+- id: F-209
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "npm test"
+  observation: >
+    npm test runs `node tests/regression.mjs`, the 155-block regression harness (negative fixtures, fail-closed unit invariants, pinned fixture recall), as the last step of the pull-request job.
+  evidence: [".github/workflows/ci.yml:39", "package.json:9", "tests/README.md:3-5"]
+  confidence: confirmed
+- id: F-210
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "lib/check-syntax.mjs"
+  observation: >
+    check-syntax refuses an empty module list rather than reading it as clean, checks the harness's own blocks while skipping deliberately-broken fixture targets, and exits 1 naming every module that does not parse.
+  evidence: ["lib/check-syntax.mjs:11-16"]
+  confidence: confirmed
+- id: F-211
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "tsconfig.json"
+  observation: >
+    tsconfig.json includes the engine directories but not tests/ (so the harness, runner and 155 blocks are never typechecked) and does not enable strict, so implicit any and null-safety errors are not reported.
+  evidence: ["tsconfig.json:2-12"]
+  confidence: confirmed
+- id: F-212
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "tests/regression.mjs"
+  observation: >
+    The runner turns a block that fails to load or throws into a failure, refuses a run whose blocks export no NEGATIVE or SCORED list, and composes the green line only from blocks that actually ran.
+  evidence: ["tests/regression.mjs:28-44"]
+  confidence: confirmed
+- id: F-213
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "tests/harness.mjs"
+  observation: >
+    The harness refuses an empty blocks directory, a label that is not its filename, a missing run function, a duplicated gate label and an after cycle, and its verdict exits 1 on any unit/negative failure or drift from golden.json and exits 2 when golden.json is missing.
+  evidence: ["tests/harness.mjs:70-107", "tests/harness.mjs:128-164"]
+  confidence: confirmed
+- id: F-214
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: ".github/actions/tools/action.yml"
+  observation: >
+    The composite tools action runs under `set -euo pipefail`, installs then verifies each pinned tool at its pin, and only then appends the directory to PATH, so a failed install or verify fails the step and puts nothing on PATH.
+  evidence: [".github/actions/tools/action.yml:22-31"]
+  confidence: confirmed
+- id: F-215
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  label: "validator negative fixtures"
+  observation: >
+    A regression in map/validate.mjs that drops a pinned rule turns npm test red in CI on the pull request: 29 negative fixtures each must validate red, fire their named violation, and fire no other, so a fixture red for an unrelated reason also fails.
+  evidence: ["tests/blocks/negative-fixtures.mjs:16-62", "tests/blocks/negative-fixtures.mjs:64-76", "map/validate.mjs:739-744"]
+  confidence: confirmed
+  explained_by: [F-209]
+- id: F-216
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  label: "unpinned validator rules"
+  observation: >
+    Several validator rules have no negative fixture or block asserting them red (bad id, bad dimension value, bad subject_type, bad confidence, bad reversibility/gate_type/telemetry/blast_scope, non-boolean external, bad precondition), so an agent deleting one of these checks from map/validate.mjs would pass every pre-merge gate, although the fixtures block says one fixture per rule exists.
+  evidence: ["map/validate.mjs:112", "map/validate.mjs:138-141", "map/validate.mjs:157-161", "map/validate.mjs:197-198", "tests/blocks/negative-fixtures.mjs:41-55"]
+  confidence: plausible
+- id: F-217
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  label: "no rule-to-fixture meta-check"
+  observation: >
+    No block compares the validator's err() sites (167 in map/validate.mjs) against the negative fixtures, so the "one fixture per validator rule" property is maintained by convention, not checked.
+  evidence: ["tests/blocks/negative-fixtures.mjs:41-43", "map/validate.mjs:67"]
+  confidence: plausible
+  reaches: [F-216]
+- id: F-218
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  label: "yaml-min pinned fail-closed"
+  observation: >
+    The strict reader lib/yaml-min.mjs is pinned by two blocks that require it to throw on duplicate keys, __proto__, unclosed or nested flow lists, flow maps and anchors, require q() to round-trip, and require the shared loader and variance to halt on an unparseable file.
+  evidence: ["tests/blocks/yaml-strict.mjs:16-38", "tests/blocks/fail-closed.mjs:11-24", "lib/yaml-min.mjs:1-7"]
+  confidence: confirmed
+- id: F-219
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  label: "golden pin and bless guard"
+  observation: >
+    Recall on three known-answer fixtures and the instrument roster are pinned in golden.json and compared field by field, and --bless refuses to rewrite golden.json while any unit or negative invariant is red, a refusal itself pinned by a block.
+  evidence: ["tests/golden.json:1-30", "tests/harness.mjs:131-153", "tests/blocks/bless-guard.mjs:12-22", "tests/blocks/fixture-recall.mjs:14-31"]
+  confidence: confirmed
+- id: F-220
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  label: "CI file is itself gated"
+  observation: >
+    A harness block fails if ci.yml loses SHA pins, its contents:read-only permission, a job timeout, the engines-floor Node version, or any of the lint, typecheck, build and test steps, so weakening the gate set is caught by the gate set.
+  evidence: ["tests/blocks/ci-workflow.mjs:13-58"]
+  confidence: confirmed
+- id: F-221
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  label: "no pre-commit gate"
+  observation: >
+    No pre-commit or pre-push hook is configured (package.json declares none and the root holds no hook directory), so the earliest automatic catch of a regression is CI on the pull request; running npm test before opening one is a documented expectation only.
+  evidence: ["package.json:8-16", "CONTRIBUTING.md:4-5"]
+  confidence: confirmed
+- id: F-222
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  label: "required check not visible"
+  observation: >
+    Whether the ci test job is a required status check on main is set in repository settings and cannot be seen from files; the docs ask for npm test to be green but name no branch protection or required check.
+  evidence: [".github/workflows/ci.yml:8-11", ".github/PULL_REQUEST_TEMPLATE.md:7-11", "CONTRIBUTING.md:4-5"]
+  confidence: unverified
+- id: F-223
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  label: "typecheck has little to check"
+  observation: >
+    The central modules carry no JSDoc type annotations (none in map/validate.mjs or lib/yaml-min.mjs; 18 of 54 engine modules have any), so the non-strict checkJs typecheck verifies only what tsc infers.
+  evidence: ["map/validate.mjs:109", "lib/yaml-min.mjs:7-12", "tsconfig.json:2-10"]
+  confidence: plausible
+- id: F-224
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  label: "validate exit reflects verdict"
+  observation: >
+    map/validate.mjs exits non-zero on any violation even in JSON mode, and refuses a legacy-format run, so a caller that checks only the exit code never reads green over a red base.
+  evidence: ["map/validate.mjs:104", "map/validate.mjs:735-744"]
+  confidence: confirmed
+- id: F-225
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  label: "red-then-green by convention"
+  observation: >
+    The rule that a new assertion is confirmed red with its rule reverted before it is trusted is enforced only by the pull request body and commit message saying so; no mechanism runs mutations or checks the claim.
+  evidence: ["CLAUDE.md:60-64", ".github/PULL_REQUEST_TEMPLATE.md:7-9", "CONTRIBUTING.md:6-8"]
+  confidence: confirmed
+  reaches: [F-216]
+- id: F-226
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  label: "harness duration unknown"
+  observation: >
+    The harness's run time was not measured (this pass executes nothing); it holds 155 blocks of about 11.9k lines, many spawning validate or other engine scripts as child processes, under a 15-minute job timeout.
+  evidence: [".github/workflows/ci.yml:19", "tests/blocks/negative-fixtures.mjs:64-70"]
+  confidence: unverified
+- id: F-227
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  label: "other workflows not on pull_request"
+  observation: >
+    Of the four workflows only ci.yml runs on pull_request; release.yml is dispatch-only, tools-check.yml is scheduled or dispatched, and branch-cleanup.yml runs on push to main, dispatch or workflow_call.
+  evidence: [".github/workflows/ci.yml:8-11", ".github/workflows/release.yml:10-11", ".github/workflows/tools-check.yml:7-10", ".github/workflows/branch-cleanup.yml:35-44"]
+  confidence: confirmed
+- id: F-228
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  label: "CI depends on tool downloads"
+  observation: >
+    Every pull-request run downloads the pinned instrument binaries before npm test, so an upstream outage turns the job red (loud, not silent) for reasons unrelated to the change.
+  evidence: [".github/actions/tools/action.yml:29-30", ".github/workflows/ci.yml:38"]
+  confidence: plausible

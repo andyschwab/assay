@@ -1,0 +1,257 @@
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The map/ module (25 .mjs files, about 8.6k lines, plus METHOD.md and SCHEMA.md) has no README or index of its own; the front door gives it one Layout line, the dispatcher indexes only its commands, and the library modules (doctrine, projects, chains, capabilities, supervision, decisions, child-env) are found only by listing the directory and reading each header.
+  evidence: ["README.md:237", "assay.mjs:15-17", "map/doctrine.mjs:1", "map/child-env.mjs:1-8"]
+  confidence: plausible
+  label: "modules-standalone: map/ (not met)"
+- id: F-202
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/scanners/ loads from its own docs: CONTRACT.md declares itself the canonical home of the axis model, port, adapter format and fail-closed rule and routes to CANDIDATES.md, INTAKE.md gives the adoption procedure with section pointers into CONTRACT.md, and CONTRACT.md ends in a one-table layer summary.
+  evidence: ["map/scanners/CONTRACT.md:7-14", "map/scanners/INTAKE.md:1-9", "map/scanners/CONTRACT.md:1054-1060"]
+  confidence: confirmed
+  label: "modules-standalone: map/scanners/ (met)"
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/ loads from yardstick/README.md, which states what requirements.yaml and measure.mjs hold and lists the four deciding kinds, and those four kinds are exactly the kinds requirements.yaml uses (facet, census, instrument, claim).
+  evidence: ["yardstick/README.md:5-12", "yardstick/README.md:105-112", "yardstick/requirements.yaml:806-812"]
+  confidence: confirmed
+  label: "modules-standalone: yardstick/ (met)"
+- id: F-204
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    views/ loads from views/README.md, which says how compile writes every view from one measurement and gives each view's data file schema, including the views/improve/ submodule's files and the handoff.
+  evidence: ["views/README.md:5-27", "views/README.md:151-166"]
+  confidence: confirmed
+  label: "modules-standalone: views/ (met)"
+- id: F-205
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/ has no README, but its six helpers (691 lines in all) each open with a header naming what the module is the one home of and who uses it, so one helper loads without reading the others.
+  evidence: ["lib/run-layout.mjs:1-3", "lib/yaml-min.mjs:1-3", "lib/run-data.mjs:1-3", "lib/display.mjs:1-3"]
+  confidence: confirmed
+  label: "modules-standalone: lib/ (met)"
+- id: F-206
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    routine/ loads from routine/README.md, which states what the routine is and which file is the template and which the driver, and run.mjs's header points back to the README as its contract.
+  evidence: ["routine/README.md:5-17", "routine/run.mjs:1-5"]
+  confidence: confirmed
+  label: "modules-standalone: routine/ (met)"
+- id: F-207
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    owner/ loads from owner/PACKET.md, which defines the packet, routes to ask-owner.md and says it is the one home of the format, while ask-owner.mjs and ask-owner.md each name the other and the validation step in their headers.
+  evidence: ["owner/PACKET.md:5-20", "owner/ask-owner.mjs:1-7", "owner/ask-owner.md:1-10"]
+  confidence: confirmed
+  label: "modules-standalone: owner/ (met)"
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md says each child process sees only PATH, HOME, CI and npm_config_* settings, but map/child-env.mjs also passes HTTPS_PROXY, HTTP_PROXY, NO_PROXY, NODE_EXTRA_CA_CERTS and SSL_CERT_FILE, which CONTRACT.md §3a does list.
+  evidence: ["README.md:93-96", "map/child-env.mjs:10-15", "map/scanners/CONTRACT.md:182-187"]
+  confidence: confirmed
+  label: "doc-freshness: README child environment"
+- id: F-209
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md says assay reaches outside the checkout in three places "and only these" (package registry, binaries on PATH, GitHub Actions for routine/), but `tools install` downloads pinned binaries from URLs over curl and `tools check` reads api.github.com and pypi.org, optionally with GITHUB_TOKEN.
+  evidence: ["README.md:141-154", "map/tools.mjs:73", "map/tools.mjs:125", "map/tools.mjs:201-203"]
+  confidence: confirmed
+  label: "doc-freshness: README outward reach"
+- id: F-210
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    RUNBOOK.md's release steps tell the operator to tag the merge commit by hand and never mention release.yml, while release.yml and CONSUMERS.md say a release is cut only by a person dispatching release.yml and that nothing else tags (RUNBOOK last changed 2026-10-15, release.yml 2026-10-31).
+  evidence: ["RUNBOOK.md:9-19", ".github/workflows/release.yml:1-8", "CONSUMERS.md:109-113"]
+  confidence: confirmed
+  label: "doc-freshness: RUNBOOK release"
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Pinning guidance conflicts across docs: CONSUMERS.md says to pin assay to a release tag vX.Y.Z, while RUNBOOK.md says ASSAY_REF is a full commit SHA, never a branch or a tag, and routine/README.md and the template require a full SHA.
+  evidence: ["CONSUMERS.md:9", "RUNBOOK.md:16-19", "routine/README.md:210-212", "routine/assay-routine.yml:37"]
+  confidence: confirmed
+  label: "doc-freshness: pin to tag vs SHA"
+- id: F-212
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md's quickstart says `help` lists every command grouped "map / yardstick / views", but assay.mjs groups commands under four headings, including a Routine group holding `routine`.
+  evidence: ["README.md:163", "assay.mjs:47-49"]
+  confidence: confirmed
+  label: "doc-freshness: help grouping"
+- id: F-213
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README.md defines the operator role and says assay does not call it a steward, yet RUNBOOK.md, routine/README.md (18 occurrences), run.mjs and owner/PACKET.md speak of a steward and a stewarded repository.
+  evidence: ["README.md:24-27", "RUNBOOK.md:4-5", "routine/README.md:7", "routine/run.mjs:2-4", "owner/PACKET.md:9-11"]
+  confidence: confirmed
+  label: "doc-freshness: steward vocabulary"
+- id: F-214
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The oldest contract doc, owner/PACKET.md (last changed 2026-10-01), still matches its code: the secret shapes and the email rule it lists as refused are the patterns yardstick/packet.mjs checks.
+  evidence: ["owner/PACKET.md:21-45", "yardstick/packet.mjs:97", "yardstick/packet.mjs:122-125"]
+  confidence: confirmed
+  label: "doc-freshness: PACKET.md fresh"
+- id: F-215
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    tests/README.md (last changed 2026-10-02) names the four exports the runner reads off a block, and they match the harness's BLOCK_FIELDS, which the doc-consistency block checks against the README's text.
+  evidence: ["tests/README.md:40-50", "tests/harness.mjs:63-64", "tests/blocks/doc-consistency.mjs:117-123"]
+  confidence: confirmed
+  label: "doc-freshness: tests/README fresh"
+- id: F-216
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    A regression block checks selected front-door claims against the code: the one-run view count, the one rule's single home, CLAUDE.md rule citations, the number and names of instruments that execute target code, and (in sibling blocks) that every help command has a body and every CONSUMERS.md command exists.
+  evidence: ["tests/blocks/doc-consistency.mjs:1-4", "tests/blocks/doc-consistency.mjs:23-30", "tests/blocks/doc-consistency.mjs:65-79", "tests/blocks/doc-consistency.mjs:137-155", "tests/blocks/cli-commands.mjs:1-5", "tests/blocks/consumer-contract.mjs:8-11"]
+  confidence: confirmed
+- id: F-217
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    The doc-consistency check reads RUNBOOK.md only through repo-census's presence check, and checks neither the README's child-environment list nor its outward-reach list against the code, which is where F-208, F-209 and F-210 drifted.
+  evidence: ["tests/blocks/doc-consistency.mjs:110-115", "tests/blocks/doc-consistency.mjs:137-155"]
+  confidence: plausible
+- id: F-218
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The agent entry file CLAUDE.md is 73 lines (about 4.2 KB) and routes in its opening paragraph to README.md, map/SCHEMA.md, map/METHOD.md, yardstick/README.md and views/README.md, then gives seven numbered rules and the checks.
+  evidence: ["CLAUDE.md:1-7", "CLAUDE.md:9-11", "CLAUDE.md:43-49"]
+  confidence: confirmed
+- id: F-219
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    assay.mjs is one 85-line dispatcher whose `help` lists 30 commands in four groups, each with a one-line description, and says that library modules are not commands, so a stranger can route from one command to one script.
+  evidence: ["assay.mjs:15-58", "assay.mjs:62-72"]
+  confidence: confirmed
+- id: F-220
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The practice-review lane tells a review session to read map/METHOD.md in full and then map/SCHEMA.md (about 55 KB and 68 KB) before running the seven passes as parallel subagents, with no per-pass section selection.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:18", "map/scanners/adapters/practice-review/lane.md:20"]
+  confidence: confirmed
+- id: F-221
+  dimension: context-economy
+  polarity: strength
+  subject_type: process
+  observation: >
+    The method sets progressive disclosure as a ground rule: never hold a large repo in one context, have each pass read the terrain plus a bounded slice, and have Pass 0 write a slice plan of 5-15 files per dimension.
+  evidence: ["map/METHOD.md:46-50", "map/METHOD.md:98-100", "map/METHOD.md:149"]
+  confidence: confirmed
+- id: F-222
+  dimension: context-economy
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No instruction or contract doc has a size budget: map/scanners/CONTRACT.md runs to 1060 lines, map/SCHEMA.md to 1046 and map/METHOD.md to 799, and none of doc-consistency's checks (a-h) bounds a doc's length.
+  evidence: ["map/scanners/CONTRACT.md:1054", "map/SCHEMA.md:897", "map/METHOD.md:772", "tests/blocks/doc-consistency.mjs:23", "tests/blocks/doc-consistency.mjs:137"]
+  confidence: confirmed
+- id: F-223
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    views/README.md puts the whole report.json schema into one 1618-character table cell, so a reader cannot load one part of that contract without loading all of it.
+  evidence: ["views/README.md:166"]
+  confidence: confirmed
+- id: F-224
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The engine itself makes no model call: peer scanners run in a coding-agent session the operator opens, and the lane leaves the model to the consumer, so all inference spend falls in consumer-started sessions.
+  evidence: ["README.md:152-154", "map/lane.mjs:4-11"]
+  confidence: confirmed
+- id: F-225
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    The run record can carry the model and the spend of each judgment scanner and of each practice-review pass (`record --model --spend --pass`), and validate refuses a pass entry with neither field or an empty model or spend.
+  evidence: ["map/record.mjs:18-25", "map/SCHEMA.md:427-433", "map/validate.mjs:287-291"]
+  confidence: confirmed
+- id: F-226
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    Recording spend is optional free text with a unit and a missing model only raises a warning, and the roster joins spend per scanner row rather than per pass or per work class, so inference spend is recorded on request, not metered.
+  evidence: ["map/record.mjs:20-21", "map/validate.mjs:296-303", "map/roster.mjs:86-88"]
+  confidence: confirmed
+- id: F-227
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    variance reports fact agreement per pair of recorded models, so a run on a new model shows up as its own row instead of being blended into the repeatability figure.
+  evidence: ["map/variance.mjs:133-146", "map/SCHEMA.md:428-430"]
+  confidence: confirmed
+- id: F-228
+  dimension: context-economy
+  polarity: gap
+  subject_type: process
+  observation: >
+    No model-tier choice or rationale is recorded for assay's own lanes and nothing names a re-qualification trigger: a test forbids a lane from naming a model, and the engine's own requirement for dated model qualification is a draft claim with no instrument.
+  evidence: ["tests/blocks/lanes.mjs:48-49", "yardstick/requirements.yaml:820-827"]
+  confidence: plausible
+- id: F-229
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    CONSUMERS.md, the whole consumer contract, lists `record` without --spend, --duration, --head or --reviewed, though README.md and record.mjs's usage document --spend and --pass for recording a pass's model and spend.
+  evidence: ["CONSUMERS.md:24", "README.md:190", "map/record.mjs:12"]
+  confidence: confirmed
+  label: "doc-freshness: CONSUMERS record flags"
+- id: F-230
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/README.md matches requirements.yaml on deciding kinds, and routine/README.md's note that --since is not wired into the template matches the template's own comment, so the module contracts touched on 2026-10-31 agree with their code.
+  evidence: ["yardstick/README.md:105-112", "routine/README.md:253-266", "routine/assay-routine.yml:173-179"]
+  confidence: confirmed
+  label: "doc-freshness: yardstick and routine READMEs fresh"
