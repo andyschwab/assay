@@ -940,7 +940,9 @@ evidence and note:
 
 - `channelCandidates`, the agentic channels (`cli: …`, `skill: …`, `surface: …`, `tool: …`,
   `mcp-toolset: …`);
-- `routeHandlers`, the HTTP surface (`route: POST /api/notes`, one member per exported method);
+- `routeHandlers`, the HTTP surface (`route: POST /api/notes`, one member per route: a Next.js
+  exported method, a `node:http` method-and-path dispatch, or an Express-style `app.<method>` /
+  `router.<method>` call; `route: ? <file>` for a server whose dispatch enumerate cannot read);
 - `effectSites`, the effect call sites, one member per kind of call in one file
   (`http write (js) @ lib/sync.mjs`, `shell exec @ tools/run.py`, …), so a member groups that
   file's call lines of its kind and one entry never closes unrelated channels in other files (#272).

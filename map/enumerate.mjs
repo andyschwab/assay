@@ -79,7 +79,7 @@ const pops = {
   secretConstants: new Map(),// credential-named identifiers/constants the shape filter set apart
   changeGates: new Map(),    // CI steps, hooks, config-driven checks → the change-gates census (#286)
   modelCalls: new Map(),     // files calling a model through a provider's SDK or API → the model-call census (#286)
-  routeHandlers: new Map(),  // Next.js app-router handlers / pages-router API routes → HTTP surface
+  routeHandlers: new Map(),  // Next.js, node:http and Express-style route handlers → HTTP surface
   socketMounts: new Map(),   // docker.sock / privilege → blast-scope / escapes
   contracts: new Map(),      // frozen dataclass / __post_init__ / schema → interface contracts
   reportPaths: new Map(),    // delivered=True / success on a failure branch → effect-vs-report
@@ -181,6 +181,43 @@ function routeHandlers(r, ls) {
   if (!found) hit('routeHandlers', `route: ? ${url}`, r, 0, 'an app-router route file with no recognised method export — read it');
 }
 
+// node:http and Express-style dispatch (#272), in a JS/TS file. A server that compares the
+// request's method and its path (`req.method === 'POST' && url.pathname === '/admin/purge'`, in
+// either order, on one line) inside a file that calls `createServer` lists one member per route
+// (`route: POST /admin/purge`); a path compared with no method on its line is `route: ANY <path>`.
+// An `app.<method>(path, …)` or `router.<method>(path, …)` call (any `…Router` receiver too) is
+// one member per call, `all` reading ANY. A file that calls `createServer` and whose routes none
+// of these read is listed anyway (`route: ? <file>`), as a Next.js route file
+// is: a served file is never left off the list. A literal `.` or `(` is written `[.]`/`[(]` so
+// these patterns are not themselves a route.
+const NODE_SERVER = /\bcreateServer\s*[(]/;
+const REQ_METHOD = new RegExp(`\\b(?:req|request)[.]method\\s*===?\\s*['"\`](${HTTP_METHODS})['"\`]|['"\`](${HTTP_METHODS})['"\`]\\s*===?\\s*(?:req|request)[.]method\\b`);
+const REQ_PATH = /\b(?:pathname|(?:req|request)[.]url|url|path)\s*===?\s*['"`](\/[^'"`\s]*)['"`]|['"`](\/[^'"`\s]*)['"`]\s*===?\s*(?:pathname|(?:req|request)[.]url|url|path)\b/;
+const EXPRESS_ROUTE = /\b(app|router|\w+Router)[.](get|post|put|patch|delete|options|head|all)\s*[(]\s*['"`](\/[^'"`]*)['"`]/g;
+function serverRoutes(r, ls) {
+  if (!/\.[mc]?[jt]sx?$/.test(r)) return;
+  let found = 0;
+  const served = ls.some((l) => l.length <= 2000 && NODE_SERVER.test(l));
+  for (let i = 0; i < ls.length; i++) {
+    const l = ls[i];
+    if (l.length > 2000) continue;
+    EXPRESS_ROUTE.lastIndex = 0;
+    let m;
+    while ((m = EXPRESS_ROUTE.exec(l))) {
+      const method = m[2] === 'all' ? 'ANY' : m[2].toUpperCase();
+      hit('routeHandlers', `route: ${method} ${m[3]}`, r, i, `an Express-style ${m[1]}.${m[2]} route — HTTP surface; assess its auth, input and effects`);
+      found++;
+    }
+    if (!served) continue;
+    const p = l.match(REQ_PATH);
+    if (!p) continue;
+    const meth = l.match(REQ_METHOD);
+    hit('routeHandlers', `route: ${meth ? meth[1] || meth[2] : 'ANY'} ${p[1] || p[2]}`, r, i, 'a node:http route (the request\'s method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects');
+    found++;
+  }
+  if (served && !found) hit('routeHandlers', `route: ? ${r}`, r, Math.max(0, ls.findIndex((l) => NODE_SERVER.test(l))), 'a node:http server whose routes enumerate cannot read — read it');
+}
+
 const EFFECT = [
   [/\bsubprocess\.(?:run|call|Popen|check_output)\b|\bos\.system\b|\bos\.popen\b/, 'shell exec'],
   [/\brequests\.(?:post|put|delete|patch)\b|\bhttpx\.(?:post|put|delete)\b|\burllib\b.*urlopen/, 'http write'],
@@ -197,6 +234,7 @@ for (const f of files) {
   const isEnvOrCfg = /\.(env|ini|cfg|conf|ya?ml|toml|json)$/.test(base) || /\.env/.test(base) || base.startsWith('.env');
   const isCode = /\.(?:[mc]?[jt]sx?|py|rb|go|java|kt|rs|php)$/.test(base);
   routeHandlers(r, ls);
+  serverRoutes(r, ls);
   for (let i = 0; i < ls.length; i++) {
     const line = ls[i];
     if (line.length > 2000) continue;

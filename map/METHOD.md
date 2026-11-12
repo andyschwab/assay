@@ -129,7 +129,10 @@ populations that leak when left implicit — enumerate each as a closed list:
  that no site reads from the environment, is listed apart as a secret-named constant,
  not a candidate.
 - **HTTP route handlers** — each exported method of a Next.js app-router
- `app/**/route.*` file and each pages-router `pages/api/**` route; the coverage gate
+ `app/**/route.*` file and each pages-router `pages/api/**` route; each route a `node:http`
+ server dispatches on the request's method and path in a file that calls `createServer`; each
+ Express-style `app.<method>(path, …)` / `router.<method>(path, …)` call; and a `createServer`
+ file whose dispatch enumerate cannot read, by its file (`route: ? <file>`). The coverage gate
  counts every route file as live surface.
 - **network-egress controls** (iptables/DOCKER-USER rules, metadata blocks, URL policy).
 - **interface contracts** (frozen dataclasses / schema validators / lockstep tests).
