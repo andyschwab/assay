@@ -1,0 +1,260 @@
+# Pass 6 — improvement loop (practice-review), assay at 2b247c0.
+# Census incidents-became-mechanisms: F-600..F-614 (15 lessons, frozen before judging).
+# Context list backlog-records: F-615..F-619. Discovery: F-620..F-623.
+
+# ── census: incidents-became-mechanisms (one finding per recorded lesson) ──
+- id: F-600
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The docker-socket lesson (a calibration run certified "blast capped to one user" after
+    inspecting only the per-user container, never the admin one) led enumerate to list an
+    admin-role branch as a distinct container class, but the coverage gate keeps container
+    classes recall-only and no harness block pins the admin-class detector, so a run that
+    again assesses one class and certifies the other is not caught.
+  evidence: [map/METHOD.md:42, map/enumerate.mjs:233, map/enumerate.mjs:364]
+  confidence: plausible
+- id: F-601
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The lesson that a terrain pinning a prior run's channel list makes reproduction
+    tautological (a blind re-derivation caught surfaces the pinned run missed) lives as
+    prose in METHOD.md and as an instruction in the rendered lane seed; the lane renderer
+    checks only that declared inputs have a directory, and nothing detects a run that read
+    a prior run.
+  evidence: [map/METHOD.md:76, map/scanners/adapters/practice-review/lane.md:21, map/lane.mjs:62]
+  confidence: plausible
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The calibration lesson that every missed effect channel was one a hand-drafted inventory
+    forgot became the enumerated channel-candidate list plus a measured triage: a triage
+    that leaves a candidate out reads the row unmet, naming it, pinned by a harness block.
+  evidence: [map/METHOD.md:100, map/enumerate.mjs:250, tests/blocks/channels-need-a-triage.mjs:37]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a calibration run had to hand-derive 24 channels declared in an in-code
+    tool-definition table became an enumerate detector for name plus input_schema tables and
+    MCP toolsets, and a harness block fails if the detector stops surfacing them or starts
+    surfacing test-only tools.
+  evidence: [map/enumerate.mjs:275, tests/blocks/enumerate-tooldef.mjs:17, tests/blocks/enumerate-tooldef.mjs:19]
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The failure where a web app's empty channel-candidate list read as a closed list (#269)
+    became a widened candidate population (channel candidates, route handlers and effect
+    sites together) held by a harness block whose header names the failure it pins.
+  evidence: [map/SCHEMA.md:878, map/effect-triage.mjs:27, tests/blocks/web-app-effects.mjs:2]
+  confidence: confirmed
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The cal5/cal6 lesson (a census flipped its subject_type between runs and read as 100%
+    variance) is answered by dropping subject_type from variance's fact identity and by
+    "decide it once" prose; validate requires a canon to state each census population's
+    subject_type but never compares a census member's subject_type with it, and no harness
+    block found pins that subject_type stays out of variance identity.
+  evidence: [map/SCHEMA.md:189, map/variance.mjs:13, map/validate.mjs:590]
+  confidence: plausible
+- id: F-606
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The field measurement that cross-run descriptor judgments diverged in both directions
+    (31% of shared channels identical) became the descriptorAgreement measure with a
+    both-ways flag, pinned by a harness block that fails when a both-directions divergence
+    set is not flagged.
+  evidence: [map/variance.mjs:38, tests/blocks/descriptor-agreement.mjs:56]
+  confidence: confirmed
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The review correction that variance exited 0 at any agreement level and the cited
+    agreement figures could not be reproduced from the tree (#57) became committed sweep
+    sets gated at their own thresholds by a harness block.
+  evidence: [tests/blocks/sweep-gate.mjs:2, tests/blocks/sweep-gate.mjs:24]
+  confidence: confirmed
+- id: F-608
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident where a package shipped with its queued code scanner never run and nothing
+    saying so became the required run manifest, with negative fixtures that fail validate on
+    a missing manifest, a skip with no reason, and rows that disagree with the recorded status.
+  evidence: [map/SCHEMA.md:365, tests/blocks/negative-fixtures.mjs:23, tests/blocks/negative-fixtures.mjs:24]
+  confidence: confirmed
+- id: F-609
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The fail-closed lesson (a checker that silently accepts unparseable input hides what it
+    exists to catch; the CI-1 lesson SCHEMA cites) became a reader that throws, pinned by
+    harness blocks that require variance to halt on an unparseable sweep and the reader to
+    refuse duplicate and prototype keys.
+  evidence: [lib/yaml-min.mjs:6, map/SCHEMA.md:916, tests/blocks/fail-closed.mjs:23, tests/blocks/yaml-strict.mjs:2]
+  confidence: confirmed
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The failure where one of five loader copies skipped unparseable files and a map with
+    rows nested under a key read as zero findings became one shared loader that fails
+    closed on those shapes, pinned by a harness block (#53).
+  evidence: [map/project.mjs:58, tests/blocks/findings-loader.mjs:2, tests/blocks/findings-loader.mjs:19]
+  confidence: confirmed
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The owner-overlay failures the validator names (a map-shaped decisions file read as no
+    decisions, an unknown action as open, an accept with no reason as waived, an email as
+    `by`) each became a negative fixture with the exact refusal message pinned.
+  evidence: [map/validate.mjs:397, tests/blocks/negative-fixtures.mjs:57, tests/blocks/negative-fixtures.mjs:59]
+  confidence: confirmed
+- id: F-612
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a tree with no database used to read met by silence became the
+    not_applicable_when condition decided only from the instrument's own fact row, pinned by
+    a harness block.
+  evidence: [yardstick/README.md:33, tests/blocks/not-applicable.mjs:19]
+  confidence: confirmed
+- id: F-613
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The field-run finding that an authored multiplayer census was silently dropped because
+    the maturity ladder lacked the dimension became a harness block requiring a ladder row
+    for every native dimension.
+  evidence: [tests/blocks/maturity-ladder.mjs:4, tests/blocks/maturity-ladder.mjs:17]
+  confidence: confirmed
+- id: F-614
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The rule "an assertion never seen failing proves nothing" (confirm red with the rule
+    reverted) lives as prose in CLAUDE.md, CONTRIBUTING.md and a PR-template comment; no
+    check reads a commit or pull request for the confirmed-red statement.
+  evidence: [CLAUDE.md:62, CONTRIBUTING.md:6, .github/PULL_REQUEST_TEMPLATE.md:8]
+  confidence: plausible
+
+# ── context list: backlog-records (d-backlog-is-issues) ──
+- id: F-615
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The agent contract and contributor guide route outstanding engine work to the issue
+    tracker: a gap a run exposes becomes an issue and lands as a reviewed change that cites it.
+  evidence: [CLAUDE.md:65, CLAUDE.md:68, CONTRIBUTING.md:12]
+  confidence: confirmed
+- id: F-616
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The weekly tools check writes pins behind upstream as one issue, searching for an open
+    issue of the same title and commenting on it rather than filing a second; it applies no
+    label when it creates the issue.
+  evidence: [.github/workflows/tools-check.yml:32, .github/workflows/tools-check.yml:33, .github/workflows/tools-check.yml:35]
+  confidence: confirmed
+- id: F-617
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    backlog.mjs writes each run's "optimization backlog for the engine itself" as rows in a
+    run file (map/backlog.yaml, beside an authored map/backlog-authored.yaml), and nothing in
+    it files or links those rows to an issue.
+  evidence: [map/backlog.mjs:5, map/backlog.mjs:17, map/backlog.mjs:19]
+  confidence: confirmed
+- id: F-618
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    map/scanners/CANDIDATES.md carries candidate integrations as table rows, and the rows
+    drift: osv-scanner and Checkov sit under second-line candidates while the same file
+    records each adopted with an issue number.
+  evidence: [map/scanners/CANDIDATES.md:76, map/scanners/CANDIDATES.md:78, map/scanners/CANDIDATES.md:112, map/scanners/CANDIDATES.md:116]
+  confidence: confirmed
+- id: F-619
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Changes that finish tracked work name the issue in the mechanism that lands them
+    (harness block headers cite #269 and #53), so the issue-to-change link is readable from
+    the tree; whether the issues carry need-by, kind and size labels is not visible offline.
+  evidence: [tests/blocks/web-app-effects.mjs:2, tests/blocks/findings-loader.mjs:2]
+  confidence: plausible
+
+# ── discovery ──
+- id: F-620
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    roster.mjs computes what each scanner is worth over the runs given: the requirements it
+    alone decides, the known answers only it recovers, the facts it corroborates, and its
+    recorded duration and spend.
+  evidence: [map/roster.mjs:2, map/roster.mjs:23, map/roster.mjs:29]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-621
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The engine's accuracy delta is legible without a study: per-fixture recall and
+    corroboration are pinned in tests/golden.json and a change that moves them must
+    re-bless that file in the same reviewed commit.
+  evidence: [tests/golden.json:12, CLAUDE.md:51]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-622
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    Release notes are read off git as each commit's Consumer trailer (what a consumer must
+    change); no impact or before-and-after field is carried on shipped work.
+  evidence: [lib/release-notes.mjs:4, lib/release-notes.mjs:6]
+  confidence: plausible
+  property: impact-self-measured
+- id: F-623
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Every run records a structured outcome row per scanner in its run manifest (status,
+    reason, model, spend, duration), and roster.mjs aggregates those rows across the runs a
+    person passes it; nothing emits them beyond the run directory.
+  evidence: [map/record.mjs:12, map/record.mjs:22, map/roster.mjs:20]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

@@ -1,0 +1,43 @@
+# Pass 6 — improvement (dimension improvement-loop), census incidents-became-mechanisms
+- id: F-501
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    Across all 12 files no lesson is recorded (no incident note, postmortem, review correction, lessons entry or fix naming its cause): the one doc besides the README is a decision record, and the code comments carry rationale and assumptions, not lessons, so the incidents-became-mechanisms population is empty.
+  evidence: [docs/adr/0001-storage-choice.md:3, README.md:27, lib/auth.mjs:9, lib/sync.mjs:7]
+  confidence: confirmed
+- id: F-502
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Outstanding work to move the backup API key out of source is kept as an in-code TODO above the hardcoded key, not as an issue on a tracker.
+  evidence: [config/settings.mjs:5, config/settings.mjs:6]
+  confidence: confirmed
+- id: F-503
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Deferred persistence (the SQLite adapter) is recorded as outstanding work in the ADR's consequences ("the first thing the production milestone fixes"), not as a tracked issue.
+  evidence: [docs/adr/0001-storage-choice.md:22, docs/adr/0001-storage-choice.md:23, docs/adr/0001-storage-choice.md:15]
+  confidence: confirmed
+- id: F-504
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The assistant is named the product's differentiator, yet nothing in the tree records whether it is used or what it is worth (no counter, impact field or before-and-after record on an assistant call).
+  evidence: [docs/adr/0001-storage-choice.md:28, lib/agent.mjs:33, lib/agent.mjs:42]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-505
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: control
+  observation: >
+    The app emits no structured usage or outcome records: the only runtime output is an unstructured mailer log line and a startup line, while assistant calls, note writes, syncs and purges emit nothing.
+  evidence: [lib/mailer.mjs:7, server.mjs:60, lib/agent.mjs:34, lib/sync.mjs:13, routes/admin.mjs:8]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

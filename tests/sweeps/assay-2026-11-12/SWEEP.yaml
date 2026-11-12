@@ -1,0 +1,33 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/assay-2026-11-12
+#
+# BLIND, the sweep after M4 (#262), M5 (#263), #287 and M6 (#286) at v0.9.0: three practice-review
+# lanes over this repository at the SAME commit as assay-2026-11-11b and -11c (2b247c0), so only the
+# method changed. Each lane was a fresh child session seeded by `assay lane practice-review` at
+# v0.9.0, all passes claude-opus-5-5, the target read-only, given the run's map/raw/enumerate.json at
+# v0.9.0 (every v0.8.0 population identical; changeGates 24 and modelCalls 0 new). Each pass opened on
+# its own slice (M5) and each closed census was triaged once per candidate in map/census-triage.yaml
+# (M6). What the record should know:
+# - No send-back: each lane's own check found violations and the lane fixed them before publishing
+#   (sweep-1 none, sweep-2 22 from one indentation slip, sweep-3 1); every run validated on collection.
+# - sweep-2's gates and delegation subagents each imported the target's lib/yaml-min.mjs once to parse
+#   their own scratch findings: target code ran, which the lane forbids; a pure parser over the
+#   subagents' own files, writing nothing. No other deviation.
+# - Spend per session (practice-review row of each run record): USD 17.69, 19.64, 21.70.
+# Against assay-2026-11-11c read at the same engine (58%, 7 of 12): requirement agreement 10 of 14.
+# The three closed censuses agree in every sweep: d-credentials-enumerated (21 candidates, the same 4
+# judged and 17 out of scope in all three), d-change-gates-fail-closed and d-model-call-telemetry (an
+# empty list); d-readme-true and d-decisions-reconstruct, which parted in -11c, now agree too. Still
+# parting: d-effects-gated and d-effects-traced (the effect rows, which agreed in -11c),
+# d-capability-budget and d-agent-consumable-surface (an open census). Descriptor agreement fell to
+# 1 of 9 (30% in -11c): the lanes name channels the listing does not (11 slugs seen by one sweep).
+target: "andyschwab/assay, this repository (public), at the commit below"
+target_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
+method_commit: "147a39426ef81f745f7603ad363f9de252569744"
+date: "2026-11-12"
+blind: true
+threshold:
+  fact_presence: 31          # measured 16 of 52 union facts caught by all three (31%)
+  descriptor_agreement: 11   # measured 1 of 9 shared effect channels identical on all six descriptors (11%)
+  requirement_agreement: 71  # measured 10 of 14 decided requirements identical in all three (71%)
+sweeps: [sweep-1, sweep-2, sweep-3]

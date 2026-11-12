@@ -1,0 +1,310 @@
+# Pass 6 — improvement loop (practice-review). Ids F-600..F-637.
+# Census incidents-became-mechanisms: F-600..F-627. Context backlog-records: F-629..F-633.
+- id: F-600
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The docker-socket lesson (a calibration run certified "no socket mount" after inspecting only the per-user container) became an enumeration of socket/privilege mounts and container classes plus a yardstick rule that reads a census met only over listed members, though no test exercises the socket/container detectors themselves.
+  evidence: ["map/METHOD.md:42", "map/METHOD.md:117", "map/enumerate.mjs:205", "map/enumerate.mjs:232", "tests/blocks/met-needs-positive-evidence.mjs:2"]
+  confidence: plausible
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that every missed effect channel was one a hand-drafted inventory forgot became the enumerated channel-candidate population and a triage the yardstick and validate hold closed, pinned by harness blocks.
+  evidence: ["map/METHOD.md:101", "map/enumerate.mjs:250", "tests/blocks/effect-population.mjs:2", "tests/blocks/channels-need-a-triage.mjs:1"]
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a calibration run had to hand-derive 24 channels declared in an in-code tool-definition table became a tool-definition detector in enumerate, pinned by its own block.
+  evidence: ["map/enumerate.mjs:275", "map/enumerate.mjs:284", "tests/blocks/enumerate-tooldef.mjs:1"]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The lesson that a terrain pinned to a prior run's channel list makes a determinism measurement tautological is held only as method prose ("no prior run in context"); no check in lane, start or validate was found that refuses or detects a terrain derived with a prior run in view.
+  evidence: ["map/METHOD.md:73", "map/METHOD.md:76"]
+  confidence: plausible
+- id: F-604
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The cal5/cal6 lesson (a fact key holding subject_type and evidence basename read identical facts as variance) was fixed in variance.mjs's identity code, but no harness block was found that pins variance's identity excluding subject_type or matching on the full path (score-path pins score, not variance).
+  evidence: ["map/variance.mjs:13", "map/variance.mjs:21", "map/variance.mjs:127", "map/SCHEMA.md:189", "tests/blocks/score-path.mjs:2"]
+  confidence: plausible
+- id: F-605
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The recorded CI-1 fail-closed lesson (a checker that accepts unparseable input hides what it exists to catch) became the strict reader that throws and a fail-closed block that requires variance to halt on an unparseable sweep.
+  evidence: ["map/SCHEMA.md:916", "lib/yaml-min.mjs:6", "tests/blocks/fail-closed.mjs:23"]
+  confidence: confirmed
+- id: F-606
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The machine-side false-green lesson (a handoff reading "nothing to do" over live gaps) became a degenerate gate that exits 1, pinned by the sequence block.
+  evidence: ["views/improve/handoff.mjs:20", "views/improve/handoff.mjs:113", "tests/blocks/sequence.mjs:126", "tests/blocks/sequence.mjs:133"]
+  confidence: confirmed
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that backlog.mjs's authored half had no path, schema or validator check became a block asserting the header names both backlog files.
+  evidence: ["tests/blocks/backlog.mjs:2", "tests/blocks/backlog.mjs:21"]
+  confidence: confirmed
+- id: F-608
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that one-file regression blocks conflicted on a hand-edited label line and could drop a block's name became one-file-per-block discovery and a check that the runner holds no block.
+  evidence: ["tests/blocks/block-runner.mjs:2", "tests/blocks/block-runner.mjs:18"]
+  confidence: confirmed
+- id: F-609
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a user-scoped channel reported tenant blast and an unknown scope passed silently became a block over every allowed blast_scope.
+  evidence: ["tests/blocks/capabilities-blast.mjs:2", "tests/blocks/capabilities-blast.mjs:14"]
+  confidence: confirmed
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a boolean external_effect counted read-only fetchers as full trifectas became a none/read/write facet pinned by its block.
+  evidence: ["tests/blocks/capability-read-leg.mjs:2", "tests/blocks/capability-read-leg.mjs:33"]
+  confidence: confirmed
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that `set +e` was marked fail-open even when the status was captured and acted on became a repo-census rule pinned by its block.
+  evidence: ["tests/blocks/ci-gate-set-e-status.mjs:2", "tests/blocks/ci-gate-set-e-status.mjs:50"]
+  confidence: confirmed
+- id: F-612
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that advertised commands dispatched to library modules printed nothing and exited 0 became a block requiring every help-listed command to run a script.
+  evidence: ["tests/blocks/cli-commands.mjs:2", "tests/blocks/cli-commands.mjs:21"]
+  confidence: confirmed
+- id: F-613
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that INDEX/IMPROVE miscounted not-measured claim rows and SINCE misprinted a previous status became a block reading counts off the measurement.
+  evidence: ["tests/blocks/counts-read-measurement.mjs:2", "tests/blocks/counts-read-measurement.mjs:26"]
+  confidence: confirmed
+- id: F-614
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that one gate rule restated in four files could diverge became a single doctrine module and a lockstep block.
+  evidence: ["tests/blocks/doctrine-lockstep.mjs:3", "tests/blocks/doctrine-lockstep.mjs:27"]
+  confidence: confirmed
+- id: F-615
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that an unreadable or missing findings file read as an empty base became a loader that fails loud, pinned by a block requiring variance to exit non-zero.
+  evidence: ["tests/blocks/findings-loader.mjs:2", "tests/blocks/findings-loader.mjs:21"]
+  confidence: confirmed
+- id: F-616
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The review correction that an undeclared build step read met on absence became a block requiring it to read as a gap like lint, typecheck and test.
+  evidence: ["tests/blocks/fresh-clone-build-floor.mjs:2", "tests/blocks/fresh-clone-build-floor.mjs:31"]
+  confidence: confirmed
+- id: F-617
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that the secret scan measured a subdirectory target against its enclosing repository's history became a refusal pinned by its block.
+  evidence: ["tests/blocks/gitleaks-target.mjs:3", "tests/blocks/gitleaks-target.mjs:42"]
+  confidence: confirmed
+- id: F-618
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The field-run lesson that an authored multiplayer census was silently dropped from the ladder became a regression block requiring every native dimension be scorable.
+  evidence: ["tests/blocks/maturity-ladder.mjs:4", "tests/blocks/maturity-ladder.mjs:22"]
+  confidence: confirmed
+- id: F-619
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a consumer's renderer printed hedges from its own copy of the confidence-to-word table became report.json carrying confidence and word on every entry, pinned by its block.
+  evidence: ["tests/blocks/report-confidence-words.mjs:2", "tests/blocks/report-confidence-words.mjs:38"]
+  confidence: confirmed
+- id: F-620
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that agents had to parse the human report for chains and the handoff became schema-checked data files pinned by the run-data block.
+  evidence: ["tests/blocks/run-data.mjs:2", "tests/blocks/run-data.mjs:16"]
+  confidence: confirmed
+- id: F-621
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that score --json exited 0 whatever it graded and backlog read a crashed sub-tool as zero became exit-code verdicts pinned by a block.
+  evidence: ["tests/blocks/score-backlog-exit.mjs:2", "tests/blocks/score-backlog-exit.mjs:17"]
+  confidence: confirmed
+- id: F-622
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that variance exited 0 at any agreement and the docs' repeatability figures could not be reproduced (the field-measured census-mode figures included) became committed sweep sets gated at their own threshold.
+  evidence: ["tests/blocks/sweep-gate.mjs:2", "tests/blocks/sweep-gate.mjs:19", "map/METHOD.md:420"]
+  confidence: confirmed
+- id: F-623
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson from the first all-integrations run that dimension-less scanner rows crashed variance became a mixed-base block.
+  evidence: ["tests/blocks/variance-mixed-base.mjs:2", "tests/blocks/variance-mixed-base.mjs:15"]
+  confidence: confirmed
+- id: F-624
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a web app enumerated an empty, "closed" candidate list became a triage over channel candidates, route handlers and effect sites together, pinned by its block.
+  evidence: ["tests/blocks/web-app-effects.mjs:2", "tests/blocks/web-app-effects.mjs:45"]
+  confidence: confirmed
+- id: F-625
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that the YAML reader silently kept duplicate keys, honoured `__proto__` and split quoted flow items became a strict reader pinned by its block.
+  evidence: ["tests/blocks/yaml-strict.mjs:2", "tests/blocks/yaml-strict.mjs:26"]
+  confidence: confirmed
+- id: F-626
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that the deploy-workflow signal fired on the word in a comment became a rule reading only what a workflow runs, pinned by its block.
+  evidence: ["tests/blocks/repo-census-deploy-word.mjs:2", "tests/blocks/repo-census-deploy-word.mjs:63"]
+  confidence: confirmed
+- id: F-627
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The basename-collision lesson, applied to known-answer scoring, became full-path matching pinned by the score-path block.
+  evidence: ["tests/blocks/score-path.mjs:2", "tests/blocks/score-path.mjs:19"]
+  confidence: confirmed
+- id: F-628
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The agent contract routes engine learnings to the issue tracker and each new guard into its own harness block, and block titles cite the issue that produced them, so a correction lands as an issue-linked test.
+  evidence: ["CLAUDE.md:55", "CLAUDE.md:65", "tests/blocks/bless-guard.mjs:1", "tests/blocks/canon.mjs:1"]
+  confidence: confirmed
+- id: F-629
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Outstanding method, scanner, yardstick and contract gaps are stated to live as issues on the repository's tracker.
+  evidence: ["CLAUDE.md:65", "CONTRIBUTING.md:12"]
+  confidence: confirmed
+- id: F-630
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The tree states no label vocabulary for need-by, kind or size and carries no issue template (.github holds only a pull request template, actions and workflows); labels may still exist on the forge.
+  evidence: ["CONTRIBUTING.md:12", ".github/PULL_REQUEST_TEMPLATE.md:1"]
+  confidence: plausible
+- id: F-631
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Pin drift is written to the tracker as one issue, found by title and commented rather than duplicated.
+  evidence: [".github/workflows/tools-check.yml:24", ".github/workflows/tools-check.yml:32", ".github/workflows/tools-check.yml:33"]
+  confidence: confirmed
+- id: F-632
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/scanners/CANDIDATES.md is a list file whose rows carry not-yet-adopted scanner candidates, and osv-scanner and Checkov still sit under second-line candidates though the adopted table lists both.
+  evidence: ["map/scanners/CANDIDATES.md:41", "map/scanners/CANDIDATES.md:42", "map/scanners/CANDIDATES.md:108", "map/scanners/CANDIDATES.md:112", "map/scanners/CANDIDATES.md:116"]
+  confidence: confirmed
+- id: F-633
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    Each run's engine optimization backlog is a YAML list file in the run directory (computed half plus an authored half), and backlog.mjs has no path from it to the issue tracker; a person carries items to issues.
+  evidence: ["map/backlog.mjs:5", "map/backlog.mjs:16", "map/backlog.mjs:19"]
+  confidence: confirmed
+- id: F-634
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  property: impact-self-measured
+  observation: >
+    The engine measures its own worth: recall over known-answer fixtures is pinned in golden.json, the roster reports each scanner's unique recoveries and cost, and Since reports what a target moved between runs.
+  evidence: ["tests/golden.json:12", "map/roster.mjs:23", "map/roster.mjs:26", "views/since.mjs:2"]
+  confidence: confirmed
+- id: F-635
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: impact-self-measured
+  observation: >
+    A shipped change carries no impact field: the pull request template asks what changed and how it is verified, not what it moved.
+  evidence: [".github/PULL_REQUEST_TEMPLATE.md:1", ".github/PULL_REQUEST_TEMPLATE.md:5"]
+  confidence: plausible
+- id: F-636
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  property: usage-outcome-records-emitted
+  observation: >
+    Every run emits a structured run record per scanner (disposition with reason, model, spend, duration, reviewed head), and the roster reads cost from it across the runs given.
+  evidence: ["map/record.mjs:12", "map/record.mjs:20", "map/record.mjs:22", "map/roster.mjs:29"]
+  confidence: confirmed
+- id: F-637
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  property: usage-outcome-records-emitted
+  observation: >
+    Population-level aggregation of those records happens only over run directories a person passes to roster; nothing emits or collects them across runs by itself.
+  evidence: ["map/roster.mjs:20", "map/roster.mjs:32"]
+  confidence: plausible
