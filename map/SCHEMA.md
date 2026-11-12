@@ -663,6 +663,17 @@ run. The count is read off them (`map/census.mjs`), never typed by hand:
   `of` and never in `met`. The census cannot read met while it holds one: a member nobody
   judged is the census's version of an untriaged candidate (§6e), and the yardstick names it.
 
+**An absence is not a member (#298).** A census member is one thing that exists in the
+census's population, and its evidence cites that thing. That the population is empty, or that
+something is missing ("this target has no gate", "no lesson is recorded"), is a finding outside
+the census: never listed in `members:`, and never triaged as a candidate (§6f). Nor is a thing
+outside the population a member because it is near it: a test file no gate runs is not a change
+gate, and a test's header is not a recorded lesson. Kept outside, an absence cannot hold a row
+down the way a real member outside the list does (a hardcoded credential enumerate missed,
+§6f). The rule has no validate check: an absence and a gap on a real member are both gap
+findings with `file:line` evidence, the absence citing where the thing would be, so telling them
+apart is a judgment no field records.
+
 An authored `met`/`of` beside `members:` is optional; one that disagrees with the members is
 a validate error. A `sampled:` entry with no `members:` keeps its authored `met`/`of`, and the
 yardstick never reads it met: a count typed by hand is not evidence (`yardstick/README.md`,
@@ -1056,6 +1067,9 @@ row down, its strength never reads it met, and the row's note names it (#292). W
 nothing is refused: the yardstick reads every candidate untriaged and every member outside the
 list, so the row reads not measured, or unmet on a gap (`yardstick/README.md`, "A census a tool
 can list").
+An absence is never such a member (§6b): "there is none" is recorded as a finding outside the
+census, so an empty population stays empty (`triage: []`, no `members:` entry for the absence),
+and no candidate is triaged to it.
 
 ---
 
