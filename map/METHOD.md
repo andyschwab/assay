@@ -549,7 +549,8 @@ is no binning.
 members from a list, not from the terrain (#286, `SCHEMA.md` §6f): the credential census
 from `map/raw/enumerate.json`'s `populations.secrets`, `change-gates` from
 `populations.changeGates` (each CI step, job without steps, hook and check script) and
-`model-call-telemetry` from `populations.modelCalls` (each file that calls a model). Each
+`model-call-telemetry` from `populations.modelCalls` (each file where the application obtains
+model output: a provider call, or a local stand-in for one, #293). Each
 candidate is one member: write one finding per in-scope candidate, list it in the census,
 and triage every candidate once in `map/census-triage.yaml`, to that finding or out of
 scope with the reason, never one finding for two candidates nor two for one. The row reads

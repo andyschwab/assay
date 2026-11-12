@@ -78,7 +78,7 @@ const pops = {
   secrets: new Map(),        // credential names → credential census
   secretConstants: new Map(),// credential-named identifiers/constants the shape filter set apart
   changeGates: new Map(),    // CI steps, hooks, config-driven checks → the change-gates census (#286)
-  modelCalls: new Map(),     // files calling a model through a provider's SDK or API → the model-call census (#286)
+  modelCalls: new Map(),     // files calling a model through a provider's SDK or API, or defining a stand-in for one → the model-call census (#286, #293)
   routeHandlers: new Map(),  // Next.js app-router handlers / pages-router API routes → HTTP surface
   socketMounts: new Map(),   // docker.sock / privilege → blast-scope / escapes
   contracts: new Map(),      // frozen dataclass / __post_init__ / schema → interface contracts
@@ -400,13 +400,38 @@ function packageGates(r, ls) {
   }
 }
 
-// 10. model call sites (#286) — a file that calls a model through a provider's SDK or HTTP API,
-// one member per file (`model call: <path>`), every import, call and endpoint line its evidence.
+// 10. model call sites (#286, #293) — a file where the application obtains model output: one that
+// calls a model through a provider's SDK or HTTP API, or defines a local stand-in for that call
+// (below), one member per file (`model call: <path>`), every import, call, endpoint and stand-in
+// definition line its evidence.
 // Each pattern names a provider's published package, method or endpoint so the tree can be read
 // for it; none names a scanner (CLAUDE.md rule 7). A literal `.` or `(` is written `[.]` / `[(]`
 // so this file's own patterns are not a call site. Test files and runs/ are skipped.
 const MODEL_IMPORT = /(?:from\s+|require\(\s*|import\(\s*|import\s+)['"](?:@anthropic-ai\/[\w-]+|openai|@google\/(?:generative-ai|genai)|@google-cloud\/vertexai|@mistralai\/[\w-]+|cohere-ai|groq-sdk|ollama|ai|@ai-sdk\/[\w-]+|@aws-sdk\/client-bedrock-runtime)['"]|^\s*(?:import|from)\s+(?:anthropic|openai|google\.generativeai|google\.genai|mistralai|cohere|groq|ollama|litellm)\b|^\s*from\s+google\s+import\s+genai\b/;
 const MODEL_CALL = /[.]messages[.](?:create|stream)\s*[(]|[.]chat[.]completions[.](?:create|stream|parse)\s*[(]|[.]responses[.](?:create|stream)\s*[(]|\bChatCompletion[.]create\s*[(]|[.]generateContent(?:Stream)?\s*[(]|\b(?:generateText|streamText|generateObject|streamObject)\s*[(]|\bInvoke(?:Model|ModelWithResponseStream)Command\b|\blitellm[.]completion\s*[(]/;
+// A local stand-in (#293): a model call site is any place the application obtains model output,
+// so a stub or wrapper the application calls in place of a provider call is one too. It is read
+// only at a function's definition, never at a call to it, and only when the definition says so
+// itself: its name is a call-model verb (callModel, invokeModel, askModel, promptModel, callLLM,
+// call_llm …), or the comment block directly above it names a stand-in (a stub, a stand-in, a
+// wrapper, "in place of") for a model call (a model call, an LLM, a language model, a provider's
+// SDK or API). A function named for a database model, or a comment that names a model without a
+// stand-in for a call, lists nothing. A stand-in this misses is a member outside the list, which
+// the census reads by its asymmetric rule (yardstick/README.md, "A census a tool can list").
+const STANDIN_DEF = /^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*[(]|^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:function\b|[(][^)]*[)]\s*=>|[A-Za-z_$][\w$]*\s*=>)|^\s*(?:async\s+)?def\s+(\w+)\s*[(]/;
+const STANDIN_NAME = /^(?:call|invoke|ask|prompt)_?(?:model|llm)$/i;
+const STANDIN_SAYS = /\b(?:stub|stand(?:s|ing)?[- ]in|in place of|wraps?|wrapper)\b/i;
+const STANDIN_FOR = /\bmodel call|\bllm\b|\blanguage model\b|\bprovider(?:'s)? (?:sdk|api)\b/i;
+const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*|#)/;
+function isStandIn(ls, i) {
+  const m = STANDIN_DEF.exec(ls[i]);
+  if (!m) return false;
+  if (STANDIN_NAME.test(m[1] || m[2] || m[3])) return true;
+  const above = [];
+  for (let j = i - 1; j >= 0 && COMMENT_LINE.test(ls[j]); j--) above.unshift(ls[j]);
+  const said = above.join(' ');
+  return STANDIN_SAYS.test(said) && STANDIN_FOR.test(said);
+}
 const MODEL_ENDPOINT = /\bapi\.anthropic\.com\b|\bapi\.openai\.com\b|\bgenerativelanguage\.googleapis\.com\b|\bapi\.mistral\.ai\b|\bapi\.groq\.com\b|\bapi\.cohere\.(?:ai|com)\b|\bbedrock-runtime\.[\w-]+\.amazonaws\.com\b/;
 
 for (const f of files) {
@@ -419,6 +444,7 @@ for (const f of files) {
   if (/\.(?:[mc]?[jt]sx?|py)$/.test(b)) ls.forEach((l, i) => {
     if (l.length > 2000) return;
     if (MODEL_IMPORT.test(l) || MODEL_CALL.test(l) || MODEL_ENDPOINT.test(l)) hit('modelCalls', `model call: ${r}`, r, i, 'a model call site: does it emit one structured record of its tier, spend and outcome?');
+    else if (isStandIn(ls, i)) hit('modelCalls', `model call: ${r}`, r, i, 'a model call site, a local stand-in for a provider call: does it emit one structured record of its tier, spend and outcome?');
   });
 }
 
