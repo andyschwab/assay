@@ -129,23 +129,169 @@ const SECRET_NAME = /\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*(?:_(?:KEY|SECRET|TOKEN|PAS
 // the environment or declares it in env/config, and a PASSWORD/SECRET/CREDENTIAL/
 // PASSPHRASE/PEM name assigned a string literal is a hardcoded credential whatever the
 // value looks like. A set-apart name is printed in its own section, never dropped.
+// The filter also sets apart a credential-suffixed name assigned an array or object literal
+// whose every string is identifier-shaped (TRIAGE_KEYS, a list of 'candidate', 'finding', …; #292):
+// a list of key names, not a credential. In a JS/TS file a `${NAME}` is a template
+// interpolation, not an environment read; `$NAME` is still read as one (a shell string).
 const CONST_LITERAL = (name) => new RegExp(`\\b${name}\\b\\s*(?::\\s*[A-Za-z_][\\w.<>\\[\\]| ]*?)?\\s*(?:=(?!=)|:)\\s*(?:(['"\`])((?:(?!\\1).){0,200})\\1|(-?\\d[\\d_.]*|true|false)\\b)`);
-const ENV_READ = (name) => new RegExp(`\\benv\\b|environ|getenv|\\bsecrets\\.|\\$\\{?${name}\\b`, 'i');
+const ENV_READ = (name, js) => new RegExp(`\\benv\\b|environ|getenv|\\bsecrets\\.|\\$${js ? '' : '\\{?'}${name}\\b`, 'i');
+const ENV_IN_LITERAL = /\benv\b|environ|getenv/i;
 const CREDENTIAL_PREFIX = /^(?:sk|pk|rk)_(?:live|test)_|^whsec_|^xox[abpr]-|^gh[pousr]_|^AKIA|^sk-/;
 const IDENTIFIER_VALUE = /^(?:[a-z][a-z0-9]*(?:[-_.:/][a-z0-9]+)*|[A-Z][A-Z0-9]*(?:[-_.:][A-Z0-9]+)*)$/;
+const identifierValue = (v) => v.length > 0 && v.length <= 64 && IDENTIFIER_VALUE.test(v) && !CREDENTIAL_PREFIX.test(v) && !secretShape(v);
+const isJs = (r) => /\.[mc]?[jt]sx?$/.test(r);
 const secretSites = new Map();   // name → { env: bool, constAt: "path:line" | null }
-function secretSite(name, r, i, line, isEnvOrCfg, isCode) {
+function secretSite(name, r, i, line, isEnvOrCfg, isCode, ls) {
   if (!secretSites.has(name)) secretSites.set(name, { env: false, constAt: null });
   const s = secretSites.get(name);
-  if (isEnvOrCfg || ENV_READ(name).test(line)) { s.env = true; return; }
+  if (isEnvOrCfg || ENV_READ(name, isJs(r)).test(line)) { s.env = true; return; }
   if (!isCode) return;
+  const coll = ls && collectionAssigned(name, ls, i);
+  if (coll) {
+    if (ENV_IN_LITERAL.test(coll.text)) { s.env = true; return; }
+    if (coll.open !== 'new' && credentialSuffixed(name) && coll.strings.every((x) => identifierValue(x.value)) && !s.constAt) s.constAt = `${r}:${i + 1}`;
+    return;
+  }
   const m = line.match(CONST_LITERAL(name));
   if (!m) return;
   const isNumberish = m[3] !== undefined;
   const v = m[2];
-  const keyish = /_(?:KEY|TOKEN)S?$/.test(name);
-  const ident = !isNumberish && keyish && v.length > 0 && v.length <= 64 && IDENTIFIER_VALUE.test(v) && !CREDENTIAL_PREFIX.test(v) && !secretShape(v);
+  const keyish = /(?:key|token)s?$/i.test(name);
+  const ident = !isNumberish && keyish && identifierValue(v);
   if ((isNumberish || ident) && !s.constAt) s.constAt = `${r}:${i + 1}`;
+}
+
+// Credential names in any case (#292). SECRET_NAME reads UPPER_SNAKE names wherever they appear;
+// a camelCase, lowerCamel or snake_case credential name (apiKey, backupApiKey, authToken,
+// clientSecret, api_key, a bare token or password) is listed where code assigns it a literal: a
+// non-empty string with no interpolation, or an array, object or `new Map(…)` literal that holds a
+// string. A name headed by a credential word (tokenTable, secret_store) is listed where it is
+// assigned such a collection: a table of credentials. And a declared object or map literal,
+// whatever its name, that holds a string of secret shape (secretShape, yardstick/packet.mjs, or a
+// provider prefix) is listed by its name, unless the line holding that string already names a
+// credential. A name assigned nothing literal (`apiKey = process.env.X`) is not listed here.
+const CRED = 'Key|Secret|Token|Password|Passphrase|Credential|Pem';
+const HEAD = 'token|secret|password|passphrase|credential|apiKey|api_key';
+const CODE_SECRET_NAME = new RegExp(`(?<![\\w$])([a-z][a-z0-9]*(?:[A-Z][a-z0-9]*)*?(?:${CRED})s?|(?:[a-z][a-z0-9]*_)+(?:${CRED.toLowerCase()})s?|(?:${HEAD})(?:s?(?:[A-Z]|_[a-z])\\w*)?)(?![\\w$])`, 'g');
+const BARE = new RegExp(`^(?:${HEAD})$`);
+// a name that ends in a credential word: KEY after `_` (UPPER_SNAKE), Key after a lowercase
+// letter or digit (camelCase), key after `_` (snake_case), or a bare credential word other than key
+const credentialSuffixed = (name) => new RegExp(`(?:_(?:${CRED.toUpperCase()})S?|[a-z0-9](?:${CRED})s?|_(?:${CRED.toLowerCase()})s?|^(?:${HEAD})s?)$`).test(name);
+const credentialHeaded = (name) => new RegExp(`^(?:${HEAD})s?(?:[A-Z]|_[a-z])`).test(name);
+const ASSIGN = /^\s*(?::\s*[A-Za-z_][\w.<>[\]| ]*?)?\s*(?:=(?![=>])|:)\s*/;
+// the bracketed literal that opens at line i, column c: its text and its string literals, each
+// with its line. Reads to the matching close across at most 300 lines; null when it never closes.
+function literalAt(ls, i, c) {
+  const close = { '[': ']', '{': '}', '(': ')' };
+  const stack = [], strings = [];
+  let text = '', q = null, cur = '', curAt = i, interp = false;
+  for (let j = i; j < Math.min(ls.length, i + 300); j++) {
+    const l = ls[j];
+    for (let k = j === i ? c : 0; k < l.length; k++) {
+      const ch = l[k];
+      text += ch;
+      if (q) {
+        if (ch === '\\') { cur += ch + (l[k + 1] || ''); text += l[k + 1] || ''; k++; continue; }
+        if (q === '`' && ch === '$' && l[k + 1] === '{') interp = true;
+        if (ch === q) { strings.push({ value: cur, line: curAt, interp }); q = null; continue; }
+        cur += ch;
+        continue;
+      }
+      if (ch === '/' && l[k + 1] === '/') break;
+      if (ch === '"' || ch === "'" || ch === '`') { q = ch; cur = ''; curAt = j; interp = false; continue; }
+      if (close[ch]) stack.push(close[ch]);
+      else if (ch === ']' || ch === '}' || ch === ')') {
+        if (stack.pop() !== ch) return null;
+        if (!stack.length) return { text, strings, end: j };
+      }
+    }
+    if (q && q !== '`') return null;   // an unterminated quote: not a literal this reads
+    text += '\n';
+  }
+  return null;
+}
+// the collection literal `name` is assigned on line i ([…], {…} or new Map(…)/new Set(…)), or null
+function collectionAssigned(name, ls, i) {
+  const l = ls[i];
+  const re = new RegExp(`(?<![\\w$])${name.replace(/\$/g, '\\$')}(?![\\w$])`, 'g');
+  let m;
+  while ((m = re.exec(l))) {
+    const rest = l.slice(m.index + name.length);
+    const a = rest.match(ASSIGN);
+    if (!a) continue;
+    const at = m.index + name.length + a[0].length;
+    const tail = l.slice(at);
+    const nm = tail.match(/^new\s+(?:Map|Set)\s*\(\s*/);
+    if (nm) { const lit = literalAt(ls, i, at + nm[0].indexOf('(')); if (lit) return { ...lit, open: 'new' }; continue; }
+    if (tail[0] === '[' || tail[0] === '{') { const lit = literalAt(ls, i, at); if (lit) return { ...lit, open: tail[0] }; }
+  }
+  return null;
+}
+// the string literal `name` is assigned on line i (non-empty, no interpolation), or null
+function stringAssigned(name, line) {
+  const re = new RegExp(`(?<![\\w$])${name}(?![\\w$])`, 'g');
+  let m;
+  while ((m = re.exec(line))) {
+    const rest = line.slice(m.index + name.length);
+    const a = rest.match(ASSIGN);
+    if (!a) continue;
+    const s = rest.slice(a[0].length).match(/^(['"`])((?:\\.|(?!\1).){1,500})\1/);
+    if (s && !(s[1] === '`' && s[2].includes('${'))) return s[2];
+  }
+  return null;
+}
+const DECLARED = /^\s*(?:export\s+)?(?:(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*(?::[^=]+)?=|([A-Za-z_][\w]*)\s*(?::\s*[\w.[\], ]+)?\s*=(?!=))\s*(?:new\s+(?:Map|Set)\s*\(|[[{])/;
+const secretShaped = (v) => !!v && (CREDENTIAL_PREFIX.test(v) || !!secretShape(v));
+// the columns of a line that are code: not inside a string literal, and before a line comment
+function codeColumns(line, py) {
+  const code = [];
+  let q = null;
+  for (let k = 0; k < line.length; k++) {
+    const ch = line[k];
+    if (q) { if (ch === '\\') k++; else if (ch === q) q = null; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { q = ch; continue; }
+    if ((ch === '/' && line[k + 1] === '/') || (py && ch === '#')) break;
+    code[k] = true;
+  }
+  return code;
+}
+function codeSecrets(r, ls, isCode) {
+  if (!isCode) return;
+  const py = /\.py$/.test(r);
+  for (let i = 0; i < ls.length; i++) {
+    const line = ls[i];
+    if (line.length > 2000 || /^\s*(?:\/\/|\/?\*|#)/.test(line)) continue;
+    const code = codeColumns(line, py);
+    CODE_SECRET_NAME.lastIndex = 0;
+    let m;
+    while ((m = CODE_SECRET_NAME.exec(line))) {
+      const name = m[1];
+      if (!code[m.index]) continue;   // a name inside a string or a comment is not assigned here
+      // a bare credential word (token, password) counts only assigned a string; a collection by
+      // that name is as often a list of tokens a parser reads
+      const bare = BARE.test(name);
+      const suffixed = credentialSuffixed(name), headed = !bare && credentialHeaded(name);
+      const str = suffixed && stringAssigned(name, line);
+      const coll = !str && !bare && (suffixed || headed) && collectionAssigned(name, ls, i);
+      if (!str && !(coll && coll.strings.some((x) => x.value && !x.interp))) continue;
+      hit('secrets', name, r, i, 'assigned a literal in code');
+      secretSite(name, r, i, line, false, true, ls);
+    }
+    // a declared object or map literal holding a string of secret shape, whatever its name
+    const d = line.match(DECLARED);
+    if (!d) continue;
+    const name = d[1] || d[2];
+    const coll = collectionAssigned(name, ls, i);
+    if (!coll) continue;
+    for (const s of coll.strings) {
+      if (s.interp || !secretShaped(s.value)) continue;
+      const at = ls[s.line];
+      SECRET_NAME.lastIndex = 0;
+      if (SECRET_NAME.test(at) || [...at.matchAll(CODE_SECRET_NAME)].some((x) => stringAssigned(x[1], at))) continue;
+      hit('secrets', name, r, s.line, 'a literal holding a value of secret shape');
+    }
+    SECRET_NAME.lastIndex = 0;
+  }
 }
 
 // Next.js route handlers (#33): the app router's `app/**/route.{js,ts,…}` exporting HTTP
@@ -239,10 +385,13 @@ for (const f of files) {
   const r = rel(f);
   const base = basename(f);
   const ls = lines(f);
-  const isEnvOrCfg = /\.(env|ini|cfg|conf|ya?ml|toml|json)$/.test(base) || /\.env/.test(base) || base.startsWith('.env');
+  // a run's own artifacts and test fixtures declare nothing: a committed run's map/raw/enumerate.json
+  // names every constant enumerate set apart, and would read each as declared in config (#292)
+  const isEnvOrCfg = (/\.(env|ini|cfg|conf|ya?ml|toml|json)$/.test(base) || /\.env/.test(base) || base.startsWith('.env')) && !/(^|\/)(?:tests?|runs)\//.test(r);
   const isCode = /\.(?:[mc]?[jt]sx?|py|rb|go|java|kt|rs|php)$/.test(base);
   routeHandlers(r, ls);
   serverRoutes(r, ls);
+  codeSecrets(r, ls, isCode);
   for (let i = 0; i < ls.length; i++) {
     const line = ls[i];
     if (line.length > 2000) continue;
@@ -252,7 +401,7 @@ for (const f of files) {
     SECRET_NAME.lastIndex = 0;
     while ((m = SECRET_NAME.exec(line))) {
       hit('secrets', m[1], r, i, isEnvOrCfg ? 'declared in env/config' : 'referenced in code');
-      secretSite(m[1], r, i, line, isEnvOrCfg, isCode);
+      secretSite(m[1], r, i, line, isEnvOrCfg, isCode, ls);
     }
 
     // 2. socket / privilege mounts
