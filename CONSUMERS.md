@@ -137,4 +137,18 @@ views/README.md
 yardstick/list.mjs
 .github/actions/tools/action.yml
 .github/workflows/branch-cleanup.yml
+map/enumerate.mjs                                # writes map/raw/enumerate.json, the lane's input
+map/enumerate-populations.mjs                    # names enumerate.json's populations
+map/lane.mjs                                     # renders the lane seed
+map/scanners/adapters/practice-review/lane.md    # the practice-review seed's text, inputs and outputs
+map/scanners/adapters/deep-code-review/lane.md   # the deep-code-review seed's text and outputs
+map/SCHEMA.md                                    # the formats of the lane's outputs (§6e, §6f)
+yardstick/requirements.yaml                      # the check: text a lane is told to ask
 ```
+
+The last seven write what this page names as the lane's input, outputs, seed and questions (#297).
+They change often, and many changes leave what a consumer reads as it was: such a commit says so,
+`Consumer: none, <why>`, and its trailer never heads the notes. The modules that hold a lane's
+outputs to their format (`map/effect-triage.mjs`, `map/census-triage.mjs`, `map/triage.mjs`) are
+not on it: the format is §6e and §6f of `map/SCHEMA.md`, which is, and a change to what they accept
+changes that text in the same commit.
