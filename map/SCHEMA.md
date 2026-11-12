@@ -188,13 +188,18 @@ that holds:
 3. `unstructured` — console or log text only.
 4. `none` — no record of the effect at all: nothing printed, logged or kept.
 
-**`blast_scope`** — how far the effect's damage reaches. Record the first that holds:
+**`blast_scope`** — how far the effect's damage reaches: `fleet` reaches every tenant or
+consumer at once, `cross-tenant` reaches across from one tenant into another's data. Record
+the first that holds, widest first:
 
-1. `cross-tenant` — other organizations' data, reached through infrastructure they share
-   with the actor: a multi-tenant database, a shared credential, a shared sender.
-2. `fleet` — everyone who installs or consumes what the effect publishes: a release or
-   package others pull or pin, a template synced downstream. The write lands in one
-   repository; what it publishes reaches every consumer.
+1. `cross-tenant` — one tenant's actor or data reaches another tenant's data: a multi-tenant
+   query with no tenant filter, a cache or a bucket keyed across tenants. Where an effect
+   also reaches every tenant at once, this is recorded: the broken isolation between tenants
+   is the fact `fleet` does not carry.
+2. `fleet` — the effect reaches every tenant or consumer at once: a shared secret or
+   credential every tenant's traffic uses, a shared sender, a release or package others
+   install or pin, a template synced downstream. The write may land in one place; what it
+   reaches is everyone who shares or consumes it.
 3. `tenant` — one organization's or one repository's shared state: its issues, its CI, its
    database.
 4. `user` — one person's machine, account or data.

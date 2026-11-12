@@ -7,10 +7,13 @@
 // has a definition entry in SCHEMA.md §1's subsection "The effect descriptors, defined", and the
 // subsection defines no value validate does not admit. The values are read from validate.mjs's
 // own sets, the lists the validator enforces, so the two cannot drift. The method's probes and
-// the practice-review seed point at the subsection by its title.
+// the practice-review seed point at the subsection by its title. The report's glossary
+// (views/improve/templates/glossary.yaml) names every one of those values too, in the reader's
+// words; the meaning matching SCHEMA's is review, not a check.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { laneSeed } from '../../map/lane.mjs';
+import { parseYaml } from '../../lib/yaml-min.mjs';
 import { ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'effect-descriptors-defined';
@@ -54,6 +57,7 @@ export async function run() {
   const sub = subsection(schema);
   if (!sub) { fail(`map/SCHEMA.md has no subsection "### ${TITLE}"`); return; }
   const defs = definitions(sub);
+  const gloss = parseYaml(readFileSync(join(ROOT, 'views', 'improve', 'templates', 'glossary.yaml'), 'utf8'));
 
   for (const [field, set] of VOCABS) {
     const values = vocab(set);
@@ -61,6 +65,7 @@ export async function run() {
     const got = defs[field];
     if (!got) { fail(`"${TITLE}" has no group for ${field} (a line opening **\`${field}\`**)`); continue; }
     for (const v of values) {
+      if (!gloss[field]?.[v]) fail(`views/improve/templates/glossary.yaml names no ${field} "${v}" for the report's reader`);
       if (!(v in got)) fail(`${field} "${v}" is a closed value with no definition in "${TITLE}"`);
       else if (got[v].length < 20) fail(`${field} "${v}"'s definition says too little to decide by: "${got[v]}"`);
     }
