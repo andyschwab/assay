@@ -57,10 +57,10 @@ telemetry:
   audited: A first-class audit trail.
 
 blast_scope:
-  user: Damage stays within one user's own data.
-  tenant: Damage stays within one customer.
-  fleet: Damage can reach every customer at once, through a shared secret or a shared sender.
-  cross-tenant: Damage can cross from one customer into another's data.
+  user: Damage stays within one person's own machine, account or data.
+  tenant: Damage stays within one customer, or one repository's shared state, like its issues or CI.
+  fleet: Damage can reach every customer or consumer at once, through a shared secret or a shared sender, or a release or package others install.
+  cross-tenant: Damage can cross from one customer into another's data, like a query with no customer filter.
 
 preconditions:
   prompt-injection: An attacker only needs to plant text the AI later reads, like a hostile display name. Easy.

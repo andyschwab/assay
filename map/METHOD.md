@@ -323,7 +323,9 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
 
 The security-critical pass: read deepest. For every effect channel, record one `effect`
 finding with its forced fields (`SCHEMA.md` §4). Those fields decide six of this pass's rows
-at once, so each probe below is a field answered per effect, never a second finding:
+at once, so each probe below is a field answered per effect, never a second finding, with the
+value its definition gives at the effect's evidence (`SCHEMA.md` §1, "The effect descriptors, defined"; `reversibility` and `external`
+are defined there too):
 
 - **The triage** — Pass 0's candidate list (`map/raw/enumerate.json`) closes against these
  effect findings in `map/effect-triage.yaml` (`SCHEMA.md` §6e): each candidate to the effect
@@ -332,16 +334,16 @@ at once, so each probe below is a field answered per effect, never a second find
  spend, send, delete) gated at explicit narrow points a human actually holds, at the
  *irreversible boundary* (not ceremony at every step)? Do irreversible ops exist only in
  staged form (draft-not-send, quarantine-not-delete)? Is the confirming act real (does the
- reviewer see enough to decide) or a reflexive click?
+ reviewer see enough to decide) or a reflexive click? Values, order and paths: `SCHEMA.md` §1, "The effect descriptors, defined".
 - **How the gate fails** (`fail_mode`) — when a dependency the gate needs is absent, or its
- check runs without end, does it refuse?
+ check runs without end, does it refuse? Values: `SCHEMA.md` §1, "The effect descriptors, defined".
 - **Observability of effects** (`telemetry`) — does each effect emit a durable,
  machine-parseable record you could build a trigger or halt around? An ungated effect that is
  *also* untraced is the worst quadrant: you cannot gate what you cannot observe (record
- `telemetry: none`).
+ `telemetry: none`). Values, strongest first: `SCHEMA.md` §1, "The effect descriptors, defined".
 - **Blast scope** (`blast_scope`) — does its damage stay within one user or tenant, or escape
  to the fleet or across tenants? What an effect may touch is answered here, once. (A shared
- secret or a cross-tenant reach is a different severity class.)
+ secret or a cross-tenant reach is a different severity class.) Values, widest first: `SCHEMA.md` §1, "The effect descriptors, defined".
 - **Capability budget / trifecta** — does any one agent, session or context co-hold
  untrusted input + private data + external effect, or is it bounded to two of three? Record
  the agent as a `capability` finding with the three booleans. (This is the generator of most
