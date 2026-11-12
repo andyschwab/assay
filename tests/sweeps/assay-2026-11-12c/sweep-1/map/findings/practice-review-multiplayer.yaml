@@ -1,0 +1,326 @@
+- id: F-700
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every command in the CLI's "Map" family (start, validate, ingest, record, lane, tools,
+    migrate-run, enumerate, project, toolchain, the four instruments, variance, score, backlog,
+    roster) has its usage line on a doc page outside the code, the consumer-facing ones with
+    their JSON output shape in CONSUMERS.md and the instruments in the scanner contract.
+  evidence: ["assay.mjs:19", "CONSUMERS.md:20", "CONSUMERS.md:26", "CONSUMERS.md:27", "map/METHOD.md:82", "map/METHOD.md:774", "map/scanners/CONTRACT.md:363", "map/scanners/CONTRACT.md:635", "map/scanners/CONTRACT.md:875", "map/scanners/INTAKE.md:46", "map/SCHEMA.md:498"]
+  confidence: confirmed
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every command in the CLI's "Yardstick" family (yardstick, measure, compare, ratchet,
+    validate-packet, ask-owner) has its usage stated on a doc page, with compare's and the
+    floor listing's JSON shapes spelled out for a program to read.
+  evidence: ["assay.mjs:39", "CONSUMERS.md:29", "CONSUMERS.md:30", "CONSUMERS.md:35", "CONSUMERS.md:48", "yardstick/README.md:264", "owner/PACKET.md:24", "owner/ask-owner.md:6"]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CLI's "Routine" family (one command, routine) has its flags, exit codes (0, 1, 3) and
+    the routine.yaml it writes stated in CONSUMERS.md and routine/README.md.
+  evidence: ["assay.mjs:47", "CONSUMERS.md:33", "routine/README.md:48"]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    In the CLI's "Views" family, compile, since and maturity have doc-page usage, but the
+    intake, maintain and owner commands state their usage only in their own code headers and
+    the help line, with no doc page giving it.
+  evidence: ["assay.mjs:52", "views/intake.mjs:15", "views/maintain.mjs:15", "views/owner.mjs:22", "CONSUMERS.md:28", "CONSUMERS.md:31", "views/README.md:175"]
+  confidence: confirmed
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run record map/scanners.yaml is a consumer-readable file whose format is stated in
+    SCHEMA.md §5a with a template, and named in the consumer contract's run layout.
+  evidence: ["CONSUMERS.md:90", "map/SCHEMA.md:359", "map/SCHEMA.md:382"]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The findings files map/findings/<scanner>.yaml have their fields, mandatory keys and
+    closed vocabularies stated in SCHEMA.md §1–§2, the page the consumer contract points to.
+  evidence: ["CONSUMERS.md:91", "map/SCHEMA.md:22", "map/SCHEMA.md:124"]
+  confidence: confirmed
+- id: F-706
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    map/raw/enumerate.json is a promised consumer file and a lane's input, but its doc page
+    names only the three effect-candidate populations (members with evidence and note); the
+    other populations it carries and its top-level keys appear on no doc page, only in
+    enumerate.mjs.
+  evidence: ["CONSUMERS.md:92", "map/SCHEMA.md:867", "map/SCHEMA.md:873", "map/enumerate.mjs:16"]
+  confidence: confirmed
+- id: F-707
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    map/effect-triage.yaml has its fields (schema, version, triage entries with candidate and
+    exactly one of finding or out_of_scope) given in a worked YAML block in SCHEMA.md §6e.
+  evidence: ["CONSUMERS.md:93", "map/SCHEMA.md:882", "map/SCHEMA.md:886"]
+  confidence: confirmed
+- id: F-708
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    yardstick.yaml, the measurement every view and a consumer read, is described on doc pages
+    only in prose (per-row status, finding ids, note, reviewed), with no page giving the
+    fields measure.mjs actually writes such as schema, summary and each row's how.
+  evidence: ["CONSUMERS.md:94", "yardstick/README.md:10", "yardstick/README.md:99", "yardstick/measure.mjs:526", "yardstick/measure.mjs:530"]
+  confidence: confirmed
+- id: F-709
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Each view's data file (intake.yaml, maintain.yaml, owner.yaml, improve.yaml, since.yaml) has
+    its fields given in views/README.md, which declares each data file the contract a
+    publisher builds on.
+  evidence: ["CONSUMERS.md:95", "views/README.md:23", "views/README.md:35", "views/README.md:116", "views/README.md:163", "views/README.md:201"]
+  confidence: confirmed
+- id: F-710
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    views/improve/chains.json and handoff/sequence.json carry versioned schema names and their
+    full field shapes in views/README.md, the sequence stated as data for an agent that
+    iterates the work.
+  evidence: ["CONSUMERS.md:96", "views/README.md:168", "views/README.md:169"]
+  confidence: confirmed
+- id: F-711
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    views/improve/report.json has its versioned schema and full field shape in views/README.md
+    so a renderer can read it importing nothing.
+  evidence: ["CONSUMERS.md:97", "views/README.md:170"]
+  confidence: confirmed
+- id: F-712
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The human pages (INDEX.md, INTAKE.md, MAINTAIN.md, IMPROVE.md, OWNER.md, SINCE.md) act on
+    nothing and each renders a data file whose format is stated, so nothing a page shows is
+    reachable only through the page.
+  evidence: ["CONSUMERS.md:98", "views/README.md:23", "views/README.md:267"]
+  confidence: confirmed
+- id: F-713
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    routine.yaml has its fields and closed gate values (held, failed, skipped, not-run, refused)
+    given in routine/README.md so a fleet collector can read the outcome without the CI logs.
+  evidence: ["CONSUMERS.md:99", "routine/README.md:39", "routine/README.md:48", "routine/README.md:59"]
+  confidence: confirmed
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The composite action .github/actions/tools declares its one input in action metadata and is
+    documented in CONSUMERS.md with its call, its input and its failure behaviour.
+  evidence: [".github/actions/tools/action.yml:14", "CONSUMERS.md:56", "CONSUMERS.md:65"]
+  confidence: confirmed
+- id: F-715
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The reusable branch-cleanup workflow declares a workflow_call input dry_run (default true),
+    shows a full caller in its header, and is documented in CONSUMERS.md with the permissions
+    a caller grants.
+  evidence: [".github/workflows/branch-cleanup.yml:14", ".github/workflows/branch-cleanup.yml:44", "CONSUMERS.md:77"]
+  confidence: confirmed
+- id: F-716
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The routine template routine/assay-routine.yml states in its header and in routine/README.md
+    what a stewarded repository sets (ASSAY_REPO, a full-SHA ASSAY_REF, the branch) and what the
+    workflow produces.
+  evidence: ["routine/assay-routine.yml:1", "routine/README.md:206", "routine/README.md:21"]
+  confidence: confirmed
+- id: F-717
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The practice-review lane seed declares its inputs, outputs and passes in frontmatter, which
+    `lane --list --json` prints and CONSUMERS.md and CONTRACT.md §3h document, so an agent can
+    learn what the session reads and must publish.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:7", "map/scanners/adapters/practice-review/lane.md:8", "CONSUMERS.md:22", "map/scanners/CONTRACT.md:904"]
+  confidence: confirmed
+- id: F-718
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The deep-code-review lane seed declares its inputs in frontmatter and states in its body the
+    machine report's fields and the delimiters of the page it publishes, which ingest reads in
+    the adapter's machine-report format.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:7", "map/scanners/adapters/deep-code-review/lane.md:21", "map/scanners/adapters/deep-code-review/lane.md:23", "map/scanners/adapters/deep-code-review.yaml:24"]
+  confidence: confirmed
+- id: F-719
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner packet (packet/manifest.yaml) has its one-home format in owner/PACKET.md and a
+    fail-closed validate-packet command whose errors are one plain line each.
+  evidence: ["owner/PACKET.md:24", "owner/PACKET.md:27", "owner/PACKET.md:66"]
+  confidence: confirmed
+- id: F-720
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner prompt owner/ask-owner.md is an interface an owner's own AI consumes directly, and
+    it specifies the block that AI must return, which validate-packet checks.
+  evidence: ["owner/ask-owner.md:13", "owner/ask-owner.md:86", "owner/ask-owner.mjs:2"]
+  confidence: confirmed
+- id: F-721
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner-evidence transcript format (header keys and body) has its one home in
+    owner/evidence/README.md with one example per row, checked by repo-census.
+  evidence: ["owner/evidence/README.md:48", "owner/evidence/README.md:79", "owner/evidence/README.md:117"]
+  confidence: confirmed
+- id: F-722
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    lib/run-layout.mjs is one of two modules the consumer contract lets a program import, named
+    there with example functions.
+  evidence: ["CONSUMERS.md:108", "lib/run-layout.mjs:1"]
+  confidence: confirmed
+- id: F-723
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    map/child-env.mjs's childEnv(set) is a contract export, its behaviour and the allow-listed
+    variables stated in CONSUMERS.md.
+  evidence: ["CONSUMERS.md:109", "map/child-env.mjs:1"]
+  confidence: confirmed
+- id: F-724
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The scanner adapter format (one YAML per scanner) is stated field by field in
+    map/scanners/CONTRACT.md §3, the interface a new scanner plugs in through.
+  evidence: ["map/scanners/CONTRACT.md:91", "map/scanners/CONTRACT.md:40"]
+  confidence: confirmed
+- id: F-725
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The per-target canon file's shape is given key by key in SCHEMA.md §8.
+  evidence: ["map/SCHEMA.md:976", "map/SCHEMA.md:997"]
+  confidence: confirmed
+- id: F-726
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ratchet baseline file (packet/baseline.yaml) has its format given in yardstick/README.md
+    as its one home.
+  evidence: ["yardstick/README.md:353", "yardstick/README.md:371", "yardstick/README.md:373"]
+  confidence: confirmed
+- id: F-727
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The requirements register has its row fields stated in yardstick/README.md, and a consumer
+    reads it through `yardstick --floor --json`, whose output shape CONSUMERS.md gives.
+  evidence: ["yardstick/README.md:70", "CONSUMERS.md:44", "CONSUMERS.md:48"]
+  confidence: confirmed
+- id: F-728
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The context people and sessions share is a run directory, a plain file tree with no server,
+    database, or shared scope that holds its own memory or permissions.
+  evidence: ["README.md:42", "CONSUMERS.md:85", "lib/run-layout.mjs:1"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-729
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Shared run context is consolidated rather than per-integration: one module places every run
+    path, and each lane session is handed prior results at the run's own paths via --inputs-dir.
+  evidence: ["lib/run-layout.mjs:5", "map/lane.mjs:62", "map/lane.mjs:75", "CONSUMERS.md:21"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-730
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    A repository's own claims about itself live in one packet folder, beside the repository
+    before adoption and in it after, read the same way from either place.
+  evidence: ["owner/PACKET.md:7", "owner/PACKET.md:9"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-731
+  dimension: multiplayer
+  polarity: fact
+  subject_type: process
+  observation: >
+    Every routine firing uploads the whole run as a workflow artifact automatically (even on
+    failure, kept 90 days), readable by anyone who can read the workflow runs, a reach that is
+    disclosed in routine/README.md prose rather than chosen per run.
+  evidence: ["routine/assay-routine.yml:181", "routine/assay-routine.yml:188", "routine/README.md:29"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-732
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: >
+    Both review lanes publish exactly one private Artifact page, so wider sharing of a
+    review's output is left to the person who started the session.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:13", "map/scanners/adapters/deep-code-review/lane.md:11"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-733
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: >
+    The owner prompt makes sharing an explicit act: the owner is told where the block goes and who
+    sees it, and copies it back themselves.
+  evidence: ["owner/ask-owner.md:13", "owner/ask-owner.md:25", "owner/ask-owner.md:92"]
+  confidence: confirmed
+  property: sharing-is-consented

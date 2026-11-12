@@ -1,0 +1,207 @@
+- id: F-200
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The CLI entry assay.mjs opens with a head comment, maps each subcommand to one script in a
+    single table, imports no in-repository module, and is run directly by tests.
+  evidence: ["assay.mjs:2", "assay.mjs:21", "tests/blocks/all-clean-run.mjs:43"]
+  confidence: confirmed
+- id: F-201
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Every lib/ module opens with a head comment, five of its six (all but check-syntax.mjs) are
+    imported directly by tests, and the directory's only import outside itself is map/doctrine.mjs
+    (from release-notes.mjs).
+  evidence: ["lib/yaml-min.mjs:1", "lib/run-layout.mjs:1", "lib/release-notes.mjs:21", "lib/check-syntax.mjs:1", "tests/blocks/checkov-instrument.mjs:17", "tests/blocks/consumer-contract.mjs:77"]
+  confidence: confirmed
+- id: F-202
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The map/ core (the 21 map/*.mjs modules other than validate, ingest and the four instruments)
+    has head comments on every file but no README in map/, holds many separate concerns under one
+    directory, and two of its modules, census.mjs and projects.mjs, are imported directly by no test.
+  evidence: ["map/project.mjs:2", "map/doctrine.mjs:1", "map/census.mjs:1", "map/projects.mjs:1", "tests/blocks/adapter-runner.mjs:18"]
+  confidence: plausible
+- id: F-203
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/validate.mjs has a head comment and is run by tests as a script, but its static and dynamic
+    imports reach 20 other repository source files (project, lane, start, tools, effect-triage,
+    supervision, views/improve/maturity, yardstick/measure and their imports), over the ten-file bar.
+  evidence: ["map/validate.mjs:2", "map/validate.mjs:27", "map/validate.mjs:322", "map/validate.mjs:650", "map/validate.mjs:749", "tests/blocks/all-clean-run.mjs:32"]
+  confidence: confirmed
+- id: F-204
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/ingest.mjs has a head comment and tests import it directly, but it imports all four
+    instruments plus record.mjs and project.mjs, so its transitive in-repository imports reach 18
+    source files, over the ten-file bar.
+  evidence: ["map/ingest.mjs:2", "map/ingest.mjs:61", "map/ingest.mjs:62", "map/ingest.mjs:65", "tests/blocks/second-reviewer-adapter.mjs:10"]
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/fresh-clone.mjs opens with a long head comment, is imported directly by tests, and its
+    transitive in-repository imports reach six source files (doctrine, child-env, repo-census,
+    projects, yaml-min, packet).
+  evidence: ["map/fresh-clone.mjs:2", "map/fresh-clone.mjs:103", "map/fresh-clone.mjs:106", "tests/blocks/fresh-clone-pnpm.mjs:15"]
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/dependency-scan.mjs opens with a head comment, is imported directly by tests, and its
+    transitive in-repository imports reach three source files (doctrine, child-env, projects).
+  evidence: ["map/dependency-scan.mjs:2", "tests/blocks/dependency-scan.mjs:15"]
+  confidence: confirmed
+- id: F-207
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/repo-census.mjs opens with a head comment, is imported directly by tests, and its transitive
+    in-repository imports reach four source files (doctrine, yaml-min, packet, projects).
+  evidence: ["map/repo-census.mjs:2", "tests/blocks/census-gate-commands.mjs:5"]
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/structure-scan.mjs opens with a head comment, is imported directly by tests, and its
+    transitive in-repository imports reach seven source files, among them fresh-clone.mjs for its
+    toolchain detection.
+  evidence: ["map/structure-scan.mjs:2", "map/structure-scan.mjs:73", "tests/blocks/structure-scan-knip.mjs:36"]
+  confidence: confirmed
+- id: F-209
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Each adapter under map/scanners/adapters/ is one YAML file that opens with a comment naming its
+    scanner and the contract it follows, imports nothing, is read by one loader, and is loaded by
+    tests that check every adopted adapter.
+  evidence: ["map/scanners/adapters/zizmor.yaml:1", "map/scanners/adapters/practice-review.yaml:1", "map/project.mjs:85", "tests/blocks/instrument-roster.mjs:30"]
+  confidence: confirmed
+- id: F-210
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/ has its own README, tests import measure.mjs and ratchet.mjs directly, and the
+    directory's imports outside itself reach exactly ten source files (lib, map/project, doctrine,
+    census, chains, effect-triage, variance, views/severity).
+  evidence: ["yardstick/README.md:3", "yardstick/measure.mjs:36", "tests/blocks/all-clean-run.mjs:10", "tests/blocks/ratchet.mjs:5"]
+  confidence: confirmed
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    views/ (its eight top-level modules) has a README and tests that import or run its modules, but
+    its imports outside the directory reach 15 source files across map/, yardstick/ and lib/
+    (compile.mjs and since.mjs alone pull in project, decisions, measure, ratchet, compare and migrate-run).
+  evidence: ["views/README.md:3", "views/compile.mjs:32", "views/since.mjs:27", "tests/blocks/compile-target.mjs:17"]
+  confidence: confirmed
+- id: F-212
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    views/improve/ has head comments on every module and no README of its own, tests import
+    maturity.mjs and run report.mjs, and its imports outside the directory reach 16 source files
+    (report.mjs alone imports from map/supervision, capabilities, chains, decisions and yardstick/measure).
+  evidence: ["views/improve/report.mjs:2", "views/improve/report.mjs:20", "views/improve/report.mjs:28", "tests/blocks/maturity-ladder.mjs:6"]
+  confidence: confirmed
+- id: F-213
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    owner/ask-owner.mjs has a head comment and a test that imports it, but owner/'s imports outside
+    the directory reach 11 source files (project, repo-census, census, packet and their imports),
+    one over the ten-file bar.
+  evidence: ["owner/ask-owner.mjs:2", "owner/ask-owner.mjs:43", "owner/ask-owner.mjs:46", "tests/blocks/ask-owner.mjs:6"]
+  confidence: confirmed
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routine/ has a README and tests import run.mjs, but run.mjs imports start.mjs, tools.mjs,
+    ratchet.mjs and measure.mjs, so its imports outside the directory reach 19 source files.
+  evidence: ["routine/README.md:3", "routine/run.mjs:76", "routine/run.mjs:81", "tests/blocks/routine-handoff.mjs:10"]
+  confidence: confirmed
+- id: F-215
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/project.mjs imports views/severity.mjs and views/severity.mjs imports map/project.mjs, so
+    the map layer's projector and a view-layer module form an import cycle across the layer boundary.
+  evidence: ["map/project.mjs:30", "views/severity.mjs:19"]
+  confidence: confirmed
+- id: F-216
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    No non-test code calls a model provider's SDK or HTTP API or defines a stand-in for one: the
+    judgment scanners run in sessions outside the engine, which records them skipped and validates
+    what those sessions publish.
+  evidence: ["map/lane.mjs:4", "map/start.mjs:307", "routine/run.mjs:19"]
+  confidence: confirmed
+- id: F-217
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The engine names no model for its review lanes and leaves the choice of model to the consumer
+    that starts the session, so no model choice, rationale or re-qualification trigger is recorded
+    in the repository.
+  evidence: ["map/lane.mjs:10", "map/lane.mjs:11"]
+  confidence: confirmed
+- id: F-218
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    A run records, per judgment scanner and per practice-review pass, the model id and spend it ran
+    on, and validate warns when a ran judgment scanner records no model; the record names the model
+    used, not a rationale for choosing it.
+  evidence: ["map/SCHEMA.md:395", "map/SCHEMA.md:416", "map/record.mjs:18", "map/validate.mjs:302"]
+  confidence: confirmed
+- id: F-219
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The entry docs route a stranger by subsystem: README.md's Layout maps each top directory to its
+    one concern, and CLAUDE.md names the one authoritative doc for the finding format, the built-in
+    scanner, the requirements and the views.
+  evidence: ["README.md:238", "README.md:239", "README.md:244", "CLAUDE.md:5", "CLAUDE.md:7"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-220
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The map/ layer, the largest code directory, has no README of its own, so the entry docs route a
+    stranger to it through map/SCHEMA.md, map/METHOD.md and map/scanners/CONTRACT.md, contract docs
+    of about 73 KB, 56 KB and 73 KB, rather than to a short guide to its modules.
+  evidence: ["README.md:239", "CLAUDE.md:5", "CLAUDE.md:6"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger

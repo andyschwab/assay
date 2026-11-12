@@ -1,0 +1,208 @@
+- id: F-400
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The pull request template carries a "How this is verified" section, but no check
+    reads the pull request body: CI runs lint, typecheck, build and the harness on every
+    pull request and nothing in the workflows or the harness refuses an empty or
+    placeholder verification section.
+  evidence: [.github/PULL_REQUEST_TEMPLATE.md:5, .github/PULL_REQUEST_TEMPLATE.md:7, .github/workflows/ci.yml:11, .github/workflows/ci.yml:39]
+  confidence: confirmed
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The red-then-green rule requires the pull request body and commit message to say a new
+    assertion was confirmed red, but the harness only checks that CLAUDE.md states the rule,
+    never that a change's body or message carries the statement.
+  evidence: [CLAUDE.md:60, CLAUDE.md:63, tests/blocks/doc-consistency.mjs:90]
+  confidence: confirmed
+- id: F-402
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    A commit-message check does run on the change record (the Consumer trailer, refused when
+    missing on a commit touching the consumer surface, exercised by the harness on full
+    history), so the mechanism a verification-section check would need exists but reads no
+    verification statement.
+  evidence: [lib/release-notes.mjs:104, lib/release-notes.mjs:109, tests/blocks/consumer-contract.mjs:12, tests/blocks/consumer-contract.mjs:16, .github/workflows/ci.yml:26]
+  confidence: confirmed
+- id: F-403
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The practice-review method's repeatability is hardened by measurement: variance clusters
+    findings from blind sweeps of one frozen target and disposes the divergence into named
+    classes (fact presence, descriptor agreement, requirement agreement, and safer/riskier/both-ways
+    direction), and every committed sweep set is gated at its own threshold in the harness.
+  evidence: [map/variance.mjs:4, map/variance.mjs:24, map/variance.mjs:53, map/variance.mjs:58, map/variance.mjs:303, tests/blocks/sweep-gate.mjs:23]
+  confidence: confirmed
+- id: F-404
+  dimension: verification
+  polarity: fact
+  subject_type: process
+  observation: >
+    The measured repeatability of the review rubric is low and stated as such: the first blind
+    set over this repository read 38% fact presence and 20% descriptor agreement, and each set
+    passes at its own recorded threshold, so the gate holds the number from regressing rather
+    than requiring a level.
+  evidence: [map/variance.mjs:42, map/variance.mjs:43, tests/blocks/sweep-gate.mjs:21]
+  confidence: confirmed
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The deep-code-review lane, a relied-on external rubric, is pinned by release and commit and
+    graded on one stored run per fixture; no repeated blind run of it with its divergence
+    classified was seen in the readable tree (the committed sweep sets were not opened).
+  evidence: [tests/blocks/dcr-fixture-runs.mjs:26, tests/blocks/dcr-fixture-runs.mjs:27, map/scanners/adapters/deep-code-review.yaml:37, map/scanners/adapters/deep-code-review.yaml:38]
+  confidence: plausible
+- id: F-406
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The practice-review lane's answer quality is graded against known-answer sheets in the
+    harness (recall pinned in golden.json), but over stored run outputs: no CI job calls the
+    lane's model path with fixed inputs, so a change to the lane prompt or method is not
+    re-evaluated on change.
+  evidence: [tests/blocks/fixture-recall.mjs:11, tests/blocks/fixture-recall.mjs:25, tests/golden.json:12, tests/golden.json:113, map/scanners/adapters/practice-review/lane.md:21]
+  confidence: confirmed
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The deep-code-review lane's answers are scored for recall on the archived machine reports of
+    two fixtures, redrawn only when the pin moves; CI scores the stored reports and never
+    produces a fresh answer through the model path.
+  evidence: [tests/blocks/dcr-fixture-runs.mjs:1, tests/blocks/dcr-fixture-runs.mjs:11, tests/golden.json:50]
+  confidence: confirmed
+- id: F-408
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Fresh-clone does not trust a test step's exit code: it records the runner's own
+    pass/skip/fail counts, or `unparsed`, because an exit of 0 is not the suite having run.
+  evidence: [map/fresh-clone.mjs:19, map/fresh-clone.mjs:21, map/fresh-clone.mjs:320]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-409
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    An instrument whose exit is in its accepted set is recorded `ran` only after its report
+    ingests; an accepted exit with a report that fails to ingest is recorded failed with the reason.
+  evidence: [map/start.mjs:105, map/start.mjs:110, map/start.mjs:113, map/start.mjs:117]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-410
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A rule-based instrument's zero hits read clean only beside a positive control that fired:
+    the planted cases run first and a missed planted hit fails the instrument before the target runs.
+  evidence: [map/start.mjs:256, map/start.mjs:260, map/scanners/adapters/opengrep.yaml:37]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-411
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Tool installation confirms its effect: each download is checked against its pinned sha256
+    before use, and the tools action then asks every installed binary its version and fails
+    unless it answers at the pin.
+  evidence: [map/tools.mjs:127, map/tools.mjs:156, .github/actions/tools/action.yml:29, .github/actions/tools/action.yml:30]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-412
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The two-job routine's gate reads the target job's handoff status file rather than trusting
+    the upload step; a missing or unreadable handoff is recorded as a failed instrument with the reason.
+  evidence: [map/start.mjs:395, map/start.mjs:399, routine/assay-routine.yml:146]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-413
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The release job reports a release as published on the exit code of `gh release create`
+    and never reads the tag or release back.
+  evidence: [.github/workflows/release.yml:50]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-414
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The branch-cleanup delete job re-reads each branch before deleting it but prints `deleted`
+    on the DELETE call's exit status alone, never confirming the ref is gone.
+  evidence: [.github/workflows/branch-cleanup.yml:129, .github/workflows/branch-cleanup.yml:131, .github/workflows/branch-cleanup.yml:132]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-415
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    An owner's evidence transcript is not taken on its word: the commit it names must resolve
+    in the checkout's history to pass, and a checkout too shallow or without history reads
+    unknown, never pass.
+  evidence: [map/repo-census.mjs:866, map/repo-census.mjs:867, map/repo-census.mjs:872]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-416
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Lane-authored findings are checked however fluent they read: validate with a target fails
+    closed on a cited path that does not exist or a cited line past the end of the file.
+  evidence: [map/validate.mjs:360, map/validate.mjs:376, map/validate.mjs:380]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-417
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing mechanical checks that a cited line says what the observation claims: validate states
+    it cannot, and the lane prompts leave it to the reviewer to re-read each evidence line.
+  evidence: [map/validate.mjs:362, map/validate.mjs:363, map/scanners/adapters/deep-code-review/lane.md:21]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-418
+  dimension: verification
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A change to the validator demonstrates itself against negative fixtures: each malformed run
+    must go red for exactly the one named violation it targets, so a weakened check cannot pass silently.
+  evidence: [tests/blocks/negative-fixtures.mjs:9, tests/blocks/negative-fixtures.mjs:12]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-419
+  dimension: verification
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A change to projection or scoring demonstrates itself against the known-answer fixtures:
+    recall and false positives are pinned in golden.json, a drift turns the harness red, and a
+    pinned score moves only by a reviewed re-bless in the same commit.
+  evidence: [tests/blocks/fixture-recall.mjs:12, tests/README.md:4, CLAUDE.md:51]
+  confidence: confirmed
+  property: change-demonstrable

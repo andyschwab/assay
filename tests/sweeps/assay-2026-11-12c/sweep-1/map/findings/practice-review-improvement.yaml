@@ -1,0 +1,258 @@
+# Pass 6 — improvement loop. Census incidents-became-mechanisms: L1–L19 (F-600..F-618).
+- id: F-600
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The reader's header records a fail-closed lesson (a checker that silently accepts unparseable input hides what it exists to catch), and harness blocks run by CI pin yaml-min throwing on refused constructs.
+  evidence: ["lib/yaml-min.mjs:6", "tests/blocks/yaml-strict.mjs:1", "tests/blocks/fail-closed.mjs:12", ".github/workflows/ci.yml:39"]
+  confidence: confirmed
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    SCHEMA.md §7 records the run's CI-1 lesson applied to the checker (an unparseable input is an error, not a pass), and the negative-fixtures block requires each malformed run to validate red for its named reason while the fail-closed block makes the unparseable bad-yaml-load fixture throw.
+  evidence: ["map/SCHEMA.md:916", "tests/blocks/negative-fixtures.mjs:9", "tests/negative/bad-yaml-load/map/findings/practice-review-legibility.yaml:2", "tests/blocks/fail-closed.mjs:22"]
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The findings loader's header records that five copies once diverged, one skipping unparseable files, and a map-shaped file once read as zero findings; the findings-loader block and the findings-not-a-list negative fixture make both throw.
+  evidence: ["map/project.mjs:52", "map/project.mjs:58", "tests/blocks/findings-loader.mjs:17", "tests/negative/findings-not-a-list/map/findings/practice-review-legibility.yaml:2"]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    SCHEMA.md §5a records that a full package once shipped with its queued code scanner never run, and four negative fixtures (no-manifest, manifest-skip-no-reason, manifest-ran-no-rows, manifest-rows-not-ran) make validate refuse an unrecorded or reasonless disposition, citing that incident.
+  evidence: ["map/SCHEMA.md:365", "tests/blocks/negative-fixtures.mjs:21", "tests/blocks/negative-fixtures.mjs:23", "tests/blocks/negative-fixtures.mjs:24", "tests/blocks/negative-fixtures.mjs:26"]
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    SCHEMA.md records that an empty channelCandidates list once read as a closed population for a web app (#269), and the web-app-effects block pins route handlers and effect sites onto the triage list so an untriaged member turns the effect row mixed.
+  evidence: ["map/SCHEMA.md:878", "tests/blocks/web-app-effects.mjs:2", "tests/blocks/web-app-effects.mjs:8"]
+  confidence: confirmed
+- id: F-605
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    METHOD.md and enumerate.mjs record that a calibration's every missed effect channel was one a hand-drafted inventory forgot, and the channel enumeration plus the effect-triage checks pinned by effect-population and channels-need-a-triage refuse an untriaged candidate.
+  evidence: ["map/METHOD.md:100", "map/enumerate.mjs:250", "tests/blocks/effect-population.mjs:2", "tests/blocks/channels-need-a-triage.mjs:1"]
+  confidence: confirmed
+- id: F-606
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    METHOD.md and SCHEMA.md §8 record that a terrain pinned to a prior run's channel list made the reproduction tautological, but blindness is held only by the lane's prose instruction and the canon check, which treats channel drift as a warning, so no check detects a run that read a prior run.
+  evidence: ["map/METHOD.md:76", "map/SCHEMA.md:983", "map/scanners/adapters/practice-review/lane.md:21", "tests/blocks/canon.mjs:2"]
+  confidence: plausible
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    METHOD.md records a prior calibration run that certified "no docker-socket mount" over a container it never inspected, and enumerate.mjs lists docker.sock and privileged mounts per file in a population its --run coverage gate fails on when no finding cites the member.
+  evidence: ["map/METHOD.md:42", "map/enumerate.mjs:205", "map/enumerate.mjs:367", "tests/blocks/enumerate-gate.mjs:25"]
+  confidence: plausible
+- id: F-608
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    SCHEMA.md and variance.mjs record that the cal5/cal6 pair flipped a census's subject_type and read identical facts as disagreement; variance.mjs now leaves subject_type out of identity, but no harness block pins that rule or checks a run's census subject_type is held.
+  evidence: ["map/SCHEMA.md:189", "map/variance.mjs:14", "map/variance.mjs:127", "tests/blocks/variance-mixed-base.mjs:17"]
+  confidence: plausible
+- id: F-609
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    variance.mjs records that its basename identity key proved blind on the cal5/cal6 pair (35% where facts agreed at 73%) and now keys on the full path, but the only block pinning full-path matching is score-path, which tests score.mjs, not variance's idTokens.
+  evidence: ["map/variance.mjs:21", "map/variance.mjs:81", "tests/blocks/score-path.mjs:2"]
+  confidence: plausible
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    backlog.mjs records that a crashed sub-tool once wrote an empty class and exited 0, and the score-backlog-exit block pins a crashed class as not computed with a non-zero exit.
+  evidence: ["map/backlog.mjs:49", "tests/blocks/score-backlog-exit.mjs:1", "tests/blocks/score-backlog-exit.mjs:3"]
+  confidence: confirmed
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    validate.mjs records four ways owner/decisions.yaml once misread (a map as no decisions, an unknown action as open, a reasonless accept as waived, an email in by), and one negative fixture per cause makes validate refuse each.
+  evidence: ["map/validate.mjs:397", "tests/blocks/negative-fixtures.mjs:57", "tests/blocks/negative-fixtures.mjs:60", "tests/negative/decisions-not-a-list/README.md:1"]
+  confidence: confirmed
+- id: F-612
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    compile.mjs records that a package once listed a five-day-old sibling run's report beside its "not measured" line, and the run-manifest block plants a sibling run's native report and fails if the index lists it.
+  evidence: ["views/compile.mjs:128", "tests/blocks/run-manifest.mjs:6", "tests/blocks/run-manifest.mjs:68"]
+  confidence: confirmed
+- id: F-613
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    migrate-run.mjs records that before b16800c a flow list was split on every comma (#182), and the migrate-run block pins that such a run halts Since by naming migrate-run and is brought forward by it.
+  evidence: ["map/migrate-run.mjs:12", "tests/blocks/migrate-run.mjs:1", "tests/blocks/migrate-run.mjs:5"]
+  confidence: confirmed
+- id: F-614
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    repo-census.mjs records that a set +e which reads the exit status was misjudged fail-open (#166), and the ci-gate-set-e-status block pins both the held and the fail-open shapes.
+  evidence: ["map/repo-census.mjs:708", "tests/blocks/ci-gate-set-e-status.mjs:1", "tests/blocks/ci-gate-set-e-status.mjs:8"]
+  confidence: confirmed
+- id: F-615
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    repo-census.mjs records that the deploy signal fired on the word in a comment (#165), and the repo-census-deploy-word block pins that a comment never counts as a deploy.
+  evidence: ["map/repo-census.mjs:1068", "tests/blocks/repo-census-deploy-word.mjs:1", "tests/blocks/repo-census-deploy-word.mjs:2"]
+  confidence: confirmed
+- id: F-616
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    start.mjs records why a repository-scoped scanner over a subdirectory would read the enclosing repository's history, and the gitleaks-target block (#51) pins that refusal with a recorded reason.
+  evidence: ["map/start.mjs:234", "tests/blocks/gitleaks-target.mjs:1", "tests/blocks/gitleaks-target.mjs:6"]
+  confidence: confirmed
+- id: F-617
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    fresh-clone.mjs records that an exit code of 0 is not the suite having run (#30), and the test-skips block pins the parsed skipped share and the gap row ingest adds for it.
+  evidence: ["map/fresh-clone.mjs:241", "tests/blocks/test-skips.mjs:1", "tests/blocks/test-skips.mjs:7"]
+  confidence: confirmed
+- id: F-618
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    variance.mjs records field-measured descriptor agreement of 31% and the first blind set's 20%, and the sweep-gate block runs every committed sweep set against its own threshold so a drop in repeatability fails the harness.
+  evidence: ["map/variance.mjs:38", "map/variance.mjs:43", "tests/blocks/sweep-gate.mjs:1", "tests/blocks/sweep-gate.mjs:24"]
+  confidence: confirmed
+# Context list backlog-records (F-619..F-624)
+- id: F-619
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    CANDIDATES.md carries outstanding integration candidates as table rows (Trivy, mcp-scan, Agentic Radar, Ruff/ESLint, GitNexus) with no issue reference on any of them.
+  evidence: ["map/scanners/CANDIDATES.md:92", "map/scanners/CANDIDATES.md:96", "map/scanners/CANDIDATES.md:98", "map/scanners/CANDIDATES.md:99", "map/scanners/CANDIDATES.md:100", "map/scanners/CANDIDATES.md:106"]
+  confidence: confirmed
+- id: F-620
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    CANDIDATES.md's second-line candidate rows tie madge and lizard to an issue (#108) while Bandit/gosec, ModelAudit and the agent-readiness scorers are rows with none.
+  evidence: ["map/scanners/CANDIDATES.md:108", "map/scanners/CANDIDATES.md:113", "map/scanners/CANDIDATES.md:114", "map/scanners/CANDIDATES.md:115", "map/scanners/CANDIDATES.md:117", "map/scanners/CANDIDATES.md:118"]
+  confidence: confirmed
+- id: F-621
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The adopted roster cites the issue that adopted each recent instrument (zizmor #180, osv-scanner #179, checkov #181), so those candidate rows reached done through tracked issues.
+  evidence: ["map/scanners/CANDIDATES.md:40", "map/scanners/CANDIDATES.md:41", "map/scanners/CANDIDATES.md:42"]
+  confidence: confirmed
+- id: F-622
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    CLAUDE.md routes every engine gap a run exposes to the repository's issue tracker, landing as a reviewed change that cites it.
+  evidence: ["CLAUDE.md:65", "CLAUDE.md:68"]
+  confidence: confirmed
+- id: F-623
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The weekly tools-check workflow writes pins behind upstream as one issue, searching for the open one and commenting on it rather than filing a second.
+  evidence: [".github/workflows/tools-check.yml:2", ".github/workflows/tools-check.yml:32", ".github/workflows/tools-check.yml:33", ".github/workflows/tools-check.yml:35"]
+  confidence: confirmed
+- id: F-624
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    backlog.mjs writes each run's engine optimization backlog as a list file of rows (map/backlog.yaml, with an authored map/backlog-authored.yaml beside it) and nothing in it files those rows as issues.
+  evidence: ["map/backlog.mjs:2", "map/backlog.mjs:16", "map/backlog.mjs:19"]
+  confidence: plausible
+# Discovery: impact-self-measured (F-625..F-627)
+- id: F-625
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    roster.mjs computes what each scanner is worth (requirements it alone decides, known answers recovered only with its rows, facts corroborated, recorded cost), and the adopted roster's counts are pinned in golden.json.
+  evidence: ["map/roster.mjs:2", "map/roster.mjs:23", "map/scanners/INTAKE.md:70", "tests/golden.json:35"]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-626
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The harness pins the engine's recall against the public known-answer fixtures in golden.json, so its own detection rate is a number moved only by a reviewed re-bless.
+  evidence: ["tests/regression.mjs:11", "tests/golden.json:11", "tests/golden.json:12", "CLAUDE.md:51"]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-627
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The Since view compares a run with a previous one and separates what the repository moved from what the engine re-ruled, so a stewarded target's before-and-after delta is legible without a study.
+  evidence: ["views/since.mjs:2", "views/since.mjs:8", "views/since.mjs:9"]
+  confidence: confirmed
+  property: impact-self-measured
+# Discovery: usage-outcome-records-emitted (F-628..F-630)
+- id: F-628
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Every run carries a structured run record (map/scanners.yaml) with each scanner's status, reason, model, spend and duration, written only through start, ingest and record.
+  evidence: ["map/record.mjs:2", "map/record.mjs:12", "map/record.mjs:20", "map/SCHEMA.md:361"]
+  confidence: confirmed
+  property: usage-outcome-records-emitted
+- id: F-629
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The routine writes routine.yaml as its last step on every return, the run's own outcome record shaped for a fleet collector reading only the uploaded artifact.
+  evidence: ["routine/run.mjs:127", "routine/run.mjs:128", "routine/run.mjs:190"]
+  confidence: confirmed
+  property: usage-outcome-records-emitted
+- id: F-630
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    Population-level aggregation of those records happens only when a person hands runs to roster (cost, ran_in) or variance; assay keeps no store of its own beyond the run directory, and the fleet collector routine.yaml names lives outside this repository.
+  evidence: ["map/roster.mjs:29", "map/roster.mjs:32", "README.md:42", "README.md:139"]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

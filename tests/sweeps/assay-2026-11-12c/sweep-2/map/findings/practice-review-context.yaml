@@ -1,0 +1,188 @@
+- id: F-200
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The CLI module assay.mjs loads alone: it opens with a head comment, imports no repository
+    file (it dispatches each command by spawning its script), and tests run it directly by
+    spawning it, though no test can import it since importing would execute the dispatch.
+  evidence: [assay.mjs:2, assay.mjs:9, assay.mjs:84, tests/blocks/consumer-contract.mjs:29, tests/blocks/routine-command.mjs:18]
+  confidence: plausible
+
+- id: F-201
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The lib/ module loads alone: each file opens with a head comment, tests import its files
+    directly, and its only import outside the directory is map/doctrine.mjs (which imports no
+    repository file), one file against the ten-file bound.
+  evidence: [lib/run-layout.mjs:1, lib/yaml-min.mjs:1, lib/release-notes.mjs:21, tests/blocks/routine.mjs:9, tests/blocks/routine.mjs:10]
+  confidence: confirmed
+
+- id: F-202
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The map/ module has a head comment on every engine file and tests that import its files
+    directly, and its imports outside the directory close over nine files (lib/ run-layout,
+    yaml-min, display, run-data; yardstick/ packet, measure, compare; views/severity.mjs;
+    views/improve/maturity.mjs), inside the ten-file bound though the directory itself holds
+    some twenty-seven engine files.
+  evidence: [map/enumerate.mjs:2, map/project.mjs:2, map/project.mjs:30, map/validate.mjs:650, map/record.mjs:40, map/variance.mjs:75, tests/harness.mjs:16, tests/harness.mjs:17]
+  confidence: plausible
+
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The map/scanners/ module (adapters as YAML, two lane prompts, CONTRACT.md) has a directory
+    contract doc in place of a README and a head comment on each adapter, imports nothing, and
+    is loaded whole by the test harness through loadAdapters, which reads every adapter file.
+  evidence: [map/scanners/CONTRACT.md:3, map/scanners/adapters/gitleaks.yaml:1, map/project.mjs:77, tests/harness.mjs:47, tests/blocks/project-command.mjs:28]
+  confidence: plausible
+
+- id: F-204
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The yardstick/ module has a README and tests that import its files directly, and its imports
+    outside the directory close over exactly ten files (lib/ yaml-min, run-layout, display;
+    map/ doctrine, variance, census, effect-triage, project, chains; views/severity.mjs), at
+    the ten-file bound.
+  evidence: [yardstick/README.md:3, yardstick/measure.mjs:33, yardstick/measure.mjs:36, yardstick/measure.mjs:38, yardstick/compare.mjs:38, map/project.mjs:30, tests/blocks/ratchet.mjs:5, tests/blocks/compare-findings.mjs:2]
+  confidence: plausible
+
+- id: F-205
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The views/ module (its top-level files) has a README and tests that import its files
+    directly, but its imports outside the directory close over about fifteen files across lib/,
+    map/ and yardstick/ (since.mjs alone reaches migrate-run, compare, ratchet and measure), so
+    it cannot be changed without loading much of the engine.
+  evidence: [views/README.md:3, views/since.mjs:21, views/since.mjs:24, views/since.mjs:25, views/since.mjs:26, views/since.mjs:27, views/compile.mjs:33, yardstick/measure.mjs:38, tests/blocks/intake-owner.mjs:7]
+  confidence: confirmed
+
+- id: F-206
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The views/improve/ module has head comments on its files (no README) and tests that import
+    maturity.mjs directly, but its imports outside the directory close over about sixteen files
+    (report.mjs alone imports lib/run-data, map/supervision, map/capabilities, map/chains,
+    map/decisions, map/project, yardstick/measure and views/severity), past the ten-file bound.
+  evidence: [views/improve/maturity.mjs:2, views/improve/report.mjs:18, views/improve/report.mjs:20, views/improve/report.mjs:21, views/improve/report.mjs:27, views/improve/report.mjs:28, views/improve/axes.mjs:18, tests/blocks/maturity-ladder.mjs:6]
+  confidence: confirmed
+
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The owner/ module's ask-owner.mjs has a head comment and a test that imports it directly,
+    but its seven imports outside the directory close over about eleven files (map/project.mjs
+    pulls chains, display and views/severity; map/repo-census.mjs pulls projects), one past the
+    ten-file bound.
+  evidence: [owner/ask-owner.mjs:2, owner/ask-owner.mjs:41, owner/ask-owner.mjs:43, owner/ask-owner.mjs:46, map/project.mjs:23, map/project.mjs:30, map/repo-census.mjs:104, tests/blocks/ask-owner.mjs:6]
+  confidence: plausible
+
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The routine/ module has a README and tests that import run.mjs directly, but run.mjs imports
+    map/start, map/tools, map/repo-census, yardstick/measure and yardstick/ratchet, whose
+    closure reaches about nineteen files outside the directory, so the routine cannot be changed
+    without loading most of map/ and yardstick/.
+  evidence: [routine/README.md:3, routine/run.mjs:75, routine/run.mjs:76, routine/run.mjs:77, routine/run.mjs:78, routine/run.mjs:80, routine/run.mjs:81, tests/blocks/routine.mjs:11]
+  confidence: confirmed
+
+- id: F-209
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The layering the README draws (map/ feeds yardstick/ feeds views/) is inverted in the
+    imports: map/project.mjs imports views/severity.mjs, which imports map/project.mjs back (a
+    cycle), and map/validate.mjs, record.mjs, score.mjs and roster.mjs import yardstick/ and
+    views/improve/, so no layer loads without the ones the diagram places after it.
+  evidence: [README.md:47, map/project.mjs:30, views/severity.mjs:19, map/validate.mjs:650, map/validate.mjs:749, map/record.mjs:40, map/score.mjs:47, map/roster.mjs:44]
+  confidence: confirmed
+
+- id: F-210
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The entry docs route a stranger to one subsystem: CLAUDE.md names the one contract doc for
+    each of the finding format, the method, the requirements and the views, and README.md draws
+    the three layers and closes with a one-line-per-directory layout table, each directory
+    carrying its own README or contract doc.
+  evidence: [CLAUDE.md:4, CLAUDE.md:5, CLAUDE.md:6, README.md:44, README.md:235, README.md:239, README.md:240]
+  confidence: confirmed
+
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    For the practice-review scanner the entry docs route a session to the whole method at once:
+    README tells the operator to open map/METHOD.md (about 56 KB, 813 lines) as the session's
+    opening context, and the method stages the target into slices but not itself, leaning on
+    map/SCHEMA.md (about 73 KB) with no per-pass slice of either.
+  evidence: [README.md:182, map/METHOD.md:47, map/METHOD.md:160, map/METHOD.md:107]
+  confidence: plausible
+
+- id: F-212
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The application obtains no model output in code: it has no runtime dependency and no
+    provider call, and both the start command and the routine record the LLM-driven judgment
+    scanners as skipped, left to a session a steward runs.
+  evidence: [package.json:18, map/start.mjs:307, map/start.mjs:308, routine/run.mjs:19, routine/run.mjs:20, map/lane.mjs:10]
+  confidence: confirmed
+
+- id: F-213
+  dimension: context-economy
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run record carries the model and spend of each judgment scanner and each practice-review
+    pass, warns when a judgment scanner ran with no model, and variance reports fact agreement
+    per model pair, so a model change reads as its own row: the instrument a re-qualification
+    would use.
+  evidence: [map/SCHEMA.md:395, map/SCHEMA.md:429, map/SCHEMA.md:431, map/project.mjs:185, map/variance.mjs:143, map/variance.mjs:146]
+  confidence: confirmed
+
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The practice-review lane asks the session to record the model each pass ran on, but the tree
+    names no model for it, no rationale for a choice and no trigger to re-qualify one: the lane
+    builder leaves the model to the consumer and says nothing here names a model.
+  evidence: [map/scanners/adapters/practice-review/lane.md:25, map/scanners/adapters/practice-review/lane.md:27, map/lane.mjs:10, map/lane.mjs:11]
+  confidence: plausible
+
+- id: F-215
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The deep-code-review lane pins the reviewer's method by release and commit but asks the
+    session to record no model at all, neither in its checkout record nor its final message,
+    though ingest accepts a --model for the row.
+  evidence: [map/scanners/adapters/deep-code-review/lane.md:17, map/scanners/adapters/deep-code-review/lane.md:23, map/scanners/adapters/deep-code-review/lane.md:25, map/ingest.mjs:1224, map/ingest.mjs:1278]
+  confidence: confirmed

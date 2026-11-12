@@ -1,0 +1,222 @@
+- id: F-300
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml lint step runs check-syntax, which exits 1 when git lists no module and when any module fails node --check, inside a job bounded by a 15-minute timeout.
+  evidence: [".github/workflows/ci.yml:31", ".github/workflows/ci.yml:19", "lib/check-syntax.mjs:13", "lib/check-syntax.mjs:15"]
+  confidence: confirmed
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml typecheck step runs tsc from the devDependency npm ci installed just before it, so an absent compiler or a type error exits non-zero and the job is bounded by its timeout.
+  evidence: [".github/workflows/ci.yml:32", ".github/workflows/ci.yml:30", "package.json:18", "tsconfig.json:12"]
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml build step runs the same check-syntax script as lint, which refuses an empty module listing and fails on any module that does not parse.
+  evidence: [".github/workflows/ci.yml:33", "package.json:12", "lib/check-syntax.mjs:13"]
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml tools step calls the composite action, whose script runs under set -euo pipefail, installs each pinned tool checked against its sha256, and verifies each answers at its pin before putting it on PATH, so an absent or wrong tool fails the job.
+  evidence: [".github/workflows/ci.yml:38", ".github/actions/tools/action.yml:26", ".github/actions/tools/action.yml:29", ".github/actions/tools/action.yml:30", "map/tools.mjs:127", "map/tools.mjs:244"]
+  confidence: confirmed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The ci.yml npm test step reads green when structure-scan's real-tool case cannot install jscpd or knip from the registry, because that block only prints a SKIPPED warning to stderr and records no failure, while the gate line still names the block.
+  evidence: [".github/workflows/ci.yml:39", "tests/blocks/structure-scan.mjs:133", "tests/blocks/structure-scan.mjs:134", "tests/blocks/structure-scan.mjs:135", "tests/harness.mjs:122"]
+  confidence: confirmed
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml tools step calls the same composite action, so the release job fails before it tags when a pinned tool cannot be installed at its sha256 or does not answer at its pin.
+  evidence: [".github/workflows/release.yml:40", ".github/actions/tools/action.yml:26", ".github/actions/tools/action.yml:30"]
+  confidence: confirmed
+- id: F-306
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml version step, under set -euo pipefail, exits 1 on a version that is not vX.Y.Z (an empty one included) and on a tag that already exists in the full-history checkout.
+  evidence: [".github/workflows/release.yml:36", ".github/workflows/release.yml:37", ".github/workflows/release.yml:38", ".github/workflows/release.yml:28"]
+  confidence: confirmed
+- id: F-307
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The release.yml npm test step that precedes tagging inherits the harness's green-on-skip for structure-scan's real-tool case when the registry is unreachable, so a release can tag with that case unproven.
+  evidence: [".github/workflows/release.yml:41", ".github/workflows/release.yml:44", "tests/blocks/structure-scan.mjs:135"]
+  confidence: confirmed
+- id: F-308
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml Consumer trailer step runs release-notes --check, which exits 1 on a shallow history, on a CONSUMERS.md with no surface block, and on any surface-touching commit with no Consumer trailer.
+  evidence: [".github/workflows/release.yml:43", "lib/release-notes.mjs:69", "lib/release-notes.mjs:99", "lib/release-notes.mjs:102", "lib/release-notes.mjs:110"]
+  confidence: confirmed
+- id: F-309
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The lint package script runs check-syntax, which throws when git cannot list, refuses an empty listing as not clean, and exits 1 naming each module that does not parse.
+  evidence: ["package.json:10", "lib/check-syntax.mjs:11", "lib/check-syntax.mjs:13", "lib/check-syntax.mjs:15"]
+  confidence: confirmed
+- id: F-310
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The test package script turns an empty blocks directory, a block that throws and a missing golden.json red, but runs each block with no time limit of its own and exits 0 when structure-scan skips its real-tool case for an unreachable registry.
+  evidence: ["package.json:9", "tests/harness.mjs:73", "tests/harness.mjs:114", "tests/harness.mjs:141", "tests/blocks/structure-scan.mjs:135"]
+  confidence: confirmed
+- id: F-311
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The typecheck package script runs tsc with checkJs and noEmit over the engine's module globs, so a missing compiler, an include that matches nothing, or a type error exits non-zero.
+  evidence: ["package.json:11", "tsconfig.json:4", "tsconfig.json:12"]
+  confidence: plausible
+- id: F-312
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The validate package script checks no citation against a target unless --target is passed, and with it absent still exits 0 printing that citations are all clean.
+  evidence: ["package.json:14", "map/validate.mjs:86", "map/validate.mjs:365", "map/validate.mjs:795"]
+  confidence: confirmed
+- id: F-313
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: process
+  observation: >
+    A subtle regression in the central validator is caught in CI on every pull request and push to main by the negative-fixtures block of npm test, which requires each malformed run to validate red for its one named violation.
+  evidence: [".github/workflows/ci.yml:8", ".github/workflows/ci.yml:39", "tests/blocks/negative-fixtures.mjs:9", "tests/blocks/negative-fixtures.mjs:65"]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-314
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    The repository carries no commit or push hook and no package script that installs one, so the first automatic gate a change meets is CI after it is pushed.
+  evidence: ["package.json:8", ".github/workflows/ci.yml:8"]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-315
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The one YAML reader throws on any construct outside its subset, on a duplicate key, on a __proto__ key and on trailing content, so a malformed input file fails loudly rather than reading as a misleading value.
+  evidence: ["lib/yaml-min.mjs:42", "lib/yaml-min.mjs:138", "lib/yaml-min.mjs:139", "lib/yaml-min.mjs:151"]
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-316
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CLI dispatcher exits 2 on an unknown command and maps a child script killed by a signal to exit 1, never 0.
+  evidence: ["assay.mjs:78", "assay.mjs:81", "assay.mjs:85"]
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-317
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The projection collects every scanner row with no adapter, no mapped category or no axis as unmapped, under a module contract that an unmapped native category halts.
+  evidence: ["map/project.mjs:13", "map/project.mjs:306", "map/project.mjs:309", "map/project.mjs:311"]
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-318
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The tools CLI treats an option it does not know as a usage error that exits 2, rather than ignoring it and selecting every pinned tool.
+  evidence: ["map/tools.mjs:225", "map/tools.mjs:227", "map/tools.mjs:251"]
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-319
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The negative-fixtures block runs validate over each listed malformed run and fails when one validates green, is red without its named violation, or is red for any other violation too.
+  evidence: ["tests/blocks/negative-fixtures.mjs:16", "tests/blocks/negative-fixtures.mjs:71", "tests/blocks/negative-fixtures.mjs:73", "tests/blocks/negative-fixtures.mjs:75"]
+  confidence: confirmed
+- id: F-320
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Validate's rule that a gated effect states its fail_mode carries the effect-no-fail-mode negative fixture, pinned to that one violation.
+  evidence: ["map/validate.mjs:164", "tests/blocks/negative-fixtures.mjs:47", "tests/negative/effect-no-fail-mode/README.md:1"]
+  confidence: confirmed
+- id: F-321
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Validate's citation check against a target carries the evidence-not-in-target negative fixture, run with --target pointing at the fixture's own planted target.
+  evidence: ["map/validate.mjs:376", "tests/blocks/negative-fixtures.mjs:33", "tests/blocks/negative-fixtures.mjs:66"]
+  confidence: confirmed
+- id: F-322
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The fail-closed YAML reader carries planted inputs that must throw (an inline flow map, an anchor) and the bad-yaml-load fixture that both the findings loader and variance must refuse.
+  evidence: ["tests/blocks/fail-closed.mjs:12", "tests/blocks/fail-closed.mjs:14", "tests/blocks/fail-closed.mjs:22", "tests/blocks/fail-closed.mjs:23"]
+  confidence: confirmed
+- id: F-323
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The harness runner's refusals (an empty blocks directory, a mislabelled block, no run function, an empty gate, a claimed gate label, an unknown after, an unparseable block) each carry a planted scratch blocks directory that must be refused.
+  evidence: ["tests/blocks/block-runner.mjs:54", "tests/blocks/block-runner.mjs:60", "tests/blocks/block-runner.mjs:64"]
+  confidence: confirmed
+- id: F-324
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The Consumer trailer check carries a planted history with a surface-touching commit lacking the trailer, on which release-notes --check must exit non-zero naming that commit.
+  evidence: ["tests/blocks/consumer-contract.mjs:108", "tests/blocks/consumer-contract.mjs:109", "tests/blocks/consumer-contract.mjs:110"]
+  confidence: confirmed
+- id: F-325
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The syntax gate behind lint and build has no negative fixture: no file under tests/ plants an unparseable module or an empty listing to turn check-syntax red.
+  evidence: ["lib/check-syntax.mjs:13", "lib/check-syntax.mjs:14"]
+  confidence: plausible
+- id: F-326
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    That a new assertion turns red with its rule reverted is confirmed by hand and recorded only in the pull request body and commit message, never by a mutation run the tree carries.
+  evidence: ["CLAUDE.md:60", "CLAUDE.md:62", "CLAUDE.md:63", "tests/README.md:54"]
+  confidence: confirmed

@@ -1,0 +1,417 @@
+# Pass 1 — artifact legibility (practice-review). Census-augmented: one finding per decision
+# (decision-reconstruction, D1-D21 drawn from the contract docs' stated choices) and per checkable
+# doc claim (doc-freshness); the second-accounts context list follows.
+
+# ── decision-reconstruction: one finding per non-obvious decision ──
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The choice that findings state facts while only the views compute severity or urgency is written with its why (it keeps assay from issuing a verdict or a price) in the README, named as the rule's one home.
+  evidence: ["README.md:32", "README.md:34", "README.md:37"]
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine's push trigger on the default branch carries its rationale beside it: a pull request measures only the change, so admin merges or direct pushes would otherwise go unmeasured until the weekly schedule.
+  evidence: ["routine/README.md:10"]
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Splitting the routine template into a target job and a gate job is explained by the threat it answers: code run by the change could rewrite the ratchet or the measurement and make its own gate read held.
+  evidence: ["routine/README.md:132", "routine/README.md:137"]
+  confidence: confirmed
+- id: F-104
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Reading the baseline from the base branch on a pull request, never from the change's tree, is justified in place: grading against its own copy would let a change switch off the gate meant to hold it.
+  evidence: ["routine/README.md:183", "routine/README.md:186"]
+  confidence: confirmed
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Pinning the routine's engine as a full commit SHA rather than a branch states its reason inline (a branch moves; a scheduled run must run the exact engine a steward reviewed).
+  evidence: ["routine/README.md:210", "routine/README.md:211"]
+  confidence: confirmed
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Leaving `--since` out of the routine template is explained by the permission it would cost: fetching a previous scheduled run needs `actions: read`, and the routine promises `contents: read` only.
+  evidence: ["routine/README.md:259", "routine/README.md:260"]
+  confidence: confirmed
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The allow-listed child environment for target code names why each kept variable is kept (the package manager must be found and find its cache) and states plainly that it is not a sandbox, so the disposable-VM advice follows from the files.
+  evidence: ["map/child-env.mjs:4", "map/scanners/CONTRACT.md:195", "map/scanners/CONTRACT.md:196"]
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The definition of an adopted instrument as offline (no hosting-platform API, a package registry allowed) carries its reasoning: a tool needing a remote configuration API is a forever-fail whose absence would read as coverage.
+  evidence: ["map/scanners/CONTRACT.md:168", "map/scanners/CONTRACT.md:170", "map/scanners/CONTRACT.md:178"]
+  confidence: confirmed
+- id: F-109
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Refusing to draw a map until pinned tools are ready, rather than recording the instrument skipped, is reconstructable from the contract (a tool is a precondition of a measurement, never one of its results) and the routine page (a refusal is never read as a failed measurement), though most code sites cite only an issue number.
+  evidence: ["map/scanners/CONTRACT.md:890", "routine/README.md:88"]
+  confidence: plausible
+- id: F-110
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The engine's zero-runtime-dependency stance is stated as a fact in the README and package.json but its reason over using libraries is written only in passing in one module header ("copies into any target"), never in a contract doc.
+  evidence: ["README.md:158", "package.json:18", "map/enumerate.mjs:12"]
+  confidence: plausible
+- id: F-111
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Writing an in-house strict YAML subset reader that throws on anything else is explained at the reader and the validator: a checker that silently accepts unparseable input hides what it exists to catch.
+  evidence: ["lib/yaml-min.mjs:5", "lib/yaml-min.mjs:6", "map/validate.mjs:10"]
+  confidence: confirmed
+- id: F-112
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Keeping no history file (the change record is git) is stated in the agent contract, and its why (a dated history file restates the commit, a parallel log) is written in the block that enforces it.
+  evidence: ["CLAUDE.md:71", "tests/blocks/no-history-file.mjs:2"]
+  confidence: confirmed
+- id: F-113
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Integrating scanners only through adapters onto property-named shared axes is justified in the scanner contract: two scanners measuring one property corroborate on one axis instead of splitting into tool-named chapters, and the engine never forks a scanner's logic.
+  evidence: ["map/scanners/CONTRACT.md:10", "map/scanners/CONTRACT.md:30", "CLAUDE.md:33"]
+  confidence: confirmed
+- id: F-114
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The tier order (custody first, operability last) is given its reason in the requirements contract: it is the order to fix things, which is also the order of irreversibility.
+  evidence: ["yardstick/README.md:76"]
+  confidence: confirmed
+- id: F-115
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Owner view's refusal of any score, grade or severity word is explained by its audience (a non-engineer who built the app with an AI) and by the tier already carrying the priority.
+  evidence: ["views/README.md:109", "yardstick/README.md:84"]
+  confidence: confirmed
+- id: F-116
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine never running the LLM-driven judgment scanners is explained in the routine contract: a repository's scheduled runs must never masquerade as the fuller evaluation a steward session performs.
+  evidence: ["routine/README.md:116", "routine/README.md:119"]
+  confidence: confirmed
+- id: F-117
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Adding a harness block only as a new file, never editing an existing one, is reconstructable from the harness page: the runner discovers blocks and composes the gate line from their labels, so the line is computed, never hand-edited.
+  evidence: ["CLAUDE.md:55", "tests/README.md:21", "tests/README.md:25"]
+  confidence: plausible
+- id: F-118
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Cutting releases only from a person-dispatched workflow, with nothing else tagging, is explained in the workflow header: the notes are the commits' Consumer trailers, and the gate and trailer check run before the tag.
+  evidence: [".github/workflows/release.yml:3", ".github/workflows/release.yml:4", ".github/workflows/release.yml:6"]
+  confidence: confirmed
+- id: F-119
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Stripping instrument output tails from the archived run is justified by who can download the routine's artifact (anyone who can read workflow runs, unfiltered, for its retention period).
+  evidence: ["routine/README.md:31", "routine/README.md:32"]
+  confidence: confirmed
+- id: F-120
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Requiring CODEOWNERS on `packet/` and the workflows is explained in the install steps: without it anyone who opens a pull request could edit the baseline it is graded against or the workflow that grades it.
+  evidence: ["routine/README.md:237", "routine/README.md:239"]
+  confidence: confirmed
+- id: F-121
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Limiting the consumer contract to one page and two pure modules states its reason: anything past the page may change in any commit, and a consumer needing a value no command prints asks for a command.
+  evidence: ["CONSUMERS.md:4", "CONSUMERS.md:103"]
+  confidence: confirmed
+
+# ── doc-freshness: one finding per checkable doc claim ──
+- id: F-122
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's table of views, pages and data files matches the paths the one run-layout module places, and a harness block checks the stated view count against that module.
+  evidence: ["README.md:9", "lib/run-layout.mjs:9", "lib/run-layout.mjs:29", "tests/blocks/doc-consistency.mjs:26"]
+  confidence: confirmed
+- id: F-123
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that the deep-code-review adapter's `verified_against` names a reviewer release and the commit it is holds: the adapter carries both fields.
+  evidence: ["README.md:62", "map/scanners/adapters/deep-code-review.yaml:41", "map/scanners/adapters/deep-code-review.yaml:42"]
+  confidence: confirmed
+- id: F-124
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's four adapter-run instruments (zizmor, osv-scanner, checkov, opengrep, the last with vendored taint rules and a positive control) each carry a `run:` block in their adapter.
+  evidence: ["README.md:80", "map/scanners/adapters/zizmor.yaml:34", "map/scanners/adapters/osv-scanner.yaml:27", "map/scanners/adapters/checkov.yaml:20", "map/scanners/adapters/opengrep.yaml:40"]
+  confidence: confirmed
+- id: F-125
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    "Three instruments execute the target's code" is held by a harness check that counts the map modules importing the child environment and fails the README and contract when the word drifts.
+  evidence: ["README.md:89", "tests/blocks/doc-consistency.mjs:153"]
+  confidence: confirmed
+- id: F-126
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says each executing child sees only PATH, HOME, CI and npm_config_* settings, but the child environment also passes the proxy and CA-certificate variables.
+  evidence: ["README.md:93", "map/child-env.mjs:15", "map/child-env.mjs:32"]
+  confidence: confirmed
+- id: F-127
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that `assay start` runs fresh-clone only under `--allow-exec` matches the start command's own usage contract.
+  evidence: ["README.md:97", "map/start.mjs:29"]
+  confidence: confirmed
+- id: F-128
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The six tiers the README lists, in order, are the register's own `tiers:` list.
+  evidence: ["README.md:109", "yardstick/requirements.yaml:17"]
+  confidence: confirmed
+- id: F-129
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's six owner-evidence transcripts match the six templates under `owner/evidence/` and the scanner contract's six owner-evidence checks.
+  evidence: ["README.md:129", "map/scanners/CONTRACT.md:453"]
+  confidence: confirmed
+- id: F-130
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The owner commands the README names (`ask-owner`, `validate-packet`, `measure --packet`) are all dispatched commands with those flags.
+  evidence: ["README.md:132", "assay.mjs:44", "assay.mjs:45", "yardstick/measure.mjs:25"]
+  confidence: confirmed
+- id: F-131
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says assay reaches outside the checkout in three places and only these, but `tools install` downloads pinned binaries from GitHub release URLs (or PyPI) and `tools check` reads the GitHub releases API, neither named.
+  evidence: ["README.md:141", "map/tools.mjs:125", "map/scanners/adapters/gitleaks.yaml:27", "map/tools.mjs:201"]
+  confidence: confirmed
+- id: F-132
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's commands and flags (tools install/verify with --run/--only, record with --model/--pass, a reviewer ingest without --exit) match each script's usage line.
+  evidence: ["README.md:186", "map/record.mjs:12", "map/ingest.mjs:1233", "map/tools.mjs:24"]
+  confidence: confirmed
+- id: F-133
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's toolchain claims hold: Node 22 or later is the engine floor, typecheck is checkJs, and lint is Node's own syntax check.
+  evidence: ["README.md:158", "README.md:159", "package.json:17", "tsconfig.json:4", "lib/check-syntax.mjs:2"]
+  confidence: confirmed
+- id: F-134
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that `score` grades a run against ANSWERS.yaml and `npm test` pins those scores holds in the score command's usage and the committed golden file.
+  evidence: ["README.md:219", "map/score.mjs:41", "tests/golden.json:2"]
+  confidence: confirmed
+- id: F-135
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's three repeatability numbers and its claim that `npm test` gates every committed sweep set at its own threshold are borne out by variance's three minimum flags and the sweep-gate block.
+  evidence: ["README.md:228", "README.md:230", "map/variance.mjs:375", "tests/blocks/sweep-gate.mjs:23"]
+  confidence: confirmed
+- id: F-136
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The runbook's release procedure tells a person to tag the merge commit by hand, while the release workflow and the consumer contract say a dispatched workflow cuts the tag and nothing else tags.
+  evidence: ["RUNBOOK.md:16", ".github/workflows/release.yml:4", "CONSUMERS.md:114"]
+  confidence: confirmed
+- id: F-137
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    SECURITY.md says where to run the code-executing instruments is covered in README.md and map/METHOD.md, but METHOD.md says nothing of a disposable container or VM for them.
+  evidence: ["SECURITY.md:27", "README.md:97"]
+  confidence: plausible
+- id: F-138
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The consumer contract's promise that `start` exits 3 and writes nothing when tools are not ready holds: the refusal exits with REFUSED_EXIT (3) before any run file is written.
+  evidence: ["CONSUMERS.md:20", "map/start.mjs:472", "map/tools.mjs:189"]
+  confidence: confirmed
+- id: F-139
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The agent contract's Checks (`score --answers`) and its named guard block for rule 7 both exist as stated.
+  evidence: ["CLAUDE.md:48", "map/score.mjs:41", "CLAUDE.md:41", "tests/blocks/core-names-no-scanner.mjs:1"]
+  confidence: confirmed
+- id: F-140
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The harness page's four block exports match the runner's BLOCK_FIELDS, and a harness check holds the page to that list.
+  evidence: ["tests/README.md:40", "tests/harness.mjs:64", "tests/blocks/doc-consistency.mjs:126"]
+  confidence: confirmed
+- id: F-141
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The routine page's list of what each firing writes names INDEX, INTAKE, MAINTAIN and SINCE but omits OWNER.md and the Improve walk and handoff that compile also writes.
+  evidence: ["routine/README.md:22", "views/compile.mjs:14"]
+  confidence: plausible
+
+# ── second-accounts (context for d-one-home-per-fact) ──
+- id: F-142
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The one rule has a single marked home in the README, the agent contract cites it there, and a harness check fails if its sentence appears in any other tracked file.
+  evidence: ["README.md:37", "CLAUDE.md:11", "tests/blocks/doc-consistency.mjs:145"]
+  confidence: confirmed
+- id: F-143
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The tier order is stored in the register's `tiers:` list but hardcoded again in the Owner view's code and restated in prose in three docs, with no guard tying the copies to the register.
+  evidence: ["yardstick/requirements.yaml:17", "views/owner.mjs:145", "views/README.md:110", "README.md:109"]
+  confidence: confirmed
+- id: F-144
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    How to pin assay is stated in three places that disagree: the consumer contract says pin a release tag, while the routine page and runbook say a full commit SHA, never a branch or a tag.
+  evidence: ["CONSUMERS.md:9", "routine/README.md:211", "RUNBOOK.md:19"]
+  confidence: confirmed
+- id: F-145
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Owner register (risk and fix) lives once, on each requirement row, and the Owner view is documented as only joining it to the measurement.
+  evidence: ["views/README.md:111", "yardstick/README.md:84"]
+  confidence: confirmed
+- id: F-146
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine page defers the packet format to owner/PACKET.md as its one home rather than restating it.
+  evidence: ["routine/README.md:121", "owner/PACKET.md:3"]
+  confidence: confirmed
+- id: F-147
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    A run's paths have one store in code: the consumer contract names lib/run-layout.mjs as the one module that places them, and it exports a function per path.
+  evidence: ["CONSUMERS.md:85", "lib/run-layout.mjs:48"]
+  confidence: confirmed
+- id: F-148
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The consumer-facing file list has one home, CONSUMERS.md's surface block, which the release-notes checker reads directly instead of keeping its own copy.
+  evidence: ["CONSUMERS.md:129", "lib/release-notes.mjs:25", "lib/release-notes.mjs:27"]
+  confidence: confirmed
+- id: F-149
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The floor's membership is kept only in the register and read through a command, and the consumer contract tells consumers never to name its rows by heart.
+  evidence: ["CONSUMERS.md:44", "yardstick/list.mjs:10"]
+  confidence: confirmed
+- id: F-150
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    What "offline" means is defined once in the scanner contract §3a, and the README's restatement cites that section as the home.
+  evidence: ["README.md:151", "map/scanners/CONTRACT.md:178"]
+  confidence: confirmed
+- id: F-151
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The child environment's variable list is restated in the scanner contract, the consumer contract and the README beside its code home, with no guard, and the README's copy has already drifted from the code (F-126).
+  evidence: ["map/child-env.mjs:10", "map/scanners/CONTRACT.md:185", "CONSUMERS.md:109", "README.md:93"]
+  confidence: confirmed

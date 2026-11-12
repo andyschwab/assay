@@ -1,0 +1,35 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/assay-2026-11-12c
+#
+# BLIND, the sweep that measures #298 at v0.11.0 (#300: Node subprocesses and workflow writes are
+# effect sites, self-matches are not, a channel is its triaged candidate, an absence is no census
+# member; with #295's check bars and #296's per-file effect sites): three practice-review lanes over
+# this repository at the SAME commit as every assay set since -11b (2b247c0), so only the method
+# changed. Each lane was a fresh child session seeded by `assay lane practice-review` at v0.11.0, all
+# passes claude-opus-5-5, the target read-only, given the run's map/raw/enumerate.json at v0.11.0:
+# 25 effect candidates (18 per-file effect sites, 13 of them Node process spawns and 5 workflow
+# writes, the 6 fixture routes and the migrate-run surface) where v0.9.0 listed 13 with 7
+# self-matches. What the record should know:
+# - No send-back: each lane's own check came clean within three runs (sweep-2 one missing
+#   precondition, sweep-3 a census-triage indentation), and every run validated on collection.
+# - No deviation recorded: every listing excluded the blind paths; 0 evidence lines dropped.
+# - Spend per session (practice-review row of each run record): USD 18.93, 19.35, 17.42.
+# Against assay-2026-11-12 read at the same engine (71%, 10 of 14): requirement agreement 13 of 14.
+# d-effects-traced, d-capability-budget and d-agent-consumable-surface now agree; d-effects-gated
+# still parts (met / unmet / met), on descriptor judgment over listed candidates, not on which
+# effects were seen: of 13 channels, 10 were shared and 4 of those identical on all six descriptors
+# (1 of 9 before), and the remaining divergences are mostly gate_type (scope-bound vs
+# initiated-by-person vs deterministic-halt on the same fresh-clone spawn). Fact presence fell to 11
+# of 84 (31% before): the lanes wrote more findings (218-288 per run), and the union grew most in
+# improvement-loop (23 to 37) and verification (3 to 17), where the lanes record different lessons
+# and probes; no requirement reads fact presence.
+target: "andyschwab/assay, this repository (public), at the commit below"
+target_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
+method_commit: "9da5005b7b0a6e8ff6c4035b6b5ff74e47e878d4"
+date: "2026-11-12"
+blind: true
+threshold:
+  fact_presence: 13          # measured 11 of 84 union facts caught by all three (13%)
+  descriptor_agreement: 40   # measured 4 of 10 shared effect channels identical on all six descriptors (40%)
+  requirement_agreement: 92  # measured 13 of 14 decided requirements identical in all three (93%, 92.9 floored)
+sweeps: [sweep-1, sweep-2, sweep-3]

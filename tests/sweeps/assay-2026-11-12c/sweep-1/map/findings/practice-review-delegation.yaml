@@ -1,0 +1,524 @@
+# Pass 5 — delegation surface (practice-review), assay at 2b247c014b1484d4e1b1512b49b32f708800d92c
+# Effects F-500..F-510, AI contexts F-511..F-512, credential census F-513..F-516,
+# ingested-content census F-517..F-528, ai-disclosure context F-529..F-532, discovery F-533..F-537.
+
+- id: F-500
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    migrate-run rewrites a stored run in place (renames files carrying a retired scanner id and
+    re-emits flow lists the strict reader refuses) only under --write, prints what would change
+    otherwise, refuses a rename that would land on an existing path and leaves any file whose
+    rewrite does not read back identical untouched, recording the outcome only on the console.
+  evidence: ["map/migrate-run.mjs:24", "map/migrate-run.mjs:44", "map/migrate-run.mjs:87", "map/migrate-run.mjs:92", "map/migrate-run.mjs:101", "map/migrate-run.mjs:131"]
+  confidence: confirmed
+  effect:
+    channel: run-migrate
+    reversibility: reversible
+    external: false
+    gate_type: staged-reversible
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: user
+
+- id: F-501
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    The routine template uploads the target job's handoff (1-day retention) and the whole run
+    directory, map/raw included, as workflow artifacts kept 90 days on every schedule, push and
+    pull request, so whoever can read the stewarded repository's Actions artifacts can read the
+    run's findings; ingest drops raw output tails before archiving, and the job holds only contents: read.
+  evidence: ["routine/assay-routine.yml:32", "routine/assay-routine.yml:33", "routine/assay-routine.yml:77", "routine/assay-routine.yml:82", "routine/assay-routine.yml:181", "routine/assay-routine.yml:184", "routine/assay-routine.yml:188", "map/ingest.mjs:67", "map/ingest.mjs:71"]
+  confidence: plausible
+  effect:
+    channel: routine-artifact-upload
+    reversibility: reversible-with-window
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-502
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    branch-cleanup deletes branches through the REST API unattended on every push to the default
+    branch (a hand-dispatched run is a dry run unless a person turns dry_run off), and only from a
+    separate job holding contents: write that re-reads each planned branch@sha, skips one that moved
+    or became protected, and refuses the whole delete if any entry is the default branch, a KEEP name
+    or carries no planned tip; each deletion is echoed to the Actions log.
+  evidence: [".github/workflows/branch-cleanup.yml:6", ".github/workflows/branch-cleanup.yml:58", ".github/workflows/branch-cleanup.yml:66", ".github/workflows/branch-cleanup.yml:108", ".github/workflows/branch-cleanup.yml:111", ".github/workflows/branch-cleanup.yml:123", ".github/workflows/branch-cleanup.yml:124", ".github/workflows/branch-cleanup.yml:130", ".github/workflows/branch-cleanup.yml:131", ".github/workflows/branch-cleanup.yml:132"]
+  confidence: confirmed
+  effect:
+    channel: branch-delete
+    reversibility: reversible-with-window
+    external: true
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: unstructured
+    blast_scope: tenant
+
+- id: F-503
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    tools install downloads each adopted adapter's pinned binary with curl, refuses and installs
+    nothing when its sha256 differs from the pin, and records the version and installed sha256 in
+    a stamp file beside the binaries, while a PyPI-sourced tool is pinned by version only and its
+    dependencies float.
+  evidence: ["map/tools.mjs:73", "map/tools.mjs:94", "map/tools.mjs:102", "map/tools.mjs:106", "map/tools.mjs:125", "map/tools.mjs:127", "map/tools.mjs:131", "map/tools.mjs:132", "map/tools.mjs:38"]
+  confidence: confirmed
+  effect:
+    channel: tools-install
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-504
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    tools-check runs weekly unattended with issues: write only, and opens one issue when a pinned
+    tool is behind or unreadable upstream, or comments on the open one only when its body changed,
+    from text composed deterministically out of the tools check rows.
+  evidence: [".github/workflows/tools-check.yml:9", ".github/workflows/tools-check.yml:17", ".github/workflows/tools-check.yml:26", ".github/workflows/tools-check.yml:32", ".github/workflows/tools-check.yml:33", ".github/workflows/tools-check.yml:35"]
+  confidence: confirmed
+  effect:
+    channel: tools-check-issue
+    reversibility: irreversible
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-505
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    A release is cut only by a person's workflow_dispatch on the default branch, after the job
+    refuses a malformed or existing version, runs the suite with the pinned tools and checks every
+    contract change's Consumer trailer, and only that job holds contents: write for gh release create.
+  evidence: [".github/workflows/release.yml:3", ".github/workflows/release.yml:11", ".github/workflows/release.yml:23", ".github/workflows/release.yml:24", ".github/workflows/release.yml:37", ".github/workflows/release.yml:38", ".github/workflows/release.yml:41", ".github/workflows/release.yml:43", ".github/workflows/release.yml:50"]
+  confidence: confirmed
+  effect:
+    channel: release-publish
+    reversibility: irreversible
+    external: true
+    gate_type: initiated-by-person
+    fail_mode: closed
+    telemetry: audited
+    blast_scope: tenant
+
+- id: F-506
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    fresh-clone runs the target's own install (lifecycle scripts included), build, lint, typecheck,
+    test and migrate in a shell under an allow-listed environment that drops tokens; assay start
+    holds it behind --allow-exec, but the fresh-clone command itself and the routine's target job
+    run it with no such flag, and the code states it is not a sandbox.
+  evidence: ["map/fresh-clone.mjs:78", "map/fresh-clone.mjs:81", "map/fresh-clone.mjs:82", "map/fresh-clone.mjs:310", "map/fresh-clone.mjs:681", "map/start.mjs:414", "map/start.mjs:488", "map/child-env.mjs:7", "map/child-env.mjs:35", "routine/assay-routine.yml:74"]
+  confidence: confirmed
+  effect:
+    channel: fresh-clone-exec
+    reversibility: irreversible
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-507
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    start runs each adopted adapter's pinned scanner binary over the target only after every pinned
+    tool answers at its pin and the adapter's planted positive control fired, with the allow-listed
+    child environment and a timeout, and writes the raw report and a row with status and duration
+    into the run.
+  evidence: ["map/start.mjs:209", "map/start.mjs:210", "map/start.mjs:248", "map/start.mjs:256", "map/start.mjs:270", "map/start.mjs:274", "map/start.mjs:471", "map/start.mjs:472"]
+  confidence: confirmed
+  effect:
+    channel: instrument-run
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-508
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    structure-scan installs jscpd and knip by version from the npm registry with --ignore-scripts
+    and no lockfile, then runs knip, which imports the target's own tool configuration files; knip is
+    skipped only when --no-exec is passed, which assay start sets without --allow-exec, so the
+    structure-scan command run directly executes the target's configs by default.
+  evidence: ["map/structure-scan.mjs:11", "map/structure-scan.mjs:22", "map/structure-scan.mjs:24", "map/structure-scan.mjs:103", "map/structure-scan.mjs:176", "map/structure-scan.mjs:414", "map/structure-scan.mjs:468", "map/start.mjs:489"]
+  confidence: confirmed
+  effect:
+    channel: structure-scan-exec
+    reversibility: irreversible
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-509
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    dependency-scan sends each lockfile's dependency graph to its package manager's registry audit
+    from a scratch copy holding only that lockfile and its package.json, under the allow-listed
+    environment, so the target's own registry configuration is never read, and an audit that fails
+    or cannot reach the registry is recorded failed, never clean.
+  evidence: ["map/dependency-scan.mjs:24", "map/dependency-scan.mjs:27", "map/dependency-scan.mjs:61", "map/dependency-scan.mjs:85", "map/dependency-scan.mjs:275", "map/dependency-scan.mjs:398"]
+  confidence: confirmed
+  effect:
+    channel: dependency-audit
+    reversibility: irreversible
+    external: true
+    gate_type: scope-bound
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: tenant
+
+- id: F-510
+  dimension: delegation
+  polarity: strength
+  subject_type: effect
+  observation: >
+    ingest writes a scanner's findings file and archives its raw report into the run, halting on an
+    exit outside the tool's success set or an incomplete peer report, and record edits only the one
+    scanner's row of the run record under a lock; neither is on enumerate's candidate list.
+  evidence: ["map/ingest.mjs:9", "map/ingest.mjs:25", "map/ingest.mjs:1251", "map/ingest.mjs:1254", "map/record.mjs:6", "map/record.mjs:8", "map/record.mjs:167"]
+  confidence: confirmed
+  effect:
+    channel: run-ingest
+    reversibility: reversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: closed
+    telemetry: structured-event
+    blast_scope: user
+
+- id: F-511
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  observation: >
+    The practice-review lane seeds a model session that reads the target repository (outside text,
+    possibly private), clones the engine over the network and publishes one Artifact page, and its
+    only bounds on that reach are prose hard rules in the seed, since the engine names no model or
+    operator and the consumer supplies the session's tools.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:11", "map/scanners/adapters/practice-review/lane.md:13", "map/scanners/adapters/practice-review/lane.md:19", "map/scanners/adapters/practice-review/lane.md:25", "map/lane.mjs:4", "map/lane.mjs:10", "map/lane.mjs:11"]
+  confidence: plausible
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+
+- id: F-512
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  observation: >
+    The deep-code-review lane seeds a model session that reads the target repository and the
+    instruments' raw reports, fetches the reviewer's method at a pinned commit it must verify, and
+    publishes one Artifact page, bounded only by the seed's prose hard rules.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:7", "map/scanners/adapters/deep-code-review/lane.md:11", "map/scanners/adapters/deep-code-review/lane.md:17", "map/scanners/adapters/deep-code-review/lane.md:23"]
+  confidence: plausible
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+
+- id: F-513
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    GH_TOKEN is the run's own github.token, set per job or per step, read by gh in three workflows:
+    branch-cleanup's plan job reads with contents/pull-requests read and its delete job alone holds
+    contents: write, release's tag step holds contents: write, and tools-check holds issues: write.
+  evidence: [".github/workflows/branch-cleanup.yml:59", ".github/workflows/branch-cleanup.yml:61", ".github/workflows/branch-cleanup.yml:111", ".github/workflows/branch-cleanup.yml:112", ".github/workflows/release.yml:24", ".github/workflows/release.yml:45", ".github/workflows/tools-check.yml:17", ".github/workflows/tools-check.yml:19"]
+  confidence: confirmed
+
+- id: F-514
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    GITHUB_TOKEN is read from the environment only by tools check, which sends it as a bearer header
+    on a GET of a pinned tool's latest GitHub release, and the child environment every instrument
+    and target step gets drops it.
+  evidence: ["map/tools.mjs:201", "map/tools.mjs:202", "map/tools.mjs:203", ".github/workflows/tools-check.yml:20", "map/child-env.mjs:7", "map/child-env.mjs:30"]
+  confidence: confirmed
+
+- id: F-515
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    FETCH_TOKEN is the job token set in one pull-request-only step's environment and passed to git
+    through GIT_CONFIG_* variables for a single fetch of the base branch, never written to
+    .git/config, in the routine job that never runs the change's code.
+  evidence: ["routine/assay-routine.yml:104", "routine/assay-routine.yml:106", "routine/assay-routine.yml:110", "routine/assay-routine.yml:114", "routine/assay-routine.yml:115", "routine/assay-routine.yml:95"]
+  confidence: confirmed
+
+- id: F-516
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    ASSAY_READ_TOKEN is a repository secret read only by the two engine checkout steps when a
+    steward uncomments it for a private engine fork, with persist-credentials off, and the runbook
+    scopes it to read access on that one repository and states its rotation.
+  evidence: ["routine/assay-routine.yml:64", "routine/assay-routine.yml:65", "routine/assay-routine.yml:123", "routine/assay-routine.yml:124", "RUNBOOK.md:61", "RUNBOOK.md:63", "RUNBOOK.md:66"]
+  confidence: confirmed
+
+- id: F-517
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    enumerate reads the target tree with fs and path alone and emits its populations as JSON, so
+    the target's text enters the run as listed data and nothing of the target is executed.
+  evidence: ["map/enumerate.mjs:12", "map/enumerate.mjs:27", "map/start.mjs:18", "map/start.mjs:19"]
+  confidence: confirmed
+
+- id: F-518
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The target's install and test scripts and its tool configuration files are not kept as data:
+    fresh-clone runs them and knip imports them, by design and behind --allow-exec only when assay
+    start drives them.
+  evidence: ["map/fresh-clone.mjs:78", "map/fresh-clone.mjs:79", "map/structure-scan.mjs:21", "map/structure-scan.mjs:23", "map/start.mjs:414"]
+  confidence: confirmed
+
+- id: F-519
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    fresh-clone reads the target README's command lines as claims and checks only whether each
+    named script, binary, file or make target exists, never executing a README command beyond the
+    declared steps.
+  evidence: ["map/fresh-clone.mjs:22", "map/fresh-clone.mjs:25", "map/fresh-clone.mjs:26"]
+  confidence: confirmed
+
+- id: F-520
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    repo-census reads the target's owner-evidence transcripts and checks only their frontmatter
+    shape, freshness and that the named commit resolves, refusing an email-shaped author, and the
+    format states an agent never writes a transcript.
+  evidence: ["map/repo-census.mjs:48", "map/repo-census.mjs:53", "map/repo-census.mjs:956", "owner/evidence/README.md:39", "owner/evidence/README.md:40"]
+  confidence: confirmed
+
+- id: F-521
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    ingest converts an instrument's native output into rows from rule id and location only, never
+    copying a matched secret, halts on a crash exit or malformed input, and drops output tails
+    before archiving, and the Markdown views render that text through mdText, which escapes every
+    character that could open a link, tag or code span.
+  evidence: ["map/ingest.mjs:9", "map/ingest.mjs:15", "map/ingest.mjs:16", "map/ingest.mjs:67", "map/ingest.mjs:71", "lib/display.mjs:66", "lib/display.mjs:70"]
+  confidence: confirmed
+
+- id: F-522
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    A review session's machine report comes in through ingest by the format its adapter names and
+    halts unless its coverage map carries a row for every domain, and when its observations and
+    fixes are handed to an AI coding session the handoff fences them under a per-run hash tag
+    labelled data from the scanned repo to quote, not execute.
+  evidence: ["map/ingest.mjs:23", "map/ingest.mjs:25", "views/improve/handoff.mjs:149", "views/improve/handoff.mjs:153", "views/improve/handoff.mjs:155", "views/improve/handoff.mjs:161", "views/improve/handoff.mjs:163"]
+  confidence: confirmed
+
+- id: F-523
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The practice-review lane's published files are collected and checked by validate --lane against
+    the target tree, through a reader that fails closed on any input it cannot parse.
+  evidence: ["map/validate.mjs:3", "map/validate.mjs:4", "map/validate.mjs:8", "map/validate.mjs:9"]
+  confidence: confirmed
+
+- id: F-524
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The routine's gate job reads the target job's handoff as data: each report is ingested and
+    validated like any other, a missing or unreadable one records the instrument failed, and only
+    the shape of the handed-forward duration is trusted.
+  evidence: ["map/start.mjs:371", "map/start.mjs:372", "map/start.mjs:392", "map/start.mjs:403", "routine/assay-routine.yml:144"]
+  confidence: confirmed
+
+- id: F-525
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    since reads a previous run only through the strict reader, refuses one drawn by an earlier
+    engine with the command that brings it forward, and renders its observations through mdText.
+  evidence: ["views/since.mjs:227", "views/since.mjs:228", "views/since.mjs:230", "views/since.mjs:231", "views/since.mjs:186"]
+  confidence: confirmed
+
+- id: F-526
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    A repository's packet manifest, written by its owner, is loaded defensively as data, never
+    instructions, and validated strictly, so a YAML the parser cannot read is one error.
+  evidence: ["yardstick/packet.mjs:6", "yardstick/packet.mjs:8", "yardstick/packet.mjs:305", "yardstick/packet.mjs:309"]
+  confidence: confirmed
+
+- id: F-527
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    ask-owner's --found file is inserted verbatim into the owner prompt only after it is swept for
+    secret and email shapes and refused for a template marker of its own.
+  evidence: ["owner/ask-owner.mjs:30", "owner/ask-owner.mjs:33", "owner/ask-owner.mjs:167", "owner/ask-owner.mjs:168", "owner/ask-owner.mjs:170"]
+  confidence: confirmed
+
+- id: F-528
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    tools check reads upstream release metadata (a GitHub release or PyPI JSON) and keeps only its
+    version string, compared for equality with the pin, which the tools-check workflow places in an
+    issue body passed to gh as a quoted argument.
+  evidence: ["map/tools.mjs:205", "map/tools.mjs:206", "map/tools.mjs:216", ".github/workflows/tools-check.yml:28", ".github/workflows/tools-check.yml:31", ".github/workflows/tools-check.yml:33"]
+  confidence: confirmed
+
+- id: F-529
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The compiled report's colophon names the model of record for every judgment scanner that ran,
+    per pass where recorded, and says no model recorded when none was.
+  evidence: ["views/improve/report.mjs:329", "views/improve/report.mjs:330", "views/improve/report.mjs:337", "map/project.mjs:203", "map/project.mjs:205"]
+  confidence: confirmed
+
+- id: F-530
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The remediation handoff labels each remedy by voice, naming eval-authored remedies as the
+    evaluating agent's proposal and judgment, apart from scanner-verbatim fixes and triage buckets.
+  evidence: ["views/improve/handoff.mjs:201", "views/improve/handoff.mjs:257", "views/improve/handoff.mjs:272", "views/improve/handoff.mjs:273"]
+  confidence: confirmed
+
+- id: F-531
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    OWNER.md, the page written for a non-engineer owner, quotes strength observations a judgment
+    scanner drafted under "Seen in place" and closes with only "assay evaluation engine", naming
+    no model involvement.
+  evidence: ["views/owner.mjs:11", "views/owner.mjs:69", "views/owner.mjs:134", "views/owner.mjs:223"]
+  confidence: confirmed
+
+- id: F-532
+  dimension: delegation
+  polarity: fact
+  subject_type: control
+  observation: >
+    SINCE.md lists new and no-longer-found findings with their observation text and the scanner id
+    as the only attribution of who drafted them.
+  evidence: ["views/since.mjs:186", "views/since.mjs:193"]
+  confidence: confirmed
+
+- id: F-533
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  property: acting-principal-stated
+  observation: >
+    Each workflow that writes states its acting token and grants write scope per job: the default is
+    contents: read and only the job that deletes, tags or files an issue holds the one write scope it uses.
+  evidence: [".github/workflows/branch-cleanup.yml:50", ".github/workflows/branch-cleanup.yml:111", ".github/workflows/release.yml:17", ".github/workflows/release.yml:24", ".github/workflows/tools-check.yml:11", ".github/workflows/tools-check.yml:17", "routine/assay-routine.yml:33"]
+  confidence: confirmed
+
+- id: F-534
+  dimension: delegation
+  polarity: fact
+  subject_type: control
+  property: acting-principal-stated
+  observation: >
+    The lane seeds name no model or operator and leave the session's identity and authorization
+    block to the consumer that seeds it, so whom a review session acts as is not stated in this repository.
+  evidence: ["map/lane.mjs:10", "map/lane.mjs:11"]
+  confidence: confirmed
+
+- id: F-535
+  dimension: delegation
+  polarity: strength
+  subject_type: process
+  property: scope-promotion-path
+  observation: >
+    Capability graduates through named, explicit steps: start promotes a run from reading the target
+    to executing it only under --allow-exec, a hand-run branch-cleanup deletes only when a person turns
+    dry_run off, and a run's result becomes the gate's baseline only when a named steward commits it.
+  evidence: ["map/start.mjs:414", "map/start.mjs:488", ".github/workflows/branch-cleanup.yml:6", ".github/workflows/branch-cleanup.yml:7", "routine/README.md:169", "routine/README.md:173"]
+  confidence: confirmed
+
+- id: F-536
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  property: policy-reads-provenance
+  observation: >
+    The routine's gate reasons over provenance: on a pull request it reads the baseline and packet
+    from the base ref, never the change's tree, and runs in a job that never executed the change,
+    while the handoff labels every remedy by origin and fences scanner text as data.
+  evidence: ["routine/run.mjs:38", "routine/run.mjs:40", "routine/run.mjs:49", "routine/assay-routine.yml:40", "routine/assay-routine.yml:45", "routine/assay-routine.yml:98", "views/improve/handoff.mjs:149"]
+  confidence: confirmed
+
+- id: F-537
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  property: control-matches-modality
+  observation: >
+    Controls follow modality: the automated instruments get output checks (an exit outside the
+    success set halts, a positive control must fire), and the agentic review lanes get a behavioural
+    spec (execute nothing, publish one page) plus a deterministic check of what they publish.
+  evidence: ["map/ingest.mjs:9", "map/start.mjs:256", "map/scanners/adapters/practice-review/lane.md:13", "map/validate.mjs:3"]
+  confidence: confirmed

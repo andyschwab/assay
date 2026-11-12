@@ -1,0 +1,185 @@
+- id: F-400
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    The practice-review rubric (map/METHOD.md) is hardened by measurement: a committed blind
+    sweep set over this repository is measured for fact presence, descriptor agreement and
+    requirement agreement, every committed set is gated at its own SWEEP.yaml threshold on
+    every npm test, and each descriptor divergence is classed by direction (one-way, consistent
+    with target change, or both ways, judgment drift).
+  evidence: ["map/METHOD.md:421", "map/METHOD.md:423", "map/variance.mjs:53", "map/variance.mjs:56", "map/variance.mjs:58", "tests/blocks/sweep-gate.mjs:22", "tests/blocks/sweep-gate.mjs:24", "README.md:232"]
+  confidence: confirmed
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    A sweep set records the method commit it was drawn at and the method says to re-run the
+    set when METHOD.md or SCHEMA.md changes what a pass records, but the loader only requires
+    method_commit to be a non-empty string and no check found compares it with later changes
+    to the rubric, so the re-run rests on a person remembering.
+  evidence: ["map/METHOD.md:783", "map/METHOD.md:784", "map/variance.mjs:286"]
+  confidence: plausible
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The deep-code-review lane relies on an external reviewer method pinned at one commit, and
+    its committed fixture runs are stated to be not blind, proving the ingest, projection and
+    scoring pipeline rather than the reviewer's blind recall, with no blind repeated-run
+    measurement of that rubric named in the tree's docs.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:17", "tests/fixtures/README.md:51", "tests/fixtures/README.md:55", "tests/fixtures/README.md:56"]
+  confidence: plausible
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The pull request template carries a "How this is verified" section asking for concrete
+    evidence, but the only workflow that runs on a pull request runs lint, typecheck, build,
+    the tools action and npm test, and no check in the tree reads the pull request body, so
+    an empty or placeholder verification section is not refused.
+  evidence: [".github/PULL_REQUEST_TEMPLATE.md:5", ".github/PULL_REQUEST_TEMPLATE.md:7", ".github/workflows/ci.yml:11", ".github/workflows/ci.yml:30", ".github/workflows/ci.yml:39", "CONTRIBUTING.md:14"]
+  confidence: confirmed
+- id: F-404
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The "red, then green" rule says the pull request body and the commit message that land an
+    assertion state it was confirmed red with its rule reverted, and that record is
+    deliberately kept only there, but nothing reads either for that statement.
+  evidence: ["CLAUDE.md:60", "CLAUDE.md:62", "CLAUDE.md:64", "tests/blocks/no-history-file.mjs:3", "CONTRIBUTING.md:6"]
+  confidence: confirmed
+- id: F-405
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    The one check that reads commit messages is the Consumer trailer rule: it exits 1 naming
+    each commit since the last tag that touches the consumer surface with no Consumer trailer,
+    runs on every change through the consumer-contract block and again before a release tags,
+    and asks what a consumer must change, not how the change was verified.
+  evidence: ["lib/release-notes.mjs:103", "lib/release-notes.mjs:107", "lib/release-notes.mjs:110", "tests/blocks/consumer-contract.mjs:126", "tests/blocks/consumer-contract.mjs:127", ".github/workflows/release.yml:43"]
+  confidence: confirmed
+- id: F-406
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The practice-review lane, whose findings a model session produces, is checked in CI only
+    through frozen runs: the fixture runs' recall and false positives are pinned in
+    tests/golden.json and re-derived every npm test, but those runs were authored beside their
+    answers and no CI job calls a model with fixed inputs to score a fresh answer.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:21", "tests/golden.json:11", "tests/golden.json:12", "tests/golden.json:17", "tests/fixtures/README.md:63", "tests/fixtures/README.md:64", "tests/fixtures/README.md:65"]
+  confidence: confirmed
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The deep-code-review lane's answer, a model-written machine report, is represented in CI by
+    a real report frozen into two fixture runs and ingested, which pins the adapter mapping and
+    the pipeline but no eval of the reviewer's answer quality on fresh input.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:13", "map/scanners/adapters/deep-code-review/lane.md:21", "tests/fixtures/README.md:51", "tests/fixtures/README.md:54", "tests/fixtures/README.md:56"]
+  confidence: confirmed
+- id: F-408
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A change shows its effect as a computed diff: the harness compares every pinned score in
+    tests/golden.json to the recomputed one and names each drifted path with its old and new
+    value, and a deliberate move is a reviewed --bless whose git diff shows every moved number.
+  evidence: ["tests/harness.mjs:143", "tests/harness.mjs:148", "tests/harness.mjs:159", "tests/README.md:3", "tests/README.md:4", "RUNBOOK.md:26", "RUNBOOK.md:27", "RUNBOOK.md:28"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-409
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    A new invariant is demonstrable as one added file: the runner discovers each block under
+    tests/blocks/ and composes the gate's last line from the labels of the blocks that ran, so
+    the change shows itself on the gate line without editing the runner.
+  evidence: ["tests/README.md:20", "tests/README.md:21", "tests/README.md:25", "tests/README.md:26"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-410
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A scanner's "ran" record is not trusted on its own: record.mjs writes the disposition
+    without checking rows, and validate refuses a scanner recorded ran whose rows and findings
+    file are absent, requiring an explicit empty file for a verified-clean run.
+  evidence: ["map/record.mjs:32", "map/record.mjs:33", "map/validate.mjs:308", "map/validate.mjs:309"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-411
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Installing a pinned tool is confirmed, not reported: each download is checked against its
+    pinned sha256 before anything is installed, and the tools action then asks every tool for
+    its version and accepts it only when it exits 0 and prints the pin.
+  evidence: ["map/tools.mjs:126", "map/tools.mjs:127", "map/tools.mjs:147", "map/tools.mjs:156", "map/tools.mjs:157", ".github/actions/tools/action.yml:29", ".github/actions/tools/action.yml:30"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-412
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    An instrument with a positive control reads zero hits as clean only beside a control that
+    fired: the planted cases run first and, when any planted hit is missing, the instrument is
+    recorded failed and the target is not run.
+  evidence: ["map/start.mjs:256", "map/start.mjs:258", "map/start.mjs:259", "map/start.mjs:262"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-413
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A collected review lane recorded ran is checked against the files its lane declares it
+    publishes, and validate --lane refuses the run when any of them is missing from the run.
+  evidence: ["map/validate.mjs:98", "map/validate.mjs:328", "map/validate.mjs:329", "map/validate.mjs:330"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-414
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The routine's finish() is documented as always leaving routine.yaml as the run's record,
+    but a failed write of that record is caught, logged as a warning and the routine returns
+    the same ok and exit code, so a run can exit green with no record of what it did.
+  evidence: ["routine/run.mjs:190", "routine/run.mjs:191", "routine/run.mjs:199", "routine/run.mjs:200", "routine/run.mjs:201"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-415
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Every run's citations are checked mechanically however plausible they read: with --target,
+    validate fails closed on a cited path missing from the target and on a cited line past the
+    end of its file, and the routine always validates with --target.
+  evidence: ["map/validate.mjs:86", "map/validate.mjs:89", "map/validate.mjs:376", "map/validate.mjs:380", "routine/run.mjs:239"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-416
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The citation check stops at existence and range: validate states it cannot check that a
+    cited line says what the observation claims, so whether a fluent finding is true of its
+    evidence is left to review.
+  evidence: ["map/validate.mjs:360", "map/validate.mjs:361", "map/validate.mjs:362", "map/validate.mjs:363"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency

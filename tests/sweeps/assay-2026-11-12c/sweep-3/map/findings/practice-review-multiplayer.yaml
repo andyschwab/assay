@@ -1,0 +1,534 @@
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `start` command is reachable by an agent through a doc page outside the code that gives its usage, flags, the file it writes (map/raw/enumerate.json) and its exit 3 when tools are not ready."
+  evidence: ["CONSUMERS.md:20", "assay.mjs:20"]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `validate` command is reachable by an agent through a doc page outside the code that gives its usage with --target and --lane and its fail-closed exit."
+  evidence: ["CONSUMERS.md:25", "assay.mjs:21"]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `ingest` command is reachable by an agent through a doc page outside the code that gives its usage (--tool, --raw, --exit, --target, --model) and that it flips the scanner to ran in the run record."
+  evidence: ["CONSUMERS.md:23", "assay.mjs:22"]
+  confidence: confirmed
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `record` command is reachable by an agent through a doc page outside the code that gives its usage (status, --reason, --model, --pass), with the --head/--reviewed form stated in the scanner contract rather than in the consumer row."
+  evidence: ["CONSUMERS.md:24", "map/scanners/CONTRACT.md:938", "assay.mjs:23"]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `lane` command is reachable by an agent through a doc page outside the code that gives the seed usage and the --list --json shape { lanes: [{ scanner, lane, outputs, inputs, passes }] } an orchestrating agent reads."
+  evidence: ["CONSUMERS.md:21", "CONSUMERS.md:22", "assay.mjs:24"]
+  confidence: confirmed
+- id: F-706
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `tools` command is reachable by an agent through a doc page outside the code that gives install and verify usage with --dir, --run and --only, and verify exit 0 only at every pin."
+  evidence: ["CONSUMERS.md:18", "CONSUMERS.md:19", "assay.mjs:25"]
+  confidence: confirmed
+- id: F-707
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `migrate-run` command is reachable by an agent through a doc page outside the code that gives its usage with --write."
+  evidence: ["CONSUMERS.md:34", "assay.mjs:26"]
+  confidence: confirmed
+- id: F-708
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `enumerate` command is reachable by an agent through a doc page outside the code that gives its usage `enumerate <target> --json` and the populations file it feeds (SCHEMA section 6e), though CONSUMERS.md does not list it."
+  evidence: ["map/METHOD.md:82", "map/SCHEMA.md:865", "assay.mjs:27"]
+  confidence: confirmed
+- id: F-709
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `project` command is reachable by an agent through a doc page outside the code that gives its usage and the --json shape { run, axes, unmapped, needs_axis, chains }."
+  evidence: ["CONSUMERS.md:26", "assay.mjs:28"]
+  confidence: confirmed
+- id: F-710
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `toolchain` command is reachable by an agent through a doc page outside the code that gives its usage and the --json shape { toolchain: { family, manifest, package_manager, ... } } with the closed family list."
+  evidence: ["CONSUMERS.md:27", "assay.mjs:29"]
+  confidence: confirmed
+- id: F-711
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `fresh-clone` command is reachable by an agent through a doc page outside the code that gives its usage (--out, --timeout, --no-clone, --app), in the scanner contract rather than CONSUMERS.md."
+  evidence: ["map/scanners/CONTRACT.md:363", "assay.mjs:30"]
+  confidence: confirmed
+- id: F-712
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `dependency-scan` command is reachable by an agent through a doc page outside the code that gives its usage (--out, --timeout), in the scanner contract rather than CONSUMERS.md."
+  evidence: ["map/scanners/CONTRACT.md:444", "assay.mjs:31"]
+  confidence: confirmed
+- id: F-713
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `structure-scan` command is reachable by an agent through a doc page outside the code that gives its usage (--out, --timeout, --no-exec), in the scanner contract rather than CONSUMERS.md."
+  evidence: ["map/scanners/CONTRACT.md:766", "assay.mjs:32"]
+  confidence: confirmed
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `repo-census` command is reachable by an agent through a doc page outside the code that gives its usage (--out, --default-branch, --as-of, --evidence-max-age, --packet), in the scanner contract rather than CONSUMERS.md."
+  evidence: ["map/scanners/CONTRACT.md:635", "assay.mjs:33"]
+  confidence: confirmed
+- id: F-715
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `variance` command is reachable by an agent through a doc page outside the code that gives its usage and the --json shape { pct, union, core, byDimension, byModelPair, descriptors, requirements }."
+  evidence: ["CONSUMERS.md:32", "assay.mjs:34"]
+  confidence: confirmed
+- id: F-716
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `score` command is reachable by an agent through a doc page outside the code that gives its usage `score <run> --answers <target>/ANSWERS.yaml`, though CONSUMERS.md does not list it."
+  evidence: ["CLAUDE.md:48", "map/METHOD.md:774", "assay.mjs:35"]
+  confidence: confirmed
+- id: F-717
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `backlog` command is reachable by an agent through a doc page outside the code that gives its usage (--target, --prior, --write) and the fields of the map/backlog.yaml it writes."
+  evidence: ["map/SCHEMA.md:498", "map/METHOD.md:801", "assay.mjs:36"]
+  confidence: confirmed
+- id: F-718
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `roster` command is reachable by an agent through a doc page outside the code that gives its usage `roster <run>...` over several runs, though CONSUMERS.md does not list it."
+  evidence: ["map/scanners/INTAKE.md:46", "assay.mjs:37"]
+  confidence: confirmed
+- id: F-719
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `yardstick` command is reachable by an agent through a doc page outside the code that gives its usage and the --floor --json shape { floor, requirements: [{ id, title, tier, topic, tags, harm }] }."
+  evidence: ["CONSUMERS.md:35", "CONSUMERS.md:48", "assay.mjs:40"]
+  confidence: confirmed
+- id: F-720
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `measure` command is reachable by an agent through a doc page outside the code that gives its usage with --write and --packet, though CONSUMERS.md does not list it."
+  evidence: ["yardstick/README.md:263", "yardstick/README.md:265", "assay.mjs:41"]
+  confidence: confirmed
+- id: F-721
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `compare` command is reachable by an agent through a doc page outside the code that gives its usage, the --json shape { previousVersion, currentVersion, versionChanged, rows } with the closed classification list, and its exit codes."
+  evidence: ["CONSUMERS.md:30", "assay.mjs:42"]
+  confidence: confirmed
+- id: F-722
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `ratchet` command is reachable by an agent through a doc page outside the code that gives its two baseline forms (--baseline, --baseline-ref --repo) and its non-zero exit on a regression."
+  evidence: ["CONSUMERS.md:29", "yardstick/README.md:354", "assay.mjs:43"]
+  confidence: confirmed
+- id: F-723
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `validate-packet` command is reachable by an agent through a doc page outside the code that gives its usage `validate-packet <manifest.yaml | packet-dir>` and its one-line-per-violation output, though CONSUMERS.md does not list it."
+  evidence: ["owner/PACKET.md:24", "assay.mjs:44"]
+  confidence: confirmed
+- id: F-724
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `ask-owner` command is reachable by an agent through a doc page outside the code that gives its usage `ask-owner --run <run>` and what it fills, though CONSUMERS.md does not list it."
+  evidence: ["owner/ask-owner.md:6", "README.md:135", "assay.mjs:45"]
+  confidence: confirmed
+- id: F-725
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `routine` command is reachable by an agent through a doc page outside the code that gives its usage, the routine.yaml gate values it writes, and its exit codes 0, 1 and 3."
+  evidence: ["CONSUMERS.md:33", "assay.mjs:48"]
+  confidence: confirmed
+- id: F-726
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `compile` command is reachable by an agent through a doc page outside the code that gives its usage with --target, --since and --packet."
+  evidence: ["CONSUMERS.md:28", "views/README.md:11", "assay.mjs:51"]
+  confidence: confirmed
+- id: F-727
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `since` command is reachable by an agent through a doc page outside the code that gives its usage `since <run> --previous <prev-run>` and the files it writes, though CONSUMERS.md does not list it."
+  evidence: ["yardstick/README.md:338", "views/README.md:175", "assay.mjs:55"]
+  confidence: confirmed
+- id: F-728
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The `maturity` command is reachable by an agent through a doc page outside the code that gives its usage with --write and the shape of the maturity-grades.yaml it writes."
+  evidence: ["CONSUMERS.md:31", "assay.mjs:56"]
+  confidence: confirmed
+- id: F-729
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: "The `intake` command's usage (`intake <run-dir> [--stdout]`) is stated only in its script's own comment and usage line; no doc page gives it, though its output file's fields are documented in views/README.md."
+  evidence: ["assay.mjs:52", "views/intake.mjs:15"]
+  confidence: confirmed
+- id: F-730
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: "The `maintain` command's usage (`maintain <run-dir> [--stdout]`) is stated only in its script's own comment and usage line; no doc page gives it, though its output file's fields are documented in views/README.md."
+  evidence: ["assay.mjs:53", "views/maintain.mjs:15"]
+  confidence: confirmed
+- id: F-731
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: "The `owner` command's usage (`owner <run-dir> [--stdout]`) is stated only in its script's own comment and usage line; no doc page gives it, though its output file's fields are documented in views/README.md."
+  evidence: ["assay.mjs:54", "views/owner.mjs:22"]
+  confidence: confirmed
+- id: F-732
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The run record `map/scanners.yaml` has its fields stated outside the code (SCHEMA section 5a, scanner contract 4a) and is on the consumer contract's run layout."
+  evidence: ["map/SCHEMA.md:359", "map/scanners/CONTRACT.md:953", "CONSUMERS.md:90"]
+  confidence: confirmed
+- id: F-733
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The findings files `map/findings/<scanner>.yaml` have their fields stated outside the code in SCHEMA section 1 and are on the consumer contract's run layout."
+  evidence: ["map/SCHEMA.md:22", "CONSUMERS.md:91"]
+  confidence: confirmed
+- id: F-734
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The enumeration `map/raw/enumerate.json` is stated outside the code (SCHEMA section 6e: its populations, each member with evidence and note) and is on the consumer contract as the practice-review lane's input."
+  evidence: ["map/SCHEMA.md:862", "CONSUMERS.md:92"]
+  confidence: confirmed
+- id: F-735
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The effect triage `map/effect-triage.yaml` is stated outside the code (SCHEMA section 6e) and is on the consumer contract's run layout."
+  evidence: ["map/SCHEMA.md:862", "CONSUMERS.md:93"]
+  confidence: confirmed
+- id: F-736
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The authored census file `map/censuses.yaml` has its fields (dimensions, depth, sampled with members, method, context) stated outside the code in SCHEMA section 6b."
+  evidence: ["map/SCHEMA.md:566"]
+  confidence: confirmed
+- id: F-737
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The measurement `yardstick.yaml` has its shape stated outside the code ({ version, requirements: [{ id, status, basis, findings, note }] }) and is on the consumer contract's run layout."
+  evidence: ["yardstick/README.md:311", "CONSUMERS.md:94"]
+  confidence: confirmed
+- id: F-738
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/intake.yaml` has its fields stated in views/README.md as a YAML schema block, the contract a publisher builds on."
+  evidence: ["views/README.md:35", "CONSUMERS.md:95"]
+  confidence: confirmed
+- id: F-739
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/maintain.yaml` has its shape stated in views/README.md (Intake's shape plus `view: maintain` and `floor:` on every row)."
+  evidence: ["views/README.md:96", "CONSUMERS.md:95"]
+  confidence: confirmed
+- id: F-740
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/owner.yaml` has its fields stated in views/README.md as a YAML schema block."
+  evidence: ["views/README.md:116", "CONSUMERS.md:95"]
+  confidence: confirmed
+- id: F-741
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/improve.yaml` has its shape stated in views/README.md (`topics: [{ topic, met, unmet, mixed, not_measured, not_applicable, rows }]`)."
+  evidence: ["views/README.md:163"]
+  confidence: confirmed
+- id: F-742
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/since.yaml` has its fields stated in views/README.md as a YAML schema block."
+  evidence: ["views/README.md:201", "CONSUMERS.md:95"]
+  confidence: confirmed
+- id: F-743
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/improve/chains.json` has a versioned schema id (`assay.chains/1`) and its fields stated in views/README.md, and is checked before it is written."
+  evidence: ["views/README.md:169", "CONSUMERS.md:96"]
+  confidence: confirmed
+- id: F-744
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`handoff/sequence.json` has a versioned schema id (`assay.handoff-sequence/1`) and its fields stated in views/README.md, described as the sequence 'for an agent that iterates the work'."
+  evidence: ["views/README.md:168", "CONSUMERS.md:96"]
+  confidence: confirmed
+- id: F-745
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/improve/report.json` has a versioned schema id (`assay.improve-report/1`) and its fields stated in views/README.md, so a renderer reads it and imports nothing."
+  evidence: ["views/README.md:170", "CONSUMERS.md:97"]
+  confidence: confirmed
+- id: F-746
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/improve/maturity-grades.yaml` has its shape stated on the consumer contract and is listed in views/README.md."
+  evidence: ["CONSUMERS.md:31", "views/README.md:165"]
+  confidence: confirmed
+- id: F-747
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`views/improve/security-gate.yaml` has its fields stated outside the code in SCHEMA section 6a."
+  evidence: ["map/SCHEMA.md:529"]
+  confidence: confirmed
+- id: F-748
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The authored `views/improve/prose.yaml` that the report and handoff read has its format stated outside the code in SCHEMA section 6c."
+  evidence: ["map/SCHEMA.md:679"]
+  confidence: confirmed
+- id: F-749
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`map/backlog.yaml` has its fields (counts per class, OB-C items with observation, evidence, mechanism) stated outside the code in SCHEMA."
+  evidence: ["map/SCHEMA.md:498"]
+  confidence: confirmed
+- id: F-750
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "`routine.yaml` has its fields stated in routine/README.md as a YAML schema block, written so a fleet collector reading only the artifact knows the outcome."
+  evidence: ["routine/README.md:49", "routine/README.md:41", "CONSUMERS.md:99"]
+  confidence: confirmed
+- id: F-751
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The person-facing pages (INDEX.md, INTAKE.md, MAINTAIN.md, IMPROVE.md, OWNER.md, SINCE.md) act through nothing and each renders a data file whose schema is stated, so nothing on a page is reachable only through the page."
+  evidence: ["CONSUMERS.md:98", "views/README.md:23"]
+  confidence: confirmed
+- id: F-752
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The remediation handoff pages (`handoff/` START-HERE.md, REMEDIATION.md, plan/) carry their sequence as data in `handoff/sequence.json`, a member whose schema is stated, so an agent need not parse the pages."
+  evidence: ["views/README.md:167", "views/README.md:168"]
+  confidence: confirmed
+- id: F-753
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The requirement register `yardstick/requirements.yaml`, which consumers and the views read, has every field stated outside the code in yardstick/README.md's table of rows."
+  evidence: ["yardstick/README.md:70", "yardstick/README.md:74"]
+  confidence: confirmed
+- id: F-754
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The scanner adapter format (`map/scanners/adapters/<id>.yaml`), the port a new scanner plugs in through, is stated outside the code in the scanner contract section 3."
+  evidence: ["map/scanners/CONTRACT.md:91"]
+  confidence: confirmed
+- id: F-755
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The packet manifest (`packet/manifest.yaml`) has its format stated in owner/PACKET.md, its one home, and the owner prompt restates the exact block layout for the owner's AI to produce."
+  evidence: ["owner/PACKET.md:66", "owner/ask-owner.md:86"]
+  confidence: confirmed
+- id: F-756
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The owner-evidence transcript format (path, YAML frontmatter keys, body, freshness) is stated outside the code in owner/evidence/README.md."
+  evidence: ["owner/evidence/README.md:5", "owner/evidence/README.md:48"]
+  confidence: confirmed
+- id: F-757
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The ratchet baseline file (`packet/baseline.yaml`) has its format stated in yardstick/README.md, named as its one home."
+  evidence: ["yardstick/README.md:368", "yardstick/README.md:374"]
+  confidence: confirmed
+- id: F-758
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "A review lane's published page has a stated format: each output verbatim between `--- <path> (verbatim) ---` and `--- end <path> ---`, which a consumer collects and `validate --lane` checks whole."
+  evidence: ["map/scanners/CONTRACT.md:918", "map/scanners/CONTRACT.md:925"]
+  confidence: confirmed
+- id: F-759
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The module `lib/run-layout.mjs` is named on the consumer contract as importable, with the functions that place a run's paths."
+  evidence: ["CONSUMERS.md:108"]
+  confidence: confirmed
+- id: F-760
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The module `map/child-env.mjs` is named on the consumer contract as importable, with `childEnv(set)` and what environment it allows."
+  evidence: ["CONSUMERS.md:109"]
+  confidence: confirmed
+- id: F-761
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The tools composite action `.github/actions/tools` is stated on the consumer contract with its one input `dir` and what it installs, verifies and puts on PATH."
+  evidence: ["CONSUMERS.md:56", "CONSUMERS.md:60"]
+  confidence: confirmed
+- id: F-762
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The reusable branch-cleanup workflow is stated on the consumer contract with its trigger (`workflow_call`), its one input `dry_run` and the permissions the caller grants."
+  evidence: ["CONSUMERS.md:77"]
+  confidence: confirmed
+- id: F-763
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The routine workflow template `routine/assay-routine.yml` has its installation and the values a consumer sets (ASSAY_REPO, ASSAY_REF as a full SHA, the optional read token) stated in routine/README.md."
+  evidence: ["routine/README.md:206", "routine/README.md:210"]
+  confidence: confirmed
+- id: F-764
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: "assay keeps no shared service, database, queue or bucket: its only context store is a run directory on disk plus the packet a repository commits, so any sharing between people goes through files and the hosting repository, not through a shared scope that is itself a principal."
+  evidence: ["README.md:138", "README.md:139", "README.md:140"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-765
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "Every run path is placed by one module, `lib/run-layout.mjs`, which the consumer contract names as the one placement, so every consumer and lane reads one consolidated layout rather than a bespoke one per integration."
+  evidence: ["CONSUMERS.md:85", "README.md:140"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-766
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: "The packet is a shared store governed by commit: it lives in the repository itself once taken on and is read the same way from either place, and the ratchet baseline is committed by a named steward who reviews it, never by the command."
+  evidence: ["owner/PACKET.md:7", "owner/PACKET.md:9", "yardstick/README.md:369", "yardstick/README.md:370"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-767
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "The views' core names no operator: a view field that exists for one operator's tooling must name that consumer in its own text and be phrased for any operator, keeping one shared data contract instead of per-integration forks."
+  evidence: ["views/README.md:24", "views/README.md:25", "views/README.md:26"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-768
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: "A review lane names no model and no operator; the consumer adds the model and any authorization its session opens with, so the shared seed carries no one party's identity or permissions."
+  evidence: ["map/scanners/CONTRACT.md:931"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-769
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: "Sharing from the owner is a conscious act: the owner pastes the prompt into their own AI and copies one block back, the prompt tells them where the block goes and who reads it (the team's intake page), and it forbids secrets, names, usernames and emails in the block."
+  evidence: ["owner/ask-owner.md:13", "owner/ask-owner.md:16", "owner/ask-owner.md:25", "owner/ask-owner.md:88"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-770
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: "The routine's automatic upload of each run as a workflow artifact discloses its readers by structure (anyone who can read the repository's workflow runs, on a public repository anyone, for retention-days) and states what ingest strips because the upload does not filter."
+  evidence: ["routine/README.md:29", "routine/README.md:30", "routine/README.md:31", "routine/README.md:32"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-771
+  dimension: multiplayer
+  polarity: fact
+  subject_type: process
+  observation: "Once the routine is installed, every firing uploads the whole run directory unfiltered with a 90-day retention, so sharing of each run is a standing consequence of installing the template, not a per-run act."
+  evidence: ["routine/assay-routine.yml:186", "routine/assay-routine.yml:188", "routine/README.md:31"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-772
+  dimension: multiplayer
+  polarity: fact
+  subject_type: contract
+  observation: "The consumer contract names 16 of the 31 commands; the other 15 (enumerate, the four standalone instruments, score, backlog, roster, measure, validate-packet, ask-owner, intake, maintain, owner, since) are documented elsewhere or not at all and are declared internal, changeable in any commit without notice."
+  evidence: ["CONSUMERS.md:4", "CONSUMERS.md:5", "assay.mjs:18"]
+  confidence: confirmed
+- id: F-773
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: "The consumer contract is held both ways: a test checks every command it names is one help lists and its surface files exist, and a commit touching the surface must carry a `Consumer:` trailer that heads the release notes."
+  evidence: ["CONSUMERS.md:119", "CONSUMERS.md:120", "tests/blocks/consumer-contract.mjs:8", "tests/blocks/consumer-contract.mjs:12"]
+  confidence: confirmed
+- id: F-774
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: "Three human roles are named once and each reads its own view: the operator reads Intake and Maintain, the maintainer reads Improve, and the owner reads Owner, all computed from one measurement so they never disagree."
+  evidence: ["README.md:24", "README.md:29", "README.md:30", "README.md:17"]
+  confidence: confirmed
+- id: F-775
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: "Contributions route through a shared tracker with public evidence only, a pull request template asking for verification evidence, and security reports through a private address rather than an issue."
+  evidence: ["CONTRIBUTING.md:12", "CONTRIBUTING.md:14", "CONTRIBUTING.md:16", ".github/PULL_REQUEST_TEMPLATE.md:5"]
+  confidence: confirmed
+  property: sharing-is-consented

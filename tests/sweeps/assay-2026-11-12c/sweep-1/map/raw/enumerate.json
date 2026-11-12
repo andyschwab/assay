@@ -1,0 +1,877 @@
+{
+  "schema": "enumerate",
+  "version": 1,
+  "target": "assay-target",
+  "files": 714,
+  "populations": {
+    "channelCandidates": [
+      {
+        "member": "surface: migrate-run.mjs",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": true,
+        "evidence": [
+          "map/migrate-run.mjs:1"
+        ]
+      }
+    ],
+    "routeHandlers": [
+      {
+        "member": "route: ANY /api/hooks",
+        "note": "a pages-router API route (every method) — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/pages/api/hooks/index.ts:4"
+        ]
+      },
+      {
+        "member": "route: DELETE /api/users/[id]",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts:8"
+        ]
+      },
+      {
+        "member": "route: GET /api/users/[id]",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts:2"
+        ]
+      },
+      {
+        "member": "route: GET /health",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/app/(marketing)/health/route.js:5"
+        ]
+      },
+      {
+        "member": "route: HEAD /health",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/app/(marketing)/health/route.js:5"
+        ]
+      },
+      {
+        "member": "route: PATCH /api/users/[id]",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts:6"
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "member": "ADMIN_PASSWORD",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:6"
+        ]
+      },
+      {
+        "member": "API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/instruments/gitleaks-sample.json:16",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/terrain.md:93"
+        ]
+      },
+      {
+        "member": "ASSAY_PLANTED_TOKEN",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/isolation.mjs:32",
+          "tests/blocks/raw-minimised.mjs:28",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/terrain.md:93"
+        ]
+      },
+      {
+        "member": "ASSAY_READ_TOKEN",
+        "note": "referenced in code",
+        "gateable": true,
+        "evidence": [
+          "RUNBOOK.md:61",
+          "RUNBOOK.md:66",
+          "routine/README.md:161",
+          "routine/assay-routine.yml:124",
+          "routine/assay-routine.yml:65",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/findings/practice-review-delegation.yaml:180",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/terrain.md:89",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/findings/practice-review-delegation.yaml:251",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/terrain.md:89",
+          "tests/sweeps/assay-2026-10-01/sweep-3/map/findings/practice-review-delegation.yaml:331",
+          "tests/sweeps/assay-2026-10-01/sweep-3/map/terrain.md:83",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/censuses.yaml:109",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:374",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:376",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:415",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:417",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:113",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/censuses.yaml:84",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:213",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:300",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:302",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/terrain.md:139"
+        ]
+      },
+      {
+        "member": "ASSAY_TEST_EVALUATOR_TOKEN",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/adapter-runner.mjs:42",
+          "tests/blocks/adapter-runner.mjs:50",
+          "tests/blocks/adapter-runner.mjs:53",
+          "tests/blocks/adapter-runner.mjs:55"
+        ]
+      },
+      {
+        "member": "BACKUP_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/fixtures/notesbox/map/findings/deep-code-review.yaml:186",
+          "tests/fixtures/notesbox/map/findings/deep-code-review.yaml:32",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:146",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:397"
+        ]
+      },
+      {
+        "member": "EMAIL_SEND_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/fixtures/packet-valid/manifest.yaml:47",
+          "tests/negative/packet-secret-shaped/manifest.yaml:11",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/terrain.md:93"
+        ]
+      },
+      {
+        "member": "FETCH_TOKEN",
+        "note": "declared in env/config",
+        "gateable": true,
+        "evidence": [
+          "routine/assay-routine.yml:110",
+          "routine/assay-routine.yml:114",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/terrain.md:90",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/terrain.md:91",
+          "tests/sweeps/assay-2026-10-01/sweep-3/map/terrain.md:84",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:128",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:397",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:111",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/censuses.yaml:84",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:213",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:288",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/terrain.md:139"
+        ]
+      },
+      {
+        "member": "GH_TOKEN",
+        "note": "declared in env/config",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:112",
+          ".github/workflows/branch-cleanup.yml:61",
+          ".github/workflows/release.yml:45",
+          ".github/workflows/tools-check.yml:19",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:487",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:370",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:379",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:388",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:108",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:109",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:110",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:279"
+        ]
+      },
+      {
+        "member": "GITHUB_TOKEN",
+        "note": "declared in env/config",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:20",
+          "map/scanners/adapters/zizmor.yaml:78",
+          "map/tools.mjs:202",
+          "tests/blocks/consumer-reads.mjs:39",
+          "tests/blocks/consumer-reads.mjs:40",
+          "tests/blocks/consumer-reads.mjs:43",
+          "tests/blocks/consumer-reads.mjs:44",
+          "tests/fixtures/fixtures-root/ANSWERS.yaml:133",
+          "tests/fixtures/fixtures-root/map/findings/deep-code-review.yaml:104",
+          "tests/fixtures/fixtures-root/map/raw/deep-code-review.yaml:258",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/terrain.md:90",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/censuses.yaml:101",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/censuses.yaml:110",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:389",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:391",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-context.yaml:78",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:379",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:406",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:408",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:109",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:112",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/censuses.yaml:84",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:212",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:218",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:220",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/terrain.md:136"
+        ]
+      },
+      {
+        "member": "LEGACY_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:8"
+        ]
+      },
+      {
+        "member": "SEARCH_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:1",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:9",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:10"
+        ]
+      },
+      {
+        "member": "STRIPE_SECRET_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "owner/ask-owner.md:71",
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:3",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/terrain.md:94"
+        ]
+      },
+      {
+        "member": "STRIPE_WEBHOOK_SECRET",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:4",
+          "tests/enumerate-fixture/nextjs/pages/api/hooks/index.ts:2",
+          "tests/enumerate-fixture/nextjs/pages/api/hooks/index.ts:5"
+        ]
+      }
+    ],
+    "secretConstants": [
+      {
+        "member": "CACHE_KEY",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:4, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:4",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:7"
+        ]
+      },
+      {
+        "member": "DECISION_KEYS",
+        "note": "assigned a non-credential literal at map/decisions.mjs:27, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/decisions.mjs:27",
+          "map/validate.mjs:24",
+          "map/validate.mjs:411"
+        ]
+      },
+      {
+        "member": "MAX_OUTPUT_TOKENS",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:3, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:118",
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:3"
+        ]
+      },
+      {
+        "member": "POINTER_COMMAND_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:69, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "yardstick/packet.mjs:268",
+          "yardstick/packet.mjs:69",
+          "yardstick/packet.mjs:70"
+        ]
+      },
+      {
+        "member": "POINTER_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:70, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "yardstick/packet.mjs:250",
+          "yardstick/packet.mjs:70"
+        ]
+      },
+      {
+        "member": "POINTER_PATH_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:68, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "yardstick/packet.mjs:262",
+          "yardstick/packet.mjs:68",
+          "yardstick/packet.mjs:70"
+        ]
+      },
+      {
+        "member": "POINTER_PATH_OR_LIST_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:67, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "yardstick/packet.mjs:255",
+          "yardstick/packet.mjs:67",
+          "yardstick/packet.mjs:70"
+        ]
+      },
+      {
+        "member": "PRO_PRICE_KEY",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:2, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:2"
+        ]
+      },
+      {
+        "member": "THEME_KEY",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:5, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:5"
+        ]
+      },
+      {
+        "member": "TOP_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:60, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "yardstick/packet.mjs:177",
+          "yardstick/packet.mjs:60"
+        ]
+      },
+      {
+        "member": "TRIAGE_KEYS",
+        "note": "assigned a non-credential literal at map/effect-triage.mjs:21, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/effect-triage.mjs:21",
+          "map/effect-triage.mjs:70"
+        ]
+      }
+    ],
+    "changeGates": [
+      {
+        "member": "ci step: branch-cleanup.yml/delete: Delete the planned branches",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:114"
+        ]
+      },
+      {
+        "member": "ci step: branch-cleanup.yml/plan: Plan the merged branches",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:63"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: ./.github/actions/tools",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:38"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: actions/checkout",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:24"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: actions/setup-node",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:27"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: npm ci",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:30"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: npm run build",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:33"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: npm run lint",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:31"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: npm run typecheck",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:32"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: npm test",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:39"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: ./.github/actions/tools",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:40"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: actions/checkout",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:26"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: actions/setup-node",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:30"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: Check every contract change carries its Consumer trailer",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:42"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: npm ci",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:39"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: npm test",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:41"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: Refuse a malformed or existing version",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:33"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: Tag and publish the release",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:44"
+        ]
+      },
+      {
+        "member": "ci step: tools-check.yml/check: actions/checkout",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:22"
+        ]
+      },
+      {
+        "member": "ci step: tools-check.yml/check: Open or update the issue for pins behind upstream",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:24"
+        ]
+      },
+      {
+        "member": "script: lint",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:10"
+        ]
+      },
+      {
+        "member": "script: test",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:9"
+        ]
+      },
+      {
+        "member": "script: typecheck",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:11"
+        ]
+      },
+      {
+        "member": "script: validate",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:14"
+        ]
+      }
+    ],
+    "modelCalls": [],
+    "socketMounts": [
+      {
+        "member": "--cap-add",
+        "note": "added capability",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:207",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/terrain.md:102"
+        ]
+      },
+      {
+        "member": "--privileged",
+        "note": "privileged container",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:206",
+          "tests/enumerate-fixture/target/deploy/prod.yaml:3",
+          "tests/enumerate-fixture/target/harness/bench.yaml:3",
+          "tests/enumerate-fixture/target/runs/r-2026-01-01/map/raw/enumerate-raw.txt:2",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/terrain.md:102"
+        ]
+      },
+      {
+        "member": "docker.sock mount",
+        "note": "host docker control",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:205",
+          "map/enumerate.mjs:80",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/terrain.md:102"
+        ]
+      }
+    ],
+    "containerClasses": [
+      {
+        "member": "admin-role branch",
+        "note": "a distinct agent class",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:233",
+          "tests/fixtures/notesbox/ANSWERS.yaml:32",
+          "tests/fixtures/notesbox/map/findings/deep-code-review.yaml:13",
+          "tests/fixtures/notesbox/map/findings/practice-review-delegation.yaml:7",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:106",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:117",
+          "tests/negative/censuses-flow-map/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/counted-drift/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/evidence-not-in-target/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/sampled-drift/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/solution-coverage-gap/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/fixture-notesbox/sweep-1/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/fixture-notesbox/sweep-2/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/fixture-notesbox/sweep-3/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/flawed-webapp-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:35",
+          "tests/sweeps/flawed-webapp-2026-11-11/sweep-2/map/terrain.md:65"
+        ]
+      },
+      {
+        "member": "docker run/create site",
+        "note": "a container is launched here — enumerate its class",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:232",
+          "map/enumerate.mjs:85",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:134"
+        ]
+      }
+    ],
+    "effectSites": [
+      {
+        "member": "artifact upload (workflow) @ routine/assay-routine.yml",
+        "note": "artifact upload (workflow)",
+        "gateable": true,
+        "evidence": [
+          "routine/assay-routine.yml:184",
+          "routine/assay-routine.yml:78"
+        ]
+      },
+      {
+        "member": "github api write (workflow) @ .github/workflows/branch-cleanup.yml",
+        "note": "github api write (workflow)",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:131"
+        ]
+      },
+      {
+        "member": "http write (js) @ map/tools.mjs",
+        "note": "http write (js)",
+        "gateable": true,
+        "evidence": [
+          "map/tools.mjs:125"
+        ]
+      },
+      {
+        "member": "issue/pr write (workflow) @ .github/workflows/tools-check.yml",
+        "note": "issue/pr write (workflow)",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:33",
+          ".github/workflows/tools-check.yml:35"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ assay.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "assay.mjs:84"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ lib/check-syntax.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "lib/check-syntax.mjs:11",
+          "lib/check-syntax.mjs:14"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ lib/release-notes.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "lib/release-notes.mjs:58",
+          "lib/release-notes.mjs:64"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ map/backlog.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/backlog.mjs:54"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ map/dependency-scan.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/dependency-scan.mjs:110",
+          "map/dependency-scan.mjs:275",
+          "map/dependency-scan.mjs:380",
+          "map/dependency-scan.mjs:398"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ map/fresh-clone.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/fresh-clone.mjs:310",
+          "map/fresh-clone.mjs:531"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ map/repo-census.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/repo-census.mjs:1151",
+          "map/repo-census.mjs:1161",
+          "map/repo-census.mjs:748",
+          "map/repo-census.mjs:868",
+          "map/repo-census.mjs:870"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ map/start.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/start.mjs:209",
+          "map/start.mjs:231",
+          "map/start.mjs:248",
+          "map/start.mjs:270",
+          "map/start.mjs:421",
+          "map/start.mjs:70",
+          "map/start.mjs:73",
+          "map/start.mjs:78"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ map/structure-scan.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/structure-scan.mjs:103",
+          "map/structure-scan.mjs:120",
+          "map/structure-scan.mjs:189",
+          "map/structure-scan.mjs:338"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ map/tools.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/tools.mjs:38"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ routine/run.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "routine/run.mjs:89"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ views/compile.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "views/compile.mjs:56"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ yardstick/ratchet.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "yardstick/ratchet.mjs:107",
+          "yardstick/ratchet.mjs:117"
+        ]
+      },
+      {
+        "member": "release write (workflow) @ .github/workflows/release.yml",
+        "note": "release write (workflow)",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:50"
+        ]
+      }
+    ],
+    "egressControls": [
+      {
+        "member": "browser URL policy",
+        "note": "network boundary",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:225"
+        ]
+      },
+      {
+        "member": "iptables egress rule",
+        "note": "network boundary",
+        "gateable": true,
+        "evidence": [
+          "map/METHOD.md:134",
+          "map/enumerate.mjs:224",
+          "map/enumerate.mjs:83"
+        ]
+      }
+    ],
+    "contracts": [
+      {
+        "member": "__post_init__ validation",
+        "note": "raises on violation",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:211"
+        ]
+      },
+      {
+        "member": "lockstep test",
+        "note": "byte-equal copies guard",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:2",
+          "map/METHOD.md:135",
+          "map/enumerate.mjs:212",
+          "tests/blocks/doctrine-lockstep.mjs:1",
+          "tests/blocks/doctrine-lockstep.mjs:10",
+          "tests/blocks/doctrine-lockstep.mjs:13",
+          "tests/blocks/enumerate-gate.mjs:74",
+          "tests/sweeps/assay-2026-10-01/sweep-1/map/terrain.md:114",
+          "tests/sweeps/assay-2026-10-01/sweep-2/map/terrain.md:103",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-gates.yaml:230",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-gates.yaml:234",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:142"
+        ]
+      },
+      {
+        "member": "schema validator",
+        "note": "interface schema",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:213"
+        ]
+      }
+    ],
+    "reportPaths": []
+  }
+}

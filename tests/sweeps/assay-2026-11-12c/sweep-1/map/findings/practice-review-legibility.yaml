@@ -1,0 +1,418 @@
+# Pass 1 — artifact legibility. Census decision-reconstruction (D1-D18): F-100..F-117.
+# Census doc-freshness (C1-C26): F-118..F-143. Context list second-accounts: F-144..F-151.
+- id: F-100
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The engine has no runtime dependencies (devDependencies only) and the files state the choice, but the only reason given over using libraries is a passing "portable zero-dep core" aside in a scanner-candidate row, so a newcomer cannot reconstruct why zero dependencies was chosen.
+  evidence: ["package.json:18", "assay.mjs:7", "assay.mjs:8", "README.md:158", "map/scanners/CANDIDATES.md:106"]
+  confidence: plausible
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The choice of one hand-written, constrained YAML reader shared by every tool is explained at the reader itself: anything outside the subset throws, from the fail-closed lesson that a checker silently accepting unparseable input hides what it exists to catch.
+  evidence: ["lib/yaml-min.mjs:1", "lib/yaml-min.mjs:2", "lib/yaml-min.mjs:5", "lib/yaml-min.mjs:6"]
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The boundary that the engine itself never calls a model and a review lane's session executes nothing is written at the lane module with its reason: the deterministic phase already ran the instruments and the consumer validates what the session publishes, and the consumer adds the model.
+  evidence: ["map/lane.mjs:4", "map/lane.mjs:5", "map/lane.mjs:6", "map/lane.mjs:10", "map/lane.mjs:11"]
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Running fresh-clone and knip only under --allow-exec is explained in the README and in the skip reason itself: both execute the target's own install, lifecycle scripts or tool configs on the machine, which is not a sandbox, so they belong in a disposable container or VM.
+  evidence: ["README.md:89", "README.md:96", "README.md:97", "README.md:100", "map/start.mjs:414"]
+  confidence: confirmed
+- id: F-104
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The child-process environment allow-list (PATH, HOME, CI, npm_config_*, plus proxy plumbing without userinfo) states why each name is kept and that every other name, tokens and cloud keys, is dropped, at the module that builds it.
+  evidence: ["map/child-env.mjs:1", "map/child-env.mjs:4", "map/child-env.mjs:7", "map/child-env.mjs:12", "map/child-env.mjs:13"]
+  confidence: confirmed
+- id: F-105
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Why fresh-clone clones the target into scratch rather than running in the person's working tree is written beside the parameter: a person's checkout is not a fresh checkout, and running in place would install into it and measure uncommitted state.
+  evidence: ["map/start.mjs:325", "map/start.mjs:327", "map/start.mjs:328", "map/start.mjs:329", "map/start.mjs:331"]
+  confidence: confirmed
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine template's read-only permission is stated with its reason (least privilege, the workflow never writes back), and the runbook uses it to explain why a rollback needs nothing else undone.
+  evidence: ["routine/assay-routine.yml:33", "RUNBOOK.md:52", "RUNBOOK.md:53"]
+  confidence: confirmed
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Pinning ASSAY_REF to a full commit SHA rather than a branch or tag is explained in the runbook (a branch or tag can move) and repeated as a warning on the template line.
+  evidence: ["RUNBOOK.md:17", "RUNBOOK.md:18", "RUNBOOK.md:19", "routine/assay-routine.yml:37"]
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    That axes and topics are property-named rather than tool-named is stated in the agent contract with its reason: two scanners measuring one property corroborate on one axis, and an unmeasured axis reads not measured.
+  evidence: ["CLAUDE.md:26", "CLAUDE.md:27", "CLAUDE.md:28"]
+  confidence: confirmed
+- id: F-109
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The rule that no history file is kept is stated in the agent contract and explained in the block that enforces it: a dated history file restates the commit, so the change record is git and the confirmed-red record rides the pull request and commit message.
+  evidence: ["CLAUDE.md:71", "CLAUDE.md:72", "tests/blocks/no-history-file.mjs:1", "tests/blocks/no-history-file.mjs:2", "tests/blocks/no-history-file.mjs:3"]
+  confidence: confirmed
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The split between re-blessing pinned scores (a reviewed edit of tests/golden.json in the same commit) and never re-blessing a failing unit or negative assertion is stated with its reason: a moved score may be intended, while a failing assertion is always a real regression.
+  evidence: ["CLAUDE.md:51", "CLAUDE.md:52", "CLAUDE.md:53", "RUNBOOK.md:31", "RUNBOOK.md:32"]
+  confidence: confirmed
+- id: F-111
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    That finding ids carry no dimension meaning is explained in the schema against the alternative: a fixed per-dimension range is an arbitrary budget a dense repo overflows, and encoding the dimension would duplicate the dimension field.
+  evidence: ["map/SCHEMA.md:217", "map/SCHEMA.md:228", "map/SCHEMA.md:229", "map/SCHEMA.md:230"]
+  confidence: confirmed
+- id: F-112
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The definition of "offline" (no hosting platform's API, while a package registry may be reached) is stated once in the README with the three places the engine reaches outside the checkout, so the boundary the instruments keep can be read from the file.
+  evidence: ["README.md:141", "README.md:142", "README.md:150", "README.md:151", "README.md:152"]
+  confidence: confirmed
+- id: F-113
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    start refuses to write into a run whose map/scanners.yaml already exists ("a run is never redrawn in place"), but neither the header nor the refusal says why redrawing in place is refused over overwriting it.
+  evidence: ["map/start.mjs:43", "map/start.mjs:44", "map/start.mjs:464"]
+  confidence: plausible
+- id: F-114
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The build script is the same syntax check as lint, and the gate's header names both scripts without saying why the build step is a node --check pass rather than a build or why it exists beside lint.
+  evidence: ["package.json:10", "package.json:12", "lib/check-syntax.mjs:1", "lib/check-syntax.mjs:2"]
+  confidence: plausible
+- id: F-115
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The typecheck pins @types/node 20.x while the engine requires Node 22 or later, and no file says why the type definitions trail the supported runtime.
+  evidence: ["package.json:17", "package.json:18", "tsconfig.json:9"]
+  confidence: plausible
+- id: F-116
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The boundary that the core names no external scanner (each scanner is an adapter's data, each operator a consumer) is stated in the agent contract with what an adapter carries instead, and names the block that holds it.
+  evidence: ["CLAUDE.md:33", "CLAUDE.md:34", "CLAUDE.md:37", "CLAUDE.md:41", "tests/blocks/core-names-no-scanner.mjs:1"]
+  confidence: confirmed
+- id: F-117
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Installing jscpd and knip from the npm registry into scratch at each run, never as dependencies of the repository, is explained at the instrument: the registry is the same reach fresh-clone's install needs, and a failed install reads skipped with the reason.
+  evidence: ["map/structure-scan.mjs:10", "map/structure-scan.mjs:13", "map/structure-scan.mjs:14", "map/structure-scan.mjs:15", "map/structure-scan.mjs:16"]
+  confidence: confirmed
+- id: F-118
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `node assay.mjs help` command exists: the dispatcher prints the grouped command list on help, --help, -h or no argument.
+  evidence: ["README.md:163", "assay.mjs:75", "assay.mjs:62"]
+  confidence: confirmed
+- id: F-119
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `start --out <run> <target> [--allow-exec]` usage matches the usage start states and enforces.
+  evidence: ["README.md:170", "map/start.mjs:15", "map/start.mjs:458"]
+  confidence: confirmed
+- id: F-120
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that start refuses to draw a map until tools verify passes holds: with a target, start exits refused when any pinned tool is not ready.
+  evidence: ["README.md:175", "map/start.mjs:467", "map/start.mjs:470", "map/start.mjs:471"]
+  confidence: confirmed
+- id: F-121
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `tools install [--dir] [--run] [--only]` and `tools verify [--run] [--only]` forms match the flags tools.mjs parses, with ~/.local/bin as the default directory.
+  evidence: ["README.md:176", "README.md:177", "map/tools.mjs:24", "map/tools.mjs:25", "map/tools.mjs:226", "map/tools.mjs:231"]
+  confidence: confirmed
+- id: F-122
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that the tools composite action takes one optional input, dir, matches the action's declared inputs.
+  evidence: ["README.md:179", "README.md:180", ".github/actions/tools/action.yml:14", ".github/actions/tools/action.yml:15", ".github/actions/tools/action.yml:17"]
+  confidence: confirmed
+- id: F-123
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `ingest <run> --tool deep-code-review --raw <report>` form and its claim that ingesting flips the scanner's row to ran both hold in ingest.mjs.
+  evidence: ["README.md:184", "README.md:185", "map/ingest.mjs:50", "map/ingest.mjs:1224", "map/ingest.mjs:1279"]
+  confidence: confirmed
+- id: F-124
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `record <run> practice-review ran --model <id>` and `--pass <pass>` forms match record's usage, which limits --pass to practice-review.
+  evidence: ["README.md:186", "README.md:190", "map/record.mjs:12", "map/record.mjs:84"]
+  confidence: confirmed
+- id: F-125
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `lane <scanner> --name <Name> [--head <ref>] [--inputs-dir <path>]` form matches lane's usage and argument parsing.
+  evidence: ["README.md:188", "map/lane.mjs:25", "map/lane.mjs:26", "map/lane.mjs:99"]
+  confidence: confirmed
+- id: F-126
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `validate <run> --target <checkout> --lane <scanner>` form matches the validator's usage, which documents --lane as the consumer's post-lane check.
+  evidence: ["README.md:189", "README.md:192", "map/validate.mjs:3", "map/validate.mjs:4"]
+  confidence: confirmed
+- id: F-127
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `migrate-run <prev-run> [--write]` command exists and, as stated, only rewrites with --write.
+  evidence: ["README.md:199", "map/migrate-run.mjs:24", "map/migrate-run.mjs:122"]
+  confidence: confirmed
+- id: F-128
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `ratchet <run> --baseline packet/baseline.yaml` form matches ratchet's usage.
+  evidence: ["README.md:200", "yardstick/ratchet.mjs:15", "yardstick/ratchet.mjs:18"]
+  confidence: confirmed
+- id: F-129
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's `yardstick --floor [--json]` command exists and lists only floor-tagged rows with --floor.
+  evidence: ["README.md:203", "yardstick/list.mjs:9", "yardstick/list.mjs:10", "yardstick/list.mjs:20"]
+  confidence: confirmed
+- id: F-130
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's count that owner evidence transcripts decide six requirements matches the six ids repo-census checks and the six templates under owner/evidence.
+  evidence: ["README.md:129", "map/repo-census.mjs:107", "map/repo-census.mjs:108", "map/repo-census.mjs:109", "owner/evidence/README.md:30"]
+  confidence: confirmed
+- id: F-131
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's owner commands (`validate-packet`, `measure <run> --packet <dir>`, `ask-owner --run <run>`) all exist with those arguments.
+  evidence: ["README.md:133", "README.md:134", "README.md:135", "assay.mjs:44", "yardstick/measure.mjs:25", "owner/ask-owner.mjs:37"]
+  confidence: confirmed
+- id: F-132
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says each child of the code-executing instruments sees "only PATH, HOME, CI and the runner's own npm_config_* settings", but childEnv also passes HTTPS_PROXY, HTTP_PROXY, NO_PROXY, NODE_EXTRA_CA_CERTS and SSL_CERT_FILE when set.
+  evidence: ["README.md:93", "README.md:94", "map/child-env.mjs:15", "map/child-env.mjs:31", "map/child-env.mjs:32"]
+  confidence: confirmed
+- id: F-133
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's count "Three instruments execute the target's code" matches the three map modules that spawn under child-env (fresh-clone, dependency-scan, structure-scan), besides start.
+  evidence: ["README.md:89", "map/fresh-clone.mjs:104", "map/dependency-scan.mjs:73", "map/structure-scan.mjs:72", "map/child-env.mjs:2"]
+  confidence: confirmed
+- id: F-134
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's four adapter-run instruments (zizmor, osv-scanner, checkov, opengrep) each carry a run block in their adapter.
+  evidence: ["README.md:80", "README.md:82", "map/scanners/adapters/zizmor.yaml:34", "map/scanners/adapters/osv-scanner.yaml:27", "map/scanners/adapters/checkov.yaml:20", "map/scanners/adapters/opengrep.yaml:40"]
+  confidence: confirmed
+- id: F-135
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's view pages and data files (INTAKE.md, MAINTAIN.md, IMPROVE.md, OWNER.md, SINCE.md and views/<view>.yaml) match the run layout's placed pages and data files.
+  evidence: ["README.md:9", "README.md:12", "README.md:15", "lib/run-layout.mjs:9", "lib/run-layout.mjs:10", "lib/run-layout.mjs:29"]
+  confidence: confirmed
+- id: F-136
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The agent contract's pointer to tests/blocks/core-names-no-scanner.mjs names an existing block that holds rule 7.
+  evidence: ["CLAUDE.md:41", "tests/blocks/core-names-no-scanner.mjs:2"]
+  confidence: confirmed
+- id: F-137
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The agent contract's pointer to tests/blocks/no-history-file.mjs names an existing block that pins the no-history-file rule.
+  evidence: ["CLAUDE.md:72", "tests/blocks/no-history-file.mjs:1"]
+  confidence: confirmed
+- id: F-138
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The agent contract's `score <run> --answers <target>/ANSWERS.yaml` check matches score's usage.
+  evidence: ["CLAUDE.md:48", "map/score.mjs:41", "map/score.mjs:170"]
+  confidence: confirmed
+- id: F-139
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The runbook's re-bless command `node tests/regression.mjs --bless` exists and rewrites tests/golden.json as stated.
+  evidence: ["RUNBOOK.md:27", "tests/regression.mjs:23"]
+  confidence: confirmed
+- id: F-140
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The runbook's local routine command `node routine/run.mjs <repo-dir> --out <run-dir>` matches the driver's usage, which writes routine.yaml as stated.
+  evidence: ["RUNBOOK.md:43", "RUNBOOK.md:46", "routine/run.mjs:27", "routine/run.mjs:140"]
+  confidence: confirmed
+- id: F-141
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The runbook's statement that the optional ASSAY_READ_TOKEN is read by the template's "assay" checkout step, commented out for a public repository, matches the template.
+  evidence: ["RUNBOOK.md:61", "RUNBOOK.md:62", "RUNBOOK.md:70", "routine/assay-routine.yml:65"]
+  confidence: confirmed
+- id: F-142
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CONTRIBUTING's claim that lint and typecheck run in CI beside npm test holds in the ci workflow's steps.
+  evidence: ["CONTRIBUTING.md:4", "CONTRIBUTING.md:5", ".github/workflows/ci.yml:31", ".github/workflows/ci.yml:32", ".github/workflows/ci.yml:39"]
+  confidence: confirmed
+- id: F-143
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that TypeScript is a development-only dependency for a checkJs typecheck over the engine's modules matches package.json and tsconfig.json.
+  evidence: ["README.md:158", "README.md:159", "package.json:18", "tsconfig.json:4", "tsconfig.json:5"]
+  confidence: confirmed
+- id: F-144
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The one rule has a marked home in README.md, the agent contract cites it there instead of restating it, and a harness block fails if the rule's sentence appears in any other file or a citing file stops pointing at README.md.
+  evidence: ["README.md:36", "README.md:37", "CLAUDE.md:11", "tests/blocks/doc-consistency.mjs:144", "tests/blocks/doc-consistency.mjs:145", "tests/blocks/doc-consistency.mjs:146"]
+  confidence: confirmed
+- id: F-145
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The count of instruments that execute the target's code, stated in README.md and the scanner contract, is computed by a harness block from the modules that import child-env, so both accounts are held to the code.
+  evidence: ["README.md:89", "tests/blocks/doc-consistency.mjs:147", "tests/blocks/doc-consistency.mjs:151", "tests/blocks/doc-consistency.mjs:153"]
+  confidence: confirmed
+- id: F-146
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The view count stated in README.md, CLAUDE.md, package.json and other files is checked by a harness block against the pages lib/run-layout.mjs places, so no restatement can drift.
+  evidence: ["tests/blocks/doc-consistency.mjs:29", "tests/blocks/doc-consistency.mjs:35", "tests/blocks/doc-consistency.mjs:37", "tests/blocks/doc-consistency.mjs:38"]
+  confidence: confirmed
+- id: F-147
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The six owner-evidence ids are listed both in repo-census's EVIDENCE_IDS and in owner/evidence/README.md (and again as a test's own literal), with neither account marked as the home nor a check tying the doc list to the code list.
+  evidence: ["map/repo-census.mjs:107", "owner/evidence/README.md:30", "owner/evidence/README.md:31", "tests/blocks/repo-census.mjs:118"]
+  confidence: plausible
+- id: F-148
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The tier order whose home is requirements.yaml's tiers list is spelled out again in README.md and twice in views/README.md without deferring to that list, and no harness block was found holding those restatements to it (only yardstick/README.md points at the file's list).
+  evidence: ["yardstick/requirements.yaml:17", "README.md:109", "README.md:110", "views/README.md:22", "views/README.md:110", "yardstick/README.md:76"]
+  confidence: plausible
+- id: F-149
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The practice-review passes are named both in the built-in lane's frontmatter and in map/project.mjs's PRACTICE_REVIEW_PASSES, and a harness block pins the two equal.
+  evidence: ["map/lane.mjs:21", "map/lane.mjs:22", "map/lane.mjs:23", "tests/blocks/lane-list.mjs:1"]
+  confidence: confirmed
+- id: F-150
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The run sequencing that assay start and the routine share has one home in map/start.mjs, with the routine's own reasons passed as parameters and a block pinning the routine's record byte-for-byte.
+  evidence: ["map/start.mjs:8", "map/start.mjs:9", "map/start.mjs:11", "map/start.mjs:13"]
+  confidence: confirmed
+- id: F-151
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The rule that ASSAY_REF is a full commit SHA, stated in RUNBOOK.md, routine/README.md and the template, is guarded by a block that fails when the template's ASSAY_REF is not 40 hex or the never-a-branch warning is missing.
+  evidence: ["RUNBOOK.md:18", "routine/README.md:210", "routine/assay-routine.yml:37", "tests/blocks/routine-workflow.mjs:56", "tests/blocks/routine-workflow.mjs:58", "tests/blocks/routine-workflow.mjs:59"]
+  confidence: confirmed
