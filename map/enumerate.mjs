@@ -132,7 +132,9 @@ const SECRET_NAME = /\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*(?:_(?:KEY|SECRET|TOKEN|PAS
 // The filter also sets apart a credential-suffixed name assigned an array or object literal
 // whose every string is identifier-shaped (TRIAGE_KEYS, a list of 'candidate', 'finding', …; #292):
 // a list of key names, not a credential. In a JS/TS file a `${NAME}` is a template
-// interpolation, not an environment read; `$NAME` is still read as one (a shell string).
+// interpolation, not an environment read; `$NAME` is still read as one (a shell string). A name
+// that any site assigns a value that is not identifier-shaped stays a credential: names key the
+// population across files, so one placeholder elsewhere (authToken: 'none') never hides a key.
 const CONST_LITERAL = (name) => new RegExp(`\\b${name}\\b\\s*(?::\\s*[A-Za-z_][\\w.<>\\[\\]| ]*?)?\\s*(?:=(?!=)|:)\\s*(?:(['"\`])((?:(?!\\1).){0,200})\\1|(-?\\d[\\d_.]*|true|false)\\b)`);
 const ENV_READ = (name, js) => new RegExp(`\\benv\\b|environ|getenv|\\bsecrets\\.|\\$${js ? '' : '\\{?'}${name}\\b`, 'i');
 const ENV_IN_LITERAL = /\benv\b|environ|getenv/i;
@@ -140,16 +142,18 @@ const CREDENTIAL_PREFIX = /^(?:sk|pk|rk)_(?:live|test)_|^whsec_|^xox[abpr]-|^gh[
 const IDENTIFIER_VALUE = /^(?:[a-z][a-z0-9]*(?:[-_.:/][a-z0-9]+)*|[A-Z][A-Z0-9]*(?:[-_.:][A-Z0-9]+)*)$/;
 const identifierValue = (v) => v.length > 0 && v.length <= 64 && IDENTIFIER_VALUE.test(v) && !CREDENTIAL_PREFIX.test(v) && !secretShape(v);
 const isJs = (r) => /\.[mc]?[jt]sx?$/.test(r);
-const secretSites = new Map();   // name → { env: bool, constAt: "path:line" | null }
+const secretSites = new Map();   // name → { env: bool, cred: bool, constAt: "path:line" | null }
 function secretSite(name, r, i, line, isEnvOrCfg, isCode, ls) {
-  if (!secretSites.has(name)) secretSites.set(name, { env: false, constAt: null });
+  if (!secretSites.has(name)) secretSites.set(name, { env: false, cred: false, constAt: null });
   const s = secretSites.get(name);
   if (isEnvOrCfg || ENV_READ(name, isJs(r)).test(line)) { s.env = true; return; }
   if (!isCode) return;
   const coll = ls && collectionAssigned(name, ls, i);
   if (coll) {
     if (ENV_IN_LITERAL.test(coll.text)) { s.env = true; return; }
-    if (coll.open !== 'new' && credentialSuffixed(name) && coll.strings.every((x) => identifierValue(x.value)) && !s.constAt) s.constAt = `${r}:${i + 1}`;
+    if (coll.open === 'new' || !credentialSuffixed(name)) return;
+    if (coll.strings.every((x) => identifierValue(x.value))) { if (!s.constAt) s.constAt = `${r}:${i + 1}`; }
+    else s.cred = true;
     return;
   }
   const m = line.match(CONST_LITERAL(name));
@@ -158,6 +162,7 @@ function secretSite(name, r, i, line, isEnvOrCfg, isCode, ls) {
   const v = m[2];
   const keyish = /(?:key|token)s?$/i.test(name);
   const ident = !isNumberish && keyish && identifierValue(v);
+  if (!isNumberish && v.length > 0 && !ident) s.cred = true;   // a site that assigns it a credential-shaped value
   if ((isNumberish || ident) && !s.constAt) s.constAt = `${r}:${i + 1}`;
 }
 
@@ -443,7 +448,7 @@ for (const f of files) {
 // the secret shape filter: set apart a name assigned an identifier or constant and never
 // read from the environment; it is printed in its own section, never dropped
 for (const [name, s] of secretSites) {
-  if (s.env || !s.constAt || !pops.secrets.has(name)) continue;
+  if (s.env || s.cred || !s.constAt || !pops.secrets.has(name)) continue;
   const e = pops.secrets.get(name);
   pops.secrets.delete(name);
   pops.secretConstants.set(name, { ...e, note: `assigned a non-credential literal at ${s.constAt}, never read from env — out of the credential census unless a site says otherwise` });
