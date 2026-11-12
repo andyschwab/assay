@@ -946,6 +946,8 @@ evidence and note:
 - `effectSites`, the effect call sites, one member per kind of call in one file
   (`http write (js) @ lib/sync.mjs`, `shell exec @ tools/run.py`, …), so a member groups that
   file's call lines of its kind and one entry never closes unrelated channels in other files (#272).
+  Effect sites are read where code runs: a Markdown file, and a file under a `tests/` or `runs/`
+  directory (a test, a run's own artifacts), make no call the list names.
 
 The last two close a target with no agentic channel, such as a web app, where an empty
 `channelCandidates` once read as a closed list (#269). The practice-review lane is given the
