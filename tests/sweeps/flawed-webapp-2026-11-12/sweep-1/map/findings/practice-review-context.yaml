@@ -1,0 +1,99 @@
+# Pass 2 — context economy (practice review)
+- id: F-101
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs (the router) has a header comment to read but nothing to run, and two of its routes read and write the store's raw notes Map inline, so changing a route means loading lib/db.mjs as well.
+  evidence: [server.mjs:1, server.mjs:31, server.mjs:38, package.json:7]
+  confidence: confirmed
+- id: F-102
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs has a clear header comment but no test or script exercises it, and it reaches into the store's notes Map and users array directly, so a change to it needs lib/db.mjs and lib/mailer.mjs loaded too.
+  evidence: [lib/agent.mjs:1, lib/agent.mjs:8, lib/agent.mjs:9, lib/agent.mjs:38, package.json:7]
+  confidence: confirmed
+- id: F-103
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs loads alone: a one-line header comment to read, a narrow dependency on the sessions.lookup interface, and test/smoke.mjs imports and runs authenticate directly (though no package script runs that test).
+  evidence: [lib/auth.mjs:1, lib/auth.mjs:2, lib/auth.mjs:7, test/smoke.mjs:5, test/smoke.mjs:8]
+  confidence: plausible
+- id: F-104
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs has something to read (its header and ADR-0001's interface) but nothing to run, and it exports its raw notes Map and users array, which server.mjs, lib/agent.mjs and lib/sync.mjs use directly, so the interface ADR-0001 says keeps storage changes inside lib/ is not the one callers use.
+  evidence: [lib/db.mjs:1, lib/db.mjs:8, docs/adr/0001-storage-choice.md:16, server.mjs:31, lib/sync.mjs:6, lib/agent.mjs:12]
+  confidence: confirmed
+- id: F-105
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs is small and self-contained with a header comment to read, but nothing runs it alone: no test imports it and package.json defines only start.
+  evidence: [lib/mailer.mjs:1, lib/mailer.mjs:5, package.json:7]
+  confidence: confirmed
+- id: F-106
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs has a header comment to read but nothing to run it alone, and it serializes the store's raw notes Map itself, so it depends on lib/db.mjs's internal shape.
+  evidence: [lib/sync.mjs:1, lib/sync.mjs:2, lib/sync.mjs:6, package.json:7]
+  confidence: confirmed
+- id: F-107
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs is a short handler with a comment to read but no test or script runs it alone.
+  evidence: [routes/admin.mjs:1, routes/admin.mjs:6, package.json:7]
+  confidence: confirmed
+- id: F-108
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs is one exported object with a header comment to read but nothing that loads and checks it alone.
+  evidence: [config/settings.mjs:1, config/settings.mjs:2, package.json:7]
+  confidence: confirmed
+- id: F-109
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    The model call site callModel (a stub) and its caller ask write no record of tier, spend or outcome to any sink; the answer is returned to the caller and nothing is logged.
+  evidence: [lib/agent.mjs:27, lib/agent.mjs:34, lib/agent.mjs:42]
+  confidence: confirmed
+- id: F-110
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No file names which model or tier the assistant uses, so there is no dated qualification record, rationale or re-qualification trigger for it; the code holds only a stub and the README says only "the AI assistant".
+  evidence: [lib/agent.mjs:23, lib/agent.mjs:27, README.md:18]
+  confidence: plausible
+- id: F-111
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The README, the only entry doc (no agent-facing file exists), lists endpoints, running and testing but names no module for any endpoint, so a stranger reaches the right subsystem only by reading server.mjs.
+  evidence: [README.md:12, README.md:16, README.md:23]
+  confidence: confirmed
+- id: F-112
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    server.mjs's header and imports act as the routing map: they state that each concern lives in one lib/ or routes/ module and import each one by name, so a reader goes from a route to its one module in a single file.
+  evidence: [server.mjs:2, server.mjs:6, server.mjs:7, server.mjs:8, server.mjs:53]
+  confidence: confirmed

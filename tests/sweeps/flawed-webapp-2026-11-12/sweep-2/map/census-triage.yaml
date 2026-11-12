@@ -1,0 +1,12 @@
+# map/census-triage.yaml (authored, SCHEMA.md §6f). Every listed population is empty in
+# map/raw/enumerate.json, so each census closes empty. A member enumerate's patterns did not
+# list (the backup key literal) is still listed in its census in map/censuses.yaml.
+schema: census-triage
+version: 1
+censuses:
+  - census: credential
+    triage: []
+  - census: change-gates
+    triage: []
+  - census: model-call-telemetry
+    triage: []

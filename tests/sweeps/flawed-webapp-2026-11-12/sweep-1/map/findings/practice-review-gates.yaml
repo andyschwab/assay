@@ -1,0 +1,34 @@
+# Pass 3 — deterministic gates (practice review, flawed-webapp)
+- id: F-201
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No check runs on a change before it lands: the target has no CI workflow, no commit or push hook,
+    no lint, typecheck or schema config, and its only package script is `start`, so a subtle regression
+    in the central request path (server.mjs, lib/auth.mjs) is caught by no gate, only by someone running
+    test/smoke.mjs by hand.
+  evidence: [package.json:6, package.json:7, test/smoke.mjs:8, server.mjs:27]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-203
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The smoke test's one assertion (`assert.ok(u)` on a valid token) cannot turn red when the auth check
+    is weakened or removed, because `authenticate` returns a truthy default admin identity for any
+    unknown or missing token, and the test carries no negative fixture (a bad or absent token).
+  evidence: [test/smoke.mjs:8, test/smoke.mjs:9, lib/auth.mjs:12]
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The HTTP body interface validates nothing that crosses it: `readBody` turns malformed JSON into `{}`
+    instead of a 400, and the handlers coerce missing fields to empty strings, so `POST /notes` with a
+    broken body answers 201 and stores an empty note rather than failing loudly.
+  evidence: [server.mjs:16, server.mjs:38, server.mjs:39, server.mjs:44]
+  confidence: confirmed
+  property: interface-contract-enforced

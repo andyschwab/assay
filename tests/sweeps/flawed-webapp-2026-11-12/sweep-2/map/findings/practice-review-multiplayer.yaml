@@ -1,0 +1,118 @@
+# Pass 7 — multiplayer. Census agent-access-surface (F-700..F-704, the five routes the
+# terrain froze; no member added), then discovery questions shared-context-substrate and
+# sharing-is-consented (F-705..F-710).
+- id: F-700
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    GET /notes is a JSON HTTP route whose method, path and purpose are stated in the README
+    endpoint list, and it takes no request body, so an agent can call it from the README alone
+    (the response shape and the bearer-token scheme are stated only in code).
+  evidence: [README.md:16, server.mjs:30, server.mjs:22]
+  confidence: plausible
+- id: F-701
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /notes is listed in the README by method and path only, while the request field it
+    reads (`text`) and the `{id}` it returns are stated nowhere outside server.mjs, so an agent
+    cannot use it without reading the code.
+  evidence: [README.md:17, server.mjs:35, server.mjs:38, server.mjs:39]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /assistant is listed in the README as "ask the AI assistant", but its request field
+    (`question`) and its response shape (`answer`, plus `emailed` when a mail was sent) are
+    stated only in code.
+  evidence: [README.md:18, server.mjs:44, lib/agent.mjs:40, lib/agent.mjs:42]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    POST /sync is stated in the README by method, path and purpose and takes no request body,
+    so an agent can invoke it from the README (its `{ok, pushed}` response is stated only in
+    code).
+  evidence: [README.md:19, server.mjs:47, lib/sync.mjs:13]
+  confidence: plausible
+- id: F-704
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    POST /admin/purge is served by server.mjs but appears in no document outside the code (the
+    README endpoint list omits it), so its existence and use are discoverable only by reading
+    the source.
+  evidence: [server.mjs:52, README.md:14, routes/admin.mjs:5]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    All context lives in one consolidated store module that every consumer (server, assistant,
+    auth) imports, rather than a bespoke store per integration.
+  evidence: [lib/db.mjs:8, server.mjs:5, lib/agent.mjs:8, lib/auth.mjs:2]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-706
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The workspace is not a principal: there is one implicit module-global note map and user
+    list, with no workspace, team or room entity carrying its own membership, memory or
+    permissions (a user record holds only id, email, role and note ids).
+  evidence: [lib/db.mjs:2, lib/db.mjs:3, lib/db.mjs:8, lib/db.mjs:27]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-707
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    Notes are private on the listing route (filtered to the caller as owner) but the assistant
+    places every user's notes, tagged with their owner's email, into any caller's prompt, so a
+    note is shared by automatic surfacing with no act or consent by its owner.
+  evidence: [server.mjs:31, lib/agent.mjs:12, lib/agent.mjs:14]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-708
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says the assistant answers questions about "your notes", while the assistant
+    reads every user's notes, so the privileged reader it is (every caller, via the assistant)
+    is not disclosed by structure or by the doc.
+  evidence: [README.md:4, lib/agent.mjs:12]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-709
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The external backup service receives every note in the workspace on each sync, and that
+    reader is disclosed only as one line of README prose, with no per-note or per-owner
+    choice about what is pushed.
+  evidence: [README.md:19, lib/sync.mjs:6]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-710
+  dimension: multiplayer
+  polarity: fact
+  subject_type: control
+  observation: >
+    The admin role grants no content-reading route: the only admin-gated interface is the
+    workspace purge, so the README's "admins manage the workspace" names no admin reader of
+    note content.
+  evidence: [README.md:3, routes/admin.mjs:7, routes/admin.mjs:8, lib/db.mjs:5]
+  confidence: confirmed
+  property: sharing-is-consented

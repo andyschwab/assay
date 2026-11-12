@@ -1,0 +1,245 @@
+- id: F-101
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    assay.mjs is an 85-line dispatcher with no local imports whose head comment says what it is and whose `help` prints every command grouped by layer, so an agent can read and run it alone.
+  evidence: ["assay.mjs:2", "assay.mjs:18", "assay.mjs:75", "tests/blocks/cli-commands.mjs:1"]
+  confidence: confirmed
+- id: F-102
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/ has no contract doc of its own beyond per-file head comments and a one-line "shared helpers" Layout entry, its yaml-min, run-layout and run-data files have no command that runs them alone (only the whole harness), and lib/release-notes.mjs reaches up into map/doctrine.mjs for isMain.
+  evidence: ["README.md:244", "lib/release-notes.mjs:21", "lib/yaml-min.mjs:1", "lib/run-layout.mjs:1", "tests/regression.mjs:22"]
+  confidence: confirmed
+- id: F-103
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/validate.mjs opens with its contract and usage (flags and the fail-closed rule) and runs alone as `assay validate <run>`, though it borrows two shape helpers from yardstick/packet.mjs.
+  evidence: ["map/validate.mjs:2", "map/validate.mjs:3", "map/validate.mjs:8", "map/validate.mjs:25", "tests/blocks/validate-hints.mjs:1"]
+  confidence: plausible
+- id: F-104
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/ingest.mjs (1282 lines) holds inline conversion profiles for four instruments and imports their status constants from each instrument file, so changing one instrument's output means loading and editing both the instrument and this file.
+  evidence: ["map/ingest.mjs:62", "map/ingest.mjs:77", "map/ingest.mjs:285", "map/ingest.mjs:390", "map/ingest.mjs:477", "map/scanners/INTAKE.md:20"]
+  confidence: confirmed
+- id: F-105
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/enumerate.mjs states why it exists and its three usages in its head comment, imports only three local modules, and runs read-only alone as `assay enumerate <target> [--json]`.
+  evidence: ["map/enumerate.mjs:2", "map/enumerate.mjs:14", "map/enumerate.mjs:23", "tests/blocks/enumerate-gate.mjs:1"]
+  confidence: confirmed
+- id: F-106
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/start.mjs documents its one sequencing and both modes in its head comment, and with no target it runs alone, recording every scanner skipped without needing the pinned tools.
+  evidence: ["map/start.mjs:8", "map/start.mjs:15", "map/start.mjs:38", "tests/blocks/start.mjs:1"]
+  confidence: confirmed
+- id: F-107
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/fresh-clone.mjs explains its five steps and the requirements it serves in its head comment and runs alone as `assay fresh-clone`, with six harness blocks named for it.
+  evidence: ["map/fresh-clone.mjs:2", "map/fresh-clone.mjs:9", "assay.mjs:30", "tests/blocks/fresh-clone.mjs:1"]
+  confidence: confirmed
+- id: F-108
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/repo-census.mjs is large (1300 lines) but its head comment names each check and the rows it decides, it imports four local modules, and it runs alone as `assay repo-census`, with nine harness blocks named for it.
+  evidence: ["map/repo-census.mjs:2", "map/repo-census.mjs:13", "assay.mjs:33", "tests/blocks/repo-census.mjs:1"]
+  confidence: plausible
+- id: F-109
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/structure-scan.mjs lays out what it does in order in its head comment and runs alone as `assay structure-scan` (with --no-exec skipping knip), with four harness blocks named for it.
+  evidence: ["map/structure-scan.mjs:2", "map/structure-scan.mjs:9", "assay.mjs:32", "tests/blocks/structure-scan.mjs:1"]
+  confidence: confirmed
+- id: F-110
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/dependency-scan.mjs states its question and steps in its head comment, imports three local modules, and runs alone as `assay dependency-scan`.
+  evidence: ["map/dependency-scan.mjs:2", "map/dependency-scan.mjs:9", "assay.mjs:31", "tests/blocks/dependency-scan.mjs:1"]
+  confidence: confirmed
+- id: F-111
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/tools.mjs (253 lines) documents the adapter tool-block shape and its three usages in its head comment and runs alone as `assay tools verify|check|install`.
+  evidence: ["map/tools.mjs:1", "map/tools.mjs:12", "map/tools.mjs:24", "tests/blocks/tools.mjs:1"]
+  confidence: confirmed
+- id: F-112
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/scanners/ has a compact intake procedure, but the adapter format's one home is a 1061-line CONTRACT.md and an instrument adapter cannot be added alone, since its conversion profile lives in map/ingest.mjs.
+  evidence: ["map/scanners/INTAKE.md:12", "map/scanners/INTAKE.md:20", "map/scanners/CONTRACT.md:10", "map/scanners/adapters/gitleaks.yaml:1"]
+  confidence: plausible
+- id: F-113
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/ has its own contract README with a "Running it" section and runs alone as `assay measure <run>` and `assay yardstick`, though measure.mjs imports four map/ modules.
+  evidence: ["yardstick/README.md:7", "yardstick/README.md:263", "yardstick/measure.mjs:2", "yardstick/measure.mjs:36", "assay.mjs:40"]
+  confidence: plausible
+- id: F-114
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    views/ has a README giving each view's data schema and one command (`assay compile <run>`) that runs them all from one measurement, and each view also runs alone.
+  evidence: ["views/README.md:7", "views/README.md:11", "views/compile.mjs:2", "assay.mjs:52"]
+  confidence: confirmed
+- id: F-115
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    owner/ has PACKET.md as the one home of the packet format with a validate command, and ask-owner.mjs runs alone as `assay ask-owner`.
+  evidence: ["owner/PACKET.md:18", "owner/PACKET.md:24", "owner/ask-owner.mjs:2", "assay.mjs:45"]
+  confidence: confirmed
+- id: F-116
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    routine/ has its own contract README with a "Running it locally" command, and run.mjs is the one driver CI and a terminal both call.
+  evidence: ["routine/README.md:15", "routine/README.md:271", "routine/run.mjs:2", "tests/blocks/routine.mjs:1"]
+  confidence: confirmed
+- id: F-117
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The engine makes no model call: enumerate lists no model call site, and a search of non-test code finds no provider SDK import or model API host, because peer scanners run in a session the operator opens outside the engine.
+  evidence: ["README.md:152", "map/lane.mjs:10"]
+  confidence: confirmed
+- id: F-118
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The run record stores the model id and spend of each judgment scanner and each practice-review pass, validate warns when one is missing, and variance reports agreement for each model pair.
+  evidence: ["map/record.mjs:18", "map/record.mjs:25", "map/validate.mjs:302", "map/variance.mjs:144", "tests/blocks/model-of-record.mjs:1"]
+  confidence: confirmed
+- id: F-119
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    A lane names no model and leaves the choice to the consumer, and no file in the tree records which model is qualified for which lane or pass, why, or what triggers re-qualifying it.
+  evidence: ["map/scanners/CONTRACT.md:931", "map/lane.mjs:10", "map/scanners/adapters/practice-review/lane.md:25"]
+  confidence: plausible
+- id: F-120
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README.md maps each top-level directory to its one concern in Layout and ends each layer's paragraph by naming that layer's one contract doc, so a stranger can go from the front door to the subsystem a task needs.
+  evidence: ["README.md:105", "README.md:116", "README.md:124", "README.md:237"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-121
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    CLAUDE.md, the agent contract, sends an agent to README and four contract docs by document, not by task, and never names the scanner contract, scanner intake, routine/, owner/, CONSUMERS.md or RUNBOOK.md.
+  evidence: ["CLAUDE.md:5", "CLAUDE.md:7", "CLAUDE.md:55"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-122
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README's description of the map layer is one unbroken 49-line paragraph covering peer scanners, adapters, nine instruments, execution safety and the run record, so a stranger looking for one instrument has to read all of it.
+  evidence: ["README.md:57", "README.md:89", "README.md:105"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-123
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart opens with `node assay.mjs help`, which lists every command in one line under its layer, so the commands are introduced a little at a time instead of all being explained up front.
+  evidence: ["README.md:163", "assay.mjs:63", "assay.mjs:69"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-124
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The practice-review lane tells a session to read map/METHOD.md in full and then map/SCHEMA.md (813 + 1125 lines, about 129 KB) before any target file, and the tree has no per-pass slice of either.
+  evidence: ["map/scanners/adapters/practice-review/lane.md:19", "README.md:182", "map/METHOD.md:47"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-125
+  dimension: context-economy
+  polarity: strength
+  subject_type: process
+  observation: >
+    The method stages a review of the target in bounded slices: each pass reads the terrain and its own slice and drops it after writing, so the working set stays small.
+  evidence: ["map/METHOD.md:47", "map/METHOD.md:50"]
+  confidence: confirmed
+- id: F-126
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The regression runner accepts only --bless and always loads every block in tests/blocks/, so a module's tests cannot be run without running all 161 blocks.
+  evidence: ["tests/regression.mjs:22", "tests/regression.mjs:28", "tests/harness.mjs:33", "tests/harness.mjs:72"]
+  confidence: confirmed
+- id: F-127
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Run paths and gate doctrine each have one home (lib/run-layout.mjs and map/doctrine.mjs) that every reader imports, so changing a path or the gate rule means loading one small file.
+  evidence: ["lib/run-layout.mjs:1", "lib/run-layout.mjs:5", "map/doctrine.mjs:1", "map/doctrine.mjs:7"]
+  confidence: confirmed
+- id: F-128
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/ and yardstick/ import each other (map's record, score and variance import yardstick/measure.mjs; yardstick's measure and compare import map modules), so the one-way map to yardstick to views flow in the README is not a boundary in the code.
+  evidence: ["README.md:47", "map/record.mjs:40", "map/score.mjs:47", "map/variance.mjs:75", "yardstick/measure.mjs:36", "yardstick/compare.mjs:39"]
+  confidence: confirmed
+- id: F-129
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    General-purpose helpers live in layer files rather than lib/: map/ imports secret, email and name shape checks from yardstick/packet.mjs, and lib/ and yardstick/ import isMain from map/doctrine.mjs.
+  evidence: ["yardstick/packet.mjs:52", "yardstick/packet.mjs:141", "map/enumerate.mjs:31", "map/validate.mjs:25", "lib/release-notes.mjs:21", "yardstick/list.mjs:12"]
+  confidence: confirmed
+- id: F-130
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Each harness block is its own file named for its subject, added without editing any other file, so the tests for a module can be found by filename.
+  evidence: ["tests/README.md:13", "tests/README.md:25"]
+  confidence: confirmed

@@ -1,0 +1,65 @@
+- id: F-501
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The repository records no lesson: across all twelve files there is no incident note,
+    postmortem, review correction, lessons-file entry or fix that names its cause; the only
+    prose near one is the backup push's unproven assumption that failures are rare and the
+    smoke suite's header, which describes the test's shallowness rather than a past failure,
+    so the lesson census has no members (a confirmed absence, recorded outside the census).
+  evidence: [README.md:12, README.md:21, README.md:27, docs/adr/0001-storage-choice.md:1, lib/sync.mjs:7, test/smoke.mjs:1]
+  confidence: confirmed
+- id: F-502
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Outstanding work to move the backup API key out of source is recorded only as an inline
+    code comment ("TODO: move to env before launch") on the line above the literal key, with
+    no issue reference, need-by label or owner, so nothing on a tracker carries it or closes it.
+  evidence: [config/settings.mjs:5]
+  confidence: confirmed
+- id: F-503
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The deferred persistence work (the SQLite adapter "when it lands", and data loss on restart
+    as "the first thing the production milestone fixes") is recorded only as prose in the ADR's
+    consequences, with no issue, milestone reference or date that a change could close.
+  evidence: [docs/adr/0001-storage-choice.md:15, docs/adr/0001-storage-choice.md:22, docs/adr/0001-storage-choice.md:23, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-504
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    No file names an issue tracker for the backlog to live on: package.json carries no
+    repository or bugs field, and no file in the tree references an issue number or a
+    milestone by name or link.
+  evidence: [package.json:1, package.json:9, docs/adr/0001-storage-choice.md:23]
+  confidence: confirmed
+- id: F-505
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The system holds no record of what it is worth: the ADR names the assistant as the
+    differentiator the demo window was spent on, yet the tree carries no impact field, no
+    changelog for version 0.3.1, and no before-and-after record of any change.
+  evidence: [docs/adr/0001-storage-choice.md:27, docs/adr/0001-storage-choice.md:28, package.json:3]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-506
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The artifact emits no structured usage or outcome record: the request dispatcher logs no
+    request, the assistant's ask returns its answer and any email target without recording
+    either, and the only runtime output is two unstructured console lines (the mailer's send
+    line and the server's listen line), with nothing aggregated across users or workspaces.
+  evidence: [server.mjs:26, server.mjs:27, lib/agent.mjs:33, lib/agent.mjs:40, lib/mailer.mjs:7, server.mjs:60]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

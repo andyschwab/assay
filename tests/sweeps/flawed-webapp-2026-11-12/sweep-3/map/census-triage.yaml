@@ -1,0 +1,9 @@
+schema: census-triage
+version: 1
+censuses:
+  - census: credential
+    triage: []
+  - census: change-gates
+    triage: []
+  - census: model-call-telemetry
+    triage: []

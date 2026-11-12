@@ -1,0 +1,300 @@
+# Pass 3 — deterministic gates (practice-review), census-augmented: change-gates census F-300..F-311,
+# guard-fixtures context F-312..F-317, discovery F-318..F-320.
+- id: F-300
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    ci.yml's tools step runs the composite action under set -euo pipefail, so a failed tools install (download,
+    checksum, unsupported platform) or a verify that finds any pinned tool absent, broken or at another version exits
+    non-zero and fails the step, and the job's 15-minute timeout turns a hung download red; an empty tool set would
+    verify vacuously, but npm test then throws on it (refusal-commands reads runTools()[0]).
+  evidence:
+    - ".github/workflows/ci.yml:38"
+    - ".github/workflows/ci.yml:19"
+    - ".github/actions/tools/action.yml:26"
+    - ".github/actions/tools/action.yml:30"
+    - "map/tools.mjs:240"
+    - "map/tools.mjs:244"
+    - "tests/blocks/refusal-commands.mjs:39"
+  confidence: confirmed
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    ci.yml's `npm run build` step runs lib/check-syntax.mjs, which refuses an empty module listing as red, exits 1 when
+    any module fails `node --check` (a signal-killed check has a null status and counts as failed), throws when git
+    cannot list, and is bounded by the job timeout; it is the same script as lint, so it re-runs the same check.
+  evidence:
+    - ".github/workflows/ci.yml:33"
+    - "package.json:12"
+    - "lib/check-syntax.mjs:13"
+    - "lib/check-syntax.mjs:14"
+    - "lib/check-syntax.mjs:15"
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    ci.yml's `npm run lint` step is the syntax gate (`node --check` over every tracked engine module); it goes red on
+    an empty listing, a git failure or any unparseable module, inside a job with timeout-minutes 15.
+  evidence:
+    - ".github/workflows/ci.yml:31"
+    - ".github/workflows/ci.yml:19"
+    - "package.json:10"
+    - "lib/check-syntax.mjs:11"
+    - "lib/check-syntax.mjs:13"
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    ci.yml's `npm run typecheck` step runs tsc -p tsconfig.json with checkJs over the engine's directories, using the
+    version-pinned typescript devDependency installed by npm ci, so a missing compiler or a type error fails the step,
+    and the job timeout bounds it.
+  evidence:
+    - ".github/workflows/ci.yml:32"
+    - "package.json:11"
+    - "package.json:18"
+    - "tsconfig.json:4"
+    - "tsconfig.json:12"
+  confidence: confirmed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    ci.yml's `npm test` step runs the regression harness, which reads an empty blocks directory, a block that fails
+    to load, and a block that throws as failures, exits 2 with no golden.json, reads any scored drift (a missing
+    fixture grade included) as red, and runs after the tools step has put every pinned instrument on PATH, inside the
+    job timeout.
+  evidence:
+    - ".github/workflows/ci.yml:39"
+    - ".github/workflows/ci.yml:19"
+    - "tests/harness.mjs:73"
+    - "tests/harness.mjs:78"
+    - "tests/harness.mjs:115"
+    - "tests/harness.mjs:141"
+    - "tests/harness.mjs:152"
+    - "tests/regression.mjs:44"
+  confidence: confirmed
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    release.yml calls the same tools action before its npm test, so a failed install or verify fails the release job
+    before anything is tagged, and the job's 20-minute timeout bounds a hung download.
+  evidence:
+    - ".github/workflows/release.yml:40"
+    - ".github/workflows/release.yml:22"
+    - ".github/actions/tools/action.yml:26"
+    - ".github/actions/tools/action.yml:30"
+  confidence: confirmed
+- id: F-306
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    release.yml's Consumer-trailer step runs lib/release-notes.mjs --check, which exits 1 on a shallow history, on a
+    tree with no commit adding CONSUMERS.md, on a CONSUMERS.md with no surface block, and on any surface commit with
+    no Consumer trailer, so the inputs it needs being absent reads red, never clean.
+  evidence:
+    - ".github/workflows/release.yml:43"
+    - "lib/release-notes.mjs:69"
+    - "lib/release-notes.mjs:76"
+    - "lib/release-notes.mjs:99"
+    - "lib/release-notes.mjs:102"
+    - "lib/release-notes.mjs:110"
+  confidence: confirmed
+- id: F-307
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    release.yml runs npm test on the dispatched commit after the tools step and before the tag step, so the same
+    fail-closed harness gates a release, bounded by the job's timeout-minutes 20.
+  evidence:
+    - ".github/workflows/release.yml:41"
+    - ".github/workflows/release.yml:22"
+    - ".github/workflows/release.yml:44"
+    - "tests/harness.mjs:73"
+  confidence: confirmed
+- id: F-308
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The package script `lint` (node lib/check-syntax.mjs) run by hand goes red when git cannot list (execFileSync
+    throws), when the listing is empty, and when any module fails to parse; it carries no time limit of its own, but
+    `node --check` on a file has nothing to wait on.
+  evidence:
+    - "package.json:10"
+    - "lib/check-syntax.mjs:11"
+    - "lib/check-syntax.mjs:13"
+    - "lib/check-syntax.mjs:15"
+  confidence: confirmed
+- id: F-309
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The package script `test` run outside CI reads green with gitleaks absent: the gitleaks-target block probes for the
+    binary and, without it, skips its real-scan assertions with no failure or notice, and the gate line still prints
+    "all hold"; the harness's many child processes mostly carry no timeout, so outside CI's job limit nothing bounds a
+    hang.
+  evidence:
+    - "package.json:9"
+    - "tests/blocks/gitleaks-target.mjs:24"
+    - "tests/blocks/gitleaks-target.mjs:46"
+    - "tests/blocks/gitleaks-target.mjs:61"
+    - "tests/harness.mjs:122"
+  confidence: confirmed
+- id: F-310
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The package script `typecheck` (tsc -p tsconfig.json) depends on the pinned typescript devDependency, so with it
+    absent the script fails as a missing command, and the tsconfig's include list names only engine directories that
+    exist, so it cannot pass over no inputs.
+  evidence:
+    - "package.json:11"
+    - "package.json:18"
+    - "tsconfig.json:12"
+  confidence: plausible
+- id: F-311
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The package script `validate` exits 2 with no run directory and fails closed on a missing manifest, but without
+    --target it skips resolving every evidence path against the target with no warning and still prints that
+    citations are "all clean".
+  evidence:
+    - "package.json:14"
+    - "map/validate.mjs:85"
+    - "map/validate.mjs:101"
+    - "map/validate.mjs:365"
+    - "map/validate.mjs:795"
+  confidence: confirmed
+- id: F-312
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The validator's checks each carry a negative fixture under tests/negative/ that must validate red, fire the named
+    violation, and fire no other, so weakening one check turns its fixture's assertion red rather than leaving it red
+    for an unrelated reason.
+  evidence:
+    - "tests/blocks/negative-fixtures.mjs:16"
+    - "tests/blocks/negative-fixtures.mjs:71"
+    - "tests/blocks/negative-fixtures.mjs:73"
+    - "tests/blocks/negative-fixtures.mjs:75"
+  confidence: confirmed
+- id: F-313
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The harness runner's own refusal of a throwing block is pinned by a planted block on a scratch directory that
+    throws and must be reported as a failure under its label, never a silent skip.
+  evidence:
+    - "tests/blocks/block-runner.mjs:34"
+    - "tests/blocks/block-runner.mjs:43"
+  confidence: confirmed
+- id: F-314
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The tools action's step script is run against a planted assay.mjs whose install or verify fails, and the block
+    asserts the step exits non-zero and puts nothing on PATH, and refuses a continue-on-error or an `|| true` in it.
+  evidence:
+    - "tests/blocks/ci-interface.mjs:56"
+    - "tests/blocks/ci-interface.mjs:76"
+  confidence: confirmed
+- id: F-315
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The Consumer-trailer check carries a negative fixture: a planted repository with a surface commit lacking the
+    trailer must make --check exit non-zero naming that commit, and a shallow checkout of this repository is itself
+    a failure.
+  evidence:
+    - "tests/blocks/consumer-contract.mjs:108"
+    - "tests/blocks/consumer-contract.mjs:110"
+    - "tests/blocks/consumer-contract.mjs:124"
+  confidence: confirmed
+- id: F-316
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The syntax gate (lib/check-syntax.mjs, the lint and build scripts) has no negative fixture: no block plants an
+    unparseable module and asserts the gate goes red; the harness only checks that ci.yml runs the script.
+  evidence:
+    - "lib/check-syntax.mjs:14"
+    - "tests/blocks/ci-workflow.mjs:54"
+  confidence: confirmed
+- id: F-317
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The typecheck gate has no negative fixture found: no block plants a type error and asserts tsc goes red; the only
+    harness reference is that ci.yml runs `npm run typecheck`.
+  evidence:
+    - "tsconfig.json:4"
+    - "tests/blocks/ci-workflow.mjs:56"
+  confidence: plausible
+- id: F-318
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: >
+    A subtle regression in a central module (validate, measure, compile) is caught by npm test in CI on the pull
+    request and on push to main, through the negative fixtures and the golden.json recall pins; the repository has
+    no commit or push hook, so nothing catches it before the push.
+  evidence:
+    - ".github/workflows/ci.yml:8"
+    - ".github/workflows/ci.yml:39"
+    - "tests/regression.mjs:22"
+    - "tests/golden.json:2"
+    - "package.json:8"
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-319
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The one YAML reader every input crosses throws on any construct outside its subset (an unsupported value, a
+    nested flow list, a duplicate or __proto__ key, trailing content) instead of returning a misleading value, and a
+    block pins those refusals.
+  evidence:
+    - "lib/yaml-min.mjs:42"
+    - "lib/yaml-min.mjs:139"
+    - "lib/yaml-min.mjs:151"
+    - "tests/blocks/yaml-strict.mjs:1"
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-320
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The CLI refuses what it does not know: assay.mjs names an unknown command, and `tools` treats an unknown option as
+    a usage error (exit 2) rather than ignoring it and selecting every pinned tool.
+  evidence:
+    - "assay.mjs:78"
+    - "assay.mjs:81"
+    - "map/tools.mjs:226"
+    - "map/tools.mjs:227"
+    - "map/tools.mjs:251"
+  confidence: confirmed
+  property: interface-contract-enforced

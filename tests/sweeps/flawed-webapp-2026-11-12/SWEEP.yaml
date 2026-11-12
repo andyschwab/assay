@@ -1,0 +1,33 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/flawed-webapp-2026-11-12
+#
+# BLIND, the sweep after M4 (#262), M5 (#263), #287 and M6 (#286) at v0.9.0: three practice-review
+# lanes over the flawed-webapp fixture target at the SAME commit as flawed-webapp-2026-11-11b and
+# -11c (7f7c89d), so only the method changed. Each lane was a fresh child session seeded by `assay
+# lane practice-review` at v0.9.0, all passes claude-opus-5-5, the target read-only, the answer sheet
+# excluded, given the run's map/raw/enumerate.json at v0.9.0 (secrets, changeGates and modelCalls all
+# empty: #292 and #293). What the record should know:
+# - No send-back: each lane's own check found 2 to 4 violations and the lane fixed them before
+#   publishing; every run validated on collection.
+# - The answer sheet's name printed in an unfiltered listing in all three; no lane opened it, and no
+#   finding cites it. One lane's terminal showed the hardcoded key's line while reading; the value is
+#   in no published file.
+# - Spend per session (practice-review row of each run record): USD 6.16, 6.19, 6.33.
+# Recall against the target's ANSWERS.yaml: 9 of 9 in scope in all three; graded requirement
+# statuses agree 24, disagree 0 in all three. Against flawed-webapp-2026-11-11c read at the same
+# engine (73%, 8 of 11): requirement agreement 11 of 13. d-credentials-enumerated now reads unmet in
+# all three: the two hardcoded credentials are members outside an empty list, and a gap outside the
+# list holds the row down (#291). Still parting: d-model-call-telemetry (unmet / not measured / unmet:
+# sweep-2 did not count the stub model as a call site, #293) and d-agent-consumable-surface (an open
+# census). The one effect seen by one sweep is a slug spelling (assistant-send-email beside
+# assistant-email-send), not a different channel.
+target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
+method_commit: "147a39426ef81f745f7603ad363f9de252569744"
+date: "2026-11-12"
+blind: true
+threshold:
+  fact_presence: 80          # measured 8 of 10 union facts caught by all three (80%)
+  descriptor_agreement: 100  # measured 4 of 4 shared effect channels identical on all six descriptors (100%)
+  requirement_agreement: 84  # measured 11 of 13 decided requirements identical in all three (85%, 84.6 floored)
+sweeps: [sweep-1, sweep-2, sweep-3]

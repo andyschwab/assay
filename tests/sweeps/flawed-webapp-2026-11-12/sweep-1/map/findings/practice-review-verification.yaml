@@ -1,0 +1,70 @@
+# Pass 4 — verification (practice review, flawed-webapp)
+- id: F-301
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    pushBackup fires the backup POST without awaiting it, swallows any failure, and returns ok true with the note count, which the /sync route sends back as a 200, so the reported success never confirms the push landed.
+  evidence: [lib/sync.mjs:8, lib/sync.mjs:12, lib/sync.mjs:13, server.mjs:49]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-302
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    sendEmail returns sent true unconditionally after only writing a console log line, so its success report is not tied to any delivery result.
+  evidence: [lib/mailer.mjs:7, lib/mailer.mjs:8]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    ask discards sendEmail's return value and reports emailed with the recipient to the caller regardless of whether the send succeeded.
+  evidence: [lib/agent.mjs:39, lib/agent.mjs:40]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-305
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No pull request template, change checklist or check on a change's stated verification exists in the target; the README's testing section, which names a script package.json does not define, is the only verification instruction a change could follow.
+  evidence: [README.md:32, package.json:7]
+  confidence: confirmed
+- id: F-306
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The AI assistant feature has no eval of its answer quality: the only test file imports authenticate alone and nothing exercises ask or its answers.
+  evidence: [lib/agent.mjs:33, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-307
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The model's output is returned to the caller and parsed for a send directive with no check on its content, so nothing validates the answer however fluent or plausible it reads.
+  evidence: [lib/agent.mjs:34, lib/agent.mjs:35, lib/agent.mjs:42]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-308
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant's system prompt, the one rubric the app relies on for its answers and its tool directive, has no repeated-run or calibration harness anywhere in the tree.
+  evidence: [lib/agent.mjs:17, lib/agent.mjs:18]
+  confidence: confirmed
+- id: F-309
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    server.mjs exports the server and listens only when run directly, so a test can import it and drive the routes in-process to demonstrate a change's observable result.
+  evidence: [server.mjs:59, server.mjs:63]
+  confidence: confirmed
+  property: change-demonstrable

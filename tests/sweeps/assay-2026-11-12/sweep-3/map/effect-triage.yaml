@@ -1,0 +1,29 @@
+schema: effect-triage
+version: 1
+triage:
+  - candidate: "surface: migrate-run.mjs"
+    finding: F-506
+  - candidate: "route: ANY /api/hooks"
+    out_of_scope: "a route in tests/enumerate-fixture/nextjs, a planted fixture enumerate's own test reads; assay serves no HTTP"
+  - candidate: "route: DELETE /api/users/[id]"
+    out_of_scope: "a route in tests/enumerate-fixture/nextjs, a planted fixture enumerate's own test reads; assay serves no HTTP"
+  - candidate: "route: GET /api/users/[id]"
+    out_of_scope: "a route in tests/enumerate-fixture/nextjs, a planted fixture enumerate's own test reads; assay serves no HTTP"
+  - candidate: "route: GET /health"
+    out_of_scope: "a route in tests/enumerate-fixture/nextjs, a planted fixture enumerate's own test reads; assay serves no HTTP"
+  - candidate: "route: HEAD /health"
+    out_of_scope: "a route in tests/enumerate-fixture/nextjs, a planted fixture enumerate's own test reads; assay serves no HTTP"
+  - candidate: "route: PATCH /api/users/[id]"
+    out_of_scope: "a route in tests/enumerate-fixture/nextjs, a planted fixture enumerate's own test reads; assay serves no HTTP"
+  - candidate: "docker control"
+    out_of_scope: "every listed line is a detection pattern in map/enumerate.mjs (EFFECT and container regexes); assay starts no container"
+  - candidate: "git push"
+    out_of_scope: "the one listed line is enumerate's detection regex (map/enumerate.mjs:181); nothing in assay pushes"
+  - candidate: "http write"
+    out_of_scope: "every listed line is a sink pattern in the vendored opengrep Python taint rules; assay makes no Python HTTP call"
+  - candidate: "http write (js)"
+    finding: F-504
+  - candidate: "message/mail send"
+    out_of_scope: "the one listed line is enumerate's detection regex (map/enumerate.mjs:180); assay sends no message or mail"
+  - candidate: "shell exec"
+    out_of_scope: "every listed line is a vendored opengrep Python sink pattern or its planted positive-control case (control/app/run.py); the engine's own Node process spawns are recorded as F-500, F-501, F-502 and F-503"

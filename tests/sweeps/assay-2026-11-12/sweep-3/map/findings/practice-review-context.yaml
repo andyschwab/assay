@@ -1,0 +1,130 @@
+- id: F-200
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The CLI dispatcher assay.mjs is an 85-line command table that names each command's script and purpose, runs as `node assay.mjs help`, and has its own block pinning that every advertised command has a body, so it can be read and changed alone.
+  evidence: ["assay.mjs:15", "assay.mjs:18", "assay.mjs:84", "tests/blocks/cli-commands.mjs:1"]
+  confidence: confirmed
+- id: F-201
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Each deterministic instrument (fresh-clone, dependency-scan, repo-census, structure-scan) has its own contract section, its own command and its own fixture-backed blocks, and imports only small map helpers, so one instrument loads alone, though repo-census and fresh-clone are single files of 1300 and 695 lines.
+  evidence: ["map/scanners/CONTRACT.md:214", "map/scanners/CONTRACT.md:378", "map/scanners/CONTRACT.md:448", "map/scanners/CONTRACT.md:639", "assay.mjs:30", "map/fresh-clone.mjs:99", "map/repo-census.mjs:98", "tests/blocks/fresh-clone.mjs:1", "tests/blocks/repo-census.mjs:1"]
+  confidence: plausible
+- id: F-202
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The ingest module is one 1282-line file that imports the status vocabularies of four instruments, so changing ingest for one scanner, or an instrument's output, means loading ingest.mjs alongside the instrument modules and the 1061-line scanner contract.
+  evidence: ["map/ingest.mjs:2", "map/ingest.mjs:62", "map/ingest.mjs:63", "map/ingest.mjs:64", "map/ingest.mjs:65", "map/scanners/CONTRACT.md:40"]
+  confidence: plausible
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The validator has an authoritative document (SCHEMA.md), a command that fails closed, and a negative-fixture block that runs every malformed run against it, so it can be changed with something to read and something to run, at the cost of a 795-line file that imports eight sibling modules.
+  evidence: ["CLAUDE.md:5", "assay.mjs:21", "map/validate.mjs:14", "map/validate.mjs:25", "tests/blocks/negative-fixtures.mjs:1"]
+  confidence: plausible
+- id: F-204
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Scanners arrive as one adapter file each under a stated format, and a block holds that the core names no external scanner, so adding or changing a scanner is a change to its adapter alone.
+  evidence: ["map/scanners/CONTRACT.md:91", "map/scanners/adapters/practice-review.yaml:1", "CLAUDE.md:33", "tests/blocks/core-names-no-scanner.mjs:1"]
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The cross-tool gate and severity doctrine lives in one 89-line module that states why it is the one home, with a lockstep block that pins its consumers to the same rule, so it is changed in one place.
+  evidence: ["map/doctrine.mjs:1", "map/doctrine.mjs:18", "tests/blocks/doctrine-lockstep.mjs:1"]
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The yardstick has its own contract doc, its own commands (yardstick, measure, compare, ratchet) and its own yardstick-* blocks; measure.mjs reads the map through named library functions (project, effect-triage, census) rather than reaching into run files.
+  evidence: ["yardstick/README.md:3", "assay.mjs:40", "yardstick/measure.mjs:33", "yardstick/measure.mjs:36", "tests/blocks/yardstick-register.mjs:1"]
+  confidence: plausible
+- id: F-207
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The views have one doc of their data formats and each view (intake, maintain, owner) has a command that writes it alone from an existing measurement, so one view is changed and run without compiling the rest.
+  evidence: ["views/README.md:3", "views/compile.mjs:5", "assay.mjs:52", "assay.mjs:54"]
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The Improve report compiler imports supervision, capabilities, chains, decisions, project and the measurement from map/ and yardstick/, so changing what the report shows means loading those map libraries too; the report's model written as data (report.json) spares a renderer that cost, not the compiler.
+  evidence: ["views/improve/report.mjs:3", "views/improve/report.mjs:20", "views/improve/report.mjs:22", "views/improve/report.mjs:28", "tests/blocks/improve-report-data.mjs:1"]
+  confidence: plausible
+- id: F-209
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Each lib/ helper opens with a header naming its one job (the YAML reader, the run's path layout, the run-data schemas) and has its own block, though lib/ has no directory doc beyond the README's "shared helpers" line and release-notes.mjs imports map/doctrine.mjs, the one upward import from lib/.
+  evidence: ["lib/yaml-min.mjs:1", "lib/run-layout.mjs:1", "lib/run-data.mjs:1", "lib/release-notes.mjs:21", "README.md:244", "tests/blocks/yaml-strict.mjs:1"]
+  confidence: plausible
+- id: F-210
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine has its own README, its own command and its own routine-* blocks; its driver composes map/start, map/tools and the ratchet through their exported functions.
+  evidence: ["routine/README.md:3", "assay.mjs:48", "routine/run.mjs:75", "routine/run.mjs:81", "tests/blocks/routine.mjs:1"]
+  confidence: confirmed
+- id: F-211
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The owner surface has its packet format doc, its own commands (ask-owner, validate-packet) and its own blocks, and ask-owner.mjs reads the run through library imports only.
+  evidence: ["owner/PACKET.md:3", "assay.mjs:44", "assay.mjs:45", "owner/ask-owner.mjs:38", "tests/blocks/ask-owner.mjs:1"]
+  confidence: confirmed
+- id: F-212
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The harness runs every block in tests/blocks/ (161 files) in one pass with no way to select one, and a block exports run() with no command-line body, so an agent changing one module cannot run that module's own blocks without running the whole suite.
+  evidence: ["tests/README.md:20", "tests/regression.mjs:28", "tests/regression.mjs:30", "tests/harness.mjs:70", "tests/harness.mjs:72"]
+  confidence: confirmed
+- id: F-213
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The entry docs route a stranger by layer: CLAUDE.md names the one authoritative doc for findings, method, yardstick and views; the README's Layout block gives one line per top-level directory; and the command help groups every command under map, yardstick, routine and views.
+  evidence: ["CLAUDE.md:5", "CLAUDE.md:7", "README.md:235", "README.md:239", "assay.mjs:18"]
+  confidence: confirmed
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    map/ holds 29 engine files with no index doc of its own; its documents are the 813-line METHOD.md, the 1125-line SCHEMA.md and the 1061-line scanner contract, so a stranger tasked with one map module (enumerate, chains, census, variance) is routed only by the command help line, not to a section.
+  evidence: ["README.md:239", "map/METHOD.md:1", "map/SCHEMA.md:1", "map/scanners/CONTRACT.md:5", "assay.mjs:27"]
+  confidence: plausible
+- id: F-215
+  dimension: context-economy
+  polarity: fact
+  subject_type: process
+  observation: >
+    assay calls no model; a review lane leaves the model to the consumer, and the run record keeps the model and spend each judgment scanner and practice-review pass ran on, but no file records which model a lane should run on, why, or what would re-qualify it.
+  evidence: ["assay.mjs:24", "map/record.mjs:18", "map/record.mjs:20", "map/scanners/adapters/practice-review/lane.md:27", "tests/blocks/model-of-record.mjs:1"]
+  confidence: plausible
