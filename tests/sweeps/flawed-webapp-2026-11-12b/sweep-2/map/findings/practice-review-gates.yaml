@@ -1,0 +1,54 @@
+- id: F-301
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The target wires no change gate at all: package.json defines only a start script, with no
+    test, lint, typecheck or check script, and the target carries no CI workflow or commit hook,
+    so nothing inside the target runs a check on a change before it lands.
+  evidence: [package.json:6-8]
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The smoke check, the target's only check, reads green when what it checks is absent: it
+    asserts only that authenticate returns something truthy for one hardcoded member token, and authenticate
+    returns a default admin identity for any unknown or missing token, so the assertion passes
+    even if the session lookup or the token table is gone.
+  evidence: [test/smoke.mjs:8-9, lib/auth.mjs:7-12]
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No guard fixture exists: the smoke check exercises only the positive path (a valid token
+    resolves a user) and ships no negative case, such as an unknown token being refused, that
+    would turn red when the authentication check is weakened.
+  evidence: [test/smoke.mjs:7-11, lib/auth.mjs:9-12]
+  confidence: confirmed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    A subtle regression in the central server or auth module is caught by no gate inside the
+    target: no package script runs a check, and the README's advertised npm run test:all names a
+    script package.json does not define; the smoke file runs only by hand (a workflow outside the
+    target may run it, not citable here).
+  evidence: [package.json:6-8, README.md:29-35, test/smoke.mjs:1-11]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-305
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The HTTP request-body interface validates nothing and fails silently: readBody resolves an
+    empty object when the body is not valid JSON, and the handlers coerce missing fields to empty
+    strings, so a malformed request is accepted rather than refused.
+  evidence: [server.mjs:11-19, server.mjs:36-38, server.mjs:43-44]
+  confidence: confirmed
+  property: interface-contract-enforced

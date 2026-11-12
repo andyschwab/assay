@@ -1,0 +1,75 @@
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The workspace-backup-push reports success without confirming the effect: pushBackup fires
+    fetch without awaiting it, swallows any rejection with an empty catch, and returns ok true
+    with the note count, which POST /sync relays as a 200.
+  evidence: [lib/sync.mjs:7-13, server.mjs:47-49]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+  label: "backup reports ok whatever the push did"
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant-email-send reports a send that never happens: the mail transport only logs
+    and returns sent true, and ask() ignores even that return value and reports emailed to the
+    recipient as soon as sendEmail is called.
+  evidence: [lib/mailer.mjs:1-2, lib/mailer.mjs:5-8, lib/agent.mjs:39-40]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+  label: "mailer says sent while only logging"
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The one AI feature, the assistant's ask(), has no eval of its answer quality: the only test
+    in the target exercises authenticate alone, and the target holds no CI job.
+  evidence: [lib/agent.mjs:33-43, test/smoke.mjs:4-9, package.json:6-8]
+  confidence: confirmed
+- id: F-404
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the model's output before it is returned or acted on: the answer goes back to
+    the caller verbatim and a TOOL line in it is parsed straight into a recipient and subject,
+    with no check of either however the output reads.
+  evidence: [lib/agent.mjs:34-42]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    A change cannot demonstrate itself through the documented test path: the README's
+    npm run test:all names a script package.json does not define, and the smoke suite it says
+    covers every endpoint asserts only that a valid token resolves a user, exercising no route.
+  evidence: [README.md:29-35, package.json:6-8, test/smoke.mjs:1-11]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-406
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The assistant's model call is a deterministic offline stub, so the assistant path, including
+    its email directive, is reproducible from fixed inputs without a network or a real model.
+  evidence: [lib/agent.mjs:4-7, lib/agent.mjs:23-31]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    No change-verification mechanism exists in the target: none of its 12 files is a pull
+    request template or a check that reads a change's stated verification, and package.json
+    defines only a start script.
+  evidence: [package.json:6-8, README.md:27-35]
+  confidence: confirmed

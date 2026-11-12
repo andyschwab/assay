@@ -1,0 +1,90 @@
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is ADR-0001, which names the choice, its bounding interface, its
+      consequence and why the alternative was deferred, and whose interface claim still holds
+      against the code (F-101, F-111); outside it, rationale is thin (F-103, F-104, F-105) and the
+      README's count, test command and coverage claims do not hold (F-106, F-109, F-110).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions whose rationale reconstructs from the files alone"
+        members: [F-101, F-102, F-103, F-104, F-105]
+        method: "enumerate-before-assess: the five non-obvious decisions the terrain froze (in-memory store, fallback admin identity, fire-and-forget backup push, zero dependencies, unauthenticated sync), one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "concrete doc claims (README, ADR) that hold when replayed against the code"
+        members: [F-106, F-107, F-108, F-109, F-110, F-111]
+        method: "enumerate-before-assess: the terrain's doc claims in prose docs (README.md:14, :16-19, :24, :32, :35, the ADR-0001 interface claim), one finding each; the two code-comment claims the terrain listed are excluded by the row's check and recorded elsewhere (F-113 as a second account, F-116 unlisted)"
+  - dimension: context-economy
+    depth: >
+      The best instance is lib/auth.mjs (F-202), which has a head comment, a test that imports it
+      directly and a one-file import closure; every other module has the comment and a small
+      closure but no test (F-201, F-203-F-208), and the one model call records nothing (F-209).
+    sampled:
+      - name: modules-standalone
+        what: "every module in the terrain's module population, loadable alone with something to read and something to run"
+        members: [F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208]
+        method: "enumerate-before-assess: the eight modules the terrain lists (server.mjs, lib/auth.mjs, lib/db.mjs, lib/agent.mjs, lib/mailer.mjs, lib/sync.mjs, routes/admin.mjs, config/settings.mjs), one finding each, head comment, direct test import and transitive import count read off each file"
+        primary: true
+      - name: model-call-telemetry
+        what: "every model call site, each place the application obtains model output"
+        members: [F-209]
+        method: "enumerate-before-assess: populations.modelCalls lists one candidate (model call: lib/agent.mjs), triaged to one finding judging the calls in that file"
+  - dimension: deterministic-gates
+    depth: >
+      There is no best instance to point to: the target has no change gate of any kind (F-301), so
+      the change-gates population is empty and no census is sampled; the one test is unwired and
+      has no negative case (F-302, F-303), and the request interface fails silent (F-304).
+  - dimension: verification
+    depth: >
+      Verification is thin: the best instance is that the app is importable without listening and
+      its model is a deterministic stub, so a change could demonstrate itself (F-409), but the one
+      test asserts nothing a fallback identity cannot satisfy (F-405), and the backup push and the
+      email send report success without confirming the effect (F-401, F-402).
+  - dimension: delegation
+    depth: >
+      The best instance is the purge's requireAdmin check (F-504), a real deterministic halt at the irreversible boundary that still fails open because a missing token resolves to an admin identity; every other halt-class effect is ungated (F-502, F-503), and the assistant co-holds the full trifecta (F-505).
+    sampled:
+      - name: credential
+        what: "every secret enumerate lists in populations.secrets, its read site and reach traced in code"
+        members: [F-506, F-507]
+        method: "enumerate-before-assess: populations.secrets of map/raw/enumerate.json (backupApiKey, tokenTable), one finding each citing its own file"
+        primary: true
+      - name: ingested-content
+        what: "every place outside text enters the app: the POST /notes body, the POST /assistant question, the model's output"
+        members: [F-508, F-509, F-510]
+        method: "enumerate-before-assess: every readBody call site in server.mjs (the only inbound text) plus the model output parse in lib/agent.mjs; no fetch-in, upload or file read exists in the tree"
+  - dimension: improvement-loop
+    depth: >
+      There is no best instance to judge: the target records no lesson at all (F-601), so the
+      incidents-became-mechanisms census has an empty population and no sampled entry; the
+      nearest material is outstanding work kept as a code TODO and ADR prose rather than
+      issues (F-602, F-603), and the system neither measures its own impact (F-604) nor emits
+      usage or outcome records (F-605).
+  - dimension: multiplayer
+    depth: >
+      The best instance is a bare method-and-path list in the README naming four of the five
+      routes (F-701 to F-704), with no request or response fields and no schema; the admin route
+      has no contract at all (F-705), and the context store has no shared scope or consented
+      sharing (F-706, F-707, F-708).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces reachable by an agent through an API or format contract stated outside the code"
+        members: [F-701, F-702, F-703, F-704, F-705]
+        method: "enumerate-before-assess: the terrain's five HTTP routes (server.mjs:30, :35, :42, :47, :52), the only interfaces the app offers a caller (no screen, command, tool or read data format), one finding each"
+        primary: true
+context:
+  - name: second-accounts
+    members: [F-112, F-113, F-114, F-115]
+  - name: model-qualification
+    members: [F-210]
+  - name: guard-fixtures
+    members: [F-303]
+  - name: change-verification
+    members: [F-408]
+  - name: ai-feature-evals
+    members: [F-406]
+  - name: ai-disclosure
+    members: [F-511]
+  - name: backlog-records
+    members: [F-602, F-603]

@@ -1,0 +1,85 @@
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route GET /notes (server.mjs:30-33, JSON response via the shared send helper) is named
+    with its method and path in the README's endpoint list, a contract kept outside the code;
+    the README states no response fields or auth header, only method, path and purpose.
+  evidence: [server.mjs:30-33, server.mjs:21-24, README.md:14-16]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /notes (server.mjs:35-40) is named with its method and path in the README's
+    endpoint list; its request field (`text`, read at server.mjs:38) appears in no doc, so the
+    contract outside the code gives method and path only.
+  evidence: [server.mjs:35-40, README.md:17]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /assistant (server.mjs:42-45) is named with its method and path in the
+    README's endpoint list; its request field (`question`) and its response shape (`answer`,
+    optional `emailed`, lib/agent.mjs:40-42) appear in no doc.
+  evidence: [server.mjs:42-45, lib/agent.mjs:40-42, README.md:18]
+  confidence: confirmed
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /sync (server.mjs:47-50) is named with its method and path in the README's
+    endpoint list; its response shape (`ok`, `pushed`, lib/sync.mjs:13) appears in no doc.
+  evidence: [server.mjs:47-50, lib/sync.mjs:13, README.md:19]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The route POST /admin/purge (server.mjs:52-54) is named in no contract outside the code:
+    the README lists 4 endpoints and omits it, and the only naming is a code comment that gives
+    the wrong method (DELETE); its refusal path answers plain text, not the JSON the other
+    routes return.
+  evidence: [server.mjs:52-54, README.md:14-19, routes/admin.mjs:5, routes/admin.mjs:7]
+  confidence: confirmed
+- id: F-706
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Context lives in one process-wide store with no shared scope as a principal: notes carry
+    only an `owner`, users carry no workspace, room or project, and the "workspace" is the
+    whole map implicitly; the note-list route reads it as private per owner while the
+    assistant reads it as shared across every owner, so the private/shared boundary is set per
+    code path rather than by the store.
+  evidence: [lib/db.mjs:2-11, server.mjs:31, lib/agent.mjs:12-15]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-707
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    Sharing is automatic, not a conscious act: any caller's assistant question builds a prompt
+    holding every member's notes with each owner's email, and no note carries a shared/private
+    flag or any act by its owner that would admit it to another member's assistant context.
+  evidence: [lib/agent.mjs:11-20, lib/agent.mjs:33-34, server.mjs:42-44, lib/db.mjs:8-11]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-708
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant is a privileged reader of every member's notes, but the structure does not
+    disclose it: the README says it answers questions about "your notes" while the prompt is
+    built over all notes in the store.
+  evidence: [README.md:3-5, README.md:18, lib/agent.mjs:12-15]
+  confidence: confirmed
+  property: sharing-is-consented

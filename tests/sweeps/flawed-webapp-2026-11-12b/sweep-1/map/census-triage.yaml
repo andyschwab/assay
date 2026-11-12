@@ -1,0 +1,15 @@
+schema: census-triage
+version: 1
+censuses:
+  - census: credential
+    triage:
+      - candidate: "backupApiKey"
+        finding: F-506
+      - candidate: "tokenTable"
+        finding: F-507
+  - census: change-gates
+    triage: []
+  - census: model-call-telemetry
+    triage:
+      - candidate: "model call: lib/agent.mjs"
+        finding: F-209

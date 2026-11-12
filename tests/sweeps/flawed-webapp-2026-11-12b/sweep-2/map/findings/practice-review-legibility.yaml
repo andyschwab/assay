@@ -1,0 +1,167 @@
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D1, the in-memory store behind a narrow interface, reconstructs fully from files:
+    ADR-0001 states the context, the decision, its consequences and why SQLite was not
+    taken immediately, and the store module's header points to it.
+  evidence: [docs/adr/0001-storage-choice.md:6-17, docs/adr/0001-storage-choice.md:19-29, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D2, the fallback of an unknown or missing token to a default identity with the admin
+    role, carries its rationale in a comment at the choice (avoid lockout during deploys,
+    keep ops tooling working), though no record weighs it against a deny-by-default.
+  evidence: [lib/auth.mjs:9-12]
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D3, the fire-and-forget backup push with errors swallowed, states a one-line premise
+    at the call (the relay is inside the VPC so failures are rare), but nothing in the tree
+    bears out that premise and the configured backup URL is a public-style https host.
+  evidence: [lib/sync.mjs:7-13, config/settings.mjs:4]
+  confidence: plausible
+- id: F-104
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D4, the backup API key written as a string literal in the settings module, has only a
+    TODO deferring a move to the environment and no stated reason why it is a literal now.
+  evidence: [config/settings.mjs:5-6]
+  confidence: confirmed
+- id: F-105
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D5, a zero-dependency node:http server with no framework, is stated as a fact in the
+    server header but no file gives why; ADR-0001 covers only the storage dependency.
+  evidence: [server.mjs:1-3, docs/adr/0001-storage-choice.md:21]
+  confidence: confirmed
+- id: F-106
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D6, the log-only mail transport, is explained at the module head as a fixture-build
+    choice standing in for the production mail relay.
+  evidence: [lib/mailer.mjs:1-2, lib/mailer.mjs:6]
+  confidence: confirmed
+- id: F-107
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D7, POST /sync carrying no authorization check, is noted in a comment that states the
+    absence but not why the check was left out, while the purge route does check.
+  evidence: [server.mjs:47-49, routes/admin.mjs:7]
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C1, the README's count of 4 endpoints, does not hold: the server routes five
+    (GET /notes, POST /notes, POST /assistant, POST /sync, POST /admin/purge).
+  evidence: [README.md:14, server.mjs:30, server.mjs:35, server.mjs:42, server.mjs:47, server.mjs:52]
+  confidence: confirmed
+- id: F-109
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C2, the README's endpoint list, omits the POST /admin/purge route the server handles.
+  evidence: [README.md:16-19, server.mjs:52-54]
+  confidence: confirmed
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    C3, run with `node server.mjs`, holds when replayed against the code: the module
+    listens when it is the entry script, and the package start script runs the same command.
+  evidence: [README.md:24, server.mjs:59-61, package.json:7]
+  confidence: confirmed
+- id: F-111
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C4, `npm run test:all`, names a script that does not exist: package.json defines only
+    a start script.
+  evidence: [README.md:32, package.json:6-8]
+  confidence: confirmed
+- id: F-112
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C5, every endpoint covered by the smoke suite, does not hold: the suite makes one
+    assertion on the authenticate function and calls no endpoint.
+  evidence: [README.md:35, test/smoke.mjs:5-9]
+  confidence: confirmed
+- id: F-113
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C6, the assistant can email summaries to teammates, overstates the code: the mail
+    transport only logs and sends nothing, and the body mailed is every note's full text
+    rather than a summary.
+  evidence: [README.md:3-5, README.md:18, lib/agent.mjs:36-39, lib/mailer.mjs:5-8]
+  confidence: confirmed
+- id: F-114
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Who is an admin is stated in two places that neither defers to the other: an
+    adminEmails list in settings and the role field on the user records, with the auth
+    fallback adding a third admin identity.
+  evidence: [config/settings.mjs:8, lib/db.mjs:5, lib/auth.mjs:12]
+  confidence: confirmed
+- id: F-115
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The purge route's method is stated twice and disagrees: the admin route comment says
+    DELETE /admin/purge while the server dispatches POST /admin/purge.
+  evidence: [routes/admin.mjs:5, server.mjs:52]
+  confidence: confirmed
+- id: F-116
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The storage plan is restated in the store module's header only as a pointer that
+    defers to ADR-0001 as its home, rather than as a second independent account.
+  evidence: [lib/db.mjs:1, docs/adr/0001-storage-choice.md:14-17]
+  confidence: confirmed
+- id: F-117
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The settings module routes the reader to the README for environment notes, but the
+    README has no environment section; the pointer leads nowhere.
+  evidence: [config/settings.mjs:1, README.md:21-25]
+  confidence: confirmed
+- id: F-118
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    ADR-0001 names the store interface as lookup, the notes map surface and purgeAll, but
+    the assistant imports the users array directly from the store, a surface the decision
+    record does not list.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, lib/agent.mjs:8, lib/db.mjs:2]
+  confidence: plausible

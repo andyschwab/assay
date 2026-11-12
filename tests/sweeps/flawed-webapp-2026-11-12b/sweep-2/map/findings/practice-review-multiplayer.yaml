@@ -1,0 +1,85 @@
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route GET /notes is named by method and path in the README's endpoint list, so an agent can reach it from a doc stated outside the code, though the doc gives no response shape.
+  evidence: [README.md:16, server.mjs:30-32]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /notes is named by method and path in the README's endpoint list, though the request field it reads (text) is stated only in the code.
+  evidence: [README.md:17, server.mjs:35-39]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /assistant is named by method and path in the README's endpoint list, though the request field it reads (question) and the response fields (answer, emailed) are stated only in the code.
+  evidence: [README.md:18, server.mjs:42-45, lib/agent.mjs:40-42]
+  confidence: confirmed
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /sync is named by method and path in the README's endpoint list, though its response shape (ok, pushed) is stated only in the code.
+  evidence: [README.md:19, server.mjs:47-50, lib/sync.mjs:13]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The route POST /admin/purge is named in no contract outside the code (the README lists four endpoints without it), and the only description of it, a code comment, gives the method as DELETE while the server matches POST.
+  evidence: [README.md:14-19, server.mjs:52-54, routes/admin.mjs:5-6]
+  confidence: confirmed
+- id: F-706
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant's prompt is built from every note in the workspace, tagged with each owner's email, whoever the caller is, so the assistant treats the whole workspace as one shared context with no per-note consent or sharing scope.
+  evidence: [lib/agent.mjs:11-20, lib/agent.mjs:33-34]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-707
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    A note carries a single owner and no sharing or scope field, and no shared scope (team, room or project) exists as a principal with its own permissions, while direct listing returns only the caller's own notes.
+  evidence: [lib/db.mjs:2-11, server.mjs:30-32, server.mjs:38]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-708
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    When the assistant emails, the body is the text of every user's notes rather than the caller's, so other members' notes are shared with the recipient without any act by their owners, while the README describes the assistant as answering about "your notes".
+  evidence: [lib/agent.mjs:36-39, README.md:3-5]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-709
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    POST /sync shares every member's notes with an external backup service automatically, with no per-owner consent; the README discloses the push only at workspace level.
+  evidence: [lib/sync.mjs:1, lib/sync.mjs:5-13, server.mjs:47-49, README.md:19]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-710
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    A privileged admin identity exists, and any request with a missing or unknown token is given it, but the README discloses only that admins manage the workspace, not who holds the admin role or that an unidentified caller does.
+  evidence: [lib/auth.mjs:9-12, lib/db.mjs:5, README.md:3]
+  confidence: confirmed
+  property: sharing-is-consented

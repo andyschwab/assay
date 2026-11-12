@@ -1,0 +1,44 @@
+- id: F-301
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The target has no change gate at all: package.json declares only a start script, with no
+    test, lint, typecheck or check script, and the tracked files hold no CI workflow, hook or
+    lint/typecheck config, so the change-gates census has no member and nothing a change passes
+    through can go red.
+  evidence: [package.json:6-8, test/smoke.mjs:1-11]
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: central-regression-caught
+  observation: >
+    A subtle regression in the central dispatcher or auth module is caught by no gate at any
+    stage: the one test file is wired to no script and no CI or hook runs it, and even run by
+    hand it imports only authenticate and never exercises server.mjs's routes.
+  evidence: [package.json:6-8, test/smoke.mjs:4-9, server.mjs:26-57]
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The smoke test carries only a positive case and no negative fixture: its one assertion
+    checks that authenticate returns something truthy, which the fallback identity always
+    supplies, so removing or inverting the token lookup leaves the test passing.
+  evidence: [test/smoke.mjs:7-9, lib/auth.mjs:7-12]
+  confidence: confirmed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The HTTP request-body interface validates nothing and fails silently: readBody swallows a
+    JSON parse error into an empty object, and the handlers coerce missing fields to empty
+    strings, so a malformed request stores an empty note or asks an empty question with a 2xx
+    instead of a 400.
+  evidence: [server.mjs:11-19, server.mjs:36-39, server.mjs:43-44]
+  confidence: confirmed

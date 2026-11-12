@@ -1,0 +1,106 @@
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs has a head comment (lines 1-2) and its in-repository imports reach seven source
+    files (lines 4-9, all leaves within two hops), but no test file imports it, so it has
+    nothing to run on its own.
+  evidence: [server.mjs:1-2, server.mjs:4-9, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-202
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs loads alone with all three legs: a head comment (line 1), a test that imports
+    it directly (test/smoke.mjs:5), and one in-repository import, lib/db.mjs, which imports
+    nothing further.
+  evidence: [lib/auth.mjs:1-2, test/smoke.mjs:5, lib/db.mjs:1-2]
+  confidence: confirmed
+- id: F-203
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs has a head comment and no imports at all, but no test file imports it, so it has
+    nothing to run on its own.
+  evidence: [lib/db.mjs:1-2, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-204
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs has a head comment block (lines 1-7) and its imports reach three files
+    (lib/db.mjs, lib/mailer.mjs, config/settings.mjs), but no test file imports it, so the
+    assistant has nothing to run on its own.
+  evidence: [lib/agent.mjs:1-9, lib/mailer.mjs:3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs has a head comment and imports one file (config/settings.mjs), but no test
+    file imports it, so it has nothing to run on its own.
+  evidence: [lib/mailer.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs has a head comment and imports two files (lib/db.mjs, config/settings.mjs),
+    but no test file imports it, so it has nothing to run on its own.
+  evidence: [lib/sync.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs has a one-line head comment and imports two files (lib/db.mjs,
+    lib/auth.mjs), but no test file imports it, so it has nothing to run on its own.
+  evidence: [routes/admin.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs has a head comment and no imports, but no test file imports it, so it
+    has nothing to run on its own.
+  evidence: [config/settings.mjs:1-2, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-209
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    The one model call site, the stub callModel, returns only a string and neither it nor its
+    caller ask writes any record of model or tier, usage or cost, or outcome; ask returns the
+    answer (and the emailed address) to the HTTP response and nothing else.
+  evidence: [lib/agent.mjs:27-31, lib/agent.mjs:33-43]
+  confidence: confirmed
+- id: F-210
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No model or tier is named anywhere in the tree: the call is a stub that stands in for an
+    unnamed model, settings carry no model setting, and the one ADR records a storage choice
+    only, so there is no dated record of which model is used, why, or what re-qualifies it.
+  evidence: [lib/agent.mjs:4-7, lib/agent.mjs:23-31, config/settings.mjs:2-9, docs/adr/0001-storage-choice.md:1-4]
+  confidence: confirmed
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The README, the only entry doc, lists endpoints, a run command and a test command but names
+    no module or directory, so a stranger is routed to a subsystem only by reading the
+    dispatcher's import list in server.mjs; there is no architecture page or agent-facing file.
+  evidence: [README.md:12-35, server.mjs:1-9]
+  confidence: confirmed

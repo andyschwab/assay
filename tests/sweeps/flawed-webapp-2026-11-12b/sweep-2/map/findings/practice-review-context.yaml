@@ -1,0 +1,89 @@
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs opens with a comment block and its in-repo imports stay within the 7 other source files, but no test imports it, so it has something to read and loads alone yet has nothing to run.
+  evidence: [server.mjs:1-2, server.mjs:3-9, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-202
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs opens with a seven-line comment block and imports only lib/db.mjs and lib/mailer.mjs, but no test imports it, so it lacks something to run.
+  evidence: [lib/agent.mjs:1-7, lib/agent.mjs:8-9, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs opens with a comment, is imported directly by test/smoke.mjs, and its only in-repo import is lib/db.mjs, so it can be read, run and changed alone.
+  evidence: [lib/auth.mjs:1-2, test/smoke.mjs:5, test/smoke.mjs:8-9]
+  confidence: confirmed
+- id: F-204
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs opens with a comment and imports nothing, but no test imports it directly, so it lacks something to run.
+  evidence: [lib/db.mjs:1, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs opens with a comment and imports only config/settings.mjs, but no test imports it, so it lacks something to run.
+  evidence: [lib/mailer.mjs:1-3, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs opens with a comment and imports only lib/db.mjs and config/settings.mjs, but no test imports it, so it lacks something to run.
+  evidence: [lib/sync.mjs:1-3, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs opens with a one-line comment and imports only lib/db.mjs and lib/auth.mjs, but no test imports it, so it lacks something to run.
+  evidence: [routes/admin.mjs:1-3, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs opens with a comment and imports nothing, but no test imports it, so it lacks something to run.
+  evidence: [config/settings.mjs:1-2, test/smoke.mjs:5]
+  confidence: confirmed
+- id: F-209
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    The model stand-in callModel returns a bare string and ask() writes no record of the call, so no structured entry carries a model or tier, a usage or cost, or an outcome on any return.
+  evidence: [lib/agent.mjs:23-31, lib/agent.mjs:33-43]
+  confidence: confirmed
+- id: F-210
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No file names the model or tier the assistant uses or records why it was chosen and what would re-qualify it; the only decision record covers storage and the code calls an unnamed stub.
+  evidence: [lib/agent.mjs:4-7, lib/agent.mjs:27, docs/adr/0001-storage-choice.md:1, README.md:3-5]
+  confidence: confirmed
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README lists endpoints, a run command and a test command but names no module, so a stranger is routed to a subsystem only by the two-line header of server.mjs and its import list.
+  evidence: [README.md:12-35, server.mjs:1-9]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger

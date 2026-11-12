@@ -1,0 +1,58 @@
+- id: F-601
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The target records no lesson anywhere: no incident note, postmortem, review
+    correction, lessons file or fix naming its cause exists among its 12 files, and
+    the prose that comes nearest is a plan (the TODO at config/settings.mjs:5), an
+    untested assumption (lib/sync.mjs:7), decision rationale (the ADR, lib/auth.mjs:9-11)
+    or fixture notices, none of which records something learned from a failure, so the
+    incidents-became-mechanisms census has no population here.
+  evidence: [README.md:1-35, docs/adr/0001-storage-choice.md:1-29, package.json:1-9, config/settings.mjs:5, lib/sync.mjs:7, lib/auth.mjs:9-11, test/smoke.mjs:1-3]
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Outstanding work is kept as a TODO comment in code (move the backup API key to the
+    environment before launch), with no issue reference, label or owner, so nothing in
+    the tree ties it to a tracker or to the change that would close it.
+  evidence: [config/settings.mjs:5-6]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The ADR carries deferred work in prose (persistence and the SQLite adapter are "the
+    first thing the production milestone fixes") with no issue or milestone reference,
+    and the code repeats the deferral as a comment, so the backlog item lives in two
+    files and on no tracker the tree names.
+  evidence: [docs/adr/0001-storage-choice.md:15-17, docs/adr/0001-storage-choice.md:22-23, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The system keeps no record of what its shipped work is worth: the package carries a
+    version number but there is no changelog, release note, impact field or
+    before-and-after record anywhere in the target, and the README describes features
+    without any measure of their effect.
+  evidence: [package.json:3, README.md:1-35]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The app emits no structured usage or outcome record by design: its only output
+    besides responses is free-text console logging (the mail transport line and the boot
+    line), the assistant returns its answer without recording that it was asked or what
+    it did, and nothing aggregates use across the workspace.
+  evidence: [lib/mailer.mjs:7, server.mjs:60, lib/agent.mjs:33-43]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

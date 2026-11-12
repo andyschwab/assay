@@ -1,0 +1,19 @@
+schema: effect-triage
+version: 1
+triage:
+  - candidate: "route: GET /notes"
+    out_of_scope: "read-only: returns the caller's own notes, writes nothing"
+  - candidate: "route: POST /admin/purge"
+    finding: F-504
+  - candidate: "route: POST /assistant"
+    finding: F-502
+  - candidate: "route: POST /notes"
+    finding: F-501
+  - candidate: "route: POST /sync"
+    finding: F-503
+  - candidate: "http write (js) @ lib/sync.mjs"
+    finding: F-503
+  - candidate: "message/mail send @ lib/agent.mjs"
+    finding: F-502
+  - candidate: "message/mail send @ lib/mailer.mjs"
+    finding: F-502
