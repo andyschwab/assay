@@ -107,10 +107,15 @@ function gateable(path) {
 // (the webhook-vs-cron success-on-failure case). Secrets key by NAME (a recall list
 // the credential census curates), so the same secret across files is one row.
 const PER_FILE = new Set(['socketMounts', 'contracts', 'reportPaths', 'egressControls', 'containerClasses', 'effectSites', 'routeHandlers']);
+// An effect-site member is one kind of call in one file (`http write (js) @ lib/sync.mjs`, #272):
+// the triage closes it with one entry, so one entry never covers unrelated channels in other files.
+// The other per-file populations key per file but name their member without it (a route names its
+// URL; a mount or contract is read through its file's evidence).
+const PER_FILE_MEMBER = new Set(['effectSites']);
 function hit(pop, key, path, i, note) {
   const m = pops[pop];
   const k = PER_FILE.has(pop) ? `${key} @ ${path}` : key;
-  if (!m.has(k)) m.set(k, { evidence: new Set(), note: note || '', gateable: false, member: key, file: PER_FILE.has(pop) ? path : null });
+  if (!m.has(k)) m.set(k, { evidence: new Set(), note: note || '', gateable: false, member: PER_FILE_MEMBER.has(pop) ? k : key, file: PER_FILE.has(pop) ? path : null });
   const e = m.get(k);
   e.evidence.add(`${path}:${i + 1}`);
   if (gateable(path)) e.gateable = true;

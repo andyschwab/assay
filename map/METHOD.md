@@ -86,7 +86,7 @@ effect-bearing skills, the delivery/integration surfaces, the **in-code agent
 tool-definition table** — `tool:` entries, one per `name`+`input_schema` def, the
 most common agentic shape — and remote **MCP toolsets**) — as the candidate channel
 list, plus the **ROUTE HANDLERS** (`routeHandlers`) and the **EFFECT CALL SITES**
-(`effectSites`, one member per kind, grouping its call lines). Triage every candidate in all
+(`effectSites`, one member per kind of call in one file, grouping that file's call lines). Triage every candidate in all
 three to either an `effect`
 finding (in the delegation pass) or an explicit out-of-scope note (read-only tools land
 here) — do not hand-draft a short list from memory — and record the triage in
