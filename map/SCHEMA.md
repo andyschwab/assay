@@ -69,23 +69,6 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
 **Mandatory keys on every finding:** `id`, `dimension`, `polarity`,
 `subject_type`, `observation`, `evidence` (non-empty), `confidence`.
 
-**The gate descriptors (#38).** A gate must terminate with a verdict, and who it runs
-under is part of the gate:
-
-- `gate_type: initiated-by-person` — the effect is caused by one named, authenticated
-  person's own explicit act (a Save, a Send, a Merge they click). It holds only while
-  that act is recorded (`telemetry` is not `none`); an unattended job that performs the
-  same write is not this gate. `map/doctrine.mjs` is the rule.
-- `fail_mode: unterminated` — the gate's check can run without ever reaching a verdict
-  (no timeout, or a timeout that is neither a refusal nor a pass). It is its own case,
-  never defaulted to `open` or `closed`: the gate does not hold, and
-  `d-gates-fail-closed` counts it apart from fail-open.
-- `verified_as` — the principal a check of the gate ran as (`principal`), whether that
-  is the privilege the gate binds or more (`privilege: bound | elevated`), and
-  optionally what triggered it (`triggered_by`). A gate verified as a superuser, a
-  bypass role or an admin key proves nothing about the policy it names, so `elevated`
-  must carry `confidence: plausible` (or `unverified`), never `confirmed`.
-
 **Optional keys:** `preconditions`, `reaches`, `explained_by`, `escapes`, `covers`, `label`,
 `property`, the two facets (which become mandatory under §4), and the **overlay** fields
 `axis` / `also_axes` / `source` (§2a).
@@ -104,6 +87,123 @@ grouped by `property` (the ones that name none as unnamed), in
 `views/improve/candidates.yaml` and `IMPROVE.md` §8: the run's candidate properties,
 what the yardstick has no row for yet (`views/README.md`). A candidate is not asked to
 repeat across runs.
+
+### The effect descriptors, defined
+
+The effect facet's descriptors are closed vocabularies (§2), and every value is defined here
+by what the finding's evidence shows at the effect: the code or config it cites, read as it
+stands. Two lanes reading the same evidence record the same value. Where values overlap, the
+list is ordered and the first value that holds is the one recorded. The examples are generic
+(a web app's Send, a command-line tool, a CI job); they describe no particular repository.
+`map/doctrine.mjs` reads the values (`gateHolds`, `isHaltClass`); this section is what each
+one means (#38, #302).
+
+**One effect, several paths.** An effect is often reached more than one way: a command a
+person runs, the same command inside a wrapper that refuses it by default, a scheduled job
+that runs it unattended. Decide `gate_type` on each path the evidence shows reaching the
+effect and record the one lowest in its list: a gate stands between the trigger and the effect
+only if every path passes it. Decide `blast_scope` on each path and record the widest. The
+other descriptors belong to the effect, not to the path that reached it.
+
+**`gate_type`** — what stands between the trigger and the effect, in the code or config the
+evidence cites. Who starts a command, a job or a request is the trigger; it is a gate only as
+`initiated-by-person`. Record the first that holds:
+
+1. `deterministic-halt` — the code or config refuses the effect unless a checked condition
+   holds: tests green, a required approval, a signature, an input checked before the write, or
+   a second explicit act after the code has shown what it will do (a plan then an apply, a
+   confirm prompt, a dry run by default with an apply flag). The apply flag counts though
+   nothing makes the person read the dry run first: the default writes nothing.
+2. `external-halt` — a system outside the repository's code holds the stop, and config the
+   repository ships invokes it: a deployment environment with required reviewers, a
+   provider's own confirmation step. A stop the platform offers that the config does not
+   invoke is not this gate.
+3. `staged-reversible` — the effect is written in a staged form that a separate later act
+   promotes or discards: a draft not a send, a pull request not a push, quarantine not delete,
+   a migration that writes a new copy and keeps the old.
+4. `initiated-by-person` — only one person's explicit act causes the effect: a click (a Save,
+   a Send, a Merge), a command they run, a manual dispatch. A schedule, a push or a pull
+   request that starts a job is a trigger, not this act, and an unattended job that performs
+   the same write is not this gate. It holds only while the act is recorded (`telemetry` is
+   not `none`); `map/doctrine.mjs` is the rule. A command an operator runs on their own
+   machine that nothing records is `initiated-by-person` with `telemetry: none`, so it does
+   not hold.
+5. `scope-bound` — a mechanism at the effect limits what it can touch to a declared scope: a
+   token's or a workflow job's declared permissions, a sandbox, a disposable runner that holds
+   no credential. The mechanism must govern this effect: a job's permissions bound what its
+   token may do, not what the runner does with a credential of its own (a CI artifact upload).
+   A temporary directory bounds an effect only if the effect cannot write outside it: a
+   spawned process with a shell, or a package install that runs its scripts, is not bounded by
+   its working directory.
+6. `rate-throttle` — a limit on how often or how much: a quota, a cap per run, a
+   de-duplication that writes at most once per state.
+7. `disclosure-only` — the effect is announced to those it reaches, before or as it happens
+   (a notice, a label, a banner), but nothing can stop it. A log line is `telemetry`, not
+   disclosure.
+8. `none` — nothing above holds: the trigger reaches the effect unstopped.
+
+**`fail_mode`** — required whenever `gate_type` is not `none`: what the gate does when a
+dependency its check needs is absent, or its check does not finish.
+
+- `closed` — it refuses the effect: a missing approval, an unreachable verifier or an error in
+  the check stops the write.
+- `open` — it lets the effect through: the check is skipped, or its error reads as a pass. The
+  gate is no gate under that condition.
+- `unterminated` — the check can run without ever reaching a verdict (no timeout, or a
+  timeout that is neither a refusal nor a pass). It is its own case, never defaulted to `open`
+  or `closed`: the gate does not hold, and `d-gates-fail-closed` counts it apart from
+  fail-open.
+
+**`reversibility`** — record the first that holds:
+
+1. `irreversible` — someone or something outside has received the effect, or the prior state
+   is gone. Received is delivered: a message or notification sent (an issue or comment write
+   notifies its watchers), a release or package published for others to pull, third-party
+   code executed. Gone is that nothing the evidence shows keeps it: a deletion with no
+   retention, an overwrite in place of authored content with no copy kept.
+2. `reversible-with-window` — it can be undone for a period the code or platform states: a
+   soft delete with retention, a scheduled send that can be cancelled, an object stored with a
+   stated expiry that can be deleted before it.
+3. `reversible` — the prior state can be restored completely, and nothing outside the
+   repository and its operator received the effect in between: the code or platform keeps the
+   prior state (a copy, a version, a history), or the effect writes derived output that the
+   same inputs regenerate exactly.
+
+**`external`** — `true` when the effect writes to, sends to, or executes something outside
+the repository's own process and checkout: the code host's API (an issue, a release, a CI
+artifact), a registry, a person's inbox, a third-party service, code fetched from a registry
+at run time. `false` when it touches only what the command works in on its operator's
+machine: the checkout, a directory it is pointed at, a scratch directory it creates.
+
+**`telemetry`** — the strongest record of the effect the evidence shows. Record the first
+that holds:
+
+1. `audited` — an append-only record held by someone other than the actor, which the actor
+   cannot edit or delete: a platform's audit log the effect reaches, a hash-chained trail, a
+   write-once store.
+2. `structured-event` — a machine-parseable record of the effect, written by the code itself
+   (a JSON report, an event row) or kept by the platform that runs it (a CI run's record of
+   who started it, with which inputs, at which commit). A record the repository's own admins
+   can delete, a CI run's history among them, is this and not `audited`.
+3. `unstructured` — console or log text only.
+4. `none` — no record of the effect at all: nothing printed, logged or kept.
+
+**`blast_scope`** — how far the effect's damage reaches. Record the first that holds:
+
+1. `cross-tenant` — other organizations' data, reached through infrastructure they share
+   with the actor: a multi-tenant database, a shared credential, a shared sender.
+2. `fleet` — everyone who installs or consumes what the effect publishes: a release or
+   package others pull or pin, a template synced downstream. The write lands in one
+   repository; what it publishes reaches every consumer.
+3. `tenant` — one organization's or one repository's shared state: its issues, its CI, its
+   database.
+4. `user` — one person's machine, account or data.
+
+**`verified_as`** — the principal a check of the gate ran as (`principal`), whether that is
+the privilege the gate binds or more (`privilege: bound | elevated`), and optionally what
+triggered it (`triggered_by`). A gate verified as a superuser, a bypass role or an admin key
+proves nothing about the policy it names, so `elevated` must carry `confidence: plausible`
+(or `unverified`), never `confirmed`.
 
 ### 2a. Overlay layer (optional; the axis projection)
 
