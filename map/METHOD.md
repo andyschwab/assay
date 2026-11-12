@@ -86,7 +86,7 @@ effect-bearing skills, the delivery/integration surfaces, the **in-code agent
 tool-definition table** — `tool:` entries, one per `name`+`input_schema` def, the
 most common agentic shape — and remote **MCP toolsets**) — as the candidate channel
 list, plus the **ROUTE HANDLERS** (`routeHandlers`) and the **EFFECT CALL SITES**
-(`effectSites`, one member per kind, grouping its call lines). Triage every candidate in all
+(`effectSites`, one member per kind of call in one file, grouping that file's call lines). Triage every candidate in all
 three to either an `effect`
 finding (in the delegation pass) or an explicit out-of-scope note (read-only tools land
 here) — do not hand-draft a short list from memory — and record the triage in
@@ -124,12 +124,19 @@ populations that leak when left implicit — enumerate each as a closed list:
 - **container / agent classes** (per-user, admin, cron, webhook) — assess each
  class *separately*; an admin-only privilege must never hide behind the common class.
 - **credentials / secrets** — the credential census (below), enumerate-before-assess.
- The enumerated candidates carry a shape filter: a credential-suffixed name that code
- assigns a number, or (for a `*_KEY`/`*_TOKEN` name) an identifier-shaped string, and
- that no site reads from the environment, is listed apart as a secret-named constant,
- not a candidate.
+ The candidates are UPPER_SNAKE credential names wherever they appear, and in code a
+ camelCase, lowerCamel or snake_case credential name assigned a literal (`apiKey`,
+ `clientSecret`, `db_password`), a table headed by a credential word (`tokenTable`), and an
+ object or map literal holding a value of secret shape. They carry a shape filter: a
+ credential-suffixed name that code assigns a number, (for a `*_KEY`/`*_TOKEN` name) an
+ identifier-shaped string, or an array or object of identifier strings, and that no site
+ reads from the environment, is listed apart as a secret-named constant, not a candidate.
+ A test or run artifact declares nothing.
 - **HTTP route handlers** — each exported method of a Next.js app-router
- `app/**/route.*` file and each pages-router `pages/api/**` route; the coverage gate
+ `app/**/route.*` file and each pages-router `pages/api/**` route; each route a `node:http`
+ server dispatches on the request's method and path in a file that calls `createServer`; each
+ Express-style `app.<method>(path, …)` / `router.<method>(path, …)` call; and a `createServer`
+ file whose dispatch enumerate cannot read, by its file (`route: ? <file>`). The coverage gate
  counts every route file as live surface.
 - **network-egress controls** (iptables/DOCKER-USER rules, metadata blocks, URL policy).
 - **interface contracts** (frozen dataclasses / schema validators / lockstep tests).

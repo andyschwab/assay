@@ -23,7 +23,8 @@ const ENUMERATE_FILE = 'map/raw/enumerate.json';
 const TRIAGE_FILE = 'map/effect-triage.yaml';
 // the populations whose members the triage closes (#269): the agentic channels, and for a target
 // with none of those (a web app) the route handlers and effect call sites, each member as
-// enumerate collapses it (an effect-site member groups its call lines). One entry per member.
+// enumerate collapses it (an effect-site member groups one file's call lines of one kind, #272).
+// One entry per member.
 export const CANDIDATE_POPULATIONS = ['channelCandidates', 'routeHandlers', 'effectSites'];
 
 // the run's two files, read as they are: { candidates, triage, errors }. candidates is null when

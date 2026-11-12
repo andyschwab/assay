@@ -24,7 +24,10 @@ import { HERE, ROOT, negFailures } from '../harness.mjs';
 export const label = 'web-app-effects';
 
 const ROUTE = 'route: POST /api/notes';
-const SITE = 'http write (js)';
+const SITE = 'http write (js) @ lib/push.mjs';   // an effect-site member is one file's calls of one kind (#272)
+// the notesbox fixture's committed list (tests/fixtures/notesbox/map/raw/enumerate.json) predates
+// #272's per-file keys and is read as written: a committed run carries its own enumeration
+const NB_SITE = 'http write (js)';
 
 export async function run() {
   const fail = (m) => negFailures.push('web-app-effects: ' + m);
@@ -93,11 +96,11 @@ export async function run() {
     validates(true, null, 'notesbox with its effect site triaged');
     nbTriage([]);
     validates(false, /not triaged: http write \(js\)/, 'a triage that misses the effect-site member');
-    nbTriage([[SITE, 'finding: F-053'], [SITE, 'finding: F-052']]);
+    nbTriage([[NB_SITE, 'finding: F-053'], [NB_SITE, 'finding: F-052']]);
     validates(false, /"http write \(js\)" is triaged twice/, 'a triage that triages the effect-site member twice');
-    nbTriage([[SITE, 'finding: F-050']]);
+    nbTriage([[NB_SITE, 'finding: F-050']]);
     validates(false, /finding F-050 is not an effect finding/, 'an effect-site member pointed at a finding that is not an effect');
-    nbTriage([[SITE, 'out_of_scope: ""']]);
+    nbTriage([[NB_SITE, 'out_of_scope: ""']]);
     validates(false, /out_of_scope needs the reason/, 'an effect-site member out of scope with no reason');
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }

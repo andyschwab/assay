@@ -940,9 +940,14 @@ evidence and note:
 
 - `channelCandidates`, the agentic channels (`cli: …`, `skill: …`, `surface: …`, `tool: …`,
   `mcp-toolset: …`);
-- `routeHandlers`, the HTTP surface (`route: POST /api/notes`, one member per exported method);
-- `effectSites`, the effect call sites, one member per kind as enumerate collapses them
-  (`http write (js)`, `shell exec`, …), so a member groups every call line of its kind.
+- `routeHandlers`, the HTTP surface (`route: POST /api/notes`, one member per route: a Next.js
+  exported method, a `node:http` method-and-path dispatch, or an Express-style `app.<method>` /
+  `router.<method>` call; `route: ? <file>` for a server whose dispatch enumerate cannot read);
+- `effectSites`, the effect call sites, one member per kind of call in one file
+  (`http write (js) @ lib/sync.mjs`, `shell exec @ tools/run.py`, …), so a member groups that
+  file's call lines of its kind and one entry never closes unrelated channels in other files (#272).
+  Effect sites are read where code runs: a Markdown file, and a file under a `tests/` or `runs/`
+  directory (a test, a run's own artifacts), make no call the list names.
 
 The last two close a target with no agentic channel, such as a web app, where an empty
 `channelCandidates` once read as a closed list (#269). The practice-review lane is given the
@@ -957,7 +962,7 @@ triage:
     finding: F-052                       # the effect finding that covers it (several candidates may share one)
   - candidate: "tool: read_invoice"
     out_of_scope: "read-only: returns a record, writes nothing"   # or out of scope, with the reason
-  - candidate: "http write (js)"         # an effect-site member: every fetch/axios write in the tree
+  - candidate: "http write (js) @ lib/sync.mjs"   # an effect-site member: one file's fetch/axios writes
     finding: F-053
 ```
 
