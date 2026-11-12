@@ -25,7 +25,8 @@
 // unassessed population member — the class of miss this whole analysis is about.
 
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, extname, basename, resolve } from 'node:path';
+import { join, relative, extname, basename, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { secretShape } from '../yardstick/packet.mjs';
@@ -376,6 +377,107 @@ function serverRoutes(r, ls) {
 // followed by its call or its definition (`(`, or `= async`/`= function`/`= (`), in a code file.
 const SEND_FN = /\b(?:send(?:E?[Mm]ail|Message|Sms|SMS|Text|Notification|Webhook)|send_(?:e?mail|message|sms|notification|webhook)|notify(?:By|Via|_)?(?:Email|Mail|Slack|Sms|SMS|Webhook|Discord|Teams|Pager|email|mail|slack|sms|webhook))\w*(?=\s*(?:[(]|=\s*(?:async\b|function\b|[(])))/;
 
+// Node subprocesses (#298): a `child_process` call, read only in a file that names `child_process`
+// (an import or require), so a regex's `.exec(` or a database's `db.exec(` is never one. The call is
+// bare (`spawnSync(` after a destructured import, the name against its paren: `spawn (js)` is prose) or on the module (`child_process.exec(`,
+// `cp.spawn(`, `require('node:child_process').execSync(`). One member per file.
+const NODE_CP = /\bchild_process\b/;
+const NODE_SPAWN = /(?:^|[^.\w$])(?:spawn|spawnSync|exec|execSync|execFile|execFileSync)[(]|(?:\b(?:child_process|childProcess|cp)|require[(]\s*['"](?:node:)?child_process['"]\s*[)])\s*[.]\s*(?:spawn|spawnSync|exec|execSync|execFile|execFileSync)\s*[(]/;
+
+// Workflow writes (#298): a GitHub Actions workflow (`.github/workflows/*.yml`), a workflow template
+// a repository ships anywhere else (a YAML file with top-level `on:` and `jobs:`), or a composite
+// action (top-level `runs:` using composite) runs its steps' `run:` commands and `uses:` actions on
+// a runner holding a token. Each is read for the verbs that write outside the runner, one member per
+// file and kind; a `run:` block's `\`-continued lines read as one command, its first line the evidence.
+// A read (`gh api` with no method or field, `gh issue list`, `actions/download-artifact`) is none.
+// `git push` is read by the EFFECT table below, in a workflow as anywhere.
+//   release write          gh release create|upload|edit|delete, or a release action
+//   github api write       gh api with -X/--method POST|PUT|PATCH|DELETE, or with a field
+//                          (-f/-F/--field/--raw-field/--input), which gh sends as POST unless -X says
+//   issue/pr write         gh issue|pr create|comment|edit|close|reopen|merge|delete|review|lock
+//   artifact upload        uses: actions/upload-artifact
+//   deploy/publish         a `uses:` action named for deploying or publishing, or a run: step
+//                          that publishes a package or pushes an image (npm/yarn/pnpm publish,
+//                          twine upload, cargo publish, gem push, docker push)
+/** @type {[RegExp, string][]} */
+const WORKFLOW_RUN = [
+  [/\bgh\s+release\s+(?:create|upload|edit|delete)\b/, 'release write (workflow)'],
+  [/\bgh\s+api\b(?=.*(?:\s(?:-X|--method)[\s=]*['"]?(?:POST|PUT|PATCH|DELETE)\b|\s(?:-f|-F|--field|--raw-field|--input)[\s=]))(?!.*\s(?:-X|--method)[\s=]*['"]?GET\b)/i, 'github api write (workflow)'],
+  [/\bgh\s+(?:issue|pr)\s+(?:create|comment|edit|close|reopen|merge|delete|review|lock)\b/, 'issue/pr write (workflow)'],
+  [/\b(?:npm|yarn|pnpm)\s+publish\b|\btwine\s+upload\b|\bcargo\s+publish\b|\bgem\s+push\b|\bdocker\s+push\b/, 'deploy/publish (workflow)'],
+];
+/** @type {[RegExp, string][]} */
+const WORKFLOW_USES = [
+  [/^actions\/upload-artifact@/, 'artifact upload (workflow)'],
+  [/^(?:softprops\/action-gh-release|ncipollo\/release-action|actions\/create-release)@/, 'release write (workflow)'],
+  [/(?:deploy|publish)[\w.-]*@|^(?:docker\/build-push-action|peaceiris\/actions-gh-pages|cloudflare\/wrangler-action)@/i, 'deploy/publish (workflow)'],
+];
+const isWorkflowFile = (r, ls) => /\.ya?ml$/.test(r) && (/^\.github\/workflows\/[^/]+$/.test(r)
+  || (ls.some((l) => /^jobs:\s*(?:#.*)?$/.test(l)) && ls.some((l) => /^(?:on|['"]on['"]|true):/.test(l)))
+  || (ls.some((l) => /^runs:\s*(?:#.*)?$/.test(l)) && ls.some((l) => /^\s+using:\s*['"]?composite\b/.test(l))));
+// the step lines a workflow runs: Map<line index, text>, a `run:` command (a block's lines, each
+// `\`-continued command joined onto its first line) or a `uses:` action
+function workflowSteps(ls) {
+  const out = new Map();
+  for (let i = 0; i < ls.length; i++) {
+    const u = ls[i].match(/^\s*(?:-\s+)?uses\s*:\s*['"]?([^'"\s#]+)/);
+    if (u) { out.set(i, 'uses: ' + u[1]); continue; }
+    const m = ls[i].match(/^(\s*)(?:-\s+)?run\s*:\s*(.*)$/);
+    if (!m) continue;
+    const ind = m[1].length;
+    const body = /^[|>][-+]?\s*(?:#.*)?$/.test(m[2].trim()) ? [] : [[i, m[2]]];
+    let j = i + 1;
+    if (!body.length) for (; j < ls.length && (!ls[j].trim() || ls[j].length - ls[j].trimStart().length > ind); j++) if (ls[j].trim()) body.push([j, ls[j].trim()]);
+    for (let k = 0; k < body.length; k++) {
+      const [at] = body[k];
+      let cmd = body[k][1];
+      while (/\\\s*$/.test(cmd) && k + 1 < body.length) cmd = cmd.replace(/\\\s*$/, ' ') + body[++k][1];
+      if (!/^\s*#/.test(cmd)) out.set(at, 'run: ' + cmd);
+    }
+    i = Math.max(i, j - 1);
+  }
+  return out;
+}
+
+// Read where code runs (#296, #298): a comment makes no call, and a line that writes a pattern (a
+// regular expression literal it tests or lists in a table: `/…/.test(`, `/…/.exec(`, `.match(/…/`,
+// `[/…/, 'label']`, `new RegExp(`) reads for a call and makes none — an enumerator's own pattern
+// table, or any linter's. In a code file such a line is not read for effect sites, and a comment is
+// cut from the line before it is; a `#` comment line in YAML or a shell script is skipped too.
+const PATTERN_LINE = /(?:^|[=(,:[!&|?{;]\s*)\/(?![/*\s])(?:\\.|\[(?:\\.|[^\]\\])*\]|[^/\\\n[])+\/[dgimsuy]*\s*[.](?:test|exec)\s*[(]|[.]match\s*[(]\s*\/(?![/*])|^\s*\[\s*\/(?![/*]).*\/[dgimsuy]*\s*,|\bnew\s+RegExp\s*[(]/;
+function effectText(line, isCode, base) {
+  if (isCode && /\.(?:[mc]?[jt]sx?|java|kt|rs|go|php)$/.test(base)) {
+    if (/^\s*(?:\/\/|\/\*|\*)/.test(line) || PATTERN_LINE.test(line)) return '';
+    return line.replace(/(^|[^:\w'"`/\\])\/\/.*$/, '$1');   // `,// note` is a comment; `https://…` is not
+  }
+  if (/\.(?:py|rb|sh|ya?ml|toml)$/.test(base) || !extname(base)) {
+    if (/^\s*#/.test(line)) return '';
+    return line.replace(/\s#\s.*$/, '');
+  }
+  return line;
+}
+
+// A scanner adapter's rule pack and its planted control (#298) are data the scanner reads, not code
+// the target runs: every adapter declares them (`run.rules.dir`, `run.control.dir`, relative to the
+// adapters directory; map/scanners/CONTRACT.md), and a target path under one is not read for routes,
+// effect sites or channel candidates. Read off the adapters this engine carries, so the core names no
+// scanner (CLAUDE.md rule 7); a path matches only in a tree laid out as this one (assay itself, or a copy).
+const ENGINE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const ADAPTERS = join(ENGINE_ROOT, 'map', 'scanners', 'adapters');
+const ADAPTER_DATA = (() => {
+  const out = [];
+  let ents = [];
+  try { ents = readdirSync(ADAPTERS).filter((f) => /\.ya?ml$/.test(f)); } catch { return out; }
+  for (const f of ents) {
+    let a = null;
+    try { a = parseYaml(readFileSync(join(ADAPTERS, f), 'utf8')); } catch { continue; }
+    const run = a && a.run;
+    for (const d of [run && run.rules && run.rules.dir, run && run.control && run.control.dir]) if (typeof d === 'string' && d.trim()) out.push(relative(ENGINE_ROOT, join(ADAPTERS, d)).replace(/\\/g, '/'));
+  }
+  return out;
+})();
+const adapterData = (r) => ADAPTER_DATA.some((d) => r === d || r.startsWith(d + '/'));
+
 const EFFECT = [
   [/\bsubprocess\.(?:run|call|Popen|check_output)\b|\bos\.system\b|\bos\.popen\b/, 'shell exec'],
   [/\brequests\.(?:post|put|delete|patch)\b|\bhttpx\.(?:post|put|delete)\b|\burllib\b.*urlopen/, 'http write'],
@@ -394,8 +496,10 @@ for (const f of files) {
   // names every constant enumerate set apart, and would read each as declared in config (#292)
   const isEnvOrCfg = (/\.(env|ini|cfg|conf|ya?ml|toml|json)$/.test(base) || /\.env/.test(base) || base.startsWith('.env')) && !/(^|\/)(?:tests?|runs)\//.test(r);
   const isCode = /\.(?:[mc]?[jt]sx?|py|rb|go|java|kt|rs|php)$/.test(base);
-  const effectReadable = !/\.md$/.test(base) && !/(^|\/)(?:tests?|runs)\//.test(r);
-  routeHandlers(r, ls);
+  const effectReadable = !/\.md$/.test(base) && !/(^|\/)(?:tests?|runs)\//.test(r) && !adapterData(r);
+  const spawns = effectReadable && isCode && ls.some((l) => NODE_CP.test(l));
+  const steps = effectReadable && isWorkflowFile(r, ls) ? workflowSteps(ls) : null;
+  if (!adapterData(r)) routeHandlers(r, ls);
   serverRoutes(r, ls);
   codeSecrets(r, ls, isCode);
   for (let i = 0; i < ls.length; i++) {
@@ -437,7 +541,11 @@ for (const f of files) {
     // 6. effect call sites — read where code runs: a doc restates a call and makes none, and a test
     //    or a run's own artifacts (a committed sweep's terrain.md, raw/enumerate.json, triage) quote
     //    one. With members keyed per file (#272) each such file would be its own triage entry.
-    if (effectReadable) for (const [re, note, only] of EFFECT) if ((only !== 'code' || isCode) && /** @type {RegExp} */ (re).test(line)) hit('effectSites', /** @type {string} */ (note), r, i, /** @type {string} */ (note));
+    const code = effectReadable ? effectText(line, isCode, base) : '';
+    if (code) for (const [re, note, only] of EFFECT) if ((only !== 'code' || isCode) && /** @type {RegExp} */ (re).test(code)) hit('effectSites', /** @type {string} */ (note), r, i, /** @type {string} */ (note));
+    if (code && spawns && NODE_SPAWN.test(code)) hit('effectSites', 'process spawn (js)', r, i, 'process spawn (js)');
+    const step = steps && steps.get(i);
+    if (step) for (const [re, note] of step.startsWith('uses: ') ? WORKFLOW_USES : WORKFLOW_RUN) if (re.test(step.slice(step.indexOf(' ') + 1))) hit('effectSites', note, r, i, note);
 
     // 7. container/agent classes
     if (/docker\s+(?:run|create)\b/.test(line)) hit('containerClasses', 'docker run/create site', r, i, 'a container is launched here — enumerate its class');
@@ -470,7 +578,7 @@ const EFFECT_VERB = /\b(send|deliver|publish|deploy|provision|rebuild|promote|re
 const isTestFile = (r, b) => /(^|\/)tests?\//.test(r) || /^test[-_]/.test(b) || /\.(test|spec)\.[^.]+$/.test(b);
 for (const f of files) {
   const r = rel(f), b = basename(f);
-  if (isTestFile(r, b)) continue;
+  if (isTestFile(r, b) || adapterData(r)) continue;
   // agent-facing CLI: an executable-looking file under a bin/ directory
   if (/(^|\/)bin\/[^/]+$/.test(r) && !/\.(md|txt|json)$/.test(b)) hit('channelCandidates', `cli: ${b}`, r, 0, 'an agent-invocable command — an effect channel unless proven inert');
   // effect-bearing skill: a SKILL.md whose dir or first lines name an acting verb
@@ -697,8 +805,9 @@ function populationsJson() {
   return { schema: 'enumerate', version: 1, target: basename(resolve(target)), files: files.length, populations: out };
 }
 if (JSON_MODE && !runDir) {
+  // no process.exit here: it drops what a slow pipe has not yet read (the list is past 64 KB on
+  // assay itself); everything below is skipped in --json mode without --run, so node exits on its own
   process.stdout.write(JSON.stringify(populationsJson(), null, 2) + '\n');
-  process.exit(0);
 }
 
 if (!JSON_MODE) console.log(`\nassay enumerate — ${rel(target) || target}  (${files.length} files scanned)\n`);

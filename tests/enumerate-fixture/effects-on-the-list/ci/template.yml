@@ -1,0 +1,9 @@
+# a workflow template this repository ships for a consumer to copy (not under .github/workflows)
+name: open-a-pr
+on:
+  schedule: [{ cron: '0 6 * * 1' }]
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh pr create --title "bump" --body "weekly"

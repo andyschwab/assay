@@ -1,0 +1,5 @@
+rules:
+  - id: py-command-injection
+    pattern-sinks:
+      - pattern: subprocess.run(...)
+      - pattern: os.system(...)

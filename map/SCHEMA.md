@@ -947,7 +947,23 @@ evidence and note:
   (`http write (js) @ lib/sync.mjs`, `shell exec @ tools/run.py`, …), so a member groups that
   file's call lines of its kind and one entry never closes unrelated channels in other files (#272).
   Effect sites are read where code runs: a Markdown file, and a file under a `tests/` or `runs/`
-  directory (a test, a run's own artifacts), make no call the list names.
+  directory (a test, a run's own artifacts), make no call the list names. The kinds (#298):
+  the outbound calls (`http write`, `http write (js)`, `message/mail send`, `git push`, `docker
+  control`, `shell exec` for Python's `subprocess`/`os.system`); `process spawn (js)`, a Node
+  `child_process` `spawn`/`spawnSync`/`exec`/`execSync`/`execFile`/`execFileSync` call in a file
+  that names `child_process`; and the workflow writes, read in a workflow's step `run:` commands
+  and `uses:` actions (`.github/workflows/*.yml`, a workflow template shipped anywhere else, a
+  composite action): `release write (workflow)` (`gh release create|upload|edit|delete`, a
+  release action), `github api write (workflow)` (`gh api` with `-X POST|PUT|PATCH|DELETE`, or
+  with a field, which gh sends as POST), `issue/pr write (workflow)` (`gh issue|pr
+  create|comment|edit|close|reopen|merge|delete|review|lock`), `artifact upload (workflow)`
+  (`actions/upload-artifact`) and `deploy/publish (workflow)` (an action named for deploying or
+  publishing; a package publish or image push). A read lists nothing (`gh api` with no method or
+  field, `gh issue list`, a download). What is not a call site is not read: a comment; a line
+  that writes a pattern (a regular expression literal it tests or lists in a table, as an
+  enumerator's own pattern table does); and a scanner adapter's rule pack and planted control,
+  the directories its adapter declares (`run.rules.dir`, `run.control.dir`), which are data the
+  scanner reads, not code the target runs.
 
 The last two close a target with no agentic channel, such as a web app, where an empty
 `channelCandidates` once read as a closed list (#269). The practice-review lane is given the
@@ -966,7 +982,15 @@ triage:
     finding: F-053
 ```
 
-A list with no candidates in any of the three populations is closed and empty (`triage: []`). The triage names findings and
+A list with no candidates in any of the three populations is closed and empty (`triage: []`).
+
+**A channel is its triaged candidate** (#298). Two runs' lanes spell one channel's slug as they
+like (`tool-install`, `tools-install`); the candidate they triage to it is the list's own name for
+it. So where a run's triage maps a candidate to an effect finding, a comparison of channels across
+runs (`map/variance.mjs`: fact presence, descriptor agreement, and backlog's descriptor
+divergence) keys that finding by the candidate (`candidate: <member>`), a finding several
+candidates map to by the sorted set (joined by ` | `), and a finding no candidate maps to by its
+own slug. The triage names findings and
 never requirements: a finding carries no requirement id, and the yardstick reads the
 population (#257 Q1; `yardstick/README.md`, "The effect population"). An effect the list
 does not name is still recorded as a finding: the triage closes the list, it does not bound

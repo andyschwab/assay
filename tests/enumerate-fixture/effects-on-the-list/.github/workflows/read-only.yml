@@ -1,0 +1,9 @@
+name: read-only
+on: [push]
+jobs:
+  look:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh api "repos/$GITHUB_REPOSITORY/branches" --paginate --jq '.[].name'
+      - run: gh pr view 1 --json title

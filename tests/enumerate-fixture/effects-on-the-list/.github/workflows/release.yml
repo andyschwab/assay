@@ -1,0 +1,32 @@
+name: release
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: gh release create (the step's name, not its command)
+        run: echo "naming a write is not one"
+      - name: Read the default branch
+        run: gh api "repos/$GITHUB_REPOSITORY" --jq .default_branch
+      - name: Read with an explicit GET and a field
+        run: gh api -X GET search/issues -f q=is:open
+      - name: List open issues
+        run: gh issue list --state open
+      # - run: gh pr merge 1   (a commented write)
+      - name: Tag and publish
+        run: |
+          set -euo pipefail
+          # gh release delete old   (a comment inside the block)
+          gh release create "$VERSION" --notes-file notes.md
+          gh api \
+            -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/old"
+          gh api "repos/$GITHUB_REPOSITORY/labels" -f name=released
+          gh issue comment 1 --body "released"
+          git push origin "refs/tags/$VERSION"
+      - uses: actions/download-artifact@v4
+      - uses: actions/upload-artifact@v4
+        with: { name: notes, path: notes.md }
+      - uses: actions/deploy-pages@v4
