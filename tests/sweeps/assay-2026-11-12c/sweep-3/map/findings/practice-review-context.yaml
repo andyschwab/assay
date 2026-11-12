@@ -1,0 +1,179 @@
+- id: F-201
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The map/ module meets the bar: every source file opens with a head comment naming its job, 88 test
+    blocks import its files directly, and the transitive in-repo imports of its files reach 9 source files
+    outside it (four in lib/, three in yardstick/, two in views/).
+  evidence: ["map/doctrine.mjs:1", "tests/blocks/engine-pipeline.mjs:5", "map/project.mjs:30", "map/record.mjs:40"]
+  confidence: confirmed
+- id: F-202
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The map/scanners/ module (adapter YAML, lane seeds, CONTRACT.md, no source file and no README) has no test
+    that loads it directly: tests reach an adapter only through map/project.mjs loadAdapters, so changing an
+    adapter means loading the projector too.
+  evidence: ["map/scanners/CONTRACT.md:5", "tests/blocks/adapter-runner.mjs:25", "map/project.mjs:84"]
+  confidence: plausible
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The yardstick/ module meets the bar at its edge: a README in its directory, test blocks importing its files
+    directly, and transitive in-repo imports reaching exactly 10 source files outside it (map/project.mjs and
+    what it pulls in, including views/severity.mjs).
+  evidence: ["yardstick/README.md:3", "tests/blocks/corroboration.mjs:8", "yardstick/measure.mjs:36"]
+  confidence: confirmed
+- id: F-204
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The views/ module has a README and directly-importing tests, but its files' transitive in-repo imports reach
+    18 source files outside it (14 under map/ and yardstick/, four in lib/), so it cannot be changed without
+    loading most of the engine.
+  evidence: ["views/README.md:3", "tests/blocks/maturity-ladder.mjs:6", "views/improve/report.mjs:20", "views/improve/report.mjs:28"]
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The owner/ module has a head comment and a directly-importing test, but owner/ask-owner.mjs imports seven
+    modules across lib/, map/ and yardstick/ whose closure reaches 11 source files outside it, one past the bar.
+  evidence: ["owner/ask-owner.mjs:2", "tests/blocks/ask-owner.mjs:6", "owner/ask-owner.mjs:43", "owner/ask-owner.mjs:46"]
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The routine/ module has a README and directly-importing tests, but routine/run.mjs imports start, tools,
+    repo-census, ratchet and measure, whose closure reaches 19 source files outside it.
+  evidence: ["routine/README.md:3", "tests/blocks/routine-record.mjs:3", "routine/run.mjs:81", "routine/run.mjs:78"]
+  confidence: confirmed
+- id: F-207
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The lib/ module meets the bar: each file opens with a head comment, test blocks import it directly, and its
+    only import outside itself is map/doctrine.mjs (one file).
+  evidence: ["lib/yaml-min.mjs:1", "tests/blocks/contradictions.mjs:9", "lib/release-notes.mjs:21"]
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The layering the README draws (map, then yardstick, then views) is not one-directional in the imports:
+    map/project.mjs imports views/severity.mjs, which imports map/project.mjs back, and map/record.mjs and
+    map/validate.mjs import yardstick/measure.mjs, which imports map/project.mjs.
+  evidence: ["map/project.mjs:30", "views/severity.mjs:19", "map/record.mjs:40", "yardstick/measure.mjs:36", "map/validate.mjs:650"]
+  confidence: confirmed
+- id: F-209
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Cross-cutting knowledge has one module each: map/doctrine.mjs is declared the one home for cross-tool
+    doctrine and lib/run-layout.mjs the one module that knows every run artifact's path, so a change to either
+    concern loads one file.
+  evidence: ["map/doctrine.mjs:1", "lib/run-layout.mjs:1"]
+  confidence: confirmed
+- id: F-210
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The command line is a routing table: assay.mjs groups every command under map, yardstick, routine or views
+    with the one script it runs and a one-line purpose, and names which map files are libraries rather than
+    commands.
+  evidence: ["assay.mjs:17", "assay.mjs:20"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-211
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README.md's Layout section names each top-level directory with one line of what it holds, and CLAUDE.md
+    routes an agent to the one authoritative doc per concern (SCHEMA.md, METHOD.md, yardstick/README.md,
+    views/README.md).
+  evidence: ["README.md:235", "README.md:239", "CLAUDE.md:5", "CLAUDE.md:6"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-212
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Adding a test is routed to one file: CLAUDE.md and tests/README.md say a new harness block is one new file
+    under tests/blocks/ that the runner discovers, with no existing file edited.
+  evidence: ["CLAUDE.md:55", "tests/README.md:23"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-213
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The practice-review session is told to open map/METHOD.md (about 56 KB) as its opening context, with
+    map/SCHEMA.md (about 73 KB) as the format it cites; the method asks each pass to read a bounded slice, but
+    the tree carries no per-pass slice of either document, so every pass agent loads them whole.
+  evidence: ["README.md:182", "map/METHOD.md:47", "CLAUDE.md:5"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/, the largest module (27 source files), has no README of its own: its library files (chains,
+    capabilities, supervision, decisions, census, child-env, projects) appear in no index, only in
+    assay.mjs's comment that some of them are libraries.
+  evidence: ["README.md:239", "assay.mjs:16"]
+  confidence: plausible
+  property: entry-docs-route-a-stranger
+- id: F-215
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The engine obtains no model output itself: no provider SDK, API host or model-call stand-in appears outside
+    tests, and the judgment scanners run in a consumer's own session seeded by map/lane.mjs, which names no
+    model; the model-call population is empty.
+  evidence: ["map/lane.mjs:11", "README.md:182"]
+  confidence: confirmed
+- id: F-216
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The run record holds the model of record (and an optional spend) per judgment scanner and per
+    practice-review pass, and validate warns when a judgment scanner records none, so a run says which model
+    drafted its findings.
+  evidence: ["map/record.mjs:18", "map/record.mjs:20", "map/validate.mjs:302", "views/improve/report.mjs:330"]
+  confidence: confirmed
+- id: F-217
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Variance reports fact agreement per pair of models of record across sweeps, a measurement that could
+    qualify a model change against the method.
+  evidence: ["map/variance.mjs:143", "tests/blocks/model-of-record.mjs:1"]
+  confidence: confirmed
+- id: F-218
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    No record states which model the judgment lanes should run on, why, or what re-qualifies it when models
+    ship: the lane seed leaves the model to the consumer and the run record keeps only the id that ran.
+  evidence: ["map/lane.mjs:10", "map/lane.mjs:11", "README.md:186"]
+  confidence: plausible

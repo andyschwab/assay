@@ -1,0 +1,85 @@
+schema: census-triage
+version: 1
+censuses:
+  - census: credentials-below-boundary
+    triage:
+      - candidate: "ADMIN_PASSWORD"
+        out_of_scope: "an inert string planted in a test fixture (tests/enumerate-fixture/nextjs/lib/config.ts), read by no code the engine runs"
+      - candidate: "API_KEY"
+        out_of_scope: "an inert fake value in a scanner sample fixture (tests/instruments/gitleaks-sample.json)"
+      - candidate: "ASSAY_PLANTED_TOKEN"
+        out_of_scope: "an inert planted name in an isolation test (tests/blocks/isolation.mjs), never a real credential"
+      - candidate: "ASSAY_READ_TOKEN"
+        finding: F-516
+      - candidate: "ASSAY_TEST_EVALUATOR_TOKEN"
+        out_of_scope: "an inert planted value a test sets to prove a tool never sees it (tests/blocks/adapter-runner.mjs)"
+      - candidate: "BACKUP_API_KEY"
+        out_of_scope: "named only in a fixture's recorded map under tests/fixtures/, read by no code the engine runs"
+      - candidate: "EMAIL_SEND_API_KEY"
+        out_of_scope: "an example credential name in packet fixtures (tests/fixtures/packet-valid, tests/negative/packet-secret-shaped), grants nothing"
+      - candidate: "FETCH_TOKEN"
+        finding: F-515
+      - candidate: "GH_TOKEN"
+        finding: F-513
+      - candidate: "GITHUB_TOKEN"
+        finding: F-514
+      - candidate: "LEGACY_API_KEY"
+        out_of_scope: "an inert string planted in a test fixture (tests/enumerate-fixture/nextjs/lib/config.ts)"
+      - candidate: "SEARCH_API_KEY"
+        out_of_scope: "an inert name planted in a test fixture (tests/enumerate-fixture/nextjs/lib/), read by no code the engine runs"
+      - candidate: "STRIPE_SECRET_KEY"
+        out_of_scope: "planted in a test fixture (tests/enumerate-fixture/nextjs/lib/config.ts) and a doc example of a secret name (owner/ask-owner.md:71); the engine reads no such secret"
+      - candidate: "STRIPE_WEBHOOK_SECRET"
+        out_of_scope: "planted in a test fixture (tests/enumerate-fixture/nextjs/), read by no code the engine runs"
+  - census: change-gates
+    triage:
+      - candidate: "ci step: branch-cleanup.yml/delete: Delete the planned branches"
+        out_of_scope: "an effect a push to the default branch fires (deleting merged branches), not a check a change passes through"
+      - candidate: "ci step: branch-cleanup.yml/plan: Plan the merged branches"
+        out_of_scope: "plans the branch deletion after a merge; it checks nothing about the change"
+      - candidate: "ci step: ci.yml/test: ./.github/actions/tools"
+        finding: F-303
+      - candidate: "ci step: ci.yml/test: actions/checkout"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: ci.yml/test: actions/setup-node"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: ci.yml/test: npm ci"
+        out_of_scope: "a setup step installing the devDependencies the checks after it run; it judges nothing of the change"
+      - candidate: "ci step: ci.yml/test: npm run build"
+        finding: F-302
+      - candidate: "ci step: ci.yml/test: npm run lint"
+        finding: F-300
+      - candidate: "ci step: ci.yml/test: npm run typecheck"
+        finding: F-301
+      - candidate: "ci step: ci.yml/test: npm test"
+        finding: F-304
+      - candidate: "ci step: release.yml/release: ./.github/actions/tools"
+        finding: F-305
+      - candidate: "ci step: release.yml/release: actions/checkout"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: release.yml/release: actions/setup-node"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: release.yml/release: Check every contract change carries its Consumer trailer"
+        finding: F-308
+      - candidate: "ci step: release.yml/release: npm ci"
+        out_of_scope: "a setup step installing the devDependencies the checks after it run; it judges nothing of the change"
+      - candidate: "ci step: release.yml/release: npm test"
+        finding: F-307
+      - candidate: "ci step: release.yml/release: Refuse a malformed or existing version"
+        finding: F-306
+      - candidate: "ci step: release.yml/release: Tag and publish the release"
+        out_of_scope: "the release write itself, an effect the gates before it guard, not a check"
+      - candidate: "ci step: tools-check.yml/check: actions/checkout"
+        out_of_scope: "a setup step that checks nothing, in a scheduled job no change passes through"
+      - candidate: "ci step: tools-check.yml/check: Open or update the issue for pins behind upstream"
+        out_of_scope: "a weekly scheduled job that opens or comments an issue about upstream tool releases; no change passes through it"
+      - candidate: "script: lint"
+        finding: F-309
+      - candidate: "script: test"
+        finding: F-310
+      - candidate: "script: typecheck"
+        finding: F-311
+      - candidate: "script: validate"
+        finding: F-312
+  - census: model-call-telemetry
+    triage: []

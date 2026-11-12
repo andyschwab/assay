@@ -1,0 +1,85 @@
+# map/censuses.yaml (authored) — practice-review, assay at 2b247c0
+dimensions:
+  - dimension: artifact-legibility
+    depth: "The best instance is the routine contract, where every security-shaped choice (the two-job split, the base-branch baseline, the SHA pin, CODEOWNERS, the stripped artifact) carries its threat beside it (F-103, F-104, F-120), and the one rule's single home is machine-held (F-142); the weak spots are drifted second accounts in README and RUNBOOK prose (F-126, F-131, F-136, F-144)."
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions whose rationale reconstructs from the repository's files alone"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108, F-109, F-110, F-111, F-112, F-113, F-114, F-115, F-116, F-117, F-118, F-119, F-120, F-121]
+        method: "terrain drew no frozen list; every choice the contract docs (README, CLAUDE.md, CONSUMERS, routine/README, scanner CONTRACT, yardstick/views READMEs, tests/README) state as a choice a newcomer would question, D1-D21, one finding each, enumerated before judging"
+        primary: true
+      - name: doc-freshness
+        what: "concrete doc claims (command, count, path, endpoint, capability) that hold against the code"
+        members: [F-122, F-123, F-124, F-125, F-126, F-127, F-128, F-129, F-130, F-131, F-132, F-133, F-134, F-135, F-136, F-137, F-138, F-139, F-140, F-141]
+        method: "every checkable claim in README.md, then the pages it routes to (CONSUMERS, RUNBOOK, routine/README, tests/README) plus SECURITY.md and CLAUDE.md, replayed against the tree by reading; one finding per claim"
+        primary: false
+  - dimension: context-economy
+    depth: "The best instance is lib/ (F-207): every file self-describing, tested directly and reaching one file outside itself, backed by one-home modules for doctrine and run layout (F-209) and a command table that routes a stranger (F-210); but the views and routine layers pull in most of the engine (F-204, F-206) through imports that cycle between map, yardstick and views (F-208)."
+    sampled:
+      - name: modules-standalone
+        what: "top-level bounded contexts an agent can load alone with something to read, something to run, and at most ten outside source files"
+        members: [F-201, F-202, F-203, F-204, F-205, F-206, F-207]
+        method: "every bounded context the terrain names (map/, map/scanners/, yardstick/, views/, owner/, routine/, lib/), one finding each; outside transitive imports counted by grepping relative import specifiers of every non-test .mjs"
+        primary: true
+  - dimension: deterministic-gates
+    depth: "The best gate is the regression harness CI runs on every pull request: it refuses an empty, unloadable or throwing block set as red, needs every pinned instrument verified first, and is itself guarded by negative fixtures that must stay red for their own reason (F-305, F-318, F-321, F-323); its one soft edge is that a local run without gitleaks skips that block's scan cases (F-310)."
+    sampled:
+      - name: change-gates
+        what: "every check a change passes through before it lands or ships (CI steps, package scripts named for a check, hooks): does it go red when what it needs is absent or never finishes"
+        members: [F-301, F-302, F-303, F-304, F-305, F-306, F-307, F-308, F-309, F-310, F-311, F-312]
+        method: "every candidate in populations.changeGates of map/raw/enumerate.json (24) triaged once: 12 checks judged one finding each by reading the step's script, set -e, timeouts and skips; 12 out of scope (setup steps, effect steps and the guards in front of them, a scheduled drift check); no commit or push hook exists to add"
+        primary: true
+  - dimension: verification
+    depth: "The best instances confirm effects instead of trusting reports: the orchestrator reads an instrument ran only when its report ingests (F-410), fresh-clone reads the runner's own test counts rather than the exit code (F-407), and the method's own repeatability is a gated number from blind sweeps (F-414); the weak spot is the GitHub-side jobs, which trust a CLI exit code (F-402, F-403, F-404), and the unchecked verification section of a change (F-411)."
+    sampled:
+      - name: effect-provability
+        what: "effect channels whose job confirms the effect happened rather than trusting a return code or a success report"
+        members: [F-401, F-402, F-403, F-404, F-405, F-406, F-407, F-408, F-409, F-410]
+        method: "census-augmented: every effect channel slug in the terrain's effect inventory (10), one finding each, read at the channel's own file"
+        primary: true
+  - dimension: delegation
+    depth: "The best instance is the routine's two-job split with a credential-free target job and a gate that takes the target's reports as data (F-514, F-530), backed by an allow-listed child environment (F-512) and hash-tagged fences around scanner text an agent reads (F-527); it is let down where the same isolation stops: the routine's local path runs target code without --allow-exec (F-511), HOME reaches target scripts (F-513), and review-lane sessions get no data-not-instructions rule (F-515, F-525)."
+    sampled:
+      - name: credential
+        what: "every live secret the tree reads, its read site and reach traced in the code"
+        members: [F-520, F-521, F-522, F-523]
+        method: "populations.secrets of map/raw/enumerate.json (14 candidates), each triaged in census-triage; the 4 live ones judged one finding each, 10 test-fixture or example names out of scope"
+        primary: true
+      - name: ingested-content
+        what: "every place outside text enters the engine or its sessions, judged kept as data and never acted on as an instruction"
+        members: [F-524, F-525, F-526, F-527, F-528, F-529, F-530, F-531, F-532]
+        method: "the terrain's ingested-content list (target tree via instruments, target tree via review sessions, scanner output, handoff to agents, lane outputs, owner packet, target-job handoff, upstream release metadata, instrument hits handed to a review), one finding per point"
+        primary: false
+  - dimension: improvement-loop
+    depth: "Where a lesson is recorded the loop is real and enforced: nearly every failure a block header names (e.g. the 330-of-551 skipped tests, F-621; the four silent exit-0 commands, F-637) became a harness block CI runs on every pull request, while the few lessons held only in contract prose or behind an opt-in canon (F-602, F-605, F-606) are where it leaks."
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "recorded lessons (a harness block header naming the failure or issue it came from, or a lesson stated in a contract doc) that became a durable mechanism"
+        members: [F-601, F-602, F-603, F-604, F-605, F-606, F-607, F-608, F-609, F-610, F-611, F-612, F-613, F-614, F-615, F-616, F-617, F-618, F-619, F-620, F-621, F-622, F-623, F-624, F-625, F-626, F-627, F-628, F-629, F-630, F-631, F-632, F-633, F-634, F-635, F-636, F-637, F-638, F-639, F-640, F-641, F-642, F-643]
+        method: "every tests/blocks/ header (excluding sweeps and fixture maps) that states a failure that happened or a review correction, plus every lesson stated with its cause in CLAUDE.md, map/METHOD.md and map/SCHEMA.md; feature additions and rules stated without a cause excluded; one finding each"
+        primary: true
+  - dimension: multiplayer
+    depth: "The best instance is the consumer contract's JSON surfaces: `project`, `toolchain`, `compare`, `variance`, `lane --list` and `yardstick --floor` each state their --json shape on CONSUMERS.md (F-709, F-721, F-705), and the agent-facing data files carry versioned schema ids checked before writing (F-744, F-745); the gaps are the three standalone view commands whose usage lives only in code (F-729)."
+    sampled:
+      - name: agent-access-surface
+        what: "every interface assay offers a caller (each assay.mjs command, each data file or format other tools read, each importable module, action, reusable workflow and template), met when a contract outside the code names it"
+        members: [F-701, F-702, F-703, F-704, F-705, F-706, F-707, F-708, F-709, F-710, F-711, F-712, F-713, F-714, F-715, F-716, F-717, F-718, F-719, F-720, F-721, F-722, F-723, F-724, F-725, F-726, F-727, F-728, F-729, F-730, F-731, F-732, F-733, F-734, F-735, F-736, F-737, F-738, F-739, F-740, F-741, F-742, F-743, F-744, F-745, F-746, F-747, F-748, F-749, F-750, F-751, F-752, F-753, F-754, F-755, F-756, F-757, F-758, F-759, F-760, F-761, F-762, F-763]
+        method: "enumerate-before-assess: the 31 commands of assay.mjs's GROUPS table plus every run-layout file, input format, module, action and workflow named in CONSUMERS.md, views/README.md, map/SCHEMA.md, yardstick/README.md, owner/ and routine/README.md, one finding each"
+        primary: true
+context:
+  - name: second-accounts
+    members: [F-142, F-143, F-144, F-145, F-146, F-147, F-148, F-149, F-150, F-151]
+  - name: model-qualification
+    members: [F-216, F-217, F-218]
+  - name: guard-fixtures
+    members: [F-321, F-322, F-323, F-324, F-325, F-326, F-327, F-328, F-329]
+  - name: rubric-calibration
+    members: [F-414, F-415, F-416, F-417]
+  - name: change-verification
+    members: [F-411, F-412, F-413]
+  - name: ai-feature-evals
+    members: [F-418, F-419, F-420]
+  - name: ai-disclosure
+    members: [F-533, F-534]
+  - name: backlog-records
+    members: [F-644, F-645, F-646, F-647]

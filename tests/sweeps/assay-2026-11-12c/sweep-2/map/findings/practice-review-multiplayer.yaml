@@ -1,0 +1,543 @@
+- id: F-700
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `help` command (also `--help`, `-h`, or no command) prints every command grouped with its one-line purpose, and CONSUMERS.md names it as the listing a consumer reads.
+  evidence: [assay.mjs:75, assay.mjs:62, CONSUMERS.md:13]
+  confidence: confirmed
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `start` command's usage and its output (a run plus `map/raw/enumerate.json`, exit 3 with nothing written when tools are not ready) are stated in CONSUMERS.md and the README.
+  evidence: [assay.mjs:20, CONSUMERS.md:20, README.md:170]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `validate` command's usage and exit contract (exit 0 only for a run that validates) are stated in CONSUMERS.md; the doc omits the code's `--canon` flag.
+  evidence: [assay.mjs:21, CONSUMERS.md:25, map/validate.mjs:85]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `ingest` command's usage and effect (findings written, the run-record row flipped to ran) are stated in CONSUMERS.md and the scanner contract; the doc omits the code's `--start` and `--strip-prefix` flags.
+  evidence: [assay.mjs:22, CONSUMERS.md:23, map/scanners/CONTRACT.md:364, map/ingest.mjs:1232]
+  confidence: confirmed
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `record` command's usage (scanner, disposition, reason, model, pass) is stated in CONSUMERS.md and SCHEMA.md §5a.
+  evidence: [assay.mjs:23, CONSUMERS.md:24, map/SCHEMA.md:373]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `lane` command's usage (seed for a judgment scanner, refusal without `--inputs-dir` when the lane has inputs) is stated in CONSUMERS.md and the scanner contract §3h.
+  evidence: [assay.mjs:24, CONSUMERS.md:21, map/scanners/CONTRACT.md:912]
+  confidence: confirmed
+- id: F-706
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `tools` command's `install` and `verify` usages and exit meaning are stated in CONSUMERS.md, and `tools check` is named in the scanner contract §3g.
+  evidence: [assay.mjs:25, CONSUMERS.md:18, CONSUMERS.md:19, map/scanners/CONTRACT.md:875]
+  confidence: confirmed
+- id: F-707
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `migrate-run` command's usage (`<run> [--write]`) is stated in CONSUMERS.md and the README.
+  evidence: [assay.mjs:26, CONSUMERS.md:34, README.md:199]
+  confidence: confirmed
+- id: F-708
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `enumerate` command's usage (`enumerate <target> --json`) is given in METHOD.md and SCHEMA.md §6e, though CONSUMERS.md does not list it among the commands a consumer may call.
+  evidence: [assay.mjs:27, map/METHOD.md:82, map/SCHEMA.md:865]
+  confidence: confirmed
+- id: F-709
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `project` command's usage and its exit on an unmapped row are stated in CONSUMERS.md.
+  evidence: [assay.mjs:28, CONSUMERS.md:26]
+  confidence: confirmed
+- id: F-710
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `toolchain` command's usage (`<checkout> [--json]`, executes nothing) is stated in CONSUMERS.md.
+  evidence: [assay.mjs:29, CONSUMERS.md:27]
+  confidence: confirmed
+- id: F-711
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `fresh-clone` command's usage and output file are stated in the scanner contract §3b.
+  evidence: [assay.mjs:30, map/scanners/CONTRACT.md:363]
+  confidence: confirmed
+- id: F-712
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `dependency-scan` command's usage and output file are stated in the scanner contract §3c.
+  evidence: [assay.mjs:31, map/scanners/CONTRACT.md:444]
+  confidence: confirmed
+- id: F-713
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `structure-scan` command's usage (including `--no-exec`) is stated in the scanner contract §3e.
+  evidence: [assay.mjs:32, map/scanners/CONTRACT.md:766]
+  confidence: confirmed
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `repo-census` command's usage and flags are stated in the scanner contract §3d.
+  evidence: [assay.mjs:33, map/scanners/CONTRACT.md:635]
+  confidence: confirmed
+- id: F-715
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `variance` command's usage is stated in CONSUMERS.md, and its `--set` form in METHOD.md.
+  evidence: [assay.mjs:34, CONSUMERS.md:32, map/METHOD.md:783]
+  confidence: confirmed
+- id: F-716
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `score` command's usage (`<run> --answers <ANSWERS.yaml>`) is given in METHOD.md and CLAUDE.md.
+  evidence: [assay.mjs:35, map/METHOD.md:774, CLAUDE.md:48]
+  confidence: confirmed
+- id: F-717
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `backlog` command's usage (`<run> [--target] [--prior] --write`) is given in SCHEMA.md §5b.
+  evidence: [assay.mjs:36, map/SCHEMA.md:498]
+  confidence: confirmed
+- id: F-718
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `roster` command's usage (`roster <run>...`) is given in the scanner intake doc.
+  evidence: [assay.mjs:37, map/scanners/INTAKE.md:46]
+  confidence: confirmed
+- id: F-719
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `yardstick` command's usage (`[--floor] [--json]`) is stated in CONSUMERS.md, which tells a consumer to read the floor through it rather than by heart.
+  evidence: [assay.mjs:40, CONSUMERS.md:35, CONSUMERS.md:47]
+  confidence: confirmed
+- id: F-720
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `measure` command's usage (`<run> [--write] [--packet <dir>]`) is given in the yardstick README's Running it block.
+  evidence: [assay.mjs:41, yardstick/README.md:263, README.md:134]
+  confidence: confirmed
+- id: F-721
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `compare` command's usage and exit codes (0 whatever moved, 2 when a measurement cannot be read) are stated in CONSUMERS.md.
+  evidence: [assay.mjs:42, CONSUMERS.md:30]
+  confidence: confirmed
+- id: F-722
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `ratchet` command's two usages (`--baseline` file or `--baseline-ref` with `--repo`) are stated in CONSUMERS.md and the yardstick README.
+  evidence: [assay.mjs:43, CONSUMERS.md:29, yardstick/README.md:354]
+  confidence: confirmed
+- id: F-723
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `validate-packet` command's usage (`<manifest.yaml | packet-dir>`) is given in owner/PACKET.md.
+  evidence: [assay.mjs:44, owner/PACKET.md:24]
+  confidence: confirmed
+- id: F-724
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `ask-owner` command's usage (`--run <run>`) is given in the README and in the owner prompt's own header.
+  evidence: [assay.mjs:45, README.md:135, owner/ask-owner.md:6]
+  confidence: confirmed
+- id: F-725
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `routine` command's usage, outputs (`routine.yaml` with its gate) and exit codes 0/1/3 are stated in CONSUMERS.md, with the two-job `--target-steps` form.
+  evidence: [assay.mjs:48, CONSUMERS.md:33]
+  confidence: confirmed
+- id: F-726
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `compile` command's usage (`<run> [--target] [--since] [--packet]`) is stated in CONSUMERS.md and the README.
+  evidence: [assay.mjs:51, CONSUMERS.md:28, README.md:195]
+  confidence: confirmed
+- id: F-727
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `intake` command's usage (`intake <run-dir> [--stdout]`) is stated only in its script header; no doc page gives it, and views/README.md names only the script and the file it writes.
+  evidence: [assay.mjs:52, views/intake.mjs:15, views/README.md:31]
+  confidence: confirmed
+- id: F-728
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `maintain` command's usage (`maintain <run-dir> [--stdout]`) is stated only in its script header; views/README.md names the script and its output but no command usage.
+  evidence: [assay.mjs:53, views/maintain.mjs:15, views/README.md:96]
+  confidence: confirmed
+- id: F-729
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `owner` command's usage (`owner <run-dir> [--stdout]`) is stated only in its script header; views/README.md names the script and its output but no command usage.
+  evidence: [assay.mjs:54, views/owner.mjs:22, views/README.md:106]
+  confidence: confirmed
+- id: F-730
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `since` command's usage (`since <run> --previous <prev-run>`) is given in the yardstick README and views/README.md; its `--confidential` flag is in code only.
+  evidence: [assay.mjs:55, yardstick/README.md:338, views/README.md:175, views/since.mjs:18]
+  confidence: confirmed
+- id: F-731
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `maturity` command's usage and the shape of the file `--write` produces are stated in CONSUMERS.md.
+  evidence: [assay.mjs:56, CONSUMERS.md:31]
+  confidence: confirmed
+- id: F-732
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `lane --list --json` output shape (`{ lanes: [{ scanner, lane, outputs, inputs, passes }] }`) is stated in CONSUMERS.md and matches what the code writes.
+  evidence: [CONSUMERS.md:22, map/lane.mjs:94]
+  confidence: confirmed
+- id: F-733
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `project --json` output shape (`{ run, axes, unmapped, needs_axis, chains }`) is stated in CONSUMERS.md.
+  evidence: [CONSUMERS.md:26, map/project.mjs:332]
+  confidence: confirmed
+- id: F-734
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `toolchain --json` output shape (`{ toolchain: { family, manifest, package_manager, … } }`) with the closed `family` values is stated in CONSUMERS.md.
+  evidence: [CONSUMERS.md:27, map/toolchain.mjs:25]
+  confidence: confirmed
+- id: F-735
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `compare --json` output shape and its closed `classification` values are stated in CONSUMERS.md.
+  evidence: [CONSUMERS.md:30, yardstick/compare.mjs:209]
+  confidence: confirmed
+- id: F-736
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `variance --json` output shape (`{ pct, union, core, byDimension, byModelPair, descriptors, requirements }`) is stated in CONSUMERS.md.
+  evidence: [CONSUMERS.md:32, map/variance.mjs:387]
+  confidence: confirmed
+- id: F-737
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `yardstick --floor --json` output shape (`{ floor, requirements: [{ id, title, tier, topic, tags, harm }] }`) is stated in CONSUMERS.md and matches the code.
+  evidence: [CONSUMERS.md:48, yardstick/list.mjs:33]
+  confidence: confirmed
+- id: F-738
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `enumerate --json` output is the `map/raw/enumerate.json` format whose candidate populations SCHEMA.md §6e names, each member with evidence and note.
+  evidence: [map/enumerate.mjs:311, map/SCHEMA.md:865, map/SCHEMA.md:311]
+  confidence: plausible
+- id: F-739
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `measure --json` output (`{ summary, requirements }`) is emitted by the code but no doc page states its shape or even the flag; the yardstick README's usage block omits `--json`.
+  evidence: [yardstick/measure.mjs:580, yardstick/README.md:263]
+  confidence: confirmed
+- id: F-740
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `score --json` output is emitted by the code but no doc page states its shape; the documented usage omits `--json`.
+  evidence: [map/score.mjs:187, map/METHOD.md:774]
+  confidence: confirmed
+- id: F-741
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `tools check --json` output (the pin rows) is emitted by the code but no doc page states its fields; the scanner contract names `tools check` without the flag.
+  evidence: [map/tools.mjs:247, map/scanners/CONTRACT.md:875]
+  confidence: confirmed
+- id: F-742
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The findings file format (`map/findings/<scanner>.yaml`) has its fields, closed vocabularies and reader subset stated in SCHEMA.md, which CONSUMERS.md points to.
+  evidence: [map/SCHEMA.md:22, CONSUMERS.md:91]
+  confidence: confirmed
+- id: F-743
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run record `map/scanners.yaml` has its format stated in SCHEMA.md §5a with a template, and is listed in the CONSUMERS.md run layout.
+  evidence: [map/SCHEMA.md:359, CONSUMERS.md:90]
+  confidence: confirmed
+- id: F-744
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `map/effect-triage.yaml` format is stated in SCHEMA.md §6e and listed in the CONSUMERS.md run layout.
+  evidence: [map/SCHEMA.md:882, CONSUMERS.md:93]
+  confidence: confirmed
+- id: F-745
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The measurement `yardstick.yaml` is named in the run layout and its per-row content (status, finding ids, note, basis, contradictions) is described in prose in the yardstick README, with no field-by-field schema block.
+  evidence: [CONSUMERS.md:94, yardstick/README.md:10, yardstick/README.md:256]
+  confidence: plausible
+- id: F-746
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The views' data files (`views/intake.yaml`, `maintain.yaml`, `owner.yaml`, `since.yaml`) have their shapes stated in views/README.md, which CONSUMERS.md names as the home of each data format.
+  evidence: [views/README.md:31, views/README.md:96, views/README.md:106, views/README.md:172, CONSUMERS.md:95]
+  confidence: confirmed
+- id: F-747
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Improve's data files (`handoff/sequence.json`, `views/improve/chains.json`, `views/improve/report.json`) carry versioned schema ids and have their shapes stated field by field in views/README.md for an agent or renderer that imports nothing.
+  evidence: [views/README.md:168, views/README.md:169, views/README.md:170]
+  confidence: confirmed
+- id: F-748
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The routine's own record `routine.yaml` has its format, closed `gate` values and their exit meanings stated in routine/README.md.
+  evidence: [routine/README.md:49, routine/README.md:59, CONSUMERS.md:99]
+  confidence: confirmed
+- id: F-749
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The routine's two-job handoff directory names its files (each raw report and a `.status.json` with exit and output tail) in routine/README.md, though the `.status.json` fields are described only in prose.
+  evidence: [routine/README.md:140, routine/README.md:145]
+  confidence: plausible
+- id: F-750
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner packet manifest (`packet/manifest.yaml`) has its format stated field by field in owner/PACKET.md and is checked by `validate-packet`.
+  evidence: [owner/PACKET.md:66, owner/PACKET.md:24]
+  confidence: confirmed
+- id: F-751
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ratchet baseline file (`packet/baseline.yaml`) has its format stated with an example in the yardstick README.
+  evidence: [yardstick/README.md:368, yardstick/README.md:375]
+  confidence: confirmed
+- id: F-752
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner prompt (owner/ask-owner.md) is itself a contract handed to the owner's own AI, which tells it how to run the conversation and to return one block of YAML in the packet format.
+  evidence: [owner/ask-owner.md:13, owner/ask-owner.md:16]
+  confidence: confirmed
+- id: F-753
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The scanner port and adapter format (what a third-party scanner emits and how its adapter maps it) are stated in the scanner contract §2 and §3.
+  evidence: [map/scanners/CONTRACT.md:40, map/scanners/CONTRACT.md:91]
+  confidence: confirmed
+- id: F-754
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `.github/actions/tools` composite action's use, single `dir` input and failure behaviour are stated in CONSUMERS.md and the action file's header.
+  evidence: [CONSUMERS.md:54, .github/actions/tools/action.yml:1]
+  confidence: confirmed
+- id: F-755
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The branch-cleanup reusable workflow's call (`workflow_call`, one `dry_run` input, required permissions) is stated in CONSUMERS.md and the file header.
+  evidence: [CONSUMERS.md:75, .github/workflows/branch-cleanup.yml:44, .github/workflows/branch-cleanup.yml:9]
+  confidence: confirmed
+- id: F-756
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The routine workflow template `routine/assay-routine.yml` has its installation (copy, set `ASSAY_REPO` and a full-sha `ASSAY_REF`) stated in routine/README.md.
+  evidence: [routine/README.md:206, routine/assay-routine.yml:14]
+  confidence: confirmed
+- id: F-757
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `lib/run-layout.mjs` module is declared contract in CONSUMERS.md as the one place a run's paths are computed, with example exports.
+  evidence: [CONSUMERS.md:108, lib/run-layout.mjs:40]
+  confidence: confirmed
+- id: F-758
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `map/child-env.mjs` module's `childEnv(set)` is declared contract in CONSUMERS.md with what it allows and how to pass it to spawn.
+  evidence: [CONSUMERS.md:109, map/child-env.mjs:28]
+  confidence: confirmed
+- id: F-759
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Each lane seed body declares its machine-readable inputs, outputs and passes in frontmatter, and the scanner contract §3h states the lane format a review session is handed.
+  evidence: [map/scanners/adapters/practice-review/lane.md:6, map/scanners/adapters/practice-review/lane.md:7, map/scanners/CONTRACT.md:904]
+  confidence: confirmed
+- id: F-760
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Every scanner, lane and view writes into one run directory whose paths one module places (`lib/run-layout.mjs`), one findings file per scanner, so shared context is consolidated rather than a bespoke store per integration.
+  evidence: [CONSUMERS.md:84, CONSUMERS.md:91, lib/run-layout.mjs:56]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-761
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The owner's packet is a shared context store kept in the repository itself (beside it before adoption), read the same way from either place, and compared with the run's own findings rather than merged into them.
+  evidence: [owner/PACKET.md:7, owner/PACKET.md:11, yardstick/README.md:255]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-762
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    assay is a local process dispatcher with no shared scope (room, channel or project) that holds its own memory or permissions; context is shared only by passing run directories and packet files between people and jobs.
+  evidence: [assay.mjs:8, assay.mjs:84, CONSUMERS.md:3]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-763
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The routine README discloses by structure who can read an uploaded run (anyone who can read the repository's workflow runs, anyone on a public repository, for the retention period) and states what ingest strips before archiving because of it.
+  evidence: [routine/README.md:29, routine/README.md:31]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-764
+  dimension: multiplayer
+  polarity: gap
+  subject_type: process
+  observation: >
+    The routine template uploads the whole run (findings and evidence paths) as an artifact automatically on every firing, failures included, kept 90 days, so publishing it to the repository's readers is not a per-run conscious act.
+  evidence: [routine/assay-routine.yml:182, routine/assay-routine.yml:188, routine/README.md:23]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-765
+  dimension: multiplayer
+  polarity: strength
+  subject_type: process
+  observation: >
+    The owner's sharing is a conscious act: the owner copies one block and sends it back, the prompt forbids asking for or writing down any secret, and the sender treats the reply as data.
+  evidence: [owner/ask-owner.md:16, owner/ask-owner.md:39, owner/ask-owner.md:10]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-766
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    Marking compiled pages confidential is a run-level opt-in (`confidential:` in prose.yaml or `--confidential`), never an engine default, while the handoff package is always written `confidential: true`.
+  evidence: [map/SCHEMA.md:689, map/SCHEMA.md:348, views/since.mjs:245]
+  confidence: confirmed
+  property: sharing-is-consented

@@ -1,0 +1,85 @@
+schema: census-triage
+version: 1
+censuses:
+  - census: model-call-telemetry
+    triage: []
+  - census: change-gates
+    triage:
+      - candidate: "ci step: branch-cleanup.yml/delete: Delete the planned branches"
+        out_of_scope: "an effect step (deletes branches), not a check on a change; its gate is the branch-delete effect's, judged by the delegation pass"
+      - candidate: "ci step: branch-cleanup.yml/plan: Plan the merged branches"
+        out_of_scope: "plans the branch-delete effect; a gate in front of the application's own effect is the delegation pass's, not a change gate"
+      - candidate: "ci step: ci.yml/test: ./.github/actions/tools"
+        finding: F-300
+      - candidate: "ci step: ci.yml/test: actions/checkout"
+        out_of_scope: "a checkout step; checks nothing"
+      - candidate: "ci step: ci.yml/test: actions/setup-node"
+        out_of_scope: "a setup step; checks nothing"
+      - candidate: "ci step: ci.yml/test: npm ci"
+        out_of_scope: "a dependency-install setup step; checks nothing of the change"
+      - candidate: "ci step: ci.yml/test: npm run build"
+        finding: F-301
+      - candidate: "ci step: ci.yml/test: npm run lint"
+        finding: F-302
+      - candidate: "ci step: ci.yml/test: npm run typecheck"
+        finding: F-303
+      - candidate: "ci step: ci.yml/test: npm test"
+        finding: F-304
+      - candidate: "ci step: release.yml/release: ./.github/actions/tools"
+        finding: F-305
+      - candidate: "ci step: release.yml/release: actions/checkout"
+        out_of_scope: "a checkout step; checks nothing"
+      - candidate: "ci step: release.yml/release: actions/setup-node"
+        out_of_scope: "a setup step; checks nothing"
+      - candidate: "ci step: release.yml/release: Check every contract change carries its Consumer trailer"
+        finding: F-306
+      - candidate: "ci step: release.yml/release: npm ci"
+        out_of_scope: "a dependency-install setup step; checks nothing of the change"
+      - candidate: "ci step: release.yml/release: npm test"
+        finding: F-307
+      - candidate: "ci step: release.yml/release: Refuse a malformed or existing version"
+        finding: F-308
+      - candidate: "ci step: release.yml/release: Tag and publish the release"
+        out_of_scope: "an effect step (creates the tag and release), not a check; judged as the release-publish effect by the delegation pass"
+      - candidate: "ci step: tools-check.yml/check: actions/checkout"
+        out_of_scope: "a checkout step; checks nothing"
+      - candidate: "ci step: tools-check.yml/check: Open or update the issue for pins behind upstream"
+        finding: F-309
+      - candidate: "script: lint"
+        finding: F-310
+      - candidate: "script: test"
+        finding: F-311
+      - candidate: "script: typecheck"
+        finding: F-312
+      - candidate: "script: validate"
+        finding: F-313
+  - census: credential
+    triage:
+      - candidate: "ADMIN_PASSWORD"
+        out_of_scope: "inert planted string in the enumerate test fixture (tests/enumerate-fixture/nextjs) and its test block; grants nothing"
+      - candidate: "API_KEY"
+        out_of_scope: "inert planted string in a scanner output sample (tests/instruments/gitleaks-sample.json, a fake value); grants nothing"
+      - candidate: "ASSAY_PLANTED_TOKEN"
+        out_of_scope: "inert planted name in test blocks (isolation, raw-minimised) used to prove the child environment drops it; grants nothing"
+      - candidate: "ASSAY_READ_TOKEN"
+        finding: F-515
+      - candidate: "ASSAY_TEST_EVALUATOR_TOKEN"
+        out_of_scope: "inert planted value set by a test block (adapter-runner) to prove a tool never sees it; grants nothing"
+      - candidate: "BACKUP_API_KEY"
+        out_of_scope: "appears only under a known-answer fixture's map/ (excluded from this read); no engine or workflow code reads it"
+      - candidate: "EMAIL_SEND_API_KEY"
+        out_of_scope: "a credential name in test packet manifests (tests/fixtures/packet-valid, tests/negative); inert fixture data"
+      - candidate: "FETCH_TOKEN"
+        finding: F-514
+      - candidate: "GH_TOKEN"
+        finding: F-512
+      - candidate: "GITHUB_TOKEN"
+        finding: F-513
+      - candidate: "LEGACY_API_KEY"
+        out_of_scope: "inert planted string in the enumerate test fixture (tests/enumerate-fixture/nextjs) and its test block; grants nothing"
+      - candidate: "SEARCH_API_KEY"
+        out_of_scope: "inert planted string in the enumerate test fixture (tests/enumerate-fixture/nextjs) and its test block; grants nothing"
+      - candidate: "STRIPE_SECRET_KEY"
+        out_of_scope: "a documentation example in owner/ask-owner.md and a planted string in the enumerate test fixture; nothing reads it"
+      - candidate: "STRIPE_WEBHOOK_SECRET"
+        out_of_scope: "inert planted string in the enumerate test fixture (tests/enumerate-fixture/nextjs) and its test block; grants nothing"

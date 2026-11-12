@@ -1,0 +1,261 @@
+- id: F-401
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "migrate-run-write provability"
+  observation: >
+    The migrate-run rewrite writes a file only after each rewritten flow list reads back under the strict reader to exactly what the legacy rule read and the whole file re-parses, otherwise the line is named and the file left as it was.
+  evidence: ["map/migrate-run.mjs:19", "map/migrate-run.mjs:87", "map/migrate-run.mjs:92", "map/migrate-run.mjs:112"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "release-publish provability"
+  observation: >
+    The release job's success rests on the exit code of the release-create call under set -e; nothing reads the tag or the published release back to confirm it exists at the dispatched commit.
+  evidence: [".github/workflows/release.yml:47", ".github/workflows/release.yml:50"]
+  confidence: plausible
+  property: effect-confirmed-not-reported
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "branch-delete provability"
+  observation: >
+    The branch sweep re-reads each branch before deleting it, but counts and prints a branch as deleted on the DELETE call's exit code alone, never re-reading the ref to confirm it is gone.
+  evidence: [".github/workflows/branch-cleanup.yml:129", ".github/workflows/branch-cleanup.yml:131", ".github/workflows/branch-cleanup.yml:132"]
+  confidence: plausible
+  property: effect-confirmed-not-reported
+- id: F-404
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  label: "pin-drift-issue provability"
+  observation: >
+    The weekly tools check trusts the issue-create exit code for the run it files in; only the next week's run reads the open issue's last body back, so a create that silently misfiles is confirmed at best a week later.
+  evidence: [".github/workflows/tools-check.yml:33", ".github/workflows/tools-check.yml:34"]
+  confidence: plausible
+  property: effect-confirmed-not-reported
+- id: F-405
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "routine-artifact-upload provability"
+  observation: >
+    The routine's gate job does not trust the target job's upload: it reads the handed-off status file itself and records the instrument failed with the reason when the handoff is missing or unreadable.
+  evidence: ["routine/assay-routine.yml:78", "routine/assay-routine.yml:146", "map/start.mjs:395", "map/start.mjs:397"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-406
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "tool-install provability"
+  observation: >
+    A tool install is confirmed, not reported: each download is checked against its pinned sha256 before install, verify runs the binary and requires its version output to name the pin, and no map is drawn until every pin answers.
+  evidence: ["map/tools.mjs:127", "map/tools.mjs:156", "map/tools.mjs:181"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-407
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "fresh-clone-exec provability"
+  observation: >
+    The fresh-clone test step records the runner's own pass, skip and fail counts rather than the exit code, and a block pins that a suite that skipped most of its tests is reported as such.
+  evidence: ["map/fresh-clone.mjs:21", "tests/blocks/test-skips.mjs:2"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-408
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "dependency-scan-exec provability"
+  observation: >
+    The dependency scan reads an audit as done only when its report carries the expected advisory and metadata shape; any other exit, an error document, a timeout or a spawn failure records the lockfile failed, never clean.
+  evidence: ["map/dependency-scan.mjs:43"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-409
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "structure-scan-exec provability"
+  observation: >
+    The structure scan records a tool whose install fails as skipped with the reason and one whose exit falls outside its success set or whose report does not parse as failed, so a crashed tool never reads as zero findings.
+  evidence: ["map/structure-scan.mjs:16", "map/structure-scan.mjs:41"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-410
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  label: "run-orchestration provability"
+  observation: >
+    The orchestrator marks an instrument ran only when its exit is in the documented success set and its raw report then ingests cleanly; either failure records the row failed with the tool's own output as the reason.
+  evidence: ["map/start.mjs:105", "map/start.mjs:112", "map/start.mjs:117"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-411
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The pull request template asks for a "How this is verified" section, but no workflow, test or tool in the tree reads a pull request body, so an empty or placeholder section merges; CI runs lint, typecheck, build and npm test only.
+  evidence: [".github/PULL_REQUEST_TEMPLATE.md:5", ".github/workflows/ci.yml:39"]
+  confidence: confirmed
+- id: F-412
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The red-then-green rule requires the pull request body and commit message to say an assertion was confirmed red, but the only check is that CLAUDE.md states the rule; nothing reads a change's body or message for it.
+  evidence: ["CLAUDE.md:63", "tests/blocks/doc-consistency.mjs:90"]
+  confidence: confirmed
+- id: F-413
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    The one check that reads commit messages is the Consumer trailer rule, which refuses a commit touching the consumer surface without a Consumer trailer and runs before a release tags; it records consumer impact, not the verification a change carries.
+  evidence: ["tests/blocks/consumer-contract.mjs:13", ".github/workflows/release.yml:43"]
+  confidence: confirmed
+- id: F-414
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The practice-review method is hardened by measurement: variance measures N blind sweeps of one target on fact presence, descriptor agreement and requirement agreement, and the harness gates every committed sweep set at its own threshold.
+  evidence: ["map/variance.mjs:4", "map/variance.mjs:31", "map/variance.mjs:45", "tests/blocks/sweep-gate.mjs:24"]
+  confidence: confirmed
+- id: F-415
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The first blind sweep set over this repository read 38% fact presence and 20% descriptor agreement, with divergences moving both ways, which the method's own contract names as judgment drift.
+  evidence: ["map/variance.mjs:43", "map/variance.mjs:56", "map/SCHEMA.md:211"]
+  confidence: confirmed
+- id: F-416
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Requirement agreement is a third repeatability measure over the yardstick's verdicts, computed per sweep and gateable with its own minimum, so a rubric verdict that flips between sweeps is counted rather than assumed stable.
+  evidence: ["map/variance.mjs:259", "map/variance.mjs:367"]
+  confidence: confirmed
+- id: F-417
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The deep-code-review lane pins the reviewer's method by commit, but its committed fixture runs prove the ingest and scoring pipeline, not the reviewer's blind recall, and no sweep set in the tree is said to measure its repeatability.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:17", "tests/fixtures/README.md:55", "tests/fixtures/README.md:56"]
+  confidence: plausible
+- id: F-418
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The practice-review lane's answer quality is scored in CI only over frozen, non-blind fixture outputs against answer sheets; no CI job runs the lane's model path on fixed inputs, so a change to the method text is never evaluated by CI.
+  evidence: ["tests/blocks/fixture-recall.mjs:12", "tests/fixtures/README.md:64", "tests/fixtures/README.md:65", ".github/workflows/ci.yml:39"]
+  confidence: confirmed
+- id: F-419
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The deep-code-review lane's committed machine reports are pinned only for ingest and adapter mapping, and the fixture README says they do not show the reviewer's blind recall, so no eval of its answer quality runs in CI.
+  evidence: ["tests/fixtures/README.md:55", "tests/fixtures/README.md:56"]
+  confidence: confirmed
+- id: F-420
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The ask-owner prompt's model reply is checked strictly for shape by validate-packet, against an invented fixture and negative fixtures, but nothing evaluates whether an owner's AI tool answers the questions correctly.
+  evidence: ["owner/ask-owner.md:8", "tests/blocks/packet.mjs:2"]
+  confidence: plausible
+- id: F-421
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Validate with a target fails closed on a cited evidence path absent from the target or a line past its end, and the routine always passes the target, so a fluent finding citing a file it never opened is refused mechanically.
+  evidence: ["map/validate.mjs:376", "map/validate.mjs:380", "routine/run.mjs:239"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-422
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The evidence check stops at existence: validate states it cannot check that a cited line says what the observation claims, so a real but irrelevant line passes however confident the prose.
+  evidence: ["map/validate.mjs:363"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-423
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The static-analysis instrument runs a planted positive control before the target, and a control that does not fire, or is missing, fails the run, so zero hits are only read clean beside a control that fired.
+  evidence: ["map/scanners/adapters/opengrep.yaml:36", "tests/blocks/opengrep-instrument.mjs:15"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-424
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A step that did not run reads not measured rather than met, and an empty or non-numeric exit or a secret-scan exit code that disagrees with its report is caught rather than trusted.
+  evidence: ["tests/blocks/step-not-run.mjs:8"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-425
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    An owner evidence transcript that claims a CI run passes only when its commit resolves in the checkout's history; an absent commit is a gap and an unverifiable one reads not measured, never pass.
+  evidence: ["tests/blocks/evidence-produced-by.mjs:5"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-426
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    A change to the validator can demonstrate itself against the 44 negative fixtures, each a malformed run that must go red for its own named violation, so a validator weakened to accept everything turns the harness red.
+  evidence: ["tests/blocks/negative-fixtures.mjs:10"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-427
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The public fixture runs are real instrument output re-scored against frozen answer sheets on every harness run, so a projection or scoring change shows itself as a recall or false-positive move against tests/golden.json.
+  evidence: ["tests/fixtures/README.md:60", "tests/fixtures/README.md:63", "tests/blocks/fixture-recall.mjs:12"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-428
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A change that moves a pinned score re-blesses tests/golden.json in the same pull request, and bless refuses a tree with any failing invariant or scorer error, writing nothing.
+  evidence: [".github/PULL_REQUEST_TEMPLATE.md:10", "tests/blocks/bless-guard.mjs:2"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-429
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    A scanner adopted through intake must name a fail-loud block whose halts were confirmed red, so each new instrument arrives with a fixture demonstrating it can go red.
+  evidence: ["map/scanners/INTAKE.md:83"]
+  confidence: confirmed
+  property: change-demonstrable

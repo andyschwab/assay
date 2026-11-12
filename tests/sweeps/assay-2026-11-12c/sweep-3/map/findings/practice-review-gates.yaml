@@ -1,0 +1,268 @@
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml tools step runs the composite action, whose script under set -euo pipefail fails the step
+    and puts nothing on PATH when a download's sha256 differs, an install fails or a pinned tool is absent,
+    broken or another version, and the job's 15-minute timeout bounds a download that never answers.
+  evidence: [".github/workflows/ci.yml:38", ".github/actions/tools/action.yml:26", ".github/actions/tools/action.yml:30", "map/tools.mjs:127", "map/tools.mjs:244", ".github/workflows/ci.yml:19"]
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml lint step runs lib/check-syntax.mjs, which refuses an empty module listing as unclean, fails
+    when git cannot list (execFileSync throws), and exits 1 on any module node --check cannot parse.
+  evidence: [".github/workflows/ci.yml:31", "lib/check-syntax.mjs:13", "lib/check-syntax.mjs:15"]
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml typecheck step runs tsc over tsconfig.json with checkJs and noEmit; a missing tsc (devDependency
+    not installed) or an include matching no file exits non-zero, so it cannot read green with nothing checked.
+  evidence: [".github/workflows/ci.yml:32", "package.json:11", "tsconfig.json:4", "tsconfig.json:12"]
+  confidence: plausible
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml build step runs the same lib/check-syntax.mjs as lint, so it fails closed the same way (empty
+    listing refused, unparseable module exit 1), though it adds no check beyond lint.
+  evidence: [".github/workflows/ci.yml:33", "package.json:12", "lib/check-syntax.mjs:13"]
+  confidence: confirmed
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml npm test step runs the regression runner, which reads an empty blocks directory, a block that
+    fails to load or throws, and a missing golden.json as failures (never skips), and runs after the tools
+    step has verified every pinned instrument, within the job's 15-minute timeout.
+  evidence: [".github/workflows/ci.yml:39", "tests/harness.mjs:73", "tests/harness.mjs:78", "tests/harness.mjs:115", "tests/harness.mjs:141", "tests/regression.mjs:44"]
+  confidence: confirmed
+- id: F-306
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release job's tools step is the same composite action, failing the job before tagging when a pinned
+    tool cannot be installed or verified, bounded by the job's 20-minute timeout.
+  evidence: [".github/workflows/release.yml:40", ".github/actions/tools/action.yml:26", ".github/workflows/release.yml:22"]
+  confidence: confirmed
+- id: F-307
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release job's npm test step runs the full fail-closed harness on the dispatched commit before the tag
+    step, with full history checked out so the trailer block cannot read a shallow clone as clean.
+  evidence: [".github/workflows/release.yml:41", ".github/workflows/release.yml:28", "tests/blocks/consumer-contract.mjs:124", "tests/harness.mjs:73"]
+  confidence: confirmed
+- id: F-308
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release Consumer-trailer check (lib/release-notes.mjs --check) exits 1 on a shallow history, on a
+    CONSUMERS.md with no surface block, on a git failure and on any surface commit lacking its trailer, and
+    exits 2 on an unknown argument.
+  evidence: [".github/workflows/release.yml:43", "lib/release-notes.mjs:69", "lib/release-notes.mjs:99", "lib/release-notes.mjs:102", "lib/release-notes.mjs:110", "lib/release-notes.mjs:94"]
+  confidence: confirmed
+- id: F-309
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The lint package script runs lib/check-syntax.mjs directly, so run by hand it goes red when git lists no
+    module or any module does not parse.
+  evidence: ["package.json:10", "lib/check-syntax.mjs:13", "lib/check-syntax.mjs:15"]
+  confidence: confirmed
+- id: F-310
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The test package script, run where gitleaks is not on PATH, skips the gitleaks-target block's git-mode and
+    directory-mode scan cases and still reads green; only CI's preceding tools step makes the binary's absence red.
+  evidence: ["package.json:9", "tests/blocks/gitleaks-target.mjs:24", "tests/blocks/gitleaks-target.mjs:46", "tests/blocks/gitleaks-target.mjs:61"]
+  confidence: confirmed
+- id: F-311
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The typecheck package script is tsc -p tsconfig.json, which exits non-zero when tsc is not installed or
+    the config's include matches nothing, never green over an absent checker.
+  evidence: ["package.json:11", "tsconfig.json:12"]
+  confidence: plausible
+- id: F-312
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The validate package script exits 2 with no run directory or a missing findings directory, 1 on a run in a
+    legacy format or any violation, and its --json mode still exits non-zero on a red base.
+  evidence: ["package.json:14", "map/validate.mjs:85", "map/validate.mjs:101", "map/validate.mjs:105", "map/validate.mjs:784", "map/validate.mjs:789"]
+  confidence: confirmed
+- id: F-313
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: process
+  observation: >
+    The repository ships no commit or push hook (no hooks directory or hook manager, no prepare script), so the
+    gates run first in CI; locally npm test is a request in CONTRIBUTING.md, not a mechanism.
+  evidence: ["CONTRIBUTING.md:4", "package.json:8"]
+  confidence: confirmed
+- id: F-314
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The lint and build scripts are the same parse-only check (node --check per module), so no lint rule beyond
+    syntax runs and the build step adds no check of its own.
+  evidence: ["package.json:10", "package.json:12", "lib/check-syntax.mjs:14"]
+  confidence: confirmed
+- id: F-315
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The typecheck's include covers the engine directories and root modules but not tests/, so the harness
+    blocks are only parse-checked, never type-checked.
+  evidence: ["tsconfig.json:12", "lib/check-syntax.mjs:12"]
+  confidence: confirmed
+- id: F-316
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No harness block runs or reads the tools-check workflow's script, unlike branch-cleanup.yml whose steps a
+    block cuts out and runs against a fake GitHub CLI, so a regression in the weekly pin check is caught by nothing.
+  evidence: [".github/workflows/tools-check.yml:28", "tests/blocks/branch-cleanup.mjs:2"]
+  confidence: confirmed
+- id: F-317
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The tool download and the upstream release read call curl with retries but no time limit, so outside a CI
+    job's timeout-minutes a stalled download leaves tools install unterminated.
+  evidence: ["map/tools.mjs:73", "map/tools.mjs:203", ".github/workflows/ci.yml:19"]
+  confidence: confirmed
+- id: F-318
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: process
+  property: central-regression-caught
+  observation: >
+    A subtle regression in the engine's central modules (validate, projection, scoring) is caught by npm test in
+    CI on every pull request and push to main, through the negative fixtures that must stay red and the scored
+    fixtures compared against golden.json; nothing catches it before commit.
+  evidence: [".github/workflows/ci.yml:11", ".github/workflows/ci.yml:39", "tests/blocks/negative-fixtures.mjs:71", "tests/harness.mjs:148"]
+  confidence: confirmed
+- id: F-319
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    Every YAML file crossing into the engine goes through yaml-min, which throws on any construct outside its
+    subset, and validate exits non-zero on any violation, so a malformed run fails loudly rather than reading empty.
+  evidence: ["lib/yaml-min.mjs:42", "lib/yaml-min.mjs:62", "map/validate.mjs:784", "map/validate.mjs:789"]
+  confidence: confirmed
+- id: F-320
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The command-line interfaces refuse what they do not know with a usage exit (an unknown assay command, an
+    unknown tools option, an unknown release-notes argument), never ignoring it and selecting everything.
+  evidence: ["assay.mjs:81", "map/tools.mjs:228", "map/tools.mjs:251", "lib/release-notes.mjs:94"]
+  confidence: confirmed
+- id: F-321
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The validator carries 44 negative fixture runs, each required to go red for its own named violation and no
+    other, so a check removed from validate turns its fixture's assertion red.
+  evidence: ["tests/blocks/negative-fixtures.mjs:16", "tests/blocks/negative-fixtures.mjs:71"]
+  confidence: confirmed
+- id: F-322
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The fail-closed block plants a flow map, an anchor, an unmapped category and an unparseable findings file,
+    each of which yaml-min, projection, the shared loader and variance must refuse.
+  evidence: ["tests/blocks/fail-closed.mjs:13", "tests/blocks/fail-closed.mjs:23"]
+  confidence: confirmed
+- id: F-323
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The block-runner block plants a throwing block in a scratch directory and requires the runner to record it
+    as a failure under its label, never a silent skip.
+  evidence: ["tests/blocks/block-runner.mjs:43"]
+  confidence: confirmed
+- id: F-324
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The bless-guard block probes a red tree and requires --bless to refuse it and write nothing, guarding the
+    one path that rewrites the golden scores.
+  evidence: ["tests/blocks/bless-guard.mjs:2", "tests/harness.mjs:132"]
+  confidence: confirmed
+- id: F-325
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The ci-interface block runs the tools action's own script against a planted assay.mjs that fails install or
+    verify, and requires the step to exit non-zero with nothing on PATH.
+  evidence: ["tests/blocks/ci-interface.mjs:76"]
+  confidence: confirmed
+- id: F-326
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The consumer-contract block builds a planted repository with a surface commit lacking its Consumer trailer
+    and requires the trailer check to refuse it, naming the commit.
+  evidence: ["tests/blocks/consumer-contract.mjs:110"]
+  confidence: confirmed
+- id: F-327
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The branch-cleanup block runs the plan step against a fake GitHub CLI that cannot read and requires the plan
+    to fail rather than plan nothing.
+  evidence: ["tests/blocks/branch-cleanup.mjs:15"]
+  confidence: confirmed
+- id: F-328
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The packet block carries its own negative fixtures (a secret-shaped answer, an email, unknown keys and
+    claims) that the owner-packet check must refuse with a named message.
+  evidence: ["tests/blocks/packet.mjs:24", "tests/blocks/packet.mjs:25"]
+  confidence: confirmed
+- id: F-329
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The tools-precondition block drives verify with planted absent, broken and wrong-version tools and requires
+    each to read not ready, so a weakened verify turns it red.
+  evidence: ["tests/blocks/tools-precondition.mjs:43"]
+  confidence: confirmed

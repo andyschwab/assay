@@ -1,0 +1,85 @@
+schema: census-triage
+version: 1
+censuses:
+  - census: model-call-telemetry
+    triage: []
+  - census: change-gates
+    triage:
+      - candidate: "ci step: branch-cleanup.yml/delete: Delete the planned branches"
+        out_of_scope: "an effect step (branch-delete), not a check a change passes through; its guard is the delegation pass's"
+      - candidate: "ci step: branch-cleanup.yml/plan: Plan the merged branches"
+        out_of_scope: "plans the branch-delete effect after a merge; it checks no change, and its fail mode belongs to that effect's finding"
+      - candidate: "ci step: ci.yml/test: ./.github/actions/tools"
+        finding: F-301
+      - candidate: "ci step: ci.yml/test: actions/checkout"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: ci.yml/test: actions/setup-node"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: ci.yml/test: npm ci"
+        out_of_scope: "a setup step that installs the dev dependencies and asserts nothing about the change"
+      - candidate: "ci step: ci.yml/test: npm run build"
+        finding: F-304
+      - candidate: "ci step: ci.yml/test: npm run lint"
+        finding: F-302
+      - candidate: "ci step: ci.yml/test: npm run typecheck"
+        finding: F-303
+      - candidate: "ci step: ci.yml/test: npm test"
+        finding: F-305
+      - candidate: "ci step: release.yml/release: ./.github/actions/tools"
+        finding: F-306
+      - candidate: "ci step: release.yml/release: actions/checkout"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: release.yml/release: actions/setup-node"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: release.yml/release: Check every contract change carries its Consumer trailer"
+        finding: F-308
+      - candidate: "ci step: release.yml/release: npm ci"
+        out_of_scope: "a setup step that installs the dev dependencies and asserts nothing about the change"
+      - candidate: "ci step: release.yml/release: npm test"
+        finding: F-307
+      - candidate: "ci step: release.yml/release: Refuse a malformed or existing version"
+        out_of_scope: "checks the dispatched version input, not the change: a guard in front of the release-publish effect, recorded on that effect's finding"
+      - candidate: "ci step: release.yml/release: Tag and publish the release"
+        out_of_scope: "an effect step (release-publish), not a check"
+      - candidate: "ci step: tools-check.yml/check: actions/checkout"
+        out_of_scope: "a setup step that checks nothing"
+      - candidate: "ci step: tools-check.yml/check: Open or update the issue for pins behind upstream"
+        out_of_scope: "a weekly scheduled drift check that no change passes through; its issue write is the pin-drift-issue effect"
+      - candidate: "script: lint"
+        finding: F-309
+      - candidate: "script: test"
+        finding: F-310
+      - candidate: "script: typecheck"
+        finding: F-311
+      - candidate: "script: validate"
+        finding: F-312
+  - census: credential
+    triage:
+      - candidate: "ADMIN_PASSWORD"
+        out_of_scope: "an inert string planted in a test fixture (tests/enumerate-fixture/nextjs/lib/config.ts), read only by its test"
+      - candidate: "API_KEY"
+        out_of_scope: "an inert string planted in a test fixture (tests/instruments/gitleaks-sample.json); no code reads it"
+      - candidate: "ASSAY_PLANTED_TOKEN"
+        out_of_scope: "an inert name planted by a test (tests/blocks/isolation.mjs) to prove the child environment drops it"
+      - candidate: "ASSAY_READ_TOKEN"
+        finding: F-520
+      - candidate: "ASSAY_TEST_EVALUATOR_TOKEN"
+        out_of_scope: "an inert value planted by a test (tests/blocks/adapter-runner.mjs) to prove an instrument never sees it"
+      - candidate: "BACKUP_API_KEY"
+        out_of_scope: "cited only under a test fixture's known-answer map; no code in the tree reads it"
+      - candidate: "EMAIL_SEND_API_KEY"
+        out_of_scope: "a name in a test packet fixture and a negative test, granting nothing"
+      - candidate: "FETCH_TOKEN"
+        finding: F-521
+      - candidate: "GH_TOKEN"
+        finding: F-522
+      - candidate: "GITHUB_TOKEN"
+        finding: F-523
+      - candidate: "LEGACY_API_KEY"
+        out_of_scope: "an inert string planted in a test fixture (tests/enumerate-fixture/nextjs/lib/config.ts)"
+      - candidate: "SEARCH_API_KEY"
+        out_of_scope: "a name read only inside an inert test fixture (tests/enumerate-fixture/nextjs/lib)"
+      - candidate: "STRIPE_SECRET_KEY"
+        out_of_scope: "an example name in the owner prompt (owner/ask-owner.md) and an inert test fixture; grants nothing here"
+      - candidate: "STRIPE_WEBHOOK_SECRET"
+        out_of_scope: "a name read only inside an inert test fixture (tests/enumerate-fixture/nextjs)"

@@ -1,0 +1,53 @@
+schema: effect-triage
+version: 1
+triage:
+  - candidate: "surface: migrate-run.mjs"
+    finding: F-500
+  - candidate: "route: ANY /api/hooks"
+    out_of_scope: "a planted Next.js route under tests/enumerate-fixture/nextjs/, an enumerate fixture the engine reads and never serves"
+  - candidate: "route: DELETE /api/users/[id]"
+    out_of_scope: "a planted Next.js route under tests/enumerate-fixture/nextjs/, an enumerate fixture the engine reads and never serves"
+  - candidate: "route: GET /api/users/[id]"
+    out_of_scope: "a planted Next.js route under tests/enumerate-fixture/nextjs/, an enumerate fixture the engine reads and never serves"
+  - candidate: "route: GET /health"
+    out_of_scope: "a planted Next.js route under tests/enumerate-fixture/nextjs/, an enumerate fixture the engine reads and never serves"
+  - candidate: "route: HEAD /health"
+    out_of_scope: "a planted Next.js route under tests/enumerate-fixture/nextjs/, an enumerate fixture the engine reads and never serves"
+  - candidate: "route: PATCH /api/users/[id]"
+    out_of_scope: "a planted Next.js route under tests/enumerate-fixture/nextjs/, an enumerate fixture the engine reads and never serves"
+  - candidate: "artifact upload (workflow) @ routine/assay-routine.yml"
+    finding: F-501
+  - candidate: "github api write (workflow) @ .github/workflows/branch-cleanup.yml"
+    finding: F-502
+  - candidate: "http write (js) @ map/tools.mjs"
+    finding: F-503
+  - candidate: "process spawn (js) @ map/tools.mjs"
+    finding: F-503
+  - candidate: "issue/pr write (workflow) @ .github/workflows/tools-check.yml"
+    finding: F-504
+  - candidate: "release write (workflow) @ .github/workflows/release.yml"
+    finding: F-505
+  - candidate: "process spawn (js) @ map/fresh-clone.mjs"
+    finding: F-506
+  - candidate: "process spawn (js) @ map/start.mjs"
+    finding: F-507
+  - candidate: "process spawn (js) @ map/structure-scan.mjs"
+    finding: F-508
+  - candidate: "process spawn (js) @ map/dependency-scan.mjs"
+    finding: F-509
+  - candidate: "process spawn (js) @ assay.mjs"
+    out_of_scope: "the CLI dispatcher spawns the engine's own script for a subcommand (assay.mjs:84); the effects are the scripts' own, triaged at their files"
+  - candidate: "process spawn (js) @ lib/check-syntax.mjs"
+    out_of_scope: "read-only: git ls-files and node --check over the engine's own modules, writes nothing"
+  - candidate: "process spawn (js) @ lib/release-notes.mjs"
+    out_of_scope: "read-only: git log and git cat-file reads that compile release notes to stdout, writes nothing"
+  - candidate: "process spawn (js) @ map/backlog.mjs"
+    out_of_scope: "read-only: runs the engine's own tools with --json and reads their stdout"
+  - candidate: "process spawn (js) @ map/repo-census.mjs"
+    out_of_scope: "read-only: git rev-parse, symbolic-ref, cat-file and remote get-url reads of the target, writes nothing"
+  - candidate: "process spawn (js) @ routine/run.mjs"
+    out_of_scope: "spawns the engine's own CLI; the effects it sequences are the instruments', triaged at map/start.mjs, map/fresh-clone.mjs, map/structure-scan.mjs and map/dependency-scan.mjs"
+  - candidate: "process spawn (js) @ views/compile.mjs"
+    out_of_scope: "spawns the engine's own view scripts, which write regenerable derived views inside the run directory and nothing outward"
+  - candidate: "process spawn (js) @ yardstick/ratchet.mjs"
+    out_of_scope: "read-only: git show and git rev-parse reads of a base ref, writes nothing"

@@ -1,0 +1,198 @@
+- id: F-300
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CI's tools step runs the composite action under set -euo pipefail, whose install exits 1 on any failed or
+    unsupported tool and whose verify exits 1 unless every pinned tool is on PATH and answers its version (a hung
+    version probe times out at 60s and reads broken), so an absent or unanswering tool turns the job red before
+    npm test, inside the job's 15-minute limit.
+  evidence: [.github/workflows/ci.yml:38, .github/workflows/ci.yml:19, .github/actions/tools/action.yml:26, .github/actions/tools/action.yml:29, .github/actions/tools/action.yml:30, map/tools.mjs:142, map/tools.mjs:155, map/tools.mjs:240, map/tools.mjs:244]
+  confidence: confirmed
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CI's npm run build step runs lib/check-syntax.mjs, which refuses an empty module listing as not clean, counts a
+    module whose node --check ends by signal (status null) as unparsed, and exits 1 on any failure; the job's
+    15-minute limit bounds it.
+  evidence: [.github/workflows/ci.yml:33, package.json:12, lib/check-syntax.mjs:13, lib/check-syntax.mjs:14, lib/check-syntax.mjs:15, .github/workflows/ci.yml:19]
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CI's npm run lint step runs the same check-syntax gate, which exits 1 when git lists no module or any module
+    fails node --check, and a git that cannot list throws out of execFileSync with a non-zero exit, so a missing
+    input reads red.
+  evidence: [.github/workflows/ci.yml:31, package.json:10, lib/check-syntax.mjs:11, lib/check-syntax.mjs:13, lib/check-syntax.mjs:15]
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CI's npm run typecheck step runs tsc -p tsconfig.json from the lockfile-installed devDependency, so a missing
+    compiler exits non-zero, an include list matching no file is a tsc error rather than a pass, and the job's
+    15-minute limit bounds it.
+  evidence: [.github/workflows/ci.yml:32, package.json:11, package.json:18, tsconfig.json:12, .github/workflows/ci.yml:19]
+  confidence: confirmed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CI's npm test step runs the regression harness only after the tools step has put every pinned tool on PATH, and
+    the harness reads an empty blocks directory, a block that does not load or throws, and a missing golden.json as
+    failures (exit 1 or 2), never green, within the job's 15-minute limit.
+  evidence: [.github/workflows/ci.yml:38, .github/workflows/ci.yml:39, tests/harness.mjs:73, tests/harness.mjs:78, tests/harness.mjs:115, tests/harness.mjs:141, tests/regression.mjs:44]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release job's tools step is the same composite action (install then verify, each exiting 1 on a failed,
+    unsupported, absent, broken or other-version tool) and runs before the release's npm test, inside the job's
+    20-minute limit.
+  evidence: [.github/workflows/release.yml:40, .github/workflows/release.yml:22, .github/actions/tools/action.yml:26, .github/actions/tools/action.yml:29, .github/actions/tools/action.yml:30, map/tools.mjs:240, map/tools.mjs:244]
+  confidence: confirmed
+- id: F-306
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release's Consumer-trailer check exits 1 on a shallow history, on a CONSUMERS.md with no surface block, and
+    on any commit in the range touching the surface with no trailer, with checkout fetching full history; one seam
+    stays open: a commit whose git cat-file probe fails reads as owing no trailer.
+  evidence: [.github/workflows/release.yml:42, .github/workflows/release.yml:43, .github/workflows/release.yml:28, lib/release-notes.mjs:69, lib/release-notes.mjs:99, lib/release-notes.mjs:102, lib/release-notes.mjs:110, lib/release-notes.mjs:64]
+  confidence: confirmed
+- id: F-307
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release job's npm test step runs the same fail-closed harness after the tools action, and the publish step
+    comes after it in the same job, so a red or timed-out (20-minute) harness tags nothing.
+  evidence: [.github/workflows/release.yml:41, .github/workflows/release.yml:40, .github/workflows/release.yml:44, .github/workflows/release.yml:22, tests/regression.mjs:44]
+  confidence: confirmed
+- id: F-308
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release's version check runs under set -euo pipefail and exits 1 on an empty or non-vX.Y.Z input and on a
+    tag that already exists, with full history and tags fetched; a git rev-parse that fails for another reason reads
+    as no such tag, inside an if where set -e does not apply.
+  evidence: [.github/workflows/release.yml:33, .github/workflows/release.yml:36, .github/workflows/release.yml:37, .github/workflows/release.yml:38, .github/workflows/release.yml:28]
+  confidence: confirmed
+- id: F-309
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The weekly pin check reads an upstream it cannot fetch as unknown, never current, and files unknown pins in the
+    issue beside behind ones; its script runs under set -euo pipefail so a failed check, node or gh call fails the
+    job, and the job's 10-minute limit bounds an unanswering curl.
+  evidence: [.github/workflows/tools-check.yml:24, .github/workflows/tools-check.yml:26, .github/workflows/tools-check.yml:28, .github/workflows/tools-check.yml:16, map/tools.mjs:204, map/tools.mjs:216]
+  confidence: confirmed
+- id: F-310
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The lint package script runs check-syntax, which refuses to read an empty module list as clean and exits 1 on any
+    module that does not parse; its node --check calls carry no time limit, so off CI a hung parse is bounded by
+    nothing.
+  evidence: [package.json:10, lib/check-syntax.mjs:13, lib/check-syntax.mjs:14, lib/check-syntax.mjs:15]
+  confidence: confirmed
+- id: F-311
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The test package script reads green with the real-gitleaks assertions dropped when gitleaks is not on PATH (the
+    gitleaks-target block probes for the binary and skips its scan cases when absent), and the harness sets no time
+    limit of its own, so run outside CI's tools step and job timeout an absent tool passes and a hang never ends.
+  evidence: [package.json:9, tests/blocks/gitleaks-target.mjs:24, tests/blocks/gitleaks-target.mjs:46, tests/blocks/gitleaks-target.mjs:61, tests/harness.mjs:114]
+  confidence: confirmed
+- id: F-312
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The typecheck package script runs tsc -p tsconfig.json, which exits non-zero when the compiler is absent (npm's
+    command-not-found), when the include globs match nothing, and on any type error.
+  evidence: [package.json:11, package.json:18, tsconfig.json:12]
+  confidence: plausible
+- id: F-313
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The validate package script fails closed on a missing run dir, a missing run record and a legacy run, but when
+    --target is absent it skips every evidence-path and line check and still prints that citations are all clean.
+  evidence: [package.json:14, map/validate.mjs:85, map/validate.mjs:101, map/validate.mjs:233, map/validate.mjs:365, map/validate.mjs:795]
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-314
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The validator's 44 negative fixtures each must turn validate red for its own named reason and no other, so a
+    fixture red for a stray reason cannot prove its check; none is recorded seen failing with its check removed.
+  evidence: [tests/blocks/negative-fixtures.mjs:16, tests/blocks/negative-fixtures.mjs:65, tests/blocks/negative-fixtures.mjs:71, tests/blocks/negative-fixtures.mjs:75]
+  confidence: confirmed
+- id: F-315
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The harness's own runner is pinned by planted blocks: an empty directory, a block that throws, an empty gate and
+    an after naming no block must each be refused, and a refused --bless must leave golden.json unwritten.
+  evidence: [tests/blocks/block-runner.mjs:43, tests/blocks/block-runner.mjs:54, tests/blocks/block-runner.mjs:57, tests/blocks/bless-guard.mjs:21]
+  confidence: confirmed
+- id: F-316
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The tools gate carries planted negatives: verify must name absent, broken and other-version tools, the action's
+    script run against a planted assay.mjs must fail and put nothing on PATH when install or verify fails, and check
+    must read an unreadable upstream as unknown.
+  evidence: [tests/blocks/tools-precondition.mjs:4, tests/blocks/tools-precondition.mjs:50, tests/blocks/ci-interface.mjs:6, tests/blocks/tools.mjs:68]
+  confidence: confirmed
+- id: F-317
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The workflows' shape is pinned by blocks that read them: ci.yml must hold SHA-pinned actions, read-only
+    permissions, a timeout on every job and the four package checks, and release.yml must run npm test and the
+    trailer check before it tags, with a shallow history failing the trailer rule.
+  evidence: [tests/blocks/ci-workflow.mjs:40, tests/blocks/ci-workflow.mjs:55, tests/blocks/consumer-contract.mjs:124, tests/blocks/consumer-contract.mjs:137, tests/blocks/consumer-contract.mjs:139]
+  confidence: confirmed
+- id: F-318
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: >
+    A subtle regression in the validator is caught pre-merge in CI, on every push to main and every pull request, by
+    npm test's negative-fixture block; the tree carries no commit or push hook, so nothing catches it before CI.
+  evidence: [.github/workflows/ci.yml:9, .github/workflows/ci.yml:11, .github/workflows/ci.yml:39, tests/blocks/negative-fixtures.mjs:71]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-319
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The one YAML reader every engine tool shares throws on any construct outside its subset, a duplicate key, a
+    reserved __proto__ key or trailing content, so malformed input crossing into the engine fails loudly.
+  evidence: [lib/yaml-min.mjs:5, lib/yaml-min.mjs:42, lib/yaml-min.mjs:139, lib/yaml-min.mjs:151]
+  confidence: confirmed
+  property: interface-contract-enforced
