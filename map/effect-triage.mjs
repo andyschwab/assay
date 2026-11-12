@@ -100,7 +100,7 @@ export function channelPopulation({ candidates, triage, errors = [] } = /** @typ
 // keys an effect finding by that member. A finding several candidates map to is keyed by the sorted
 // set; a finding no candidate maps to keeps its slug. Returns Map<finding id, key>, the keys of the
 // findings some candidate maps to; a run with no triage, or one that does not read, maps none.
-export const CANDIDATE_KEY = 'candidate: ';
+const CANDIDATE_KEY = 'candidate: ';
 export function candidateKeysOf(triage) {
   const by = new Map();
   for (const e of Array.isArray(triage) ? triage : []) {
