@@ -47,6 +47,20 @@ export function parseCheck(check, terms) {
   return { term, population, excluded, question, rest };
 }
 
+// How a row's verdict over one member is decided (#293), named in the check after its question,
+// on every census row and every claim row with a context list: "Met when <the bar>" where the
+// threshold or fields make it deterministic, "Judged, weighing <what>" where it is a judgment per
+// member, "The owner decides, weighing <what>" where only the owner can. Exactly one of the three.
+/** @type {[string, RegExp][]} */
+const BARS = [['deterministic', /(?:^|\. |: )Met when[ ,]/g], ['judged', /(?:^|\. |: )Judged, weighing /g], ['owner', /(?:^|\. |: )The owner decides, weighing /g]];
+/** How the check says its verdict is decided ('deterministic' | 'judged' | 'owner'), or null when
+ * it names none of the three, or more than one.
+ * @param {string} rest  what follows the check's question (parseCheck(...).rest) */
+export function barOf(rest) {
+  const found = BARS.flatMap(([kind, re]) => [...String(rest ?? '').matchAll(re)].map(() => kind));
+  return found.length === 1 ? found[0] : null;
+}
+
 // the rows whose check names a population: every facet and census row, and a claim row that
 // carries a context list (#262): the run places findings on its term as context
 const namesPopulation = (d) => ['facet', 'census'].includes(d?.decide?.kind) || (d?.decide?.kind === 'claim' && d.decide.context !== undefined);
@@ -78,6 +92,7 @@ export function validatePopulations(reg) {
     if (!namesPopulation(d)) continue;
     const p = parseCheck(d.check, [...seen]);
     if (!p) { errors.push(`yardstick: ${d.id}: a ${d.decide.kind} row's check reads "Population: every <term> <scope>; excluded: <what>. Question: <one question>?", <term> one of members: (got "${String(d.check).slice(0, 80)}")`); continue; }
+    if (d.decide.kind !== 'facet' && !barOf(p.rest)) errors.push(`yardstick: ${d.id}: a ${d.decide.kind} row's check names how its verdict is decided after its question, exactly one of "Met when <the bar>", "Judged, weighing <what>" or "The owner decides, weighing <what>" (#293)`);
     if (owner.has(p.term)) errors.push(`yardstick: ${d.id}: its population names "${p.term}", already ${owner.get(p.term)}'s: a member would land on two requirements`);
     else owner.set(p.term, d.id);
   }

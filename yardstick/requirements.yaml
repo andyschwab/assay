@@ -72,7 +72,7 @@ members:
     means: a check the repository runs on a change before it lands or ships (a CI job or step, a hook, a config-driven check)
   - term: model call site
     subject_types: [control, process]
-    means: one place in the code that calls a model through a provider's SDK or HTTP API, and whether it records the call; what the call can reach is the AI context's
+    means: one place the application obtains model output, a call through a provider's SDK or HTTP API or a local stand-in (a stub or wrapper called in place of one), and whether it records the call; what the call can reach is the AI context's
   - term: ingestion point
     subject_types: [control, contract, artifact]
     means: one place where text from outside the team enters the application (an upload, a fetch, an inbound message, webhook or feed, a file or page read in) and is stored, rendered or handed to a model
@@ -152,7 +152,7 @@ requirements:
       kind: census
       measures: [credentials-below-boundary, credential-boundary, credential]
       candidates: [secrets]
-    check: "Population: every secret the running application reads (an environment variable, a config value or a key file that grants access to an account, a service or data), each secret name map/raw/enumerate.json lists in populations.secrets one candidate, triaged once in map/census-triage.yaml to the one finding that judges it, listed as the credential census's member; excluded: secret-named constants no site reads from the environment (enumerate's secretConstants, never a candidate), a candidate that is an inert string planted in a test fixture or a name that grants nothing, each triaged out of scope with the reason, and the accounts themselves (d-accounts-enumerated). Question: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed? A census with no members never reads met"
+    check: "Population: every secret the running application reads (an environment variable, a config value or a key file that grants access to an account, a service or data), each secret name map/raw/enumerate.json lists in populations.secrets one candidate, triaged once in map/census-triage.yaml to the one finding that judges it, listed as the credential census's member; excluded: secret-named constants no site reads from the environment (enumerate's secretConstants, never a candidate), a candidate that is an inert string planted in a test fixture or a name that grants nothing, each triaged out of scope with the reason, and the accounts themselves (d-accounts-enumerated). Question: is what it can reach traced in the code, where it is read and what it may do there, rather than guessed? Judged, weighing whether the finding cites the read site and the uses it reaches in the code, rather than inferring them from the name. A census with no members never reads met"
     sources: [floor/c-credentials, manifest/d5-secrets-below-artifact, method/credential-census]
     status: draft
     owner:
@@ -372,7 +372,7 @@ requirements:
       measures: [ingested-content, ingestion-points]
       open: "no tool lists it from the tree: outside text enters through an upload, a fetch, an inbound message or a file read, and enumerate lists only some of those shapes (route handlers, http writes), while whether a read takes in outside text is read at the site"
       why: "census (#262): a run closes the population by reading the tree, since outside text enters only through an upload, a fetch, an inbound route, webhook or feed, or a file read the code makes, and how it is kept, rendered and used is read where it lands"
-    check: "Population: every ingestion point, each place where text from outside the team enters the application (an upload, a fetch, an inbound message, webhook or feed, a file or page read in) and is stored, rendered or handed to a model, one finding per point listed as the ingested-content census's members; excluded: whether request input is checked before it reaches a dangerous sink, which is d-untrusted-input-checked's, what a model call can reach, the AI context's, and the effects a reply drives, which the effect rows take. Question: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction? A census with no members never reads met"
+    check: "Population: every ingestion point, each place where text from outside the team enters the application (an upload, a fetch, an inbound message, webhook or feed, a file or page read in) and is stored, rendered or handed to a model, one finding per point listed as the ingested-content census's members; excluded: whether request input is checked before it reaches a dangerous sink, which is d-untrusted-input-checked's, what a model call can reach, the AI context's, and the effects a reply drives, which the effect rows take. Question: is its text kept as data, stored verbatim with its provenance, rendered escaped, and never acted on as an instruction? Judged, weighing each path its text takes to a store, a render or a model prompt. A census with no members never reads met"
     sources: [foundation/ingested-content-is-data, method/acting-from]
     status: draft
     owner:
@@ -525,7 +525,7 @@ requirements:
       kind: census
       measures: [change-gates, change-gates-fail-closed]
       candidates: [changeGates]
-    check: "Population: every change gate, each check the repository runs on a change before it lands or ships (a CI job or step, a commit or push hook, a config-driven lint, typecheck, test, scan or schema check), each member map/raw/enumerate.json lists in populations.changeGates one candidate (a CI step, a job with no steps, a hook, a package script named for a check), triaged once in map/census-triage.yaml to the one finding that judges it, listed as the change-gates census's member, or out of scope with the reason (a setup step that checks nothing); excluded: gates in front of the application's own effects, which are d-gates-fail-closed's, whether a CI workflow on the default branch exists and runs the gates, which is d-ci-gate-on-default-branch's, and whether branch protection requires a check, which the tree does not show. Question: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green? A step that swallows its own exit, or skips its work when a variable is unset, passes nothing; a census with no members never reads met"
+    check: "Population: every change gate, each check the repository runs on a change before it lands or ships (a CI job or step, a commit or push hook, a config-driven lint, typecheck, test, scan or schema check), each member map/raw/enumerate.json lists in populations.changeGates one candidate (a CI step, a job with no steps, a hook, a package script named for a check), triaged once in map/census-triage.yaml to the one finding that judges it, listed as the change-gates census's member, or out of scope with the reason (a setup step that checks nothing); excluded: gates in front of the application's own effects, which are d-gates-fail-closed's, whether a CI workflow on the default branch exists and runs the gates, which is d-ci-gate-on-default-branch's, and whether branch protection requires a check, which the tree does not show. Question: when the tool, secret, input or target it needs is absent, or its check never finishes, does it go red rather than green? Judged, weighing what the step does, read in its script, when what it needs is unset or never answers. A step that swallows its own exit, or skips its work when a variable is unset, passes nothing; a census with no members never reads met"
     sources: [issue/257, issue/261, takeover-eval/privacy-gate-passes-unset, foundation/never-skip-a-test]
     status: draft
     owner:
@@ -540,7 +540,7 @@ requirements:
       kind: claim
       context: [guard-fixtures]
       why: "claim (#262): seeing a check turn red when it is weakened takes a mutation run the lane does not make, and the checks themselves are the change-gates census's population, so the tree shows a fixture exists, never that it bites"
-    check: "Population: every guard fixture, each shipped check with the negative fixture meant to turn it red; excluded: whether a change gate goes red when what it needs is absent, which is d-change-gates-fail-closed's, and whether the gates run on the default branch, which is d-ci-gate-on-default-branch's. Question: does the self-test flip red when that one check is weakened?"
+    check: "Population: every guard fixture, each shipped check with the negative fixture meant to turn it red; excluded: whether a change gate goes red when what it needs is absent, which is d-change-gates-fail-closed's, and whether the gates run on the default branch, which is d-ci-gate-on-default-branch's. Question: does the self-test flip red when that one check is weakened? Met when, by execution, the check with its condition removed or inverted makes its own self-test exit non-zero, a run the owner or a mutation tool makes and records; a fixture present but never seen failing is context, not met"
     sources: [manifest/d3-guards-bite]
     status: draft
     owner:
@@ -630,7 +630,7 @@ requirements:
       kind: claim
       context: [change-verification]
       why: "claim (#262): the population is the changes, which live in the forge's history, not in the tree, and the template with the check on it is one artifact, not a population; a run shows what it saw as context"
-    check: "Population: every change verification, the way a change states the verification it carries before it lands (a pull request template's section, a check on the pull request body or the commit message); excluded: whether a gate goes red when what it needs is absent, which is d-change-gates-fail-closed's. Question: is the verification section mandatory, with CI refusing an empty one?"
+    check: "Population: every change verification, the way a change states the verification it carries before it lands (a pull request template's section, a check on the pull request body or the commit message); excluded: whether a gate goes red when what it needs is absent, which is d-change-gates-fail-closed's. Question: is the verification section mandatory, with CI refusing an empty one? Met when a check that runs on every change reads the pull request body or the commit message and exits non-zero when the verification section is missing, empty or the template's placeholder unchanged; what a change writes in it is not weighed, and a template section no check reads is a gap"
     sources: [manifest/d4-verification-rhythm, foundation/pr-template]
     status: draft
     owner:
@@ -647,7 +647,7 @@ requirements:
       kind: census
       measures: [doc-freshness]
       open: "no tool lists it from the tree: a doc claim is a sentence of prose, and which sentences state a command, a count, a path or an endpoint the code can be checked against is read, not listed"
-    check: "Population: every doc claim, a concrete statement in the repository's prose docs (the README, the doc pages it routes to, the agent contract file) of a command, a count, a path, an endpoint or a capability the code is said to have; excluded: comments and headers in code, which no requirement takes until a docs-current-with-code row is promoted (#257), a second account of one fact, decision rationale, which is d-decisions-reconstruct's, and whether the agent contract file exists, which is d-agent-contract's. Question: does it hold when replayed against the code or checked in the fresh-clone run?"
+    check: "Population: every doc claim, a concrete statement in the repository's prose docs (the README, the doc pages it routes to, the agent contract file) of a command, a count, a path, an endpoint or a capability the code is said to have; excluded: comments and headers in code, which no requirement takes until a docs-current-with-code row is promoted (#257), a second account of one fact, decision rationale, which is d-decisions-reconstruct's, and whether the agent contract file exists, which is d-agent-contract's. Question: does it hold when replayed against the code or checked in the fresh-clone run? Judged, weighing whether the claim is concrete enough to replay; a path, command or count the tree does not bear out is a gap"
     sources: [floor/l-readme, method/docs-freshness-probe]
     status: draft
     owner:
@@ -661,8 +661,8 @@ requirements:
     decide:
       kind: census
       measures: [decision-reconstruction, decision-rationale, patch-rationale]
-      open: "no tool lists it from the tree: a non-obvious decision is a choice a newcomer would question, and nothing in the files marks one as such"
-    check: "Population: every non-obvious decision the terrain enumerates and freezes before assessment (a choice a newcomer would question: a dependency, a shortcut, a default, a boundary), one finding per decision; excluded: choices the code alone makes obvious, a stale claim in the docs, which is d-readme-true's, and a lesson from a past failure, which is d-corrections-become-mechanisms'. Question: can a newcomer reconstruct why it was made from the repository's files alone?"
+      open: "no tool lists it from the tree: a non-obvious decision is a choice a newcomer would question, and nothing in the files marks one as such, so choosing the members is itself a judgment: the terrain draws them and freezes them before assessment, and two terrains may draw different ones (#293)"
+    check: "Population: every non-obvious decision the terrain enumerates and freezes before assessment (a choice a newcomer would question: a dependency, a shortcut, a default, a boundary), one finding per decision; excluded: choices the code alone makes obvious, a stale claim in the docs, which is d-readme-true's, and a lesson from a past failure, which is d-corrections-become-mechanisms'. Question: can a newcomer reconstruct why it was made from the repository's files alone? Judged, weighing whether the files (a comment at the choice, a decision record, a doc page) name what was chosen and why over the obvious alternative"
     sources: [floor/l-decisions, manifest/d1-decision-container, method/pass-1]
     status: draft
     owner:
@@ -677,7 +677,7 @@ requirements:
       kind: census
       measures: [modules-standalone, module-standalone, module-loadability, control-plane-modules-standalone]
       open: "no tool lists it from the tree: the tree lists files, packages and directories, and which of them is the unit an agent loads to change one concern is the terrain's judgment"
-    check: "Population: every module in the terrain's module population, a source file, package or directory an agent loads to change one concern; excluded: generated and vendored code, tests, the prose docs (d-readme-true) and a stale comment inside a module, which no requirement takes. Question: can an agent load it alone, with something to read and something to run, and change it without loading the rest?"
+    check: "Population: every module in the terrain's module population, a source file, package or directory an agent loads to change one concern; excluded: generated and vendored code, tests, the prose docs (d-readme-true) and a stale comment inside a module, which no requirement takes. Question: can an agent load it alone, with something to read and something to run, and change it without loading the rest? Met when all three hold, read off the tree: something to read, a non-empty comment block at the head of its file or a README in its directory; something to run, a test file that imports it directly; and alone, its transitive imports inside the repository reach at most ten source files (for a directory or package, any of its files, its imports counted outside it). A member missing any one is a gap"
     sources: [method/pass-2]
     status: draft
     owner:
@@ -723,7 +723,7 @@ requirements:
       kind: claim
       context: [second-accounts]
       why: "claim (#262): no listing closes the facts a system relies on, so a run cannot enumerate every second account; it shows the ones it came across as context"
-    check: "Population: every second account, a fact the system relies on (a list, a rule, a count, a membership) stated in a second place in the docs or the code; excluded: a duplicated block of code, which is d-no-drifting-duplicates' (structure-scan decides it), and a doc claim the code contradicts, which is d-readme-true's. Question: does one home stay authoritative, a docs guard refusing a second account of a list and one store per remembered fact in code?"
+    check: "Population: every second account, a fact the system relies on (a list, a rule, a count, a membership) stated in a second place in the docs or the code; excluded: a duplicated block of code, which is d-no-drifting-duplicates' (structure-scan decides it), and a doc claim the code contradicts, which is d-readme-true's. Question: does one home stay authoritative, a docs guard refusing a second account of a list and one store per remembered fact in code? Its population is a judgment: a code listing can find a duplicated literal, but no listing closes the facts the docs state, so the members are the second accounts the review came across, never a closed list. Judged, weighing whether one account is marked as the home and the other defers to it or is guarded against drift"
     sources: [foundation/where-things-are-written, takeover-eval/one-fact-many-memories]
     status: draft
     owner:
@@ -866,7 +866,7 @@ requirements:
       kind: claim
       context: [backlog-records]
       why: "claim (#262): the issues, their labels and which change closed them live on the forge, not in the tree, so a run cannot close the backlog; it shows the records it saw as context"
-    check: "Population: every backlog record, each place outstanding work is written down (an issue, a list file with rows, a to-do block); excluded: a lesson from a past failure, which is d-corrections-become-mechanisms'. Question: is it an issue on the repository's tracker, labelled by need-by, kind and size and closed by the change that finishes it, with no list file carrying rows?"
+    check: "Population: every backlog record, each place outstanding work is written down (an issue, a list file with rows, a to-do block); excluded: a lesson from a past failure, which is d-corrections-become-mechanisms'. Question: is it an issue on the repository's tracker, labelled by need-by, kind and size and closed by the change that finishes it, with no list file carrying rows? Judged, weighing whether the closing change finishes the work the issue names"
     sources: [foundation/docs-backlog, manifest/d7-coordination-adapter]
     status: draft
     owner:
@@ -948,9 +948,9 @@ requirements:
     decide:
       kind: census
       measures: [model-call-telemetry, model-calls]
-      why: "census (#262): a run closes the population by reading the tree, since every model call is a provider SDK import or a call to a provider's API in the code, and whether the call writes a record is read at the call site"
+      why: "census (#262): a run closes the population by reading the tree, since every model call is a provider SDK import, a call to a provider's API, or a local stand-in for one that the code defines and names as such (#293), and whether the call writes a record is read at the call site"
       candidates: [modelCalls]
-    check: "Population: every model call site, each place in the code that calls a model through a provider's SDK or HTTP API, each file map/raw/enumerate.json lists in populations.modelCalls one candidate, triaged once in map/census-triage.yaml to the one finding that judges the calls in it, listed as the model-call-telemetry census's member, or out of scope with the reason (an import no call uses); excluded: what the call can reach, the AI context's (d-capability-budget), a ceiling on spend enforced before the call, which no row takes, and an alert on the bill after it, which is d-cost-alerts'. Question: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome? A census with no members never reads met"
+    check: "Population: every model call site, each place the application obtains model output: a call to a provider's SDK or HTTP API, or a local stand-in, a stub or wrapper the application calls in place of one; each file map/raw/enumerate.json lists in populations.modelCalls (a provider call, or a function whose name or the comment directly above it says it stands in for a model call) one candidate, triaged once in map/census-triage.yaml to the one finding that judges the calls in it, listed as the model-call-telemetry census's member, or out of scope with the reason (an import no call uses), and a stand-in enumerate does not list is a member outside the list; excluded: what the call can reach, the AI context's (d-capability-budget), a ceiling on spend enforced before the call, which no row takes, and an alert on the bill after it, which is d-cost-alerts'. Question: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome? Met when, on every return of the call, success or error, a record carries the model or tier, the usage or cost, and the outcome as fields of a structured entry (an object or JSON log line, a table row, a metrics event), never only words in a message; a record missing any of the three, or a call with none, is a gap. A census with no members never reads met"
     sources: [manifest/d6-telemetry-native, method/spend-meter]
     status: draft
     owner:
@@ -965,7 +965,7 @@ requirements:
       kind: claim
       context: [model-qualification]
       why: "claim (#262): a qualification happens off the repository (a model tried against the work, a choice made), so the tree cannot show it was done; a run shows the records it found as context"
-    check: "Population: every model in use, each model and tier the application calls; excluded: whether each call is recorded, which is d-model-call-telemetry's, and whether an AI feature's answers are evaluated, which is d-ai-feature-evals'. Question: is there a dated qualification record for it, with the rationale for the choice and the trigger that re-qualifies it when models ship?"
+    check: "Population: every model in use, each model and tier the application calls; excluded: whether each call is recorded, which is d-model-call-telemetry's, and whether an AI feature's answers are evaluated, which is d-ai-feature-evals'. Question: is there a dated qualification record for it, with the rationale for the choice and the trigger that re-qualifies it when models ship? The owner decides, weighing a qualification that happens off the repository"
     sources: [method/pass-2-spend]
     status: draft
     owner:
@@ -980,7 +980,7 @@ requirements:
       kind: claim
       context: [rubric-calibration]
       why: "claim (#262): which skills and rubrics the application relies on is the owner's to say, and the blind repeated runs happen in a model, not in the tree; a run shows the harnesses it saw as context"
-    check: "Population: every relied-on rubric, each skill, prompt or rubric the application relies on for a judgment; excluded: an AI feature's answer quality, which is d-ai-feature-evals'. Question: was it hardened by measurement, a frozen input run blind n times with the divergence disposed into named classes?"
+    check: "Population: every relied-on rubric, each skill, prompt or rubric the application relies on for a judgment; excluded: an AI feature's answer quality, which is d-ai-feature-evals'. Question: was it hardened by measurement, a frozen input run blind n times with the divergence disposed into named classes? Judged, weighing whether the runs and their divergence classes are recorded beside the rubric"
     sources: [manifest/d4-eval-seed, method/calibration-probe]
     status: draft
     owner:
@@ -995,7 +995,7 @@ requirements:
       kind: claim
       context: [ai-feature-evals]
       why: "claim (#262): which features ship, and which call sites make up one feature, is a product boundary the tree does not draw, so a run cannot close the population; it shows the evals it saw as context"
-    check: "Population: every AI feature, each shipped feature whose answer a model produces; excluded: the model's qualification, which is d-model-qualification's, and a skill or rubric's repeatability, which is d-calibration-harness'. Question: does an eval of its answer quality exist and run in CI? A dynamic scanner is the eventual instrument"
+    check: "Population: every AI feature, each shipped feature whose answer a model produces; excluded: the model's qualification, which is d-model-qualification's, and a skill or rubric's repeatability, which is d-calibration-harness'. Question: does an eval of its answer quality exist and run in CI? Met when, for a feature the owner names, a test that a CI job runs on every change calls the feature's model path with fixed inputs and asserts on its answer (an expected output, or a score against a threshold); how good the eval set is is not weighed, and an eval no CI job runs is a gap. A dynamic scanner is the eventual instrument"
     sources: [scanner-candidates/dynamic-tier, issue/2]
     status: draft
     owner:
@@ -1010,7 +1010,7 @@ requirements:
       kind: claim
       context: [ai-disclosure]
       why: "claim (#262): whether a disclosure meets its audience's norms is the owner's to say, since the audience is not in the tree; a run shows the channels and mechanisms it saw as context"
-    check: "Population: every outward AI output, each channel through which model-written content reaches a person outside the team; excluded: the send itself, which the effect rows take, and what the call can reach, the AI context's. Question: does the channel name its disclosure mechanism, or record why its audience needs none?"
+    check: "Population: every outward AI output, each channel through which model-written content reaches a person outside the team; excluded: the send itself, which the effect rows take, and what the call can reach, the AI context's. Question: does the channel name its disclosure mechanism, or record why its audience needs none? The owner decides, weighing the norms of the channel's audience"
     sources: [method/authorship-probe]
     status: draft
     owner:
@@ -1025,7 +1025,7 @@ requirements:
       kind: census
       measures: [agent-access-surface, agent-consumable-surface]
       open: "no tool lists it from the tree: routeHandlers and channelCandidates list some interfaces (an HTTP route, a command, a tool), but a screen, or a data file or format other tools read, has no listing, and routeHandlers and contracts do not close a target's interfaces"
-    check: "Population: every interface the application offers a caller, person or program (an HTTP route, a command, a tool or MCP tool, a screen, a data file or format other tools read); excluded: internal functions nothing outside the code reaches, whether the server checks who is asking (d-routes-authorized), whose data a request reaches (d-tenant-isolation-in-data-layer) and whom an effect acts as, which no census takes. Question: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen? Interfaces consumable by an agent, of all interfaces"
+    check: "Population: every interface the application offers a caller, person or program (an HTTP route, a command, a tool or MCP tool, a screen, a data file or format other tools read); excluded: internal functions nothing outside the code reaches, whether the server checks who is asking (d-routes-authorized), whose data a request reaches (d-tenant-isolation-in-data-layer) and whom an effect acts as, which no census takes. Question: can an agent reach and use it through an API or format contract stated outside the code, not only through a human screen? Met when a contract the tree keeps outside the code names the member: an API schema (OpenAPI, GraphQL or JSON Schema) or a doc page giving a route's method and path, a doc page giving a command's usage, a tool's or MCP tool's input schema, which the agent is handed with the tool, or a schema or doc page giving a data format's fields; a screen meets it when every route, command or tool its code calls to act is itself a member that meets the row, named on its finding, and a screen that acts through anything else is a gap. Interfaces consumable by an agent, of all interfaces"
     sources: [manifest/d7-agent-surface, manifest/d7-format-contracts, foundation/structural-rule-4]
     status: draft
     owner:
@@ -1040,7 +1040,7 @@ requirements:
       kind: census
       measures: [incidents-became-mechanisms, incident-lesson, lessons-mechanized]
       open: "no tool lists it from the tree: a lesson is recorded in prose (an incident note, a postmortem, a review correction, a lessons-file entry), and which prose records one is read, not listed"
-    check: "Population: every lesson the repository records, an incident, postmortem, review correction, lessons-file entry or fix that names its cause; excluded: plans and backlog items nothing has yet been learned from, and decision rationale, which is d-decisions-reconstruct's. Question: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again? Lessons that became a mechanism, of lessons recorded"
+    check: "Population: every lesson the repository records, an incident, postmortem, review correction, lessons-file entry or fix that names its cause; excluded: plans and backlog items nothing has yet been learned from, and decision rationale, which is d-decisions-reconstruct's. Question: did it become a mechanism (a test, a lint, a hook, a guard) that would catch the same failure again? Judged, weighing whether the mechanism fails on the cause the lesson names. Lessons that became a mechanism, of lessons recorded"
     sources: [manifest/d6-correction-capture, foundation/lesson-with-its-incident]
     status: draft
     owner:
