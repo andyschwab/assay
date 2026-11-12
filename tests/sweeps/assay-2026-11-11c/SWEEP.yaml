@@ -16,6 +16,9 @@
 # and d-change-gates-fail-closed and d-decisions-reconstruct part: M3 scoped the populations, but the
 # verdicts on their members still differ run to run. Met and mixed rows cite 114, 73 and 64 strengths
 # (37, 38, 61 in 11b); the engine places 59%, 49% and 47% of findings on a requirement.
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): 37 channels → 36, shared 10 → 10, identical 3 → 3 (30%), unchanged;
+# requirement agreement 7 of 12 (58%), unchanged.
 target: "andyschwab/assay, this repository (public), at the commit below"
 target_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
 method_commit: "8d533a56718234258a1e9c2d25ddd91d5bf830ca"

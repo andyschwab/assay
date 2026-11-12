@@ -20,6 +20,13 @@
 # over 12 shared channels (9 at the baseline). Met and mixed rows now cite 37, 38 and 61 strengths
 # (none at the baseline). The five rows that part (d-credentials-enumerated, d-gates-fail-closed,
 # d-capability-budget, d-readme-true, d-agent-consumable-surface) are the judgment M3 (#261) scopes.
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): 31 channels → 30, shared 12 → 13, identical 4 → 4: descriptor agreement 33% →
+# 31%, threshold lowered to 31. One sweep triaged the `shell exec` candidate to its fresh-clone
+# effect and the others did not, so that finding is `candidate: shell exec` in one sweep and its
+# slug in two; the two triaged candidates (`http write (js)`, `surface: migrate-run.mjs`) now join
+# across all three, and each parts on a descriptor. Requirement agreement 7 of 12 (58%), unchanged:
+# no requirement reads channels across runs.
 target: "andyschwab/assay, this repository (public), at the commit below"
 target_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
 method_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
@@ -27,6 +34,6 @@ date: "2026-11-11"
 blind: true
 threshold:
   fact_presence: 31          # measured 14 of 45 union facts caught by all three (31%)
-  descriptor_agreement: 33   # measured 4 of 12 shared effect channels identical on all six descriptors (33%)
+  descriptor_agreement: 31   # measured 4 of 13 shared effect channels identical on all six descriptors (31%), keyed by triaged candidate (#298)
   requirement_agreement: 58  # measured 7 of 12 decided requirements identical in all three (58%). Re-blessed with #286 (M6): d-credentials-enumerated reads over the 21 secrets enumerate listed, and no sweep triaged them (map/census-triage.yaml), so met, mixed, met reads mixed in all three; 8 of 12 agree (67%). The rise is a met that went, not a judgment that converged. Re-blessed again with #286's rule for a member outside the candidate list (it can hold the row down, never read it met): no sweep triaged, so every credential member sits outside the list; sweep-2's gap holds its row unmet, and the strengths of sweep-1 and sweep-3 decide nothing, so they read not measured (not-measured, unmet, not-measured); 7 of 12 agree (58%)
 sweeps: [sweep-1, sweep-2, sweep-3]

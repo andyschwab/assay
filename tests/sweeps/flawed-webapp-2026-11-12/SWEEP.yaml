@@ -21,6 +21,9 @@
 # sweep-2 did not count the stub model as a call site, #293) and d-agent-consumable-surface (an open
 # census). The one effect seen by one sweep is a slug spelling (assistant-send-email beside
 # assistant-email-send), not a different channel.
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): 5 channels → 5, shared 4 → 4, identical 4 → 4 (100%), unchanged; requirement
+# agreement 11 of 13 (85%), unchanged.
 target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
 target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
 method_commit: "147a39426ef81f745f7603ad363f9de252569744"

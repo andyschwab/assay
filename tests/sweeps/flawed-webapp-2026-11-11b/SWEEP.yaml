@@ -21,6 +21,9 @@
 # (the baseline, read at the same engine): decided requirements rise from 6 to 12, 10 identical in
 # all three; descriptor agreement rises from 50% to 75%; met and mixed rows now cite 9, 11 and 9
 # strengths (none at the baseline).
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): 6 channels → 5, shared 4 → 4, identical 3 → 3 (75%), unchanged; requirement
+# agreement 10 of 12 (83%), unchanged.
 target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
 target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
 method_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"

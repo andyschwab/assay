@@ -5,6 +5,9 @@
 # one with a finding dropped (F-031) and one with one descriptor re-judged
 # (assistant-email telemetry). It proves the gate reads the number and can go red;
 # it measures nothing about the method's repeatability.
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): no effect triage, so every channel keeps its slug: 2 channels, 2 shared, 1
+# identical (50%) and requirement agreement 1 of 1, unchanged.
 target: "notesbox (tests/fixtures/notesbox)"
 target_commit: "fixture"
 method_commit: "ebccbf1"

@@ -21,6 +21,10 @@
 # parting: d-effects-gated and d-effects-traced (the effect rows, which agreed in -11c),
 # d-capability-budget and d-agent-consumable-surface (an open census). Descriptor agreement fell to
 # 1 of 9 (30% in -11c): the lanes name channels the listing does not (11 slugs seen by one sweep).
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): 20 channels → 18, shared 9 → 9, identical 1 → 1 (11%), unchanged: v0.9.0's
+# list named 2 of the 12 channels, so most effects keep their slug until a sweep reads a list that
+# names them; requirement agreement 10 of 14 (71%), unchanged.
 target: "andyschwab/assay, this repository (public), at the commit below"
 target_commit: "2b247c014b1484d4e1b1512b49b32f708800d92c"
 method_commit: "147a39426ef81f745f7603ad363f9de252569744"

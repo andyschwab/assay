@@ -663,6 +663,17 @@ run. The count is read off them (`map/census.mjs`), never typed by hand:
   `of` and never in `met`. The census cannot read met while it holds one: a member nobody
   judged is the census's version of an untriaged candidate (§6e), and the yardstick names it.
 
+**An absence is not a member (#298).** A census member is one thing that exists in the
+census's population, and its evidence cites that thing. That the population is empty, or that
+something is missing ("this target has no gate", "no lesson is recorded"), is a finding outside
+the census: never listed in `members:`, and never triaged as a candidate (§6f). Nor is a thing
+outside the population a member because it is near it: a test file no gate runs is not a change
+gate, and a test's header is not a recorded lesson. Kept outside, an absence cannot hold a row
+down the way a real member outside the list does (a hardcoded credential enumerate missed,
+§6f). The rule has no validate check: an absence and a gap on a real member are both gap
+findings with `file:line` evidence, the absence citing where the thing would be, so telling them
+apart is a judgment no field records.
+
 An authored `met`/`of` beside `members:` is optional; one that disagrees with the members is
 a validate error. A `sampled:` entry with no `members:` keeps its authored `met`/`of`, and the
 yardstick never reads it met: a count typed by hand is not evidence (`yardstick/README.md`,
@@ -947,7 +958,23 @@ evidence and note:
   (`http write (js) @ lib/sync.mjs`, `shell exec @ tools/run.py`, …), so a member groups that
   file's call lines of its kind and one entry never closes unrelated channels in other files (#272).
   Effect sites are read where code runs: a Markdown file, and a file under a `tests/` or `runs/`
-  directory (a test, a run's own artifacts), make no call the list names.
+  directory (a test, a run's own artifacts), make no call the list names. The kinds (#298):
+  the outbound calls (`http write`, `http write (js)`, `message/mail send`, `git push`, `docker
+  control`, `shell exec` for Python's `subprocess`/`os.system`); `process spawn (js)`, a Node
+  `child_process` `spawn`/`spawnSync`/`exec`/`execSync`/`execFile`/`execFileSync` call in a file
+  that names `child_process`; and the workflow writes, read in a workflow's step `run:` commands
+  and `uses:` actions (`.github/workflows/*.yml`, a workflow template shipped anywhere else, a
+  composite action): `release write (workflow)` (`gh release create|upload|edit|delete`, a
+  release action), `github api write (workflow)` (`gh api` with `-X POST|PUT|PATCH|DELETE`, or
+  with a field, which gh sends as POST), `issue/pr write (workflow)` (`gh issue|pr
+  create|comment|edit|close|reopen|merge|delete|review|lock`), `artifact upload (workflow)`
+  (`actions/upload-artifact`) and `deploy/publish (workflow)` (an action named for deploying or
+  publishing; a package publish or image push). A read lists nothing (`gh api` with no method or
+  field, `gh issue list`, a download). What is not a call site is not read: a comment; a line
+  that writes a pattern (a regular expression literal it tests or lists in a table, as an
+  enumerator's own pattern table does); and a scanner adapter's rule pack and planted control,
+  the directories its adapter declares (`run.rules.dir`, `run.control.dir`), which are data the
+  scanner reads, not code the target runs.
 
 The last two close a target with no agentic channel, such as a web app, where an empty
 `channelCandidates` once read as a closed list (#269). The practice-review lane is given the
@@ -966,7 +993,15 @@ triage:
     finding: F-053
 ```
 
-A list with no candidates in any of the three populations is closed and empty (`triage: []`). The triage names findings and
+A list with no candidates in any of the three populations is closed and empty (`triage: []`).
+
+**A channel is its triaged candidate** (#298). Two runs' lanes spell one channel's slug as they
+like (`tool-install`, `tools-install`); the candidate they triage to it is the list's own name for
+it. So where a run's triage maps a candidate to an effect finding, a comparison of channels across
+runs (`map/variance.mjs`: fact presence, descriptor agreement, and backlog's descriptor
+divergence) keys that finding by the candidate (`candidate: <member>`), a finding several
+candidates map to by the sorted set (joined by ` | `), and a finding no candidate maps to by its
+own slug. The triage names findings and
 never requirements: a finding carries no requirement id, and the yardstick reads the
 population (#257 Q1; `yardstick/README.md`, "The effect population"). An effect the list
 does not name is still recorded as a finding: the triage closes the list, it does not bound
@@ -1032,6 +1067,9 @@ row down, its strength never reads it met, and the row's note names it (#292). W
 nothing is refused: the yardstick reads every candidate untriaged and every member outside the
 list, so the row reads not measured, or unmet on a gap (`yardstick/README.md`, "A census a tool
 can list").
+An absence is never such a member (§6b): "there is none" is recorded as a finding outside the
+census, so an empty population stays empty (`triage: []`, no `members:` entry for the absence),
+and no candidate is triaged to it.
 
 ---
 

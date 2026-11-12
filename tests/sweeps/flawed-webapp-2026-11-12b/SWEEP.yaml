@@ -23,6 +23,10 @@
 # (sweep-2 read the smoke file's header as a recorded lesson; the others found none). The one
 # effect seen by one sweep is a slug spelling (backup-push beside workspace-backup-push) of a
 # candidate all three triaged alike, #298's identity key.
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): 5 channels → 4, shared 4 → 4, identical 4 → 4 (100%): `backup-push` and
+# `workspace-backup-push` triage the same candidates and now read one channel every sweep saw;
+# requirement agreement 13 of 15 (87%), unchanged.
 target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
 target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
 method_commit: "7f8b209f4ba62dc14d73929251d4593f05b216fe"

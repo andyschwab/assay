@@ -13,6 +13,10 @@
 # - Spend per session (practice-review row of each run record): USD 17.13, 21.93, 19.66.
 # The effect inventory is where the sweeps part: 29 channel slugs across the three, 9 shared by two
 # or more (the same effects named at different grain), the open-population drift #259 closes.
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): no effect triage (the set predates map/effect-triage.yaml), so every channel
+# keeps its slug: 29 channels, 9 shared, 1 identical (11%) and requirement agreement 4 of 6,
+# unchanged.
 target: "andyschwab/assay, this repository (public), at the commit below"
 target_commit: "4b81665457efa1435da9420028738acdfdcb1832"
 method_commit: "4b81665457efa1435da9420028738acdfdcb1832"

@@ -73,13 +73,20 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadFindings, loadManifest, modelOf, PRACTICE_REVIEW_PASSES } from './project.mjs';
 import { isMain } from './doctrine.mjs';
 import { projectRun, loadYardstick } from '../yardstick/measure.mjs';
+import { channelKeys } from './effect-triage.mjs';
+
+// A channel's identity (#298): an effect finding the run's map/effect-triage.yaml maps a candidate to
+// is keyed by that candidate (map/effect-triage.mjs candidateKeysOf), so two lanes' spellings of one
+// channel read as one; a finding no candidate maps to keeps its slug. keys: Map<finding id, key>, or
+// none (every finding keeps its slug).
+const channelOf = (f, keys) => (f && f.id && keys && keys.get(f.id)) || (f.effect && f.effect.channel) || f.channel;
 
 // identity tokens: the specific thing a finding is about — full evidence PATH (not basename)
 // plus any explicit item key (effect channel, label, slug). subject_type is NOT included.
-const idTokens = (f) => {
+const idTokens = (f, keys) => {
   const t = new Set();
   for (const e of (Array.isArray(f.evidence) ? f.evidence : [])) t.add('p:' + String(e).split(':')[0]);
-  const chan = (f.effect && f.effect.channel) || f.channel;
+  const chan = channelOf(f, keys);
   if (chan) t.add('c:' + String(chan).toLowerCase().trim());
   if (f.label) t.add('l:' + String(f.label).toLowerCase().replace(/\s+/g, ' ').trim());
   if (f.slug) t.add('s:' + String(f.slug).toLowerCase().trim());
@@ -99,7 +106,7 @@ export const groupKey = (f) => f.dimension || (f.source ? `source:${f.source}` :
 // ACROSS sweeps. Deterministic; used by the CLI and pinned by tests/blocks/model-of-record.mjs
 // and tests/blocks/variance-mixed-base.mjs.
 export function computeVariance(runDirs) {
-  return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)), runDirs.map((d) => modelResolver(loadManifest(d))));
+  return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)), runDirs.map((d) => modelResolver(loadManifest(d))), runDirs.map((d) => channelKeys(d)));
 }
 
 // A sweep's model of record per clustering bucket (SCHEMA.md §5a): a dimension reads
@@ -112,11 +119,12 @@ function modelResolver(manifest) {
 
 // The pure half — sweeps is an array of FINDINGS ARRAYS, so the measure is testable
 // without fixtures (same split as descriptorAgreement below). models (optional): one
-// resolver per sweep, bucket → model id | null, for the per-model-pair agreement.
-export function varianceFromSweeps(sweeps, names, models) {
+// resolver per sweep, bucket → model id | null, for the per-model-pair agreement. keys (optional):
+// one Map<finding id, channel key> per sweep, the run's triaged candidates (#298).
+export function varianceFromSweeps(sweeps, names, models, keys) {
   const N = sweeps.length;
   const nodes = [];
-  sweeps.forEach((findings, ri) => { for (const f of findings || []) nodes.push({ run: ri, dim: groupKey(f), subj: f.subject_type || '-', ev: idTokens(f), obs: (f.observation || '').trim().replace(/\s+/g, ' ').slice(0, 90) }); });
+  sweeps.forEach((findings, ri) => { for (const f of findings || []) nodes.push({ run: ri, dim: groupKey(f), subj: f.subject_type || '-', ev: idTokens(f, keys && keys[ri]), obs: (f.observation || '').trim().replace(/\s+/g, ' ').slice(0, 90) }); });
 
   const parent = nodes.map((_, i) => i);
   const find = (x) => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
@@ -187,13 +195,14 @@ const norm = (v) => (v === undefined || v === null ? null : String(v).trim().toL
 // descriptorAgreement(sweeps) — sweeps is an array of FINDINGS ARRAYS (pure; no I/O), so
 // it is testable without fixtures. Each sweep contributes at most one descriptor tuple per
 // effect channel (the first; a run recording a channel twice is a granularity choice that
-// measure 1 already covers).
-export function descriptorAgreement(sweeps) {
-  const perSweep = sweeps.map((findings) => {
+// measure 1 already covers). keys (optional): one Map<finding id, channel key> per sweep, so a
+// channel is the candidate its run triaged to it, not the lane's slug (#298).
+export function descriptorAgreement(sweeps, keys) {
+  const perSweep = sweeps.map((findings, si) => {
     const byChannel = new Map();
     for (const f of findings || []) {
       if (!f || f.subject_type !== 'effect' || !f.effect) continue;
-      const ch = norm(f.effect.channel);
+      const ch = norm(channelOf(f, keys && keys[si]));
       if (!ch || byChannel.has(ch)) continue;
       byChannel.set(ch, Object.fromEntries(DESCRIPTOR_FIELDS.map((k) => [k, norm(f.effect[k])])));
     }
@@ -249,7 +258,7 @@ export function descriptorAgreement(sweeps) {
 
 // runDir wrapper — loads then delegates.
 export function computeDescriptorAgreement(runDirs) {
-  return descriptorAgreement(runDirs.map((d) => loadFindings(d)));
+  return descriptorAgreement(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => channelKeys(d)));
 }
 
 // ── requirement agreement (measure 3) ───────────────────────────────────────

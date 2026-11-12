@@ -93,3 +93,24 @@ export function channelPopulation({ candidates, triage, errors = [] } = /** @typ
   const covered = [...new Set(judged.values())];
   return { listed: true, triaged: Array.isArray(triage), candidates, untriaged, covered, outOfScope, reason: null };
 }
+
+// A channel's identity across runs (#298): the candidate the lane triaged to it, not the lane's own
+// slug. Two lanes that spell one channel differently (`tool-install`, `tools-install`) both triage
+// the same enumerated member to their finding, so a cross-run comparison of channels (map/variance.mjs)
+// keys an effect finding by that member. A finding several candidates map to is keyed by the sorted
+// set; a finding no candidate maps to keeps its slug. Returns Map<finding id, key>, the keys of the
+// findings some candidate maps to; a run with no triage, or one that does not read, maps none.
+const CANDIDATE_KEY = 'candidate: ';
+export function candidateKeysOf(triage) {
+  const by = new Map();
+  for (const e of Array.isArray(triage) ? triage : []) {
+    if (!e || typeof e.candidate !== 'string' || typeof e.finding !== 'string' || !e.finding) continue;
+    if (!by.has(e.finding)) by.set(e.finding, new Set());
+    by.get(e.finding).add(e.candidate);
+  }
+  return new Map([...by].map(([id, cs]) => [id, CANDIDATE_KEY + [...cs].sort().join(' | ')]));
+}
+export function channelKeys(run) {
+  const { triage } = loadChannelFiles(run);
+  return candidateKeysOf(triage);
+}
