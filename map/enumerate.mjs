@@ -218,11 +218,19 @@ function serverRoutes(r, ls) {
   if (served && !found) hit('routeHandlers', `route: ? ${r}`, r, Math.max(0, ls.findIndex((l) => NODE_SERVER.test(l))), 'a node:http server whose routes enumerate cannot read — read it');
 }
 
+// A function named for sending mail or a message (#272), defined or called: `sendEmail`, `sendMail`,
+// `sendMessage`, `sendSms`, `sendNotification`, `sendWebhook`, their snake_case forms, and `notify…`
+// only where the name says the channel is outward (`notifyByEmail`, `notifySlack`, `notifyWebhook`,
+// …); a bare `notify` is in-process as often as not, and a `.send` is any socket. The name is
+// followed by its call or its definition (`(`, or `= async`/`= function`/`= (`), in a code file.
+const SEND_FN = /\b(?:send(?:E?[Mm]ail|Message|Sms|SMS|Text|Notification|Webhook)|send_(?:e?mail|message|sms|notification|webhook)|notify(?:By|Via|_)?(?:Email|Mail|Slack|Sms|SMS|Webhook|Discord|Teams|Pager|email|mail|slack|sms|webhook))\w*(?=\s*(?:[(]|=\s*(?:async\b|function\b|[(])))/;
+
 const EFFECT = [
   [/\bsubprocess\.(?:run|call|Popen|check_output)\b|\bos\.system\b|\bos\.popen\b/, 'shell exec'],
   [/\brequests\.(?:post|put|delete|patch)\b|\bhttpx\.(?:post|put|delete)\b|\burllib\b.*urlopen/, 'http write'],
   [/\bfetch\(|axios\.(?:post|put|delete)\b/, 'http write (js)'],
   [/chat\.postMessage|files\.upload|\.send_message\b|sendmail|smtplib/, 'message/mail send'],
+  [SEND_FN, 'message/mail send', 'code'],   // a name, so read in code only: prose names functions too
   [/\bgit\s+push\b|git-credential|installation.token/, 'git push'],
   [/docker\s+(?:run|exec|create|rm|kill)\b|docker_provision|DockerClient/, 'docker control'],
 ];
@@ -272,7 +280,7 @@ for (const f of files) {
     else if (/\bblock(?:list|ed)[-_]?(?:host|domain|url|terminal|pattern)|website[-_]blocklist/i.test(line)) hit('egressControls', 'host/pattern blocklist', r, i, 'egress denylist');
 
     // 6. effect call sites
-    for (const [re, note] of EFFECT) if (/** @type {RegExp} */ (re).test(line)) hit('effectSites', note, r, i, note);
+    for (const [re, note, only] of EFFECT) if ((only !== 'code' || isCode) && /** @type {RegExp} */ (re).test(line)) hit('effectSites', /** @type {string} */ (note), r, i, /** @type {string} */ (note));
 
     // 7. container/agent classes
     if (/docker\s+(?:run|create)\b/.test(line)) hit('containerClasses', 'docker run/create site', r, i, 'a container is launched here — enumerate its class');
