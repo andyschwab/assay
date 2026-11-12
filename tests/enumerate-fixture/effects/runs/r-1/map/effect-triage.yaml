@@ -1,0 +1,5 @@
+schema: effect-triage
+version: 1
+triage:
+  - candidate: "git push @ lib/sync.mjs"
+    out_of_scope: "a run artifact quoting a call: docker run is named here, not made"

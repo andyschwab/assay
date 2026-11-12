@@ -389,6 +389,7 @@ for (const f of files) {
   // names every constant enumerate set apart, and would read each as declared in config (#292)
   const isEnvOrCfg = (/\.(env|ini|cfg|conf|ya?ml|toml|json)$/.test(base) || /\.env/.test(base) || base.startsWith('.env')) && !/(^|\/)(?:tests?|runs)\//.test(r);
   const isCode = /\.(?:[mc]?[jt]sx?|py|rb|go|java|kt|rs|php)$/.test(base);
+  const effectReadable = !/\.md$/.test(base) && !/(^|\/)(?:tests?|runs)\//.test(r);
   routeHandlers(r, ls);
   serverRoutes(r, ls);
   codeSecrets(r, ls, isCode);
@@ -428,8 +429,10 @@ for (const f of files) {
     else if (/URLBlocklist|URLAllowlist/.test(line)) hit('egressControls', 'browser URL policy', r, i, 'network boundary');
     else if (/\bblock(?:list|ed)[-_]?(?:host|domain|url|terminal|pattern)|website[-_]blocklist/i.test(line)) hit('egressControls', 'host/pattern blocklist', r, i, 'egress denylist');
 
-    // 6. effect call sites
-    for (const [re, note, only] of EFFECT) if ((only !== 'code' || isCode) && /** @type {RegExp} */ (re).test(line)) hit('effectSites', /** @type {string} */ (note), r, i, /** @type {string} */ (note));
+    // 6. effect call sites — read where code runs: a doc restates a call and makes none, and a test
+    //    or a run's own artifacts (a committed sweep's terrain.md, raw/enumerate.json, triage) quote
+    //    one. With members keyed per file (#272) each such file would be its own triage entry.
+    if (effectReadable) for (const [re, note, only] of EFFECT) if ((only !== 'code' || isCode) && /** @type {RegExp} */ (re).test(line)) hit('effectSites', /** @type {string} */ (note), r, i, /** @type {string} */ (note));
 
     // 7. container/agent classes
     if (/docker\s+(?:run|create)\b/.test(line)) hit('containerClasses', 'docker run/create site', r, i, 'a container is launched here — enumerate its class');
