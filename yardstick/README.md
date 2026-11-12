@@ -131,6 +131,26 @@ Population: every <term> <scope>; excluded: <what>. Question: <one question>? <h
 `yardstick/population.mjs` holds the form (`parseCheck`, `validatePopulations`), and
 `tests/blocks/check-names-population.mjs` enforces it.
 
+**A check names its bar** (#293). Two independent readers placed eight rows apart (#289): one
+read the verdict as deterministic once a threshold or field list is fixed, the other as
+judgment because the row stated none. So every `census` row's check, and every `claim` row's
+that carries a context list, says after its question how its verdict over one member is
+decided, exactly one of:
+
+- **`Met when <the bar>`**: the threshold or fields that make the verdict deterministic (the
+  fields a per-call record carries, what counts as something to read and to run, what stands
+  in for a spec). Prefer this wherever the tree can show it; for a claim row the bar is what the
+  owner's evidence must show.
+- **`Judged, weighing <what>`**: the verdict is a judgment per member, and the row says what it
+  weighs.
+- **`The owner decides, weighing <what>`**: only the owner can decide it.
+
+A row whose *population* is itself a judgment says why: in `decide.open` on a census row
+(`d-decisions-reconstruct`), and in the check on a claim row (`d-one-home-per-fact`). A `facet`
+row needs no bar: its rule is computed. `barOf` in `yardstick/population.mjs` reads it,
+`validatePopulations` refuses a row that names none or two, and
+`tests/blocks/checks-name-their-bar.mjs` holds it.
+
 **Which requirement takes a finding** is one reading, `requirementTaking(finding, { member })` in
 `yardstick/population.mjs`. Every route that answers adds a candidate. The finding is taken when
 exactly one candidate answers, and is taken by no requirement when none does. Two candidates
@@ -180,8 +200,13 @@ on the row, `decide.why`, which opens with the kind and `(#262)`:
 - **Census-decided** where a run can close the population by reading the tree. The row is a
   `census` row in the form above, and its census is in `map/METHOD.md`'s census list and the
   practice-review lane's instructions.
-  - `d-model-call-telemetry` (`model call site`, census `model-call-telemetry`): every model
-    call is a provider SDK import or a call to a provider's API in the code.
+  - `d-model-call-telemetry` (`model call site`, census `model-call-telemetry`): a model call
+    site is any place the application obtains model output, a provider SDK import or a call to
+    a provider's API in the code, or a local stand-in for one (#293): a stub or wrapper the
+    application calls in place of a provider. enumerate lists a stand-in at its definition when
+    its name is a call-model verb (`callModel`, `call_llm` …) or the comment directly above it
+    names a stand-in for a model call; a stand-in it misses is a member outside the list, which
+    the asymmetric rule below reads (a gap holds the row down, a strength alone never reads met).
   - `d-ingested-content-is-data` (`ingestion point`, census `ingested-content`): outside text
     enters only through an upload, a fetch, an inbound route, webhook or feed, or a file read
     the code makes.

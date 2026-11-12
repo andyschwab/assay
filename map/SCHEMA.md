@@ -992,7 +992,7 @@ A census whose population the tree lists deterministically is closed the way the
 |---|---|---|---|
 | `d-credentials-enumerated` | `credential` | `secrets` | a secret name the tree reads or declares |
 | `d-change-gates-fail-closed` | `change-gates` | `changeGates` | a CI step (`ci step: <workflow>/<job>: <step>`), a job with no steps (`ci job: …`), a hook (`hook: …`), or a package script named for a check (`script: …`) |
-| `d-model-call-telemetry` | `model-call-telemetry` | `modelCalls` | a file that calls a model through a provider's SDK or API (`model call: <path>`) |
+| `d-model-call-telemetry` | `model-call-telemetry` | `modelCalls` | a file where the application obtains model output: a call through a provider's SDK or API, or the definition of a local stand-in for one, a function whose name (`callModel`, `call_llm` …) or the comment directly above it says it stands in for a model call (`model call: <path>`, #293) |
 
 `secretConstants` is no census's candidate: enumerate's shape filter set each apart as an
 identifier or a constant that no site reads from the environment, which the credential row's
