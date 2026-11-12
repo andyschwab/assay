@@ -1,0 +1,125 @@
+{
+  "schema": "enumerate",
+  "version": 1,
+  "target": "fw-target",
+  "files": 13,
+  "populations": {
+    "channelCandidates": [],
+    "routeHandlers": [
+      {
+        "member": "route: GET /notes",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": true,
+        "evidence": [
+          "server.mjs:30"
+        ]
+      },
+      {
+        "member": "route: POST /admin/purge",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": true,
+        "evidence": [
+          "server.mjs:52"
+        ]
+      },
+      {
+        "member": "route: POST /assistant",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": true,
+        "evidence": [
+          "server.mjs:42"
+        ]
+      },
+      {
+        "member": "route: POST /notes",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": true,
+        "evidence": [
+          "server.mjs:35"
+        ]
+      },
+      {
+        "member": "route: POST /sync",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": true,
+        "evidence": [
+          "server.mjs:47"
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "member": "backupApiKey",
+        "note": "assigned a literal in code",
+        "gateable": true,
+        "evidence": [
+          "config/settings.mjs:6"
+        ]
+      },
+      {
+        "member": "tokenTable",
+        "note": "assigned a literal in code",
+        "gateable": true,
+        "evidence": [
+          "lib/db.mjs:13"
+        ]
+      }
+    ],
+    "secretConstants": [],
+    "changeGates": [],
+    "modelCalls": [
+      {
+        "member": "model call: lib/agent.mjs",
+        "note": "a model call site, a local stand-in for a provider call: does it emit one structured record of its tier, spend and outcome?",
+        "gateable": true,
+        "evidence": [
+          "lib/agent.mjs:27"
+        ]
+      }
+    ],
+    "socketMounts": [],
+    "containerClasses": [
+      {
+        "member": "admin-role branch",
+        "note": "a distinct agent class",
+        "gateable": true,
+        "evidence": [
+          "ANSWERS.yaml:32",
+          "lib/auth.mjs:12",
+          "lib/auth.mjs:16",
+          "lib/db.mjs:5"
+        ]
+      }
+    ],
+    "effectSites": [
+      {
+        "member": "http write (js) @ lib/sync.mjs",
+        "note": "http write (js)",
+        "gateable": true,
+        "evidence": [
+          "lib/sync.mjs:8"
+        ]
+      },
+      {
+        "member": "message/mail send @ lib/agent.mjs",
+        "note": "message/mail send",
+        "gateable": true,
+        "evidence": [
+          "lib/agent.mjs:35",
+          "lib/agent.mjs:39"
+        ]
+      },
+      {
+        "member": "message/mail send @ lib/mailer.mjs",
+        "note": "message/mail send",
+        "gateable": true,
+        "evidence": [
+          "lib/mailer.mjs:5"
+        ]
+      }
+    ],
+    "egressControls": [],
+    "contracts": [],
+    "reportPaths": []
+  }
+}

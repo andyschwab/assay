@@ -1,0 +1,106 @@
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The one AI feature, the assistant (`ask` over `callModel`), has no eval of its answer
+    quality: the only test imports `authenticate` alone and never calls `ask` or `callModel`
+    with fixed inputs, and `package.json` declares no test script a CI job could run.
+  evidence: [lib/agent.mjs:27-43, test/smoke.mjs:4-11, package.json:6-8]
+  confidence: confirmed
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No change-verification mechanism exists in the target: none of its 12 files is a pull
+    request template or a check that reads a change's body or commit message, and the only
+    verification guidance is the README's instruction to run a suite (`npm run test:all`)
+    that `package.json` does not define.
+  evidence: [package.json:6-8, README.md:27-35]
+  confidence: confirmed
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The backup push reports success without confirming the effect: `pushBackup` fires
+    `fetch` without awaiting it, swallows every rejection with `.catch(() => {})`, never
+    reads the response status, and returns `{ ok: true, pushed: notes.size }`, which
+    `POST /sync` sends to the caller as HTTP 200 whether or not the backup service received
+    anything.
+  evidence: [lib/sync.mjs:5-13, server.mjs:47-50]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-404
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant reports an email as sent without confirming it: `ask` discards the return
+    value of `sendEmail` and returns `emailed: to` unconditionally, and `sendEmail` itself
+    returns a constant `{ sent: true }` from a log-only transport, so the report holds even
+    though no message leaves the process.
+  evidence: [lib/agent.mjs:36-40, lib/mailer.mjs:1-8]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-405
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    Note creation reports only after its effect: `POST /notes` performs a synchronous
+    in-memory `notes.set` and then returns 201 with the new id, so the report cannot precede
+    the write; the write is not durable (the store is in-memory by decision), so the report
+    proves the in-process effect only.
+  evidence: [server.mjs:35-39, docs/adr/0001-storage-choice.md:22-23]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-406
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    The workspace purge returns a constant `{ purged: true }` after synchronous
+    `notes.clear()` and per-user resets rather than checking the store is empty; because the
+    clears are synchronous in-memory operations the report follows the effect, but nothing
+    reads the result back, and the planned SQLite adapter would make the same constant a
+    report without confirmation.
+  evidence: [lib/db.mjs:27-31, routes/admin.mjs:8-10, docs/adr/0001-storage-choice.md:14-17]
+  confidence: plausible
+  property: effect-confirmed-not-reported
+- id: F-408
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The server is built to be exercised in-process: it listens only when run as the entry
+    point and exports the `server` object, so a test can import it and drive the routes
+    without binding the configured port; no test in the target uses this affordance.
+  evidence: [server.mjs:59-63, test/smoke.mjs:5]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-409
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No change to a route can demonstrate itself: none of the five routes has a runnable
+    example, fixture or test that issues a request and checks the observable result, so a
+    change to note handling, the assistant, the backup push or the purge carries no
+    demonstration of its effect.
+  evidence: [server.mjs:30-56, test/smoke.mjs:4-11]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-410
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the assistant's output however it reads: the answer string is returned to
+    the caller as the model produced it, and the only check applied to model output is a
+    regex on the shape of a `TOOL:send_email` line, whose recipient and subject are used
+    without being checked against anything.
+  evidence: [lib/agent.mjs:33-42]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency

@@ -1,0 +1,35 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/flawed-webapp-2026-11-12b
+#
+# BLIND, the confirmation sweep at v0.10.0 (#295 checks name their bar and a model call site
+# includes a stand-in; #296 effect sites per file, node:http routes, mail sends, credentials in any
+# case): three practice-review lanes over the flawed-webapp fixture target at the SAME commit as
+# flawed-webapp-2026-11-11b, -11c and -2026-11-12 (7f7c89d), so only the method changed. Each lane was
+# a fresh child session seeded by `assay lane practice-review` at v0.10.0, all passes claude-opus-5-5,
+# the target read-only, the answer sheet excluded, given the run's map/raw/enumerate.json at v0.10.0:
+# routeHandlers 5, effectSites 3, modelCalls 1 and secrets 2, where v0.9.0 listed 0, 1, 0 and 0.
+# The three lanes wrote identical effect and census triages (8 effect candidates; backupApiKey,
+# tokenTable; model call: lib/agent.mjs). What the record should know:
+# - No send-back: each lane's own check came clean within two runs; every run validated on collection.
+# - The answer sheet's name printed in an unfiltered listing in two of the three; no lane opened it.
+# - Spend per session (practice-review row of each run record): USD 6.22, 7.09, 6.02.
+# Recall against the target's ANSWERS.yaml: 9 of 9 in scope in all three; graded requirement
+# statuses agree 24, disagree 0 in all three. Against flawed-webapp-2026-11-12 read at the same
+# engine (85%, 11 of 13): requirement agreement 13 of 15. d-model-call-telemetry, which parted on
+# the stub (#293), reads unmet in all three; d-agent-consumable-surface now agrees. Two rows part on
+# whether an absence is a member: d-change-gates-fail-closed (sweep-2 listed the target's lack of any
+# gate, and its unwired smoke file, as members outside an empty list, so the gap holds its row
+# unmet; the others recorded the absence outside the census) and d-corrections-become-mechanisms
+# (sweep-2 read the smoke file's header as a recorded lesson; the others found none). The one
+# effect seen by one sweep is a slug spelling (backup-push beside workspace-backup-push) of a
+# candidate all three triaged alike, #298's identity key.
+target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
+method_commit: "7f8b209f4ba62dc14d73929251d4593f05b216fe"
+date: "2026-11-12"
+blind: true
+threshold:
+  fact_presence: 87          # measured 7 of 8 union facts caught by all three (88%, 87.5 floored)
+  descriptor_agreement: 100  # measured 4 of 4 shared effect channels identical on all six descriptors (100%)
+  requirement_agreement: 86  # measured 13 of 15 decided requirements identical in all three (87%, 86.7 floored)
+sweeps: [sweep-1, sweep-2, sweep-3]

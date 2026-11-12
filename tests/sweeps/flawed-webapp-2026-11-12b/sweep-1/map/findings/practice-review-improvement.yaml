@@ -1,0 +1,54 @@
+- id: F-601
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The target records no lesson: across all 12 files there is no incident note, postmortem,
+    review correction, lessons file or fix comment naming a past cause, and no agent spec or
+    lessons file where a "we never do X here" rule could be written; the only prose docs are
+    the README and one ADR, which carry endpoints, run/test instructions and decision rationale.
+  evidence: [README.md:12-35, docs/adr/0001-storage-choice.md:1-29]
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Outstanding work to move the backup API key out of source is recorded only as an inline
+    code comment ("TODO: move to env before launch") directly above the literal key, not as an
+    issue on a tracker, and nothing in the target references a tracker or blocks launch on it.
+  evidence: [config/settings.mjs:5-6, package.json:1-9]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The deferred persistence work (the SQLite adapter, "the first thing the production
+    milestone fixes") is recorded as prose in the ADR's consequences and a module comment,
+    with no issue or tracker reference to carry it to the change that would close it.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, docs/adr/0001-storage-choice.md:22-23, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: impact-self-measured
+  observation: >
+    The system carries no record of what it is worth: no metric, counter, before-and-after
+    record or impact field on the assistant or any route; the ADR names the assistant as
+    "the differentiator" without any measure of its use or effect.
+  evidence: [docs/adr/0001-storage-choice.md:27-29, lib/agent.mjs:33-42, server.mjs:26-57]
+  confidence: confirmed
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: usage-outcome-records-emitted
+  observation: >
+    The app emits no structured usage or outcome records: the assistant's model call and its
+    answer/email outcome are returned to the caller and never recorded, route handling logs
+    nothing, and the only output is a free-text console line from the log-only mailer and the
+    startup banner, nothing aggregated at the population level.
+  evidence: [lib/agent.mjs:27-42, server.mjs:26-60, lib/mailer.mjs:5-8]
+  confidence: confirmed

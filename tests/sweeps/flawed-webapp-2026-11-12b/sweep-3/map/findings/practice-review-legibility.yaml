@@ -1,0 +1,150 @@
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The in-memory store decision has an accepted decision record that names what was
+    chosen, the interface that bounds it, its consequence (a restart loses data), and why
+    SQLite was not taken now, and the store module points back to that record.
+  evidence: [docs/adr/0001-storage-choice.md:12-17, docs/adr/0001-storage-choice.md:19-23, docs/adr/0001-storage-choice.md:25-29, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The fallback identity for an unknown or missing token, and its admin role, carries its
+    rationale at the choice (never lock the demo out during deploys, keep ops tooling
+    working), though no record weighs it against refusing the request.
+  evidence: [lib/auth.mjs:9-12]
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The fire-and-forget backup push is explained only by a one-line premise that failures
+    are rare inside the VPC; nothing says why the push is not awaited or why its errors are
+    discarded while the function returns success.
+  evidence: [lib/sync.mjs:7-13]
+  confidence: plausible
+- id: F-104
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The zero-dependency choice is stated but not explained: the server header names it and
+    the runtime it needs, and the ADR's only related reason covers the database alone;
+    no file says why a framework or other package was declined.
+  evidence: [server.mjs:1, package.json:1-9, docs/adr/0001-storage-choice.md:21]
+  confidence: confirmed
+- id: F-105
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The unauthenticated sync route records only that it has no authorization check, not
+    why; the README's entry for the route is silent on it, and no other file gives a reason.
+  evidence: [server.mjs:47-49, README.md:19]
+  confidence: confirmed
+- id: F-106
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says the API exposes 4 endpoints; the server dispatches 5 routes.
+  evidence: [README.md:14, server.mjs:30, server.mjs:35, server.mjs:42, server.mjs:47, server.mjs:52]
+  confidence: confirmed
+- id: F-107
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Each of the four endpoints the README lists exists in the server with the method and
+    path the README gives.
+  evidence: [README.md:16-19, server.mjs:30, server.mjs:35, server.mjs:42, server.mjs:47]
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's run command, node server.mjs, matches the code: the server listens when the
+    file is run directly, and the package's only script is the same command.
+  evidence: [README.md:23-25, server.mjs:59-61, package.json:6-8]
+  confidence: confirmed
+- id: F-109
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README's test command, npm run test:all, names a script the package does not define;
+    the package has only a start script.
+  evidence: [README.md:29-33, package.json:6-8]
+  confidence: confirmed
+- id: F-110
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says every endpoint is covered by the smoke suite; the one test file calls
+    the authenticate function once and makes no request to any endpoint.
+  evidence: [README.md:35, test/smoke.mjs:5-9]
+  confidence: confirmed
+- id: F-111
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The ADR's interface claim holds: the store module it names exists and exports the
+    session lookup, the notes map and purgeAll it lists.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, lib/db.mjs:8, lib/db.mjs:19-25, lib/db.mjs:27-31]
+  confidence: confirmed
+- id: F-112
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README's endpoint list is a second account of the server's route table with no
+    guard tying them, and it has drifted: it omits the admin purge route.
+  evidence: [README.md:16-19, server.mjs:30-54]
+  confidence: confirmed
+- id: F-113
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The admin route's header comment gives the purge route's method as DELETE, while the
+    server dispatches it on POST.
+  evidence: [routes/admin.mjs:5, server.mjs:52-54]
+  confidence: confirmed
+- id: F-114
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Who is an admin is stated twice: an adminEmails list in settings that no code reads,
+    and the role field in the user table that authorization checks; neither is marked as
+    the home.
+  evidence: [config/settings.mjs:8, lib/db.mjs:5, lib/auth.mjs:15-17]
+  confidence: confirmed
+- id: F-115
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The store module's header restates ADR-0001 as present fact (real deployments swap it
+    for the SQLite adapter) while the ADR says the adapter is yet to land and no adapter
+    exists in the tree; it cites the ADR as its home but drifts from it.
+  evidence: [lib/db.mjs:1, docs/adr/0001-storage-choice.md:15-17]
+  confidence: plausible
+- id: F-116
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The settings header sends the reader to the README for environment notes; the README has
+    no such section (only Endpoints, Running and Testing), and no setting is read from the
+    environment.
+  evidence: [config/settings.mjs:1-9, README.md:12, README.md:21, README.md:27]
+  confidence: confirmed

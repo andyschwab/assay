@@ -1,0 +1,100 @@
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The backup push (channel backup-push) fires its HTTP request without awaiting it, swallows
+    any failure with an empty catch, and returns ok true with the note count regardless, which
+    POST /sync sends back as a 200, so the success report never confirms the push happened.
+  evidence: [lib/sync.mjs:7-13, server.mjs:47-49]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant's email send (channel assistant-email-send) reports emailed with the recipient
+    without reading the transport's result, and the transport itself returns sent true
+    unconditionally while only logging a line (its own header says nothing ever actually sends),
+    so the report is decoupled from the effect.
+  evidence: [lib/agent.mjs:39-40, lib/mailer.mjs:1-2, lib/mailer.mjs:5-8]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-403
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    The workspace purge (channel workspace-purge) clears the in-memory store synchronously and
+    returns a constant purged true that the admin route writes out as a 200; the report is a
+    literal, not read back from the store's state, though the in-process clear has no
+    asynchronous step where it could drop.
+  evidence: [lib/db.mjs:27-31, routes/admin.mjs:8-10]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-404
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    Note creation (channel note-create) writes the note into the in-memory map synchronously and
+    then answers 201 with the new id; nothing reads the write back, but the report follows an
+    in-process write with no failure path that could be swallowed.
+  evidence: [server.mjs:35-39]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The only check a change can run asserts that authenticate returns a truthy user for a valid
+    token, an assertion that holds for any token because unknown tokens fall back to a default
+    identity, and it is wired to no script, so no change can demonstrate a behaviour through it.
+  evidence: [test/smoke.mjs:7-9, lib/auth.mjs:8-12, package.json:6-8]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-406
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The AI assistant feature (ask over the stub model) has no eval of its answer quality: the one
+    test file imports only the auth module, and the target has no test script or CI job that
+    could run one.
+  evidence: [lib/agent.mjs:33-43, test/smoke.mjs:4-5, package.json:6-8]
+  confidence: confirmed
+- id: F-407
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the model's output before it is used: the answer is returned to the caller
+    as produced and a TOOL directive line in it is parsed and acted on directly, with no
+    validation of the answer's content or the recipient however plausible the output reads.
+  evidence: [lib/agent.mjs:34-42]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-408
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    No change states its verification inside the target: the tracked files hold no pull request
+    template, hook or CI config, the package declares only a start script, and the README's
+    testing section names a test command that does not exist.
+  evidence: [package.json:6-8, README.md:29-35]
+  confidence: confirmed
+- id: F-409
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The app can be exercised in process without a network: the server is exported and only
+    listens when run as the entry point, and the model is a deterministic stub, so a change to
+    the assistant or a route could demonstrate itself against fixed inputs, though no test
+    does so today.
+  evidence: [server.mjs:59-63, lib/agent.mjs:23-31]
+  confidence: confirmed
+  property: change-demonstrable

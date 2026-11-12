@@ -1,0 +1,44 @@
+- id: F-301
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The target contains no change gate at all: package.json declares only a `start` script, and no CI workflow, commit or push hook, lint, typecheck, scan or schema-check configuration exists among the target's 12 files, so nothing checks a change before it lands.
+  evidence: [package.json:6-8]
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The one test file is wired to nothing in the target: no package script runs test/smoke.mjs, and the README's documented suite command `npm run test:all` names a script package.json does not define, so a regression in the central modules is caught by no gate inside the target, only by someone running the file by hand.
+  evidence: [package.json:6-8, README.md:29-35, test/smoke.mjs:4-11]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-303
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The smoke suite's only check, `assert.ok(u)` on authenticate with a valid token, has no negative fixture and cannot go red on an auth regression, because authenticate returns a truthy fallback admin identity for any unknown or missing token; it imports only lib/auth.mjs, so no route, store, assistant or sync behaviour is exercised.
+  evidence: [test/smoke.mjs:5-9, lib/auth.mjs:7-12]
+  confidence: confirmed
+  property: central-regression-caught
+- id: F-304
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The HTTP request interface validates nothing: readBody turns malformed JSON into an empty object, and POST /notes and POST /assistant coerce a missing field to an empty string and proceed (a 201 for an empty note), so a wrong input is accepted silently instead of failing loudly.
+  evidence: [server.mjs:11-19, server.mjs:35-39, server.mjs:42-45]
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-305
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The storage interface ADR-0001 commits to (lookup, the notes map surface, purgeAll, with the future SQLite adapter required to satisfy it) is pinned by no contract test or type, so an adapter that broke it would not be caught by any check in the target.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, lib/db.mjs:19-31, test/smoke.mjs:4-5]
+  confidence: confirmed
+  property: interface-contract-enforced

@@ -1,0 +1,107 @@
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs has a head comment (lines 1-2) and reaches 7 in-repo source files transitively
+    (auth, db, agent, mailer, sync, admin, settings; within the bound of ten), but no test file
+    imports it, so it has nothing to run on its own.
+  evidence: [server.mjs:1-2, server.mjs:3-9, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-202
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs has a head comment (lines 1-2; lines 4-7 are harness text) and reaches 3
+    in-repo files (db, mailer, settings), but no test file imports it, so the assistant module
+    has nothing to run on its own.
+  evidence: [lib/agent.mjs:1-2, lib/agent.mjs:8-9, lib/mailer.mjs:3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-203
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs meets all three parts: a head comment states its job, test/smoke.mjs imports
+    it directly, and its only in-repo import is lib/db.mjs (one file).
+  evidence: [lib/auth.mjs:1-2, test/smoke.mjs:5, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-204
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs has a head comment and imports nothing, but no test file imports it, so the
+    store has nothing to run on its own.
+  evidence: [lib/db.mjs:1, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs has a head comment and reaches one in-repo file (config/settings.mjs), but no
+    test file imports it, so it has nothing to run on its own.
+  evidence: [lib/mailer.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs has a head comment and reaches two in-repo files (db, settings), but no test
+    file imports it, so the backup push has nothing to run on its own.
+  evidence: [lib/sync.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs has a head comment ("Admin routes.") and reaches two in-repo files (db,
+    auth), but no test file imports it, so the purge handler has nothing to run on its own.
+  evidence: [routes/admin.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs has a head comment and imports nothing, but no test file imports it, so
+    it has nothing to run on its own.
+  evidence: [config/settings.mjs:1-2, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-209
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    The one model call site, the local stand-in callModel, returns a bare string and neither it
+    nor its caller ask() writes any record of model or tier, usage or cost, or outcome to any
+    sink, on success or otherwise.
+  evidence: [lib/agent.mjs:27-31, lib/agent.mjs:33-43]
+  confidence: confirmed
+- id: F-210
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The tree names no model or tier for the assistant (the call is an unnamed local stub) and
+    holds no qualification record for it: the only decision record is the storage ADR, which
+    calls the assistant the differentiator yet records no model choice, rationale or
+    re-qualification trigger.
+  evidence: [lib/agent.mjs:27-31, docs/adr/0001-storage-choice.md:1, docs/adr/0001-storage-choice.md:27-29, README.md:1-5]
+  confidence: confirmed
+- id: F-211
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The only entry doc, README.md, routes by HTTP endpoint, run command and test command but
+    names no module, directory or file behind any endpoint, and there is no agent-facing entry
+    file, so a stranger reaches the subsystem a task needs only by reading the imports in
+    server.mjs.
+  evidence: [README.md:12-35, server.mjs:1-9]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger

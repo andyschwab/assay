@@ -1,0 +1,144 @@
+- id: F-101
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D1 (in-memory store behind the lib/db.mjs interface) reconstructs from files alone: ADR-0001 states the context, the decision, its consequences and why SQLite was not chosen now, and the store module points back to the ADR.
+  evidence: [docs/adr/0001-storage-choice.md:6-29, lib/db.mjs:1]
+  confidence: confirmed
+- id: F-102
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D2 (an unknown or missing token falls back to a default identity treated as admin) carries its rationale in a comment at the choice: the demo is never locked out during deploys and ops tooling keeps working; whether that rationale is sound is the delegation pass's, not this one's.
+  evidence: [lib/auth.mjs:9-12]
+  confidence: confirmed
+- id: F-103
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D3 (the backup API key held as a string literal in config) has no recorded reason: the only note at the choice is a TODO to move it to env before launch, and the file header defers to "README for environment notes" that the README does not contain.
+  evidence: [config/settings.mjs:1, config/settings.mjs:5-6, README.md:1-35]
+  confidence: confirmed
+- id: F-104
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D4 (the backup push is not awaited, its errors swallowed, and ok returned) is explained only by a one-line assumption that the relay "accepts within our VPC so failures are rare"; nothing says why the result is reported before the push completes, and the configured backup URL is an external https host the files do not tie to any VPC.
+  evidence: [lib/sync.mjs:7-13, config/settings.mjs:4]
+  confidence: plausible
+- id: F-105
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D5 (zero dependencies, bare node:http) is stated but not justified: the server header names the choice, package.json declares no dependencies, and the only written reason (the ADR) covers avoiding a database dependency, not a framework or any other library.
+  evidence: [server.mjs:1-2, package.json:1-9, docs/adr/0001-storage-choice.md:21, docs/adr/0001-storage-choice.md:25-29]
+  confidence: plausible
+- id: F-106
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D6 (a log-only mail transport) is named in the mailer's comments, which say production posts to a mail relay, but no file names that relay, a setting that selects it, or why this build ships without it; config holds only a from-address.
+  evidence: [lib/mailer.mjs:1-8, config/settings.mjs:2-9]
+  confidence: plausible
+- id: F-107
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D7 (POST /sync carries no authorization check) is acknowledged in a comment at the route but no reason is given, unlike the purge route beside it, which checks requireAdmin.
+  evidence: [server.mjs:47-50, routes/admin.mjs:7]
+  confidence: confirmed
+- id: F-108
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C1 does not hold: the README says the API exposes 4 endpoints, while the server routes five (GET /notes, POST /notes, POST /assistant, POST /sync, POST /admin/purge).
+  evidence: [README.md:14, server.mjs:30, server.mjs:35, server.mjs:42, server.mjs:47, server.mjs:52]
+  confidence: confirmed
+- id: F-109
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C2 does not hold in full: the README's endpoint list omits POST /admin/purge, the workspace-wide destructive route; the four routes it does list match the server's methods and paths.
+  evidence: [README.md:16-19, server.mjs:52-54, routes/admin.mjs:6-11]
+  confidence: confirmed
+- id: F-110
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    C3 holds against the code: `node server.mjs` starts the listener on the configured port when the file is run directly, and npm start runs the same command; not replayed in a fresh-clone run (nothing executed).
+  evidence: [README.md:23-25, server.mjs:59-61, package.json:7, config/settings.mjs:3]
+  confidence: plausible
+- id: F-111
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C4 does not hold: the README's test command `npm run test:all` names a script package.json does not define; its only script is start.
+  evidence: [README.md:31-33, package.json:6-8]
+  confidence: confirmed
+- id: F-112
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C5 does not hold: the README says every endpoint is covered by the smoke suite, but the suite imports no route or server and makes one assertion, that authenticate resolves a valid token.
+  evidence: [README.md:35, test/smoke.mjs:4-11]
+  confidence: confirmed
+- id: F-113
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C6 does not hold as stated: the README says the assistant can email summaries, but the only transport sendEmail reaches writes a log line and returns sent true, so no email leaves the process.
+  evidence: [README.md:4-5, README.md:18, lib/agent.mjs:36-40, lib/mailer.mjs:5-8]
+  confidence: confirmed
+- id: F-114
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    C7 does not hold in full: the ADR names the store interface as lookup, the notes map surface and purgeAll, but lib/agent.mjs also imports and reads the users array, so an adapter satisfying only the named interface would break the assistant; the call sites above lib/ (server.mjs, routes/admin.mjs) do stay within it.
+  evidence: [docs/adr/0001-storage-choice.md:14-17, lib/agent.mjs:8, lib/agent.mjs:13, lib/db.mjs:2-6, server.mjs:5, routes/admin.mjs:2]
+  confidence: confirmed
+- id: F-115
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    C8 holds against the code: notes, users and tokens live only in module-level in-memory structures and POST /notes writes only to the in-memory map, so a restart loses data as the ADR says.
+  evidence: [docs/adr/0001-storage-choice.md:22-23, lib/db.mjs:2-17, server.mjs:38]
+  confidence: confirmed
+- id: F-116
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The purge route's method is stated twice and the two accounts disagree: the handler's comment calls it DELETE /admin/purge while the server routes it as POST, and nothing marks either as the home.
+  evidence: [routes/admin.mjs:5, server.mjs:52]
+  confidence: confirmed
+- id: F-117
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Who is an admin has two homes: config lists adminEmails, which no code reads, while authorization reads the role field on the user records; neither defers to the other.
+  evidence: [config/settings.mjs:8, lib/db.mjs:5, lib/auth.mjs:15-17]
+  confidence: confirmed
+- id: F-118
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Note ownership is remembered in two stores: each user record carries a notes id list and each note an owner field; POST /notes sets only the owner field, so the per-user list drifts from the first new note (purgeAll clears both).
+  evidence: [lib/db.mjs:3-4, lib/db.mjs:9-10, server.mjs:38, lib/db.mjs:28-29]
+  confidence: confirmed

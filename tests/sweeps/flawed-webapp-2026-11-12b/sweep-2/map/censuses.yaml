@@ -1,0 +1,95 @@
+# map/censuses.yaml — authored by the practice-review passes (flawed-webapp, 2026-11-12)
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is strong: ADR-0001 records context, decision, consequences and the
+      rejected alternative, and the code defers to it (F-101, F-116); elsewhere rationale is a
+      one-line comment or absent (F-104, F-105, F-107) and the README fails four of its six
+      concrete claims (F-108, F-111, F-112, F-113).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions whose rationale reconstructs from the files alone"
+        members: [F-101, F-102, F-103, F-104, F-105, F-106, F-107]
+        method: "every decision the terrain froze, D1-D7, one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "README concrete claims that hold when replayed against the code"
+        members: [F-108, F-109, F-110, F-111, F-112, F-113]
+        method: "every doc claim the terrain froze, C1-C6, one finding each, replayed against the code (no fresh-clone run)"
+  - dimension: context-economy
+    depth: >
+      The best instance is lib/auth.mjs, which has a head comment, a test that imports it and one in-repo import (F-203); every other module is small and documented at its head but has no test to run (F-201, F-202, F-204 to F-208), the model call records nothing (F-209), and the README routes a stranger to no module (F-211).
+    sampled:
+      - name: modules-standalone
+        what: "modules an agent can load alone with something to read, something to run, and at most ten transitive in-repo imports"
+        members: [F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208]
+        method: "every module the terrain froze, 8, one finding each"
+        primary: true
+      - name: model-call-telemetry
+        what: "model call sites that emit one structured record of tier, spend and outcome"
+        members: [F-209]
+        method: "every modelCalls candidate in map/raw/enumerate.json plus any the review found"
+  - dimension: deterministic-gates
+    depth: >
+      Weak even at its best instance: the target wires no gate (F-301), and its one check, the
+      smoke test, cannot go red because the identity it asserts on is always present by fallback
+      (F-302), with no negative fixture (F-303), no gate for a central regression (F-304) and a
+      request interface that fails silently (F-305).
+    sampled:
+      - name: change-gates
+        what: "every CI job or step, hook and config-driven check a change passes through inside the target, asked whether it goes red when what it needs is absent or never finishes"
+        members: [F-301, F-302]
+        method: "populations.changeGates of enumerate.json is empty; every target file was read for scripts, hooks, CI and checks: the package scripts (F-301, recording the absence of any wired gate) and the one check found, test/smoke.mjs (F-302), one finding each"
+        primary: true
+  - dimension: verification
+    depth: >
+      The best instance is a deterministic offline model stub that makes the assistant path reproducible from fixed inputs (F-406), but nothing builds on it: both outbound effects report success without confirming it (F-401, F-402), model output is acted on unchecked (F-404), and the one test proves no route (F-405).
+    not_measured: "no census row is decided by this pass; its rows are owner-attested claims, filled here as context only"
+  - dimension: delegation
+    depth: >
+      The best instance is thin: reads are scoped per owner on one route (F-513) and the purge
+      sits behind a deterministic role check, but that check fails open to the admin fallback
+      identity (F-504, F-512), and no halt-class effect holds a gate, the assistant context
+      holding all three trifecta legs and reaching the ungated email send (F-505, F-502, F-503).
+    sampled:
+      - name: credential
+        what: "each secret the app reads, with its read site and reach traced and held below the prompt boundary"
+        members: [F-506, F-507]
+        method: "every populations.secrets candidate in map/raw/enumerate.json, one finding each, plus any the review found"
+      - name: ingested-content
+        what: "each ingestion point whose text is kept as data, stored verbatim with provenance, rendered escaped and never acted on as an instruction"
+        members: [F-508, F-509, F-510]
+        method: "every ingestion point the terrain froze, I1-I3, one finding each"
+  - dimension: improvement-loop
+    depth: >
+      No recorded lesson became a mechanism: the one lesson the tree states, the smoke suite's self-named shallowness, stays a comment with no check that fails on the auth defects it names (F-601), and outstanding work lives in a code TODO and ADR prose rather than tracked issues (F-602, F-603).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "every lesson the tree records (incident, postmortem, review correction, lessons entry, or a fix naming its cause), asked whether it became a durable mechanism"
+        members: [F-601]
+        method: "terrain found no incident, postmortem or lessons file; every file of the 12-file target was read for a stated lesson, and the one found (the smoke suite header naming the gap it leaves) gets one finding; the settings TODO and the ADR's deferred persistence are backlog, not lessons, so they sit in backlog-records"
+        primary: true
+  - dimension: multiplayer
+    depth: >
+      The best instance is a README endpoint list naming four of the five routes by method and path (F-701 to F-704), with no request or response schema and the admin route left undocumented (F-705); the shared context is unconsented, since the assistant reads and emails every member's notes (F-706, F-708).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces an agent can reach through an API or format contract stated outside the code, of all interfaces the app offers"
+        members: [F-701, F-702, F-703, F-704, F-705]
+        method: "every interface in the terrain's agent-consumable surface (the five HTTP routes in server.mjs; no screen, command, tool or data-file interface exists), one finding each, met when a doc outside the code names the route's method and path"
+        primary: true
+context:
+  - name: second-accounts
+    members: [F-114, F-115, F-116]
+  - name: model-qualification
+    members: [F-210]
+  - name: guard-fixtures
+    members: [F-303]
+  - name: change-verification
+    members: [F-407]
+  - name: ai-feature-evals
+    members: [F-403]
+  - name: ai-disclosure
+    members: [F-511]
+  - name: backlog-records
+    members: [F-602, F-603]

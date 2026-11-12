@@ -1,0 +1,230 @@
+- id: F-501
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /notes writes caller-supplied text into the shared in-memory note store as the
+    resolved user, and an unauthenticated caller is resolved to the fallback admin identity,
+    so anyone who reaches the port can write a note that the assistant later reads into its
+    prompt, with no check in front of the write and no record of it.
+  evidence: [server.mjs:27, server.mjs:35-39, lib/auth.mjs:9-12, lib/agent.mjs:12-15]
+  confidence: confirmed
+  effect:
+    channel: note-create
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+  reaches: [F-505]
+
+- id: F-502
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    When the model output carries a send_email directive, ask() mails the text of every
+    note in the workspace, across all owners, to the recipient and subject the model chose,
+    with nothing between the regex parse and sendEmail, and the only record is a console.log
+    line of recipient, sender, subject and byte count.
+  evidence: [lib/agent.mjs:33-41, lib/mailer.mjs:1-2, lib/mailer.mjs:5-8, server.mjs:42-44]
+  confidence: confirmed
+  effect:
+    channel: assistant-email-send
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: tenant
+  preconditions: [prompt-injection]
+  escapes: [F-513]
+  label: "every note in the workspace mailed to a model-chosen address"
+
+- id: F-503
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /sync, which carries no authorization check, posts the whole note set of every
+    owner to the external backup URL under the backup bearer key, fire-and-forget with the
+    fetch error swallowed and no log line, so the push is neither gated nor recorded.
+  evidence: [server.mjs:47-49, lib/sync.mjs:5-13, config/settings.mjs:4]
+  confidence: confirmed
+  effect:
+    channel: workspace-backup-push
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [network-position]
+  escapes: [F-513]
+
+- id: F-504
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /admin/purge clears every note and every user's note list behind requireAdmin, a
+    deterministic role check that fails open, because a missing or unknown token resolves
+    to a fallback identity with role admin, so an anonymous caller passes it, and the purge
+    writes no record.
+  evidence: [server.mjs:52-54, routes/admin.mjs:6-10, lib/auth.mjs:9-17, lib/db.mjs:27-31]
+  confidence: confirmed
+  effect:
+    channel: workspace-purge
+    reversibility: irreversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: open
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [network-position]
+  label: "an anonymous caller wipes the workspace"
+
+- id: F-505
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  observation: >
+    The assistant context in ask() holds note text any caller can write and the question any
+    caller sends (untrusted input), every owner's notes and owner email addresses (private
+    data), and an outbound email it fires from its own output (outward write), reaching the
+    ungated email send.
+  evidence: [lib/agent.mjs:11-21, lib/agent.mjs:27-31, lib/agent.mjs:33-41, server.mjs:42-44]
+  confidence: confirmed
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+  label: "the notesbox assistant"
+  reaches: [F-502]
+
+- id: F-506
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    backupApiKey is a vendor-prefixed key held as a string literal in the settings module
+    (a TODO says to move it to the environment), read only in pushBackup as the bearer header
+    for the backup URL, so it stays below the prompt boundary, but it ships in source and
+    any unauthenticated POST /sync spends it, and its scope on the backup service is not
+    stated in the code.
+  evidence: [config/settings.mjs:5-6, lib/sync.mjs:8-11, server.mjs:47-49]
+  confidence: confirmed
+
+- id: F-507
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    tokenTable is a static map of three short literal bearer tokens to user ids, the admin
+    included, held in source with no expiry or rotation, read only by sessions.lookup for
+    authenticate, and it bounds nothing since a missing or unknown token already resolves
+    to an admin identity.
+  evidence: [lib/db.mjs:13-17, lib/db.mjs:19-25, lib/auth.mjs:5-12]
+  confidence: confirmed
+
+- id: F-508
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    I1, note text from POST /notes, is stored verbatim with its owner id and returned only
+    as JSON, but is concatenated unlabelled into the assistant prompt beside the tool
+    instruction, and a send_email line inside a note is followed and executed.
+  evidence: [server.mjs:36-38, lib/agent.mjs:12-19, lib/agent.mjs:28-29, lib/agent.mjs:35-39]
+  confidence: confirmed
+
+- id: F-509
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    I2, the question from POST /assistant, is not stored and is interpolated straight into
+    the prompt after the instructions, so a send_email line in the question is reproduced
+    by the model and executed as a tool call.
+  evidence: [server.mjs:43-44, lib/agent.mjs:19, lib/agent.mjs:28-29, lib/agent.mjs:35-39]
+  confidence: confirmed
+
+- id: F-510
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    I3, the model output, is parsed by a regex for a send_email directive and the directive
+    is acted on directly with the model-chosen recipient and subject, with no allowlist,
+    confirmation or provenance check between output and send.
+  evidence: [lib/agent.mjs:35-39]
+  confidence: confirmed
+
+- id: F-511
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant's outbound email carries a model-chosen subject and the raw note text as
+    its body from the shared assistant sender address, with no statement in subject or body
+    that an AI initiated it and no recorded reason the recipient needs none.
+  evidence: [lib/agent.mjs:37-39, lib/mailer.mjs:5-8, config/settings.mjs:7]
+  confidence: confirmed
+
+- id: F-512
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Every effect acts as whatever authenticate returns, and for a missing or unknown token
+    that is one shared default identity with role admin, so an anonymous caller is
+    indistinguishable from an admin and the email goes out from one shared sender rather
+    than as the asking user.
+  evidence: [lib/auth.mjs:5-12, server.mjs:27, config/settings.mjs:7, lib/agent.mjs:1-2]
+  confidence: confirmed
+  property: acting-principal-stated
+
+- id: F-513
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    GET /notes returns only the notes whose owner is the resolved caller, scoping reads to
+    one user.
+  evidence: [server.mjs:30-33]
+  confidence: confirmed
+  property: per-owner-read-scope
+
+- id: F-514
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Note reads are scoped per owner only on GET /notes, while the assistant prompt, the email
+    body and the backup push read every owner's notes with no sanctioned, gated path that
+    promotes a note beyond its owner.
+  evidence: [server.mjs:31, lib/agent.mjs:12, lib/agent.mjs:38, lib/sync.mjs:6]
+  confidence: confirmed
+  property: scope-promotion-path
+
+- id: F-515
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The only policy between model output and the send is a regex match on the directive; the
+    prompt labels notes by owner email but not as untrusted, and nothing reasons over which
+    origin produced the recipient or subject that reach sendEmail.
+  evidence: [lib/agent.mjs:14, lib/agent.mjs:16-20, lib/agent.mjs:35-39]
+  confidence: confirmed
+  property: policy-reads-provenance
+
+- id: F-516
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant acts with agency (it sends mail on its own output) yet carries no
+    behavioural spec, output check or collaboration checkpoint, and the only test asserts
+    that a valid token resolves a user.
+  evidence: [lib/agent.mjs:33-41, test/smoke.mjs:7-9, package.json:6-8]
+  confidence: confirmed
+  property: control-matches-modality
