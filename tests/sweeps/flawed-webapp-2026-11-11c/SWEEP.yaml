@@ -16,6 +16,9 @@
 # 26, 26 and 25 of 26 (sweep-3 recorded no gated effect, so d-gates-fail-closed read not measured where
 # the sheet says unmet). Against flawed-webapp-2026-11-11b read at the same engine: identical in all
 # three 10 -> 9 of 12; strengths cited 11, 11 and 13 (9, 11, 9 in 11b).
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): 8 channels → 7, shared 4 → 4, identical 3 → 3 (75%), unchanged; requirement
+# agreement 8 of 11 (73%), unchanged.
 target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
 target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
 method_commit: "8d533a56718234258a1e9c2d25ddd91d5bf830ca"

@@ -1,3 +1,7 @@
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): no effect triage (the set predates map/effect-triage.yaml), so every channel
+# keeps its slug: 17 channels, 5 shared, 1 identical (20%) and requirement agreement 0 of 1,
+# unchanged.
 target: "andyschwab/assay, this repository (public), read as a git archive of its default branch"
 target_commit: "c30912c762fc20649fec8225c0d5d2544fdc7fa8"
 method_commit: "c30912c762fc20649fec8225c0d5d2544fdc7fa8"

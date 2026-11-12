@@ -19,6 +19,10 @@
 # Fact presence reads high here because the target is 12 files: the fact key (dimension + a shared
 # evidence path) folds most of a dimension's findings into one fact, so 300 findings make 9 facts.
 # On a target this small, requirement agreement is the measure that carries information.
+# Re-measured under #298's channel key (a channel is the candidate its run's effect-triage maps to
+# it, else its slug): no effect triage (the set predates map/effect-triage.yaml), so every channel
+# keeps its slug: 5 channels, 4 shared, 2 identical (50%) and requirement agreement 5 of 5,
+# unchanged.
 target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
 target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
 method_commit: "4b81665457efa1435da9420028738acdfdcb1832"
