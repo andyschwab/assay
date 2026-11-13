@@ -81,6 +81,11 @@ map:
 
 default: FAIL
 
+# confidence (map/scanners/CONTRACT.md §3, map/confidence.mjs, #319): how much assay knows about
+# this scanner's gaps. A deterministic instrument: the same tree reads the same result.
+confidence:
+  evidence: deterministic
+
 decides:
   - requirement: d-dependencies-known-clean
     category: critical

@@ -58,6 +58,37 @@ map:
 
 default: FAIL
 
+# confidence (map/scanners/CONTRACT.md §3, map/confidence.mjs, #319): a deterministic
+# instrument, with one step it declares could not have run (#256). A test step that failed
+# within seconds, reported no test counts (tests: unparsed), on a tree carrying a database
+# signal (a database file or dependency, map/fresh-clone.mjs) and no services declaration
+# (.assay/services.yaml, #305: where one is present it decides, so a provided service's
+# failure is the suite's and a refused declaration never turns a failing suite into not
+# measured), is the suite refusing to start for want of a service this measurement did not
+# give it: nothing about the suite was measured. Ingest records each fact on the row's detail:.
+confidence:
+  evidence: deterministic
+  not_measured:
+    - id: test-refused-for-want-of-a-service
+      category: test
+      reason: "the suite stopped within seconds with no test counted, on a tree that names a database this clean machine did not provide, and no services declaration says how to give it one: no test ran, so the step measured nothing about the suite (#256)"
+      when:
+        status: failed
+        tests: unparsed
+        duration_ms:
+          at_most: 10000
+        needs_service:
+          present: true
+    # a migrate the runner did not run because its only form needs a live database and this
+    # clean machine has none (reason_code needs-live-database, written by map/fresh-clone.mjs and
+    # carried onto the row at ingest): the same #256 shape, no step ran
+    - id: migrate-needs-a-live-database
+      category: migrate
+      reason: "the migration is declared, but its only form needs a live database, which this clean machine does not have, and no dry form exists: no migration ran, so the step measured nothing about whether the schema replays (#256)"
+      when:
+        status: not-declared
+        reason_code: needs-live-database
+
 # handoff (map/scanners/CONTRACT.md §3, block style only): the default unit
 # (finding) already groups every step failing the same way under one remedy.
 # client_proof needs nothing this repository's own team does not already have:

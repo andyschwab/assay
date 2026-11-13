@@ -159,6 +159,11 @@ map:
 
 default: FAIL
 
+# confidence (map/scanners/CONTRACT.md §3, map/confidence.mjs, #319): how much assay knows about
+# this scanner's gaps. A deterministic instrument: the same tree reads the same result.
+confidence:
+  evidence: deterministic
+
 # "actions pinned by SHA" in d-dependencies-pinned, decided mechanically beside the code
 # reviewer's domain K (#177, #180)
 decides:

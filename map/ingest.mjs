@@ -66,7 +66,7 @@ import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_LIVE_
 // a raw report an earlier census wrote may carry a check whose requirement is retired (#311):
 // it still ingests, its rows mapped by the adapter, decided by no requirement
 const RC_CHECKS = [...RC_LIVE_CHECKS, ...RC_RETIRED_CHECKS];
-import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS } from './fresh-clone.mjs';
+import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS, REASON_CODES as FC_REASON_CODES } from './fresh-clone.mjs';
 import { SERVICES_FILE } from './services.mjs';
 import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs';
 import { TOOL_STATUS as SS_TOOL_STATUS, UNUSED_KINDS as SS_UNUSED_KINDS, HISTORY as SS_HISTORY, TEST_PATH as SS_TEST_PATH } from './structure-scan.mjs';
@@ -142,6 +142,8 @@ const PROFILES = {
           if (!FC_STEP_STATUS.includes(s.status)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: status "${s.status}" is not one of ${FC_STEP_STATUS.join(' | ')}`);
           if (seen.has(s.name)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name} appears twice`);
           seen.add(s.name);
+          // a step's reason as data (#319): one of the runner's closed codes, carried onto its row
+          if (s.reason_code !== undefined && !FC_REASON_CODES.includes(s.reason_code)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: reason_code "${s.reason_code}" is not one of ${FC_REASON_CODES.join(' | ')}`);
           // a step that ran with a target's declared services names each one, throwaway (#256)
           if (s.services !== undefined && !(Array.isArray(s.services) && s.services.length && s.services.every((x) => x && typeof x.name === 'string' && typeof x.image === 'string' && x.throwaway === true))) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: services must name each service, its image, and throwaway: true (truncated report?)`);
           // covered: a step this workspace does not declare, reached by a PASSING root step
@@ -165,6 +167,7 @@ const PROFILES = {
               polarity: 'fact',
               observation: `Fresh-clone step ${s.name}${ctx.inLabel} did not run${s.reason ? ': ' + oneLine(s.reason) : ''}; nothing was measured about whether a clean checkout can ${FC_VERB[s.name]}${ctx.inLabel}.`,
               evidence: [ctx.manifest],
+              ...(s.reason_code ? { detail: { status: s.status, reason_code: s.reason_code } } : {}),
             });
             continue;
           }
@@ -209,6 +212,12 @@ const PROFILES = {
           }
           else if (s.status === 'not-declared' && FC_FLOOR_STEPS.includes(s.name)) observation = `Fresh-clone step ${s.name} is not declared in a runnable form${ctx.inLabel}${s.reason ? ' (' + oneLine(s.reason) + ')' : ''}; nothing in the repository ${FC_DECLARES[s.name]}, so a clean checkout cannot ${FC_VERB[s.name]}${ctx.inLabel}.`;
           if (!observation) continue;
+          // the facts a step that ran and did not pass leaves (#319): its status, how long it ran,
+          // whether the suite reported counts, and, where the tree names a database and no
+          // services declaration decides it (#305), the database signal: what the adapter's
+          // confidence.not_measured pair reads to tell a suite that refused to start from one that failed
+          const ran = s.status === 'failed' || s.status === 'timed-out';
+          const needsService = ran && !ctx.declaresServices && ctx.dbSignals.length ? ctx.dbSignals.join(', ') : null;
           rows.push({
             id: fid(startId + n++),
             source: 'fresh-clone',
@@ -218,6 +227,8 @@ const PROFILES = {
             observation,
             evidence: [ctx.manifest],
             fix: FC_FIX[s.name],
+            ...(!ran && s.reason_code ? { detail: { status: s.status, reason_code: s.reason_code } } : {}),
+            ...(ran ? { detail: { status: s.status, duration_ms: Number.isInteger(s.duration_ms) ? s.duration_ms : null, ...(s.name === 'test' ? { tests: s.tests === 'unparsed' ? 'unparsed' : s.tests && typeof s.tests === 'object' ? 'counted' : null } : {}), needs_service: needsService } } : {}),
           });
         }
         for (const s of FC_STEPS) if (!seen.has(s)) throw new Error(`fresh-clone${ctx.errLabel} has no row for step ${s} — a step the runner did not record is not a pass (truncated report?)`);
@@ -246,11 +257,16 @@ const PROFILES = {
       const anyWsSignals = (e) => Array.isArray(e.workspaces) && e.workspaces.some((w) => w && hasSignals(w.toolchain));
       // a nested project's database (#246) is the tree's too: the root's "no database signal" reads them
       const rootDbSignals = hasSignals(rep.toolchain) || anyWsSignals(rep) || (rep.projects || []).some((pr) => pr && (hasSignals(pr.toolchain) || anyWsSignals(pr)));
+      // the signals themselves, for a step row's detail (#319): an entry's own and its workspaces'
+      const signalsOf = (e) => [...new Set([...(hasSignals(e && e.toolchain) ? e.toolchain.database_signals : []),
+        ...((e && Array.isArray(e.workspaces)) ? e.workspaces : []).flatMap((w) => (w && hasSignals(w.toolchain) ? w.toolchain.database_signals : []))].map(String))];
       emitEntry(rep.steps, rep.readme_claims, {
         idPrefix: '', inLabel: rep.app ? ` in ${rep.app.path}` : '', errLabel: '', dir: appDir,
         manifest: (rep.toolchain && rep.toolchain.manifest) ? `${appDir}${rep.toolchain.manifest}:1` : 'map/raw/fresh-clone.json:1',
         readme: rep.readme || 'README.md',
         hasDbSignals: rootDbSignals,
+        // the services declaration binds the root project only (#305): where present it decides
+        dbSignals: signalsOf(rep), declaresServices: rep.services !== undefined,
       });
 
       // a workspace of the root (base: the root's application directory) or of a nested project
@@ -265,6 +281,7 @@ const PROFILES = {
           manifest: (w.toolchain && w.toolchain.manifest) ? `${wp}/${w.toolchain.manifest}:1` : `${wp}/package.json:1`,
           readme: `${wp}/${w.readme || 'README.md'}`,
           hasDbSignals: wDbSignals,
+          dbSignals: signalsOf(w), declaresServices: false,
         });
       } };
       emitWorkspaces(rep.workspaces, appDir);
@@ -284,6 +301,7 @@ const PROFILES = {
           manifest: (pr.toolchain && pr.toolchain.manifest) ? `${pr.path}/${pr.toolchain.manifest}:1` : `${pr.path}/package.json:1`,
           readme: pr.readme || `${pr.path}/README.md`,
           hasDbSignals: hasSignals(pr.toolchain) || anyWsSignals(pr),
+          dbSignals: signalsOf(pr), declaresServices: false,
         });
         emitWorkspaces(pr.workspaces, `${pr.path}/`);
       }

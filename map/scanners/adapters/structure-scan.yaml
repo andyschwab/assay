@@ -41,6 +41,11 @@ map:
 
 default: FAIL
 
+# confidence (map/scanners/CONTRACT.md §3, map/confidence.mjs, #319): how much assay knows about
+# this scanner's gaps. A deterministic instrument: the same tree reads the same result.
+confidence:
+  evidence: deterministic
+
 # handoff (map/scanners/CONTRACT.md §3, block style only): the default unit (finding)
 # — each clone pair, unused item and stale file is its own change. client_proof needs
 # nothing this repository's own team does not already have: npx and the registry.

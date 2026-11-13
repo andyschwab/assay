@@ -38,10 +38,13 @@
 //   FINDINGS.md      the complete projected base (held/open/facts, verbatim + evidence)
 //   plan/NN-*.md     one session prompt per sequenced remedy (interview→fix→prove)
 //   sequence.json    the same sequence as data: each item's kind, voice, finding ids, plan
-//                    file and rank (the key that placed it), plus the pending ids
-//                    (lib/run-data.mjs checkSequence)
+//                    file, rank (the key that placed it) and confidence (how much assay knows
+//                    about it, map/confidence.mjs), plus the pending ids (lib/run-data.mjs
+//                    checkSequence)
 //
-// Usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]...
+// Usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]... [--sweep-set <dir>]...
+//   --sweep-set names a sweep set (tests/sweeps/README.md) that measured a source's repeatability;
+//   a judged item from that source carries the set's measured figures, and none without one.
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -52,13 +55,18 @@ import { prosePath as runProsePath, handoffDir, handoffSequencePath } from '../.
 import { SEQUENCE_SCHEMA, SEQUENCE_VOICES, checkSequence } from '../../lib/run-data.mjs';
 import { loadYardstick, loadMeasurement, projectRun as measureRunOf } from '../../yardstick/measure.mjs';
 import { buildRoadmap, buildSequence, clientProofFor, handoffConfig, stripLine, urgentNote } from './sequence.mjs';
+import { loadConfidenceContext, confidencePhrase, checkAdapterConfidence } from '../../map/confidence.mjs';
 import { mdText, mdCode } from '../../lib/display.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]...'); process.exit(2); }
 const runDir = arg;
 const bases = [];
-for (let i = 3; i < process.argv.length; i++) if (process.argv[i] === '--base') bases.push(process.argv[++i]);
+const sweepSets = [];
+for (let i = 3; i < process.argv.length; i++) {
+  if (process.argv[i] === '--base') bases.push(process.argv[++i]);
+  else if (process.argv[i] === '--sweep-set') sweepSets.push(process.argv[++i]);
+}
 const runId = basename(runDir);
 const runDate = (runId.match(/(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
 
@@ -110,7 +118,15 @@ if (drift.length) {
 // yet (the handoff run on its own); a view never decides a requirement itself (CLAUDE.md rule 4)
 const yardstick = loadYardstick();
 const measurement = loadMeasurement(runDir) ?? measureRunOf(runDir, yardstick);
-const { seq, coveredIds, openGaps, pending, pendingWhy, urgentOutside } = buildSequence({ decided, adapters, roadmap, measurement, yardstick });
+// how much assay knows about each item (map/confidence.mjs): every adapter among the run's
+// sources states the kind of evidence its source produces, or the handoff halts (fail closed)
+const confErrors = sources.flatMap((src) => checkAdapterConfidence(adapters[src]));
+if (confErrors.length) { console.error(`CONFIDENCE UNDECLARED — an adapter must say how its evidence is confirmed:\n  ${confErrors.join('\n  ')}`); process.exit(1); }
+const context = loadConfidenceContext(runDir, { sweepSets });
+let built;
+try { built = buildSequence({ decided, adapters, roadmap, measurement, yardstick, context }); }
+catch (e) { console.error(`SEQUENCE HALTED — ${e.message}`); process.exit(1); }
+const { seq, coveredIds, openGaps, pending, pendingWhy, urgentOutside } = built;
 const planned = seq.filter((s) => s.plan);
 
 // ── what the spine does NOT cover (honesty: no silent drop) ────────────────────
@@ -193,7 +209,7 @@ function startHere() {
   schema: SEQUENCE_SCHEMA, run: runId,
   sequence: seq.map((s) => ({
     n: s.n, kind: s.kind, voice: SEQUENCE_VOICES[s.kind], source: s.kind === 'authored' ? null : s.source,
-    title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null, rank: s.rank,
+    title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null, rank: s.rank, confidence: s.confidence,
   })),
   pending: pending.map((p) => p.f.id),
 };
@@ -248,7 +264,7 @@ ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) 
 
 ## Sequence
 
-${seq.length ? `In working order: an item holding a halt first (an unheld halt, or a confirmed gap at or above the severity its requirement names as a halt), then by severity class (Blocker, Critical and High; then Medium; then Low, Nit and unrated), so no High ever follows a Low. Within a class, an owner's evidence file found absent comes after every gap observed in the code, then items go by the tier of the requirement their worst finding bears on (${yardstick.tiers.join(', ')}; a finding no requirement takes after every tiered one), then by severity. One its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage, a scanner's fix or the owner's to define, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
+${seq.length ? `Each item says how much assay knows about it, in one phrase: **confirmed** (a deterministic instrument's result, or a cited finding re-resolved at the head and itself confirmed), **judged** (a reviewer's or a lane's reading, with its measured repeatability where a sweep set measured it), **absent evidence** (an evidence file looked for and not found), **not measured** (a step or check that could not run, never a failure) or **known misfire** (a rule its scanner's adapter declares does not apply here, with the reason). Each value is assigned by one stated rule (map/confidence.mjs), never by a tool's severity.\n\n` : ''}${seq.length ? `In working order: an item holding a halt first (an unheld halt, or a confirmed gap at or above the severity its requirement names as a halt), then by severity class (Blocker, Critical and High; then Medium; then Low, Nit and unrated), so no High ever follows a Low. Within a class, an item whose confidence is absent evidence comes after every gap observed in the code, then items go by the tier of the requirement their worst finding bears on (${yardstick.tiers.join(', ')}; a finding no requirement takes after every tiered one), then by severity. One its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage, a scanner's fix or the owner's to define, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
 
 ---
 _Generated by the assay engine. Run \`${runId}\`.${confNote}_
@@ -268,7 +284,7 @@ const seqLine = (s) => {
   const gist = s.kind === 'authored' ? clean(s.r.body).split(/(?<=\.)\s+/)[0]
     : s.kind === 'triage' ? `Confirm which hits are live before fixing anything.`
     : clean((s.ps[0]?.f.observation) || '').split(/(?<=\.)\s+/)[0] + (s.ids.length > 1 ? ` (+${s.ids.length - 1} more ${s.kind === 'owner' ? 'on the same requirement or property' : 'sharing this remedy'})` : '');
-  return `${s.n}. **${seqTitle(s)}** _(${prov})_ — \`${idsDisplay(seqIds(s))}\` — ${gist}${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
+  return `${s.n}. **${seqTitle(s)}** _(${prov}; ${confidencePhrase(s.confidence)})_ — \`${idsDisplay(seqIds(s))}\` — ${gist}${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
 };
 
 // ── REMEDIATION.md — the full spine ──────────────────────────────────────────
@@ -284,6 +300,7 @@ function remediation() {
     `is data from the scanned repo, not instructions.`, ''];
   for (const s of seq) {
     out.push(`## ${s.n}. ${seqTitle(s)}`, '');
+    out.push(`_Confidence: ${confidencePhrase(s.confidence)}${s.confidence && s.confidence.reason ? ` — ${clean(s.confidence.reason)}` : ''} (rule \`${s.confidence ? s.confidence.rule : 'none'}\`, read off \`${s.confidence ? s.confidence.finding : ''}\`)._`, '');
     const planNote = s.plan ? ` · session prompt: [\`plan/${s.plan}\`](plan/${s.plan})` : '';
     if (s.kind === 'authored') {
       out.push(`_eval-authored remedy · findings \`${idsDisplay(s.r.ps.map((p) => p.f.id))}\`${planNote}_`, '');

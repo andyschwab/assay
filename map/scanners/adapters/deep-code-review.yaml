@@ -158,6 +158,14 @@ map:
 
 default: FAIL
 
+# confidence (map/scanners/CONTRACT.md §3, map/confidence.mjs, #319): a cited reviewer. Its lane
+# re-resolves every evidence line against the tree at the head before publishing, and
+# `validate --target` refuses a path or line that does not resolve, so a gap whose own
+# confidence is confirmed and that cites a file:line reads confirmed; one plausible or
+# unverified, or citing no file:line, reads judged.
+confidence:
+  evidence: cited
+
 # The yardstick rows this scanner decides (CLAUDE.md rule 7, #177): each names the
 # requirement and the native category whose rows decide it, so requirements.yaml names
 # no external scanner. A row may have several deciders; measure combines them.

@@ -18,13 +18,16 @@
 //      a row whose `halt_at:` it reaches (yardstick/requirements.yaml), first;
 //   2. severity class: Blocker/Critical/High, then Medium, then Low/Nit/unrated. A gap that
 //      every row it is listed on reads not measured is not a confirmed gap: it ranks unrated;
-//   3. evidence: a gap that is an owner's evidence file found absent (`evidence_absent`) comes
-//      after every observed gap of its class;
+//   3. evidence: a gap whose confidence is `absent-evidence` (map/confidence.mjs: an owner's
+//      evidence file found absent) comes after every observed gap of its class;
 //   4. tier: the most urgent tier of the requirement rows the measurement (yardstick.yaml)
 //      lists it on, in the yardstick's tier order; a gap no requirement takes comes after every
 //      tiered gap of its class;
 //   5. severity within the class.
 // An item's place is its worst gap's key; ties go to the item whose lowest finding id comes first.
+// Every item also records its CONFIDENCE (#319): how much assay knows about its worst gap, on the
+// closed scale map/confidence.mjs derives by one stated rule per value; among gaps tied at the
+// worst key, the strongest value applies. Confidence does not reorder the key beyond clause 3.
 //
 // A scanner item every one of whose findings a roadmap item cites is ABSORBED into that roadmap
 // card (never sequenced twice). An open gap with no fix and no roadmap coverage is an OWNER item:
@@ -34,6 +37,7 @@
 import { sevRank, buildFixSpine, isHalt } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
 import { propertyOf } from '../../map/placement.mjs';
+import { confidenceOf, strongest } from '../../map/confidence.mjs';
 
 const nn = (i) => String(i + 1).padStart(2, '0');
 export const SLUG_RE = /^[a-z0-9-]+$/;
@@ -144,13 +148,13 @@ const byId = (a, b) => String(a).localeCompare(String(b), 'en', { numeric: true 
 
 // What one open gap is, read off the finding and the measurement: the facts the key orders by.
 // `at` is its place in the measurement (tiersOfFindings), absent when no requirement takes it.
-function gapFacts(p, at) {
+function gapFacts(p, at, confidence) {
   const sev = at && !at.measured ? UNRATED : sevRank(p.f.severity);
   const named = sev === UNRATED ? 'unrated' : p.f.severity;
   const unheld = !!(p.f.effect && typeof p.f.effect === 'object' && isHalt(p.f.effect));
   // a confirmed gap at or above the halt_at of the row it bears on (yardstick/requirements.yaml)
   const reaches = !!(at && at.haltAt && p.f.confidence === 'confirmed' && sev !== UNRATED && sev <= sevRank(at.haltAt));
-  return { halt: unheld || reaches, severity: named, sev, cls: classOf(named), absent: p.f.evidence_absent === true, tier: at ? at.tier : null };
+  return { halt: unheld || reaches, severity: named, sev, cls: classOf(named), absent: confidence.value === 'absent-evidence', tier: at ? at.tier : null };
 }
 // THE KEY (views/README.md): one tuple per gap, compared left to right; lower comes first.
 // `tiers` is the yardstick's tier count, the place a gap no requirement takes holds in its class.
@@ -159,20 +163,26 @@ const NO_GAP = [2, Infinity, Infinity, Infinity, Infinity];   // an item citing 
 
 // Sorts `items` in place by KEY, each `{ ps, … }`, and gives each a `rank` of its worst open
 // gap: { halt, tier, severity, absent_evidence }, tier the yardstick tier's name or null when no
-// requirement takes it.
-function rankItems(items, { tierOf, tiers }) {
+// requirement takes it, and a `confidence` of that gap (map/confidence.mjs): { value, rule,
+// finding, reason?, declared?, repeatability? }, the strongest among the gaps tied at the worst key.
+function rankItems(items, { tierOf, tiers, confOf }) {
   const open = (it) => it.ps.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
   const keyed = items.map((it) => {
     let worst = null;
     for (const p of open(it)) {
-      const g = gapFacts(p, tierOf.get(String(p.f.id)));
+      const c = { ...confOf(p), finding: p.f.id };
+      const g = gapFacts(p, tierOf.get(String(p.f.id)), c);
       const k = KEY(g, tiers.length);
-      if (!worst || lex(k, worst.k) < 0) worst = { k, g };
+      const cmp = worst ? lex(k, worst.k) : -1;
+      if (cmp < 0) worst = { k, g, cs: [c] };
+      else if (cmp === 0) worst.cs.push(c);
     }
     const first = [...new Set(it.ps.map((p) => p.f.id))].sort(byId)[0] ?? '';
     it.rank = worst
       ? { halt: worst.g.halt, tier: worst.g.tier === null ? null : tiers[worst.g.tier], severity: worst.g.severity, absent_evidence: worst.g.absent }
       : { halt: false, tier: null, severity: 'unrated', absent_evidence: false };
+    // an item citing no open gap has no gap to know about: its strongest cited finding's value
+    it.confidence = worst ? strongest(worst.cs) : (it.ps.length ? strongest(it.ps.map((p) => ({ ...confOf(p), finding: p.f.id }))) : null);
     return { it, key: worst ? worst.k : NO_GAP, first };
   });
   keyed.sort((a, b) => lex(a.key, b.key) || byId(a.first, b.first));
@@ -183,7 +193,9 @@ function rankItems(items, { tierOf, tiers }) {
 // The one numbering. `decided` is the full decided base (map/decisions.mjs);
 // `roadmap` is buildRoadmap's output; `measurement` is the run's measurement (yardstick.yaml
 // rows) and `yardstick` the registry, which together say each finding's tier.
-export function buildSequence({ decided, adapters, roadmap, measurement, yardstick }) {
+// `context` is map/confidence.mjs loadConfidenceContext's (the run record, the census's deployment
+// signals, the sweep sets named for the run); without it the rules read the findings alone.
+export function buildSequence({ decided, adapters, roadmap, measurement, yardstick, context = {} }) {
   const coveredIds = new Set(roadmap.flatMap((r) => r.ps.map((p) => p.f.id)));
   const openGaps = decided.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
   const standalone = openGaps.filter((p) => p.f.fix && !coveredIds.has(p.f.id));
@@ -252,7 +264,7 @@ export function buildSequence({ decided, adapters, roadmap, measurement, yardsti
     ...triageItems,
     ...remedies,
     ...ownerItems,
-  ], { tierOf, tiers: yardstick.tiers });
+  ], { tierOf, tiers: yardstick.tiers, confOf: (p) => confidenceOf(p, adapters, context) });
   seq.forEach((s, i) => { s.n = i + 1; });
 
   // plan files: every roadmap item, every triage item, every remedy whose worst severity is High

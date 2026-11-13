@@ -177,7 +177,7 @@ over `views/improve/templates/`). It needs the run's authored
 | `views/improve/maturity-grades.yaml` | maturity coverage per dimension, computed (`node assay.mjs maturity`) |
 | `views/improve/maturity.md`, `views/improve/security.md`, `views/improve/security-gate.yaml`, `views/improve/leverage.md` | the maturity reading, the exposures and attack paths, and where one change moves the most, written by the built-in method's view passes (`map/METHOD.md`) and checked by `validate` |
 | `handoff/` | the remediation handoff (`START-HERE.md`, `REMEDIATION.md`, `FINDINGS.md`, `plan/`), one sequence shared with `IMPROVE.md` §6 (`views/improve/sequence.mjs`) of the reviewer's roadmap items, one read-first triage item per scanner that declares one, and every remaining scanner-fix remedy grouped per its adapter's declared `handoff.unit` (`map/scanners/CONTRACT.md` §7), in the order below. Every remedy carries two proofs — what the repository's own tools can check, and what the next assay run checks. |
-| `handoff/sequence.json` | the same sequence as data, for an agent that iterates the work (`assay.handoff-sequence/1`, `lib/run-data.mjs`): `{ schema, run, sequence: [{ n, kind: authored \| triage \| remedy \| owner, voice: eval-authored \| triage \| scanner-verbatim \| owner-defined, source, title, findings: [F-…], plan: plan/NN-*.md \| null, rank: { halt, tier, severity, absent_evidence } }], pending: [F-…] }`; `rank` is the key that placed the item, read off its worst open gap (`tier` null when no requirement takes it; a sequence written before #306 carries none, one written before #316 no `absent_evidence`); an `owner` item's `source` names every scanner or lane among its findings; `pending` holds only the fix-less gaps no requirement takes and no property names; `handoff.mjs` checks it before writing, `validate` reads it back |
+| `handoff/sequence.json` | the same sequence as data, for an agent that iterates the work (`assay.handoff-sequence/1`, `lib/run-data.mjs`): `{ schema, run, sequence: [{ n, kind: authored \| triage \| remedy \| owner, voice: eval-authored \| triage \| scanner-verbatim \| owner-defined, source, title, findings: [F-…], plan: plan/NN-*.md \| null, rank: { halt, tier, severity, absent_evidence }, confidence: { value: confirmed \| judged \| absent-evidence \| not-measured \| known-misfire, rule, finding, reason?, declared?, repeatability?: [{ set, sweeps, requirement_agreement, candidate_agreement }] } }], pending: [F-…] }`; `rank` is the key that placed the item, read off its worst open gap (`tier` null when no requirement takes it; a sequence written before #306 carries none, one written before #316 no `absent_evidence`); `confidence` is how much assay knows about that gap, the value and the rule that assigned it (below, "How much assay knows"; a sequence written before #319 carries none), with `reason` and `declared` (the adapter's pair) on a misfire or a not-measured step, and `repeatability` on a judged item only where a named sweep set measured its source, each figure `{ agree, of, pct }` or `null` when the set could not take it; `consequence` is reserved as its sibling (#319); an `owner` item's `source` names every scanner or lane among its findings; `pending` holds only the fix-less gaps no requirement takes and no property names; `handoff.mjs` checks it before writing, `validate` reads it back |
 
 **The sequence's order** (#306, #316) is one key, read off what each item's findings are;
 which scanner found a finding, and whether the item is authored, triage, a scanner's fix or
@@ -192,10 +192,12 @@ the owner's to define, never moves it. It is expressed once, as the tuple `KEY` 
    severity a view reads (`views/severity.mjs`). A High never ranks below a Low, whatever their
    tiers. A gap whose every listing row reads not measured is not a confirmed gap: it ranks
    unrated, with the tier it bears on.
-3. **Evidence**: within a class, a gap that is an owner's evidence file found absent
-   (`evidence_absent: true`, `map/SCHEMA.md` §1, such as the census's "no evidence transcript")
-   comes after every gap observed in the tree. This is a clause of the key, not a severity
-   adjustment: the absent transcript keeps its severity and its class.
+3. **Evidence**: within a class, a gap whose confidence is `absent-evidence` (below: an
+   owner's evidence file found absent, `evidence_absent: true`, `map/SCHEMA.md` §1, such as the
+   census's "no evidence transcript") comes after every gap observed in the tree. This is a
+   clause of the key, not a severity adjustment: the absent transcript keeps its severity and its
+   class. It reads the confidence, so a transcript row from a census the run record says failed
+   is not measured, not absent evidence.
 4. **Tier**: the tier of the requirement the gap bears on, in the tier order above (custody,
    safety, reproducibility, verification, legibility, operability), read off the measurement
    (`yardstick.yaml`): the most urgent tier among the rows that list it unmet or mixed, else
@@ -208,6 +210,35 @@ An item is placed by its worst gap, so a group bundled by `handoff.unit` sits wh
 member would; an item holding no open gap comes last. Ties go to the item whose lowest finding
 id comes first. No item is held first for any other reason: a reviewer's roadmap item is placed
 by the findings it cites like any other, and a triage item by the hits it holds.
+
+**How much assay knows** (#319). Every item records its **confidence**, how much assay knows
+about its worst gap, on a closed scale. Each value is assigned by one named rule, stated once in
+`map/confidence.mjs` (`RULES`), read off the kind of evidence (the source's adapter, never its
+name), the finding's own fields, the run record and the census's deployment signals, and never
+off a tool's severity label. The rules are tried in this order, and the first that fires decides:
+
+| Rule | Value | Fires when |
+| --- | --- | --- |
+| `adapter-declared-misfire` | `known-misfire` | the adapter declares this rule does not apply on a deployment signal the census read, a file's name or a resource type a `.tf` declares (`confidence.misfires`, `map/scanners/CONTRACT.md` §3), with the reason: a container HEALTHCHECK on a tree deployed by Heroku, Fly, Kubernetes or Cloud Run; the gap stays visible and never reads met |
+| `source-not-run` | `not-measured` | the run record (`map/scanners.yaml`) says its source was skipped or failed |
+| `adapter-declared-not-measured` | `not-measured` | the adapter declares that a row with these `detail:` facts is a step that could not run (`confidence.not_measured`), with the reason: a fresh-clone test that stopped within seconds with no test counted, on a tree that names a database and declares no services (#256, #305), or a migrate the runner did not run because its only form needs a live database (`reason_code: needs-live-database`); never a failure |
+| `evidence-file-absent` | `absent-evidence` | the gap is an owner's evidence file found absent (`evidence_absent: true`) |
+| `deterministic-instrument` | `confirmed` | its source's evidence is `deterministic` |
+| `cited-and-confirmed` | `confirmed` | its source's evidence is `cited` (re-resolved at the head), its own `confidence:` is `confirmed`, and it cites a `path:line` |
+| `cited-not-confirmed` | `judged` | its source's evidence is `cited`, and it is `plausible` or `unverified`, or cites no `path:line` |
+| `judged-source` | `judged` | its source's evidence is `judged`: a lane's reading of practice, its owner items included |
+
+What an adapter declares about this exact rule in this exact context comes before the general
+kind of its source's evidence, and a source that did not run decides nothing. No rule, no value:
+the handoff halts. An item takes its worst gap's confidence (the gap the key places first); among
+gaps tied at that worst key, the strongest value applies, in the scale's order (confirmed, judged,
+absent evidence, not measured, known misfire). A **judged** value carries its source's measured
+repeatability, requirement agreement and per-candidate descriptor agreement (`map/variance.mjs`,
+#257, #312), only from a sweep set named for the run (`compile --sweep-set <dir>`, a committed set
+under `tests/sweeps/` or the operator's own) whose every sweep ran that source; with none named,
+no figure, and a figure the set could not take is `null`, never a number. START-HERE renders each
+item's confidence in one phrase, REMEDIATION with its rule and reason. The key does not reorder by
+confidence beyond clause 3: the quadrant view and the lenses are #319's next slices.
 
 **What is sequenced** (#316). Every open gap the roadmap does not cover is in the sequence or
 named outside it with the reason. A gap with a scanner's fix is a remedy or triage item. A gap

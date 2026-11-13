@@ -90,6 +90,18 @@ evidence transcript"), not that anything in the tree was observed wrong. It is a
 the row, never a severity (rule 1 of `CLAUDE.md`); the fix sequence ranks such a gap after
 every observed gap of its severity class (`views/README.md`, "The sequence's order").
 
+**A finding's `confidence:` is not the item's (#319).** `confidence:` above is the finding's own
+reading (confirmed · plausible · unverified), written by whoever recorded it. The fix sequence
+derives a second thing from it and from the evidence's kind: how much assay knows about an item
+(confirmed · judged · absent-evidence · not-measured · known-misfire), one named rule per value in
+`map/confidence.mjs` (`views/README.md`, "How much assay knows"). It is never written back onto the
+finding. An instrument row may carry `detail:` scalars the rules read: fresh-clone's failed or
+timed-out step row carries `status`, `duration_ms`, `tests` (`unparsed` or `counted`, on the test
+step) and `needs_service` (the tree's database signals, when no services declaration decides it);
+a step row whose runner reason is a closed code carries `status` and `reason_code` (a migrate not
+declared because it `needs-live-database`, a step skipped because a declared service was
+`service-not-provided`).
+
 **`property` (#264).** The property the finding observes, named so two runs, or two
 targets, that observe it meet on one name: kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`),
 stack-free (`secrets-rotated`, never a tool, framework or vendor), and stated as what is,

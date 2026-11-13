@@ -1205,7 +1205,12 @@ function findDeploymentSignals(dir, { evidencePointer = null } = {}) {
       const lower = e.toLowerCase();
       if (CONTAINER_RE.test(e)) add('container', p, 'a container file');
       else if (HOSTING_FILES.has(lower)) add('hosting', p, 'a hosting config');
-      else if (IAC_FILES.has(lower) || IAC_RE.test(e)) add('infrastructure', p, 'infrastructure-as-code or a service manifest');
+      else if (IAC_FILES.has(lower) || IAC_RE.test(e)) {
+        add('infrastructure', p, 'infrastructure-as-code or a service manifest');
+        // a Terraform file's declared resource types (#319): what the tree deploys onto, read off
+        // the `resource "<type>"` declarations, never its prose or comments
+        if (/\.tf$/i.test(e)) { const types = terraformResourceTypes(safeRead(abs) || ''); if (types.length) signals[signals.length - 1].resources = types; }
+      }
       else if (SERVER_ENTRY_RE.test(e)) add('server', p, 'a server entry point');
       else if (lower === 'package.json') { const w = packageJsonSignal(safeRead(abs) || ''); if (w) add('server', p, w); }
       else if (PY_MANIFEST_RE.test(e)) { if (PY_SERVER_RE.test(safeRead(abs) || '')) add('server', p, 'a Python web framework dependency'); }
@@ -1219,6 +1224,13 @@ function findDeploymentSignals(dir, { evidencePointer = null } = {}) {
   walk('');
   if (truncated) add('unwalked', '.', `a tree past ${DEPLOY_WALK_LIMIT} entries, not walked to the end (not ruled out)`);
   return { signals, walked: Math.min(seen, DEPLOY_WALK_LIMIT), truncated };
+}
+// The resource types a Terraform file declares (`resource "<type>" "<name>"`), sorted and unique.
+// Only a declaration that opens its line counts, so a `#` or `//` comment line declares nothing,
+// and block comments (`/* … */`) are dropped first.
+function terraformResourceTypes(text) {
+  const code = String(text).replace(/\/\*[\s\S]*?\*\//g, '');
+  return [...new Set([...code.matchAll(/^\s*resource\s+"([A-Za-z0-9_-]+)"/gm)].map((m) => m[1]))].sort();
 }
 const DEPLOYMENT_LOOKED_FOR = 'a container file, a hosting config, infrastructure-as-code or a service manifest, a CI workflow that deploys, a server entry point, start script or web-framework dependency, or an owner evidence directory';
 function evidenceNotApplicable(id) {
