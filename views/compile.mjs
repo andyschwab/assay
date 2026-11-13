@@ -204,7 +204,7 @@ ${descSum.decided} of ${descSum.of} requirements decided by this run (met ${desc
 | [\`views/improve.yaml\`](views/improve.yaml) | machine | Every requirement on the yardstick, grouped by topic. |
 | [\`views/improve/candidates.yaml\`](views/improve/candidates.yaml) | machine | The findings no requirement takes, grouped by the property each names: what the yardstick has no row for yet. |
 | [\`yardstick.yaml\`](yardstick.yaml) | machine, and what a repository's own claims are compared against | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
-| [\`views/improve/axes.md\`](views/improve/axes.md) | human, detail | The walk: per-axis properties, risks, seams, the not-measured register, requirements by topic. |
+| [\`views/improve/axes.md\`](views/improve/axes.md) | human, detail | The walk: per-axis properties, risks, seams, requirements by topic, the findings no requirement takes (by property), the not-measured register. |
 | [\`handoff/START-HERE.md\`](handoff/START-HERE.md) | machine / agent | How to act, sequenced worst-first. |
 | [\`handoff/REMEDIATION.md\`](handoff/REMEDIATION.md) | machine / agent | The full spine: every actionable gap, verbatim fix, proof step. |
 | [\`handoff/plan/\`](handoff/plan/) | machine / agent | One session prompt per Critical/High item (interview → fix → prove). |

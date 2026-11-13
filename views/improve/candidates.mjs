@@ -2,8 +2,10 @@
 // candidates.mjs — the run's discovery candidates (#264, D1 of #257).
 //
 // After measuring, the findings no requirement takes (yardstick/untaken.mjs, the one
-// definition), grouped by the property each observes (`property:`, map/SCHEMA.md §1); a
-// finding that names none is grouped as unnamed. Each is a fact the run recorded about a
+// definition), grouped by the property each observes (`property:`, map/SCHEMA.md §1, or for a
+// reviewer's row the property its adapter places it on, map/placement.mjs, #306); a finding
+// that names none is grouped as unnamed, and a reviewer's row its adapter could not place
+// carries the reason (`unplaced:`). Each is a fact the run recorded about a
 // property the yardstick has no row for yet: listed, never priced, never promoted here
 // (promotion across targets is #265's). A candidate is not asked to repeat across runs.
 // Reads the findings and the census members after measuring; decides no requirement.
@@ -14,27 +16,29 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, basename } from 'node:path';
 import { parseYaml, q } from '../../lib/yaml-min.mjs';
 import { candidatesDataPath, censusesPath } from '../../lib/run-layout.mjs';
-import { loadFindings } from '../../map/project.mjs';
+import { loadFindings, loadAdapters } from '../../map/project.mjs';
+import { propertyOf } from '../../map/placement.mjs';
 import { loadYardstick, loadMeasurement } from '../../yardstick/measure.mjs';
 import { untakenFindings } from '../../yardstick/untaken.mjs';
 import { isMain } from '../../map/doctrine.mjs';
 
 // The run's candidates as data, or null when the run has not been measured (no yardstick.yaml):
 // { run, yardstick, counts: { findings, taken, candidates, properties, unnamed },
-//   properties: [{ property, findings: [F-…] }], unnamed: [F-…] }
-// properties sorted by name; finding ids in the base's order.
-export function buildCandidates(runDir, reg = loadYardstick()) {
+//   properties: [{ property, findings: [F-…] }], unnamed: [F-…], unplaced: [{ finding, reason }] }
+// properties sorted by name; finding ids in the base's order; unplaced the unnamed findings a
+// reviewer's adapter could not place, each with the reason.
+export function buildCandidates(runDir, reg = loadYardstick(), adapters = loadAdapters()) {
   // read after measuring: a run with no measurement has no candidates yet
   if (!loadMeasurement(runDir)) return null;
   const findings = loadFindings(runDir);
   const cp = censusesPath(runDir);
   const censuses = existsSync(cp) ? parseYaml(readFileSync(cp, 'utf8')) : null;
-  const untaken = untakenFindings({ findings, censuses, reg });
+  const untaken = untakenFindings({ findings, censuses, reg, adapters });
   const byProperty = new Map();
-  const unnamed = [];
+  const unnamed = [], unplaced = [];
   for (const f of untaken) {
-    const p = typeof f.property === 'string' && f.property ? f.property : null;
-    if (!p) { unnamed.push(String(f.id)); continue; }
+    const { property: p, unplaced: why } = propertyOf(f, adapters);
+    if (!p) { unnamed.push(String(f.id)); if (why) unplaced.push({ finding: String(f.id), reason: why }); continue; }
     if (!byProperty.has(p)) byProperty.set(p, []);
     byProperty.get(p).push(String(f.id));
   }
@@ -42,7 +46,7 @@ export function buildCandidates(runDir, reg = loadYardstick()) {
   return {
     run: basename(runDir), yardstick: reg.version,
     counts: { findings: findings.length, taken: findings.length - untaken.length, candidates: untaken.length, properties: properties.length, unnamed: unnamed.length },
-    properties, unnamed,
+    properties, unnamed, unplaced,
   };
 }
 
@@ -55,6 +59,8 @@ export function toYaml(doc) {
     `properties:${doc.properties.length ? '' : ' []'}`];
   for (const p of doc.properties) L.push(`  - property: ${p.property}`, `    findings: [${p.findings.join(', ')}]`);
   L.push(`unnamed: [${doc.unnamed.join(', ')}]`);
+  L.push(`unplaced:${doc.unplaced.length ? '' : ' []'}`);
+  for (const u of doc.unplaced) L.push(`  - finding: ${u.finding}`, `    reason: ${q(u.reason)}`);
   return L.join('\n') + '\n';
 }
 
@@ -73,7 +79,8 @@ export function candidatesMd(doc, findingsById = new Map()) {
     return `- **${id}**${f && f.polarity ? ` _(${f.polarity})_` : ''}${obs ? ` — ${obs}` : ''}`;
   };
   for (const p of doc.properties) out.push(`### \`${p.property}\` (${p.findings.length})\n`, ...p.findings.map(line), '');
-  if (doc.unnamed.length) out.push(`### Unnamed (${doc.unnamed.length})\n`, ...doc.unnamed.map(line), '');
+  const why = new Map((doc.unplaced || []).map((u) => [u.finding, u.reason]));
+  if (doc.unnamed.length) out.push(`### Unnamed (${doc.unnamed.length})\n`, ...doc.unnamed.map((id) => line(id) + (why.has(id) ? ` _(placed on no property: ${why.get(id)})_` : '')), '');
   return out.join('\n').trimEnd();
 }
 
