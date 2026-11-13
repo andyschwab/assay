@@ -3,8 +3,9 @@
 // synthetic items and a hand-built measurement:
 //   (a) not measured is not urgent: a gap every row listing it reads not measured ranks
 //       unrated, after a measured Low of the same tier, however severe its own label;
-//   (b) a gap no requirement takes ranks by its severity alone: right after the last tiered
-//       gap at least as severe, and ahead of every tiered gap when none is as severe;
+//   (b) a gap no requirement takes ranks by its severity class: after every tiered gap of its
+//       class, before the next class (re-pinned by #316: it sat right after the last tiered gap
+//       at least as severe, so an untaken High trailed a tiered Low);
 //   (c) an item's place is its worst member's: a group holding one safety High sits with the
 //       safety Highs, whatever else it holds;
 //   (d) checkSequence admits a rank only in its shape, and its tier and severity lists are the
@@ -41,11 +42,11 @@ export async function run() {
       { id: 'd-routes-authorized', status: 'unmet', findings: ['F-10', 'F-12'] },
       { id: 'd-tests-execute-core', status: 'unmet', findings: ['F-11'] },
     ]);
-    // F-22 is untiered and no tiered gap is a Blocker, so it leads; then the tiered gaps in
-    // tier order, F-10 (safety High), F-12 (safety Low), F-11 (verification High); F-20 right
-    // after the last tiered High (F-11); F-21 after the last tiered gap at least Medium (F-11)
-    const want = 'F-22 F-10 F-12 F-11 F-20 F-21';
-    if (order(seq) !== want) fail(`a gap no requirement takes must sit right after the last tiered gap at least as severe (want ${want}, got ${order(seq)})`);
+    // the High class first: the tiered Highs in tier order, F-10 (safety), F-11 (verification),
+    // then the untiered of the class by severity, F-22 (Blocker), F-20 (High); then the Medium
+    // class, F-21 (untiered); then the Low class, F-12 (safety Low)
+    const want = 'F-10 F-11 F-22 F-20 F-21 F-12';
+    if (order(seq) !== want) fail(`a gap no requirement takes must sit after every tiered gap of its severity class, before the next class (want ${want}, got ${order(seq)})`);
     const r = seq.find((s) => s.ps[0].f.id === 'F-20')?.rank;
     if (!r || r.tier !== null || r.severity !== 'High') fail(`an untaken gap's rank reads tier null and its severity (got ${JSON.stringify(r)})`);
   }

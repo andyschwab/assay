@@ -14,13 +14,15 @@
 //     its findings and spliced with their verbatim observations + evidence paths.
 //     A proposal grounded in the base and labeled as judgment — never presented as
 //     an instrument reading.
-// An open gap with none of these is OWNER-DEFINED PENDING: listed loudly, never dropped,
-// never sequenced. If open gaps exist and NO remedy sequences at all, the compiler
+//   • owner-defined    — an open gap with none of these: one item per requirement the
+//     measurement lists it on, else per property it observes, its remedy the owner's to decide,
+//     sequenced by the same key (#316). A fix-less gap with neither is PENDING: listed loudly
+//     with the reason, never dropped. If open gaps exist and NO remedy sequences at all, the compiler
 // FAILS CLOSED — a handoff that reads "nothing to do" over live gaps is the
 // machine-side false-green.
 //
-// The numbering itself (one key over every item: halt, then the requirement's tier, then
-// severity) is views/improve/sequence.mjs — the report's §6 uses the SAME module so the two
+// The numbering itself (one key over every item: halt, then severity class, then absent
+// evidence after observed gaps, then the requirement's tier, then severity) is views/improve/sequence.mjs — the report's §6 uses the SAME module so the two
 // documents never disagree about what comes first.
 //
 // Scanner text (observation, fix) comes from an untrusted target repo, so every
@@ -108,7 +110,7 @@ if (drift.length) {
 // yet (the handoff run on its own); a view never decides a requirement itself (CLAUDE.md rule 4)
 const yardstick = loadYardstick();
 const measurement = loadMeasurement(runDir) ?? measureRunOf(runDir, yardstick);
-const { seq, coveredIds, openGaps, pending, urgentOutside } = buildSequence({ decided, adapters, roadmap, measurement, yardstick });
+const { seq, coveredIds, openGaps, pending, pendingWhy, urgentOutside } = buildSequence({ decided, adapters, roadmap, measurement, yardstick });
 const planned = seq.filter((s) => s.plan);
 
 // ── what the spine does NOT cover (honesty: no silent drop) ────────────────────
@@ -124,7 +126,7 @@ if (openGaps.length && !seq.length) {
   console.error(`  - triage the gaps in owner/decisions.yaml (an attributed owner waiver).`);
   process.exit(1);
 }
-if (pending.length) console.error(`note: ${pending.length} open gap(s) have no remedy yet (owner-defined pending): ${pending.map((p) => p.f.id).join(', ')}`);
+if (pending.length) console.error(`note: ${pending.length} open gap(s) sit outside the sequence (${pendingWhy}): ${pending.map((p) => p.f.id).join(', ')}`);
 // loud, never silent: a Critical finding or a triage item sitting outside the roadmap.
 const urgentMsg = urgentNote(urgentOutside);
 if (urgentMsg) console.error(`note: ${urgentMsg}`);
@@ -200,10 +202,12 @@ if (sequenceErrors.length) { console.error(`sequence.json would not hold its sch
 writeFileSync(handoffSequencePath(runDir), JSON.stringify(sequenceDoc, null, 2) + '\n');
 
 const nTriage = seq.filter((s) => s.kind === 'triage').length;
-  const nRemedy = seq.length - nAuthored - nTriage;
+  const nOwner = seq.filter((s) => s.kind === 'owner').length;
+  const nRemedy = seq.length - nAuthored - nTriage - nOwner;
   const voices = [];
   if (nRemedy) voices.push(`**${nRemedy} scanner-supplied** (quoted verbatim from the scanner that found them; the engine never rewrites a fix)`);
   if (nTriage) voices.push(`**${nTriage} triage** (a read-first bucket — confirm which hits are live before fixing anything)`);
+  if (nOwner) voices.push(`**${nOwner} owner-defined** (open gaps no scanner supplied a fix for, one item per requirement or property; the owner decides the remedy)`);
   if (nAuthored) voices.push(`**${nAuthored} eval-authored** (proposed by the evaluating agent from the findings — grounded judgment, labeled as such, never an instrument reading)`);
   return `# ${runId} — remediation handoff
 
@@ -223,10 +227,9 @@ ${urgentMsg ? `- **Outside the roadmap, and urgent:** ${urgentMsg}.` : ''}
 
 ## What the sequence does NOT include (so nothing is dropped silently)
 
-${pending.length ? `- **${pending.length} open gap(s) with no remedy yet** — real gaps whose fix needs an owner decision
-  before an agent can act (${pending.map((p) => `\`${p.f.id}\``).join(', ')}). Full claims in
-  \`FINDINGS.md\`; decide the remedy, then either add a roadmap item to the run's
-  \`views/improve/prose.yaml\` or hand the claim block to a session directly.` : '- Every open gap in this run is covered by a sequenced remedy.'}
+${pending.length ? `- **${pending.length} open gap(s) sit outside the sequence** (${pending.map((p) => `\`${p.f.id}\``).join(', ')}): ${pendingWhy}. Full claims in
+  \`REMEDIATION.md\` and \`FINDINGS.md\`; decide the remedy, then either add a roadmap item to the run's
+  \`views/improve/prose.yaml\` or hand the claim block to a session directly.` : '- Every open gap in this run is in the sequence.'}
 ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${notMeasuredWhy(notMeasured)}; absence of findings there is absence of looking, not health.` : ''}
 
 ## How to use it
@@ -245,7 +248,7 @@ ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) 
 
 ## Sequence
 
-${seq.length ? `In working order: an item holding an unheld halt first, then by the tier of the requirement its worst finding bears on (${yardstick.tiers.join(', ')}), then by severity. A finding no requirement takes ranks by its severity alone, and one its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage or a scanner's fix, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
+${seq.length ? `In working order: an item holding a halt first (an unheld halt, or a confirmed gap at or above the severity its requirement names as a halt), then by severity class (Blocker, Critical and High; then Medium; then Low, Nit and unrated), so no High ever follows a Low. Within a class, an owner's evidence file found absent comes after every gap observed in the code, then items go by the tier of the requirement their worst finding bears on (${yardstick.tiers.join(', ')}; a finding no requirement takes after every tiered one), then by severity. One its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage, a scanner's fix or the owner's to define, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
 
 ---
 _Generated by the assay engine. Run \`${runId}\`.${confNote}_
@@ -256,14 +259,15 @@ const seqTitle = (s) => {
   if (s.kind === 'authored') return s.r.title;
   if (s.kind === 'triage') return `Triage ${s.source}'s ${s.ids.length} hit${s.ids.length === 1 ? '' : 's'} (${s.files.length} file${s.files.length === 1 ? '' : 's'})`;
   if (s.unit === 'file') return `Fix the open finding${s.ids.length === 1 ? '' : 's'} in ${mdCode(s.fileKey)} (${s.ids.length} finding${s.ids.length === 1 ? '' : 's'}, worst ${s.sev})`;
+  if (s.kind === 'owner') return `Decide the remedy for ${s.requirement ? `requirement ${s.requirement}` : `property ${s.property}`} (${s.ids.length} open gap${s.ids.length === 1 ? '' : 's'}, worst ${s.rank.severity})`;
   if (s.unit === 'scanner') return `Fix ${s.source}'s remaining ${s.ids.length} open finding${s.ids.length === 1 ? '' : 's'} (worst ${s.sev})`;
   return `${s.sev} · ${idsDisplay(s.ids)}`; // default finding-unit — unchanged from before
 };
 const seqLine = (s) => {
-  const prov = s.kind === 'authored' ? 'eval-authored' : s.kind === 'triage' ? `triage, ${s.source}` : `scanner fix, ${s.source}`;
+  const prov = s.kind === 'authored' ? 'eval-authored' : s.kind === 'triage' ? `triage, ${s.source}` : s.kind === 'owner' ? `owner-defined, ${s.source}` : `scanner fix, ${s.source}`;
   const gist = s.kind === 'authored' ? clean(s.r.body).split(/(?<=\.)\s+/)[0]
     : s.kind === 'triage' ? `Confirm which hits are live before fixing anything.`
-    : clean((s.ps[0]?.f.observation) || '').split(/(?<=\.)\s+/)[0] + (s.ids.length > 1 ? ` (+${s.ids.length - 1} more sharing this remedy)` : '');
+    : clean((s.ps[0]?.f.observation) || '').split(/(?<=\.)\s+/)[0] + (s.ids.length > 1 ? ` (+${s.ids.length - 1} more ${s.kind === 'owner' ? 'on the same requirement or property' : 'sharing this remedy'})` : '');
   return `${s.n}. **${seqTitle(s)}** _(${prov})_ — \`${idsDisplay(seqIds(s))}\` — ${gist}${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
 };
 
@@ -295,6 +299,10 @@ function remediation() {
       }
       if (s.r.done_when.length) { out.push(`**Done when:**`, ''); for (const d of s.r.done_when) out.push(`- ${clean(d)}`); out.push(''); }
       out.push(proofBlock(s.r.ps, s.r.done_when), '');
+    } else if (s.kind === 'owner') {
+      out.push(`_owner-defined (${s.source}): no scanner supplied a fix and no roadmap item covers these; the owner decides the remedy${planNote}_`, '');
+      for (const p of s.ps) out.push(claimBlock(p));
+      out.push(proofBlock(s.ps), '');
     } else if (s.kind === 'triage') {
       out.push(`_triage bucket (${s.source}) — confirm which hits are live before fixing anything${planNote}_`, '');
       for (const p of s.ps) out.push(claimBlock(p));
@@ -309,8 +317,8 @@ function remediation() {
     }
   }
   if (pending.length) {
-    out.push('## Open, remedy pending (an owner must define the fix)', '',
-      '_Real open gaps no voice covers yet: no scanner supplied a fix and no roadmap item was authored._',
+    out.push('## Open, outside the sequence (an owner must define the fix)', '',
+      `_Real open gaps no item holds: ${pendingWhy}._`,
       '_Nothing here is waived — full claims below; decide the remedy, then sequence it._', '');
     for (const p of pending) out.push(claimBlock(p));
   }
@@ -603,6 +611,39 @@ ${proofBlock(r.ps, r.done_when)} Summarize what changed and confirm each finding
 `;
 }
 
+// owner-defined: open gaps on one requirement or property with no fix recorded. The claims are
+// confirmed first; the remedy is the owner's, so the prompt asks and waits before any change.
+function planOwner(s) {
+  return `# Session prompt — ${seqTitle(s)}
+
+${preamble}
+
+## The open gaps (${s.source}, ${s.requirement ? `requirement ${s.requirement}` : `property ${s.property}`})
+
+No scanner supplied a fix for these and no roadmap item covers them: the remedy is yours to
+decide. The claims are quoted verbatim; verify them before acting.
+
+${s.ps.map(claimBlock).join('\n')}
+## Step 1 — Confirm, then ask
+
+Open each evidence path and confirm the claim still holds. Then ask me what the remedy should
+be (intended behavior, constraints, who decides), and wait.
+
+## Step 2 — Choose the approach
+
+Propose the smallest change that resolves the gaps, note the tradeoffs, and let me choose.
+
+## Step 3 — Implement
+
+Make the change as a diff for me to accept. Keep it the smallest change that satisfies the
+choice.
+
+## Step 4 — Prove it
+
+${proofBlock(s.ps)} Summarize what changed and confirm each finding flips.
+`;
+}
+
 // ── write ──────────────────────────────────────────────────────────────────────
 const fm = (title) => `---\ntype: doc\n${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "${String(title).replace(/"/g, "'")}"\n---\n\n`;
 const outDir = handoffDir(runDir);
@@ -616,10 +657,11 @@ writeFileSync(join(outDir, 'FINDINGS.md'), fm(`Findings base — ${runId}`) + fi
 for (const s of planned) {
   const body = s.kind === 'authored' ? planAuthored(s.r, s)
     : s.kind === 'triage' ? planTriage(s)
+    : s.kind === 'owner' ? planOwner(s)
     : s.unit === 'finding' ? planFindingUnit(s)
     : planGrouped(s);
   writeFileSync(join(planDir, s.plan), fm(`Session prompt — ${seqTitle(s)}`) + body);
 }
 
 const nTriage = seq.filter((s) => s.kind === 'triage').length;
-console.log(`✓ compiled ${outDir}/ — START-HERE, REMEDIATION, FINDINGS + ${planned.length} session prompts (${seq.length} sequenced: ${seq.filter((s) => s.kind === 'authored').length} eval-authored, ${nTriage} triage, ${seq.filter((s) => s.kind === 'remedy').length} scanner-verbatim; ${pending.length} pending owner remedy)`);
+console.log(`✓ compiled ${outDir}/ — START-HERE, REMEDIATION, FINDINGS + ${planned.length} session prompts (${seq.length} sequenced: ${seq.filter((s) => s.kind === 'authored').length} eval-authored, ${nTriage} triage, ${seq.filter((s) => s.kind === 'remedy').length} scanner-verbatim, ${seq.filter((s) => s.kind === 'owner').length} owner-defined; ${pending.length} outside the sequence)`);

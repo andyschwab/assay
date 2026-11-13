@@ -34,7 +34,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { censusesPath, yardstickPath, ownerDir, packetManifestPath } from '../lib/run-layout.mjs';
-import { isHalt, isHaltClass, gateHolds, effectLeg, isMain } from '../map/doctrine.mjs';
+import { isHalt, isHaltClass, gateHolds, effectLeg, isMain, SEVERITY_ORDER } from '../map/doctrine.mjs';
 import { loadFindings, loadManifest, loadScannerCoverage, loadAdapters, AXIS_ORDER } from '../map/project.mjs';
 import { loadPacket, validatePacket, decidePacketClaim } from './packet.mjs';
 import { loadChannelFiles, channelPopulation, CANDIDATE_POPULATIONS } from '../map/effect-triage.mjs';
@@ -89,6 +89,9 @@ function validateDecider(spec, at) {
   // optional property (#306): an adapter binding reads only the rows its adapter places on this
   // property (map/placement.mjs), for a category that spans several
   if (spec.property !== undefined && !okName(spec.property)) errors.push(`${at}: property must be a non-empty string (a property the adapter's map names)`);
+  // optional gaps_only (#316): the decider's gap decides the row, and any other reading of it
+  // (met, not measured, not applicable) steps aside: its silence is no evidence for the row
+  if (spec.gaps_only !== undefined && spec.gaps_only !== true) errors.push(`${at}: gaps_only is true or absent`);
   return errors;
 }
 export function validateYardstick(reg) {
@@ -110,6 +113,12 @@ export function validateYardstick(reg) {
     if (floor && !(Array.isArray(d.harm) && d.harm.length)) errors.push(`${at}: a floor row names the harm its gap can cause (harm: [${[...harms].join(', ')}])`);
     if (!floor && d.harm !== undefined) errors.push(`${at}: harm is a floor row's; a row beyond the floor names none`);
     for (const h of Array.isArray(d.harm) ? d.harm : []) if (!harms.has(h)) errors.push(`${at}: harm "${h}" not in the yardstick's harms`);
+    // halt_at (#316): a confirmed gap the row lists at this severity or above is a halt, which the
+    // fix sequence puts first (views/README.md); a severity of the scale, on a run-decided row
+    if (d.halt_at !== undefined) {
+      if (!SEVERITY_ORDER.includes(d.halt_at)) errors.push(`${at}: halt_at must be one of ${SEVERITY_ORDER.join(', ')}`);
+      if (d.decide?.kind === 'claim') errors.push(`${at}: halt_at is a run-decided row's (a claim row lists no gap)`);
+    }
     if (!d.decide || !KINDS.includes(d.decide.kind)) errors.push(`${at}: decide.kind must be one of ${KINDS.join('|')}`);
     else if (d.decide.kind === 'facet' && !FACET_RULES.includes(d.decide.rule)) errors.push(`${at}: facet rule "${d.decide.rule}" unknown`);
     else if (d.decide.kind === 'census' && !(Array.isArray(d.decide.measures) && d.decide.measures.length)) errors.push(`${at}: census needs measures: [names]`);
@@ -539,6 +548,12 @@ function decideInstrument(d, fs, disp, coverage, adapters) {
     const why = [...new Set(unplaced.map((f) => propertyOf(f, adapters).unplaced))].join('; ');
     return { spec, r: row('not-measured', 'instrument', r.findings || [], `${unplaced.length} ${spec.scanner} row(s) of category ${cats.join(', ')} placed on no property (${unplaced.map((f) => f.id).join(', ')}: ${why}), so ${spec.property} cannot read ${r.status}`) };
   });
+  // a gaps-only decider (#316) counts only when it read a gap; otherwise it steps aside
+  const read = per.filter((p) => !(p.spec.gaps_only === true && !['unmet', 'mixed'].includes(p.r.status)));
+  if (!read.length) return row('not-measured', 'instrument', [], `no decider read this row: ${per.map((p) => `${p.spec.scanner} (gaps only): ${p.r.note}`).join('; ')}`);
+  return combine(d, read, fs);
+}
+function combine(d, per, fs) {
   if (per.length === 1) return per[0].r;
   const ids = [...new Set(per.flatMap((p) => p.r.findings || []))];
   const say = (ps) => ps.map((p) => `${p.spec.scanner}: ${p.r.note}`).join('; ');

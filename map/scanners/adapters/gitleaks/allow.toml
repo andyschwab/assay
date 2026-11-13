@@ -23,6 +23,14 @@
 #    in lower, Capitalised and UPPER case, at the value's start; the character after the
 #    fixed prefix is the set the word's next byte (printable, or the end) can encode to.
 #    tests/blocks/gitleaks-not-a-secret.mjs derives it from this list and holds it equal.
+#    A second regex (#316) finds the word anywhere in the decoded text, not only at its start
+#    (base64 of `{"sig":"stub"}`, of `x-stub-sig`): for each word and each of the three byte
+#    alignments, the base64 characters the word's bytes alone decide, unanchored. A run kept a
+#    fixture's base64 stub as a secret under `<package>/test/fixtures/`; that path already
+#    matched (the path regex reads tests? at any depth), so the stub did not decode to a
+#    placeholder at its start. tests/blocks/gitleaks-fixtures-and-vendored-bundles.mjs derives
+#    it from the same list and holds it equal. Four characters is its shortest needle, so a
+#    random value under a fixture path is allowed by chance about once in two hundred.
 #    placeholders: stub fake dummy placeholder example sample mock test redacted changeme invalid not-a-real
 
 [extend]
@@ -47,4 +55,5 @@ paths = [
 ]
 regexes = [
   '''^(?:c3R1Y[gijklmn]|U3R1Y[gijklmn]|U1RVQ[gijklmn]|ZmFrZ[QSTUVWX]|RmFrZ[QSTUVWX]|RkFLR[QSTUVWX]|ZHVtbX[kl]|RHVtbX[kl]|RFVNTV[kl]|cGxhY2Vob2xkZX[IJ]|UGxhY2Vob2xkZX[IJ]|UExBQ0VIT0xERV[IJ]|ZXhhbXBsZ[QSTUVWX]|RXhhbXBsZ[QSTUVWX]|RVhBTVBMR[QSTUVWX]|c2FtcGxl|U2FtcGxl|U0FNUExF|bW9ja[0123wyz]|TW9ja[0123wyz]|TU9DS[0123wyz]|dGVzd[ACDEFGH]|VGVzd[ACDEFGH]|VEVTV[ACDEFGH]|cmVkYWN0ZW[QR]|UmVkYWN0ZW[QR]|UkVEQUNURU[QR]|Y2hhbmdlbW[UV]|Q2hhbmdlbW[UV]|Q0hBTkdFTU[UV]|aW52YWxpZ[ACDEFGH]|SW52YWxpZ[ACDEFGH]|SU5WQUxJR[ACDEFGH]|bm90LWEtcmVhb[ACDEFGH]|Tm90LWEtcmVhb[ACDEFGH]|Tk9ULUEtUkVBT[ACDEFGH])''',
+  '''0ZXN0|1PQ0|1vY2|5PVC1BLVJFQU|5vdC1hLXJlYW|BMQUNFSE9MREVS|BsYWNlaG9sZGVy|DSEFOR0VNR|DaGFuZ2VtZ|EVU1NW|EdW1te|FWEFNUExF|FeGFtcGxl|GQUtF|GYWtl|JFREFDVEVE|JTlZBTElE|JbnZhbGlk|JlZGFjdGVk|N0dW|NBTVBMR|NIQU5HRU1F|NT0NL|NUVU|Nb2Nr|NhbXBsZ|NoYW5nZW1l|OT1QtQS1SRUFM|Ob3QtYS1yZWFs|Q0hBTkdFTU|Q2hhbmdlbW|QTEFDRUhPTERFU|QbGFjZWhvbGRlc|R1bW15|RFU1|RFVNTV|RHVtbX|RVTU1Z|RVhBTVBMR|RXhhbXBsZ|RkFLR|Rlc3|RmFrZ|SRURBQ1RFR|SU5WQUxJR|SW52YWxpZ|SZWRhY3RlZ|TQU1QTE|TU9DS|TVFVC|TW9ja|TYW1wbG|TdHVi|Tk9ULUEtUkVBT|Tm90LWEtcmVhb|U0FNUExF|U1RVQ|U2FtcGxl|U3R1Y|UExBQ0VIT0xERV|UGxhY2Vob2xkZX|URVNU|UZXN0|UkVEQUNURU|UmVkYWN0ZW|V4YW1wbG|VEVTV|VGVzd|VYQU1QTE|Y2hhbmdlbW|ZBS0|ZHVtbX|ZXhhbXBsZ|Zha2|ZmFrZ|aW52YWxpZ|bW9ja|bm90LWEtcmVhb|c2FtcGxl|c3R1Y|cGxhY2Vob2xkZX|cmVkYWN0ZW|dGVzd|jaGFuZ2VtZ|kdW1te|lOVkFMSU|leGFtcGxl|ludmFsaW|mYWtl|pbnZhbGlk|tb2Nr|ub3QtYS1yZWFs|wbGFjZWhvbGRlc|yZWRhY3RlZ|zYW1wbG|zdHVi''',
 ]

@@ -470,6 +470,9 @@ const PROFILES = {
             native_category: c.name,
             polarity: 'gap',
             ...(c.name === 'ci-gate' && failOpen.length ? { fail_open: true } : {}),
+            // an owner's evidence file the census looked for and did not find (#316): absent
+            // evidence, a fact the sequence reads (views/README.md), never a severity
+            ...(c.detail && c.detail.absent === true ? { evidence_absent: true } : {}),
             observation: oneLine(c.observation),
             evidence,
             fix: RC_FIX[c.name],
@@ -922,7 +925,26 @@ const FORMATS = {
     const keep = Array.isArray(spec.keep) ? spec.keep.map(String) : [];
     const abbreviate = new Set(Array.isArray(spec.abbreviate) ? spec.abbreviate.map(String) : []);
     const reportOf = (raw) => { const doc = parseJson(raw, id); return doc && doc.envelope === 1 ? { env: readEnvelope(id, raw), leaks: null } : { env: null, leaks: doc }; };
-    const minimise = (leaks) => leaks.map((l) => Object.fromEntries(keep.filter((k) => l[k] !== undefined).map((k) => [k, abbreviate.has(k) ? String(l[k]).slice(0, 12) : l[k]])));
+    // the adapter's allow rules (CONTRACT.md §3, #316): a hit whose file is the kind the rule
+    // recognises, and whose match carries no credential context (unless_match), is no secret.
+    // The match is only tested, never copied; the archive records the rule that allowed it
+    // (Allowed), so a re-ingest of the archive, which keeps no match, decides it the same way.
+    const allows = (Array.isArray(spec.allow) ? spec.allow : []).map((a) => ({ id: String(a.id), reason: oneLine(a.reason), file: new RegExp(String(a.file), 'i'), unless: a.unless_match ? new RegExp(String(a.unless_match), 'i') : null }));
+    const allowOf = (l) => {
+      for (const a of allows) {
+        if (!a.file.test(String(l.File ?? ''))) continue;
+        if (l.Allowed !== undefined) { if (String(l.Allowed) === a.id) return a; continue; }
+        if (l.Match === undefined || l.Match === null) continue;   // no match to read: a credential context cannot be ruled out
+        if (a.unless && a.unless.test(String(l.Match))) continue;
+        return a;
+      }
+      return null;
+    };
+    const minimise = (leaks) => leaks.map((l) => {
+      const kept = Object.fromEntries(keep.filter((k) => l[k] !== undefined).map((k) => [k, abbreviate.has(k) ? String(l[k]).slice(0, 12) : l[k]]));
+      const a = allowOf(l);
+      return a ? { ...kept, Allowed: a.id } : kept;
+    });
     return {
       raw: `${id}.json`,
       startId: INGEST_FLOOR + Number(spec.start_id),
@@ -947,7 +969,17 @@ const FORMATS = {
           for (const k of ['RuleID', 'File', 'StartLine']) {
             if (l[k] === undefined || l[k] === null || l[k] === '') throw new Error(`${id} leak ${i} missing ${k} (truncated report?)`);
           }
-          // NEVER touch l.Secret / l.Match — the matched value must not leave the raw file.
+          // NEVER copy l.Secret / l.Match — the matched value must not leave the raw file.
+          const a = allowOf(l);
+          if (a) return {
+            id: fid(startId + i),
+            source: id,
+            native_id: `${l.RuleID}@${l.File}:${l.StartLine}`,
+            native_category: `${spec.category}-allowed`,
+            polarity: 'fact',
+            observation: `Rule ${l.RuleID} matched at the cited location, allowed by the adapter's rule ${a.id}: ${a.reason}.`,
+            evidence: [`${l.File}:${l.StartLine}`],
+          };
           return {
             id: fid(startId + i),
             source: id,
@@ -1170,6 +1202,14 @@ function profileOf(tool) {
     if (!/^\d+$/.test(String(spec.start_id ?? ''))) throw new Error(`adapters/${tool}.yaml ingest: needs start_id, the id floor, as digits`);
     if (Number(spec.start_id) >= INGEST_FLOOR) throw new Error(`adapters/${tool}.yaml ingest: start_id ${spec.start_id} is the floor's offset in the ingest range, below ${INGEST_FLOOR} (its rows start at F-${INGEST_FLOOR} + start_id)`);
     if (spec.format === 'leak-list' && !(spec.category && spec.fix && Array.isArray(spec.keep) && spec.keep.length && /^\d+$/.test(String(spec.found_exit ?? '')))) throw new Error(`adapters/${tool}.yaml ingest: a leak-list needs category, fix, keep (the location fields a run may archive) and found_exit`);
+    if (spec.format === 'leak-list' && spec.allow !== undefined) {
+      if (!Array.isArray(spec.allow)) throw new Error(`adapters/${tool}.yaml ingest.allow: a list of { id, reason, file, unless_match }`);
+      for (const a of spec.allow) {
+        if (!(a && a.id && a.reason && a.file)) throw new Error(`adapters/${tool}.yaml ingest.allow: each rule needs id, reason and file (the regex of the files it recognises)`);
+        for (const k of ['file', 'unless_match']) if (a[k] !== undefined) { try { new RegExp(String(a[k]), 'i'); } catch (e) { throw new Error(`adapters/${tool}.yaml ingest.allow ${a.id}: ${k} is not a regex: ${e.message}`); } }
+        if (!(spec.keep || []).includes('File')) throw new Error(`adapters/${tool}.yaml ingest.allow: the archive must keep File, which an allow rule reads`);
+      }
+    }
     if (spec.format === 'check-scores' && !(Number(spec.strength_at) >= 0)) throw new Error(`adapters/${tool}.yaml ingest: check-scores needs strength_at, the score at or above which a check is a strength`);
     return make(tool, adapter);
   }
@@ -1230,6 +1270,7 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
     out.push(`  polarity: ${r.polarity}`);
     if (r.severity) out.push(`  severity: ${r.severity}`);
     if (r.fail_open) out.push(`  fail_open: true`);
+    if (r.evidence_absent) out.push(`  evidence_absent: true`);
     out.push(`  observation: >`, `    ${esc(r.observation)}`);
     out.push(`  evidence: [${r.evidence.map((e) => q(esc(e))).join(', ')}]`);   // quoted: a path may hold a comma or a ` #`
     if (r.fix) out.push(`  fix: >`, `    ${esc(r.fix)}`);

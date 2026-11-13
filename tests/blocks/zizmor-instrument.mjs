@@ -69,7 +69,9 @@ export async function run() {
   const nb = req('notesbox', 'd-dependencies-pinned');
   // at a target zizmor is not run over, the reviewer's reading still reaches the row, and the
   // note names zizmor's skip with its reason. The stored notesbox review predates the property a
-  // K finding names (#306): its K gap is placed on no property, so the row reads not measured
-  // with the reviewer's reason, never met, and never decided by the nearest category
-  if (nb?.status !== 'not-measured' || !/deep-code-review: .*placed on no property/.test(nb.note || '') || !/zizmor: zizmor skipped: repo-scoped/.test(nb.note || '')) fail(`at notesbox the reviewer's unplaced K gap holds d-dependencies-pinned not measured and zizmor's skip is named (got ${nb?.status}: ${nb?.note})`);
+  // K finding names (#306); since #316 its labels' markers place it ("toolchain", "supply chain":
+  // build-supply-chain, no release marker), so its gap decides the row unmet, never by the
+  // nearest category. Re-pinned by #316: it read not measured while the finding was unplaced
+  // (reviewer-unplaced-untaken holds that reading for a finding the markers cannot settle)
+  if (nb?.status !== 'unmet' || !/deep-code-review: 1 gap row/.test(nb.note || '') || !/zizmor: zizmor skipped: repo-scoped/.test(nb.note || '')) fail(`at notesbox the reviewer's K gap, placed on build-supply-chain by its markers, decides d-dependencies-pinned unmet and zizmor's skip is named (got ${nb?.status}: ${nb?.note})`);
 }

@@ -12,21 +12,28 @@
 //     `handoff.unit` (map/scanners/CONTRACT.md §7): `file`, `scanner`, or the default
 //     `finding` (the dedupe by identical verbatim fix, buildFixSpine).
 // The ORDER is one key, read off what each item's findings are, never off which scanner
-// found them or what kind of item holds them (#306). Each open gap's key, in this order:
-//   1. halt: an unheld halt (doctrine.mjs isHalt over its effect facet) first;
-//   2. tier: the most urgent tier of the requirement rows the measurement (yardstick.yaml)
-//      lists it on, in the yardstick's tier order;
-//   3. severity: Blocker, Critical, High, Medium, Low, Nit, unrated. A gap that every row
-//      it is listed on reads not measured is not a confirmed gap: it ranks unrated.
-// A gap no requirement takes ranks by its severity alone: right after the last tiered gap
-// at least as severe (ahead of every tiered gap when none is). An item's place is its worst
-// gap's key; ties go to the item whose lowest finding id comes first.
+// found them or what kind of item holds them (#306, #316). Each open gap's key, in this order
+// (views/README.md `handoff/sequence.json` states it; KEY below is its one expression):
+//   1. halt: an unheld halt (doctrine.mjs isHalt over its effect facet), or a confirmed gap on
+//      a row whose `halt_at:` it reaches (yardstick/requirements.yaml), first;
+//   2. severity class: Blocker/Critical/High, then Medium, then Low/Nit/unrated. A gap that
+//      every row it is listed on reads not measured is not a confirmed gap: it ranks unrated;
+//   3. evidence: a gap that is an owner's evidence file found absent (`evidence_absent`) comes
+//      after every observed gap of its class;
+//   4. tier: the most urgent tier of the requirement rows the measurement (yardstick.yaml)
+//      lists it on, in the yardstick's tier order; a gap no requirement takes comes after every
+//      tiered gap of its class;
+//   5. severity within the class.
+// An item's place is its worst gap's key; ties go to the item whose lowest finding id comes first.
 //
-// A scanner item every one of whose findings a roadmap item cites is ABSORBED
-// into that roadmap card (never sequenced twice). An open gap with no fix and
-// no roadmap coverage is OWNER-DEFINED PENDING — named, never sequenced.
+// A scanner item every one of whose findings a roadmap item cites is ABSORBED into that roadmap
+// card (never sequenced twice). An open gap with no fix and no roadmap coverage is an OWNER item:
+// one per requirement the measurement lists it on, else one per property it observes, sequenced
+// by the same key; its remedy is the owner's to decide. A fix-less gap with neither stays
+// PENDING: named, with the reason, never sequenced.
 import { sevRank, buildFixSpine, isHalt } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
+import { propertyOf } from '../../map/placement.mjs';
 
 const nn = (i) => String(i + 1).padStart(2, '0');
 export const SLUG_RE = /^[a-z0-9-]+$/;
@@ -100,64 +107,74 @@ const fileKeyOf = (p) => {
   return paths.length ? paths.join('|') : '(no path)';
 };
 
-// Where each finding sits in the measurement: id → { tier, measured }, tier the index of the
-// most urgent tier among the rows that list it, read first from the rows it holds unmet or
-// mixed (the requirement the gap bears on), then from a row that read met or not applicable
-// with it listed (what the row was met by, #260), then from a row that read not measured;
-// measured is false when only a not-measured row lists it. A finding no row lists is absent:
-// no requirement takes it. `measurement` is yardstick.yaml's rows
+// Where each finding sits in the measurement: id → { tier, measured, req, haltAt }, tier the
+// index of the most urgent tier among the rows that list it, read first from the rows it holds
+// unmet or mixed (the requirement the gap bears on), then from a row that read met or not
+// applicable with it listed (what the row was met by, #260), then from a row that read not
+// measured; measured is false when only a not-measured row lists it; req is that row's id, and
+// haltAt the row's `halt_at:` when the gap bears on it (unmet or mixed). A finding no row lists
+// is absent: no requirement takes it. `measurement` is yardstick.yaml's rows
 // (yardstick/measure.mjs); `yardstick` the registry (requirements.yaml), whose rows give each
-// requirement's tier and whose `tiers:` give their order, joined here as every view joins them.
+// requirement's tier and halt_at and whose `tiers:` give their order, joined here as every view
+// joins them.
 function tiersOfFindings(measurement, yardstick) {
   const tiers = yardstick.tiers;
-  const tierOfReq = new Map((yardstick.requirements || []).map((d) => [d.id, d.tier]));
+  const reqOf = new Map((yardstick.requirements || []).map((d) => [d.id, d]));
   const out = new Map();
   for (const row of Array.isArray(measurement) ? measurement : []) {
-    const t = tiers.indexOf(tierOfReq.get(row.id));
+    const t = tiers.indexOf(reqOf.get(row.id)?.tier);
     if (t < 0) throw new Error(`the measurement's row ${row.id} has no tier in the yardstick (${tiers.join(', ')}): the measurement and requirements.yaml disagree`);
     const by = row.status === 'unmet' || row.status === 'mixed' ? 0 : row.status === 'not-measured' ? 2 : 1;
+    const haltAt = by === 0 ? reqOf.get(row.id)?.halt_at ?? null : null;
     for (const id of Array.isArray(row.findings) ? row.findings : []) {
       const was = out.get(String(id));
-      if (!was || by < was.by || (by === was.by && t < was.tier)) out.set(String(id), { tier: t, measured: by !== 2, by });
+      if (!was || by < was.by || (by === was.by && t < was.tier)) out.set(String(id), { tier: t, measured: by !== 2, by, req: row.id, haltAt: haltAt ?? was?.haltAt ?? null });
+      else if (haltAt && !was.haltAt && by === was.by) was.haltAt = haltAt;
     }
   }
   return out;
 }
 
 const UNRATED = sevRank('unrated');
-const NO_GAP = [2, Infinity, Infinity, 1];   // an item citing no open gap ranks last
+// the severity classes, most consequential first: a High never ranks below a Low (#316)
+export const SEVERITY_CLASS = { Blocker: 0, Critical: 0, High: 0, Medium: 1, Low: 2, Nit: 2 };
+const classOf = (sev) => SEVERITY_CLASS[sev] ?? 2;
 const lex = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1; return 0; };
 const byId = (a, b) => String(a).localeCompare(String(b), 'en', { numeric: true });
 
-// The one ordering key (the header above; views/README.md, `handoff/sequence.json`). Sorts
-// `items` in place, each `{ ps, … }`, and gives each a `rank` of its worst open gap:
-// { halt, tier, severity }, tier the yardstick tier's name or null when no requirement takes it.
+// What one open gap is, read off the finding and the measurement: the facts the key orders by.
+// `at` is its place in the measurement (tiersOfFindings), absent when no requirement takes it.
+function gapFacts(p, at) {
+  const sev = at && !at.measured ? UNRATED : sevRank(p.f.severity);
+  const named = sev === UNRATED ? 'unrated' : p.f.severity;
+  const unheld = !!(p.f.effect && typeof p.f.effect === 'object' && isHalt(p.f.effect));
+  // a confirmed gap at or above the halt_at of the row it bears on (yardstick/requirements.yaml)
+  const reaches = !!(at && at.haltAt && p.f.confidence === 'confirmed' && sev !== UNRATED && sev <= sevRank(at.haltAt));
+  return { halt: unheld || reaches, severity: named, sev, cls: classOf(named), absent: p.f.evidence_absent === true, tier: at ? at.tier : null };
+}
+// THE KEY (views/README.md): one tuple per gap, compared left to right; lower comes first.
+// `tiers` is the yardstick's tier count, the place a gap no requirement takes holds in its class.
+const KEY = (g, tiers) => [g.halt ? 0 : 1, g.cls, g.absent ? 1 : 0, g.tier === null ? tiers : g.tier, g.sev];
+const NO_GAP = [2, Infinity, Infinity, Infinity, Infinity];   // an item citing no open gap ranks last
+
+// Sorts `items` in place by KEY, each `{ ps, … }`, and gives each a `rank` of its worst open
+// gap: { halt, tier, severity, absent_evidence }, tier the yardstick tier's name or null when no
+// requirement takes it.
 function rankItems(items, { tierOf, tiers }) {
   const open = (it) => it.ps.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
-  const keyOf = (p) => {
-    const at = tierOf.get(String(p.f.id));
-    const halt = p.f.effect && typeof p.f.effect === 'object' && isHalt(p.f.effect) ? 0 : 1;
-    const sev = at && !at.measured ? UNRATED : sevRank(p.f.severity);
-    return { p, halt, tier: at ? at.tier : null, sev };
-  };
-  const keyed = items.map((it) => ({ it, ks: open(it).map(keyOf) }));
-  // a gap no requirement takes: after the last tiered gap, of its halt class, at least as severe
-  const tiered = keyed.flatMap((x) => x.ks).filter((k) => k.tier !== null);
-  const full = (k) => {
-    if (k.tier !== null) return [k.halt, k.tier, k.sev, 0];
-    const asSevere = tiered.filter((t) => t.halt === k.halt && t.sev <= k.sev);
-    const last = asSevere.reduce((m, t) => (!m || lex([t.tier, t.sev], [m.tier, m.sev]) > 0 ? t : m), null);
-    return [k.halt, last ? last.tier : -1, k.sev, 1];
-  };
-  for (const x of keyed) {
+  const keyed = items.map((it) => {
     let worst = null;
-    for (const k of x.ks) { const f = full(k); if (!worst || lex(f, worst.f) < 0) worst = { f, k }; }
-    x.key = worst ? worst.f : NO_GAP;
-    x.first = [...new Set(x.it.ps.map((p) => p.f.id))].sort(byId)[0] ?? '';
-    x.it.rank = worst
-      ? { halt: worst.k.halt === 0, tier: worst.k.tier === null ? null : tiers[worst.k.tier], severity: worst.k.sev === UNRATED ? 'unrated' : worst.k.p.f.severity }
-      : { halt: false, tier: null, severity: 'unrated' };
-  }
+    for (const p of open(it)) {
+      const g = gapFacts(p, tierOf.get(String(p.f.id)));
+      const k = KEY(g, tiers.length);
+      if (!worst || lex(k, worst.k) < 0) worst = { k, g };
+    }
+    const first = [...new Set(it.ps.map((p) => p.f.id))].sort(byId)[0] ?? '';
+    it.rank = worst
+      ? { halt: worst.g.halt, tier: worst.g.tier === null ? null : tiers[worst.g.tier], severity: worst.g.severity, absent_evidence: worst.g.absent }
+      : { halt: false, tier: null, severity: 'unrated', absent_evidence: false };
+    return { it, key: worst ? worst.k : NO_GAP, first };
+  });
   keyed.sort((a, b) => lex(a.key, b.key) || byId(a.first, b.first));
   keyed.forEach((x, i) => { items[i] = x.it; });
   return items;
@@ -209,22 +226,46 @@ export function buildSequence({ decided, adapters, roadmap, measurement, yardsti
   for (const [axis, m] of spine) for (const it of m.values())
     remedies.push({ kind: 'remedy', unit: 'finding', source: it.source, ps: it.ps, ids: it.ids, sev: it.sev, axis, also: it.also, fix: it.fix, obs: it.obs });
 
+  // owner items: an open gap with no fix and no roadmap coverage, grouped as the census and the
+  // scanners are, one item per requirement the measurement lists it on (the row it bears on), else
+  // one per property it observes (map/placement.mjs). Its remedy is the owner's to decide; it is
+  // ranked by the same key. A fix-less gap with neither has nothing to group it under: pending.
+  const tierOf = tiersOfFindings(measurement, yardstick);
+  const fixless = openGaps.filter((p) => !p.f.fix && !coveredIds.has(p.f.id));
+  const ownerGroups = new Map();
+  const pending = [];
+  for (const p of fixless) {
+    const req = tierOf.get(String(p.f.id))?.req ?? null;
+    const property = req ? null : propertyOf(p.f, adapters).property;
+    if (!req && !property) { pending.push(p); continue; }
+    const k = req ? `requirement:${req}` : `property:${property}`;
+    if (!ownerGroups.has(k)) ownerGroups.set(k, { kind: 'owner', requirement: req, property, ps: [] });
+    ownerGroups.get(k).ps.push(p);
+  }
+  const ownerItems = [...ownerGroups.values()].map((g) => ({
+    ...g, source: [...new Set(g.ps.map((p) => p.source))].sort().join(', '), ids: g.ps.map((p) => p.f.id).sort(byId),
+    sev: worstSeverity(g.ps), axis: g.ps[0]?.axis, slug: g.requirement || g.property,
+  }));
+
   const seq = rankItems([
     ...roadmap.map((r) => ({ kind: 'authored', r, ps: r.ps })),
     ...triageItems,
     ...remedies,
-  ], { tierOf: tiersOfFindings(measurement, yardstick), tiers: yardstick.tiers });
+    ...ownerItems,
+  ], { tierOf, tiers: yardstick.tiers });
   seq.forEach((s, i) => { s.n = i + 1; });
 
-  // plan files: every roadmap item, every triage item, and every remedy whose
-  // worst severity is High or above (applied to the group).
+  // plan files: every roadmap item, every triage item, every remedy whose worst severity is High
+  // or above (applied to the group), and every owner item that leads (a halt), is High or above,
+  // or bears on a custody or safety row.
   for (const s of seq) {
     if (s.kind === 'authored') s.plan = `${nn(s.n - 1)}-${s.r.slug}.md`;
     else if (s.kind === 'triage') s.plan = `${nn(s.n - 1)}-triage-${s.source}.md`;
+    else if (s.kind === 'owner') { if (s.rank.halt || sevRank(s.rank.severity) <= 2 || ['custody', 'safety'].includes(s.rank.tier)) s.plan = `${nn(s.n - 1)}-decide-${s.slug}.md`; }
     else if (sevRank(s.sev) <= 2) s.plan = `${nn(s.n - 1)}-${axisShort(s.axis)}-${s.ids[0]}.md`;
   }
-
-  const pending = openGaps.filter((p) => !p.f.fix && !coveredIds.has(p.f.id));
+  // why each pending gap stays outside the sequence (START-HERE names it)
+  const pendingWhy = 'no fix is recorded, no requirement takes it and it names no property, so there is no item to group it under';
 
   // loud, never silent: a Critical finding or a triage item sitting outside the
   // roadmap. Every triage/remedy item is, by construction, outside the roadmap
@@ -237,7 +278,7 @@ export function buildSequence({ decided, adapters, roadmap, measurement, yardsti
     if (criticalIds.length) urgentOutside.push({ n: s.n, kind: 'critical', ids: criticalIds });
   }
 
-  return { seq, coveredIds, openGaps, pending, urgentOutside, roadmapCount: roadmap.length };
+  return { seq, coveredIds, openGaps, pending, pendingWhy, urgentOutside, roadmapCount: roadmap.length };
 }
 
 // One stderr-ready sentence for the urgentOutside register (handoff.mjs prints

@@ -50,7 +50,7 @@
       "deep-code-review": {
         "status": "adopted",
         "ran_in": 2,
-        "decides_alone": 4,
+        "decides_alone": 5,
         "unique_recoveries": [],
         "corroborated": 4,
         "fails_loud": "dcr-machine-report"
@@ -128,7 +128,7 @@
       "repo-census": {
         "status": "adopted",
         "ran_in": 1,
-        "decides_alone": 10,
+        "decides_alone": 8,
         "unique_recoveries": [
           "fixtures-root/R-I1",
           "fixtures-root/R-I2",

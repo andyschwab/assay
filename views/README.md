@@ -177,30 +177,44 @@ over `views/improve/templates/`). It needs the run's authored
 | `views/improve/maturity-grades.yaml` | maturity coverage per dimension, computed (`node assay.mjs maturity`) |
 | `views/improve/maturity.md`, `views/improve/security.md`, `views/improve/security-gate.yaml`, `views/improve/leverage.md` | the maturity reading, the exposures and attack paths, and where one change moves the most, written by the built-in method's view passes (`map/METHOD.md`) and checked by `validate` |
 | `handoff/` | the remediation handoff (`START-HERE.md`, `REMEDIATION.md`, `FINDINGS.md`, `plan/`), one sequence shared with `IMPROVE.md` §6 (`views/improve/sequence.mjs`) of the reviewer's roadmap items, one read-first triage item per scanner that declares one, and every remaining scanner-fix remedy grouped per its adapter's declared `handoff.unit` (`map/scanners/CONTRACT.md` §7), in the order below. Every remedy carries two proofs — what the repository's own tools can check, and what the next assay run checks. |
-| `handoff/sequence.json` | the same sequence as data, for an agent that iterates the work (`assay.handoff-sequence/1`, `lib/run-data.mjs`): `{ schema, run, sequence: [{ n, kind: authored \| triage \| remedy, voice: eval-authored \| triage \| scanner-verbatim, source, title, findings: [F-…], plan: plan/NN-*.md \| null, rank: { halt, tier, severity } }], pending: [F-…] }`; `rank` is the key that placed the item, read off its worst open gap (`tier` null when no requirement takes it; a sequence written before #306 carries none); `handoff.mjs` checks it before writing, `validate` reads it back |
+| `handoff/sequence.json` | the same sequence as data, for an agent that iterates the work (`assay.handoff-sequence/1`, `lib/run-data.mjs`): `{ schema, run, sequence: [{ n, kind: authored \| triage \| remedy \| owner, voice: eval-authored \| triage \| scanner-verbatim \| owner-defined, source, title, findings: [F-…], plan: plan/NN-*.md \| null, rank: { halt, tier, severity, absent_evidence } }], pending: [F-…] }`; `rank` is the key that placed the item, read off its worst open gap (`tier` null when no requirement takes it; a sequence written before #306 carries none, one written before #316 no `absent_evidence`); an `owner` item's `source` names every scanner or lane among its findings; `pending` holds only the fix-less gaps no requirement takes and no property names; `handoff.mjs` checks it before writing, `validate` reads it back |
 
-**The sequence's order** (#306) is one key, read off what each item's findings are; which
-scanner found a finding, and whether the item is authored, triage or a scanner's fix, never
-moves it. Each open gap the item holds is keyed by, in this order:
+**The sequence's order** (#306, #316) is one key, read off what each item's findings are;
+which scanner found a finding, and whether the item is authored, triage, a scanner's fix or
+the owner's to define, never moves it. It is expressed once, as the tuple `KEY` in
+`views/improve/sequence.mjs`. Each open gap the item holds is keyed by, in this order:
 
-1. **Halt**: an unheld halt (`map/doctrine.mjs` `isHalt` over its effect facet) comes first.
-2. **Tier**: the tier of the requirement the gap bears on, in the tier order above (custody,
+1. **Halt** comes first: an unheld halt (`map/doctrine.mjs` `isHalt` over its effect facet), or
+   a gap with confidence `confirmed` at or above the severity that the requirement it bears on
+   names as a halt (`halt_at:` in `yardstick/requirements.yaml`, `yardstick/README.md`). The
+   requirement row says what is a halt, never the scanner that found it.
+2. **Severity class**: Blocker, Critical and High; then Medium; then Low, Nit and unrated, the
+   severity a view reads (`views/severity.mjs`). A High never ranks below a Low, whatever their
+   tiers. A gap whose every listing row reads not measured is not a confirmed gap: it ranks
+   unrated, with the tier it bears on.
+3. **Evidence**: within a class, a gap that is an owner's evidence file found absent
+   (`evidence_absent: true`, `map/SCHEMA.md` §1, such as the census's "no evidence transcript")
+   comes after every gap observed in the tree. This is a clause of the key, not a severity
+   adjustment: the absent transcript keeps its severity and its class.
+4. **Tier**: the tier of the requirement the gap bears on, in the tier order above (custody,
    safety, reproducibility, verification, legibility, operability), read off the measurement
    (`yardstick.yaml`): the most urgent tier among the rows that list it unmet or mixed, else
    among the rows that list it met or not applicable, else among the rows that read not
-   measured.
-3. **Severity**: Blocker, Critical, High, Medium, Low, Nit, unrated, the severity a view reads
-   (`views/severity.mjs`). A gap whose every listing row reads not measured is not a confirmed
-   gap: it ranks unrated, with the tier it bears on.
+   measured. A gap no requirement takes comes after every tiered gap of its class and evidence.
+5. **Severity** within the class: Blocker before Critical before High, Low before Nit before
+   unrated.
 
-A gap no requirement takes ranks by its severity alone: right after the last tiered gap at
-least as severe, and ahead of every tiered gap when none is. An item is placed by its worst
-gap, so a group bundled by `handoff.unit` sits where its worst member would; an item holding no
-open gap comes last. Ties go to the item whose lowest finding id comes first. No item is held
-first for any other reason: a reviewer's roadmap item is placed by the findings it cites like
-any other, and a triage item by the hits it holds. A deploy-trust gap the map records as an
-effect with no stop that holds is an unheld halt by the first rule; one recorded only as a
-reviewer's finding ranks by the requirement row that takes it.
+An item is placed by its worst gap, so a group bundled by `handoff.unit` sits where its worst
+member would; an item holding no open gap comes last. Ties go to the item whose lowest finding
+id comes first. No item is held first for any other reason: a reviewer's roadmap item is placed
+by the findings it cites like any other, and a triage item by the hits it holds.
+
+**What is sequenced** (#316). Every open gap the roadmap does not cover is in the sequence or
+named outside it with the reason. A gap with a scanner's fix is a remedy or triage item. A gap
+with no fix (a practice review's gap, most often) is an **owner** item: one per requirement the
+measurement lists it on, else one per property it observes (`map/placement.mjs`), its remedy
+the owner's to decide, ranked by the same key. A fix-less gap with neither has nothing to group
+it under: it stays in `pending`, and START-HERE counts and names it with that reason.
 | `views/improve/chains.json` | the ranked chains as data (`assay.chains/1`, `map/SCHEMA.md` §6d): `{ schema, run, live: [{ rank, entry: { id, label }, headline: { id, label }, sinks: [{ id, label, blast }], blast, difficulty_rank, difficulty_why, path: [F-…], tentative }], held: [{ entry, holds: [{ id, label, by }] }], contained: [{ id, label, why }], unresolved: [{ kind, id, label, why }] }`; `report.mjs` checks it before writing, `validate` reads it back |
 | `views/improve/report.json` | the report's model as data, labels applied, for a renderer of the report that imports nothing (`assay.improve-report/1`, `lib/run-data.mjs` `checkImproveReport`): `{ schema, run, labels: { dimension, who, group, confidence }, capabilities: { counts: { kinds, unguarded, byGroup }, groups: [{ group, label, kinds, unguarded, channels: [{ channel, label, what, findings: [F-…], external, reversibility, telemetry, trace, blast, gates, halt }] }] }, chains: { live: [chains.json's live row, plus blast_word, difficulty, cuts: [{ id, label }], weakest: { id, confidence, word } \| null], held, contained, unresolved }, supervision: { total, supervised, unsupervised, kinds: [{ channel, label, sites, ids: [F-…], fixes: [{ n, slug }] }], fixes: [n], any_unplanned }, howto }`; a live chain's `cuts` are the control or process gaps that stop it (`[]` when none) and its `weakest` the step a tentative chain rests on (`confidence` `plausible` or `unverified`, `word` the report's phrase for it), `null` when the chain is not tentative, both as `map/chains.mjs` computes them; every entry naming a finding by `id` (each `entry`, `headline`, sink, hold, cut, `weakest`, `contained` and `unresolved` row) carries that finding's `confidence` and `word`, the phrase `labels.confidence` gives it (`{ plausible, unverified }` → the report's hedge), `null` when confirmed, so a renderer never maps a confidence to words itself and `checkImproveReport` refuses an entry without both; `howto` is the report's how-to text, markdown; `report.mjs` checks it before writing, `validate` reads it back |
 

@@ -18,8 +18,14 @@
 # dependency currency, the build's CI gate); release-path-trust is how a change
 # reaches production (environment approvals, the trust condition a deploy
 # credential admits, what runs before whose review). A K finding that names
-# neither is unplaced: listed untaken with that reason, and d-dependencies-pinned
-# reads not measured beside it rather than met.
+# neither is placed by its markers (#316): the closed words below, matched whole in the
+# reviewer's own tag and title, never its observation. The markers of exactly one property
+# place it; markers of none or of both leave it unplaced, listed untaken with that reason,
+# and d-dependencies-pinned reads not measured beside it rather than met. A report written
+# before the lane asked for property: (the 2026-11-12 reviews) is placed this way, and a
+# finding the markers cannot settle is never guessed. M (observability) is split the same
+# way, over the three operability rows #311 introduced (#316): what a scheduled job or an
+# effect is declared to do, the report of whether each signal holds, and who is told.
 scanner: deep-code-review
 targets_taxonomy: 3
 # What the core reads about this scanner (CONTRACT.md §3): a judgment scanner, run
@@ -108,6 +114,9 @@ map:
     means:                    # what each names: the lane states it to the reviewer
       build-supply-chain: "how the code is built and what it is built from: lockfiles, the toolchain version, CI actions pinned by commit, dependency currency and audits, a reproducible build and the CI gate that builds it"
       release-path-trust: "how a change reaches production: environment approvals and their order, the trust condition a deploy credential or tag admits, who may promote, and what runs before whose review"
+    markers:                  # closed; a word here names one property only (map/placement.mjs)
+      build-supply-chain: ["lockfile", "lock file", "pinned", "unpinned", "pinning", "floats", "floating", "supply chain", "dependency", "dependencies", "toolchain", "third party action", "third party actions", "digest", "audit", "vulnerable", "outdated"]
+      release-path-trust: ["production", "prod", "deploy", "deploys", "deployed", "deployment", "release", "releases", "promote", "promotes", "promoter", "promotion", "approval", "approve", "approves", "approver", "environment reviewer", "trust condition", "identity", "identities", "oidc"]
   L:                          # Infra / IaC / containers / cloud / serverless
     axis: code-security
     property: infrastructure-config
@@ -131,7 +140,15 @@ map:
     property: test-gates
   M:                          # Observability (proof-of-effect) -> the shared verification axis
     axis: verification
-    property: observability
+    properties: [declared-expectations, health-reporting, signal-routing]
+    means:
+      declared-expectations: "what each scheduled job and external effect is declared to do and how often, so a job that never ran or a run that touched nothing is noticed"
+      health-reporting: "whether one report a machine can read states each declared signal's last success, count and since-when, and whether errors reach it"
+      signal-routing: "who is told about which signal and how (recorded, a digest, an immediate alert), including whether production alerts at all"
+    markers:
+      declared-expectations: ["scheduled", "schedule", "scheduled job", "cron", "heartbeat", "expectation", "expectations", "silent failure", "silently stops", "missed run", "dead man"]
+      health-reporting: ["health", "health check", "healthcheck", "health report", "error tracking", "error reporting", "uptime", "status page", "metrics", "dashboard"]
+      signal-routing: ["alert", "alerts", "alerting", "alert policy", "paging", "pager", "on call", "escalation", "notify"]
   C:                          # AI / LLM / agent security -> the shared delegation axis
     axis: delegation
     property: model-input-and-agency
@@ -153,13 +170,28 @@ decides:
     category: Q
   - requirement: d-config-declared
     category: N
-  - requirement: d-dependencies-pinned   # K's supply-chain half only; release-path-trust is no row's yet
+  - requirement: d-dependencies-pinned   # K's supply-chain half
     category: K
     property: build-supply-chain
-  # M (observability) decides no row since #311 retired d-errors-reach-a-person: its
-  # successors read the application's declared signals, health report and routing policy
-  # through the repo census, and a reviewer's proof-of-effect finding is neither. Its rows
-  # are listed untaken under the observability property (views/improve/candidates.yaml).
+  - requirement: d-release-path-trusted  # K's release half (#316)
+    category: K
+    property: release-path-trust
+  # M (observability) over the three operability rows (#316). The census decides each row from
+  # the tree; the reviewer's M gap on the same property is a gap there too, and its silence is no
+  # evidence that a declaration, report or policy exists, so these bindings read gaps only
+  # (gaps_only: a reading that is not a gap steps aside, yardstick/measure.mjs).
+  - requirement: d-expectations-declared
+    category: M
+    property: declared-expectations
+    gaps_only: true
+  - requirement: d-health-reported
+    category: M
+    property: health-reporting
+    gaps_only: true
+  - requirement: d-routing-proportionate
+    category: M
+    property: signal-routing
+    gaps_only: true
 
 # handoff (map/scanners/CONTRACT.md §3, block style only): the default unit
 # (finding) is enough — most findings are one-off code defects. client_proof

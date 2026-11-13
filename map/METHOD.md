@@ -785,12 +785,14 @@ One command assembles the whole deliverable over the projected base:
  its findings and spliced with their verbatim observations + evidence; a scanner item
  whose findings a roadmap item fully covers is absorbed into that card, never sequenced
  twice). An open gap with
- neither is **owner-defined pending**: listed loudly, never dropped, never sequenced.
+ neither is an **owner-defined** item, one per requirement or property, its remedy the owner's
+ to decide (#316); one with no requirement and no property stays pending, named with the reason.
  Files, designed **self-contained** (the folder ships alone into the target repo):
  `START-HERE.md` (the one sequence `IMPROVE.md` §6 also numbers — the roadmap items,
  a triage item per triage scanner and the remaining scanner fixes bundled as each
- adapter declares, ordered by what each item's worst finding is: an unheld halt, then
- its requirement's tier, then its severity (`views/README.md`, "The sequence's order"),
+ adapter declares, and the owner-defined groups, ordered by what each item's worst finding
+ is: a halt, then its severity class, an absent evidence file after observed gaps, then its
+ requirement's tier, then its severity (`views/README.md`, "The sequence's order"),
  never by which scanner found it; a Critical finding or a
  triage left outside the roadmap is named with its item number — and what is NOT
  covered), `REMEDIATION.md` (every remedy with its **claim-audit block**: verbatim

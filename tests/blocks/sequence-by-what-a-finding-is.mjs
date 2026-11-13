@@ -16,6 +16,10 @@
 //       never moves it.
 // Under the kind-first order this replaced (roadmap, triage, then remedies by severity) the
 // halt, which carries no severity, was last and the census rows came before the Low.
+// Re-pinned by #316: severity now bounds tier (halt, severity class, absent evidence, tier,
+// severity), so the two census Mediums come after every High and before the verification Low;
+// a High still never follows them, and neither carries evidence_absent here, so neither is
+// moved by the absent-evidence clause (tests/blocks/sequence-severity-bounds-tier.mjs pins it).
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
@@ -23,7 +27,7 @@ import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'sequence-by-what-a-finding-is';
 
-const EXPECTED = ['F-053', 'F-1003', 'F-902', 'F-054', 'F-1100', 'F-1101'];
+const EXPECTED = ['F-053', 'F-1003', 'F-902', 'F-1100', 'F-1101', 'F-054'];
 
 // a fixture run: notesbox's public run record, raw inputs and effect triage, with these findings
 export function writeRankFixture(dir) {
@@ -81,13 +85,13 @@ export async function run() {
   const h = handoff();
   if (h.status !== 0) { fail(`handoff.mjs must compile the fixture (exit ${h.status}): ${h.stderr.slice(0, 600)}`); rmSync(tmp, { recursive: true, force: true }); return; }
   const a = read();
-  if (a.order.join(' ') !== EXPECTED.join(' ')) fail(`sequence.json must order halt, safety High, verification High, verification Low, documentation, evidence: ${EXPECTED.join(' ')} (got ${a.order.join(' ')})`);
+  if (a.order.join(' ') !== EXPECTED.join(' ')) fail(`sequence.json must order halt, safety High, verification High, documentation Medium, evidence Medium, verification Low: ${EXPECTED.join(' ')} (got ${a.order.join(' ')})`);
   if (startOrder(a.lines).join(' ') !== EXPECTED.join(' ')) fail(`START-HERE must list the same order as sequence.json: ${EXPECTED.join(' ')} (got ${startOrder(a.lines).join(' ')})`);
   const at = (id) => a.order.indexOf(id);
   if (at('F-053') !== 0) fail(`the unheld halt must be item 1 (got item ${at('F-053') + 1})`);
   if (at('F-1003') !== 1) fail(`the code-review High on a safety-tier row must be item 2 (got item ${at('F-1003') + 1})`);
-  for (const doc of ['F-1100', 'F-1101']) for (const gap of ['F-1003', 'F-902', 'F-054'])
-    if (at(doc) < at(gap)) fail(`the census row ${doc} must come after the tiered gap ${gap} (items ${at(doc) + 1} and ${at(gap) + 1})`);
+  for (const doc of ['F-1100', 'F-1101']) for (const gap of ['F-1003', 'F-902'])
+    if (at(doc) < at(gap)) fail(`the census row ${doc} must come after the High ${gap} (items ${at(doc) + 1} and ${at(gap) + 1})`);
 
   // (b) the rank names what placed each item
   const rankOf = (id) => (a.doc.sequence.find((s) => s.findings.includes(id)) || {}).rank;
@@ -110,7 +114,7 @@ export async function run() {
   const c = read();
   if (h2.status !== 0) fail(`handoff.mjs must compile the fixture with a roadmap (exit ${h2.status}): ${h2.stderr.slice(0, 600)}`);
   if (c.order.join(' ') !== EXPECTED.join(' ')) fail(`an authored item must take the place its findings give it, the same order as without the roadmap: ${EXPECTED.join(' ')} (got ${c.order.join(' ')})`);
-  if (c.doc.sequence[0]?.kind !== 'authored' || c.doc.sequence[5]?.kind !== 'authored') fail(`the two authored items must be items 1 and 6 (got kinds ${c.doc.sequence.map((s) => s.kind).join(', ')})`);
+  if (c.doc.sequence[0]?.kind !== 'authored' || c.doc.sequence[4]?.kind !== 'authored') fail(`the two authored items must be items 1 and 5 (got kinds ${c.doc.sequence.map((s) => s.kind).join(', ')})`);
 
   rmSync(tmp, { recursive: true, force: true });
 }
