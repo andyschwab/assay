@@ -7,6 +7,7 @@
 // when there is a previous run to compare against. Zero
 // dependencies: this file is a thin process dispatcher over node itself.
 import { spawnSync } from 'node:child_process';
+import { existsSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -79,6 +80,19 @@ const script = COMMANDS[cmd];
 if (!script) {
   console.error(`assay: unknown command "${cmd}"\n`);
   help();
+  process.exit(2);
+}
+
+// The commands whose first argument is a run directory (#304). One that names no directory that
+// exists prints the command's own usage and exits 2, never a stack from deeper in: the usage is
+// what the script prints when it is given nothing, so it is never restated here. ingest is not
+// among them: it makes the run's map when the directory is new (start ingests its instruments
+// before it writes anything else), and refuses a missing run, tool or report itself.
+const RUN_DIR_COMMANDS = new Set(['validate', 'record', 'migrate-run', 'project', 'score', 'backlog', 'measure', 'ratchet', 'compile', 'intake', 'maintain', 'owner', 'since', 'maturity']);
+if (RUN_DIR_COMMANDS.has(cmd) && args[0] !== undefined && !args[0].startsWith('-') && !(existsSync(args[0]) && statSync(args[0]).isDirectory())) {
+  console.error(`assay ${cmd}: no such run directory: ${args[0]}`);
+  const u = spawnSync(process.execPath, [join(HERE, script)], { encoding: 'utf8' });
+  process.stderr.write(String(u.stderr || '').split('\n').filter((l) => !l.startsWith(`assay ${cmd}:`)).join('\n'));
   process.exit(2);
 }
 

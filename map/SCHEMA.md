@@ -360,8 +360,24 @@ enforces it via filename↔dimension.
   — this is a **dispatch convenience, not a schema constraint**, it has no ceiling, and it
   carries no dimension meaning (a collision is renumbered freely; the validator enforces only
   global uniqueness). Or author pass-local and let the merge assign final ids.
-- The only hard rules the validator enforces: every id is a well-formed unique `F-###`, every
-  `reaches`/`explained_by`/`escapes` resolves, and filename↔dimension holds.
+- The only hard rules the validator enforces: every id is a well-formed unique `F-###` in its
+  range (below), every `reaches`/`explained_by`/`escapes` resolves, and filename↔dimension holds.
+
+**Two ranges (#304).** A review lane writes its findings in a scratch run that holds no
+instrument rows, and cannot see the ids `ingest` gives; `ingest` runs before the lane is
+collected, or after. So the two never share a range, and nothing is renumbered at collection:
+- a **lane's** findings (the passes of this method: no `source`, or `source: practice-review`)
+  are numbered `F-001` to `F-9999`;
+- every row **`ingest`** allocates, instrument and reviewer alike, is `F-10000` or above: each
+  profile's floor is `F-10000` plus its offset (an adapter's `ingest.start_id`, 700 for the secret
+  scan, so `F-10700`), and the next start above it
+  reads only the ingested ids already in the run (`map/ingest.mjs` `nextStart`).
+
+`validate` holds the boundary both ways, naming the range: a lane's finding at `F-10000` or
+above is refused in every run; an ingested row below it is refused in a run whose record carries
+`ingest_ids_from: 10000` (§5a; `start` writes it). A run drawn before the ranges carries no such
+key and keeps its ids: its ingested rows sit below the floor, and no lane's finding of it ever
+reached the ingest range (`map/ids.mjs`).
 
 **`unprompted`** is a first-class dimension for a seam-finding no criterion asked for; a
 finding with `dimension: unprompted` may live in any `map/findings/practice-review-*.yaml` file and takes an
@@ -508,6 +524,7 @@ identity:                     # the target, as the run states it (#265); optiona
   repository: "https://github.com/<owner>/<repo>"   # the origin remote, userinfo stripped
   path: "."                   # the target's path within the repository: `.`, or e.g. targets/<name>
 drawn: "2026-11-11"           # the day the run was drawn, YYYY-MM-DD; optional, written by start
+ingest_ids_from: 10000        # the run was drawn under the two id ranges (§3, #304); written by start
 scanners:
   practice-review:
     status: ran
@@ -1191,8 +1208,9 @@ a pass (the run's own CI-1 lesson, applied to the checker):
 3. Conditional-required facets are present and complete (§4), incl. the `fail_mode`
    rule and the **fail-closed discovery rule** (§6d): an unheld-halt effect — a chain
    sink — must state its `preconditions`, never leave difficulty to default.
-4. Ids are unique across the run and well-formed `F-###` (§3) — no dimension-band check;
-   the id carries no dimension meaning.
+4. Ids are unique across the run and well-formed `F-###` (§3), each in its range: a lane's
+   below `F-10000`, an ingested row at or above it in a run drawn under the ranges — no
+   dimension-band check; the id carries no dimension meaning.
 5. Filename ↔ dimension agreement (§5), `unprompted` excepted — the actual source of truth
    for a finding's dimension.
 6. Every `F-###` in `reaches` / `explained_by` / `escapes` resolves to a finding.

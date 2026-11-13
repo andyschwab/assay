@@ -10,6 +10,7 @@
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
 // is an error, not a pass — a checker that silently accepts unparseable input hides the very thing it exists to catch.
+import { INGEST_FLOOR, RECORD_KEY as ID_RECORD_KEY, rangeError } from './ids.mjs';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -396,6 +397,24 @@ for (const file of passFiles) {
       }
     }
   }
+}
+
+// the two id ranges (#304; SCHEMA.md §3, map/ids.mjs): a lane numbers its findings below the
+// ingest floor and ingest allocates at or above it, so a lane collected into a run beside its
+// instruments collides with none of them. A lane's finding in the ingest range is refused in
+// every run (no run before the ranges numbered one there); an ingested row in the lane range is
+// refused in a run whose record says it was drawn under the ranges (ingest_ids_from:, written by
+// start). A stored run drawn before them carries no such key and keeps its ids.
+{
+  let held = false;
+  if (existsSync(scannersPath(runDir))) {
+    let m = null;
+    try { m = parseYaml(readFileSync(scannersPath(runDir), 'utf8')); } catch { /* reported with the run record */ }
+    const v = m && typeof m === 'object' && !Array.isArray(m) ? m[ID_RECORD_KEY] : undefined;
+    if (v !== undefined && Number(v) !== INGEST_FLOOR) err(`map/scanners.yaml:${ID_RECORD_KEY}`, `${ID_RECORD_KEY}: ${v} is not this engine's ingest floor (${INGEST_FLOOR}): the run says its ingests allocated from a floor no engine used`);
+    held = v !== undefined;
+  }
+  for (const [id, { f, file }] of allById) { const e = rangeError(f, held); if (e) err(`${file}:${id}`, e); }
 }
 
 // optional: evidence against the target repo (fail-closed on a cited path that does not

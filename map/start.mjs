@@ -49,6 +49,7 @@
 //
 // Library: drawOfflineMap, runAssayInstrument, runAdapterInstrument, toScannersYaml,
 // engineCommit — routine/run.mjs imports what it re-exports.
+import { INGEST_FLOOR, RECORD_KEY as ID_RECORD_KEY } from './ids.mjs';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync, readdirSync, statSync, cpSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -300,7 +301,10 @@ export function toScannersYaml(engine, rows, header = '# scanners.yaml — GENER
   const { identity = null, drawn = null } = stated;
   const L = [header, `engine: ${engine}`, ...(target ? [`target: ${q(target)}`] : []),
     ...(identity ? ['identity:', `  repository: ${q(identity.repository)}`, `  path: ${q(identity.path)}`] : []),
-    ...(drawn ? [`drawn: ${q(drawn)}`] : []), 'scanners:'];
+    ...(drawn ? [`drawn: ${q(drawn)}`] : []),
+    // the run was drawn under the two id ranges (map/ids.mjs, #304): validate holds an ingested
+    // row below the floor as well as a lane's finding at or above it
+    `${ID_RECORD_KEY}: ${INGEST_FLOOR}`, 'scanners:'];
   for (const [id, r] of Object.entries(rows)) {
     L.push(`  ${id}:`, `    status: ${r.status}`);
     if (r.reason) L.push(`    reason: ${q(r.reason)}`);
