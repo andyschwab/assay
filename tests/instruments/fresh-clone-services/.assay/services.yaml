@@ -1,0 +1,16 @@
+# The services this repository's test and migrate steps need (assay map/scanners/CONTRACT.md
+# §3b, "Services a target declares"). A fixture: trust auth, no password, nothing secret.
+services:
+  - name: postgres
+    image: postgres:16.4-alpine
+    port: 5432
+    env:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: app
+    ready: pg_isready -U postgres -h 127.0.0.1
+    wait: 90
+steps: [test, migrate]
+env:
+  DATABASE_URL: "postgres://postgres@${postgres.host}:${postgres.port}/app"
+setup:
+  - node db.mjs roles

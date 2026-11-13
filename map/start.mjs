@@ -12,7 +12,15 @@
 // hard-coded, so moving this file changed nothing about what the routine
 // records (tests/blocks/routine.mjs pins this byte-for-byte).
 //
-// Usage: node assay.mjs start --out <run> [<target>] [--allow-exec]
+// Usage: node assay.mjs start --out <run> [<target>] [--allow-exec [--allow-services]] [--unstripped-report <file>]
+//   --allow-services — with --allow-exec only: fresh-clone starts the services the target
+//                      declares (.assay/services.yaml) as throwaway containers for its test and
+//                      migrate steps, and removes them (fresh-clone --services, #256). Without
+//                      it, a declared service is not provided and those steps read skipped.
+//   --unstripped-report <file> — also write fresh-clone's report as drawn, step output tails
+//                      included, to <file>, which must lie outside the run: for an operator
+//                      whose runner holds no secrets, so a failed step's reason can be read.
+//                      The operator owns that file; the run's own map/raw/ copy stays stripped.
 //   <target> given  — refuses (exit 3, nothing written: #197) until every pinned tool is
 //                      on PATH and answers at its pin (map/tools.mjs verify, #198);
 //                      then writes the deterministic enumeration to
@@ -89,10 +97,15 @@ export function engineCommit() {
 // never at a guessable name in the shared temp directory, where a planted file or
 // symlink would receive it.
 const rawScratch = (tool) => { const dir = mkdtempSync(join(tmpdir(), `assay-start-${tool}-`)); return { dir, file: join(dir, `${tool}.json`) }; };
-export function runAssayInstrument({ tool, cmd, cliArgs, okExits, outDir, log, target = null }) {
+// keepRawAt: a path outside the run the report, as drawn, is also copied to (#256)
+export function runAssayInstrument({ tool, cmd, cliArgs, okExits, outDir, log, target = null, keepRawAt = null }) {
   const { dir: rawDir, file: rawFile } = rawScratch(tool);
   log(`· ${tool} …`);
   const r = assay([cmd, ...cliArgs, '--out', rawFile]);
+  if (keepRawAt && existsSync(rawFile)) {
+    try { mkdirSync(dirname(keepRawAt), { recursive: true }); cpSync(rawFile, keepRawAt); log(`  · ${tool}'s unstripped report (output tails included) → ${keepRawAt}; it is the operator's, never archived into the run`); }
+    catch (e) { log(`  ⚠ ${tool}'s unstripped report was not written to ${keepRawAt}: ${e.message}`); }
+  }
   const row = ingestInstrumentRaw({ tool, exit: r.status, output: r.stderr || r.stdout, rawFile, okExits, outDir, log, target });
   try { rmSync(rawDir, { recursive: true, force: true }); } catch {}   // the private raw-report directory (#49), removed by the caller: ingestInstrumentRaw also serves the handoff (#48)
   return row;
@@ -349,17 +362,21 @@ export const judgmentScanners = (adapters = loadAdapters()) =>
 //                           ingested instead (the routine's gate job, which never
 //                           executes the target; knip ran in the target job,
 //                           after fresh-clone's install — #128).
-export function drawOfflineMap({ repoDir, outDir, pendingReason, freshCloneNoClone = false, freshCloneSkipReason = null, handoff = null, structureScanNoExec = false } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
+//   freshCloneServices    — pass `--services` to fresh-clone: start the target's declared
+//                           services, throwaway (#256). `assay start --allow-services`.
+//   freshCloneUnstripped  — a path outside the run: fresh-clone's report, as drawn (step
+//                           output tails included), is also written there (#256).
+export function drawOfflineMap({ repoDir, outDir, pendingReason, freshCloneNoClone = false, freshCloneSkipReason = null, handoff = null, structureScanNoExec = false, freshCloneServices = false, freshCloneUnstripped = null } = /** @type {any} */ ({}), log = /** @type {(msg: string) => void} */ (() => {})) {
   const reasonFor = typeof pendingReason === 'function' ? pendingReason : () => pendingReason;
   const rows = {};
   for (const id of judgmentScanners()) rows[id] = { status: 'skipped', reason: reasonFor(id) };
   // each instrument row carries its wall time (#159); a handed-off one carries the target
   // step's own, measured where it ran
   rows['repo-census'] = timed(() => runAssayInstrument({ tool: 'repo-census', cmd: 'repo-census', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir }));
-  const fcArgs = freshCloneNoClone ? [repoDir, '--no-clone'] : [repoDir];
+  const fcArgs = [repoDir, ...(freshCloneNoClone ? ['--no-clone'] : []), ...(freshCloneServices ? ['--services'] : [])];
   if (freshCloneSkipReason) { log(`· fresh-clone — not run: ${freshCloneSkipReason}`); rows['fresh-clone'] = { status: 'skipped', reason: freshCloneSkipReason }; }
   else if (handoff) rows['fresh-clone'] = ingestHandoff('fresh-clone', handoff, outDir, log);
-  else rows['fresh-clone'] = timed(() => runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log, target: repoDir }));
+  else rows['fresh-clone'] = timed(() => runAssayInstrument({ tool: 'fresh-clone', cmd: 'fresh-clone', cliArgs: fcArgs, okExits: [0, 1], outDir, log, target: repoDir, keepRawAt: freshCloneUnstripped }));
   rows['dependency-scan'] = timed(() => runAssayInstrument({ tool: 'dependency-scan', cmd: 'dependency-scan', cliArgs: [repoDir], okExits: [0, 1], outDir, log, target: repoDir }));
   if (handoff) rows['structure-scan'] = ingestHandoff('structure-scan', handoff, outDir, log);
   else rows['structure-scan'] = timed(() => runAssayInstrument({ tool: 'structure-scan', cmd: 'structure-scan', cliArgs: structureScanNoExec ? [repoDir, '--no-exec'] : [repoDir], okExits: [0, 1], outDir, log }));
@@ -458,13 +475,27 @@ function runCli() {
   const args = process.argv.slice(2);
   const outIdx = args.indexOf('--out');
   const outArg = outIdx > -1 ? args[outIdx + 1] : null;
-  const flagIdx = new Set(outIdx > -1 ? [outIdx, outIdx + 1] : []);
+  const urIdx = args.indexOf('--unstripped-report');
+  const urArg = urIdx > -1 ? args[urIdx + 1] : null;
+  const flagIdx = new Set([...(outIdx > -1 ? [outIdx, outIdx + 1] : []), ...(urIdx > -1 ? [urIdx, urIdx + 1] : [])]);
   const target = args.find((a, i) => !flagIdx.has(i) && !a.startsWith('--'));
-  if (!outArg) {
-    console.error('usage: node assay.mjs start --out <run> [<target>] [--allow-exec]');
+  const usage = 'usage: node assay.mjs start --out <run> [<target>] [--allow-exec [--allow-services]] [--unstripped-report <file>]';
+  if (!outArg || (urIdx > -1 && (!urArg || urArg.startsWith('--')))) {
+    console.error(usage);
     process.exit(2);
   }
   const outDir = resolve(outArg);
+  // #256: the services opt-in is a second, separate consent on top of --allow-exec, never instead of it
+  if (args.includes('--allow-services') && !args.includes('--allow-exec')) {
+    console.error(`✗ start refused: --allow-services starts the target's declared services for fresh-clone, which runs only under --allow-exec; pass both, in a disposable container or VM\n${usage}`);
+    process.exit(2);
+  }
+  // #256: the unstripped report is the operator's, outside the run, never archived into it
+  const unstripped = urArg ? resolve(urArg) : null;
+  if (unstripped && (unstripped === outDir || unstripped.startsWith(outDir + '/'))) {
+    console.error(`✗ start refused: --unstripped-report ${urArg} lies inside the run ${outArg}; the run keeps only the stripped report, so write it outside the run`);
+    process.exit(2);
+  }
   const mPath = scannersPath(outDir);
   if (existsSync(mPath)) {
     console.error(`✗ start refused: ${mPath} already exists — a run is never redrawn in place. Pick a new --out, or use \`record\`/\`ingest\` to update this one.`);
@@ -492,7 +523,7 @@ function runCli() {
     const repoDir = resolve(target);
     enumeration = writeEnumeration(repoDir, outDir, log);
     const freshCloneSkipReason = !args.includes('--allow-exec') ? NO_EXEC_REASON : isRepoTopLevel(repoDir) ? null : NOT_A_REPO_REASON;
-    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), freshCloneSkipReason, structureScanNoExec: !args.includes('--allow-exec') }, log);
+    rows = drawOfflineMap({ repoDir, outDir, pendingReason: pendingReasonFor(outArg), freshCloneSkipReason, structureScanNoExec: !args.includes('--allow-exec'), freshCloneServices: args.includes('--allow-services'), freshCloneUnstripped: unstripped }, log);
   }
   // Every OTHER adopted scanner (today: none beyond the seven drawOfflineMap
   // already covers; a future adapter falls here automatically) is recorded

@@ -17,7 +17,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // supervision and decisions are libraries the views compute from, not commands.
 const GROUPS = [
   ['Map: drawing the map', {
-    'start': ['map/start.mjs', 'make a run, draw it with every offline instrument, and record the rest (fresh-clone, and structure-scan\'s knip step, only with --allow-exec; fresh-clone needs a git repository: over a plain tree it is recorded skipped)'],
+    'start': ['map/start.mjs', 'make a run, draw it with every offline instrument, and record the rest (fresh-clone, and structure-scan\'s knip step, only with --allow-exec; fresh-clone needs a git repository: over a plain tree it is recorded skipped; --allow-services also starts the services the target declares, throwaway; --unstripped-report <file> keeps fresh-clone\'s report with its output tails, outside the run)'],
     'validate': ['map/validate.mjs', 'check a run: schema, ids, citations, the run record; fails closed'],
     'ingest': ['map/ingest.mjs', "turn a scanner's output into findings in a run"],
     'record': ['map/record.mjs', "set one scanner's disposition in the run record"],
