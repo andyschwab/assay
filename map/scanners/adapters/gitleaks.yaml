@@ -76,6 +76,25 @@ ingest:
   keep: [RuleID, Description, File, StartLine, EndLine, StartColumn, EndColumn, Commit, Date, Fingerprint, Entropy, Tags]
   abbreviate: [Commit]
   fix: "Rotate the credential now (assume it is burned), then purge it from history; suppress via .gitleaksignore only after verifying it is a false positive, with the reason recorded."
+  # A vendored build artifact is no committed secret of this repository (#316), allowed here
+  # rather than in allow.toml because the tool's global allowlist cannot require a path AND a
+  # match condition over every rule (CONTRACT.md §3, leak-list). Recognised by its path: under
+  # a vendored or design-system directory (vendor, vendors, vendored, third_party, third-party,
+  # thirdparty, design-system, design-systems) at any depth, a JavaScript or CSS file whose name
+  # marks a build output: `<name>.min.<ext>`, `<name>.bundle.<ext>`, `bundle.<ext>`, or a
+  # content hash (`<name>-<8+ hex>.<ext>`, `<name>.<8+ hex>.<ext>`). And only outside a
+  # credential context: the rule's match binds no name to the value (no `:`, `=`, `:=` or `=>`
+  # in it), as a provider-prefixed token embedded in minified code does. A keyword rule's match
+  # (`apiKey: "…"`) is a credential context and still fires, in a bundle or anywhere; so does any
+  # hit in the repository's own source, and any hit in a vendored file that is not a build output.
+  # The context is the rule's match only: gitleaks reports no surrounding text, so a bare token
+  # assigned to a credential name earlier on a minified line is allowed. Each allowed hit is a
+  # fact row (secret-allowed) citing the rule, location and reason.
+  allow:
+    - id: vendored-build-artifact
+      reason: "a vendored, minified or bundled build artifact, and the rule matched a bare value with no name bound to it"
+      file: '(?:^|/)(?:vendors?|vendored|third[-_]?party|design-systems?)/(?:[^/]+/)*(?:[^/]+\.(?:min|bundle)|bundle|[^/]+[.-][0-9a-f]{8,})\.(?:[cm]?js|css)$'
+      unless_match: '=>|:=|[:=]'
 # the requirement it decides (CLAUDE.md rule 7: the row names no scanner)
 decides:
   - requirement: d-secrets-out-of-history
@@ -84,6 +103,8 @@ contributes: []
 
 map:
   secret:
+    axis: code-security
+  secret-allowed:            # a FACT row: a hit an ingest.allow rule recognised (never a gap)
     axis: code-security
 
 default: FAIL

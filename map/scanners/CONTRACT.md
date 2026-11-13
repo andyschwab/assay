@@ -1042,7 +1042,16 @@ map and the archive names no machine. Ingest reads it by the format the adapter'
   matched value; its fix is the adapter's `ingest.fix`. The exit must agree with the
   report: `ingest.found_exit` with leaks, any other success exit with none. The archive
   keeps only the fields `ingest.keep` names, each in `ingest.abbreviate` cut to 12
-  characters.
+  characters. An adapter's optional `ingest.allow:` (#316) lists rules `{ id, reason, file,
+  unless_match }`: a leak whose `File` the `file` regex recognises and whose `Match` the
+  `unless_match` regex does not (both read without regard to case) is no secret, filed as a
+  fact of `<category>-allowed` citing the rule and the location with the reason, so it is seen
+  and never decides the requirement. A leak with no `Match` to read is never allowed: a
+  credential context cannot be ruled out. The match is tested, never copied; the archive
+  records the rule that allowed a leak (`Allowed`), so a re-ingest decides it the same way.
+  This is where a condition the tool's own allow mechanism cannot express lives: a tool
+  whose global allowlist ORs a path with a match cannot say "a build artifact AND no
+  credential context" over every rule, so the adapter says it.
 - `check-scores`: `{ checks: [{ name, score, reason, details }] }`, each check scored
   0–10 or -1 (not applicable, skipped and logged). At or above `ingest.strength_at` a
   check is a strength, below it a gap; a detail line's `file:line` is its evidence,
