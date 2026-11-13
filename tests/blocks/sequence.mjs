@@ -3,9 +3,11 @@
 // `handoff.triage: true` (gitleaks) covering every gap the roadmap did not absorb, and
 // every remaining scanner-fix remedy grouped per its adapter's declared `handoff.unit`
 // (dependency-scan: one remedy per lockfile), all placed by one key read off their worst
-// finding (halt, the requirement's tier, severity; #306) — and the report's §6 names the
-// SAME item numbers. Here: the Critical lockfile (safety tier) is item 1, the gitleaks triage
-// (safety tier, unrated) item 2, the lint roadmap item (verification tier) item 3.
+// finding (halt, severity class, absent evidence, the requirement's tier, severity; #306,
+// #316) — and the report's §6 names the SAME item numbers. Here: the Critical lockfile is item
+// 1, the lint roadmap item (Medium, verification) item 2, and the gitleaks triage (safety tier,
+// unrated) item 5. Re-pinned by #316: severity now bounds tier, so the unrated triage ranks in
+// the Low/Nit/unrated class, after the two Medium remedies, where it was item 2 by its tier.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -50,15 +52,15 @@ export async function run() {
   const start = existsSync(join(tmp, 'handoff', 'START-HERE.md')) ? readFileSync(join(tmp, 'handoff', 'START-HERE.md'), 'utf8') : '';
   const seqSection = start.split('## Sequence')[1] || '';
 
-  // 1. the roadmap item takes the number its finding's tier gives it (verification, after the
-  // two safety-tier items), never number 1 for being authored
-  if (!/^3\. \*\*Declare the missing lint gate\*\*/m.test(seqSection)) fail(`the roadmap item must be sequence item 3, after the two safety-tier items (got:\n${seqSection})`);
+  // 1. the roadmap item takes the number its finding gives it (a Medium, after the Critical),
+  // never number 1 for being authored
+  if (!/^2\. \*\*Declare the missing lint gate\*\*/m.test(seqSection)) fail(`the roadmap item must be sequence item 2, after the Critical (got:\n${seqSection})`);
 
   // 2. one triage item follows, covering every uncovered gitleaks gap in ONE remedy with ONE plan
   const triageLine = seqSection.split('\n').find((l) => /Triage gitleaks/.test(l));
-  if (!triageLine || !/^2\./.test(triageLine.trim())) fail(`the gitleaks triage item must be sequence item 2, one item for all 8 hits (got: ${triageLine})`);
+  if (!triageLine || !/^5\./.test(triageLine.trim())) fail(`the gitleaks triage item must be sequence item 5, one item for all 8 hits (got: ${triageLine})`);
   if (!/8 hits? \(3 files?\)/.test(triageLine || '')) fail(`the triage item must name all 8 uncovered gitleaks hits across 3 files in one remedy (got: ${triageLine})`);
-  if (!existsSync(join(tmp, 'handoff', 'plan', '02-triage-gitleaks.md'))) fail('the triage item must get exactly one session prompt (plan/02-triage-gitleaks.md)');
+  if (!existsSync(join(tmp, 'handoff', 'plan', '05-triage-gitleaks.md'))) fail('the triage item must get exactly one session prompt (plan/05-triage-gitleaks.md)');
 
   // 3. dependency advisories in ONE lockfile become ONE remedy; two lockfiles become two
   const lockLines = seqSection.split('\n').filter((l) => /package-lock\.json/.test(l));
@@ -89,7 +91,7 @@ export async function run() {
   // 4b. irreversible acts stay a person's: the triage prompt prepares rotation and proposes a
   // purge, never performs either; a roadmap item's authored done_when is its whole proof (the
   // adapters' generic client proof never dilutes it)
-  const triageBody = existsSync(join(planDir, '02-triage-gitleaks.md')) ? readFileSync(join(planDir, '02-triage-gitleaks.md'), 'utf8') : '';
+  const triageBody = existsSync(join(planDir, '05-triage-gitleaks.md')) ? readFileSync(join(planDir, '05-triage-gitleaks.md'), 'utf8') : '';
   if (/rotate the credential now|purge it from history/i.test(triageBody)) fail('the triage prompt must never have the agent rotate a credential or rewrite history itself');
   if (!/a person performs it/.test(triageBody) || !/propose; do not\s+rewrite/.test(triageBody)) fail(`the triage prompt must hand rotation to a person and only propose a purge (got:\n${triageBody.slice(0, 600)})`);
   const roadPlan = plans.find((p) => /^\d\d-declare-lint\.md$/.test(p));
@@ -106,9 +108,9 @@ export async function run() {
   if (rRun.status !== 0) fail(`report.mjs must succeed over this base (stderr: ${rRun.stderr})`);
   const improveMd = existsSync(join(tmp, 'IMPROVE.md')) ? readFileSync(join(tmp, 'IMPROVE.md'), 'utf8') : '';
   const sixSection = improveMd.split('## 6. Prioritized roadmap')[1]?.split('## 7.')[0] || '';
-  if (!/item 2, 8 hits/.test(sixSection)) fail(`report §6 must name the triage item's number and hit count matching the handoff (got: ${sixSection})`);
+  if (!/item 5, 8 hits/.test(sixSection)) fail(`report §6 must name the triage item's number and hit count matching the handoff (got: ${sixSection})`);
   if (!/F-1000 — at item 1\b/.test(sixSection)) fail(`report §6 must name the uncovered Critical F-1000 at item 1, matching the handoff (got: ${sixSection})`);
-  if (!/\*\*Item 3\. Declare the missing lint gate\.\*\*/.test(sixSection)) fail(`report §6 must give the roadmap item the handoff's number, 3 (got: ${sixSection})`);
+  if (!/\*\*Item 2\. Declare the missing lint gate\.\*\*/.test(sixSection)) fail(`report §6 must give the roadmap item the handoff's number, 2 (got: ${sixSection})`);
 
   // 6b. a roadmap item that takes in a bundling scanner's findings renders them the way that
   // scanner's own remedy does (a per-file summary for triage), never one claim block per hit,

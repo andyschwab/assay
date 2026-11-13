@@ -286,6 +286,24 @@ requirements:
     owner:
       risk: "The app is built partly from other people's free code, and a known serious flaw in one of those pieces is a published weakness, not a secret one; anyone can look up how to exploit it."
       fix: "Have your AI run the dependency check and fix or replace any package it flags as critically vulnerable."
+  - id: d-release-path-trusted
+    title: A change reaches production only after the approval meant to guard it, and a deploy credential admits only the promotions it is meant to
+    tier: safety
+    topic: code-security
+    tags: [floor, fleet]
+    harm: [people, data]
+    # a confirmed gap here at High or above is a halt: production changes without the stop meant
+    # to guard it, which the fix sequence puts first (views/README.md, #316)
+    halt_at: High
+    decide:
+      kind: instrument
+      any_gap: unmet
+    check: "release-path trust, decided through adapters (decides:): a code reviewer's findings its adapter places on the release-path-trust property (how a change reaches production: an environment's approval and what runs before it, the trust condition a deploy credential or tag admits, who may promote), any gap deciding it unmet; met only when a reviewer scanned that domain and placed no gap on it; a reviewer finding of that domain placed on no property holds it not measured, never met. Excluded: whether dependencies, the toolchain and CI actions are pinned, which is d-dependencies-pinned's; whether a change gate goes red when what it needs is absent, which is d-change-gates-fail-closed's; whether one documented command deploys what is committed, which is d-deploy-one-command's"
+    sources: [issue/306, issue/316]
+    status: draft
+    owner:
+      risk: "If production can be changed before the person meant to approve it has approved, or a deploy key accepts a release from anyone able to push a tag, the approval step is decoration: an unreviewed or hostile change can reach your users and their data."
+      fix: "Have your AI check that every step that changes production runs only after the environment's approval, and that each deploy credential trusts only the branch, tag or person meant to promote."
   - id: d-effects-gated
     title: Every irreversible or outward effect runs behind a gate that holds
     tier: safety
@@ -435,7 +453,7 @@ requirements:
     decide:
       kind: instrument
       any_gap: unmet                # every property the check names must hold (#177)
-    check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA; decided through adapters (decides:): the code reviewer's findings its adapter places on the build-supply-chain property (never its release-path findings, which no row takes yet) and a workflow auditor's unpinned-action reading, any gap from either deciding it unmet; a reviewer finding of that domain placed on no property holds it not measured, never met
+    check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA; decided through adapters (decides:): the code reviewer's findings its adapter places on the build-supply-chain property (never its release-path findings, which are d-release-path-trusted's) and a workflow auditor's unpinned-action reading, any gap from either deciding it unmet; a reviewer finding of that domain placed on no property holds it not measured, never met
     sources: [floor/r-deps-pinned, foundation/lockfile-and-nvmrc]
     status: draft
     owner:
@@ -793,7 +811,7 @@ requirements:
       category: expectation-declared
       not_applicable_when: expectation-declared-not-applicable
       effects: declared
-    check: "the repo census, over the application's signal declarations (yardstick/README.md, Operability interfaces): the population is every scheduled job the census finds (a CI workflow's schedule, and the jobs the application schedules in its own declared format) and every effect finding in the run's triaged effect inventory (map/effect-triage.yaml); met when each one has a signal declaration naming it, with what is expected (runs every N, at least one result, succeeds, under a threshold), the evidence that shows it and a runbook anchor. A job with no declaration is a gap citing the job, and an effect is declared when a complete declaration watches a file the effect finding cites. An application with no declaration reads unmet over its scheduled jobs, never not measured; with no scheduled job, the row reads over the effects alone, not measured while the run carries no closed, triaged effect inventory, and not applicable only when the census finds no job and the inventory holds no effect. Whether an expectation holds in production is the health report's, never this check's"
+    check: "the repo census, over the application's signal declarations (yardstick/README.md, Operability interfaces): the population is every scheduled job the census finds (a CI workflow's schedule, and the jobs the application schedules in its own declared format) and every effect finding in the run's triaged effect inventory (map/effect-triage.yaml); met when each one has a signal declaration naming it, with what is expected (runs every N, at least one result, succeeds, under a threshold), the evidence that shows it and a runbook anchor. A job with no declaration is a gap citing the job, and an effect is declared when a complete declaration watches a file the effect finding cites. An application with no declaration reads unmet over its scheduled jobs, never not measured; with no scheduled job, the row reads over the effects alone, not measured while the run carries no closed, triaged effect inventory, and not applicable only when the census finds no job and the inventory holds no effect. Whether an expectation holds in production is the health report's, never this check's. A code reviewer's gap its adapter places on the declared-expectations property is a gap here too (decides:, gaps only: its silence is no evidence for the row)"
     sources: [issue/311, foundation/alerting, floor/o-monitoring]
     status: draft
     owner:
@@ -815,7 +833,7 @@ requirements:
           category: evidence-d-health-reported
           not_applicable_when: evidence-d-health-reported-not-applicable
           not_measured_when: evidence-d-health-reported-unverifiable
-    check: "the repo census, two parts that must both hold: the health report's schema in the tree states, for every declared signal, when it last held, what it last counted and since when (deterministic, read through the format reader the census adapter names); and a fresh, complete, passing transcript at ops/evidence/d-health-reported.md naming where the live report was read and the state it gave each signal (owner/evidence/README.md), whose truth rests on the named person's attestation in version history; the commit it names must resolve in the checkout's history, else a gap, and a shallow checkout that cannot confirm it reads not-measured, never met. Not applicable only when the tree has no scheduled job, declares no signal and shows no deployment signal (map/scanners/CONTRACT.md §3d)"
+    check: "the repo census, two parts that must both hold: the health report's schema in the tree states, for every declared signal, when it last held, what it last counted and since when (deterministic, read through the format reader the census adapter names); and a fresh, complete, passing transcript at ops/evidence/d-health-reported.md naming where the live report was read and the state it gave each signal (owner/evidence/README.md), whose truth rests on the named person's attestation in version history; the commit it names must resolve in the checkout's history, else a gap, and a shallow checkout that cannot confirm it reads not-measured, never met. Not applicable only when the tree has no scheduled job, declares no signal and shows no deployment signal (map/scanners/CONTRACT.md §3d). A code reviewer's gap its adapter places on the health-reporting property is a gap here too (decides:, gaps only: its silence is no evidence for the row)"
     sources: [issue/311, foundation/alerting, floor/o-errors, floor/o-monitoring]
     status: draft
     owner:
@@ -832,7 +850,7 @@ requirements:
       scanner: repo-census
       category: routing-policy
       not_applicable_when: routing-policy-not-applicable
-    check: "the repo census, over the routing policy read through the format reader the census adapter names: met when the policy is data in the tree and classes every declared signal at record, digest or notify, each route with a destination role and a budget, and at least one signal held below notify. A cost account is a declared signal like any other: its threshold is its expectation and its route says who reads it. Judged, weighing whether the classes are proportionate: a policy that sends every signal immediately is a gap, not a strength, and a signal belongs at notify only after it was seen quiet and accurate at record or digest, which the tree does not show and the census never infers. Not applicable only when the tree has no scheduled job, declares no signal and shows no deployment signal"
+    check: "the repo census, over the routing policy read through the format reader the census adapter names: met when the policy is data in the tree and classes every declared signal at record, digest or notify, each route with a destination role and a budget, and at least one signal held below notify. A cost account is a declared signal like any other: its threshold is its expectation and its route says who reads it. Judged, weighing whether the classes are proportionate: a policy that sends every signal immediately is a gap, not a strength, and a signal belongs at notify only after it was seen quiet and accurate at record or digest, which the tree does not show and the census never infers. Not applicable only when the tree has no scheduled job, declares no signal and shows no deployment signal. A code reviewer's gap its adapter places on the signal-routing property is a gap here too (decides:, gaps only: its silence is no evidence for the row)"
     sources: [issue/311, foundation/alerting, floor/o-cost, foundation/budgets]
     status: draft
     owner:

@@ -1002,6 +1002,9 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   if (evidencePointer) detail.pointer = 'evidence';
   const found = findEvidenceFile(dir, id, evidencePointer);
   if (!found) {
+    // the transcript is absent: nothing in the tree was observed wrong, the owner's proof was not
+    // found (ingest records it as evidence_absent, which the fix sequence ranks after observed gaps)
+    detail.absent = true;
     if (evidencePointer) {
       const rel = `${evidencePointer.replace(/\/$/, '')}/${id}.md`;
       return { name, status: 'gap', detail, evidence: [missingPointerCite], observation: `The packet points at ${rel}, which does not exist.` };

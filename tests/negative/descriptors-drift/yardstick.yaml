@@ -11,10 +11,10 @@ summary:
   met: 0
   unmet: 0
   mixed: 0
-  not-measured: 60
+  not-measured: 61
   not-applicable: 0
   decided: 0
-  of: 60
+  of: 61
 requirements:
   - id: d-accounts-enumerated
     status: met
@@ -70,6 +70,12 @@ requirements:
     basis: run
     findings: []
     note: "dependency-scan skipped: fixture: the dependency-scan run was not executed over this base"
+  - id: d-release-path-trusted
+    status: not-measured
+    how: instrument
+    basis: run
+    findings: []
+    note: "deep-code-review skipped: fixture run: the code scanner was not executed over this public target"
   - id: d-effects-gated
     status: not-measured
     how: facet

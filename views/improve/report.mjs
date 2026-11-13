@@ -394,11 +394,12 @@ function sequenceFollowup() {
     ? 'Nothing else is in the handoff\'s sequence — every open gap this run found is covered by an authored item above.'
     : '_No open gaps in this run — the handoff has nothing to sequence._';
   const triage = after.filter((s) => s.kind === 'triage');
-  const remedies = after.filter((s) => s.kind !== 'triage');
+  const owner = after.filter((s) => s.kind === 'owner');
+  const remedies = after.filter((s) => s.kind !== 'triage' && s.kind !== 'owner');
   const parts = [];
   parts.push(R
-    ? 'The handoff sequences these items beside the roadmap, each placed by what its worst finding is (an unheld halt, then its requirement\'s tier, then its severity), not by which scanner found it.'
-    : 'With no authored roadmap, the handoff\'s sequence is the items below, each placed by what its worst finding is (an unheld halt, then its requirement\'s tier, then its severity), not by which scanner found it.');
+    ? 'The handoff sequences these items beside the roadmap, each placed by what its worst finding is (a halt, then its severity class, an absent evidence file after observed gaps, then its requirement\'s tier, then its severity), not by which scanner found it.'
+    : 'With no authored roadmap, the handoff\'s sequence is the items below, each placed by what its worst finding is (a halt, then its severity class, an absent evidence file after observed gaps, then its requirement\'s tier, then its severity), not by which scanner found it.');
   if (triage.length) parts.push(`Triage: ${triage.map((t) => `the ${t.source} triage (item ${t.n}, ${t.ids.length} hit${t.ids.length === 1 ? '' : 's'})`).join('; ')}.`);
   if (remedies.length) {
     const bySrcUnit = new Map();
@@ -412,6 +413,7 @@ function sequenceFollowup() {
     });
     parts.push(`${remedies.length} grouped remed${remedies.length === 1 ? 'y' : 'ies'}: ${bits.join('; ')}.`);
   }
+  if (owner.length) parts.push(`${owner.length} group${owner.length === 1 ? '' : 's'} of open gaps no scanner supplied a fix for, one per requirement or property, whose remedy the owner decides (${itemList(owner.map((r) => r.n))}).`);
   const criticalOutside = urgentOutside.filter((u) => u.kind === 'critical');
   if (criticalOutside.length) {
     const ids = [...new Set(criticalOutside.flatMap((u) => u.ids))];

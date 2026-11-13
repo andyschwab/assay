@@ -5,8 +5,10 @@
 // IMPROVE.md §8 (the only page that rendered them) is written only where the run carries prose:
 // on a raw base a person never saw them. Pinned, compiling notesbox with the invented report
 // tests/instruments/deep-code-review-properties.yaml ingested (no prose):
-//   1. the concurrency, integration and release-trust findings no row takes are listed under
-//      concurrent-state, integration-contracts and release-path-trust;
+//   1. the concurrency and integration findings no row takes are listed under concurrent-state
+//      and integration-contracts; the release-trust finding, which d-release-path-trusted takes
+//      since #316, is on that row and in no candidate list (re-pinned by #316: it was listed
+//      untaken under release-path-trust while no row took it);
 //   2. every reviewer finding is on a row or in the candidates, never neither and never both;
 //   3. the walk, the human read of a raw base, lists them under the same properties.
 import { spawnSync } from 'node:child_process';
@@ -38,12 +40,15 @@ export async function run() {
     const under = (p) => (d.properties || []).find((x) => x.property === p)?.findings || [];
 
     // (1) listed under the property each observes
-    for (const [n, p] of [['R3', 'concurrent-state'], ['R4', 'integration-contracts'], ['R1', 'release-path-trust']]) {
+    for (const [n, p] of [['R3', 'concurrent-state'], ['R4', 'integration-contracts']]) {
       if (!under(p).includes(id(n))) fail(`(1) ${n} (${id(n)}) is listed under ${p} (got ${p}: ${under(p).join(', ') || 'nothing'}; unnamed: ${(d.unnamed || []).join(', ')})`);
     }
 
     // (2) on a row or in the candidates, exactly one
     const y = parseYaml(readFileSync(join(runDir, 'yardstick.yaml'), 'utf8'));
+    const release = (y.requirements || []).find((r) => r.id === 'd-release-path-trusted');
+    if (!(release?.findings || []).includes(id('R1'))) fail(`(1) R1 (${id('R1')}) is on d-release-path-trusted (got ${release?.status}: ${(release?.findings || []).join(', ')})`);
+    if (under('release-path-trust').length) fail(`(1) no release-trust finding is listed untaken (got ${under('release-path-trust').join(', ')})`);
     const onRow = new Set((y.requirements || []).flatMap((r) => r.findings || []));
     const listed = new Set([...(d.properties || []).flatMap((x) => x.findings || []), ...(d.unnamed || [])]);
     for (const r of rows) {
@@ -55,7 +60,7 @@ export async function run() {
     const walk = existsSync(axesPath(runDir)) ? readFileSync(axesPath(runDir), 'utf8') : '';
     const sec = walk.split(/^# Findings no requirement takes\s*$/m)[1]?.split(/^# /m)[0] || '';
     if (!sec) fail('(3) the walk carries a "Findings no requirement takes" section');
-    for (const [n, p] of [['R3', 'concurrent-state'], ['R4', 'integration-contracts'], ['R1', 'release-path-trust']]) {
+    for (const [n, p] of [['R3', 'concurrent-state'], ['R4', 'integration-contracts']]) {
       const block = sec.split(/^## /m).find((b) => b.startsWith(`\`${p}\``)) || '';
       if (!block.includes(`**${id(n)}**`)) fail(`(3) the walk lists ${id(n)} under ${p}`);
     }

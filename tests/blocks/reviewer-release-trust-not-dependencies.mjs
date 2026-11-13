@@ -2,12 +2,13 @@
 // The reviewer's area K spans two properties: how the code is built and what from
 // (build-supply-chain), and how a change reaches production (release-path-trust). Its adapter
 // names both, the reviewer names one on each K finding, and the adapter binds
-// d-dependencies-pinned to build-supply-chain alone (map/placement.mjs). Release trust has no
-// row yet (one target has shown it; promotion needs two, #265), so it is listed untaken under its
-// property. Pinned, over the invented report tests/instruments/deep-code-review-properties.yaml:
+// d-dependencies-pinned to build-supply-chain alone (map/placement.mjs). Release trust had no
+// row (one target had shown it; promotion needs two, #265); four runs have shown it since, and
+// #316 gave it d-release-path-trusted, so (2) is re-pinned: the release-trust finding is that
+// row's, and still never d-dependencies-pinned's. Pinned, over the invented report tests/instruments/deep-code-review-properties.yaml:
 //   1. the supply-chain K finding counts on d-dependencies-pinned, the release-trust one does not;
-//   2. requirementTaking places the release-trust finding on no requirement, and its property is
-//      release-path-trust;
+//   2. requirementTaking places the release-trust finding on d-release-path-trusted, never on
+//      d-dependencies-pinned;
 //   3. the adapter's K binding names its property, and a binding to a split category that names
 //      none is refused when the yardstick loads.
 import { readFileSync } from 'node:fs';
@@ -36,9 +37,9 @@ export async function run() {
   const alone = measureRun({ findings: [release], manifest, inputs: null, coverage, adapters }, reg).find((r) => r.id === 'd-dependencies-pinned');
   if ((alone?.findings || []).includes(release.id) || /gap row/.test(alone?.note || '')) fail(`(1) a release-trust finding alone decides nothing on d-dependencies-pinned (got ${alone?.status}: ${alone?.note})`);
 
-  // (2) no requirement takes release trust; it is placed on its property
+  // (2) release trust is d-release-path-trusted's, never d-dependencies-pinned's
   const t = requirementTaking(release, { reg, adapters });
-  if (t.candidates.length) fail(`(2) no requirement takes the release-trust finding (got ${t.candidates.join(', ')})`);
+  if (t.requirement !== 'd-release-path-trusted' || t.candidates.includes('d-dependencies-pinned')) fail(`(2) d-release-path-trusted alone takes the release-trust finding (got ${t.candidates.join(', ') || 'none'})`);
   const s = requirementTaking(supply, { reg, adapters });
   if (s.requirement !== 'd-dependencies-pinned') fail(`(2) d-dependencies-pinned takes the supply-chain finding (got ${s.candidates.join(', ') || 'none'})`);
 

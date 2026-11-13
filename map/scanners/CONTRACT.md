@@ -127,6 +127,9 @@ map:
     means:
       build-supply-chain: "…"
       release-path-trust: "…"
+    markers:                    # optional: closed words per property, matched whole in the
+      build-supply-chain: [lockfile, …]  #   reviewer's tag and title when it named none (#316)
+      release-path-trust: [production, …]
 default: FAIL          # unmapped native_category => loud error, never a silent axis
 row_per_check: true    # optional, an instrument's: it writes a row (pass, gap or fact) for every
                        #   check it runs, its checks the categories map: names, so one of them
@@ -139,6 +142,10 @@ decides:               # optional — the yardstick rows this scanner decides (r
   - requirement: d-…   #   a binding to a category that spans several properties names the
     category: K        #   one its requirement reads (property:), and takes only rows placed on it
     property: build-supply-chain
+  - requirement: d-…   #   gaps_only: true (#316): the binding's gap decides the row, any other
+    category: M        #   reading steps aside, for a decider whose silence is no evidence
+    property: signal-routing
+    gaps_only: true
 handoff:               # optional — how the handoff bundles and proves this scanner's
                         #   remedies (§7); block style only, same as everything below
   unit: finding         # finding (default) | file | scanner — §7
@@ -163,6 +170,25 @@ finding no binding takes is listed untaken under its property in the run's candi
 requirement id, and belongs to one category; the yardstick's load refuses a mapping that breaks
 any of this. `tests/blocks/reviewer-release-trust-not-dependencies.mjs`,
 `reviewer-unplaced-untaken.mjs` and `candidates-show-reviewer-findings.mjs` hold it.
+
+**Markers place a finding that names no property (#316).** A split category may name, per
+property of its list, a closed list of `markers:`: words or phrases matched whole and without
+regard to case in the reviewer's own labels on a finding, its tag (`native_tag`) and its
+title, never its observation. A finding that names none of the list is placed on the one
+property whose markers its labels carry; markers of none, or of two, leave it unplaced, with
+the reason saying which. The finding's own `property:` always wins. No marker names two
+properties of one category, and a marker names a property of its category's list; the
+yardstick's load refuses either. A report written before its lane asked for `property:` is
+placed this way, deterministically, and a finding the markers cannot settle is never guessed.
+`tests/blocks/reviewer-markers-place-k-and-m.mjs` holds it.
+
+**A binding whose silence is no evidence reads gaps only (#316).** `gaps_only: true` on a
+`decides:` binding makes its gap decide the row like any decider's, and any other reading of it
+(met, not measured, not applicable) step aside, so the row reads by its other deciders. It is
+for a scanner whose findings are evidence of a gap a row's own decider measures, and whose
+saying nothing is no evidence that the row holds: a reviewer's alerting gap on a row the census
+decides from the application's declarations. A row whose every decider steps aside reads not
+measured.
 
 Block style — the YAML reader (`lib/yaml-min.mjs`) reads the subset `map/SCHEMA.md` §9,
 "What the reader reads", states, and **throws** on the rest (a nested flow collection, an
@@ -1231,9 +1257,11 @@ report's §6, `views/improve/sequence.mjs`) holds the reviewer's own roadmap ite
 (`views/improve/prose.yaml` `roadmap:`), one **triage** item per scanner that
 declares `handoff.triage: true`, covering every open gap from that scanner the
 roadmap did not absorb, and every remaining scanner-fix remedy, grouped per its
-adapter's declared `handoff.unit`. Their order is one key read off each item's
-worst finding: an unheld halt first, then the tier of the requirement it bears on,
-then its severity (`views/README.md`, "The sequence's order"). No adapter is named
+adapter's declared `handoff.unit`, and one owner-defined item per requirement or
+property for the open gaps no fix covers. Their order is one key read off each item's
+worst finding: a halt first, then its severity class, an absent evidence file after
+observed gaps, then the tier of the requirement it bears on, then its severity
+(`views/README.md`, "The sequence's order"). No adapter is named
 in the engine's sequencing code, and neither a scanner's name nor its handoff
 block moves an item: a scanner's block says how its findings are bundled and
 proved, never where they rank.

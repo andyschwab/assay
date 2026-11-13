@@ -10,9 +10,26 @@
 // or a split category's row that names none of its list, is unplaced, with the reason, and a
 // requirement never takes it on a guess (yardstick/population.mjs, yardstick/measure.mjs).
 //
+// A split category may also name, per property, a closed list of `markers:` (#316): words or
+// phrases the reviewer's own labels on a finding carry (its tag, `native_tag`, and its title).
+// A finding that names no property of the list is placed by them when the markers of exactly
+// one property appear in those labels as whole words; markers of none, or of two, leave it
+// unplaced with the reason. The reviewer's own `property:` always wins, and its observation is
+// never read: the markers are the reviewer's labels, not a reading of its prose.
+//
 // A row of any other source carries its own `property:` (map/SCHEMA.md §1), read as it is.
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+// a label or marker as whole words: lowercase, every run of other characters one space
+const words = (t) => ` ${String(t ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+
+/** The properties of a split category whose markers a finding's own labels carry.
+ * @param {any} finding @param {any} entry  the category's map entry */
+function markedProperties(finding, entry) {
+  const labels = words(`${finding?.native_tag ?? ''} ${finding?.title ?? ''}`);
+  return (Array.isArray(entry?.properties) ? entry.properties : []).filter((p) =>
+    (Array.isArray(entry?.markers?.[p]) ? entry.markers[p] : []).some((m) => words(m).trim() && labels.includes(words(m))));
+}
 
 /** Whether an adapter is a reviewer's: its rows are placed on a property by its map.
  * @param {any} adapter */
@@ -36,7 +53,10 @@ export function propertyOf(finding, adapters) {
   if (Array.isArray(entry.properties) && entry.properties.length) {
     const named = typeof finding.native_property === 'string' && finding.native_property ? finding.native_property : null;
     if (named && entry.properties.includes(named)) return { property: named, unplaced: null };
-    return { property: null, unplaced: `${finding.source} category ${cat} spans ${entry.properties.join(', ')}, and the reviewer named ${named ? `"${named}", not one of them` : 'none'} on the finding` };
+    const marked = named ? [] : markedProperties(finding, entry);
+    if (marked.length === 1) return { property: marked[0], unplaced: null };
+    const markers = entry.markers ? `, and its tag and title carry ${marked.length ? `markers of ${marked.join(' and ')}` : 'no marker of one'}` : '';
+    return { property: null, unplaced: `${finding.source} category ${cat} spans ${entry.properties.join(', ')}, and the reviewer named ${named ? `"${named}", not one of them` : 'none'} on the finding${markers}` };
   }
   return { property: null, unplaced: `${finding.source}'s adapter names no property for category ${cat}` };
 }
@@ -71,7 +91,23 @@ export function validatePlacement(adapter, requirementIds = []) {
         // the reviewer chooses by what each means, which the lane states (map/lane.mjs)
         if (!(typeof e.means?.[p] === 'string' && e.means[p].trim())) errors.push(`${at} ${where}: properties names "${p}" with no means: (what it covers, which the lane states to the reviewer)`);
       }
-    }
+      // markers (#316): closed, per property of the list, and no marker names two properties
+      if (e.markers !== undefined) {
+        if (!e.markers || typeof e.markers !== 'object' || Array.isArray(e.markers)) errors.push(`${at} ${where}: markers is a map of property to its marker words`);
+        else {
+          const seen = new Map();
+          for (const [p, ms] of Object.entries(e.markers)) {
+            if (!(e.properties || []).includes(p)) errors.push(`${at} ${where}: markers names "${p}", not one of its properties`);
+            if (!Array.isArray(ms) || !ms.length || !ms.every((m) => typeof m === 'string' && words(m).trim())) { errors.push(`${at} ${where}: markers.${p} is a non-empty list of words or phrases`); continue; }
+            for (const m of ms) {
+              const k = words(m);
+              if (seen.has(k) && seen.get(k) !== p) errors.push(`${at} ${where}: marker "${m}" names both ${seen.get(k)} and ${p}`);
+              seen.set(k, p);
+            }
+          }
+        }
+      }
+    } else if (e?.markers !== undefined) errors.push(`${at} ${where}: markers are a split category's (properties:)`);
   }
   for (const [i, b] of (Array.isArray(adapter.decides) ? adapter.decides : []).entries()) {
     const where = `decides[${i}] (${b?.requirement})`;

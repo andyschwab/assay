@@ -470,6 +470,9 @@ const PROFILES = {
             native_category: c.name,
             polarity: 'gap',
             ...(c.name === 'ci-gate' && failOpen.length ? { fail_open: true } : {}),
+            // an owner's evidence file the census looked for and did not find (#316): absent
+            // evidence, a fact the sequence reads (views/README.md), never a severity
+            ...(c.detail && c.detail.absent === true ? { evidence_absent: true } : {}),
             observation: oneLine(c.observation),
             evidence,
             fix: RC_FIX[c.name],
@@ -1267,6 +1270,7 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
     out.push(`  polarity: ${r.polarity}`);
     if (r.severity) out.push(`  severity: ${r.severity}`);
     if (r.fail_open) out.push(`  fail_open: true`);
+    if (r.evidence_absent) out.push(`  evidence_absent: true`);
     out.push(`  observation: >`, `    ${esc(r.observation)}`);
     out.push(`  evidence: [${r.evidence.map((e) => q(esc(e))).join(', ')}]`);   // quoted: a path may hold a comma or a ` #`
     if (r.fix) out.push(`  fix: >`, `    ${esc(r.fix)}`);

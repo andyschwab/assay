@@ -84,6 +84,12 @@ finding's files reads none from it.
 `property`, the two facets (which become mandatory under §4), and the **overlay** fields
 `axis` / `also_axes` / `source` (§2a).
 
+**`evidence_absent` (#316).** An instrument row may carry `evidence_absent: true`: the gap is
+that an owner's evidence file the instrument looked for is absent (the repo census's "no
+evidence transcript"), not that anything in the tree was observed wrong. It is a fact about
+the row, never a severity (rule 1 of `CLAUDE.md`); the fix sequence ranks such a gap after
+every observed gap of its severity class (`views/README.md`, "The sequence's order").
+
 **`property` (#264).** The property the finding observes, named so two runs, or two
 targets, that observe it meet on one name: kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`),
 stack-free (`secrets-rotated`, never a tool, framework or vendor), and stated as what is,
