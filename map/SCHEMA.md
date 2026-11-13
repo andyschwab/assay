@@ -488,7 +488,7 @@ indistinguishable from one that ran clean, and the package reads as coverage tha
 never happened — which is exactly how a full package once shipped with its queued
 code scanner never run and nothing saying so.
 
-`node assay.mjs start --out <run> [<target>] [--allow-exec]` (`map/start.mjs`)
+`node assay.mjs start --out <run> [<target>] [--allow-exec [--allow-services]] [--unstripped-report <file>]` (`map/start.mjs`)
 writes this file: it draws a run with every instrument assay can run offline on
 its own and records every other adopted scanner skipped, plainly, with how to
 record it once it has run. fresh-clone executes the target's code, so it runs

@@ -97,7 +97,11 @@ runs from a scratch copy of one lockfile and its manifest, so the target's own
 them in a disposable container or VM. `assay start` runs fresh-clone only
 when given `--allow-exec` and otherwise records it skipped, with the reason;
 structure-scan's knip step imports the target's own tool configuration files,
-so it too runs only under `--allow-exec` and otherwise reads skipped, with the reason. Every run
+so it too runs only under `--allow-exec` and otherwise reads skipped, with the reason. assay
+starts no service of its own: a target whose tests or migrations need one declares it in
+`.assay/services.yaml`, and only under `--allow-exec --allow-services` does fresh-clone start
+it as a throwaway container and remove it after; otherwise those steps read not measured
+(`map/scanners/CONTRACT.md` §3b). Every run
 carries a **run record** (`map/scanners.yaml`) saying, for each adopted
 scanner, that it ran, or was skipped or failed and why. The validator refuses a
 run without one, and a scanner that did not run reads **not measured**, never
@@ -166,8 +170,10 @@ node assay.mjs help                                   # every command, grouped m
 # records every other adopted scanner skipped, with how to record it once it runs.
 # fresh-clone executes the target's code, so it runs only under --allow-exec:
 # pass it in a disposable container or VM. It clones the target, so it needs a
-# git repository: over a plain tree (an exported snapshot) it is recorded skipped
-node assay.mjs start --out <run> <target> [--allow-exec]
+# git repository: over a plain tree (an exported snapshot) it is recorded skipped.
+# --allow-services also starts the services the target declares, throwaway; --unstripped-report
+# keeps fresh-clone's report with its step output, outside the run, for a runner with no secrets
+node assay.mjs start --out <run> <target> [--allow-exec [--allow-services]] [--unstripped-report <file>]
 
 # the external tools the adopted adapters pin (map/scanners/CONTRACT.md §3g), each
 # checksum-verified; run it from an environment's setup script so every session, and
