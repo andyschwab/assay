@@ -1,0 +1,50 @@
+# The gitleaks rule set assay runs (map/scanners/adapters/gitleaks.yaml, its --config): the
+# tool's own default rules, unchanged, plus two allowlists for values that are not
+# credentials by what they are, never by where one run found them (#306). Each allows a
+# property; a real key in the same place still fires.
+#
+# 1. A declared digest is not a secret. A manifest that maps a file to its digest
+#    (`"src/auth/secret.ts": "<sha256>"`), or a value under a key naming a hash
+#    (`secret_sha1: <hex>`), holds a fingerprint of public content, not a credential.
+#    Allowed when the rule's match is a key that names a file (a path ending in a
+#    file-type extension) or a hash algorithm, and the value is exactly a hex digest of a
+#    standard length (md5 32, sha1 40, sha256 64, sha384 96, sha512 128). A credential
+#    under a key that names neither (`token: <hex>`, `api.key: <hex>`) still fires:
+#    `key`, `pem`, `env` and the like are not on the extension list, since a dotted
+#    config key ends in them.
+# 2. A placeholder in a test fixture is not a secret. A value under a test or fixture
+#    path whose base64 decodes to a placeholder word (a stub signature, "stub-signature"
+#    encoded) is a test's stand-in. Both must hold (condition AND): the same placeholder
+#    outside a fixture path still fires, and a value in a fixture that decodes to
+#    anything else (a realistic planted key) still fires. It sits on generic-api-key, the
+#    one default rule whose secret is an arbitrary value under a credential-named key;
+#    every other default rule matches a provider's fixed prefix, which a base64-encoded
+#    placeholder cannot carry. The regex is the fixed base64 prefix of each word below,
+#    in lower, Capitalised and UPPER case, at the value's start; the character after the
+#    fixed prefix is the set the word's next byte (printable, or the end) can encode to.
+#    tests/blocks/gitleaks-not-a-secret.mjs derives it from this list and holds it equal.
+#    placeholders: stub fake dummy placeholder example sample mock test redacted changeme invalid not-a-real
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "a declared digest of a file: a value under a key naming a file or a hash, exactly a hex digest"
+regexTarget = "match"
+regexes = [
+  '''(?i)\.(?:[cm]?[jt]sx?|json5?|jsonc|ya?ml|toml|ini|cfg|conf|xml|csv|tsv|txt|md|mdx|rst|html?|css|s[ac]ss|less|svg|png|jpe?g|gif|webp|ico|pdf|py|pyc|rb|go|rs|java|kt|kts|scala|swift|php|cs|fs|c|h|cc|cpp|hpp|sh|bash|zsh|ps1|bat|sql|tf|tfvars|hcl|proto|graphql|gql|vue|svelte|astro|lock|sum|mod|wasm|map|bin|exe|dll|so|dylib|jar|war|whl|egg|gem|tar|gz|tgz|bz2|xz|zst|zip|7z|dmg|deb|rpm|apk|ipa|woff2?|ttf|otf|eot|mp[34]|wav|ogg|webm|mov)["']?\s*[:=]+\s*["']?(?:[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}|[0-9a-f]{96}|[0-9a-f]{128})["']?\s*$''',
+  '''(?i)(?:sha-?(?:1|224|256|384|512)|sha3-?(?:224|256|384|512)|md5|blake2[bs]?|blake3|digest|checksum|hash)["']?\s*[:=]+\s*["']?(?:[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}|[0-9a-f]{96}|[0-9a-f]{128})["']?\s*$''',
+]
+
+[[rules]]
+id = "generic-api-key"
+[rules.allowlist]
+description = "a placeholder in a test fixture: under a test or fixture path, and base64 of a placeholder word"
+condition = "AND"
+paths = [
+  '''(?i)(?:^|/)(?:tests?|__tests__|specs?|__fixtures__|fixtures?|testdata|test-data|__mocks__|mocks?|__snapshots__)/''',
+  '''(?i)\.(?:test|spec)\.[cm]?[jt]sx?$''',
+]
+regexes = [
+  '''^(?:c3R1Y[gijklmn]|U3R1Y[gijklmn]|U1RVQ[gijklmn]|ZmFrZ[QSTUVWX]|RmFrZ[QSTUVWX]|RkFLR[QSTUVWX]|ZHVtbX[kl]|RHVtbX[kl]|RFVNTV[kl]|cGxhY2Vob2xkZX[IJ]|UGxhY2Vob2xkZX[IJ]|UExBQ0VIT0xERV[IJ]|ZXhhbXBsZ[QSTUVWX]|RXhhbXBsZ[QSTUVWX]|RVhBTVBMR[QSTUVWX]|c2FtcGxl|U2FtcGxl|U0FNUExF|bW9ja[0123wyz]|TW9ja[0123wyz]|TU9DS[0123wyz]|dGVzd[ACDEFGH]|VGVzd[ACDEFGH]|VEVTV[ACDEFGH]|cmVkYWN0ZW[QR]|UmVkYWN0ZW[QR]|UkVEQUNURU[QR]|Y2hhbmdlbW[UV]|Q2hhbmdlbW[UV]|Q0hBTkdFTU[UV]|aW52YWxpZ[ACDEFGH]|SW52YWxpZ[ACDEFGH]|SU5WQUxJR[ACDEFGH]|bm90LWEtcmVhb[ACDEFGH]|Tm90LWEtcmVhb[ACDEFGH]|Tk9ULUEtUkVBT[ACDEFGH])''',
+]

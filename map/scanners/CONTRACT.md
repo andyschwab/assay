@@ -865,6 +865,8 @@ run:
   bin: <binary>              # found on PATH; absent → skipped, with `install`'s line
   args: [ … ]                # run from inside the target; an arg holding `{report}` names a
                              #   scratch file the tool writes its report to (else stdout)
+                             #   `{adapters}` is the adapters directory, for a file the
+                             #   adapter vendors beside it (a tool's config, #306)
   ok_exits: [0, 1]           # the exits that are a completed run; any other → failed
   no_input_exits: [128]      # optional: the tool found nothing to read
   inputs: [".github/workflows/*.yml", …]   # optional globs: none in the tree → not started

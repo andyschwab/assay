@@ -159,6 +159,8 @@ function toolNotRunLines(tool, rawFile) {
 //   timeout_s          a wall-clock bound (default 600)
 //   {report} in args   the tool writes its report to that file rather than stdout; the
 //                      runner names a scratch file and reads the report from it
+//   {adapters} in args the adapters directory on this machine, for a file an adapter vendors
+//                      beside it (a tool's config); the envelope names no machine path
 //   rules              a rule set the tool runs (#232): `dir`, vendored under
 //                      map/scanners/adapters/, and `repo`, files the target may carry that run
 //                      beside it; the {rules} arg expands to `flag <path>` for each. A tool may
@@ -278,7 +280,8 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
     }
     if (rules) prefixes.push(...rules.prefixes);
     const reportFile = join(rawDir, 'report.out');
-    const args = [...(run.args || []), ...(outsideRepository ? run.outside_repository || [] : [])].flatMap((a) => (String(a) === '{rules}' && rules ? rules.args : [String(a).split('{report}').join(reportFile)]));
+    const args = [...(run.args || []), ...(outsideRepository ? run.outside_repository || [] : [])].flatMap((a) => (String(a) === '{rules}' && rules ? rules.args : [String(a).split('{report}').join(reportFile).split('{adapters}').join(ADAPTERS_DIR)]));
+    if ((run.args || []).some((a) => String(a).includes('{adapters}'))) prefixes.push(`${ADAPTERS_DIR}/`, `${ADAPTERS_DIR.replace(/^\/+/, '')}/`);
     const toFile = (run.args || []).some((a) => String(a).includes('{report}'));
     const t0 = Date.now();
     // the same allow-listed environment as every instrument's child (map/child-env.mjs, CONTRACT.md §3a)
