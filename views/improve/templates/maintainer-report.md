@@ -63,9 +63,10 @@ title: "assay maintainer report — structural template"
 
 ## 6. Prioritized roadmap
 <!-- SOURCE: views/improve/prose.yaml roadmap[]. Each item has a matching session prompt in
-     handoff/plan/, numbered 1..R — the same numbers the handoff's sequence uses for these
-     items. The paragraph after the list (computed by views/improve/sequence.mjs, shared with
-     the handoff) says what the handoff sequences next and at which item numbers. -->
+     handoff/plan/ and carries the number the handoff's sequence gives it: the sequence
+     places every item by what its worst finding is (views/improve/sequence.mjs), so the
+     roadmap's items need not be 1..R. The paragraph after them (computed by the same module)
+     says what else the handoff sequences and at which item numbers. -->
 {{PROSE:roadmap_intro}}
 
 {{PROSE:roadmap}}

@@ -2,28 +2,30 @@
 // maintainer report (report.mjs), so a maintainer reading both never finds two
 // different orders for the same run.
 //
-// Order (a person's judgment outranks the machine's — the reviewer's own
-// priority leads, then the engine's honesty
-// registers, worst first):
-//   1. The reviewer's roadmap items (views/improve/prose.yaml `roadmap:`), in
-//      authored order — the maintainer's first list, so the report's §6 and the
-//      handoff's items 1..R are the SAME items with the SAME numbers.
-//   2. Triage items — one per scanner whose adapter declares `handoff.triage:
-//      true` (a read-first bucket: confirm which hits are live before fixing
-//      anything) — covering every open gap from that scanner the roadmap did
-//      not already absorb.
-//   3. Every remaining scanner-fix remedy, grouped per its adapter's declared
-//      `handoff.unit` (map/scanners/CONTRACT.md): `file` (one remedy per
-//      evidence file), `scanner` (one remedy for the whole scanner's remaining
-//      gaps), or the default `finding` (today's dedupe by identical verbatim
-//      fix, buildFixSpine) — sorted worst severity first, then roster (axis)
-//      order, exactly as before.
-// With no roadmap, the sequence is triage items then the grouped remedies.
+// What is sequenced (views/README.md, the `handoff/` row):
+//   • the reviewer's roadmap items (views/improve/prose.yaml `roadmap:`), each with the
+//     findings it cites;
+//   • triage items: one per scanner whose adapter declares `handoff.triage: true` (a
+//     read-first bucket: confirm which hits are live before fixing anything), covering
+//     every open gap from that scanner the roadmap did not already absorb;
+//   • every remaining scanner-fix remedy, grouped per its adapter's declared
+//     `handoff.unit` (map/scanners/CONTRACT.md §7): `file`, `scanner`, or the default
+//     `finding` (the dedupe by identical verbatim fix, buildFixSpine).
+// The ORDER is one key, read off what each item's findings are, never off which scanner
+// found them or what kind of item holds them (#306). Each open gap's key, in this order:
+//   1. halt: an unheld halt (doctrine.mjs isHalt over its effect facet) first;
+//   2. tier: the most urgent tier of the requirement rows the measurement (yardstick.yaml)
+//      lists it on, in the yardstick's tier order;
+//   3. severity: Blocker, Critical, High, Medium, Low, Nit, unrated. A gap that every row
+//      it is listed on reads not measured is not a confirmed gap: it ranks unrated.
+// A gap no requirement takes ranks by its severity alone: right after the last tiered gap
+// at least as severe (ahead of every tiered gap when none is). An item's place is its worst
+// gap's key; ties go to the item whose lowest finding id comes first.
 //
 // A scanner item every one of whose findings a roadmap item cites is ABSORBED
 // into that roadmap card (never sequenced twice). An open gap with no fix and
 // no roadmap coverage is OWNER-DEFINED PENDING — named, never sequenced.
-import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
+import { sevRank, buildFixSpine, isHalt } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
 
 const nn = (i) => String(i + 1).padStart(2, '0');
@@ -98,10 +100,73 @@ const fileKeyOf = (p) => {
   return paths.length ? paths.join('|') : '(no path)';
 };
 
+// Where each finding sits in the measurement: id → { tier, measured }, tier the index of the
+// most urgent tier among the rows that list it, read first from the rows it holds unmet or
+// mixed (the requirement the gap bears on), then from a row that read met or not applicable
+// with it listed (what the row was met by, #260), then from a row that read not measured;
+// measured is false when only a not-measured row lists it. A finding no row lists is absent:
+// no requirement takes it. `measurement` is yardstick.yaml's rows
+// (yardstick/measure.mjs); `yardstick` the registry (requirements.yaml), whose rows give each
+// requirement's tier and whose `tiers:` give their order, joined here as every view joins them.
+function tiersOfFindings(measurement, yardstick) {
+  const tiers = yardstick.tiers;
+  const tierOfReq = new Map((yardstick.requirements || []).map((d) => [d.id, d.tier]));
+  const out = new Map();
+  for (const row of Array.isArray(measurement) ? measurement : []) {
+    const t = tiers.indexOf(tierOfReq.get(row.id));
+    if (t < 0) throw new Error(`the measurement's row ${row.id} has no tier in the yardstick (${tiers.join(', ')}): the measurement and requirements.yaml disagree`);
+    const by = row.status === 'unmet' || row.status === 'mixed' ? 0 : row.status === 'not-measured' ? 2 : 1;
+    for (const id of Array.isArray(row.findings) ? row.findings : []) {
+      const was = out.get(String(id));
+      if (!was || by < was.by || (by === was.by && t < was.tier)) out.set(String(id), { tier: t, measured: by !== 2, by });
+    }
+  }
+  return out;
+}
+
+const UNRATED = sevRank('unrated');
+const NO_GAP = [2, Infinity, Infinity, 1];   // an item citing no open gap ranks last
+const lex = (a, b) => { for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1; return 0; };
+const byId = (a, b) => String(a).localeCompare(String(b), 'en', { numeric: true });
+
+// The one ordering key (the header above; views/README.md, `handoff/sequence.json`). Sorts
+// `items` in place, each `{ ps, … }`, and gives each a `rank` of its worst open gap:
+// { halt, tier, severity }, tier the yardstick tier's name or null when no requirement takes it.
+function rankItems(items, { tierOf, tiers }) {
+  const open = (it) => it.ps.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
+  const keyOf = (p) => {
+    const at = tierOf.get(String(p.f.id));
+    const halt = p.f.effect && typeof p.f.effect === 'object' && isHalt(p.f.effect) ? 0 : 1;
+    const sev = at && !at.measured ? UNRATED : sevRank(p.f.severity);
+    return { p, halt, tier: at ? at.tier : null, sev };
+  };
+  const keyed = items.map((it) => ({ it, ks: open(it).map(keyOf) }));
+  // a gap no requirement takes: after the last tiered gap, of its halt class, at least as severe
+  const tiered = keyed.flatMap((x) => x.ks).filter((k) => k.tier !== null);
+  const full = (k) => {
+    if (k.tier !== null) return [k.halt, k.tier, k.sev, 0];
+    const asSevere = tiered.filter((t) => t.halt === k.halt && t.sev <= k.sev);
+    const last = asSevere.reduce((m, t) => (!m || lex([t.tier, t.sev], [m.tier, m.sev]) > 0 ? t : m), null);
+    return [k.halt, last ? last.tier : -1, k.sev, 1];
+  };
+  for (const x of keyed) {
+    let worst = null;
+    for (const k of x.ks) { const f = full(k); if (!worst || lex(f, worst.f) < 0) worst = { f, k }; }
+    x.key = worst ? worst.f : NO_GAP;
+    x.first = [...new Set(x.it.ps.map((p) => p.f.id))].sort(byId)[0] ?? '';
+    x.it.rank = worst
+      ? { halt: worst.k.halt === 0, tier: worst.k.tier === null ? null : tiers[worst.k.tier], severity: worst.k.sev === UNRATED ? 'unrated' : worst.k.p.f.severity }
+      : { halt: false, tier: null, severity: 'unrated' };
+  }
+  keyed.sort((a, b) => lex(a.key, b.key) || byId(a.first, b.first));
+  keyed.forEach((x, i) => { items[i] = x.it; });
+  return items;
+}
+
 // The one numbering. `decided` is the full decided base (map/decisions.mjs);
-// `roadmap` is buildRoadmap's output; `roster` is the run's axis roster
-// (map/project.mjs rosterFor), used only for the tie-break among remedies.
-export function buildSequence({ decided, adapters, roadmap, roster }) {
+// `roadmap` is buildRoadmap's output; `measurement` is the run's measurement (yardstick.yaml
+// rows) and `yardstick` the registry, which together say each finding's tier.
+export function buildSequence({ decided, adapters, roadmap, measurement, yardstick }) {
   const coveredIds = new Set(roadmap.flatMap((r) => r.ps.map((p) => p.f.id)));
   const openGaps = decided.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
   const standalone = openGaps.filter((p) => p.f.fix && !coveredIds.has(p.f.id));
@@ -144,18 +209,15 @@ export function buildSequence({ decided, adapters, roadmap, roster }) {
   for (const [axis, m] of spine) for (const it of m.values())
     remedies.push({ kind: 'remedy', unit: 'finding', source: it.source, ps: it.ps, ids: it.ids, sev: it.sev, axis, also: it.also, fix: it.fix, obs: it.obs });
 
-  remedies.sort((a, b) => sevRank(a.sev) - sevRank(b.sev) || roster.indexOf(a.axis) - roster.indexOf(b.axis));
-  triageItems.sort((a, b) => sevRank(a.sev) - sevRank(b.sev) || String(a.source).localeCompare(b.source));
-
-  const seq = [
+  const seq = rankItems([
     ...roadmap.map((r) => ({ kind: 'authored', r, ps: r.ps })),
     ...triageItems,
     ...remedies,
-  ];
+  ], { tierOf: tiersOfFindings(measurement, yardstick), tiers: yardstick.tiers });
   seq.forEach((s, i) => { s.n = i + 1; });
 
   // plan files: every roadmap item, every triage item, and every remedy whose
-  // worst severity is High or above (today's tier-1 rule, applied to the group).
+  // worst severity is High or above (applied to the group).
   for (const s of seq) {
     if (s.kind === 'authored') s.plan = `${nn(s.n - 1)}-${s.r.slug}.md`;
     else if (s.kind === 'triage') s.plan = `${nn(s.n - 1)}-triage-${s.source}.md`;
@@ -166,7 +228,7 @@ export function buildSequence({ decided, adapters, roadmap, roster }) {
 
   // loud, never silent: a Critical finding or a triage item sitting outside the
   // roadmap. Every triage/remedy item is, by construction, outside the roadmap
-  // (roadmap items are tier 1; these are what the roadmap did not cover).
+  // (what the reviewer's own list did not cover).
   const urgentOutside = [];
   for (const s of seq) {
     if (s.kind === 'authored') continue;

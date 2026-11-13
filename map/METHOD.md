@@ -708,7 +708,9 @@ Reconcile the three method views (leverage, maturity, security) into one documen
  waits on a person's act; then leverage (faster/better/reordered) × likelihood ×
  damage; then addressability (cheapest-to-verify first — telemetry-blind effects sort
  behind the telemetry fix). Flag any item whose payoff depends on another landing
- first, and order it after that one.
+ first, and order it after that one. This order is the synthesis's reading; the handoff
+ places each item by what its findings are, like every other item (`views/README.md`, "The
+ sequence's order"), so a dependency between items is stated in the item's body.
  **An item states a cause, not a pile of findings.** When findings from several
  scanners share one cause (a clean clone that does not install, a lockfile regenerated
  at deploy, actions on movable tags and a hundred advisories can all be one missing
@@ -785,9 +787,11 @@ One command assembles the whole deliverable over the projected base:
  twice). An open gap with
  neither is **owner-defined pending**: listed loudly, never dropped, never sequenced.
  Files, designed **self-contained** (the folder ships alone into the target repo):
- `START-HERE.md` (the one sequence `IMPROVE.md` §6 also numbers — the roadmap in
- authored order, then a triage item per triage scanner, then the remaining scanner
- fixes bundled as each adapter declares and worst first; a Critical finding or a
+ `START-HERE.md` (the one sequence `IMPROVE.md` §6 also numbers — the roadmap items,
+ a triage item per triage scanner and the remaining scanner fixes bundled as each
+ adapter declares, ordered by what each item's worst finding is: an unheld halt, then
+ its requirement's tier, then its severity (`views/README.md`, "The sequence's order"),
+ never by which scanner found it; a Critical finding or a
  triage left outside the roadmap is named with its item number — and what is NOT
  covered), `REMEDIATION.md` (every remedy with its **claim-audit block**: verbatim
  observation + evidence `file:line` + two proofs: the one the team runs with its own
