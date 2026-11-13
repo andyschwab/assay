@@ -784,6 +784,11 @@ const FORMATS = {
       if (rep.needs_validation !== undefined && rep.needs_validation !== null && !Array.isArray(rep.needs_validation)) throw new Error('machine report needs_validation: must be a list of rows');
       const asked = (rep.needs_validation || []).map((f) => (f && typeof f === 'object' && f.verdict === undefined) ? { ...f, verdict: 'needs_validation' } : f);
       for (const f of asked) if (f && typeof f === 'object' && f.verdict !== 'needs_validation') throw new Error(`needs_validation row ${f.id || '?'}: verdict "${f.verdict}" in the needs_validation list`);
+      // a commit the reviewer cites in its own form (the adapter's ingest.commit_citation, the
+      // prefix it writes before a sha) is filed in the schema's one form, commit:<sha> (SCHEMA.md
+      // §1), which validate checks as a sha and against the target's history
+      const ownForm = adapter.ingest.commit_citation ? String(adapter.ingest.commit_citation) : null;
+      const commitCite = (e) => (ownForm && e.startsWith(ownForm) ? `commit:${e.slice(ownForm.length).trim().toLowerCase()}` : e);
       const rows = /** @type {any} */ ([]); let n = 0;
       const rejected = /** @type {{id: string, reason: string}[]} */ ([]);
       const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
@@ -820,7 +825,7 @@ const FORMATS = {
           native_category: String(f.area),
           polarity: f.polarity,
           observation: oneLine(f.observation),
-          evidence: f.evidence.map((e) => String(e)),
+          evidence: f.evidence.map((e) => commitCite(String(e))),
         };
         if (f.title) row.title = oneLine(f.title);
         if (f.tag) row.native_tag = oneLine(f.tag);

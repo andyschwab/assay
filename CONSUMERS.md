@@ -47,6 +47,10 @@ the ranges are disjoint by construction. `validate` refuses a lane's finding in 
 range in every run, and an ingested row in the lane range in a run whose record carries
 `ingest_ids_from:` (every run `start` draws). A run drawn before the ranges keeps its ids.
 
+Evidence is a `path:line` (or `path:a-b`) citation into the target, or `commit:<sha>`, a commit
+of the target's history (7 to 40 lowercase hex digits), which `validate --target` checks
+exists when the target is a git repository (`map/SCHEMA.md` §1).
+
 ## The floor
 
 The floor is the requirements Intake reads: the rows of `yardstick/requirements.yaml`

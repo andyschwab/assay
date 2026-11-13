@@ -10,8 +10,9 @@
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
 // is an error, not a pass — a checker that silently accepts unparseable input hides the very thing it exists to catch.
+import { spawnSync } from 'node:child_process';
 import { INGEST_FLOOR, RECORD_KEY as ID_RECORD_KEY, rangeError } from './ids.mjs';
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -75,9 +76,16 @@ const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
 // every evidence entry is a path:line string (SCHEMA §1): `:12` alone cites no file, and a
 // bare path or a map cites no line (no claim without evidence)
 const CITE = /^(.*):(\d+)(?:-(\d+))?$/;
+// or a commit of the target's history (#304, SCHEMA.md §1): `commit:<sha>`, 7 to 40 lowercase
+// hex digits, checked against the target's git history when --target is a repository. A
+// commit is evidence of history, so a finding citing one states a fact about the tree's
+// history, never a free claim.
+const COMMIT_CITE = /^commit:([0-9a-f]{7,40})$/;
+const isCommitCite = (ev) => typeof ev === 'string' && ev.trim().startsWith('commit:');
 function emptyCites(f, at) {
   if (!Array.isArray(f.evidence)) return;
   for (const ev of f.evidence) {
+    if (isCommitCite(ev)) { if (!COMMIT_CITE.test(ev.trim())) err(at, `evidence ${JSON.stringify(ev)} is not a commit citation (commit:<sha>, 7 to 40 lowercase hex digits)`); continue; }
     const m = typeof ev === 'string' ? ev.trim().match(CITE) : null;
     if (m && !m[1]) err(at, `evidence "${ev}" cites no path`);
     else if (!m) err(at, `evidence ${JSON.stringify(ev)} is not a path:line citation`);
@@ -422,11 +430,31 @@ for (const file of passFiles) {
 // and a line inside the file is what --target can check; it cannot check that the line
 // says what the observation claims.
 const evidencePathErrors = [];   // structured, for --json / map/backlog.mjs
+// whether --target holds a git history to check a commit citation against, read once
+let historyOf = null;
+const targetHistory = () => historyOf ??= (() => {
+  const g = (a) => spawnSync('git', ['-C', target, ...a], { encoding: 'utf8' });
+  // the target's own history only: a tree inside another repository (a fixture inside this one)
+  // has none of its own, and its commits are not the enclosing repository's
+  const top = g(['rev-parse', '--show-toplevel']);
+  if (top.status !== 0 || realpathSync(top.stdout.trim()) !== realpathSync(target)) return { repo: false, shallow: false };
+  return { repo: true, shallow: g(['rev-parse', '--is-shallow-repository']).stdout.trim() === 'true' };
+})();
 if (target) {
   if (!existsSync(target)) { err('--target', `target repo not found: ${target}`); }
   else for (const [id, { f, file }] of allById) {
     if (!Array.isArray(f.evidence)) continue;
     for (const ev of f.evidence) {
+      if (isCommitCite(ev)) {
+        const sha = (COMMIT_CITE.exec(ev.trim()) || [])[1];
+        if (!sha) continue;   // a malformed one is already a schema error (emptyCites)
+        const h = targetHistory();
+        if (!h.repo) continue;   // a target with no git history: the form is all that can be checked
+        if (spawnSync('git', ['-C', target, 'cat-file', '-e', `${sha}^{commit}`], { stdio: 'ignore' }).status === 0) continue;
+        if (h.shallow) warn(`${file}:${id}`, `evidence commit:${sha} is not in the target's history, which is a shallow clone: not checked`);
+        else err(`${file}:${id}`, `evidence commit:${sha} is not a commit in the target's history`);
+        continue;
+      }
       const m = typeof ev === 'string' ? ev.trim().match(CITE) : null;
       if (!m || !m[1]) continue;   // not path:line is already a schema error (emptyCites)
       const p = m[1], end = Number(m[3] || m[2]);

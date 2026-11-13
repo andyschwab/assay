@@ -30,7 +30,8 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
   subject_type: effect         # effect | control | artifact | contract | process | capability
   observation: >               # ONE grounded sentence — the fact, not the interpretation
     The agent sends email as the user with no draft/confirm step.
-  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo (an instrument run inside it is rebased onto it at ingest)
+  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo (an instrument run inside it is rebased onto it at ingest),
+                                       #   or commit:<sha>, a commit of the target's history (below)
   confidence: confirmed        # confirmed | plausible | unverified
   # ── facets (conditional-required — see §4) ──
   effect:                      # REQUIRED iff subject_type == effect
@@ -68,6 +69,16 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
 
 **Mandatory keys on every finding:** `id`, `dimension`, `polarity`,
 `subject_type`, `observation`, `evidence` (non-empty), `confidence`.
+
+**Evidence (#304).** Each entry is a `path:line` (or `path:a-b`) citation of the target's tree,
+or `commit:<sha>`: a commit of the target's history, 7 to 40 lowercase hex digits. A commit is
+evidence of history, so a finding that cites one states a fact about the tree's history (a
+commit's subject, what it changed), never a free claim; `validate --target` checks that the
+commit is in the target's history when the target is a git repository of its own, and a shallow
+clone that lacks it is warned, not passed silently. A reviewer that writes a commit in its own
+form names that form on its adapter (`ingest.commit_citation`, `map/scanners/CONTRACT.md`), and
+ingest files it as `commit:<sha>`. A commit names no file, so an evidence condition that reads a
+finding's files reads none from it.
 
 **Optional keys:** `preconditions`, `reaches`, `explained_by`, `escapes`, `covers`, `label`,
 `property`, the two facets (which become mandatory under §4), and the **overlay** fields
@@ -1206,8 +1217,8 @@ violation). It checks, and **fails closed** — an input it cannot parse is an e
 a pass (the run's own CI-1 lesson, applied to the checker):
 
 1. Every finding carries the mandatory keys (§1); `evidence` is present and non-empty, and
-   every entry is a `path:line` (or `path:a-b`) string — a bare path, a map, or `:12`
-   alone is refused.
+   every entry is a `path:line` (or `path:a-b`) string or a `commit:<sha>` (§1) — a bare
+   path, a map, `:12` alone, or a commit that is not 7 to 40 lowercase hex digits is refused.
 2. Every closed-vocab field holds an allowed value (§2), including facet sub-fields.
 3. Conditional-required facets are present and complete (§4), incl. the `fail_mode`
    rule and the **fail-closed discovery rule** (§6d): an unheld-halt effect — a chain
