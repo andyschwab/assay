@@ -7,6 +7,19 @@
 # one shared axis instead of two chapters. A finding needing finer routing than
 # the letter allows carries an explicit `axis`/`also_axes` from the scanner,
 # which projection honors over this map.
+#
+# Each letter also names the property its rows observe (`property:`, #306): the
+# closed mapping map/placement.mjs reads, so a reviewer's finding counts on the row
+# whose binding names that property, or is listed untaken under it in the run's
+# candidates (views/improve/candidates.yaml), never on the nearest row. K spans two
+# properties, so it names both (`properties:`) and the reviewer names one on every
+# K finding (`property:`, which the lane asks for): build-supply-chain is how the
+# code is built and what it is built from (lockfile, toolchain, actions pinned,
+# dependency currency, the build's CI gate); release-path-trust is how a change
+# reaches production (environment approvals, the trust condition a deploy
+# credential admits, what runs before whose review). A K finding that names
+# neither is unplaced: listed untaken with that reason, and d-dependencies-pinned
+# reads not measured beside it rather than met.
 scanner: deep-code-review
 targets_taxonomy: 3
 # What the core reads about this scanner (CONTRACT.md §3): a judgment scanner, run
@@ -61,46 +74,70 @@ contributes:
 map:
   A:                          # Correctness & logic
     axis: code-correctness
+    property: program-logic
   D:                          # Data integrity & quality
     axis: code-correctness
+    property: data-integrity
   E:                          # Performance, efficiency & cost
     axis: code-correctness
+    property: performance-and-cost
   F:                          # Reliability & error handling
     axis: code-correctness
+    property: failure-handling
   G:                          # Concurrency & shared state
     axis: code-correctness
+    property: concurrent-state
   H:                          # Tech debt, dead code, maintainability -> its own axis (#109)
     axis: code-maintainability
+    property: maintainability
   R:                          # i18n / encoding / localization
     axis: code-correctness
+    property: text-encoding-and-locale
   P:                          # Frontend / UI / a11y
     axis: code-correctness
+    property: user-interface
   B:                          # AppSec (OWASP Top 10:2025)
     axis: code-security
+    property: application-security
   I:                          # API, contracts & integration
     axis: code-security
+    property: integration-contracts
   K:                          # Build, CI, supply chain, release
     axis: code-security
+    properties: [build-supply-chain, release-path-trust]
+    means:                    # what each names: the lane states it to the reviewer
+      build-supply-chain: "how the code is built and what it is built from: lockfiles, the toolchain version, CI actions pinned by commit, dependency currency and audits, a reproducible build and the CI gate that builds it"
+      release-path-trust: "how a change reaches production: environment approvals and their order, the trust condition a deploy credential or tag admits, who may promote, and what runs before whose review"
   L:                          # Infra / IaC / containers / cloud / serverless
     axis: code-security
+    property: infrastructure-config
   N:                          # Config, secrets, environments
     axis: code-security
+    property: configuration-and-secrets
   Q:                          # Privacy, compliance, licensing
     axis: code-security
+    property: personal-data-handling
   T:                          # Multi-tenancy & isolation (1.60+) — the tenant wall is a code-security property
     axis: code-security
+    property: tenant-isolation
   W:                          # Workflows, jobs & scheduling (1.60+) — does the scheduled path do the right thing
     axis: code-correctness
+    property: scheduled-work
   S:                          # Branches, merges, open-work triage -> does work land and get triaged
     axis: improvement-loop
+    property: branch-and-merge-flow
   J:                          # Testing & evaluation -> the shared gates axis
     axis: deterministic-gates
+    property: test-gates
   M:                          # Observability (proof-of-effect) -> the shared verification axis
     axis: verification
+    property: observability
   C:                          # AI / LLM / agent security -> the shared delegation axis
     axis: delegation
+    property: model-input-and-agency
   O:                          # Documentation & developer experience -> the shared legibility axis
     axis: artifact-legibility
+    property: documentation
 
 default: FAIL
 
@@ -116,8 +153,9 @@ decides:
     category: Q
   - requirement: d-config-declared
     category: N
-  - requirement: d-dependencies-pinned
+  - requirement: d-dependencies-pinned   # K's supply-chain half only; release-path-trust is no row's yet
     category: K
+    property: build-supply-chain
   - requirement: d-errors-reach-a-person
     category: M
 

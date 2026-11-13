@@ -158,7 +158,8 @@ read as ambiguous, never as one of them. The routes are:
 
 1. **An instrument row** takes its deciders' rows: a finding whose scanner and native category
    (or a fact category its `not_applicable_when` / `not_measured_when` reads) a binding decides
-   the row on.
+   the row on. A binding that names a `property:` takes only the rows its reviewer's adapter
+   places on that property (`map/placement.mjs`, `map/scanners/CONTRACT.md` §3, #306).
 2. **An effect or capability finding** is taken by its own facets: the term whose `record:` is
    `halt-class-effect` (`isHaltClass`), `effect` or `capability`. The four effect rows all *read*
    an effect finding through its facets, but one row *takes* it:
@@ -336,7 +337,10 @@ seen in place, the cited strengths' observations, under "Holds" (`views/README.m
 `category` and its conditions on `decide`), a list of them (`decide.deciders`), or none:
 an external scanner never appears here (`CLAUDE.md` rule 7). It binds through its
 adapter's `decides:` (`map/scanners/CONTRACT.md` §3), each entry naming the requirement,
-the category and the same optional conditions. A binding counts when the scanner is
+the category and the same optional conditions, and, for a category that spans several
+properties, the one property it reads (`property:`): a row of that category placed on another
+property is no evidence for it, and a row placed on none holds its reading not measured, never
+met (#306). A binding counts when the scanner is
 adopted, or on a run that records a disposition for it; a binding to a requirement the
 yardstick lacks halts the load. One decider reads as it always has. With several (#177):
 a gap from any decider decides the row (mixed only where a strength sits beside it and

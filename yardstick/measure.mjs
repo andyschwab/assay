@@ -41,6 +41,7 @@ import { loadChannelFiles, channelPopulation, CANDIDATE_POPULATIONS } from '../m
 import { loadCensusTriage, censusClosure } from '../map/census-triage.mjs';
 import { ENUMERATE_POPULATIONS } from '../map/enumerate-populations.mjs';
 import { censusCount } from '../map/census.mjs';
+import { propertyOf, validatePlacement } from '../map/placement.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
@@ -85,6 +86,9 @@ function validateDecider(spec, at) {
   // evidence cannot carry (e.g. structure-scan's `unconfigured`, #121); such rows stay in
   // the map and the views and never decide this requirement
   if (spec.excluding !== undefined && !okName(spec.excluding)) errors.push(`${at}: excluding must be a non-empty string (a detail flag the scanner sets)`);
+  // optional property (#306): an adapter binding reads only the rows its adapter places on this
+  // property (map/placement.mjs), for a category that spans several
+  if (spec.property !== undefined && !okName(spec.property)) errors.push(`${at}: property must be a non-empty string (a property the adapter's map names)`);
   return errors;
 }
 export function validateYardstick(reg) {
@@ -465,6 +469,8 @@ function validateAdapterDecides(reg, adapters) {
     if (d.decide.kind !== 'instrument') errors.push(`${at}: ${d.id} is decided by ${d.decide.kind}, not an instrument`);
     errors.push(...validateDecider({ ...b, scanner: a.scanner }, at));
   }
+  // a reviewer's property mapping is closed (map/placement.mjs, #306)
+  for (const a of Object.values(adapters || {})) errors.push(...validatePlacement(a, reg.requirements.map((d) => d.id)));
   for (const d of reg.requirements) if (d.decide.kind === 'instrument' && !decidersOf(d, adapters, null).length && !Object.values(adapters || {}).some((a) => (a.decides || []).some((b) => b && b.requirement === d.id)))
     errors.push(`yardstick: ${d.id}: an instrument row with no decider (neither on the row nor in any adapter's decides:)`);
   return errors;
@@ -489,7 +495,19 @@ function decideInstrument(d, fs, disp, coverage, adapters) {
   const auditedBy = (spec) => new Set(fs.filter((f) => f.source === spec.scanner && f.polarity === 'fact' && asList(spec.audits).includes(String(f.native_category))).flatMap(evidenceFiles));
   const per = specs.map((spec) => {
     const answered = new Set(specs.filter((o) => o !== spec).flatMap((o) => [...auditedBy(o)]));
-    return { spec, r: decideOne(d, spec, fs, disp, coverage, answered) };
+    if (spec.property === undefined) return { spec, r: decideOne(d, spec, fs, disp, coverage, answered) };
+    // a binding that names a property (#306) reads only the rows of its categories its adapter
+    // places on that property (map/placement.mjs); a row placed on another property is no
+    // evidence here, and a row the adapter cannot place holds a met or not-applicable reading
+    // not measured, since it may be this property's gap: never placed here by nearness
+    const cats = asList(spec.category);
+    const mine = (f) => f.source === spec.scanner && cats.includes(String(f.native_category ?? ''));
+    const unplaced = fs.filter((f) => mine(f) && propertyOf(f, adapters).unplaced);
+    const kept = fs.filter((f) => !mine(f) || propertyOf(f, adapters).property === spec.property);
+    const r = decideOne(d, spec, kept, disp, coverage, answered);
+    if (!unplaced.length || !['met', 'not-applicable'].includes(r.status)) return { spec, r };
+    const why = [...new Set(unplaced.map((f) => propertyOf(f, adapters).unplaced))].join('; ');
+    return { spec, r: row('not-measured', 'instrument', r.findings || [], `${unplaced.length} ${spec.scanner} row(s) of category ${cats.join(', ')} placed on no property (${unplaced.map((f) => f.id).join(', ')}: ${why}), so ${spec.property} cannot read ${r.status}`) };
   });
   if (per.length === 1) return per[0].r;
   const ids = [...new Set(per.flatMap((p) => p.r.findings || []))];
