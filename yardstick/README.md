@@ -410,6 +410,27 @@ The instruments that decide rows:
   reads `d-no-dead-code` **not-applicable** on `unused-not-applicable`, unless a
   stale file is found. `d-one-home-per-fact` keeps the docs half as a claim.
 
+## A retired requirement
+
+A requirement the yardstick no longer carries is **retired**, never deleted silently:
+`requirements.yaml`'s `retired:` lists each id with its `successor`, the live row that
+measures in its place, and `why`. `validateRetired`, run whenever the register loads,
+refuses a retired id that is still a row, one retired twice, a successor that is not a
+live row, and an entry with no why. A stored run, baseline or packet that names a retired id still reads:
+
+- `validate` passes a stored `yardstick.yaml` row carrying a retired id with a warning
+  naming its successor, and the successor's own row may be absent beside it (measured
+  before it existed); `node assay.mjs measure <run> --write` brings the file forward;
+- `compare` classes it `retired`, carrying `successor`, never `yardstick-only`;
+- Since lists it under `retired`, with successor and why (`views/README.md`);
+- the ratchet reports a baseline row on a retired id in `changed` as `retired →
+  <successor>`, never a failure and never held: the yardstick moved, not the
+  repository, and a steward rewrites the baseline;
+- a packet claim on a retired id is refused, naming the successor to restate it against.
+
+A census row an earlier engine wrote for a retired requirement stays mapped in its
+scanner's adapter, so a stored run still projects; the row is decided by no requirement.
+
 Prose is never read. An observation that mentions a topic is not a measurement.
 Census names are accepted as a list per requirement; a new run uses the first.
 
@@ -476,8 +497,9 @@ disagreement is pinned in plain sight, and any move is a reviewed re-bless.
 current)` over two documents shaped like `yardstick.yaml`
 (`{ version, requirements: [{ id, status, basis, findings, note }] }`), classifying
 every requirement id present on either side as `improved`, `regressed`,
-`unchanged`, `newly-measured`, `no-longer-measured`, or `yardstick-only` (present
-on only one side — the yardstick itself changed). The order `met > mixed > unmet`
+`unchanged`, `newly-measured`, `no-longer-measured`, `retired` (present on the
+previous side only, its id in `retired:`, carrying its `successor`; above), or
+`yardstick-only` (present on only one side — the yardstick itself changed). The order `met > mixed > unmet`
 is total; `not-measured` and `not-applicable` are both deliberately **off** that
 scale (neither is a better or worse verdict — one is "we don't know yet", the
 other "this was determined not to apply"), so a status leaving the ranked scale
@@ -553,7 +575,9 @@ requirements:                    # every requirement id, its status and basis AT
 `yardstick.yaml` as `current`, then fails (exit 1) when a requirement the
 baseline recorded `met` or `mixed` is now worse or `no-longer-measured`, or when
 a baseline requirement is absent from the current measurement entirely (the
-yardstick itself dropped or renamed it — nothing there to hold any more). A
+yardstick itself dropped or renamed it — nothing there to hold any more), unless
+the yardstick retired it: a retired id is reported, naming its successor, never a
+failure (above, "A retired requirement"). A
 baseline row recorded `unmet` or `not-measured` never fails the ratchet — there
 is nothing held to lose. `not-applicable` is never a failure either direction: a
 baseline row that **was** `not-applicable` never fails regardless of what it

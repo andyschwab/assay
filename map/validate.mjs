@@ -892,17 +892,29 @@ if (existsSync(yardstickResultPath)) {
   catch (e) { err(yardstickLabel, `YAML parse failed (fail-closed): ${e.message}`); view = null; }
   if (view && view.schema !== 'yardstick') err(yardstickLabel, `schema must be yardstick — regenerate: node assay.mjs measure <run-dir> --write`);
   else if (view) {
-    const { projectRun } = await import('../yardstick/measure.mjs');
+    const { projectRun, loadYardstick, retiredOf } = await import('../yardstick/measure.mjs');
     let re = null;
     try { re = projectRun(runDir); } catch (e) { err(yardstickLabel, `could not recompute the measurement: ${e.message}`); }
     if (re) {
       const reById = Object.fromEntries(re.map((r) => [r.id, r]));
-      const rows = Array.isArray(view.requirements) ? view.requirements : [];
-      if (rows.length !== re.length) err(yardstickLabel, `carries ${rows.length} requirements, the yardstick has ${re.length} — regenerate`);
+      const allRows = Array.isArray(view.requirements) ? view.requirements : [];
+      // a row naming a retired requirement (yardstick/README.md, "A retired requirement") was
+      // measured by an earlier yardstick: it reads as retired, naming its successor, never as
+      // drift and never dropped; the successor it points to may be absent beside it
+      const retired = retiredOf(loadYardstick());
+      const carriedRetired = allRows.filter((r) => r && retired.has(r.id));
+      for (const r of carriedRetired) warn(`${yardstickLabel}:${r.id}`, `retired: ${retired.get(r.id).successor} measures in its place (${retired.get(r.id).why}); the stored row read ${r.status} under an earlier yardstick — bring the measurement forward with node assay.mjs measure <run-dir> --write`);
+      const successors = new Set(carriedRetired.map((r) => retired.get(r.id).successor));
+      const rows = allRows.filter((r) => !(r && retired.has(r.id)));
+      const expected = re.filter((x) => !(successors.has(x.id) && !rows.some((r) => r && r.id === x.id)));
+      if (rows.length !== expected.length) err(yardstickLabel, `carries ${rows.length} requirements, the yardstick has ${expected.length} — regenerate`);
       // the id SET, not only the count: a duplicated row keeps the count only by dropping
       // another, and with the count equal a dropped row is the tell
       const ids = new Set(rows.map((r) => r && r.id));
-      for (const x of re) if (!ids.has(x.id)) err(yardstickLabel, `carries no row for ${x.id} — regenerate: node assay.mjs measure <run-dir> --write`);
+      for (const x of re) if (!ids.has(x.id)) {
+        if (successors.has(x.id)) warn(yardstickLabel, `carries no row for ${x.id}, the successor of a retired requirement it does carry — measured before ${x.id} existed`);
+        else err(yardstickLabel, `carries no row for ${x.id} — regenerate: node assay.mjs measure <run-dir> --write`);
+      }
       for (const r of rows) {
         const at = `${yardstickLabel}:${r && r.id || '??'}`;
         const x = r && reById[r.id];

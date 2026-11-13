@@ -38,6 +38,16 @@ export function requirementIdsOnDisk(file = REQUIREMENTS_FILE) {
   return Array.isArray(reg && reg.requirements) ? reg.requirements.map((d) => d.id) : [];
 }
 
+// id → { successor, why } for the yardstick's retired ids (yardstick/README.md, "A retired requirement")
+let RETIRED_ON_DISK = null;
+function retiredOnDisk() {
+  if (!RETIRED_ON_DISK) {
+    let reg = null; try { reg = parseYaml(readFileSync(REQUIREMENTS_FILE, 'utf8')); } catch { /* the register's own load reports it */ }
+    RETIRED_ON_DISK = new Map((Array.isArray(reg?.retired) ? reg.retired : []).filter((r) => r && r.id).map((r) => [r.id, { successor: r.successor, why: r.why }]));
+  }
+  return RETIRED_ON_DISK;
+}
+
 const PACKET_VERSION = 1;
 const PLACEHOLDER_ROLE = /^(unknown|nobody|none|no one|n\/a|tbd|\?+)$/i;
 // answered.by (owner/PACKET.md: "a role, never a name") — a name is not a
@@ -197,7 +207,12 @@ export function validatePacket(doc, { requirementIds = [] } = {}) {
     if (!c || typeof c !== 'object') { err(`${at}: must be a mapping`); continue; }
     if (!c.id) err(`${at}.id: required`);
     else {
-      if (requirementIds.length && !requirementIds.includes(c.id)) err(`${at}.id: "${c.id}" is not a requirement in yardstick/requirements.yaml`);
+      if (requirementIds.length && !requirementIds.includes(c.id)) {
+        // a retired id (requirements.yaml retired:) is named with its successor, still refused:
+        // a claim about a requirement the yardstick no longer measures is restated, never dropped
+        const r = retiredOnDisk().get(c.id);
+        err(r ? `${at}.id: "${c.id}" is retired; ${r.successor} measures in its place (${r.why}): restate the claim against it` : `${at}.id: "${c.id}" is not a requirement in yardstick/requirements.yaml`);
+      }
       if (seenClaimIds.has(c.id)) err(`${at}.id: "${c.id}" claimed more than once`);
       seenClaimIds.add(c.id);
     }

@@ -125,6 +125,13 @@ members:
     subject_types: [contract, control, process]
     means: whether a test exercises a path; d-effect-sites-tested is a claim row, and the suite's run is fresh-clone's
 
+# retired: a requirement id the yardstick no longer carries, the requirement that succeeds it,
+# and why (yardstick/README.md, "A retired requirement"). A stored run, baseline or packet that
+# names one still loads: validate reads its row as retired, compare and Since show it retired
+# with its successor, and the ratchet reports it moved, never held or regressed. An id here is
+# never a live row's, and every successor is.
+retired: []
+
 requirements:
 
   # ── custody: we cannot carry what we do not control ──────────────────────

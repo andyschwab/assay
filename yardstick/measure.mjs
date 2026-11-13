@@ -165,10 +165,30 @@ export function validateYardstick(reg) {
   }
   return errors;
 }
+// the retired ids (yardstick/README.md, "A retired requirement"), a whole-register check run on
+// load: never a live row's, its successor always one, each with why, each retired once
+function validateRetired(reg) {
+  const errors = [];
+  const live = new Set(reg.requirements.map((d) => d.id)), gone = new Set();
+  if (reg.retired !== undefined && !Array.isArray(reg.retired)) errors.push('yardstick: retired must be a list of { id, successor, why }');
+  for (const r of Array.isArray(reg.retired) ? reg.retired : []) {
+    const at = `yardstick: retired ${r?.id ?? '(no id)'}`;
+    if (!r?.id || !/^d-[a-z0-9-]+$/.test(r.id)) errors.push(`${at}: id must match d-<slug>`);
+    if (live.has(r?.id)) errors.push(`${at}: is a live requirement; a retired id is no row's`);
+    if (gone.has(r?.id)) errors.push(`${at}: retired twice`); gone.add(r?.id);
+    if (!live.has(r?.successor)) errors.push(`${at}: successor "${r?.successor ?? ''}" is not a live requirement`);
+    if (!(typeof r?.why === 'string' && r.why.trim())) errors.push(`${at}: why required (what the successor measures in its place)`);
+  }
+  return errors;
+}
+// id → { successor, why } for every retired requirement id (yardstick/README.md, "A retired requirement")
+export function retiredOf(reg) {
+  return new Map((Array.isArray(reg?.retired) ? reg.retired : []).filter((r) => r && r.id).map((r) => [r.id, { successor: r.successor, why: r.why }]));
+}
 export function loadYardstick(file = YARDSTICK_FILE) {
   const reg = parseYaml(readFileSync(file, 'utf8'));
   // the register itself, then every adapter's binding against it (rule 7, #177)
-  const errors = validateYardstick(reg);
+  const errors = [...validateYardstick(reg), ...validateRetired(reg)];
   if (!errors.length) errors.push(...validateAdapterDecides(reg, (ADAPTERS ??= loadAdapters())));
   if (errors.length) throw new Error(errors.join('\n'));
   return reg;
