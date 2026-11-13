@@ -102,8 +102,10 @@ default: FAIL
 # image for a HEALTHCHECK instruction, which the runtime that starts the image acts on. A tree
 # the census reads as deployed by a platform that starts the image without reading it (Heroku's
 # heroku.yml, Fly's fly.toml, Kubernetes through a Helm chart, kustomization or Skaffold file,
-# each of which checks health by its own config) is not helped by one, unless a Compose file
-# (which does read it) is beside them. The hit stays visible as a gap; it never reads met.
+# each of which checks health by its own config; or a Terraform file declaring a Cloud Run
+# service, v1 google_cloud_run_service or v2 google_cloud_run_v2_service, read by resource type,
+# whose health is the service's own startup and liveness probes) is not helped by one, unless a
+# Compose file (which does read it) is beside them. The hit stays visible as a gap; it never reads met.
 confidence:
   evidence: deterministic
   misfires:
@@ -117,6 +119,8 @@ confidence:
         - "^chart\\.yaml$"
         - "^kustomization\\.ya?ml$"
         - "^skaffold\\.yaml$"
+      deployed_on_resource:
+        - "^google_cloud_run_(v2_)?service$"
       unless_deployed_on:
         - "^(docker-)?compose(\\..+)?\\.ya?ml$"
 

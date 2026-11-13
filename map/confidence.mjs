@@ -66,6 +66,8 @@ function detailMatches(when, detail) {
 }
 // the deployment-signal paths' file names, lowercased (the census's own reading, loadConfidenceContext)
 const deployedOn = (ctx) => (Array.isArray(ctx.deployment) ? ctx.deployment : []).map((s) => basename(String(s.path || '')).toLowerCase());
+// the resource types the census read in the tree's infrastructure files (`resources` on a signal)
+const deployedResources = (ctx) => (Array.isArray(ctx.deployment) ? ctx.deployment : []).flatMap((s) => (Array.isArray(s.resources) ? s.resources.map(String) : []));
 
 // THE RULES: one per way a value is assigned, each stated once. `when(p, adapter, ctx)` returns
 // null when the rule does not fire, else { reason? }: the reason a misfire or a not-measured pair
@@ -75,12 +77,16 @@ export const RULES = [
     says: 'its adapter declares this rule as not applying in this context (confidence.misfires), on a signal the run already holds',
     when(p, a, ctx) {
       const names = deployedOn(ctx);
+      const resources = deployedResources(ctx);
       for (const m of list(conf(a).misfires)) {
         if (String(p.f.native_category) !== String(m.category)) continue;
         if (m.native_id && !re(m.native_id).test(String(p.f.native_id || ''))) continue;
         // read only off the census's deployment signals: with none read, the rule stays applicable
         if (!Array.isArray(ctx.deployment)) continue;
-        if (!names.some((n) => list(m.deployed_on).some((x) => re(x).test(n)))) continue;
+        // the platform, by a deployment file's name or a resource type an infrastructure file declares
+        const onPlatform = names.some((n) => list(m.deployed_on).some((x) => re(x).test(n)))
+          || resources.some((t) => list(m.deployed_on_resource).some((x) => new RegExp(String(x)).test(t)));
+        if (!onPlatform) continue;
         if (names.some((n) => list(m.unless_deployed_on).some((x) => re(x).test(n)))) continue;
         return { reason: String(m.reason), id: String(m.id) };
       }
@@ -203,8 +209,8 @@ export function checkAdapterConfidence(adapter) {
   };
   list(c.misfires).forEach((m, i) => {
     const at = pair('misfires', m, i);
-    if (!list(m.deployed_on).length) e.push(`${at}: deployed_on must list the deployment signals (file names) on which the rule does not apply`);
-    for (const x of [m.native_id, ...list(m.deployed_on), ...list(m.unless_deployed_on)].filter((v) => v !== undefined)) { try { re(x); } catch (err) { e.push(`${at}: ${JSON.stringify(x)} is not a regex: ${err.message}`); } }
+    if (!list(m.deployed_on).length && !list(m.deployed_on_resource).length) e.push(`${at}: deployed_on or deployed_on_resource must list the deployment signals (file names, resource types) on which the rule does not apply`);
+    for (const x of [m.native_id, ...list(m.deployed_on), ...list(m.deployed_on_resource), ...list(m.unless_deployed_on)].filter((v) => v !== undefined)) { try { re(x); } catch (err) { e.push(`${at}: ${JSON.stringify(x)} is not a regex: ${err.message}`); } }
   });
   list(c.not_measured).forEach((n, i) => {
     const at = pair('not_measured', n, i);

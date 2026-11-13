@@ -219,9 +219,9 @@ off a tool's severity label. The rules are tried in this order, and the first th
 
 | Rule | Value | Fires when |
 | --- | --- | --- |
-| `adapter-declared-misfire` | `known-misfire` | the adapter declares this rule does not apply on a deployment signal the census read (`confidence.misfires`, `map/scanners/CONTRACT.md` §3), with the reason; the gap stays visible and never reads met |
+| `adapter-declared-misfire` | `known-misfire` | the adapter declares this rule does not apply on a deployment signal the census read, a file's name or a resource type a `.tf` declares (`confidence.misfires`, `map/scanners/CONTRACT.md` §3), with the reason: a container HEALTHCHECK on a tree deployed by Heroku, Fly, Kubernetes or Cloud Run; the gap stays visible and never reads met |
 | `source-not-run` | `not-measured` | the run record (`map/scanners.yaml`) says its source was skipped or failed |
-| `adapter-declared-not-measured` | `not-measured` | the adapter declares that a row with these `detail:` facts is a step that could not run (`confidence.not_measured`), with the reason: a fresh-clone test that stopped within seconds with no test counted, on a tree that names a database and declares no services (#256, #305); never a failure |
+| `adapter-declared-not-measured` | `not-measured` | the adapter declares that a row with these `detail:` facts is a step that could not run (`confidence.not_measured`), with the reason: a fresh-clone test that stopped within seconds with no test counted, on a tree that names a database and declares no services (#256, #305), or a migrate the runner did not run because its only form needs a live database (`reason_code: needs-live-database`); never a failure |
 | `evidence-file-absent` | `absent-evidence` | the gap is an owner's evidence file found absent (`evidence_absent: true`) |
 | `deterministic-instrument` | `confirmed` | its source's evidence is `deterministic` |
 | `cited-and-confirmed` | `confirmed` | its source's evidence is `cited` (re-resolved at the head), its own `confidence:` is `confirmed`, and it cites a `path:line` |

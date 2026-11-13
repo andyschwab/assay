@@ -124,7 +124,7 @@ import { stripUserinfo } from './repo-census.mjs';
 import { locateProjects } from './projects.mjs';
 import { SERVICES_FILE, readServices, findRuntime, startServices, stopServices, resolveEnv } from './services.mjs';
 
-export const VERSION = '0.7.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35); 0.6.0: `projects[]` (#246), an install skipped when its package manager is not on PATH (#248); 0.7.0: `services` and a step's `services` (#256)
+export const VERSION = '0.8.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35); 0.6.0: `projects[]` (#246), an install skipped when its package manager is not on PATH (#248); 0.7.0: `services` and a step's `services` (#256); 0.8.0: a step's `reason_code` (#319)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 export const CLAIM_STATUS = ['present', 'missing'];
@@ -206,7 +206,9 @@ export function detectToolchain(dir) {
 export { readPnpmWorkspace, workspaceGlobRe, resolveWorkspaces } from './projects.mjs';
 
 // ── step planning: what is declared, and the command that runs it ────────────
-const NOT_DECLARED = (reason) => ({ status: 'not-declared', command: null, reason });
+// reason_code (#319): the reason as data, closed (REASON_CODES), so a rule keys on it, never the prose
+export const REASON_CODES = ['needs-live-database', 'service-not-provided'];
+const NOT_DECLARED = (reason, reason_code) => ({ status: 'not-declared', command: null, reason, ...(reason_code ? { reason_code } : {}) });
 const MIGRATE_NAMES = ['migrate', 'db:migrate'];
 const MIGRATE_DRY_NAMES = ['migrate:dry', 'migrate:dry-run', 'migrate:check', 'migrate:status', 'db:migrate:dry', 'db:migrate:dry-run', 'db:migrate:check', 'db:migrate:status'];
 
@@ -245,7 +247,7 @@ function planSteps(toolchain, pkg) {
     const dry = MIGRATE_DRY_NAMES.find((n) => scripts[n] !== undefined);
     if (dry) plan.migrate = { status: 'declared', command: run(dry), needs_install: true, declared_as: migName, dry_form: dry };
     else if (/--dry-run/.test(String(scripts[migName]))) plan.migrate = { status: 'declared', command: run(migName), needs_install: true, declared_as: migName, dry_form: migName };
-    else plan.migrate = NOT_DECLARED(`"${migName}" is declared but needs a live database; no DATABASE_URL-free dry form (a migrate:dry / migrate:check / migrate:status script, or --dry-run) exists, so it was not run against an empty database`);
+    else plan.migrate = NOT_DECLARED(`"${migName}" is declared but needs a live database; no DATABASE_URL-free dry form (a migrate:dry / migrate:check / migrate:status script, or --dry-run) exists, so it was not run against an empty database`, 'needs-live-database');
   }
   return plan;
 }
@@ -353,7 +355,7 @@ function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void}
   let installBroken = null;
   for (const name of svc ? SERVICE_ORDER : STEPS) {
     const p = plan[name];
-    if (p.status === 'not-declared') { out.push({ name, status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason }); continue; }
+    if (p.status === 'not-declared') { out.push({ name, status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason, ...(p.reason_code ? { reason_code: p.reason_code } : {}) }); continue; }
     if (p.status === 'covered') { out.push({ name, status: 'covered', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason, covered_by: p.covered_by }); continue; }
     if (p.status === 'pm-missing') {   // #248: the package manager is not on PATH; nothing was run
       out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason });
@@ -379,7 +381,7 @@ function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void}
       // #256: a bound step runs only with its services, after the declared setup; else it reads
       // skipped with the reason — the measurement's gap, never charged to the target
       const names = svc.decl.services.map((x) => x.name).join(' and ');
-      if (!svc.provided) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `needs ${names}, which this measurement did not provide (${svc.reason})` }); continue; }
+      if (!svc.provided) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `needs ${names}, which this measurement did not provide (${svc.reason})`, reason_code: 'service-not-provided' }); continue; }
       const setupBroken = runSetup(svc, cwd, timeoutSec, log);
       if (setupBroken) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `the declared setup ${setupBroken}; ${name} not attempted` }); continue; }
       declaredEnv = svc.env;

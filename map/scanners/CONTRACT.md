@@ -153,6 +153,7 @@ confidence:            # how much assay knows about this scanner's gaps (#319, b
       category: <native category>
       native_id: "<regex>"          # optional: which of the category's rules
       deployed_on: ["<regex>", …]   # the census's deployment-signal file names it misfires on
+      deployed_on_resource: ["<regex>", …]   # or: resource types a .tf declares (census `resources`)
       unless_deployed_on: ["<regex>", …]   # optional: a signal beside them that keeps it applying
       reason: "…"
   not_measured:        #   optional: a row whose detail: facts say the step could not run
@@ -219,7 +220,8 @@ could fire for its gaps:
   repeatability a sweep set named for the run measured, else none).
 - `misfires:` a closed, reasoned list of rule-in-context pairs that do not apply: the category,
   optionally which of its rules (`native_id`, a regex), the deployment signals the repo census
-  reads on which it misfires (`deployed_on`, file-name regexes) and any beside which it applies
+  reads on which it misfires (`deployed_on`, file-name regexes, or `deployed_on_resource`,
+  regexes of the resource types an infrastructure file declares) and any beside which it applies
   after all (`unless_deployed_on`), and the reason. A matching gap reads `known-misfire` with that
   reason; it stays a gap, an item of its own, and never reads met. With no census reading, no
   misfire is read.
@@ -343,7 +345,11 @@ command claims: every fenced-block line starting `npm run <script>`, `npm test`,
 script / binary / file / target exists in the tree, else `missing`. Each step
 records its command, exit code, duration, the last 40 lines of output and one of
 the closed statuses `passed | failed | not-declared | timed-out | skipped`. **A
-step that is not declared is `not-declared`, never `passed`.** The test step also
+step that is not declared is `not-declared`, never `passed`.** Where its reason is one the
+runner names as data, the step also carries `reason_code`, one of a closed list
+(`REASON_CODES`, #319): `needs-live-database`, a migrate whose only form needs a live database
+and has no dry form; `service-not-provided`, a bound step whose declared services this
+measurement did not start. Ingest refuses any other code and carries it onto the row's `detail:`. The test step also
 records `tests: {passed, skipped, failed, total}`, read from the runner's own
 summary (vitest, jest, node:test, pytest, go test -v) in the step's whole output,
 or `tests: unparsed` when no known summary appears, so a reader knows the skipped
@@ -802,7 +808,9 @@ document's `deployment.signals` (`kind`, `path`, what it is):
   `cloudbuild.yaml|yml`, `appspec.yml`, `samconfig.toml`;
 - `infrastructure` — infrastructure-as-code or a service manifest: `*.tf`,
   `*.tfvars`, `*.bicep`, `Pulumi.yaml|yml`, `serverless.yml|yaml`, `cdk.json`,
-  `Chart.yaml`, `kustomization.yaml|yml`, `skaffold.yaml`;
+  `Chart.yaml`, `kustomization.yaml|yml`, `skaffold.yaml`. A `*.tf` signal also lists
+  `resources`, the resource types the file declares (`resource "<type>"` opening its line,
+  block comments dropped; #319), what the tree deploys onto, read off the code, never prose;
 - `deploy-workflow` — a CI config (`.github/workflows/*.yml|yaml`,
   `.gitlab-ci.yml`, `.circleci/config.yml`, `azure-pipelines.yml`,
   `bitbucket-pipelines.yml`, `Jenkinsfile`) that deploys in what it runs, never
