@@ -46,9 +46,13 @@ const sinceIdx = argv.indexOf('--since');
 const previousRun = sinceIdx > -1 ? argv[sinceIdx + 1] : null;
 const targetIdx = argv.indexOf('--target');
 const targetArgs = targetIdx > -1 ? ['--target', argv[targetIdx + 1]] : [];
-const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1, targetIdx > -1 ? targetIdx + 1 : -1].filter((i) => i > -1));
+// --sweep-set <dir> (repeatable): a sweep set that measured a source's repeatability (tests/sweeps/
+// README.md); the handoff carries its figures beside a judged item from that source (#319)
+const sweepIdx = argv.flatMap((a, i) => (a === '--sweep-set' ? [i] : []));
+const sweepArgs = sweepIdx.flatMap((i) => ['--sweep-set', argv[i + 1]]);
+const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1, targetIdx > -1 ? targetIdx + 1 : -1, ...sweepIdx.map((i) => i + 1)].filter((i) => i > -1));
 const arg = argv.find((a, i) => !a.startsWith('--') && !reserved.has(i));
-if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>]'); process.exit(2); }
+if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>] [--sweep-set <dir>]...'); process.exit(2); }
 const runDir = arg;
 const runId = basename(runDir);
 
@@ -79,7 +83,7 @@ console.log('· candidates (improve/candidates.yaml) …'); run('improve/candida
 
 // ── the four views ───────────────────────────────────────────────────────────
 console.log('· walk     (improve/axes) …');   run('improve/axes.mjs', confArgs);
-console.log('· handoff  (improve/handoff) …'); run('improve/handoff.mjs', confArgs);
+console.log('· handoff  (improve/handoff) …'); run('improve/handoff.mjs', [...confArgs, ...sweepArgs]);
 let reportOk = false;
 if (hasProse) {
   console.log('· report   (improve/report) …'); reportOk = run('improve/report.mjs', confArgs);

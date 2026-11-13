@@ -97,6 +97,29 @@ map:
 
 default: FAIL
 
+# confidence (map/scanners/CONTRACT.md §3, map/confidence.mjs, #319): a deterministic
+# instrument, with one rule it declares misfires in context. CKV_DOCKER_2 asks a container
+# image for a HEALTHCHECK instruction, which the runtime that starts the image acts on. A tree
+# the census reads as deployed by a platform that starts the image without reading it (Heroku's
+# heroku.yml, Fly's fly.toml, Kubernetes through a Helm chart, kustomization or Skaffold file,
+# each of which checks health by its own config) is not helped by one, unless a Compose file
+# (which does read it) is beside them. The hit stays visible as a gap; it never reads met.
+confidence:
+  evidence: deterministic
+  misfires:
+    - id: healthcheck-ignored-by-platform
+      category: dockerfile
+      native_id: "^CKV_DOCKER_2@"
+      reason: "the census reads this tree as deployed by a platform that checks health by its own config and does not run an image's HEALTHCHECK, so the instruction would change nothing there"
+      deployed_on:
+        - "^heroku\\.yml$"
+        - "^fly\\.toml$"
+        - "^chart\\.yaml$"
+        - "^kustomization\\.ya?ml$"
+        - "^skaffold\\.yaml$"
+      unless_deployed_on:
+        - "^(docker-)?compose(\\..+)?\\.ya?ml$"
+
 decides:
   - requirement: d-infrastructure-config-secure
     category: [terraform, cloudformation, kubernetes, helm, kustomize, dockerfile, serverless, arm, bicep]

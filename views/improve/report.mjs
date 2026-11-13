@@ -29,6 +29,7 @@ import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYard
 import { buildTopicsForRun } from './topics.mjs';
 import { buildCandidates, candidatesMd } from './candidates.mjs';
 import { buildRoadmap, buildSequence, urgentNote } from './sequence.mjs';
+import { loadConfidenceContext } from '../../map/confidence.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = join(HERE, 'templates', 'maintainer-report.md');
@@ -381,7 +382,9 @@ function sharedSequence() {
   if (drift.length) return (SHARED = null);
   const yardstick = loadYardstick();
   const measurement = loadMeasurement(runDir) ?? measureRunOf(runDir, yardstick);
-  return (SHARED = { rm, ...buildSequence({ decided, adapters, roadmap: rm, measurement, yardstick }) });
+  // the same confidence context the handoff reads (map/confidence.mjs), so the two orders agree
+  const context = loadConfidenceContext(runDir);
+  return (SHARED = { rm, ...buildSequence({ decided, adapters, roadmap: rm, measurement, yardstick, context }) });
 }
 const itemList = (ns) => ns.length === 1 ? `item ${ns[0]}` : `items ${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}`;
 function sequenceFollowup() {

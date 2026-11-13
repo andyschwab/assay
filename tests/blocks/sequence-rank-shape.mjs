@@ -24,7 +24,9 @@ const order = (seq) => seq.map((s) => s.ps.map((p) => p.f.id).join('+')).join(' 
 export async function run() {
   const fail = (m) => negFailures.push(`${label}: ` + m);
   const yardstick = loadYardstick();
-  const seqOf = (decided, measurement) => buildSequence({ decided, adapters: { x: { scanner: 'x' } }, roadmap: [], measurement, yardstick }).seq;
+  // re-pinned with #319: an adapter states the kind of evidence its source produces, or no
+  // confidence rule fires and the sequence halts (map/confidence.mjs); the stand-in declares one
+  const seqOf = (decided, measurement) => buildSequence({ decided, adapters: { x: { scanner: 'x', confidence: { evidence: 'deterministic' } } }, roadmap: [], measurement, yardstick }).seq;
 
   // (a) F-1 High on a verification row that read not measured; F-2 Low on a verification row decided
   {

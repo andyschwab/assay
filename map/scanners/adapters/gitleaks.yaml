@@ -109,6 +109,11 @@ map:
 
 default: FAIL
 
+# confidence (map/scanners/CONTRACT.md §3, map/confidence.mjs, #319): how much assay knows about
+# this scanner's gaps. A deterministic instrument: the same tree reads the same result.
+confidence:
+  evidence: deterministic
+
 # handoff (map/scanners/CONTRACT.md §3, block style only): every leak is a
 # read-first TRIAGE bucket, never one session prompt per hit — confirm which
 # are live before rotating or purging anything. triage: true implies

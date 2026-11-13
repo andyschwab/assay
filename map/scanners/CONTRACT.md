@@ -146,6 +146,20 @@ decides:               # optional — the yardstick rows this scanner decides (r
     category: M        #   reading steps aside, for a decider whose silence is no evidence
     property: signal-routing
     gaps_only: true
+confidence:            # how much assay knows about this scanner's gaps (#319, below)
+  evidence: cited      #   deterministic | cited | judged: the kind of evidence it produces
+  misfires:            #   optional: a rule that does not apply in a context the run reads
+    - id: <slug>
+      category: <native category>
+      native_id: "<regex>"          # optional: which of the category's rules
+      deployed_on: ["<regex>", …]   # the census's deployment-signal file names it misfires on
+      unless_deployed_on: ["<regex>", …]   # optional: a signal beside them that keeps it applying
+      reason: "…"
+  not_measured:        #   optional: a row whose detail: facts say the step could not run
+    - id: <slug>
+      category: <native category>
+      when: { <detail key>: <value> | { at_most: N } | { at_least: N } | { present: true } }
+      reason: "…"
 handoff:               # optional — how the handoff bundles and proves this scanner's
                         #   remedies (§7); block style only, same as everything below
   unit: finding         # finding (default) | file | scanner — §7
@@ -189,6 +203,33 @@ for a scanner whose findings are evidence of a gap a row's own decider measures,
 saying nothing is no evidence that the row holds: a reviewer's alerting gap on a row the census
 decides from the application's declarations. A row whose every decider steps aside reads not
 measured.
+
+**How much assay knows about a gap is a rule's, read off the adapter (#319).** Every
+fix-sequence item records its confidence on a closed scale, `confirmed · judged ·
+absent-evidence · not-measured · known-misfire`, each value assigned by one named rule in
+`map/confidence.mjs` and never by a severity label (`views/README.md`, "How much assay knows").
+What the rules need to know about a scanner is its adapter's `confidence:` block, and every
+adapter carries one; the handoff halts on a source whose adapter declares none, since no rule
+could fire for its gaps:
+- `evidence:` the kind of evidence the scanner produces. `deterministic`: an instrument, the same
+  tree reads the same result (its gaps read confirmed). `cited`: a reviewer whose lane
+  re-resolves each evidence line at the head and whose citations `validate --target` checks
+  (a gap whose own `confidence:` is `confirmed` and that cites a `path:line` reads confirmed,
+  any other judged). `judged`: a lane's reading of practice (its gaps read judged, with the
+  repeatability a sweep set named for the run measured, else none).
+- `misfires:` a closed, reasoned list of rule-in-context pairs that do not apply: the category,
+  optionally which of its rules (`native_id`, a regex), the deployment signals the repo census
+  reads on which it misfires (`deployed_on`, file-name regexes) and any beside which it applies
+  after all (`unless_deployed_on`), and the reason. A matching gap reads `known-misfire` with that
+  reason; it stays a gap, an item of its own, and never reads met. With no census reading, no
+  misfire is read.
+- `not_measured:` a row the scanner writes for a step that ran, whose facts (`detail:`, written at
+  ingest) say it could not have measured what it names: the category, the `detail:` facts it
+  reads (an equality, `at_most`, `at_least` or `present`), and the reason. A matching gap reads
+  `not-measured`, never a failure.
+
+`checkAdapterConfidence` holds the block's shape; `tests/blocks/confidence-on-every-item.mjs`
+holds the rules, and that a renamed scanner keeps every value, a misfire following its adapter.
 
 Block style — the YAML reader (`lib/yaml-min.mjs`) reads the subset `map/SCHEMA.md` §9,
 "What the reader reads", states, and **throws** on the rest (a nested flow collection, an

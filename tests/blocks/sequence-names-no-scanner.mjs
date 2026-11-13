@@ -49,7 +49,9 @@ export async function run() {
   const gap = (id, source) => ({ f: { id, source, polarity: 'gap', severity: 'High', fix: `fix ${id}`, observation: id, evidence: ['a.mjs:1'] }, source, axis: 'code-security', state: 'open', also: [] });
   const tied = [gap('F-2', 'beta'), gap('F-1', 'alpha')];
   const tieMeasure = [{ id: 'd-routes-authorized', status: 'unmet', findings: ['F-1', 'F-2'] }];
-  const tieAdapters = { alpha: { scanner: 'alpha' }, beta: { scanner: 'beta' } };
+  // re-pinned with #319: an adapter states the kind of evidence its source produces, or no
+  // confidence rule fires and the sequence halts (map/confidence.mjs); both stand-ins declare one
+  const tieAdapters = { alpha: { scanner: 'alpha', confidence: { evidence: 'deterministic' } }, beta: { scanner: 'beta', confidence: { evidence: 'deterministic' } } };
   const t1 = order(buildSequence({ decided: tied, adapters: tieAdapters, roadmap: [], measurement: tieMeasure, yardstick }).seq);
   const r = renamed(tied, tieAdapters, (s) => (s === 'alpha' ? 'zulu' : 'able'));
   const t2 = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement: tieMeasure, yardstick }).seq);
