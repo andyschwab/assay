@@ -473,7 +473,7 @@ requirements:
       category: migrate
       not_applicable_when: no-database-signal
       not_measured_when: migrate-not-run
-    check: the fresh-clone migrate step replays from an empty database on a clean checkout; with no database signal (file or dependency — Prisma, Knex, TypeORM, Supabase, Drizzle, a raw db/sql migrations folder, …) anywhere in the tree, fresh-clone records that it looked and found none, and the requirement reads not-applicable — never met, nothing was measured; a database signal with no migrate step declared reads unmet, never met
+    check: the fresh-clone migrate step replays from an empty database on a clean checkout, measured on a clean machine with no service of assay's own; a database the target declares (.assay/services.yaml) is started throwaway only on the opt-in (fresh-clone --services), and otherwise a migrate bound to it with no dry form reads not measured, never unmet; with no database signal (file or dependency — Prisma, Knex, TypeORM, Supabase, Drizzle, a raw db/sql migrations folder, …) anywhere in the tree, fresh-clone records that it looked and found none, and the requirement reads not-applicable — never met, nothing was measured; a database signal with no migrate step declared reads unmet, never met
     sources: [floor/r-migrations, foundation/never-hand-apply-a-migration]
     status: draft
     owner:
@@ -492,7 +492,7 @@ requirements:
       scanner: fresh-clone
       category: test
       not_measured_when: test-not-run
-    check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout; a suite that skips its core when a variable is unset is unmet
+    check: the fresh-clone test step reads passed, never merely not-declared, from a clean checkout on a clean machine with no service of assay's own; a suite that skips its core when a variable is unset is unmet; services the target declares (.assay/services.yaml) are started throwaway only on the opt-in (fresh-clone --services), and a test bound to them that did not get them reads not measured, never unmet; with nothing declared, a failing test is unmet
     sources: [floor/v-tests, manifest/d3-gates-live, foundation/pnpm-check]
     status: draft
     owner:

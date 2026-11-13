@@ -1,0 +1,9 @@
+{
+  "name": "fresh-clone-services",
+  "private": true,
+  "description": "a public known-answer fixture (#256): a suite that needs a database it declares",
+  "scripts": {
+    "test": "node --test db.test.mjs",
+    "migrate": "node db.mjs migrate"
+  }
+}

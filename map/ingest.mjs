@@ -61,6 +61,7 @@ import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath a
 import { setScannerRow, updateRunRecord, remeasure } from './record.mjs';
 import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
 import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS } from './fresh-clone.mjs';
+import { SERVICES_FILE } from './services.mjs';
 import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs';
 import { TOOL_STATUS as SS_TOOL_STATUS, UNUSED_KINDS as SS_UNUSED_KINDS, HISTORY as SS_HISTORY, TEST_PATH as SS_TEST_PATH } from './structure-scan.mjs';
 
@@ -135,6 +136,8 @@ const PROFILES = {
           if (!FC_STEP_STATUS.includes(s.status)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: status "${s.status}" is not one of ${FC_STEP_STATUS.join(' | ')}`);
           if (seen.has(s.name)) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name} appears twice`);
           seen.add(s.name);
+          // a step that ran with a target's declared services names each one, throwaway (#256)
+          if (s.services !== undefined && !(Array.isArray(s.services) && s.services.length && s.services.every((x) => x && typeof x.name === 'string' && typeof x.image === 'string' && x.throwaway === true))) throw new Error(`fresh-clone${ctx.errLabel} step ${s.name}: services must name each service, its image, and throwaway: true (truncated report?)`);
           // covered: a step this workspace does not declare, reached by a PASSING root step
           // (or, for migrate, owned by the package that declares it) — no row, but only with
           // the covering command recorded; a bare "covered" is unprovable and halts
@@ -277,6 +280,37 @@ const PROFILES = {
           hasDbSignals: hasSignals(pr.toolchain) || anyWsSignals(pr),
         });
         emitWorkspaces(pr.workspaces, `${pr.path}/`);
+      }
+
+      // SERVICES (#256): the target's declared services. A refused declaration, and a declared
+      // setup command that failed or timed out, is each a gap row of its own (`service-setup`),
+      // never charged to the step it precedes: that step reads skipped, its not-run fact above.
+      // Whether services were provided is the steps' own reading (skipped, with the reason).
+      if (rep.services !== undefined) {
+        const sv = rep.services;
+        if (!sv || typeof sv !== 'object' || Array.isArray(sv) || sv.declared_in !== SERVICES_FILE) throw new Error(`fresh-clone report services must name its declaration (${SERVICES_FILE}) (truncated report?)`);
+        const decl = `${SERVICES_FILE}:1`;
+        if (sv.refused !== undefined) {
+          if (typeof sv.refused !== 'string' || !sv.refused) throw new Error('fresh-clone report services.refused must say why (truncated report?)');
+          rows.push({
+            id: fid(startId + n++), source: 'fresh-clone', native_id: 'service-setup:refused', native_category: 'service-setup', polarity: 'gap',
+            observation: `The service declaration is refused (${oneLine(sv.refused)}); no service was started, and the steps ran as if nothing were declared.`,
+            evidence: [decl], fix: FC_FIX_SERVICES_REFUSED,
+          });
+        } else {
+          if (typeof sv.provided !== 'boolean' || !Array.isArray(sv.setup) || !Array.isArray(sv.containers) || !Array.isArray(sv.services)) throw new Error('fresh-clone report services must carry provided, services[], containers[] and setup[] (truncated report?)');
+          if (!sv.provided && !(typeof sv.reason === 'string' && sv.reason)) throw new Error('fresh-clone report services not provided must say why (truncated report?)');
+          sv.setup.forEach((x, i) => {
+            if (!x || typeof x.command !== 'string' || !['passed', 'failed', 'timed-out', 'skipped'].includes(x.status)) throw new Error(`fresh-clone report services.setup[${i}] must carry a command and a status (truncated report?)`);
+            if (x.status !== 'failed' && x.status !== 'timed-out') return;
+            const how = x.status === 'failed' ? `failed${Number.isInteger(x.exit_code) ? ` (exit ${x.exit_code})` : ''}${x.reason ? ': ' + oneLine(x.reason) : ''}` : `timed out${x.reason ? ' — ' + oneLine(x.reason) : ''}`;
+            rows.push({
+              id: fid(startId + n++), source: 'fresh-clone', native_id: `service-setup:${i}:${x.status}`, native_category: 'service-setup', polarity: 'gap',
+              observation: `The declared setup command \`${oneLine(x.command)}\` ${how} against throwaway ${sv.services.map((y) => `${y.name} (${y.image})`).join(', ')}; the steps it precedes were not attempted.`,
+              evidence: [decl], fix: FC_FIX_SERVICES_SETUP,
+            });
+          });
+        }
       }
 
       return rows;
@@ -656,6 +690,8 @@ const FC_FIX = {
 };
 const FC_FIX_SKIPPED = 'Make the skipped tests run from a clean checkout: give them what they skip without (a service, a variable, a fixture) through a declared script the clean clone can run, or CI\'s service container, and stop gating them on an unset variable; re-run fresh-clone and confirm the test step reports no skipped tests.';
 const FC_FIX_SKIPPED_DB = 'Make the skipped tests run from a clean checkout: they need a database, so declare a test:db script that starts one (a container or an embedded database) and points the suite at it, or give CI a database service container; re-run fresh-clone and confirm the test step reports no skipped tests.';
+const FC_FIX_SERVICES_REFUSED = `Correct the service declaration (${SERVICES_FILE}) to the closed format (map/scanners/CONTRACT.md §3b, "Services a target declares"): only the named keys, each image pinned by a tag other than latest; re-run fresh-clone and confirm it reads.`;
+const FC_FIX_SERVICES_SETUP = 'Make the declared setup commands pass against a fresh, empty service (a role, an extension, a seed that does not assume earlier state); re-run fresh-clone with --services and confirm every setup command passes.';
 const FC_CLAIM_NOUN = { 'npm-script': 'package script', 'npx-bin': 'binary (a dependency or own bin)', 'node-file': 'file', 'make-target': 'make target' };
 // the scanner's confidence labels → the port's closed vocab (SCHEMA §2)
 const DCR_CONFIDENCE = { CONFIRMED: 'confirmed', CORROBORATED: 'confirmed', PLAUSIBLE: 'plausible', unverified: 'unverified' };

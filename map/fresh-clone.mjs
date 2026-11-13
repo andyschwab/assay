@@ -73,11 +73,28 @@
 //      step the root does not declare reads `covered` by its projects when every one reaches it
 //      (map/scanners/CONTRACT.md). A step whose package manager is not on PATH (an install, or
 //      a script run through npm, pnpm or yarn) is not attempted and reads skipped, never failed (#248).
+//   8. SERVICES A TARGET DECLARES (#256, map/services.mjs): a repository whose test or migrate
+//      step needs a service (a database) names it in `.assay/services.yaml` at its root — the
+//      image pinned by tag, its readiness check, the environment its bound steps get, and setup
+//      commands. Under `--services` (and only then) each is started as a throwaway container
+//      before the root project's steps; once install has run, the setup commands run (each its
+//      own row under `services.setup`, never charged to a step), then migrate (the real migrate
+//      script, against an empty database) and test, with the declared environment, each bound
+//      row naming the services it ran with; every container is removed in the run's `finally`.
+//      Declared without `--services`, or with no container runtime, or a service that did not
+//      come up: the bound steps read skipped, "needs <service>, which this measurement did not
+//      provide (…)", which the requirements read not measured. A declaration that is refused
+//      (an unknown key, an unpinned image) is recorded `services.refused` and the steps run as
+//      if nothing were declared. No declaration, nothing changes: a failing step stays failed.
+//      The declaration binds the root project (its application directory included), not its
+//      workspaces or nested projects.
 //
 // The target's own code runs here — its install (lifecycle scripts included), build,
 // lint, typecheck, test and migrate-dry scripts — so every child gets the allow-listed
 // environment of map/child-env.mjs (PATH, HOME, CI, the npm_config_* values below),
-// never the evaluator's, and DATABASE_URL never reaches a migrate step. It is not a
+// never the evaluator's, and the evaluator's DATABASE_URL never reaches a step. The one
+// addition is a target's own declared environment (8, above), and only on the steps it
+// declares, only under --services. It is not a
 // sandbox: run it in a disposable container or VM, and `assay start` runs it only
 // under --allow-exec (map/scanners/CONTRACT.md §3a).
 //
@@ -86,7 +103,8 @@
 // DECLARED step (root and every workspace) passed and every claim is present; the
 // process exit code equals it. A crash of the runner itself exits 2, so ingest.mjs
 // (success set [0, 1]) halts on it. The last 40 lines of each step's combined
-// output stay in this document only — ingest copies the command and exit code
+// output stay in this document only (an operator whose runner holds no secrets may keep
+// it, outside the run: `assay start --unstripped-report <file>`) — ingest copies the command and exit code
 // into rows, never the output, and drops the tails before archiving the document
 // into map/raw/ (the routine uploads the run), so an environment value that a build
 // prints cannot leak into a findings base or a run. A URL target is recorded and
@@ -94,7 +112,7 @@
 //
 // Usage:
 //   node assay.mjs fresh-clone <target-dir | git URL> --out <file.json>
-//         [--timeout <seconds per step, default 600>] [--no-clone] [--app <dir>]
+//         [--timeout <seconds per step, default 600>] [--no-clone] [--app <dir>] [--services]
 // Zero dependencies (node: modules only).
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -104,8 +122,9 @@ import { isMain } from './doctrine.mjs';
 import { childEnv, proxyDropNote } from './child-env.mjs';
 import { stripUserinfo } from './repo-census.mjs';
 import { locateProjects } from './projects.mjs';
+import { SERVICES_FILE, readServices, findRuntime, startServices, stopServices, resolveEnv } from './services.mjs';
 
-export const VERSION = '0.6.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35); 0.6.0: `projects[]` (#246), an install skipped when its package manager is not on PATH (#248)
+export const VERSION = '0.7.0';   // 0.2.0: workspaces[]; 0.3.0: pnpm-workspace.yaml, step status `covered` (+ covered_by); 0.4.0: test step `tests` counts (#30); 0.5.0: `app` (#35); 0.6.0: `projects[]` (#246), an install skipped when its package manager is not on PATH (#248); 0.7.0: `services` and a step's `services` (#256)
 export const STEPS = ['install', 'build', 'lint', 'typecheck', 'test', 'migrate'];
 export const STEP_STATUS = ['passed', 'failed', 'not-declared', 'timed-out', 'skipped', 'covered'];
 export const CLAIM_STATUS = ['present', 'missing'];
@@ -232,8 +251,9 @@ function planSteps(toolchain, pkg) {
 }
 
 // ── running one step ─────────────────────────────────────────────────────────
-// the allow-list (map/child-env.mjs): no credential, and no DATABASE_URL for a migrate step
-const stepEnv = () => childEnv({ npm_config_fund: 'false', npm_config_audit: 'false', npm_config_update_notifier: 'false' });
+// the allow-list (map/child-env.mjs): no credential, and no DATABASE_URL of the evaluator's;
+// `declared` is a target's own declared environment (map/services.mjs), only on its bound steps
+const stepEnv = (declared = /** @type {Record<string, string>} */ ({})) => ({ ...childEnv({ npm_config_fund: 'false', npm_config_audit: 'false', npm_config_update_notifier: 'false' }), ...declared });
 // one path as one shell word (the step commands run through a shell)
 const shellQuote = (s) => /^[\w@%+=:,./-]+$/.test(s) ? s : `'${String(s).replace(/'/g, `'\\''`)}'`;
 const tail = (s) => String(s || '').split('\n').slice(-TAIL_LINES).join('\n');
@@ -305,9 +325,9 @@ export function parseTestCounts(output) {
   return null;
 }
 
-export function runStep(name, command, cwd, timeoutSec) {
+export function runStep(name, command, cwd, timeoutSec, declaredEnv = {}) {
   const started = Date.now();
-  const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: stepEnv(), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
+  const r = spawnSync(command + ' 2>&1', { cwd, shell: true, env: stepEnv(declaredEnv), encoding: 'utf8', timeout: timeoutSec * 1000, killSignal: 'SIGKILL', maxBuffer: MAX_BUFFER });
   const duration_ms = Date.now() - started;
   const output_tail = tail(r.stdout);
   const envNote = proxyDropNote();   // #65: a proxy URL kept from the step is said on its row
@@ -324,10 +344,14 @@ export function runStep(name, command, cwd, timeoutSec) {
   return row;
 }
 
-function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {})) {
+// svc: the root project's declared services (map/services.mjs) — { decl, state, provided,
+// reason, setup: [] }; absent, nothing is bound. With it, migrate runs before test (the declared
+// setup, then migrate, then test); the rows keep STEPS order.
+const SERVICE_ORDER = ['install', 'build', 'lint', 'typecheck', 'migrate', 'test'];
+function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void} */ (() => {}), svc = null) {
   const out = [];
   let installBroken = null;
-  for (const name of STEPS) {
+  for (const name of svc ? SERVICE_ORDER : STEPS) {
     const p = plan[name];
     if (p.status === 'not-declared') { out.push({ name, status: 'not-declared', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason }); continue; }
     if (p.status === 'covered') { out.push({ name, status: 'covered', command: null, exit_code: null, duration_ms: 0, output_tail: '', reason: p.reason, covered_by: p.covered_by }); continue; }
@@ -349,14 +373,43 @@ function runSteps(plan, cwd, timeoutSec, log = /** @type {(msg: string) => void}
       continue;
     }
     const stepCwd = p.cwd || cwd;   // a workspace's install may run from the root (npm ci --workspace)
-    log(`  → ${name}: ${p.command}`);
-    const row = runStep(name, p.command, stepCwd, timeoutSec);
+    let declaredEnv = {};
+    const bound = !!(svc && svc.decl.steps.includes(name));
+    if (bound) {
+      // #256: a bound step runs only with its services, after the declared setup; else it reads
+      // skipped with the reason — the measurement's gap, never charged to the target
+      const names = svc.decl.services.map((x) => x.name).join(' and ');
+      if (!svc.provided) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `needs ${names}, which this measurement did not provide (${svc.reason})` }); continue; }
+      const setupBroken = runSetup(svc, cwd, timeoutSec, log);
+      if (setupBroken) { out.push({ name, status: 'skipped', command: p.command, exit_code: null, duration_ms: 0, output_tail: '', reason: `the declared setup ${setupBroken}; ${name} not attempted` }); continue; }
+      declaredEnv = svc.env;
+    }
+    log(`  → ${name}: ${p.command}${bound ? ` (with ${svc.decl.services.map((x) => x.name).join(', ')}, throwaway)` : ''}`);
+    const row = runStep(name, p.command, stepCwd, timeoutSec, declaredEnv);
     if (p.declared_as) { row.declared_as = p.declared_as; row.dry_form = p.dry_form; }
+    if (bound) row.services = svc.decl.services.map((x) => ({ name: x.name, image: x.image, throwaway: true }));
     out.push(row);
     log(`    ${row.status}${row.exit_code !== null ? ` (exit ${row.exit_code})` : ''} in ${row.duration_ms} ms`);
     if (name === 'install' && row.status !== 'passed') installBroken = row.status;
   }
-  return out;
+  return svc ? STEPS.map((n) => out.find((r) => r.name === n)) : out;
+}
+
+// the declared setup, once, before the first bound step: each command its own row; the first
+// that does not pass stops the rest (recorded skipped) and is returned, said for the bound steps
+function runSetup(svc, cwd, timeoutSec, log) {
+  if (svc.setupDone) return svc.setupBroken;
+  svc.setupDone = true;
+  for (const command of svc.decl.setup) {
+    if (svc.setupBroken) { svc.setup.push({ command, status: 'skipped', exit_code: null, duration_ms: 0, output_tail: '', reason: `an earlier setup command ${svc.setupBrokenStatus}` }); continue; }
+    log(`  → setup: ${command}`);
+    const r = runStep('setup', command, cwd, timeoutSec, svc.env);
+    const { name: _n, ...row } = r;
+    svc.setup.push(row);
+    log(`    ${row.status}${row.exit_code !== null ? ` (exit ${row.exit_code})` : ''} in ${row.duration_ms} ms`);
+    if (row.status !== 'passed') { svc.setupBroken = `\`${command}\` ${row.status}${row.exit_code !== null ? ` (exit ${row.exit_code})` : ''}`; svc.setupBrokenStatus = row.status; }
+  }
+  return svc.setupBroken;
 }
 
 // ── one workspace's run: its own step plan, its own README, install possibly
@@ -536,13 +589,21 @@ function git(args, cwd) {
 // `project` is map/projects.mjs's entry: `run` is the directory its steps run in, `workspaces`
 // relative to it. The root's README is the front door for an application directory (#35), its
 // commands replayed in the app (`cd <dir>`); a nested project's README is its own.
-function measureProject(workDir, project, timeout, log, { readmeFromRoot }) {
+function measureProject(workDir, project, timeout, log, { readmeFromRoot, svc = null }) {
   const runDir = project.run === '.' ? workDir : join(workDir, project.run);
   const { toolchain, pkg } = detectToolchain(runDir);
   const plan = planSteps(toolchain, pkg);
   const missing = packageManagerMissing(toolchain, plan);
   if (missing) { plan.install = { status: 'pm-missing', command: plan.install.command, reason: missing }; log(`  → install: ${missing}`); }
-  const steps = runSteps(plan, runDir, timeout, log);
+  // #256: a migrate bound to declared services runs the real migrate script against them (an
+  // empty database), dry form or not; without them, one with no dry form reads skipped, not
+  // undeclared; one with a dry form runs it as before
+  if (svc && svc.decl.steps.includes('migrate') && toolchain.family === 'node' && pkg) {
+    const mig = declaresMigrate(pkg);
+    const run = (n) => toolchain.package_manager === 'yarn' ? `yarn run ${n}` : `${toolchain.package_manager} run ${n}`;
+    if (mig && (svc.provided || plan.migrate.status === 'not-declared')) plan.migrate = { status: 'declared', command: run(mig), needs_install: true, declared_as: mig, dry_form: null };
+  }
+  const steps = runSteps(plan, runDir, timeout, log, svc);
   const rootReadme = readmeFromRoot ? findReadme(workDir) : null;
   const { readme: ownReadme, claims } = rootReadme ? replayReadme(runDir, pkg, join(workDir, rootReadme)) : replayReadme(runDir, pkg);
   const prefix = project.run === '.' ? '' : `${project.run}/`;
@@ -615,7 +676,9 @@ function coverByProjects(st, nested, workDir) {
   return { ...st, status: 'skipped', reason: `the root declares no ${st.name} of its own; its nested projects' own ${st.name} rows decide (${rows.map(({ pr, x }) => `${pr.path}: ${x ? x.status : 'not recorded'}`).join(', ')})` };
 }
 
-export function run({ target, timeout = 600, clone = true, app: declaredApp = null, log = /** @type {(msg: string) => void} */ (() => {}) }) {
+// services: the opt-in that starts a target's declared services (#256); runtime: the container
+// runtime to start them with (default `docker` on the evaluator's PATH; a path, for a stub)
+export function run({ target, timeout = 600, clone = true, app: declaredApp = null, services = false, runtime = 'docker', log = /** @type {(msg: string) => void} */ (() => {}) }) {
   const startedAt = new Date().toISOString();
   let workDir, scratch = null;
   const t = { path: isUrl(target) ? stripUserinfo(target) : resolve(target), head: null, cloned: false };   // a local root absolute, so ingest can place it against the run's target (#35)
@@ -632,16 +695,19 @@ export function run({ target, timeout = 600, clone = true, app: declaredApp = nu
     if (!existsSync(target) || !statSync(target).isDirectory()) throw new Error(`target is not a directory: ${target}`);
     workDir = resolve(target);
   }
+  let svc = null, svcReport = null;
   try {
     const head = git(['rev-parse', 'HEAD'], workDir);
     t.head = head.ok ? head.out : null;
+    ({ svc, svcReport } = prepareServices(workDir, { services, runtime, timeout, log }));
     // where the tree's projects are (map/projects.mjs, #246): the root, in its application
     // directory (#35) when it has one, then each nested project, measured on its own
     const { projects: located, setAside } = locateProjects(workDir, { app: declaredApp });
     const rootProject = located[0];
     const app = rootProject.run !== '.' ? { path: rootProject.run, from: rootProject.from } : null;
     if (app) log(`→ application directory: ${app.path} (${app.from === '--app' ? 'declared with --app' : 'the lone directory holding a package.json'})`);
-    const root = measureProject(workDir, rootProject, timeout, log, { readmeFromRoot: !!app });
+    const root = measureProject(workDir, rootProject, timeout, log, { readmeFromRoot: !!app, svc });
+    if (svc) { stopServices(svc.state, log); svcReport.setup = svc.setup; }
     const nested = located.slice(1).map((pr) => {
       log(`→ nested project: ${pr.path}`);
       const m = measureProject(workDir, pr, timeout, (msg) => log(`  [${pr.path}]${msg}`), { readmeFromRoot: false });
@@ -653,32 +719,67 @@ export function run({ target, timeout = 600, clone = true, app: declaredApp = nu
     if (nested.length) root.steps = root.steps.map((st) => coverByProjects(st, nested, workDir));
     const bad = (e) => e.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || e.readme_claims.some((c) => c.status === 'missing')
       || (e.workspaces || []).some((w) => w.steps.some((s) => s.status === 'failed' || s.status === 'timed-out') || w.readme_claims.some((c) => c.status === 'missing'));
+    const svcBad = !!(svcReport && (svcReport.refused || (svcReport.setup || []).some((x) => x.status === 'failed' || x.status === 'timed-out')));
+    if (svcReport && svc) svcReport.containers = svc.state ? svc.state.containers.map(({ name, image, container, started, ready, removed }) => ({ name, image, container, started, ready, removed })) : [];
     return {
       tool: 'fresh-clone', version: VERSION, started_at: startedAt, finished_at: new Date().toISOString(),
       target: t, ...(app ? { app } : {}), toolchain: root.toolchain, timeout_seconds: timeout, steps: root.steps, readme: root.readme, readme_claims: root.readme_claims,
       ...(root.workspaces_from ? { workspaces_from: root.workspaces_from } : {}), workspaces: root.workspaces,
       ...(nested.length ? { projects: nested } : {}),
       ...(setAside.length ? { projects_set_aside: setAside } : {}),
-      exit: bad(root) || nested.some(bad) ? 1 : 0,
+      ...(svcReport ? { services: svcReport } : {}),
+      exit: bad(root) || nested.some(bad) || svcBad ? 1 : 0,
     };
   } finally {
+    // every container started is removed, whatever happened above (#256)
+    if (svc) stopServices(svc.state, log);
     if (scratch) rmSync(scratch, { recursive: true, force: true });
   }
+}
+
+// ── a target's declared services (#256, map/services.mjs) ────────────────────
+// Read from the checkout's root. Refused: recorded, and the steps run as if nothing were
+// declared. Declared: started only under the opt-in, with a runtime; otherwise the reason the
+// bound steps give. Returns the runner's state (svc) and the report's `services` entry.
+function prepareServices(workDir, { services, runtime, timeout, log }) {
+  let decl;
+  try { decl = readServices(workDir); }
+  catch (e) {
+    log(`→ services: ${e.message} — refused; the steps run as if nothing were declared`);
+    return { svc: null, svcReport: { declared_in: SERVICES_FILE, refused: e.message } };
+  }
+  if (!decl) return { svc: null, svcReport: null };
+  const svc = { decl, state: null, provided: false, reason: null, env: {}, setup: [], setupDone: false, setupBroken: null, setupBrokenStatus: null };
+  const rtPath = services ? findRuntime(runtime) : null;
+  if (!services) svc.reason = 'fresh-clone ran without --services, the opt-in that starts a target\'s declared services';
+  else if (!rtPath) svc.reason = `no container runtime: ${runtime} is not on PATH`;
+  else {
+    log(`→ services: starting ${decl.services.map((s) => s.name).join(', ')} from ${SERVICES_FILE}, throwaway`);
+    svc.state = startServices(decl, { runtime: rtPath, pullTimeout: timeout, log });
+    if (svc.state.provided) { svc.provided = true; svc.env = resolveEnv(decl, svc.state); }
+    else { svc.reason = svc.state.reason; stopServices(svc.state, log); }
+  }
+  if (!svc.provided) log(`→ services: not provided (${svc.reason}); ${decl.steps.join(' and ')} read skipped`);
+  const svcReport = {
+    declared_in: SERVICES_FILE, requested: !!services, provided: svc.provided, reason: svc.reason,
+    steps: decl.steps, services: decl.services.map((s) => ({ name: s.name, image: s.image })), containers: [], setup: [],
+  };
+  return { svc, svcReport };
 }
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
   const opt = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
-  const target = args.find((a, i) => !a.startsWith('--') && (i === 0 || !args[i - 1].startsWith('--') || args[i - 1] === '--no-clone'));
+  const target = args.find((a, i) => !a.startsWith('--') && (i === 0 || !args[i - 1].startsWith('--') || args[i - 1] === '--no-clone' || args[i - 1] === '--services'));
   const out = opt('--out'), app = opt('--app');
   const timeout = opt('--timeout') ? Number(opt('--timeout')) : 600;
   if (!target || !out || !Number.isFinite(timeout) || timeout <= 0) {
-    console.error('usage: node assay.mjs fresh-clone <target-dir | git URL> --out <file.json> [--timeout <seconds per step, default 600>] [--no-clone] [--app <dir>]');
+    console.error('usage: node assay.mjs fresh-clone <target-dir | git URL> --out <file.json> [--timeout <seconds per step, default 600>] [--no-clone] [--app <dir>] [--services]');
     process.exit(2);
   }
   try {
-    const doc = run({ target, timeout, clone: !args.includes('--no-clone'), app, log: (m) => console.error(m) });
+    const doc = run({ target, timeout, clone: !args.includes('--no-clone'), app, services: args.includes('--services'), log: (m) => console.error(m) });
     writeFileSync(isAbsolute(out) ? out : resolve(out), JSON.stringify(doc, null, 2) + '\n');
     const failed = doc.steps.filter((s) => s.status === 'failed' || s.status === 'timed-out').map((s) => s.name);
     const undeclared = doc.steps.filter((s) => s.status === 'not-declared').map((s) => s.name);
