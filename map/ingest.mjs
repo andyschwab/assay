@@ -865,6 +865,9 @@ const FORMATS = {
         };
         if (f.title) row.title = oneLine(f.title);
         if (f.tag) row.native_tag = oneLine(f.tag);
+        // the property the reviewer names, for a category its adapter maps to several (#306):
+        // kept as written; map/placement.mjs reads it against the adapter's closed list
+        if (f.property !== undefined && f.property !== null && f.property !== '') row.native_property = oneLine(String(f.property));
         if (f.severity) row.severity = String(f.severity);
         if (f.fix) row.fix = oneLine(f.fix);
         if (f.confidence) {
@@ -1227,6 +1230,7 @@ function toYaml(rows, tool, exitCode, skipped, startNote) {
     // peer-scanner extension fields (the port keeps the scanner's own labels beside the mapped ones)
     if (r.title) out.push(`  title: ${q(esc(r.title))}`);
     if (r.native_tag) out.push(`  native_tag: ${q(esc(r.native_tag))}`);
+    if (r.native_property) out.push(`  native_property: ${q(esc(r.native_property))}`);
     if (r.confidence) out.push(`  confidence: ${r.confidence}`);
     if (r.native_confidence) out.push(`  native_confidence: ${r.native_confidence}`);
     if (r.native_verdict) out.push(`  native_verdict: ${r.native_verdict}`);

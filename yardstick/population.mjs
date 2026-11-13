@@ -13,7 +13,8 @@
 // answers is a candidate, so a finding two rows would take reads ambiguous, never one of them:
 //   1. an instrument row takes its deciders' rows: the scanner (`source`) and a native category
 //      its binding decides the row on, or a fact category its evidence conditions read
-//      (decidersOf, the same resolution measureRun uses);
+//      (decidersOf, the same resolution measureRun uses); a binding that names a property takes
+//      only the rows its adapter places on it (map/placement.mjs, #306);
 //   2. an effect or capability finding is taken by its own facets: the term whose `record:` is
 //      halt-class-effect (isHaltClass), effect, or capability;
 //   3. a finding a reader places on a term (`member`, the census or context list it is listed
@@ -24,6 +25,7 @@
 // reads as a finding that binds no requirement.
 import { isHaltClass } from '../map/doctrine.mjs';
 import { loadAdapters } from '../map/project.mjs';
+import { propertyOf } from '../map/placement.mjs';
 import { loadYardstick, decidersOf } from './measure.mjs';
 
 const SUBJECT_TYPES = ['effect', 'control', 'artifact', 'contract', 'process', 'capability'];
@@ -178,7 +180,11 @@ export function requirementTaking(finding, { member = null, reg = loadYardstick(
   if (finding?.source) for (const d of reg.requirements) for (const spec of decidersOf(d, adapters)) {
     if (spec.scanner !== finding.source) continue;
     const cats = [...asList(spec.category), ...asList(spec.not_applicable_when), ...asList(spec.not_measured_when)];
-    if (cats.includes(String(finding.native_category))) candidates.add(d.id);
+    if (!cats.includes(String(finding.native_category))) continue;
+    // a binding that names a property takes only a row its adapter places on that property
+    // (map/placement.mjs, #306): a row placed on another, or on none, is not taken here
+    if (spec.property !== undefined && asList(spec.category).includes(String(finding.native_category)) && propertyOf(finding, adapters).property !== spec.property) continue;
+    candidates.add(d.id);
   }
   // 2. an effect or capability finding is taken by its own facets
   const record = recordOf(finding);

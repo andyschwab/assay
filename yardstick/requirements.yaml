@@ -419,7 +419,7 @@ requirements:
     decide:
       kind: instrument
       any_gap: unmet                # every property the check names must hold (#177)
-    check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA; decided through adapters (decides:): the code reviewer's supply-chain domain and a workflow auditor's unpinned-action reading, any gap from either deciding it unmet
+    check: a lockfile honoured by CI, a toolchain version declared, actions pinned by SHA; decided through adapters (decides:): the code reviewer's findings its adapter places on the build-supply-chain property (never its release-path findings, which no row takes yet) and a workflow auditor's unpinned-action reading, any gap from either deciding it unmet; a reviewer finding of that domain placed on no property holds it not measured, never met
     sources: [floor/r-deps-pinned, foundation/lockfile-and-nvmrc]
     status: draft
     owner:

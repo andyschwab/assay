@@ -67,7 +67,9 @@ export async function run() {
   const pinned = req('fixtures-root', 'd-dependencies-pinned');
   if (pinned?.status !== 'unmet' || !/deep-code-review: /.test(pinned.note) || !/zizmor: /.test(pinned.note)) fail(`d-dependencies-pinned reads unmet at the fixtures root, decided by the reviewer and zizmor together (got ${pinned?.status}: ${pinned?.note})`);
   const nb = req('notesbox', 'd-dependencies-pinned');
-  // at a target zizmor is not run over, the reviewer's K gap still decides the row, and the
-  // note names zizmor's skip with its reason
-  if (nb?.status !== 'unmet' || !/zizmor: zizmor skipped: repo-scoped/.test(nb.note || '')) fail(`at notesbox the reviewer's gap decides d-dependencies-pinned and zizmor's skip is named (got ${nb?.status}: ${nb?.note})`);
+  // at a target zizmor is not run over, the reviewer's reading still reaches the row, and the
+  // note names zizmor's skip with its reason. The stored notesbox review predates the property a
+  // K finding names (#306): its K gap is placed on no property, so the row reads not measured
+  // with the reviewer's reason, never met, and never decided by the nearest category
+  if (nb?.status !== 'not-measured' || !/deep-code-review: .*placed on no property/.test(nb.note || '') || !/zizmor: zizmor skipped: repo-scoped/.test(nb.note || '')) fail(`at notesbox the reviewer's unplaced K gap holds d-dependencies-pinned not measured and zizmor's skip is named (got ${nb?.status}: ${nb?.note})`);
 }

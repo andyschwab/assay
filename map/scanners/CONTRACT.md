@@ -117,13 +117,24 @@ coverage_domains: [A, B, …]   # optional: the scanner's full taxonomy, when it
 map:
   A:                   # native category -> axis
     axis: code-correctness
+    property: program-logic     # a reviewer (ingest.format machine-report): the property its rows observe
   J:                   # a category measuring a property another scanner also
     axis: deterministic-gates   # measures maps to that SHARED axis
+    property: test-gates
+  K:                   # a category spanning several properties names the closed list, and
+    axis: code-security         #   what each means; the reviewer names one on each finding
+    properties: [build-supply-chain, release-path-trust]   #   (property:, ingested as native_property)
+    means:
+      build-supply-chain: "…"
+      release-path-trust: "…"
 default: FAIL          # unmapped native_category => loud error, never a silent axis
 decides:               # optional — the yardstick rows this scanner decides (rule 7, #177):
   - requirement: d-…   #   the row, the native category whose rows decide it, and the
     category: B        #   optional not_applicable_when / not_measured_when / audits /
                        #   excluding (yardstick/README.md); requirements.yaml names none
+  - requirement: d-…   #   a binding to a category that spans several properties names the
+    category: K        #   one its requirement reads (property:), and takes only rows placed on it
+    property: build-supply-chain
 handoff:               # optional — how the handoff bundles and proves this scanner's
                         #   remedies (§7); block style only, same as everything below
   unit: finding         # finding (default) | file | scanner — §7
@@ -132,6 +143,22 @@ capabilities:          # optional — executable specialties the engine routes t
   - id: verify-fix
     invoke: "re-run the scanner scoped to the finding's evidence path"
 ```
+
+**A reviewer's finding is placed by the property it observes (#306).** For a reviewer (an
+adapter whose `ingest.format` is `machine-report`), each `map:` category names the property its
+rows observe (`property:`), or, where one category spans several, the closed list
+(`properties:`, at least two, each with what it `means:`), from which the reviewer names one on
+each finding; the lane states the list (`{{PROPERTIES}}`, `map/lane.mjs`), and a lane whose
+adapter splits a category and never asks is refused a seed. `map/placement.mjs` reads it: a row
+whose category names no property, or a split category's row that names none of its list, is
+**unplaced**, with the reason. Nothing is placed by nearness: a `decides:` binding to a split
+category names the one property its requirement reads and takes only the rows placed on it; an
+unplaced row of its category holds its reading not measured, never met or not applicable; and a
+finding no binding takes is listed untaken under its property in the run's candidates
+(`views/improve/candidates.yaml`), or unnamed with the reason. A property is kebab-case, never a
+requirement id, and belongs to one category; the yardstick's load refuses a mapping that breaks
+any of this. `tests/blocks/reviewer-release-trust-not-dependencies.mjs`,
+`reviewer-unplaced-untaken.mjs` and `candidates-show-reviewer-findings.mjs` hold it.
 
 Block style — the YAML reader (`lib/yaml-min.mjs`) reads the subset `map/SCHEMA.md` §9,
 "What the reader reads", states, and **throws** on the rest (a nested flow collection, an

@@ -90,12 +90,15 @@ stack-free (`secrets-rotated`, never a tool, framework or vendor), and stated as
 never as a verdict. It is never a requirement id: the link between a finding and a
 requirement lives in the yardstick, which names the population each requirement reads
 (#257 Q1), so `validate` refuses a value that is one of its ids. It is free observation:
-any finding may carry one, and none must. It matters on the findings no requirement
+any finding may carry one, and none must. A reviewer's ingested row carries none of its own: its
+adapter places it on one by its native category, or, where the category spans several, by the
+property the reviewer named on it (`native_property`), and a row it cannot place is listed with
+the reason (`map/placement.mjs`, `map/scanners/CONTRACT.md` §3, #306). It matters on the findings no requirement
 takes (`yardstick/untaken.mjs`, which reads the yardstick's own `requirementTaking`,
 `yardstick/population.mjs`: no instrument row's binding, no effect or capability facet,
 and no census whose row names a population). After measuring, `compile` lists those,
 grouped by `property` (the ones that name none as unnamed), in
-`views/improve/candidates.yaml` and `IMPROVE.md` §8: the run's candidate properties,
+`views/improve/candidates.yaml`, the walk (`views/improve/axes.md`) and `IMPROVE.md` §8: the run's candidate properties,
 what the yardstick has no row for yet (`views/README.md`). A candidate is not asked to
 repeat across runs.
 

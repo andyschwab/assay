@@ -1,0 +1,128 @@
+# tests/instruments/deep-code-review-properties.yaml — an INVENTED deep-code-review machine report,
+# test data only (tests/blocks/reviewer-*.mjs, #306): each finding is placed by the property it
+# observes. R1 is release trust (area K, property release-path-trust), R2 the supply-chain half of K,
+# R3 and R4 concurrency and integration findings no row takes, R5 a K finding that names no property.
+review:
+  tool: deep-code-review
+  skill_version: "1.609.0"
+  date: 2026-11-13
+  scope: FULL
+  start_sha: 0000000000000000000000000000000000000000
+  target: "flawed-webapp"
+ground_truth:
+  build: ok
+coverage:
+  A:
+    status: scanned
+  B:
+    status: scanned
+  C:
+    status: scanned
+  D:
+    status: scanned
+  E:
+    status: scanned
+  F:
+    status: scanned
+  G:
+    status: scanned
+  H:
+    status: scanned
+  I:
+    status: scanned
+  J:
+    status: scanned
+  K:
+    status: scanned
+  L:
+    status: scanned
+  M:
+    status: scanned
+  N:
+    status: scanned
+  O:
+    status: scanned
+  P:
+    status: scanned
+  Q:
+    status: scanned
+  R:
+    status: scanned
+  S:
+    status: scanned
+  T:
+    status: scanned
+  W:
+    status: scanned
+findings:
+  - id: R1
+    title: "Production is applied before the environment's reviewer approves"
+    area: K
+    property: release-path-trust
+    tag: "release · environment approval"
+    severity: High
+    polarity: gap
+    confidence: CONFIRMED
+    observation: >
+      The deploy workflow's apply job runs before the job bound to the production
+      environment, so the environment's required reviewer approves a change already live.
+    evidence:
+      - server.mjs:1
+    fix: >
+      Bind the apply job itself to the production environment so its reviewer gates it.
+  - id: R2
+    title: "Third-party actions are pinned by tag, not by commit"
+    area: K
+    property: build-supply-chain
+    tag: "supply chain"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    observation: >
+      The CI workflow uses third-party actions by a movable tag.
+    evidence:
+      - package.json:1
+    fix: >
+      Pin every third-party action to a full commit sha.
+  - id: R3
+    title: "A cancelled notification still sends"
+    area: G
+    tag: "race"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    observation: >
+      The cancel flag is read once before the send is queued and never re-checked, so a
+      notification cancelled in between still sends.
+    evidence:
+      - lib/mailer.mjs:7
+    fix: >
+      Re-check the flag in the same transaction that dequeues the send.
+  - id: R4
+    title: "A vendor call holds the lock"
+    area: I
+    tag: "integration"
+    severity: Medium
+    polarity: gap
+    confidence: CONFIRMED
+    observation: >
+      A call to an outside service is made while a lock on shared state is held, so a slow
+      vendor stalls every writer.
+    evidence:
+      - lib/sync.mjs:6
+    fix: >
+      Release the lock before the outside call and re-validate after it.
+  - id: R5
+    title: "The build does not pin its runtime"
+    area: K
+    tag: "build"
+    severity: Low
+    polarity: gap
+    confidence: CONFIRMED
+    observation: >
+      No runtime version is declared for the build.
+    evidence:
+      - package.json:1
+    fix: >
+      Declare the runtime version the build uses.
+prior_not_rechecked: []

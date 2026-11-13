@@ -20,6 +20,7 @@ import { sevRank, buildFixSpine } from '../../map/doctrine.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { prosePath as runProsePath, axesPath } from '../../lib/run-layout.mjs';
 import { buildTopicsForRun } from './topics.mjs';
+import { buildCandidates, candidatesMd } from './candidates.mjs';
 import { TOPICS } from '../../yardstick/measure.mjs';
 
 const arg = process.argv[2];
@@ -224,6 +225,12 @@ for (const topic of TOPICS.filter((t) => !AXIS_ORDER.includes(t))) {
   out.push(`_No scanner measures \`${topic}\` as an axis; its requirements ride on the yardstick alone._`, '');
   out.push(...requirementsBlock(topic));
 }
+
+// ── the findings no requirement takes (#264, #306): the run's candidates, by property ──
+// IMPROVE.md §8 renders them only where the run carries prose; the walk is the human read of
+// every run, so they are here too, and a reviewer's finding no row takes is never silent.
+out.push('# Findings no requirement takes', '');
+out.push(candidatesMd(buildCandidates(arg), new Map(findings.map((f) => [String(f.id), f]))).replace(/^### /gm, '## '), '');
 
 // ── not measured this run — the honesty register (never a dead gauge) ────────
 if (notMeasured.length) {
