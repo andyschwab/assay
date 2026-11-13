@@ -1,5 +1,0 @@
-schema: effect-triage
-version: 1
-triage:
-  - candidate: "http write (js)"
-    finding: F-401
