@@ -896,12 +896,27 @@ run:
     flag: "--config"         #   the arg before each rule path
     dir: <dir>               #   vendored under map/scanners/adapters/, with its source
     repo: [ … ]              #   files the target may carry, run beside the vendored set
+  agreed_values:             # optional: values every environment states alike (#306)
+    flag: "--var-file"       #   the arg before the scratch file the runner writes
+    files: [ … ]             #   globs of the tree's value files
+    loaded: [ … ]            #   file names the tool loads itself, left to it
+    skip: [ … ]              #   directory names not walked
   control:                   # optional: a positive control, run before the target (#223)
     dir: <dir>               #   planted cases vendored under map/scanners/adapters/
     results: <path>          #   where the tool's JSON output holds its hits
     fields: { rule: <path>, path: <path>, line: <path> }   # where each hit names them
     expect: [ "<rule> <file>:<line>", … ]                 # the hits the rules must report
 ```
+
+`agreed_values` serves a tool that judges a configuration's variables from their defaults
+and the value files it loads itself, so that a variable the tree sets only per environment
+reaches a check as a bare reference and fails it whatever every environment sets. The runner
+reads each value file `files` finds that the tool does not load (`loaded`), keeps each
+variable that every one of them sets to one identical literal (a quoted string, a number,
+true or false, on its own line), writes those to one scratch file and passes it after `flag`;
+the envelope records `agreed_values: { files, names }`. A variable the environments disagree
+on, set in only some, or set to anything else is not handed on: the tool judges it
+unresolved, as before, never as the value one environment chose.
 
 `{rules}` in `args` expands to `flag <path>` for the vendored set and for each `repo` file
 the target carries, which runs beside it and never takes its place: the vendored rules are

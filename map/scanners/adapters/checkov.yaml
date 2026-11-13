@@ -41,6 +41,20 @@ run:
     - "serverless"
     - "arm"
     - "bicep"
+  # A Terraform variable set only per environment (envs/prod.tfvars, never loaded by the
+  # tool) reaches a check as the bare `var.x` and fails it whatever every environment sets
+  # (#306). The runner hands checkov, after --var-file, each variable that every value
+  # file outside terraform.tfvars and *.auto.tfvars (which checkov loads itself) sets to one
+  # identical literal; one the environments disagree on stays unresolved and is judged so.
+  agreed_values:
+    flag: "--var-file"
+    files:
+      - "**/*.tfvars"
+    loaded:
+      - "terraform.tfvars"
+      - "*.auto.tfvars"
+    skip:
+      - ".terraform"
   ok_exits: [0, 1]          # 0 every check passed, 1 at least one failed
   version:
     - "--version"

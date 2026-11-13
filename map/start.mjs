@@ -60,7 +60,7 @@
 import { INGEST_FLOOR, RECORD_KEY as ID_RECORD_KEY } from './ids.mjs';
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync, existsSync, rmSync, realpathSync, readFileSync, readdirSync, statSync, cpSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { isMain } from './doctrine.mjs';
@@ -194,6 +194,50 @@ function hasInput(repoDir, globs) {
   };
   return walk('');
 }
+// Values every environment states alike (run.agreed_values, #306): a tool that reads a
+// configuration's variables from its defaults and the value files it loads itself leaves a
+// variable the tree sets only per environment unresolved, and judges the bare reference. The
+// runner reads every value file the adapter names (`files`) that the tool does not load itself
+// (`loaded`, matched on the file's name), keeps each variable that EVERY such file sets to one
+// identical literal (a quoted string, a number, true or false, on its own line), and hands those
+// to the tool in one scratch file after `flag`. A variable the environments disagree on, set in
+// only some, or set to anything else (a list, a map, an expression) is not handed on: the tool
+// judges it unresolved, as before, never as the value one environment chose.
+const AGREED_LINE_RE = /^\s*([A-Za-z_][\w-]*)\s*=\s*("(?:[^"\\$]|\\.)*"|-?\d+(?:\.\d+)?|true|false)\s*(?:(?:#|\/\/).*)?$/;
+function valueFiles(repoDir, globs, skip) {
+  const res = globs.map(globRe), out = [];
+  let seen = 0;
+  const walk = (rel) => {
+    for (const e of (() => { try { return readdirSync(rel ? join(repoDir, rel) : repoDir).sort(); } catch { return []; } })()) {
+      if (++seen > 50000) return;
+      const p = rel ? `${rel}/${e}` : e;
+      let st; try { st = statSync(join(repoDir, p)); } catch { continue; }
+      if (st.isDirectory()) { if (!INPUT_WALK_SKIP.has(e) && !skip.includes(e)) walk(p); }
+      else if (res.some((r) => r.test(p))) out.push(p);
+    }
+  };
+  walk('');
+  return out;
+}
+function agreedValues(spec, repoDir, scratchDir) {
+  if (!spec) return null;
+  const loaded = (spec.loaded || []).map((g) => globRe(String(g)));
+  const files = valueFiles(repoDir, (spec.files || []).map(String), (spec.skip || []).map(String)).filter((f) => !loaded.some((r) => r.test(f.split('/').pop())));
+  if (!files.length) return { files, names: [], args: [] };
+  const sets = files.map((f) => {
+    const m = new Map();
+    for (const line of (() => { try { return readFileSync(join(repoDir, f), 'utf8'); } catch { return ''; } })().split('\n')) {
+      const a = line.match(AGREED_LINE_RE);
+      if (a) m.set(a[1], m.has(a[1]) ? null : a[2]);   // set twice in one file: not read as one value
+    }
+    return m;
+  });
+  const names = [...sets[0].keys()].filter((n) => sets[0].get(n) != null && sets.every((m) => m.get(n) === sets[0].get(n))).sort();
+  if (!names.length) return { files, names, args: [] };
+  const file = join(scratchDir, `agreed${extname(files[0])}`);
+  writeFileSync(file, names.map((n) => `${n} = ${sets[0].get(n)}\n`).join(''));
+  return { files, names, args: [String(spec.flag), file] };
+}
 // a run's rule set (run.rules): the vendored set, and each file of `repo` the target carries,
 // as the {rules} args; the prefixes a tool may name them by on this machine (a path, or its
 // directories dotted into a rule id), which the envelope drops; or { missing } when the
@@ -280,7 +324,9 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
     }
     if (rules) prefixes.push(...rules.prefixes);
     const reportFile = join(rawDir, 'report.out');
-    const args = [...(run.args || []), ...(outsideRepository ? run.outside_repository || [] : [])].flatMap((a) => (String(a) === '{rules}' && rules ? rules.args : [String(a).split('{report}').join(reportFile).split('{adapters}').join(ADAPTERS_DIR)]));
+    const agreed = agreedValues(run.agreed_values, repoDir, rawDir);
+    if (agreed && agreed.names.length) log(`  · ${agreed.names.length} variable(s) every environment sets alike, from ${agreed.files.length} value file(s): ${agreed.names.join(', ')}`);
+    const args = [...(run.args || []), ...(outsideRepository ? run.outside_repository || [] : []), ...(agreed ? agreed.args : [])].flatMap((a) => (String(a) === '{rules}' && rules ? rules.args : [String(a).split('{report}').join(reportFile).split('{adapters}').join(ADAPTERS_DIR)]));
     if ((run.args || []).some((a) => String(a).includes('{adapters}'))) prefixes.push(`${ADAPTERS_DIR}/`, `${ADAPTERS_DIR.replace(/^\/+/, '')}/`);
     const toFile = (run.args || []).some((a) => String(a).includes('{report}'));
     const t0 = Date.now();
@@ -289,7 +335,7 @@ export function runAdapterInstrument(id, adapter, repoDir, outDir, log) {
     const duration = secondsSince(t0);   // the row's cost on the record (SCHEMA.md §5a, #159)
     const stderr = rel(r.stderr).split('\n').filter(Boolean).slice(-400);
     const report = toFile ? (existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : null) : r.stdout;
-    write({ exit: r.status, version, no_input: false, ...(control ? { control } : {}), report: report == null ? null : rel(report), stderr });
+    write({ exit: r.status, version, no_input: false, ...(control ? { control } : {}), ...(agreed ? { agreed_values: { files: agreed.files, names: agreed.names } } : {}), report: report == null ? null : rel(report), stderr });
     const row = ingestInstrumentRaw({ tool: id, exit: r.status, output: stderr.slice(-3).join('\n') || (r.error ? String(r.error.message) : ''), rawFile, okExits: ok, outDir, log, target: repoDir });
     return { ...row, duration };
   } finally { try { rmSync(rawDir, { recursive: true, force: true }); } catch {} }
