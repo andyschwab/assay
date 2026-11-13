@@ -15,6 +15,7 @@ date: "2026-10-01"
 blind: false
 threshold:
   fact_presence: 80
+  candidate_agreement: 0     # not measured: these sweeps carry no candidate list (map/raw/enumerate.json), so no listed candidate is compared (#312); the gate's red case for descriptors stays on descriptor_agreement
   descriptor_agreement: 50
   requirement_agreement: 100  # the dropped finding and the re-judged descriptor move no verdict: 4 of 4 identical
 sweeps: [sweep-1, sweep-2, sweep-3]

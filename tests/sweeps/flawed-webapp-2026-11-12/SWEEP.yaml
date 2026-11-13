@@ -31,6 +31,7 @@ date: "2026-11-12"
 blind: true
 threshold:
   fact_presence: 80          # measured 8 of 10 union facts caught by all three (80%)
+  candidate_agreement: 100   # measured per listed candidate (#312): 1 of 1 (100%). Before → after: per channel 4 of 4 (100%) → per candidate 1 of 1 (100%); 4 effect findings no candidate maps to, counted apart; no scope disagreement
   descriptor_agreement: 100  # measured 4 of 4 shared effect channels identical on all six descriptors (100%)
   requirement_agreement: 84  # measured 11 of 13 decided requirements identical in all three (85%, 84.6 floored)
 sweeps: [sweep-1, sweep-2, sweep-3]

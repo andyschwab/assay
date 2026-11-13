@@ -26,6 +26,7 @@ date: "2026-11-11"
 blind: true
 threshold:
   fact_presence: 32          # measured 12 of 38 union facts caught by all three (32%)
+  candidate_agreement: 0     # measured per listed candidate (#312): 0 of 2 (0%). Before → after: per channel 3 of 10 (30%) → per candidate 0 of 2 (0%). Of 13 listed candidates, 11 are out of scope in every sweep, no scope disagreement; the 2 compared (http write (js), surface: migrate-run.mjs) part. The 3 identical channels per channel were effect findings no candidate maps to (34 slugs), counted apart
   descriptor_agreement: 30   # measured 3 of 10 shared effect channels identical on all six descriptors (30%)
   requirement_agreement: 58  # measured 7 of 13 decided requirements identical in all three (54%). Re-blessed with #286 (M6): d-credentials-enumerated reads over the secrets enumerate listed and no sweep triaged them, so met, met, mixed reads mixed in all three; d-change-gates-fail-closed (met, met, mixed) reads not measured in all three, since this v0.8.0 enumeration lists no populations.changeGates; 8 of 12 agree (67%). The rise is a met that went and a contested row the run can no longer decide, not a judgment that converged. Re-blessed again with #286's rule for a member outside the candidate list (it can hold the row down, never read it met): no sweep triaged, so every credential member sits outside the list; sweep-3's gap holds its row unmet, and the strengths of sweep-1 and sweep-2 decide nothing (not-measured, not-measured, unmet); 7 of 12 agree (58%)
 sweeps: [sweep-1, sweep-2, sweep-3]

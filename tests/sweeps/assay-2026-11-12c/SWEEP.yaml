@@ -35,6 +35,7 @@ date: "2026-11-12"
 blind: true
 threshold:
   fact_presence: 13          # measured 11 of 84 union facts caught by all three (13%)
+  candidate_agreement: 40    # measured per listed candidate (#312): 4 of 10 candidates every sweep maps identical on all six (40%). Before → after: per channel 4 of 10 (40%) → per candidate 4 of 10 (40%), the same six divergent candidates (gate_type parts on 5 of 10), in both directions. Counted apart: 2 scope disagreements (process spawn (js) @ map/dependency-scan.mjs and @ routine/run.mjs, mapped by some sweeps and out of scope in others), 13 candidates out of scope in every sweep, 2 effect findings no candidate maps to. These lanes grouped one candidate per finding almost everywhere, so grouping hid little here; the remaining split is descriptor judgment
   descriptor_agreement: 40   # measured 4 of 10 shared effect channels identical on all six descriptors (40%)
   requirement_agreement: 92  # measured 13 of 14 decided requirements identical in all three (93%, 92.9 floored)
 sweeps: [sweep-1, sweep-2, sweep-3]

@@ -9,6 +9,7 @@ date: "2026-10-01"
 blind: true
 threshold:
   fact_presence: 38          # measured 9 of 24 union facts caught by all three (38%); set at the measurement
+  candidate_agreement: 0     # not measured: these sweeps carry no candidate list (map/raw/enumerate.json), so no listed candidate is compared (#312); per channel this set reads 1 of 5 (20%), which descriptor_agreement still gates
   descriptor_agreement: 20   # measured 1 of 5 shared effect channels identical on all six descriptors (20%)
   requirement_agreement: 0   # measured at 4b81665's yardstick: 2 of 5 (40%, #258). Re-blessed with #259: these sweeps carry no channel candidate list, so the four effect rows read not measured, and 0 of the 1 still decided (d-capability-budget: mixed, mixed, unmet) agree
 sweeps: [sweep-1, sweep-2, sweep-3]

@@ -34,6 +34,7 @@ date: "2026-11-12"
 blind: true
 threshold:
   fact_presence: 87          # measured 7 of 8 union facts caught by all three (88%, 87.5 floored)
+  candidate_agreement: 100   # measured per listed candidate (#312): 7 of 7 (100%). Before → after: per channel 4 of 4 (100%) → per candidate 7 of 7 (100%): the v0.10.0 list names all 5 routes and 3 effect sites, and every candidate every sweep maps reads alike; 1 candidate out of scope in every sweep, no scope disagreement, no effect finding outside the list
   descriptor_agreement: 100  # measured 4 of 4 shared effect channels identical on all six descriptors (100%)
   requirement_agreement: 86  # measured 13 of 15 decided requirements identical in all three (87%, 86.7 floored)
 sweeps: [sweep-1, sweep-2, sweep-3]
