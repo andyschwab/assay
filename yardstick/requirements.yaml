@@ -692,7 +692,7 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: architecture-page
-    check: the repo census, an architecture page present (at the root and every location map/projects.mjs finds) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
+    check: the repo census, an architecture page present (at the root and every location map/projects.mjs finds; a workspace with none of its own is covered by its project's passing page unless it is a separately deployed unit, a container file, hosting config or infrastructure manifest of its own) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
     sources: [floor/l-architecture, foundation/docs-architecture]
     status: draft
     owner:
@@ -708,7 +708,7 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: agent-contract
-    check: the repo census, AGENTS.md or CLAUDE.md present (at the root and every location map/projects.mjs finds) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
+    check: the repo census, AGENTS.md or CLAUDE.md present (at the root and every location map/projects.mjs finds; a workspace with none of its own is covered by its project's passing contract unless it is a separately deployed unit, a container file, hosting config or infrastructure manifest of its own) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
     sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, foundation/CLAUDE.md]
     status: draft
     owner:

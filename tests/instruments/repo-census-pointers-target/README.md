@@ -17,4 +17,6 @@ location this fixture deliberately uses instead of the discovered ones:
 - `default_branch: trunk` — with no `--default-branch` flag and no `.git`
   here, discovery alone would default to `main`.
 - `apps: [apps/web, apps/ghost]` — `apps/web` exists, `apps/ghost` does not
-  (the fixture's planted "app path that does not exist" gap).
+  (the fixture's planted "app path that does not exist" gap). `apps/web` ships its
+  own container (`apps/web/Dockerfile`), a separately deployed unit, so the root's
+  agent contract does not cover it by the tree (#306) and it reads ordinary discovery.

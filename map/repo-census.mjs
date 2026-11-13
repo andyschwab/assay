@@ -18,8 +18,10 @@
 //     mermaid/diagram block) — presence alone is not enough. It runs at every location
 //     map/projects.mjs finds (#246): the root, each nested project, and each project's
 //     workspaces, one check per location; a location with no page of its own passes when
-//     its parent's passing page names it (path or scoped package name), and a root with
-//     none passes when every nested project carries its own (map/scanners/CONTRACT.md §3d).
+//     its parent's passing page names it (path or scoped package name), a workspace with
+//     none passes by its parent's passing page unless it ships a deploy artifact of its own
+//     (#306), and a root with none passes when every nested project carries its own
+//     (map/scanners/CONTRACT.md §3d).
 //   - agent-contract: AGENTS.md or CLAUDE.md (every location, the same rule; a parent's
 //     contract is the file and the files its `@path` lines import, #249).
 //     `pass` only when it is present-TENSE: no heading matching
@@ -228,6 +230,26 @@ function rootMention(dir, rootCheck, loc, sectionRe = null, names = [loc], paren
 }
 // the contract a credited location was credited from, for the locations it credits in turn
 const CONTRACT_OF = new WeakMap();
+// ── the parent's cover of a workspace (#306) ─────────────────────────────────
+// A workspace with no document of its own is covered by its project's passing document even
+// where that document does not name it, unless the workspace is a separately deployed unit: it
+// carries a deploy artifact of its own, a container file, a hosting config or an
+// infrastructure-as-code or service manifest (the census's deployment signals, of the kinds
+// that ship a unit on their own). A server entry point alone does not: it can run inside the
+// project's own deploy. A nested project (its own lockfile) is never covered this way; only
+// its naming in the parent's document covers it. Returns the credit, citing the parent's own
+// evidence line, or null.
+const DEPLOYED_APART = new Set(['container', 'hosting', 'infrastructure']);
+function deployedApart(loc, deployment) {
+  return (deployment?.signals || []).filter((s) => DEPLOYED_APART.has(s.kind) && String(s.path).startsWith(`${loc}/`)).map((s) => s.path);
+}
+function treeCover(parentCheck, l, deployment) {
+  if (l.project || !parentCheck || parentCheck.status !== 'pass' || parentCheck.detail?.delegatedTo) return null;
+  if (deployedApart(l.path, deployment).length) return null;
+  const [file, line] = String(parentCheck.evidence?.[0] || '').split(/:(?=\d+$)/);
+  if (!file) return null;
+  return { file, line: Number(line) || 1, contract: CONTRACT_OF.get(parentCheck) || file, tree: true };
+}
 // ── an agent contract's imports (#249) ───────────────────────────────────────
 // Claude Code reads a CLAUDE.md (or AGENTS.md) together with every file it imports with an
 // `@path` token: the path resolves from the importing file, imports nest, and the chain stops
@@ -297,9 +319,11 @@ const delegatedPass = (name, what, projectChecks) => ({
 const creditedPass = (name, detail, loc, what, credit) => {
   const who = !credit.parent || credit.parent === '.' ? 'the root' : `its project ${credit.parent}`;
   return {
-    name, status: 'pass', detail: { ...detail, coveredBy: credit.file },
+    name, status: 'pass', detail: { ...detail, coveredBy: credit.file, ...(credit.tree ? { cover: 'tree' } : {}) },
     evidence: [`${credit.file}:${credit.line}`],
-    observation: credit.contract && credit.contract !== credit.file
+    observation: credit.tree
+      ? `${loc} has no ${what} of its own and is not deployed apart from ${who} (no container file, hosting config or infrastructure manifest of its own); ${who}'s ${credit.file}, which passes, covers the tree it sits in.`
+      : credit.contract && credit.contract !== credit.file
       ? `${loc} has no ${what} of its own; ${who}'s ${credit.contract}, which passes, imports ${credit.file}, which names it at line ${credit.line}, so ${who} covers it.`
       : `${loc} has no ${what} of its own; ${who}'s ${credit.file} names it at line ${credit.line} and passes, so ${who} covers it.`,
   };
@@ -1256,12 +1280,16 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   // no file of its own is credited to its parent's passing document when that document names it;
   // a root with no document of its own is covered by its nested projects when each carries one
   // that passes on its own (delegatedPass)
+  // the census's own deployment signals (findDeploymentSignals), read once: a workspace that
+  // carries a deploy artifact of its own is a separately deployed unit (#306)
+  if (pointers.evidence) note('evidence');
+  const deployment = findDeploymentSignals(dir, { evidencePointer: pointers.evidence || null });
   const perLocation = (name, what, sectionRe, check, which) => {
     const byPath = new Map();
     const out = [];
     for (const l of locs.filter(which)) {
       const parent = l.parent === null ? null : byPath.get(l.parent);
-      const m = parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent, name === 'agent-contract') : null;
+      const m = parent ? rootMention(dir, parent, l.path, sectionRe, l.names, l.parent, name === 'agent-contract') || treeCover(parent, l, deployment) : null;
       const c = check(l, m ? { ...m, parent: l.parent } : null);
       if (m && c.detail?.coveredBy) CONTRACT_OF.set(c, m.contract);
       byPath.set(l.path, c);
@@ -1294,8 +1322,6 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   const asOfDate = asOf || new Date().toISOString().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) throw new Error(`--as-of must be YYYY-MM-DD (got "${asOfDate}")`);
   if (!(Number(evidenceMaxAgeDays) > 0)) throw new Error(`--evidence-max-age must be a positive number of days (got "${evidenceMaxAgeDays}")`);
-  if (pointers.evidence) note('evidence');
-  const deployment = findDeploymentSignals(dir, { evidencePointer: pointers.evidence || null });
   for (const id of EVIDENCE_IDS) {
     checks.push(deployment.signals.length ? checkEvidenceRow(dir, id, asOfDate, Number(evidenceMaxAgeDays), pointers.evidence || null) : evidenceNotApplicable(id));
   }

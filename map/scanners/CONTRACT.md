@@ -561,7 +561,14 @@ tree checks:
   workspace's parent is its project, a nested project's is the root. It is named
   by its path from the root, by its path from the directory its project runs in
   (`apps/api` inside `templates/x`, or inside the root's `app/`), or by its scoped package name (`@org/ui`); a bare package name is
-  never matched, and a README counts only its Architecture section. A root with no
+  never matched, and a README counts only its Architecture section. A **workspace**
+  (never a nested project) with no page of its own is **covered by the tree** (`pass`,
+  `cover: tree`, citing the parent's page) when its parent's page passes, named or
+  not, unless it is a **separately deployed unit**: it holds a container file, a
+  hosting config, or an infrastructure-as-code or service manifest of its own (the
+  census's own deployment signals of those kinds; a server entry point alone does
+  not make one, since it can run inside its project's deploy). Such a unit is
+  covered only by a naming (#306). A root with no
   page of its own and no workspaces of its own is **covered by its projects**
   (`pass`, `delegatedTo`, citing each project's page) when every nested project
   carries a page that passes on its own. A positional `architecture` or
@@ -569,7 +576,8 @@ tree checks:
   path order (or the packet's own `apps` order).
   A location that has its own page is checked on that page.
 - **agent-contract** — AGENTS.md or CLAUDE.md (every location, the same rule,
-  parent cover included: a passing parent contract that names the location). The
+  parent cover included: a passing parent contract that names the location, and the
+  tree's cover of a workspace not deployed apart). The
   parent's contract is the file **and what it imports** (#249): each `@path` token
   outside a fenced or indented code block and a code span, resolved from the
   importing file, imports nesting up to five hops, each file read once, a target

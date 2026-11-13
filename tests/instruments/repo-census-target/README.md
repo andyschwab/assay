@@ -2,8 +2,10 @@
 
 A public known-answer fixture for `map/repo-census.mjs` (the repo-census
 instrument). A tiny monorepo with one workspace app, `apps/one`, which carries
-no docs at all — the fixture's monorepo gap: the architecture-page and
-agent-contract checks must gap for `apps/one` while passing at the root.
+no docs at all and ships its own container (`apps/one/Dockerfile`), so it is a
+separately deployed unit the root's page does not cover unless it names it (#306) —
+the fixture's monorepo gap: the architecture-page and agent-contract checks must
+gap for `apps/one` while passing at the root.
 
 ## Architecture
 

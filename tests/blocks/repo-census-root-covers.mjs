@@ -5,7 +5,8 @@
 // citing the root document's line that names it. Remove one workspace's mention
 // from the root page and exactly that location gaps, for that check only. A root
 // document that does not itself pass credits nothing, and a workspace's own file,
-// when it has one, is still what is checked.
+// when it has one, is still what is checked. apps/api ships its own container, so the
+// tree's cover of an unnamed workspace (#306) never reaches it: only a naming does.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -41,6 +42,9 @@ export async function run() {
     for (const d of ['docs', 'apps/api', 'packages/lib', 'packages/ui']) mkdirSync(join(tmp, d), { recursive: true });
     writeFileSync(join(tmp, 'package.json'), JSON.stringify({ name: 'fx', private: true, workspaces: ['apps/*', 'packages/*'] }) + '\n');
     writeFileSync(join(tmp, 'apps/api/package.json'), JSON.stringify({ name: 'api' }) + '\n');
+    // apps/api is the only deployable, with its own container: a separately deployed unit is
+    // covered only by a naming, never by the tree (#306)
+    writeFileSync(join(tmp, 'apps/api/Dockerfile'), 'FROM node:22\n');
     writeFileSync(join(tmp, 'packages/lib/package.json'), JSON.stringify({ name: 'lib' }) + '\n');
     writeFileSync(join(tmp, 'packages/ui/package.json'), JSON.stringify({ name: '@fx/ui' }) + '\n');
     writeFileSync(join(tmp, 'docs/architecture.md'), arch);
@@ -87,11 +91,11 @@ export async function run() {
   const contractGaps = doc.checks.filter((c) => c.name === 'agent-contract' && c.status === 'gap').map((c) => c.detail.path);
   if (contractGaps.join() !== ['.', ...WS].join()) fail(`a root contract that gaps credits no workspace (got gaps at ${JSON.stringify(contractGaps)})`);
 
-  // (d) a bare package name is never matched as a word ("lib" would match prose); a workspace's own file is still checked
-  tree({ arch: ARCH.replace('`packages/lib`', '`lib`') });
+  // (d) a bare package name is never matched as a word ("api" would match prose); a workspace's own file is still checked
+  tree({ arch: ARCH.replace('`apps/api`', '`api`') });
   writeFileSync(join(tmp, 'apps/api/CLAUDE.md'), '# CLAUDE.md\n\n## Changelog\n\n- 2026-09-01 shipped\n');
   doc = census();
-  if (at(doc, 'architecture-page', 'packages/lib')?.status !== 'gap') fail('a bare package name ("lib") must not credit packages/lib');
+  if (at(doc, 'architecture-page', 'apps/api')?.status !== 'gap') fail('a bare package name ("api") must not credit apps/api, which is deployed apart');
   const own = at(doc, 'agent-contract', 'apps/api');
   if (own?.status !== 'gap' || !own.evidence?.[0]?.startsWith('apps/api/CLAUDE.md')) fail(`a workspace's own contract is checked, not credited over (got ${own?.status}/${own?.evidence})`);
 
