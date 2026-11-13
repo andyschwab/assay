@@ -7,10 +7,12 @@
 //   run    an async function holding its assertions
 //   gate   (optional) the names it puts on the gate's last line; [label] by default
 //   after  (optional) '*' to run after every other block, or a list of labels to run after
-// The runner (tests/regression.mjs) loads every block, runs them in filename order, and
-// composes the gate's last line from the labels of the blocks that ran.
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+// The runner (tests/regression.mjs) loads every block, runs them (each in its own process, a
+// bounded pool at once; or in filename order in one process with --serial), and composes the
+// gate's last line from the labels of the blocks that ran.
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync, mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { tmpdir, availableParallelism } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadAdapters } from '../map/project.mjs';
@@ -84,7 +86,7 @@ export async function loadBlocks(dir) {
     if (!gate.length) { errors.push(`${file} exports an empty gate: every block that runs is named on the gate line`); continue; }
     const after = mod.after === undefined ? [] : mod.after;
     if (after !== '*' && (!Array.isArray(after) || after.some((a) => typeof a !== 'string'))) { errors.push(`${file} exports an after that is neither '*' nor a list of labels`); continue; }
-    loaded.push({ file, label: name, gate, after, run: mod.run, mod });
+    loaded.push({ file, dir, label: name, gate, after, run: mod.run, mod });
   }
   const owner = new Map();
   for (const b of loaded) for (const g of b.gate) {
@@ -116,6 +118,107 @@ export async function runBlocks(blocks, failures) {
   }
   return ran;
 }
+
+// ── the blocks in parallel ──────────────────────────────────────────────────
+// runBlocksParallel(blocks, opts) runs each block in its own process (tests/block-child.mjs), at
+// most `jobs` at once, and returns what runBlocks returns plus the merged state, so the verdict
+// and the gate line cannot tell which runner ran:
+//   - order: a block starts once every block it names in after has finished, and a block whose
+//     after is '*' once every other block has; a block on `closed` (the runner's closed list,
+//     tests/regression.mjs) runs alone, nothing else beside it. Everything returned is in
+//     `blocks`' order, the serial run's: the failures, the blocks that ran, the _score keys,
+//     the converted rows, and each block's output.
+//   - shared state moves through files the runner merges: a child's failures, _score keys and
+//     converted rows come back as JSON; a block that runs after others is handed the rows they
+//     converted (instrument-severity sweeps every block's rows). Two blocks setting one _score
+//     key is refused.
+//   - a block that writes into the working tree (a path git does not ignore) writes state every
+//     block reads (doc-consistency reads the whole tree), so it is refused unless it runs under
+//     after or is on the closed list. Scratch goes under os.tmpdir() or an ignored tests/tmp-*.
+//   - a block whose process ends without reporting (a crash, a kill) is a failure under its
+//     label, and it is not among the blocks that ran, as a block that throws.
+// opts: { jobs, closed: { label: reason }, root (the tree to watch, ROOT), onOutput(block, out) }.
+export async function runBlocksParallel(blocks, { jobs = defaultJobs(), closed = {}, root = ROOT, onOutput = null } = {}) {
+  const failures = [], errors = [];
+  const labels = new Set(blocks.map((b) => b.label));
+  for (const l of Object.keys(closed)) {
+    if (!labels.has(l)) errors.push(`runner: the closed list names "${l}", which is no block`);
+    if (typeof closed[l] !== 'string' || !closed[l].trim()) errors.push(`runner: the closed list names "${l}" with no reason`);
+  }
+  const scratch = mkdtempSync(join(tmpdir(), 'assay-blocks-run-'));
+  const deps = new Map(blocks.map((b) => [b.label, b.after === '*'
+    ? blocks.filter((x) => x.after !== '*').map((x) => x.label)
+    : b.after.filter((a) => labels.has(a))]));
+  // every block a block waits on, transitively: the rows it is handed are theirs
+  const upstream = (l, seen = new Set()) => { for (const d of deps.get(l) || []) if (!seen.has(d)) { seen.add(d); upstream(d, seen); } return seen; };
+  const results = new Map(), done = new Set(), started = new Set();
+  let running = 0, exclusive = false;
+  const outputs = new Map(); let printed = 0;
+  const flush = () => {   // print each block's output in blocks' order, as soon as all before it are done
+    while (printed < blocks.length && outputs.has(blocks[printed].label)) { onOutput?.(blocks[printed], outputs.get(blocks[printed].label)); printed++; }
+  };
+  const runOne = (b, i) => new Promise((res) => {
+    const out = join(scratch, `${i}.json`);
+    const env = { ...process.env, ASSAY_BLOCK_OUT: out, ASSAY_BLOCK_ROOT: root };
+    delete env.ASSAY_BLOCK_ROWS;
+    if (b.after === '*' || b.after.length) {
+      const up = upstream(b.label);
+      const rows = blocks.filter((x) => up.has(x.label)).flatMap((x) => results.get(x.label)?.rows || []);
+      const rowsFile = join(scratch, `${i}.rows.json`);
+      writeFileSync(rowsFile, JSON.stringify(rows));
+      env.ASSAY_BLOCK_ROWS = rowsFile;
+    }
+    const child = spawn(process.execPath, [join(HERE, 'block-child.mjs'), join(b.dir || '', b.file)], { cwd: process.cwd(), env, stdio: ['ignore', 'pipe', 'pipe'] });
+    let text = '';
+    child.stdout.on('data', (d) => { text += d; });
+    child.stderr.on('data', (d) => { text += d; });
+    child.on('close', (code, signal) => {
+      let r = null;
+      try { r = JSON.parse(readFileSync(out, 'utf8')); } catch { /* reported below */ }
+      if (!r) r = { failures: [], score: {}, rows: [], writes: [], threw: `its process ended (${signal || `exit ${code}`}) before it reported: ${text.trim().split('\n').slice(-2).join(' ')}` };
+      results.set(b.label, r); outputs.set(b.label, text);
+      res();
+    });
+  });
+  await new Promise((finish) => {
+    const tick = () => {
+      if (done.size === blocks.length) { finish(); return; }
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        if (started.has(b.label) || exclusive || running >= Math.max(1, jobs)) continue;
+        if (!deps.get(b.label).every((d) => done.has(d))) continue;
+        const alone = b.label in closed;
+        if (alone && running > 0) continue;
+        started.add(b.label); running++; if (alone) exclusive = true;
+        runOne(b, i).then(() => { running--; if (alone) exclusive = false; done.add(b.label); flush(); tick(); });
+        if (alone) break;
+      }
+    };
+    tick();
+  });
+  rmSync(scratch, { recursive: true, force: true });
+  // merge, in blocks' order: the serial run's order
+  const ran = [], score = {}, rows = [], owner = new Map();
+  for (const b of blocks) {
+    const r = results.get(b.label);
+    failures.push(...r.failures);
+    for (const [k, v] of Object.entries(r.score || {})) {
+      if (owner.has(k)) errors.push(`runner: _score.${k} is set by both ${owner.get(k)} and ${b.label}; a score key is one block's`);
+      else { owner.set(k, b.label); score[k] = v; }
+    }
+    rows.push(...(r.rows || []));
+    const shared = (r.writes || []);
+    if (shared.length && !(b.label in closed) && !(b.after === '*' || b.after.length))
+      errors.push(`runner: ${b.label} wrote ${shared.slice(0, 3).join(', ')}${shared.length > 3 ? ` (+${shared.length - 3})` : ''} in the working tree, which every block reads; a block that writes shared state runs under after, or is on the runner's closed list with its reason (or writes its scratch under os.tmpdir() or an ignored tests/tmp-*)`);
+    if (r.threw) failures.push(`${b.label}: the block threw before it finished: ${r.threw}`);
+    else ran.push(b);
+  }
+  return { ran, failures: [...errors, ...failures], score, rows, outputs: blocks.map((b) => outputs.get(b.label) || '') };
+}
+export const defaultJobs = () => {
+  const n = Number(process.env.ASSAY_TEST_JOBS);
+  return Number.isInteger(n) && n > 0 ? n : Math.max(1, availableParallelism());
+};
 
 export const gateLabels = (ran) => ran.flatMap((b) => b.gate);
 export const gateLine = ({ negative, scored, labels }) =>
