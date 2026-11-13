@@ -3,7 +3,7 @@
 # checks, read-only against the tree: an architecture page that names an external
 # service or data store (at the root and every location map/projects.mjs finds), a
 # present-tense agent contract (AGENTS.md/CLAUDE.md, the same locations), a runbook covering restart /
-# roll back / rotate / restore, a CI workflow that gates on pull_request or push
+# roll back / rotate / restore, a CI workflow that gates on pull_request, merge_group or push
 # to the default branch without a step that fails open, and six owner-evidence
 # transcript checks (format at
 # owner/evidence/README.md) for what a repository cannot show by itself.

@@ -36,9 +36,10 @@
 //   - ci-gate: every `.github/workflows/*.yml|.yaml`, read with a minimal line-based
 //     reader (zero deps — no YAML library; handles the common shapes: `on: [push,
 //     pull_request]`, block-form `on: / push: / branches: [main]`, `pull_request:`).
-//     A workflow GATES when it triggers on pull_request (or push to the default
-//     branch) and runs a step whose `run:` invokes a test/lint/typecheck/build
-//     command. `gap` when no gate workflow exists, or when a gate step FAILS OPEN
+//     A workflow GATES when it triggers on pull_request or merge_group (or push to the
+//     default branch) and runs a step whose `run:` invokes a test/check/lint/typecheck/
+//     build command, directly or through a package script the root package.json
+//     declares (#306). `gap` when no gate workflow exists, or when a gate step FAILS OPEN
 //     (`continue-on-error: true` on the job or the step) — cited by file:line.
 //     Branch protection (whether the check is *required*) is not visible from the
 //     tree; the observation says so every time — this check decides only what the
@@ -595,6 +596,42 @@ function parseTrigger(lines) {
 // `node --test`, and `node <file>` where the file sits in a test/ or tests/ directory or
 // is named *.test.* / *.spec.*: the zero-dependency form of a test step
 const GATE_CMD_RE = /\b(?:npm\s+(?:run\s+)?(?:test|lint|typecheck|build)|pnpm\s+(?:run\s+)?(?:test|lint|typecheck|build)|yarn\s+(?:run\s+)?(?:test|lint|typecheck|build)|tsc\b|jest\b|vitest\b|pytest\b|go\s+test|cargo\s+test|make\s+test|(?:deno|bun)\s+test|node\s+--test|node\s+(?:\S*\/)?(?:tests?|__tests__)\/\S+|node\s+\S+\.(?:test|spec)\.[cm]?[jt]s)\b/i;
+// A step that runs a package script is read through the script (#306): `pnpm check`,
+// `pnpm -r build`, `npm run verify --if-present`, `pnpm --filter web test`, `pnpm turbo run
+// build`. The script is a gate when its name is a check's (test, check, lint, typecheck,
+// build, each with an optional `:suffix`), or when the repository's package.json declares it
+// and its body is a gate command, read the same way (a script calling a script, a few deep).
+// The package manager's own flags before the script are skipped, the value of one that takes
+// a value with it.
+const PM_RE = /(?:^|[\s;&|(])(?:npx\s+|pnpm\s+exec\s+)?(npm|pnpm|yarn|bun|turbo)\s+([^;&|\n]*)/g;
+const PM_VALUE_FLAGS = new Set(['--filter', '-F', '--workspace', '--dir', '-C', '--prefix', '--cwd', '--scope', '--concurrency']);
+const PM_NOT_SCRIPT = new Set(['install', 'i', 'ci', 'add', 'exec', 'dlx', 'x', 'npx', 'create', 'init', 'publish', 'audit', 'outdated', 'why', 'list', 'ls', 'config', 'set', 'cache', 'store', 'link', 'version', 'pack', 'prune', 'dedupe', 'rebuild', 'remove', 'rm', 'uninstall', 'update', 'up', 'upgrade', 'start', 'dev', 'serve', 'deploy']);
+const GATE_SCRIPT_RE = /^(?:test|check|lint|typecheck|type-check|build)(?::[\w:.-]+)?$/i;
+function scriptsRun(cmd) {
+  const out = [];
+  for (const m of String(cmd || '').matchAll(PM_RE)) {
+    const toks = m[2].trim().split(/\s+/).filter(Boolean);
+    let k = 0;
+    while (k < toks.length) {
+      const t = toks[k];
+      if (t.startsWith('-')) { k += PM_VALUE_FLAGS.has(t) && !t.includes('=') ? 2 : 1; continue; }
+      if (t === 'run' || t === 'run-script' || t === 'run-many' || (m[1] === 'yarn' && t === 'workspaces')) { k++; continue; }
+      if (m[1] === 'yarn' && t === 'foreach') { k++; continue; }
+      break;
+    }
+    const name = toks[k];
+    if (!name || PM_NOT_SCRIPT.has(name)) continue;
+    if (name === 'turbo' || name === 'nx') { out.push(...scriptsRun(`turbo ${toks.slice(k + 1).join(' ')}`)); continue; }
+    out.push(name.replace(/^['"]|['"]$/g, ''));
+  }
+  return out;
+}
+function isGateCommand(cmd, scripts = {}, depth = 0) {
+  if (!cmd) return false;
+  if (GATE_CMD_RE.test(cmd)) return true;
+  return scriptsRun(cmd).some((name) => GATE_SCRIPT_RE.test(name) ||
+    (depth < 4 && typeof scripts[name] === 'string' && isGateCommand(scripts[name], scripts, depth + 1)));
+}
 // A gate that can fail open is not a gate: `continue-on-error: true` is the
 // documented GitHub Actions shape, but a `run:` script reaches the identical
 // outcome with plain shell — appending `|| true` / `|| exit 0` / `|| :` to the
@@ -625,7 +662,7 @@ function captureBlock(lines, startIdx, baseIndent) {
   }
   return { scriptLines: out, nextIdx: idx };
 }
-function parseSteps(lines) {
+function parseSteps(lines, scripts = {}) {
   const jobsIdx = lines.findIndex((l) => /^jobs:\s*$/.test(l.trimmed));
   if (jobsIdx === -1) return [];
   const jobsIndent = lines[jobsIdx].indent;
@@ -696,7 +733,7 @@ function parseSteps(lines) {
     i++;
   }
   for (const s of steps) {
-    s.isGateCmd = !!(s.cmd && GATE_CMD_RE.test(s.cmd));
+    s.isGateCmd = isGateCommand(s.cmd, scripts);
     // a gate step can also fail open through its own shell script — never
     // overrides an already-found `continue-on-error: true` (that citation wins)
     if (!s.continueOnError) {
@@ -737,9 +774,15 @@ function setPlusEHeld(after, step, steps) {
   if (acts) return { held: true };
   return { held: 'unknown', reason: `the status is handed on as steps.${step.id}.outputs.${keys.join('/')}, but no later step of job ${step.job} exits non-zero under an if: on it` };
 }
-export function parseWorkflow(text) {
+// scripts: the repository's declared package scripts (its root package.json), which a step
+// that runs one is read through
+export function parseWorkflow(text, scripts = {}) {
   const lines = toLines(text);
-  return { trigger: parseTrigger(lines), steps: parseSteps(lines) };
+  return { trigger: parseTrigger(lines), steps: parseSteps(lines, scripts) };
+}
+// the root package.json's scripts, or none
+function declaredScripts(dir) {
+  try { const s = JSON.parse(safeRead(join(dir, 'package.json')) || '{}').scripts; return s && typeof s === 'object' ? s : {}; } catch { return {}; }
 }
 function resolveDefaultBranch(dir, given, pointerBranch) {
   if (given) return given;
@@ -771,11 +814,13 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
   }
   let anyGate = false;
   const failOpen = [], unknown = [];
+  const scripts = declaredScripts(dir);
   for (const f of files) {
     const relFile = `${wfRelBase}/${f}`;
     const text = safeRead(join(wfDir, f)) || '';
-    const { trigger, steps } = parseWorkflow(text);
-    const onPR = trigger.events.includes('pull_request') || trigger.events.includes('pull_request_target');
+    const { trigger, steps } = parseWorkflow(text, scripts);
+    // a change on its way to the default branch: a pull request, or a merge queue's group (#306)
+    const onPR = trigger.events.includes('pull_request') || trigger.events.includes('pull_request_target') || trigger.events.includes('merge_group');
     const onDefaultPush = trigger.events.includes('push') && (trigger.pushBranches === null || trigger.pushBranches.includes(defaultBranch));
     const gateSteps = steps.filter((s) => s.isGateCmd);
     const gates = (onPR || onDefaultPush) && gateSteps.length > 0;
@@ -798,7 +843,7 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
     return {
       name, status: 'gap', detail,
       evidence: detail.workflows.map((w) => `${w.file}:1`),
-      observation: `No workflow both triggers on pull_request (or push to the default branch, ${defaultBranch}${pointerNote(!!pointerBranch)}) and runs a test/lint/typecheck/build step${pointerNote(!!workflowsPointer)}. ${branchNote}`,
+      observation: `No workflow both triggers on pull_request or merge_group (or push to the default branch, ${defaultBranch}${pointerNote(!!pointerBranch)}) and runs a test/check/lint/typecheck/build step, directly or through a script the repository declares${pointerNote(!!workflowsPointer)}. ${branchNote}`,
     };
   }
   // a `set +e` whose status read the census cannot follow to a non-zero exit (#166):
@@ -813,7 +858,7 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
   return {
     name, status: 'pass', detail,
     evidence: detail.workflows.filter((w) => w.gates).map((w) => `${w.file}:1`),
-    observation: `At least one workflow${pointerNote(!!workflowsPointer)} gates on pull_request or push to the default branch (${defaultBranch}${pointerNote(!!pointerBranch)}) and runs a test/lint/typecheck/build step, with no gate step failing open. ${branchNote}`,
+    observation: `At least one workflow${pointerNote(!!workflowsPointer)} gates on pull_request, merge_group or push to the default branch (${defaultBranch}${pointerNote(!!pointerBranch)}) and runs a test/check/lint/typecheck/build step, directly or through a script the repository declares, with no gate step failing open. ${branchNote}`,
   };
 }
 

@@ -593,12 +593,18 @@ tree checks:
   line-based reader (zero deps, no YAML library; handles the common shapes: `on:
   [push, pull_request]`, block-form `on: / push: / branches: [main]`,
   `pull_request:` with no filters). A workflow **gates** when it triggers on
-  pull_request (or push to the default branch — `--default-branch`, else `git
-  symbolic-ref refs/remotes/origin/HEAD`, else `main`) and runs a step whose
-  `run:` invokes a test / lint / typecheck / build command (npm / pnpm / yarn
+  pull_request or merge_group (a merge queue's run before the default branch moves),
+  or on push to the default branch (`--default-branch`, else `git
+  symbolic-ref refs/remotes/origin/HEAD`, else `main`), and runs a step whose
+  `run:` invokes a test / check / lint / typecheck / build command (npm / pnpm / yarn
   test|lint|typecheck|build, `tsc`, `jest`, `vitest`, `pytest`, `go test`, `cargo
   test`, `make test`, `deno test` / `bun test`, `node --test`, or `node` running a
-  file in a `test/` / `tests/` directory or named `*.test.*` / `*.spec.*`). It **fails open** — a gap, cited by file:line — when the
+  file in a `test/` / `tests/` directory or named `*.test.*` / `*.spec.*`). A step
+  that runs a package script is read through it (#306): with the package manager's
+  flags before the script skipped (`pnpm -r build`, `pnpm --filter web test`, `turbo
+  run build`), the script gates when its name is a check's (test, check, lint,
+  typecheck, build, each with an optional `:suffix`), or when the root
+  `package.json` declares it and its body is itself a gate command. It **fails open** — a gap, cited by file:line — when the
   gating job or step carries `continue-on-error: true`, or the step's own `run:`
   script swallows a non-zero exit (a command ending `|| true` / `|| exit 0` /
   `|| :`, or a `set +e` line anywhere in a multi-line block-scalar script,
