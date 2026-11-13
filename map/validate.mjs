@@ -669,6 +669,20 @@ if (existsSync(censusesPath(runDir))) {
   try { cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8')); }
   catch (e) { err(censusesLabel, `YAML parse failed (fail-closed; the measurement reads this file with the same reader): ${e.message}`); }
   if (cz) {
+    // every member's placement (#304): a census or context-list member is placed on the term its
+    // row's population names, and the compile reads "which requirement takes it" off that term
+    // (yardstick/population.mjs requirementTaking, which throws on a subject type the term does not
+    // admit). The same reading is made here, from the same source, so a lane's own check sees it
+    // before it publishes and the compile is never the first to find it.
+    const { loadYardstick } = await import('../yardstick/measure.mjs');
+    const { censusTerms, contextTerms, placementError } = await import('../yardstick/population.mjs');
+    const reg = loadYardstick();
+    const placed = (term, id, at, list) => {
+      if (!term || typeof id !== 'string' || !findingOf.has(id)) return;
+      const why = placementError(findingOf.get(id), term, reg);
+      if (why) err(at, `members: ${why}: a ${list} member is placed on "${term}", the term its row's population names (yardstick/requirements.yaml members:) — list it where its subject type is admitted, or take it off the list`);
+    };
+    const censusTermOf = censusTerms(reg), contextTermOf = contextTerms(reg);
     // a file holding only context lists (#262) has no dimensions to grade
     if (cz.dimensions === undefined && cz.context !== undefined) { /* context lists only */ }
     else if (!Array.isArray(cz.dimensions)) err(censusesLabel, `dimensions must be a list`);
@@ -687,6 +701,7 @@ if (existsSync(censusesPath(runDir))) {
         if (s.members !== undefined) {
           for (const k of ['met', 'of']) if (s[k] !== undefined && typeof s[k] !== 'number') err(sat, `${k} must be a number (or left out: members: decides it)`);
           for (const e of memberErrors(s, findingOf, sat)) errors.push(e);
+          if (Array.isArray(s.members)) for (const id of s.members) placed(censusTermOf.get(String(s.name)) ?? null, id, sat, 'census');
         } else if (typeof s.met !== 'number' || typeof s.of !== 'number' || s.of < 1) err(sat, `a sampled census needs members: (the finding ids of its population) or numeric met/of`);
         if (!s.method) err(sat, `a sampled census must state its method`);
       }
@@ -695,7 +710,6 @@ if (existsSync(censusesPath(runDir))) {
     // list named by one claim row's decide.context. A context list decides nothing and counts in
     // no coverage; its members are this run's findings, each listed once, in no census as well.
     if (cz.context !== undefined) {
-      const { loadYardstick } = await import('../yardstick/measure.mjs');
       const named = new Set(loadYardstick().requirements.flatMap((d) => (d.decide.kind === 'claim' && Array.isArray(d.decide.context) ? d.decide.context : [])));
       const inCensus = new Set();
       for (const x of Array.isArray(cz.dimensions) ? cz.dimensions : []) for (const s of (x && Array.isArray(x.sampled) ? x.sampled : [])) for (const id of (s && Array.isArray(s.members) ? s.members : [])) inCensus.add(String(id));
@@ -710,6 +724,7 @@ if (existsSync(censusesPath(runDir))) {
         for (const id of c.members) {
           if (typeof id !== 'string' || !id) { err(cat, `members: ${JSON.stringify(id)} is not a finding id`); continue; }
           if (!findingOf.has(id)) err(cat, `members: ${id} is not a finding in this run`);
+          placed(contextTermOf.get(String(c.name)) ?? null, id, cat, 'context-list');
           if (listed.has(id)) err(cat, `members: ${id} is listed in two context lists (a finding is listed once, on the one population it is a member of)`);
           if (inCensus.has(id)) err(cat, `members: ${id} is also a census member (a finding is listed once, on the one population it is a member of)`);
           listed.add(id);

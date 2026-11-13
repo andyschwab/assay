@@ -818,7 +818,11 @@ no coverage, and decides nothing. The measurement carries its ids on the claim r
 `context:`, beside its status and never in its `findings:`, and the views show them under
 "Seen in this run (context, not a decision)" (`views/README.md`). `validate` refuses a list no
 claim row names, an id the run does not carry, an id listed twice, and an id that is also a
-census member: a finding is listed once, on the one population it is a member of.
+census member: a finding is listed once, on the one population it is a member of. It refuses,
+too, a member whose subject type the row's term does not admit (the term's `subject_types` in
+`members:`, `yardstick/requirements.yaml`), naming the term and the types it admits, and so for a
+census member (#304): the compile places each member on that term (`yardstick/population.mjs`),
+and validate reads the same source, so a lane's own check sees it before it publishes.
 
 | claim row | context list |
 |---|---|
