@@ -53,6 +53,8 @@ export const effectLeg = (c) => {
 // engine); this is only its display/sort order. Unrated sorts last.
 const SEV = { Blocker: 0, Critical: 1, High: 2, Medium: 3, Low: 4, Nit: 5 };
 export const sevRank = (s) => (SEV[s] ?? 9);
+// the scale, most severe first (a sequence item's rank names one of these, or unrated)
+export const SEVERITY_ORDER = Object.keys(SEV);
 
 // ── CLI detection (one idiom for every tool that is both library and CLI) ────
 export function isMain(importMetaUrl) {

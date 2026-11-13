@@ -19,9 +19,9 @@
 // FAILS CLOSED — a handoff that reads "nothing to do" over live gaps is the
 // machine-side false-green.
 //
-// The numbering itself (roadmap, then triage, then the grouped remedies worst-first) is
-// views/improve/sequence.mjs — the report's §6 uses the SAME module so the two documents
-// never disagree about what comes first.
+// The numbering itself (one key over every item: halt, then the requirement's tier, then
+// severity) is views/improve/sequence.mjs — the report's §6 uses the SAME module so the two
+// documents never disagree about what comes first.
 //
 // Scanner text (observation, fix) comes from an untrusted target repo, so every
 // artifact FENCES it as data-not-instructions before an agent executes it. Authored
@@ -35,8 +35,9 @@
 //   REMEDIATION.md   the full spine: every remedy with claim-audit block + proof
 //   FINDINGS.md      the complete projected base (held/open/facts, verbatim + evidence)
 //   plan/NN-*.md     one session prompt per sequenced remedy (interview→fix→prove)
-//   sequence.json    the same sequence as data: each item's kind, voice, finding ids and
-//                    plan file, plus the pending ids (lib/run-data.mjs checkSequence)
+//   sequence.json    the same sequence as data: each item's kind, voice, finding ids, plan
+//                    file and rank (the key that placed it), plus the pending ids
+//                    (lib/run-data.mjs checkSequence)
 //
 // Usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]...
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
@@ -47,6 +48,7 @@ import { loadDecisions, decideProjected } from '../../map/decisions.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 import { prosePath as runProsePath, handoffDir, handoffSequencePath } from '../../lib/run-layout.mjs';
 import { SEQUENCE_SCHEMA, SEQUENCE_VOICES, checkSequence } from '../../lib/run-data.mjs';
+import { loadYardstick, loadMeasurement, projectRun as measureRunOf } from '../../yardstick/measure.mjs';
 import { buildRoadmap, buildSequence, clientProofFor, handoffConfig, stripLine, urgentNote } from './sequence.mjs';
 import { mdText, mdCode } from '../../lib/display.mjs';
 
@@ -102,7 +104,11 @@ if (drift.length) {
 }
 
 // ── the one shared sequence (views/improve/sequence.mjs; report.mjs uses the same) ──
-const { seq, coveredIds, openGaps, pending, urgentOutside } = buildSequence({ decided, adapters, roadmap, roster });
+// the order reads the run's measurement (yardstick.yaml), measured here when the run has none
+// yet (the handoff run on its own); a view never decides a requirement itself (CLAUDE.md rule 4)
+const yardstick = loadYardstick();
+const measurement = loadMeasurement(runDir) ?? measureRunOf(runDir, yardstick);
+const { seq, coveredIds, openGaps, pending, urgentOutside } = buildSequence({ decided, adapters, roadmap, measurement, yardstick });
 const planned = seq.filter((s) => s.plan);
 
 // ── what the spine does NOT cover (honesty: no silent drop) ────────────────────
@@ -185,7 +191,7 @@ function startHere() {
   schema: SEQUENCE_SCHEMA, run: runId,
   sequence: seq.map((s) => ({
     n: s.n, kind: s.kind, voice: SEQUENCE_VOICES[s.kind], source: s.kind === 'authored' ? null : s.source,
-    title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null,
+    title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null, rank: s.rank,
   })),
   pending: pending.map((p) => p.f.id),
 };
@@ -226,7 +232,7 @@ ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) 
 ## How to use it
 
 1. Open a Claude Code session **in the target repository** (not this folder).
-2. Work the sequence in order.${planned.length ? ` ${planned.length === seq.length ? 'Every item has a ready session prompt' : `The first ${planned.length} items have ready session prompts`}
+2. Work the sequence in order.${planned.length ? ` ${planned.length === seq.length ? 'Every item has a ready session prompt' : `${planned.length} of the ${seq.length} items have ready session prompts (each item below links its own)`}
    in [\`plan/\`](plan/) — paste one as your first message. Each prompt has the agent confirm
    the claims against the code, then either proceed on its stated assumptions and recommended
    option (asking only when an item's question has no safe default) or, for an item with no
@@ -239,7 +245,7 @@ ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) 
 
 ## Sequence
 
-${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
+${seq.length ? `In working order: an item holding an unheld halt first, then by the tier of the requirement its worst finding bears on (${yardstick.tiers.join(', ')}), then by severity. A finding no requirement takes ranks by its severity alone, and one its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage or a scanner's fix, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
 
 ---
 _Generated by the assay engine. Run \`${runId}\`.${confNote}_

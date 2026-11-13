@@ -1020,13 +1020,16 @@ anti-pattern applied to fixes. Scanner executable specialties (`capabilities`) a
 **invoked through** the handoff, not reimplemented in it.
 
 **The sequence** (one numbering, shared by the handoff's items 1..N and the
-report's §6, `views/improve/sequence.mjs`): the reviewer's own roadmap
-(`views/improve/prose.yaml` `roadmap:`), in authored order, leads; then one
-**triage** item per scanner that declares `handoff.triage: true`, covering every
-open gap from that scanner the roadmap did not absorb; then every remaining
-scanner-fix remedy, grouped per its adapter's declared `handoff.unit`, worst
-severity first. No adapter is named in the engine's sequencing code — every
-scanner is treated the same way by its own declared unit.
+report's §6, `views/improve/sequence.mjs`) holds the reviewer's own roadmap items
+(`views/improve/prose.yaml` `roadmap:`), one **triage** item per scanner that
+declares `handoff.triage: true`, covering every open gap from that scanner the
+roadmap did not absorb, and every remaining scanner-fix remedy, grouped per its
+adapter's declared `handoff.unit`. Their order is one key read off each item's
+worst finding: an unheld halt first, then the tier of the requirement it bears on,
+then its severity (`views/README.md`, "The sequence's order"). No adapter is named
+in the engine's sequencing code, and neither a scanner's name nor its handoff
+block moves an item: a scanner's block says how its findings are bundled and
+proved, never where they rank.
 
 **An adapter's optional `handoff:` block** (block style only, same as `map:` and
 `capabilities:` above) tells the engine how to bundle and prove that scanner's
@@ -1038,8 +1041,8 @@ remedies, never how to classify them:
   remedy, not ten), or `scanner` (one remedy for the whole scanner's remaining
   open gaps).
 - `triage: true` — this scanner's remedy is a read-first bucket (confirm what is
-  live before fixing anything — a secret scan): sequenced right after the roadmap,
-  always gets a session prompt, and implies `unit: scanner`. `ignore_file:` names
+  live before fixing anything — a secret scan): placed by the hits it holds like
+  any other item, always gets a session prompt, and implies `unit: scanner`. `ignore_file:` names
   where a person records a hit confirmed not live (the triage prompt cites it).
 - `client_proof:` — one plain sentence: a proof the repository's OWN team can
   run, with the repository's OWN tools, no assay. May use `{paths}` (the

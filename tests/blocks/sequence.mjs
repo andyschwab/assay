@@ -1,9 +1,11 @@
 // ── the shared handoff/report SEQUENCE (views/improve/sequence.mjs) ────────────
-// The reviewer's roadmap leads (numbers 1..R), then one TRIAGE item per scanner
-// whose adapter declares `handoff.triage: true` (gitleaks) covering every gap the
-// roadmap did not absorb, then every remaining scanner-fix remedy grouped per its
-// adapter's declared `handoff.unit` (dependency-scan: one remedy per lockfile,
-// worst severity first) — and the report's §6 names the SAME item numbers.
+// The reviewer's roadmap items, one TRIAGE item per scanner whose adapter declares
+// `handoff.triage: true` (gitleaks) covering every gap the roadmap did not absorb, and
+// every remaining scanner-fix remedy grouped per its adapter's declared `handoff.unit`
+// (dependency-scan: one remedy per lockfile), all placed by one key read off their worst
+// finding (halt, the requirement's tier, severity; #306) — and the report's §6 names the
+// SAME item numbers. Here: the Critical lockfile (safety tier) is item 1, the gitleaks triage
+// (safety tier, unrated) item 2, the lint roadmap item (verification tier) item 3.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -48,8 +50,9 @@ export async function run() {
   const start = existsSync(join(tmp, 'handoff', 'START-HERE.md')) ? readFileSync(join(tmp, 'handoff', 'START-HERE.md'), 'utf8') : '';
   const seqSection = start.split('## Sequence')[1] || '';
 
-  // 1. the roadmap item takes number 1
-  if (!/^1\. \*\*Declare the missing lint gate\*\*/m.test(seqSection)) fail(`the roadmap item must be sequence item 1 (got:\n${seqSection})`);
+  // 1. the roadmap item takes the number its finding's tier gives it (verification, after the
+  // two safety-tier items), never number 1 for being authored
+  if (!/^3\. \*\*Declare the missing lint gate\*\*/m.test(seqSection)) fail(`the roadmap item must be sequence item 3, after the two safety-tier items (got:\n${seqSection})`);
 
   // 2. one triage item follows, covering every uncovered gitleaks gap in ONE remedy with ONE plan
   const triageLine = seqSection.split('\n').find((l) => /Triage gitleaks/.test(l));
@@ -89,7 +92,7 @@ export async function run() {
   const triageBody = existsSync(join(planDir, '02-triage-gitleaks.md')) ? readFileSync(join(planDir, '02-triage-gitleaks.md'), 'utf8') : '';
   if (/rotate the credential now|purge it from history/i.test(triageBody)) fail('the triage prompt must never have the agent rotate a credential or rewrite history itself');
   if (!/a person performs it/.test(triageBody) || !/propose; do not\s+rewrite/.test(triageBody)) fail(`the triage prompt must hand rotation to a person and only propose a purge (got:\n${triageBody.slice(0, 600)})`);
-  const roadPlan = plans.find((p) => /^01-/.test(p));
+  const roadPlan = plans.find((p) => /^\d\d-declare-lint\.md$/.test(p));
   const roadBody = roadPlan ? readFileSync(join(planDir, roadPlan), 'utf8') : '';
   const roadYours = (roadBody.split('**Your proof**')[1] || '').split('**Our re-check**')[0];
   if (!/package\.json declares a lint script/.test(roadYours) || /From a fresh clone|A test in the repository/.test(roadYours)) fail(`a roadmap item's Your proof must be its done_when alone (got: ${roadYours})`);
@@ -104,7 +107,8 @@ export async function run() {
   const improveMd = existsSync(join(tmp, 'IMPROVE.md')) ? readFileSync(join(tmp, 'IMPROVE.md'), 'utf8') : '';
   const sixSection = improveMd.split('## 6. Prioritized roadmap')[1]?.split('## 7.')[0] || '';
   if (!/item 2, 8 hits/.test(sixSection)) fail(`report §6 must name the triage item's number and hit count matching the handoff (got: ${sixSection})`);
-  if (!/F-1000/.test(sixSection) || !/item 3/.test(sixSection)) fail(`report §6 must name the uncovered Critical F-1000 at item 3, matching the handoff (got: ${sixSection})`);
+  if (!/F-1000 — at item 1\b/.test(sixSection)) fail(`report §6 must name the uncovered Critical F-1000 at item 1, matching the handoff (got: ${sixSection})`);
+  if (!/\*\*Item 3\. Declare the missing lint gate\.\*\*/.test(sixSection)) fail(`report §6 must give the roadmap item the handoff's number, 3 (got: ${sixSection})`);
 
   // 6b. a roadmap item that takes in a bundling scanner's findings renders them the way that
   // scanner's own remedy does (a per-file summary for triage), never one claim block per hit,
@@ -117,7 +121,7 @@ export async function run() {
   ].join('\n'));
   const hRun2 = spawnSync(process.execPath, [join(ROOT, 'views', 'improve', 'handoff.mjs'), tmp], { encoding: 'utf8' });
   const start2 = existsSync(join(tmp, 'handoff', 'START-HERE.md')) ? readFileSync(join(tmp, 'handoff', 'START-HERE.md'), 'utf8') : '';
-  const plan01 = existsSync(join(tmp, 'handoff', 'plan')) ? readdirSync(join(tmp, 'handoff', 'plan')).find((f) => /^01-/.test(f)) : null;
+  const plan01 = existsSync(join(tmp, 'handoff', 'plan')) ? readdirSync(join(tmp, 'handoff', 'plan')).find((f) => /^\d\d-rotate-at-handover\.md$/.test(f)) : null;
   const body01 = plan01 ? readFileSync(join(tmp, 'handoff', 'plan', plan01), 'utf8') : '';
   if (hRun2.status !== 0) fail(`handoff.mjs must succeed with a roadmap that absorbs the triage (stderr: ${hRun2.stderr})`);
   if (/Triage gitleaks/.test(start2)) fail('a roadmap item citing every secret hit absorbs the triage item; it must leave the sequence');
