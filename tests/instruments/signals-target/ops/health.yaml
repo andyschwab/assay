@@ -1,0 +1,11 @@
+# the health report's schema: each declared signal's state
+report: "GET /health"
+signals:
+  - name: nightly-sync-ran
+    fields: [last_success, last_count, since]
+  - name: weekly-digest-sent
+    fields: [last_success, last_count, since]
+  - name: digest-mail-delivered
+    fields: [last_success, last_count, since]
+  - name: mail-provider-spend
+    fields: [last_success, last_count, since]

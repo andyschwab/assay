@@ -2,11 +2,14 @@
 // repo-census.mjs — the REPO-CENSUS instrument: decides, from the tree alone, four
 // floor rows a run could not decide before except by an LLM-authored census
 // (yardstick/requirements.yaml d-architecture-page, d-agent-contract, d-runbook,
-// d-ci-gate-on-default-branch — map/scanners/CONTRACT.md §3d), plus six
+// d-ci-gate-on-default-branch — map/scanners/CONTRACT.md §3d), plus five
 // owner-evidence checks over dated transcripts the owner commits for what a
 // repository cannot show by itself (d-backup-restore-exercised,
 // d-rollback-exercised, d-deploy-one-command, d-smoke-on-deployed,
-// d-monitoring-with-alert, d-cost-alerts; format at owner/evidence/README.md). Its rows come in through
+// d-health-reported; format at owner/evidence/README.md), plus three operability
+// checks over the application's signal declarations, health report and routing
+// policy (d-expectations-declared, d-health-reported, d-routing-proportionate, #311),
+// read through the format reader the adapter names. Its rows come in through
 // map/ingest.mjs (profile `repo-census`) and land on existing axes via
 // map/scanners/adapters/repo-census.yaml.
 //
@@ -47,7 +50,26 @@
 //     tree; the observation says so every time — this check decides only what the
 //     tree shows.
 //
-// Plus six evidence checks (root only, one per descriptor id, named
+// Plus three operability checks (root only, #311; map/scanners/CONTRACT.md §3d). The
+// census finds the scheduled jobs itself (a CI workflow's `schedule:` cron, one job per
+// workflow) and takes the rest from the format reader its adapter names
+// (adapters/repo-census.yaml `signals.reader`, the replaceable part: the jobs the
+// application schedules in its own format, its signal declarations, its health report's
+// schema and its routing policy). It names no format of its own:
+//   - expectation-declared: one check per scheduled job and per declared signal. A job no
+//     declaration watches is a gap citing the job; a declaration missing its expectation,
+//     evidence or runbook anchor is a gap citing the declaration. With no scheduled job
+//     and no declaration, one not-applicable check (the effect half of the requirement
+//     is the yardstick's, over the run's triaged effects).
+//   - health-report: the report's schema states the state (last success, last count,
+//     since when) of every declared signal.
+//   - routing-policy: the policy is data and routes every declared signal at record,
+//     digest or notify, to a destination role, with a budget; a policy that notifies on
+//     every signal is a gap (the flood that gets muted).
+// health-report and routing-policy read not-applicable only when the tree has no
+// scheduled job, declares no signal and shows no deployment signal.
+//
+// Plus five evidence checks (root only, one per descriptor id, named
 // `evidence-<descriptor-id>`): each reads ops/evidence/<id>.md (else
 // docs/evidence/<id>.md, first found wins) — YAML frontmatter (produced_by,
 // descriptor, date, by, commit, result, plus keys named per row) over a body
@@ -65,7 +87,7 @@
 // document never reads the body past line counts — a transcript can hold
 // operational detail. Every observation, pass, gap or not-measured, says this
 // check verifies the transcript's shape, freshness and commit, never the truth
-// of what it describes. Full format: owner/evidence/README.md. The six apply only
+// of what it describes. Full format: owner/evidence/README.md. The five apply only
 // where the tree shows a deployment: with no deployment signal anywhere in the
 // tree (findDeploymentSignals below; the list is map/scanners/CONTRACT.md §3d's),
 // each reads `not-applicable`, citing the root, never `pass`; the document's
@@ -100,18 +122,23 @@
 // with validate-packet (yardstick/packet.mjs).
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { join, resolve, isAbsolute, relative, sep } from 'node:path';
+import { join, resolve, isAbsolute, relative, sep, dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadPacket, validatePacket, requirementIdsOnDisk } from '../yardstick/packet.mjs';
 import { locateProjects, workspacePath } from './projects.mjs';
 
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';
 export const EVIDENCE_IDS = [
   'd-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command',
-  'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts',
+  'd-smoke-on-deployed', 'd-health-reported',
 ];
-export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...EVIDENCE_IDS.map((id) => `evidence-${id}`)];
+const SIGNAL_CHECKS = ['expectation-declared', 'health-report', 'routing-policy'];
+export const CHECK_NAMES = ['architecture-page', 'agent-contract', 'runbook', 'ci-gate', ...SIGNAL_CHECKS, ...EVIDENCE_IDS.map((id) => `evidence-${id}`)];
+// the checks an earlier census wrote whose requirements the yardstick retired (#311,
+// yardstick/requirements.yaml retired:): a raw report archived in a stored run still ingests
+export const RETIRED_CHECK_NAMES = ['evidence-d-monitoring-with-alert', 'evidence-d-cost-alerts'];
 export const CHECK_STATUS = ['pass', 'gap', 'not-applicable', 'not-measured'];
 
 // ── small filesystem helpers (case-insensitive, read-only, never throw) ──────
@@ -887,10 +914,9 @@ function checkCiGate(dir, defaultBranchArg, pointerBranch, workflowsPointer) {
 }
 
 // ── evidence: owner-attested transcripts ──
-// Six floor rows describe things a repository cannot show by itself — a backup
+// Five floor rows describe things a repository cannot show by itself — a backup
 // was restored, a rollback ran, a deploy came up as the committed sha, a smoke
-// check hit the deployed app, an alert fired and was received, cost alerts are
-// named per account. The owner commits a dated transcript per row
+// check hit the deployed app, the live health report was read. The owner commits a dated transcript per row
 // (owner/evidence/README.md is the one home of the format); this check
 // decides only the transcript's SHAPE and FRESHNESS — never whether the
 // procedure it describes actually happened, which rests on the named person's
@@ -912,19 +938,15 @@ const EVIDENCE_ROWS = {
     keys: ['environment', 'check'],
     label: 'a smoke check ran against the deployed application',
   },
-  'd-monitoring-with-alert': {
-    keys: ['monitor', 'alert_fired', 'alert_received'],
-    label: 'monitoring is configured and its alert route was exercised',
-  },
-  'd-cost-alerts': {
-    keys: ['accounts'],
-    label: 'a cost alert with a named recipient exists on every metered account',
+  'd-health-reported': {
+    keys: ['report', 'signals'],
+    label: 'the live health report was read and stated each signal it carries',
   },
 };
 const EVIDENCE_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EVIDENCE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const EVIDENCE_COMMIT_RE = /^[0-9a-f]{7,40}$/i;
-const EVIDENCE_ACCOUNT_RE = /^[^:]+:.+->.+$/; // "<account>: <threshold> -> <recipient>"
+const EVIDENCE_SIGNAL_STATE_RE = /^[^:]+:.+$/; // "<signal>: <state>"
 const EVIDENCE_PRODUCED_BY = ['ci', 'person'];
 
 // Does `sha` resolve in this checkout's history? `{ state: 'found' | 'missing' |
@@ -1037,16 +1059,11 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   if (id === 'd-deploy-one-command' && !missingKeys.includes('deployed_sha') && !missingKeys.includes('commit') && typeof fm.commit === 'string' && fm.deployed_sha !== fm.commit) {
     problems.push(`deployed_sha "${fm.deployed_sha}" does not match commit "${fm.commit}"`);
   }
-  if (id === 'd-monitoring-with-alert' && !missingKeys.includes('alert_fired') && !missingKeys.includes('alert_received')) {
-    const fired = Date.parse(fm.alert_fired), received = Date.parse(fm.alert_received);
-    if (Number.isNaN(fired) || Number.isNaN(received)) problems.push('alert_fired / alert_received must be ISO timestamps');
-    else if (received < fired) problems.push(`alert_received (${fm.alert_received}) precedes alert_fired (${fm.alert_fired})`);
-  }
-  if (id === 'd-cost-alerts' && !missingKeys.includes('accounts')) {
-    if (!Array.isArray(fm.accounts) || !fm.accounts.length) problems.push('accounts must be a non-empty list');
+  if (id === 'd-health-reported' && !missingKeys.includes('signals')) {
+    if (!Array.isArray(fm.signals) || !fm.signals.length) problems.push('signals must be a non-empty list');
     else {
-      const bad = fm.accounts.filter((a) => typeof a !== 'string' || !EVIDENCE_ACCOUNT_RE.test(a));
-      if (bad.length) problems.push(`accounts entries must name account, threshold, and recipient (e.g. "anthropic: $500/month -> platform on-call"): ${bad.map((b) => JSON.stringify(b)).join(', ')}`);
+      const bad = fm.signals.filter((a) => typeof a !== 'string' || !EVIDENCE_SIGNAL_STATE_RE.test(a));
+      if (bad.length) problems.push(`signals entries must name a signal and the state the live report gave it (e.g. "nightly-sync-ran: held, last success 2026-11-12T03:04Z, 812 rows"): ${bad.map((b) => JSON.stringify(b)).join(', ')}`);
     }
   }
   if (EVIDENCE_DATE_RE.test(dateStr)) {
@@ -1096,9 +1113,9 @@ function checkEvidenceRow(dir, id, asOfDate, maxAgeDays, evidencePointer) {
   };
 }
 
-// ── the deployment signal (the six evidence checks' applicability) ──────────
-// The six owner-evidence checks ask for proof about a DEPLOYED application: a
-// backup restored, a deploy, a rollback, a smoke check, an alert, a cost alert.
+// ── the deployment signal (the five evidence checks' applicability) ─────────
+// The five owner-evidence checks ask for proof about a DEPLOYED application: a
+// backup restored, a deploy, a rollback, a smoke check, the live health report.
 // A tree with nothing deployed (a library, a command-line tool) has none of these
 // to prove, so each check reads `not-applicable` — never `pass` — when the walk
 // below finds no deployment signal ANYWHERE in the tree (the database-signal
@@ -1208,6 +1225,169 @@ function evidenceNotApplicable(id) {
     evidence: ['./:1'],
     observation: `No deployment signal found anywhere in the tree (looked for ${DEPLOYMENT_LOOKED_FOR}) — nothing here is deployed, so ${id} is not applicable, not merely unevidenced.`,
   };
+}
+
+// ── signals: declared expectations, a health report, a routing policy (#311) ──
+// The three interfaces are stated by property in yardstick/README.md ("Operability
+// interfaces"). The census reads them through the format reader its adapter names
+// (adapters/repo-census.yaml `signals.reader`), the replaceable part: the census names
+// no application's format. A reader that is not named, or cannot be loaded, halts the
+// census (exit 2): a census that cannot read the declarations never reads them absent.
+const ADAPTER_DIR = join(dirname(fileURLToPath(import.meta.url)), 'scanners', 'adapters');
+async function loadSignalsReader() {
+  const adapter = parseYaml(readFileSync(join(ADAPTER_DIR, 'repo-census.yaml'), 'utf8'));
+  const rel = adapter?.signals?.reader;
+  if (typeof rel !== 'string' || !rel) throw new Error('adapters/repo-census.yaml names no signals.reader (the format reader for an application\'s signal declarations)');
+  const mod = await import(pathToFileURL(join(ADAPTER_DIR, rel)).href);
+  if (typeof mod.readSignals !== 'function') throw new Error(`adapters/${rel} exports no readSignals(dir)`);
+  return { read: mod.readSignals, format: typeof mod.FORMAT === 'string' ? mod.FORMAT : rel };
+}
+// loaded once, its failure held until the census reads signals, so a module that imports
+// this one for a helper (map/ingest.mjs) never halts on it
+const SIGNALS_LOADED = await loadSignalsReader().then((r) => ({ r, e: null }), (e) => ({ r: null, e }));
+const SIGNALS = {
+  get format() { return SIGNALS_LOADED.r ? SIGNALS_LOADED.r.format : ''; },
+  read(dir) { if (SIGNALS_LOADED.e) throw SIGNALS_LOADED.e; return SIGNALS_LOADED.r.read(dir); },
+};
+const SIGNAL_CLASSES = ['record', 'digest', 'notify'];
+const HEALTH_FIELDS = ['last_success', 'last_count', 'since'];
+const SCHEDULED_LOOKED_FOR = 'a CI workflow with a schedule: cron';
+
+// The jobs a CI workflow schedules: one per workflow whose `on:` carries `schedule:` with a
+// `cron:` entry, named by the workflow file's stem, citing the first cron line. Comments
+// never count.
+function findWorkflowSchedules(dir) {
+  const wfDir = join(dir, '.github', 'workflows');
+  const jobs = [];
+  for (const f of safeReaddir(wfDir).filter((x) => /\.ya?ml$/i.test(x)).sort()) {
+    const lines = (safeRead(join(wfDir, f)) || '').split('\n').map(stripHashComment);
+    let inSchedule = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      if (!l.trim()) continue;
+      const indent = l.match(/^\s*/)[0].length;
+      if (inSchedule >= 0 && indent <= inSchedule && !/^\s*-/.test(l)) inSchedule = -1;
+      if (/^\s*schedule\s*:\s*$/.test(l)) { inSchedule = indent; continue; }
+      if (inSchedule >= 0 && /^\s*-?\s*cron\s*:/.test(l)) {
+        jobs.push({ name: f.replace(/\.ya?ml$/i, ''), at: `.github/workflows/${f}:${i + 1}`, how: `a CI workflow's schedule (.github/workflows/${f})` });
+        break;
+      }
+    }
+  }
+  return jobs;
+}
+const subjectOf = (w) => `${w.kind}:${w.target}`;
+const missingOf = (d) => ['expect', 'evidence', 'runbook'].filter((k) => !d[k]);
+const problemsIn = (sig, iface) => sig.problems.filter((p) => p.interface === iface);
+
+// expectation-declared: one check per scheduled job and per declared signal
+function checkExpectations(sig, jobs) {
+  const checks = [];
+  const declFile = sig.declarations[0]?.at.replace(/:\d+$/, '') ?? null;
+  for (const p of problemsIn(sig, 'declarations')) {
+    checks.push({ name: 'expectation-declared', status: 'gap', detail: { path: '.', subject: `file:${p.at.replace(/:\d+$/, '')}` }, evidence: [p.at], observation: `${p.what}: no declaration in it can be read, so nothing it declares is measured.` });
+  }
+  const used = new Set();
+  for (const j of jobs) {
+    const d = sig.declarations.find((x) => x.watches && x.watches.kind === 'job' && x.watches.target === j.name);
+    const subject = `job:${j.name}`;
+    if (!d) {
+      checks.push({ name: 'expectation-declared', status: 'gap', detail: { path: '.', subject }, evidence: [j.at],
+        observation: `The scheduled job ${j.name} (${j.how}) has no declared expectation${declFile ? ` in ${declFile}` : ` (no signal declaration was found, read as ${SIGNALS.format})`}: if it stops running, or runs and does nothing, no declaration says what should have happened.` });
+      continue;
+    }
+    used.add(d);
+    const miss = missingOf(d);
+    if (!d.name) miss.unshift('name');
+    checks.push(miss.length
+      ? { name: 'expectation-declared', status: 'gap', detail: { path: '.', subject }, evidence: [d.at, j.at], observation: `The declaration watching the scheduled job ${j.name} lacks ${miss.join(', ')}: an expectation is stated with what is expected, the evidence that shows it and the runbook step to take.` }
+      : { name: 'expectation-declared', status: 'pass', detail: { path: '.', subject }, evidence: [d.at, j.at], observation: `The scheduled job ${j.name} (${j.how}) declares its expectation as signal ${d.name}: "${d.expect}", shown by ${d.evidence}, runbook ${d.runbook}. This reads the declaration, not whether the expectation holds in production.` });
+  }
+  for (const d of sig.declarations.filter((x) => !used.has(x))) {
+    const miss = missingOf(d);
+    if (!d.name) miss.unshift('name');
+    if (!d.watches) miss.push('watches (job <name>, effect <path> or cost <account>)');
+    const subject = d.watches ? subjectOf(d.watches) : `signal:${d.name || d.at}`;
+    if (d.watches?.kind === 'job') {
+      checks.push({ name: 'expectation-declared', status: miss.length ? 'gap' : 'pass', detail: { path: '.', subject }, evidence: [d.at],
+        observation: miss.length ? `The declaration of signal ${d.name || '(unnamed)'} lacks ${miss.join(', ')}.` : `Signal ${d.name} declares an expectation for job ${d.watches.target}, which the census found no schedule for (looked for ${SCHEDULED_LOOKED_FOR}, and the application's own schedule): "${d.expect}", shown by ${d.evidence}, runbook ${d.runbook}.` });
+      continue;
+    }
+    checks.push(miss.length
+      ? { name: 'expectation-declared', status: 'gap', detail: { path: '.', subject }, evidence: [d.at], observation: `The declaration of signal ${d.name || '(unnamed)'} lacks ${miss.join(', ')}: an expectation is stated with what it watches, what is expected, the evidence that shows it and the runbook step to take.` }
+      : { name: 'expectation-declared', status: 'pass', detail: { path: '.', subject }, evidence: [d.at], observation: `Signal ${d.name} declares an expectation for ${d.watches.kind} ${d.watches.target}: "${d.expect}", shown by ${d.evidence}, runbook ${d.runbook}. This reads the declaration, not whether the expectation holds in production.` });
+  }
+  if (!checks.length) {
+    checks.push({ name: 'expectation-declared', status: 'not-applicable', detail: { path: '.' }, evidence: ['./:1'],
+      observation: `No scheduled job found (looked for ${SCHEDULED_LOOKED_FOR}, and the application's own schedule read as ${SIGNALS.format}) and no signal declared: the census has no job to ask for an expectation. Whether the application's effects declare theirs is read against the run's triaged effects.` });
+  }
+  return checks;
+}
+// health-report and routing-policy: one check each, over the declared signals
+function nothingToWatch(sig, jobs, deployment) {
+  return !jobs.length && !sig.declarations.length && !deployment.signals.length;
+}
+function notApplicableSignal(name, what) {
+  return { name, status: 'not-applicable', detail: { path: '.' }, evidence: ['./:1'],
+    observation: `No scheduled job found (looked for ${SCHEDULED_LOOKED_FOR}), no signal declared and no deployment signal anywhere in the tree (looked for ${DEPLOYMENT_LOOKED_FOR}): there is nothing for ${what} to cover.` };
+}
+const declaredNames = (sig) => sig.declarations.map((d) => d.name).filter(Boolean);
+function checkHealthReport(sig, jobs, deployment) {
+  const name = 'health-report';
+  const bad = problemsIn(sig, 'health');
+  if (bad.length) return { name, status: 'gap', detail: { path: '.' }, evidence: bad.map((p) => p.at), observation: `${bad.map((p) => p.what).join('; ')}: the health report's schema cannot be read.` };
+  if (!sig.health) {
+    if (nothingToWatch(sig, jobs, deployment)) return notApplicableSignal(name, 'a health report');
+    return { name, status: 'gap', detail: { path: '.' }, evidence: ['./:1'],
+      observation: `No machine-readable health report schema found (read as ${SIGNALS.format}): nothing states, for each signal, when it last held, what it last counted and since when, so an absence (a job that never started, a run that touched nothing) is seen only when someone goes looking.` };
+  }
+  const reported = new Map(sig.health.signals.filter((s) => s.name).map((s) => [s.name, s]));
+  const names = declaredNames(sig);
+  const missing = names.filter((n) => !reported.has(n));
+  const thin = names.filter((n) => reported.has(n)).map((n) => [n, HEALTH_FIELDS.filter((f) => !reported.get(n).fields.includes(f))]).filter(([, m]) => m.length);
+  const problems = [];
+  if (!reported.size) problems.push('it reports no signal');
+  if (missing.length) problems.push(`it does not report ${missing.length} declared signal(s): ${missing.join(', ')}`);
+  for (const [n, m] of thin) problems.push(`signal ${n} lacks ${m.join(', ')}`);
+  if (!sig.health.report) problems.push('it names no place the report is served (report:)');
+  if (problems.length) return { name, status: 'gap', detail: { path: '.' }, evidence: [sig.health.at, ...thin.map(([n]) => reported.get(n).at)], observation: `The health report's schema (${sig.health.at.replace(/:\d+$/, '')}): ${problems.join('; ')}. A report states each declared signal's ${HEALTH_FIELDS.join(', ')}.` };
+  return { name, status: 'pass', detail: { path: '.' }, evidence: [sig.health.at],
+    observation: `The health report's schema (${sig.health.at.replace(/:\d+$/, '')}, served at ${sig.health.report}) states ${HEALTH_FIELDS.join(', ')} for every one of the ${names.length} declared signal(s). This reads the schema in the tree; whether the report is live is the owner's transcript (evidence-d-health-reported).` };
+}
+function checkRoutingPolicy(sig, jobs, deployment) {
+  const name = 'routing-policy';
+  const bad = problemsIn(sig, 'policy');
+  if (bad.length) return { name, status: 'gap', detail: { path: '.' }, evidence: bad.map((p) => p.at), observation: `${bad.map((p) => p.what).join('; ')}: the routing policy cannot be read.` };
+  if (!sig.policy) {
+    if (nothingToWatch(sig, jobs, deployment)) return notApplicableSignal(name, 'a routing policy');
+    return { name, status: 'gap', detail: { path: '.' }, evidence: ['./:1'],
+      observation: `No routing policy found as data (read as ${SIGNALS.format}): who reads which signal, at what class and with what budget is decided nowhere a person can change it.` };
+  }
+  const routes = sig.policy.routes;
+  const byName = new Map(routes.filter((r) => r.signal).map((r) => [r.signal, r]));
+  const names = declaredNames(sig);
+  const problems = [], cite = [sig.policy.at];
+  const unrouted = names.filter((n) => !byName.has(n));
+  if (!routes.length) problems.push('it routes no signal');
+  if (unrouted.length) problems.push(`it classes no route for ${unrouted.length} declared signal(s): ${unrouted.join(', ')}`);
+  for (const r of routes) {
+    const miss = [];
+    if (!SIGNAL_CLASSES.includes(r.class)) miss.push(`a class of ${SIGNAL_CLASSES.join(', ')} (got ${r.class ?? 'none'})`);
+    if (!r.to) miss.push('a destination role (to:)');
+    if (!r.budget) miss.push('a budget');
+    if (miss.length) { problems.push(`the route for ${r.signal || '(unnamed)'} lacks ${miss.join(', ')}`); cite.push(r.at); }
+  }
+  const notify = routes.filter((r) => r.class === 'notify');
+  if (routes.length && notify.length === routes.length) problems.push(`every one of its ${routes.length} route(s) is at notify: nothing is held at record or digest until it has been seen quiet and accurate, the flood a reader mutes`);
+  const by = Object.fromEntries(SIGNAL_CLASSES.map((c) => [c, routes.filter((r) => r.class === c).length]));
+  if (problems.length) return { name, status: 'gap', detail: { path: '.', classes: by }, evidence: [...new Set(cite)], observation: `The routing policy (${sig.policy.at.replace(/:\d+$/, '')}): ${problems.join('; ')}.` };
+  return { name, status: 'pass', detail: { path: '.', classes: by }, evidence: [sig.policy.at],
+    observation: `The routing policy (${sig.policy.at.replace(/:\d+$/, '')}) classes every one of the ${names.length} declared signal(s), each with a destination role and a budget: ${SIGNAL_CLASSES.map((c) => `${by[c]} at ${c}`).join(', ')}. Whether a signal at notify earned its promotion (seen quiet and accurate first) is not in the tree.` };
+}
+function signalChecks(dir, deployment) {
+  const sig = SIGNALS.read(dir);
+  const jobs = [...findWorkflowSchedules(dir), ...sig.jobs];
+  return [...checkExpectations(sig, jobs), checkHealthReport(sig, jobs, deployment), checkRoutingPolicy(sig, jobs, deployment)];
 }
 
 // ── the run ──────────────────────────────────────────────────────────────────
@@ -1325,6 +1505,7 @@ export function run({ target, defaultBranch = null, asOf = null, evidenceMaxAgeD
   for (const id of EVIDENCE_IDS) {
     checks.push(deployment.signals.length ? checkEvidenceRow(dir, id, asOfDate, Number(evidenceMaxAgeDays), pointers.evidence || null) : evidenceNotApplicable(id));
   }
+  checks.push(...signalChecks(dir, deployment));
   const exit = checks.some((c) => c.status === 'gap') ? 1 : 0;
   const target_ = { path: target, head: gitHead(dir) };
   const remote = gitRemote(dir);

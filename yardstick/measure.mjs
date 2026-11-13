@@ -141,6 +141,11 @@ export function validateYardstick(reg) {
       if (d.decide.kind !== 'claim') errors.push(`${at}: decide.context is a claim row's (a run-decided row cites what decides it)`);
       else if (!Array.isArray(d.decide.context) || !d.decide.context.length || !d.decide.context.every((x) => typeof x === 'string' && x)) errors.push(`${at}: decide.context must be a non-empty list of context list names`);
     }
+    // the effect half of a row over declared expectations (#311): only an instrument row reads it
+    if (d.decide && d.decide.effects !== undefined) {
+      if (d.decide.kind !== 'instrument') errors.push(`${at}: decide.effects is an instrument row's (the run's triaged effects, read beside its deciders)`);
+      else if (d.decide.effects !== 'declared') errors.push(`${at}: decide.effects may only be "declared" (each triaged effect needs a declaration watching a file it cites)`);
+    }
     if (!d.check) errors.push(`${at}: check (the proving check) required`);
     if (!Array.isArray(d.sources) || !d.sources.length) errors.push(`${at}: sources required (extracted, not designed)`);
     if (!['draft', 'stable', 'deprecated'].includes(d.status)) errors.push(`${at}: status must be draft|stable|deprecated`);
@@ -165,10 +170,30 @@ export function validateYardstick(reg) {
   }
   return errors;
 }
+// the retired ids (yardstick/README.md, "A retired requirement"), a whole-register check run on
+// load: never a live row's, its successor always one, each with why, each retired once
+export function validateRetired(reg) {
+  const errors = [];
+  const live = new Set(reg.requirements.map((d) => d.id)), gone = new Set();
+  if (reg.retired !== undefined && !Array.isArray(reg.retired)) errors.push('yardstick: retired must be a list of { id, successor, why }');
+  for (const r of Array.isArray(reg.retired) ? reg.retired : []) {
+    const at = `yardstick: retired ${r?.id ?? '(no id)'}`;
+    if (!r?.id || !/^d-[a-z0-9-]+$/.test(r.id)) errors.push(`${at}: id must match d-<slug>`);
+    if (live.has(r?.id)) errors.push(`${at}: is a live requirement; a retired id is no row's`);
+    if (gone.has(r?.id)) errors.push(`${at}: retired twice`); gone.add(r?.id);
+    if (!live.has(r?.successor)) errors.push(`${at}: successor "${r?.successor ?? ''}" is not a live requirement`);
+    if (!(typeof r?.why === 'string' && r.why.trim())) errors.push(`${at}: why required (what the successor measures in its place)`);
+  }
+  return errors;
+}
+// id → { successor, why } for every retired requirement id (yardstick/README.md, "A retired requirement")
+export function retiredOf(reg) {
+  return new Map((Array.isArray(reg?.retired) ? reg.retired : []).filter((r) => r && r.id).map((r) => [r.id, { successor: r.successor, why: r.why }]));
+}
 export function loadYardstick(file = YARDSTICK_FILE) {
   const reg = parseYaml(readFileSync(file, 'utf8'));
   // the register itself, then every adapter's binding against it (rule 7, #177)
-  const errors = validateYardstick(reg);
+  const errors = [...validateYardstick(reg), ...validateRetired(reg)];
   if (!errors.length) errors.push(...validateAdapterDecides(reg, (ADAPTERS ??= loadAdapters())));
   if (errors.length) throw new Error(errors.join('\n'));
   return reg;
@@ -374,6 +399,11 @@ function contextOfClaim(d, inputs) {
 function categoryVerdict(scanner, category, rows, coverage) {
   const cov = coverage[scanner]?.coverage?.[category];
   if (!cov) {
+    // an instrument whose adapter says it writes a row for every check it runs (a pass, a gap or
+    // a fact), its checks the categories its map names: no row in one means the run's instrument
+    // never ran that check (one older than the check, #311), never that it ran clean
+    if (isInstrument(scanner) && !rows.length && ADAPTERS?.[scanner]?.row_per_check === true && ADAPTERS[scanner].map?.[category])
+      return { status: 'not-measured', note: `wrote no ${category} row: ${scanner} writes one for every check it runs, so the ${scanner} that drew this run did not run this check (an earlier version)` };
     if (isInstrument(scanner)) return { status: 'met', note: `ran and reported no ${category} rows${rows.length ? ' (' + rows.length + ' strength row(s))' : ''}` };
     if (rows.length) return { status: 'met', note: `${rows.length} strength row(s), no gaps` };
     return { status: 'not-measured', note: coverage[scanner] ? `reported coverage but no row for category ${category}` : `left no coverage account for category ${category} (a peer scanner's silence is not clean)` };
@@ -455,7 +485,7 @@ export function decidersOf(d, adapters, disp = null) {
   const bound = Object.values(adapters || {}).flatMap((a) => (Array.isArray(a.decides) ? a.decides : [])
     .filter((b) => b && b.requirement === d.id && !a.retired && (a.adopted !== false || (disp && disp[a.scanner])))
     .map(({ requirement, ...b }) => ({ ...b, scanner: a.scanner })));
-  return [...own.map(({ kind, deciders, any_gap, ...spec }) => spec), ...bound];
+  return [...own.map(({ kind, deciders, any_gap, effects, ...spec }) => spec), ...bound];
 }
 // every adapter binding names an instrument row and is a whole decider; every instrument
 // row resolves at least one decider (fail closed: a row nothing decides is not a row)
@@ -524,6 +554,41 @@ function decideInstrument(d, fs, disp, coverage, adapters) {
   return row('met', 'instrument', ids, say(live));
 }
 
+// The effect half of a row over declared expectations (decide.effects: declared, #311;
+// yardstick/README.md "Operability interfaces"). The row's deciders read the scheduled jobs
+// the census found; its population also holds every effect finding in the run's triaged
+// effect inventory (the effect findings the triage names for a candidate). An effect is
+// declared when a strength row of the row's own deciders, whose subject is `effect:<path>`
+// (native_id `<category>@effect:<path>`), names a file the effect finding cites. The rule is
+// the census rules' (#286): a gap counts wherever it sits (an undeclared effect, or the
+// deciders' own gap), met needs every member declared, and a population the run never
+// closed holds a reading that would be met or not applicable not measured, naming why.
+function withEffects(d, r, fs, ch, adapters, disp) {
+  if (r.status === 'not-measured') return r;   // the deciders did not read: no declaration is known
+  const scanners = new Set(decidersOf(d, adapters, disp).map((x) => x.scanner));
+  const cats = new Set(decidersOf(d, adapters, disp).flatMap((x) => asList(x.category)));
+  const watched = new Set(fs.filter((f) => scanners.has(f.source) && cats.has(String(f.native_category ?? '')) && f.polarity === 'strength')
+    .map((f) => String(f.native_id || '').match(/@effect:(.+)$/)?.[1]).filter(Boolean));
+  const jobs = `jobs: ${r.note}`;
+  if (!ch.listed || !ch.triaged) {
+    const why = !ch.listed ? ch.reason : 'the run carries no effect triage (map/effect-triage.yaml), so its effects were never listed';
+    if (r.status === 'unmet' || r.status === 'mixed') return { ...r, note: `${jobs}; effects: not read (${why})` };
+    return row('not-measured', 'instrument', r.findings || [], `${jobs}; effects: not measured, ${why}: a population never closed is never met`);
+  }
+  const byId = new Map(fs.map((f) => [f.id, f]));
+  const effects = ch.covered.map((id) => byId.get(id)).filter((f) => f && f.subject_type === 'effect');
+  const declared = effects.filter((f) => evidenceFiles(f).some((x) => watched.has(x)));
+  const undeclared = effects.filter((f) => !declared.includes(f));
+  const ids = [...new Set([...(r.findings || []), ...effects.map((f) => f.id)])];
+  const say = `effects: ${declared.length} of ${effects.length} triaged effect finding(s) declared${undeclared.length ? `; undeclared: ${undeclared.map((f) => `${f.id}${f.effect?.channel ? ` (${f.effect.channel})` : ''}`).join(', ')}` : ''}`;
+  const untriaged = ch.untriaged.length ? `; ${ch.untriaged.length} of ${ch.candidates.length} channel candidate(s) untriaged: ${ch.untriaged.join(', ')}` : '';
+  const note = `${jobs}; ${say}${untriaged}`;
+  const strengths = ids.filter((id) => byId.get(id)?.polarity === 'strength' || declared.some((f) => f.id === id));
+  if (r.status === 'unmet' || r.status === 'mixed' || undeclared.length) return row(strengths.length && mixable(d) ? 'mixed' : 'unmet', 'instrument', ids, note);
+  if (r.status === 'not-applicable' && !effects.length) return row('not-applicable', 'instrument', [], `${note}: no scheduled job, no declared signal and no effect`);
+  return row(ch.untriaged.length ? 'mixed' : 'met', 'instrument', ids, note);
+}
+
 // ── the projection ────────────────────────────────────────────────────────────
 // `packet` (optional): a repository's own VALIDATED claims (yardstick/packet.mjs
 // loadPacket().doc — the caller validates; this function trusts it). Every row
@@ -574,7 +639,10 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
       r = byCensus(d, inputs, findingsById);
       if (Array.isArray(d.decide.candidates)) r = closedCensus(r, censusClosure(d, census || {}, inputs, findingsById), d, findingsById);
     }
-    else if (d.decide.kind === 'instrument') r = decideInstrument(d, findings, disp, coverage || {}, adapters);
+    else if (d.decide.kind === 'instrument') {
+      r = decideInstrument(d, findings, disp, coverage || {}, adapters);
+      if (d.decide.effects) r = withEffects(d, r, findings, ch, adapters, disp);
+    }
     else {
       const pd = decidePacketClaim(d.id, packet);
       if (pd) { r = row(pd.status, 'claim', [], pd.note); basis = 'owner'; }

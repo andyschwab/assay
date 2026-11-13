@@ -1,0 +1,5 @@
+{
+  "name": "signals-target",
+  "private": true,
+  "scripts": { "start": "node src/server.mjs" }
+}

@@ -62,7 +62,10 @@ import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapters, verifiedPin } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
 import { setScannerRow, updateRunRecord, remeasure } from './record.mjs';
-import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
+import { stripUserinfo, EVIDENCE_IDS as RC_EVIDENCE_IDS, CHECK_NAMES as RC_LIVE_CHECKS, RETIRED_CHECK_NAMES as RC_RETIRED_CHECKS, CHECK_STATUS as RC_STATUS } from './repo-census.mjs';
+// a raw report an earlier census wrote may carry a check whose requirement is retired (#311):
+// it still ingests, its rows mapped by the adapter, decided by no requirement
+const RC_CHECKS = [...RC_LIVE_CHECKS, ...RC_RETIRED_CHECKS];
 import { STEPS as FC_STEPS, STEP_STATUS as FC_STEP_STATUS, CLAIM_STATUS as FC_CLAIM_STATUS } from './fresh-clone.mjs';
 import { SERVICES_FILE } from './services.mjs';
 import { LOCK_STATUS, SEVERITIES as DS_SEVERITIES } from './dependency-scan.mjs';
@@ -452,7 +455,9 @@ const PROFILES = {
         if (!RC_STATUS.includes(c.status)) throw new Error(`repo-census check ${c.name}: status "${c.status}" is not one of ${RC_STATUS.join(' | ')}`);
         if (typeof c.observation !== 'string' || !c.observation.trim()) throw new Error(`repo-census check ${c.name}: missing observation (truncated report?)`);
         const location = (c.detail && typeof c.detail.path === 'string' && c.detail.path) || '.';
-        const nativeLoc = location === '.' ? 'root' : location;
+        // a check with one row per subject (expectation-declared: one per job or declared
+        // signal, #311) names the subject in place of the location, so each row is its own
+        const nativeLoc = c.detail && typeof c.detail.subject === 'string' && c.detail.subject ? c.detail.subject : location === '.' ? 'root' : location;
         // a census before assay PR #15 cited the root as ":1" (a line of no file); an archived
         // raw report from then re-ingests with the root named, "./:1", never an empty path
         const evidence = Array.isArray(c.evidence) && c.evidence.length ? c.evidence.map((e) => String(e).replace(/^:(\d+)$/, './:$1')) : [`${location}/:1`];
@@ -482,7 +487,7 @@ const PROFILES = {
         } else if (c.status === 'not-measured') {
           // a FACT row, in its own category (never the check's own — a category the
           // yardstick decides must carry no rows for its not_measured_when condition
-          // to fire; see yardstick/measure.mjs and yardstick/requirements.yaml's six
+          // to fire; see yardstick/measure.mjs and yardstick/requirements.yaml's
           // evidence-<id> rows): the checkout could not confirm the transcript's
           // commit either way (no .git, or too shallow), so nothing was decided.
           rows.push({
@@ -665,7 +670,10 @@ const RC_FIX = {
   'agent-contract': 'Make the agent contract (AGENTS.md or CLAUDE.md) present-tense: move any Status / History / Changelog / Todo / Backlog section and dated changelog lines to a separate, co-located history file. Re-run repo-census and confirm it reads pass.',
   'runbook': 'Add the missing procedure(s) to the runbook (RUNBOOK.md, docs/RUNBOOK.md, or a README/doc "Runbook"/"Operations" section) — a heading or paragraph for restart, roll back, rotate a key/secret/credential, and restore from backup. Re-run repo-census and confirm it reads pass. (This decides presence only; run each procedure once and record that separately.)',
   'ci-gate': 'Add or fix a workflow that triggers on pull_request or merge_group (or push to the default branch) and runs a test/check/lint/typecheck/build step, directly or through a declared package script, with no `continue-on-error: true` on that step or its job. Re-run repo-census and confirm it reads pass.',
-  ...Object.fromEntries(RC_EVIDENCE_IDS.map((id) => [`evidence-${id}`,
+  'expectation-declared': 'Declare the expectation for the job or effect cited: a signal declaration naming what it watches, what is expected (runs every N, at least one result, succeeds, under a threshold), the evidence that shows it, and the runbook step (yardstick/README.md "Operability interfaces"). Re-run repo-census and confirm it reads pass.',
+  'health-report': 'Have the health report state, for every declared signal, when it last held, what it last counted and since when, in a schema the tree carries (yardstick/README.md "Operability interfaces"). Re-run repo-census and confirm it reads pass.',
+  'routing-policy': 'Write the routing policy as data: every declared signal at record, digest or notify, each with a destination role and a budget, starting at record and promoting a signal only after it has been seen quiet and accurate. Re-run repo-census and confirm it reads pass.',
+  ...Object.fromEntries([...RC_EVIDENCE_IDS, ...RC_RETIRED_CHECKS.map((c) => c.replace(/^evidence-/, ''))].map((id) => [`evidence-${id}`,
     `Run the procedure; a person or CI writes this file from its real output — an agent must never write it. The resulting transcript at ops/evidence/${id}.md (or docs/evidence/${id}.md) needs the required frontmatter keys (owner/evidence/README.md), a body with a fenced code block and at least 5 non-empty lines, a commit that resolves in the checkout's history, and a date inside the freshness window. Re-run repo-census and confirm it reads pass.`])),
 };
 const COVERAGE_STATUS = ['scanned', 'partial', 'not-scanned', 'not-applicable'];

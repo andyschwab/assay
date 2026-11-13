@@ -22,7 +22,7 @@ import { isMain } from '../map/doctrine.mjs';
 import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
 import { loadFindings, loadManifest } from '../map/project.mjs';
 import { legacyIn } from '../map/migrate-run.mjs';
-import { loadYardstick, projectRun } from '../yardstick/measure.mjs';
+import { loadYardstick, projectRun, retiredOf } from '../yardstick/measure.mjs';
 import { loadYardstickDoc } from '../yardstick/ratchet.mjs';
 import { compare, compareFindings } from '../yardstick/compare.mjs';
 import { viewPath, sincePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
@@ -40,9 +40,13 @@ import { mdText, mdCode } from '../lib/display.mjs';
 // previousToday: one map, two engines, so every row there is the engine's change. The
 // yardstick-only list (a requirement on one side only) is the same pair: retired since
 // (previous) or added since (current).
+// A requirement the yardstick retired (requirements.yaml retired:) is read apart: a row of the
+// previous run's stored measurement that today's yardstick no longer carries is listed under
+// retired, with its successor and why, never as yardstick-only and never dropped.
 function buildSince(previousDoc, currentDoc, reg, previousToday = previousDoc) {
-  const { rows, previousVersion, currentVersion, versionChanged } = compare(previousToday, currentDoc);
-  const ruled = compare(previousDoc, previousToday).rows;
+  const retiredIds = retiredOf(reg);
+  const { rows, previousVersion, currentVersion, versionChanged } = compare(previousToday, currentDoc, { retired: retiredIds });
+  const ruled = compare(previousDoc, previousToday, { retired: retiredIds }).rows;
   const byId = new Map(rows.map((r) => [r.id, r]));
   const ruledById = new Map(ruled.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));
@@ -68,7 +72,10 @@ function buildSince(previousDoc, currentDoc, reg, previousToday = previousDoc) {
     const side = r.side === 'previous' ? r.previous : r.current;
     return { id: r.id, side: r.side, title: (d && d.title) || r.id, status: side.status, basis: side.basis };
   });
-  return { previousVersion: previousDoc.version ?? previousVersion, currentVersion, versionChanged: versionChanged || String(previousDoc.version) !== String(currentVersion), regressed, improved, newly_measured, no_longer_measured, re_ruled, yardstick_only };
+  const retiredSeen = new Set();
+  const retired = [...ruled, ...rows].filter((r) => r.classification === 'retired' && !retiredSeen.has(r.id) && retiredSeen.add(r.id))
+    .map((r) => ({ id: r.id, successor: r.successor, why: retiredIds.get(r.id)?.why ?? '', status: r.previous.status, basis: r.previous.basis }));
+  return { previousVersion: previousDoc.version ?? previousVersion, currentVersion, versionChanged: versionChanged || String(previousDoc.version) !== String(currentVersion), regressed, improved, newly_measured, no_longer_measured, re_ruled, yardstick_only, retired };
 }
 
 // splitFindings(delta, previousManifest, currentManifest) — the findings delta apart from
@@ -111,7 +118,10 @@ function findingRowYaml(f) {
 }
 
 // a caller with no re-measurement or roster split (one engine, one roster) passes neither list
-const withDefaults = (since, findingsDelta) => [{ re_ruled: [], ...since }, { not_run_before: [], not_run_now: [], ...findingsDelta }];
+const withDefaults = (since, findingsDelta) => [{ re_ruled: [], retired: [], ...since }, { not_run_before: [], not_run_now: [], ...findingsDelta }];
+function retiredRowYaml(r) {
+  return [`  - id: ${r.id}`, `    successor: ${r.successor}`, `    why: ${q(r.why)}`, `    status: ${r.status}`, `    basis: ${r.basis || 'run'}`].join('\n');
+}
 
 export function toYaml(runId, previousId, since, findingsDelta, engines = { previous: '', current: '' }) {
   [since, findingsDelta] = withDefaults(since, findingsDelta);
@@ -122,13 +132,14 @@ export function toYaml(runId, previousId, since, findingsDelta, engines = { prev
     `engine: ${q(engines.current)}`, `previous_engine: ${q(engines.previous)}`, 'counts:',
     `  regressed: ${since.regressed.length}`, `  improved: ${since.improved.length}`,
     `  newly_measured: ${since.newly_measured.length}`, `  no_longer_measured: ${since.no_longer_measured.length}`,
-    `  re_ruled: ${since.re_ruled.length}`, `  yardstick_only: ${since.yardstick_only.length}`,
+    `  re_ruled: ${since.re_ruled.length}`, `  yardstick_only: ${since.yardstick_only.length}`, `  retired: ${since.retired.length}`,
     `  findings_new: ${findingsDelta.new.length}`, `  findings_no_longer_found: ${findingsDelta.no_longer_found.length}`,
     `  findings_not_run_before: ${findingsDelta.not_run_before.length}`, `  findings_not_run_now: ${findingsDelta.not_run_now.length}`];
   for (const [key, list] of [['regressed', since.regressed], ['improved', since.improved], ['newly_measured', since.newly_measured], ['no_longer_measured', since.no_longer_measured], ['re_ruled', since.re_ruled]]) {
     L.push(`${key}:`); for (const r of list) L.push(reqRowYaml(r));
   }
   L.push('yardstick_only:'); for (const r of since.yardstick_only) L.push(yardstickOnlyRowYaml(r));
+  L.push('retired:'); for (const r of since.retired) L.push(retiredRowYaml(r));
   L.push('findings:');
   for (const key of ['new', 'no_longer_found', 'not_run_before', 'not_run_now']) { L.push(`  ${key}:`); for (const f of findingsDelta[key]) L.push(findingRowYaml(f)); }
   return L.join('\n') + '\n';
@@ -179,6 +190,13 @@ export function renderMd(runId, previousId, since, findingsDelta, confidential =
     out.push('## Yardstick changed', '');
     out.push('_A requirement present on only one side — the yardstick itself was edited between runs._', '');
     for (const r of since.yardstick_only) out.push(`- **${r.id}** _(${r.side} only)_ — ${r.title}: ${r.status}.`);
+    out.push('');
+  }
+
+  if (since.retired.length) {
+    out.push('## Retired requirements', '');
+    out.push('_A requirement the previous run measured that the yardstick has since retired, and the requirement that measures in its place._', '');
+    for (const r of since.retired) out.push(`- **${r.id}** — retired; read **${r.successor}** in its place (${r.why}). The previous run read it ${r.status}.`);
     out.push('');
   }
 

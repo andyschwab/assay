@@ -4,9 +4,11 @@
 # service or data store (at the root and every location map/projects.mjs finds), a
 # present-tense agent contract (AGENTS.md/CLAUDE.md, the same locations), a runbook covering restart /
 # roll back / rotate / restore, a CI workflow that gates on pull_request, merge_group or push
-# to the default branch without a step that fails open, and six owner-evidence
+# to the default branch without a step that fails open, five owner-evidence
 # transcript checks (format at
-# owner/evidence/README.md) for what a repository cannot show by itself.
+# owner/evidence/README.md) for what a repository cannot show by itself, and three
+# operability checks (#311) over the application's signal declarations, health report
+# schema and routing policy, read through the format reader named under `signals:`.
 # map/ingest.mjs (profile repo-census) turns each `gap` check into one gap row
 # and each `pass` check into one strength row (so the axis sees the evidence, not
 # just the absence of a gap); a `not-applicable` check (an evidence check over a
@@ -17,13 +19,13 @@
 # live on (d-architecture-page, d-agent-contract, d-runbook -> artifact-legibility);
 # ci-gate feeds the shared verification-gate axis (d-ci-gate-on-default-branch ->
 # deterministic-gates, the same axis fresh-clone's lint/typecheck/test rows land
-# on). The six evidence categories follow the axis the yardstick now homes each
+# on). The evidence categories follow the axis the yardstick now homes each
 # re-kinded row on (yardstick/requirements.yaml); the adapter follows the yardstick,
 # never the reverse — see the per-row comments below for which register row's axis
 # each one carries and, where the yardstick row itself carries no axis, which
 # nearest tier-mate's axis it was assigned (yardstick/requirements.yaml never edited
 # to match). Keyed by the check name (the runner's closed set); a category this map
-# does not know halts loud. The six evidence categories are `evidence-<descriptor-id>`.
+# does not know halts loud. The evidence categories are `evidence-<descriptor-id>`.
 scanner: repo-census
 targets_taxonomy: 3
 role: instrument
@@ -31,6 +33,21 @@ role: instrument
 fails_loud: repo-census
 
 contributes: []
+
+# Every check the census runs writes a row: a pass, a gap, or a fact (not applicable, not
+# measured), and its checks are the categories map: names below. So one of them decided with
+# no row in a run means the census that drew the run
+# never ran that check (an earlier version, before the check existed), and the yardstick reads
+# it not measured, never "ran clean" (yardstick/measure.mjs categoryVerdict, #311).
+row_per_check: true
+
+# The format reader for the three operability interfaces (yardstick/README.md
+# "Operability interfaces", map/scanners/CONTRACT.md §3d): a module beside this file
+# exporting readSignals(dir) and FORMAT. It is the replaceable part: an application
+# whose declarations take another format is read by another reader with the same
+# return shape, and the census itself names no format.
+signals:
+  reader: repo-census/signals.mjs
 
 map:
   architecture-page:            # legibility: one page shows the parts and services
@@ -43,7 +60,23 @@ map:
     axis: deterministic-gates
   ci-gate-unverifiable:          # a FACT row: a gate's `set +e` reads the status, but where it goes the
     axis: deterministic-gates    #   census cannot follow (#166); decides d-ci-gate-on-default-branch not-measured
-  # The six owner-evidence checks decide requirements whose topic is operability or
+  # The three operability checks (#311) decide d-expectations-declared, d-health-reported
+  # and d-routing-proportionate, whose topic is operability; their rows land on the
+  # verification axis, where proof that an effect happened already lives.
+  expectation-declared:
+    axis: verification
+  health-report:
+    axis: verification
+  routing-policy:
+    axis: verification
+  # FACT rows (never a gap or strength): nothing to declare, report or route
+  expectation-declared-not-applicable:
+    axis: verification
+  health-report-not-applicable:
+    axis: verification
+  routing-policy-not-applicable:
+    axis: verification
+  # The owner-evidence checks decide requirements whose topic is operability or
   # reproducibility, which no axis measures; their rows land on the nearest axis so the
   # axis walk shows them, and the yardstick reports them under their own topic.
   evidence-d-backup-restore-exercised:
@@ -54,6 +87,10 @@ map:
     axis: code-security
   evidence-d-smoke-on-deployed:
     axis: deterministic-gates
+  evidence-d-health-reported:
+    axis: verification
+  # retired with their requirements (#311, yardstick/requirements.yaml retired:): no
+  # current census writes them, and a stored run that carries them still projects
   evidence-d-monitoring-with-alert:
     axis: verification
   evidence-d-cost-alerts:
@@ -69,9 +106,11 @@ map:
     axis: code-security
   evidence-d-smoke-on-deployed-unverifiable:
     axis: deterministic-gates
-  evidence-d-monitoring-with-alert-unverifiable:
+  evidence-d-health-reported-unverifiable:
     axis: verification
-  evidence-d-cost-alerts-unverifiable:
+  evidence-d-monitoring-with-alert-unverifiable:   # retired, as above
+    axis: verification
+  evidence-d-cost-alerts-unverifiable:             # retired, as above
     axis: artifact-legibility
   # a FACT row (never a gap or strength): no deployment signal anywhere in the tree
   # (map/scanners/CONTRACT.md §3d) — decides the matching requirement above
@@ -84,9 +123,11 @@ map:
     axis: code-security
   evidence-d-smoke-on-deployed-not-applicable:
     axis: deterministic-gates
-  evidence-d-monitoring-with-alert-not-applicable:
+  evidence-d-health-reported-not-applicable:
     axis: verification
-  evidence-d-cost-alerts-not-applicable:
+  evidence-d-monitoring-with-alert-not-applicable:   # retired, as above
+    axis: verification
+  evidence-d-cost-alerts-not-applicable:             # retired, as above
     axis: artifact-legibility
 
 default: FAIL

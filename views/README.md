@@ -253,8 +253,10 @@ three measurements, every one of them the yardstick's
 The moves (regressed, improved, newly and no longer measured) are the second
 against the third: the repository's change, on one engine. `re_ruled` is the
 first against the second: one map, two engines, so every row there is the
-engine's change, never the repository's. A requirement the yardstick added or
-retired between the engines is `yardstick_only`. The findings are split by the
+engine's change, never the repository's. A requirement the yardstick added
+between the engines is `yardstick_only`; one it retired (`requirements.yaml`
+`retired:`, `yardstick/README.md` "A retired requirement") is `retired`, naming its
+successor and why, and the page lists it under "Retired requirements". The findings are split by the
 run records (`map/scanners.yaml`) the same way: a finding from a scanner that did
 not run in the previous run is `not_run_before`, never new; one whose scanner did
 not run in this run is `not_run_now`, never no longer found. Only a scanner that
@@ -269,7 +271,7 @@ previous_yardstick: <the previous run's version>
 yardstick_version_changed: true | false
 engine: <this run's engine, from map/scanners.yaml>
 previous_engine: <the previous run's engine>
-counts: { regressed: N, improved: N, newly_measured: N, no_longer_measured: N, re_ruled: N, yardstick_only: N, findings_new: N, findings_no_longer_found: N, findings_not_run_before: N, findings_not_run_now: N }
+counts: { regressed: N, improved: N, newly_measured: N, no_longer_measured: N, re_ruled: N, yardstick_only: N, retired: N, findings_new: N, findings_no_longer_found: N, findings_not_run_before: N, findings_not_run_now: N }
 regressed:            # met/mixed -> worse, or dropped to not-measured/not-applicable
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis, findings: [F-…]}, note }
 improved:              # rank went up (unmet -> mixed -> met)
@@ -286,6 +288,8 @@ re_ruled:              # the previous map's stored status (previous) against tod
   - { id, tier, topic, title, previous: {status, basis}, current: {status, basis}, note }
 yardstick_only:        # the id exists on only one side — the yardstick itself was edited
   - { id, side: previous | current, title, status, basis }
+retired:               # the previous run measured it; the yardstick has since retired it
+  - { id, successor, why, status, basis }   # status: what the previous run read
 findings:
   new:                 # matched by fingerprint against the previous run's base; not matched there
     - { fingerprint, id, source, dimension, native_category, evidence: […], observation }

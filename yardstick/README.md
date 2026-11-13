@@ -39,11 +39,11 @@ lockfile went unaudited read met. The four fresh-clone rows read not-measured on
 their steps' `<step>-not-run` facts (`test-not-run`, `lint-not-run`, …), which
 fresh-clone records for a step it skipped because the install did not pass: a
 step that never ran is not a clean one, and before that fact existed a
-repository whose install failed read met on tests, lint and typecheck. The six
+repository whose install failed read met on tests, lint and typecheck. The five
 `repo-census` owner-evidence rows read not-applicable on their
 `evidence-<id>-not-applicable` facts, which the census records when it finds no
 deployment signal anywhere in the tree: before that fact existed a library or a
-command-line tool read six unmet rows asking it to prove a restore, a rollback
+command-line tool read unmet rows asking it to prove a restore, a rollback
 and an alert for something it never deploys. A `claim`-kind row's own state can independently be `not-applicable`
 (the owner is the only decider a claim row ever has, same as `satisfied`): see
 below.
@@ -108,7 +108,7 @@ record does not produce as drift.
 |---|---|---|
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below) | met or unmet with the population, a met effect row citing the effect findings it read; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
 | `census` | an enumerated population in the run's `map/censuses.yaml`, by measure name, read off the finding ids its `members:` lists (below) | met only when every member is a strength, citing them; unmet on a gap (mixed when a strength sits beside it, except on a `safety` row); mixed when a member carries no verdict; with `met of N`; not-measured when no census of that name ran. A census with no `members:` never reads met |
-| `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
+| `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file; for an instrument whose adapter carries `row_per_check: true` (it writes a row for every check it runs, its checks the categories its `map:` names), such a category decided with no row reads not-measured, the check never run by the version that drew the run (#311) | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). A claim row with a `decide.context` also carries the findings the run listed on its population as `context:`, never as `findings:` (below). The claim rows a packet never speaks to are the list of instruments still to build |
 
 **A facet or census row's check names its population and its question** (#261, M3 of #257).
@@ -180,9 +180,10 @@ are the boundaries #257 named:
   second account of one fact is `d-one-home-per-fact`'s population, a claim row that takes it as
   context, never as a decision (below).
 - **Spend.** No row takes a per-run or per-process ceiling enforced before a paid call (the
-  paid-spend-capped candidate). `d-cost-alerts` covers an alert on the bill after the spend, and
-  only the repo census's owner-evidence transcript decides it. Whether a model call site records
-  its spend is `d-model-call-telemetry`'s, a census row (below).
+  paid-spend-capped candidate). An alert on the bill after the spend is a declared cost signal
+  (#311): its threshold is its expectation and its route says who reads it, and only the repo
+  census's rows decide the operability rows that read it (below). Whether a model call site
+  records its spend is `d-model-call-telemetry`'s, a census row (below).
 - **The multiplayer principals.** `d-agent-consumable-surface` takes an `interface` (can an agent
   use it through a contract stated outside the code?). Whether the server checks who is asking
   (`d-routes-authorized`) and whose data a request reaches (`d-tenant-isolation-in-data-layer`)
@@ -384,12 +385,13 @@ The instruments that decide rows:
   is no dependency graph to speak of.
 - `repo-census` (`map/repo-census.mjs`, contract §3d), from the tree alone: an
   architecture page, a present-tense agent contract, a runbook, a CI gate on the
-  default branch, and six **owner-evidence transcripts** for what a repository
+  default branch, five **owner-evidence transcripts** for what a repository
   cannot show by itself (a restore, a rollback, a one-command deploy, a smoke
-  check on the deployed app, a monitor that alerted a person, cost alerts). The
-  transcript format is `owner/evidence/README.md`. A tree with no deployment
-  signal anywhere (contract §3d) reads the six transcript rows
-  **not-applicable** — nothing is deployed to prove — never met.
+  check on the deployed app, a read of the live health report), and the three
+  **operability interfaces** below. The transcript format is
+  `owner/evidence/README.md`. A tree with no deployment signal anywhere (contract
+  §3d) reads the five transcript rows **not-applicable** — nothing is deployed to
+  prove — never met.
 - `structure-scan` (`map/structure-scan.mjs`, contract §3e): how the code is built
   to be changed, on the `code-maintainability` topic. It decides
   `d-no-drifting-duplicates` (`duplicate`: no clone pair of 50 tokens or more,
@@ -409,6 +411,80 @@ The instruments that decide rows:
   not-measured unless a stale file is found); a tree with no `package.json`
   reads `d-no-dead-code` **not-applicable** on `unused-not-applicable`, unless a
   stale file is found. `d-one-home-per-fact` keeps the docs half as a claim.
+
+## Operability interfaces
+
+The operability rows measure whether an application **declares its signals, reports
+their state and routes them by a stated, proportionate policy**, never whether
+alerts exist (#311). Most of what breaks quietly is an absence: a scheduled job that
+never started, a sync that ran and touched nothing, a delivery that sent nothing. An
+error sink does not see an absence, and a tested alert route says nothing about
+whether the expectation behind it is right. An ideal set of alerts turned on at once
+floods its readers until they mute it, so delivery is earned in stages: every signal
+starts recorded, and is promoted to a digest or a notice only after it was seen quiet
+and accurate.
+
+Three interfaces, stated by property. An application satisfies them in any format;
+the repo census reads one format through the reader its adapter names, the
+replaceable part (`map/scanners/CONTRACT.md` §3d), and the rows name no file, platform
+or tool.
+
+- **A signal declaration**, one per signal: its **name**; what it **watches** (a
+  scheduled job, an external effect, or a cost account); its **expectation**, what is
+  expected to hold (runs every N, at least one result, succeeds, under a threshold); its
+  **evidence source**, where its state is read; and its **runbook anchor**, the step to
+  take when it does not hold.
+- **A health report**, machine-readable: for each declared signal its **state**, when it
+  last held, what it last counted, and since when it has been in its present state. The
+  tree carries the report's schema; whether the report is live is the owner's transcript.
+- **A routing policy**, kept as data and trivially changed: each declared signal to a
+  **class** (record, digest or notify), a **destination role**, and a **budget** (how
+  often at most). Who reads which signal, and whether anyone is told at once, is policy,
+  set in that data and never in code, and never what assay demands; assay measures that
+  it is stated and proportionate.
+
+The three rows:
+
+- `d-expectations-declared`: every scheduled job the census finds and every effect
+  finding in the run's triaged effect inventory has a complete declaration. A job with
+  none is a gap citing the job, so an application with no declaration reads unmet over
+  its jobs, never not measured. The effect half (`decide.effects: declared`) is read by
+  `measure.mjs` over the effect findings the triage names for a candidate: an effect is
+  declared when a complete declaration watches a file the finding cites. With no job,
+  the row reads over the effects alone; it reads not measured while the run carries no
+  closed, triaged inventory, and not applicable only when there is no job and the
+  inventory holds no effect.
+- `d-health-reported`: the report's schema states every declared signal's state, and a
+  passing transcript (`ops/evidence/d-health-reported.md`) records a read of the live
+  report. Both must hold.
+- `d-routing-proportionate`: the policy classes every declared signal, each route with a
+  destination role and a budget. Judged, weighing whether the classes are proportionate:
+  the census reads the one edge the tree shows, a policy that notifies on every signal
+  is a gap, and whether a promotion to notify was earned is never inferred. A cost
+  account is a signal like any other, so cost alerts are this row's case, not a row of
+  their own: a separate row would measure, again, that an alert exists.
+
+## A retired requirement
+
+A requirement the yardstick no longer carries is **retired**, never deleted silently:
+`requirements.yaml`'s `retired:` lists each id with its `successor`, the live row that
+measures in its place, and `why`. `validateRetired`, run whenever the register loads,
+refuses a retired id that is still a row, one retired twice, a successor that is not a
+live row, and an entry with no why. A stored run, baseline or packet that names a retired id still reads:
+
+- `validate` passes a stored `yardstick.yaml` row carrying a retired id with a warning
+  naming its successor, and the successor's own row may be absent beside it (measured
+  before it existed); `node assay.mjs measure <run> --write` brings the file forward;
+- `compare` classes it `retired`, carrying `successor`, never `yardstick-only`;
+- Since lists it under `retired`, with successor and why (`views/README.md`);
+- the ratchet reports a baseline row on a retired id in `changed` as `retired →
+  <successor>`, never a failure and never held: the yardstick moved, not the
+  repository, and a steward rewrites the baseline;
+- a packet claim on a retired id is refused, naming the successor to restate it against.
+
+A census row an earlier engine wrote for a retired requirement stays mapped in its
+scanner's adapter, so a stored run still projects; the row is decided by no requirement.
+`tests/blocks/retired-requirement-ids.mjs` holds it.
 
 Prose is never read. An observation that mentions a topic is not a measurement.
 Census names are accepted as a list per requirement; a new run uses the first.
@@ -476,8 +552,9 @@ disagreement is pinned in plain sight, and any move is a reviewed re-bless.
 current)` over two documents shaped like `yardstick.yaml`
 (`{ version, requirements: [{ id, status, basis, findings, note }] }`), classifying
 every requirement id present on either side as `improved`, `regressed`,
-`unchanged`, `newly-measured`, `no-longer-measured`, or `yardstick-only` (present
-on only one side — the yardstick itself changed). The order `met > mixed > unmet`
+`unchanged`, `newly-measured`, `no-longer-measured`, `retired` (present on the
+previous side only, its id in `retired:`, carrying its `successor`; above), or
+`yardstick-only` (present on only one side — the yardstick itself changed). The order `met > mixed > unmet`
 is total; `not-measured` and `not-applicable` are both deliberately **off** that
 scale (neither is a better or worse verdict — one is "we don't know yet", the
 other "this was determined not to apply"), so a status leaving the ranked scale
@@ -553,7 +630,9 @@ requirements:                    # every requirement id, its status and basis AT
 `yardstick.yaml` as `current`, then fails (exit 1) when a requirement the
 baseline recorded `met` or `mixed` is now worse or `no-longer-measured`, or when
 a baseline requirement is absent from the current measurement entirely (the
-yardstick itself dropped or renamed it — nothing there to hold any more). A
+yardstick itself dropped or renamed it — nothing there to hold any more), unless
+the yardstick retired it: a retired id is reported, naming its successor, never a
+failure (above, "A retired requirement"). A
 baseline row recorded `unmet` or `not-measured` never fails the ratchet — there
 is nothing held to lose. `not-applicable` is never a failure either direction: a
 baseline row that **was** `not-applicable` never fails regardless of what it

@@ -16,7 +16,11 @@
 //                          and NEVER "improved": a status leaving the measured scale
 //                          is not progress, it is a loss of information.
 //   yardstick-only      | the id exists on only one side (the yardstick itself
-//                          changed — a requirement was added, renamed or retired)
+//                          changed — a requirement was added, or one side's yardstick
+//                          is not this one's)
+//   retired             | the id exists on the previous side only, and the yardstick
+//                          retired it (requirements.yaml retired:): the row carries
+//                          `successor`, the requirement that measures in its place
 //
 // The ordering met > mixed > unmet is TOTAL; not-measured sits OFF that scale by
 // construction — comparing it as a fourth rung would let "we stopped measuring
@@ -35,7 +39,7 @@
 // previous run and findings no longer found — never "fixed": absence of a
 // finding is absence of re-detection, not proof the underlying fact is gone.
 import { readFileSync } from 'node:fs';
-import { STATUSES } from './measure.mjs';
+import { STATUSES, loadYardstick, retiredOf } from './measure.mjs';
 import { DESCRIPTOR_FIELDS } from '../map/variance.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -78,12 +82,15 @@ const rowView = (r) => r ? { status: r.status, basis: r.basis || 'run', findings
 // by id. Every row present on both sides carries `classification` from `classify`
 // above; a row present on only one side carries `classification: 'yardstick-only'`
 // and `side: 'previous' | 'current'` naming which one has it.
-export function compare(previous, current) {
+// `retired` (optional): id → { successor } (measure.mjs retiredOf); a previous-only row whose
+// id it names reads `retired`, with its successor, never `yardstick-only`.
+export function compare(previous, current, { retired = new Map() } = {}) {
   const prevById = new Map((previous?.requirements || []).map((r) => [r.id, r]));
   const currById = new Map((current?.requirements || []).map((r) => [r.id, r]));
   const ids = [...new Set([...prevById.keys(), ...currById.keys()])].sort();
   const rows = ids.map((id) => {
     const p = prevById.get(id), c = currById.get(id);
+    if (p && !c && retired.has(id)) return { id, classification: 'retired', side: 'previous', successor: retired.get(id).successor, previous: rowView(p), current: null };
     if (!p || !c) return { id, classification: 'yardstick-only', side: p ? 'previous' : 'current', previous: rowView(p), current: rowView(c) };
     return { id, classification: classify(p.status, c.status), previous: rowView(p), current: rowView(c) };
   });
@@ -204,14 +211,15 @@ if (isMain(import.meta.url)) {
       if (!doc || !Array.isArray(doc.requirements)) throw new Error(`${f}: not a measurement (no requirements list)`);
       return doc;
     });
-    result = compare(previous, current);
+    result = compare(previous, current, { retired: retiredOf(loadYardstick()) });
   } catch (e) { console.error(`✗ compare: ${e.message}`); process.exit(2); }
   if (args.includes('--json')) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`yardstick ${result.previousVersion ?? '(none)'} → ${result.currentVersion ?? '(none)'}${result.versionChanged ? ' (the yardstick changed between them)' : ''}`);
     const by = new Map();
     for (const r of result.rows) { if (!by.has(r.classification)) by.set(r.classification, []); by.get(r.classification).push(r.id); }
-    for (const c of ['regressed', 'no-longer-measured', 'improved', 'newly-measured', 'yardstick-only', 'unchanged'])
-      if (by.has(c)) console.log(`  ${c} (${by.get(c).length}): ${by.get(c).join(', ')}`);
+    const succ = new Map(result.rows.filter((r) => r.successor).map((r) => [r.id, r.successor]));
+    for (const c of ['regressed', 'no-longer-measured', 'improved', 'newly-measured', 'retired', 'yardstick-only', 'unchanged'])
+      if (by.has(c)) console.log(`  ${c} (${by.get(c).length}): ${by.get(c).map((id) => succ.has(id) ? `${id} → ${succ.get(id)}` : id).join(', ')}`);
   }
 }

@@ -1,9 +1,11 @@
-// ── repo-census: no deployment signal → the six operating rows read not-applicable ──
+// ── repo-census: no deployment signal → the five operating rows read not-applicable ──
 // (issue #19) A tree with nothing deployed (a library, a command-line tool) has no
-// backup to restore, no deploy to roll back, nothing to smoke-test, monitor or bill:
+// backup to restore, no deploy to roll back, nothing to smoke-test and no live health
+// report to read (#311 re-pinned the six rows to five: d-monitoring-with-alert and
+// d-cost-alerts were retired, d-health-reported's transcript took their place):
 // the census records that it looked for a deployment signal anywhere in the tree and
 // found none, each evidence check reads not-applicable (never pass), ingest files a
-// fact row per check, and the yardstick reads the six rows not-applicable — never met,
+// fact row per check, and the yardstick reads the five rows not-applicable — never met,
 // the d-schema-versioned shape. Conservative: any one signal (a container file, a
 // hosting config, infrastructure-as-code or a service manifest, a deploy workflow, a
 // server entry point or framework dependency, an owner evidence directory, a packet
@@ -19,7 +21,7 @@ export const label = 'repo-census-no-deployment';
 
 export async function run() {
   const fail = (m) => negFailures.push('repo-census-no-deployment: ' + m);
-  const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
+  const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-health-reported'];
   const tmp = join(HERE, 'tmp-repo-census-no-deploy');
   // a pure library: no I/O, a test-only CI gate, nothing deployed
   const library = () => {
@@ -69,11 +71,14 @@ export async function run() {
     for (const id of EVIDENCE_IDS) {
       if (m[id]?.status !== 'not-applicable' || !/no deployment signal/i.test(m[id].note || '')) fail(`${id} must read not-applicable from a census that found no deployment signal (got ${m[id]?.status}/${m[id]?.note})`);
     }
-    // and the converter's old silence would have read met: a not-applicable check that leaves no row is the bug this pins
+    // and the converter's old silence: a not-applicable check that leaves no row once read met.
+    // Since #311 the census's adapter says it writes a row for every check it runs
+    // (row_per_check), so silence reads not measured, never met; the fact row is still what
+    // makes it not-applicable
     const silent = Object.fromEntries(measureRun({ findings: rows.filter((r) => !/-not-applicable$/.test(r.native_category)), manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
-    if (silent['d-cost-alerts']?.status !== 'met') fail('control: with the fact row dropped the row reads met — the fact row is what keeps it not-applicable');
+    if (silent['d-smoke-on-deployed']?.status !== 'not-measured') fail(`control: with the fact row dropped the row reads not measured, never met — the fact row is what makes it not-applicable (got ${silent['d-smoke-on-deployed']?.status})`);
   }
-  // conservative: each deployment signal on its own keeps all six measured, and absent transcripts gap
+  // conservative: each deployment signal on its own keeps all five measured, and absent transcripts gap
   const SIGNALS = [
     ['a deploy workflow', () => writeFileSync(join(tmp, '.github', 'workflows', 'release.yml'), 'on:\n  push:\n    branches: [main]\njobs:\n  ship:\n    runs-on: ubuntu-latest\n    steps:\n      - run: ./scripts/deploy.sh\n'), '.github/workflows/release.yml'],
     ['a Dockerfile', () => writeFileSync(join(tmp, 'Dockerfile'), 'FROM node:20\n'), 'Dockerfile'],

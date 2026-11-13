@@ -173,9 +173,7 @@ requirements:
   - id: d-smoke-on-deployed
     status: unmet
     reason: "R-I7: no transcript, with the same deployment signal."
-  - id: d-monitoring-with-alert
-    status: unmet
-    reason: "R-I8: no transcript, with the same deployment signal."
-  - id: d-cost-alerts
-    status: unmet
-    reason: "R-I9: no transcript, with the same deployment signal."
+  # R-I8 and R-I9 answered d-monitoring-with-alert and d-cost-alerts, which #311 retired
+  # (yardstick/requirements.yaml retired:). Their census rows stay in this stored map and in
+  # recall above; the successors read not measured here, since the census that drew this run
+  # predates their checks, and a sheet answers what the target is, never a scope gap.

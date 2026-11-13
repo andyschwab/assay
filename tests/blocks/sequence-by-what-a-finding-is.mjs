@@ -56,8 +56,10 @@ export function writeRankFixture(dir) {
   writeFileSync(join(dir, 'map', 'findings', 'repo-census.yaml'), [
     F({ id: 'F-1100', source: 'repo-census', native_id: 'architecture-page@root', native_category: 'architecture-page', polarity: 'gap', severity: 'Medium',
       observation: 'No architecture page found.', evidence: '[./:1]', fix: 'Add a page that names every external service and data store.' }),
-    F({ id: 'F-1101', source: 'repo-census', native_id: 'evidence-d-monitoring-with-alert@root', native_category: 'evidence-d-monitoring-with-alert', polarity: 'gap', severity: 'Medium',
-      observation: 'No evidence transcript for monitoring with a tested alert route.', evidence: '[./:1]', fix: 'Record the transcript of the alert route being tested.' }),
+    // #311 retired d-monitoring-with-alert, whose census row this was; the operability row is
+    // now the read of the live health report, decided the same way, so the rank is unchanged
+    F({ id: 'F-1101', source: 'repo-census', native_id: 'evidence-d-health-reported@root', native_category: 'evidence-d-health-reported', polarity: 'gap', severity: 'Medium',
+      observation: 'No evidence transcript for a read of the live health report.', evidence: '[./:1]', fix: 'Record the transcript of the live health report being read.' }),
   ].join('\n'));
 }
 
@@ -101,7 +103,7 @@ export async function run() {
   mkdirSync(join(tmp, 'views', 'improve'), { recursive: true });
   writeFileSync(join(tmp, 'views', 'improve', 'prose.yaml'), [
     'target: "rank fixture"', 'exec_summary: "test"', 'roadmap:',
-    '  - slug: record-the-alert-test', '    title: "Record the alert route test"', '    body: "x"', '    findings: [F-1101]',
+    '  - slug: record-the-health-read', '    title: "Record a read of the live health report"', '    body: "x"', '    findings: [F-1101]',
     '  - slug: halt-the-sync', '    title: "Halt the backup sync"', '    body: "x"', '    findings: [F-053]', '',
   ].join('\n'));
   const h2 = handoff();

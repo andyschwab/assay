@@ -4,10 +4,10 @@ title: "owner/evidence/ — the owner-evidence transcript format"
 ---
 # owner/evidence/ — the owner-evidence transcript format
 
-Six floor rows describe things a repository cannot show by itself: a backup was
+Five floor rows describe things a repository cannot show by itself: a backup was
 restored, a rollback ran, a deploy came up as the committed sha, a smoke check hit
-the deployed app, a monitoring alert fired and was received, and cost alerts are
-named per metered account. Nothing in a checkout can prove any of that — so a
+the deployed app, and the live health report was read and stated each signal's
+state. Nothing in a checkout can prove any of that — so a
 CI job writes a dated transcript from the procedure's real output, or a person
 who ran the procedure commits one themselves (never an agent — see below), and
 `map/repo-census.mjs` (`CONTRACT.md` §3d) checks its **shape, freshness, and
@@ -28,9 +28,10 @@ ops/evidence/<descriptor-id>.md
 ```
 
 `docs/evidence/<descriptor-id>.md` is also accepted; `ops/` wins when both exist.
-The six ids: `d-backup-restore-exercised`, `d-rollback-exercised`,
-`d-deploy-one-command`, `d-smoke-on-deployed`, `d-monitoring-with-alert`,
-`d-cost-alerts`.
+The five ids: `d-backup-restore-exercised`, `d-rollback-exercised`,
+`d-deploy-one-command`, `d-smoke-on-deployed`, `d-health-reported`. (#311 retired
+`d-monitoring-with-alert` and `d-cost-alerts`: a transcript under either name is
+read by no requirement; `yardstick/README.md`, "A retired requirement".)
 
 ## Evidence comes from running the procedure
 
@@ -38,7 +39,7 @@ A transcript is the record of a real procedure that really ran: **a CI job
 writes it from the procedure's own output**, or **a person who ran the
 procedure commits it themselves**. There is no third way. An agent — Claude,
 another model, a coding assistant — **never writes a transcript**, because an
-agent did not restore the backup, run the rollback, or watch the alert fire; it
+agent did not restore the backup, run the rollback, or read the live health report; it
 has nothing to attest to. `produced_by` (below) names which of the two real
 producers wrote this one, and `map/repo-census.mjs` checks what it can: the
 transcript's shape, freshness, and that its named commit actually resolves in
@@ -73,8 +74,7 @@ proven, not just that something ran:
 | `d-rollback-exercised` | `from`, `to`, `verified` | the versions or shas rolled back between; the check run afterward |
 | `d-deploy-one-command` | `command`, `deployed_sha` | the one command; the version the deployed app reports — this **must equal `commit`**, else a gap (what ran is not what is committed) |
 | `d-smoke-on-deployed` | `environment`, `check` | which environment; the command or URL exercised |
-| `d-monitoring-with-alert` | `monitor`, `alert_fired`, `alert_received` | the monitor; two ISO timestamps — `alert_received` must not precede `alert_fired` |
-| `d-cost-alerts` | `accounts` | a YAML list of at least one entry, each a string naming account, threshold, and recipient — `"anthropic: $500/month -> platform on-call"` — **quote every entry**; an unquoted `word: word` list item parses as a nested map, not a string |
+| `d-health-reported` | `report`, `signals` | where the live health report was read; a YAML list of at least one entry, each a string naming a signal and the state the report gave it — `"nightly-sync-ran: held, last success 2026-09-18T03:04Z, 812 rows"` — **quote every entry**; an unquoted `word: word` list item parses as a nested map, not a string. The report's schema in the tree is the census's own check (`health-report`); this transcript records that the live report was read |
 
 ## The body
 
@@ -101,7 +101,7 @@ procedure and committing a fresh transcript is the only way to keep the row
 complete and well-formed, its per-row keys are present and valid, `result:
 pass`, its `commit` resolves in the checkout's history, and the date is fresh.
 That is **all** it means. The tool has no way to confirm the backup was
-actually restored, the rollback actually ran, or the alert actually fired —
+actually restored, the rollback actually ran, or the live report actually said what it records —
 that rests entirely on the named person's or CI job's attestation, carried in
 version history (who or what committed the file, when, against what commit).
 A passing transcript is evidence a human — or a CI job acting on the
@@ -118,7 +118,7 @@ not-measured too, never met by a check that could not look.
 
 `d-backup-restore-exercised.md`, `d-rollback-exercised.md`,
 `d-deploy-one-command.md`, `d-smoke-on-deployed.md`,
-`d-monitoring-with-alert.md`, `d-cost-alerts.md` — one passing example per row,
+`d-health-reported.md` — one passing example per row,
 fictional values throughout. Copy one to `ops/evidence/<id>.md` in a target
 repository, replace every value, and re-run:
 

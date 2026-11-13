@@ -61,7 +61,7 @@ import { dirname } from 'node:path';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { yardstickPath, rawPath } from '../lib/run-layout.mjs';
 import { isMain } from '../map/doctrine.mjs';
-import { loadYardstick, STATUSES, loadContradictions } from './measure.mjs';
+import { loadYardstick, STATUSES, loadContradictions, retiredOf } from './measure.mjs';
 import { compare } from './compare.mjs';
 
 const BASIS = ['run', 'owner'];
@@ -154,15 +154,22 @@ export function loadYardstickDoc(dir) {
 // held-status check below (it is not met/mixed), so it can never fail regardless
 // of what it becomes now. Both directions land in `changed` — a real transition,
 // surfaced, not silently folded into "held" or "regressed".
-export function evaluateRatchet(baselineDoc, currentDoc, titleOf) {
+// `retired` (optional, measure.mjs retiredOf): a baseline row whose requirement the yardstick
+// retired is reported in `changed` as retired, naming its successor, never a failure and never
+// held: the yardstick, not the repository, moved, and a steward rewrites the baseline.
+export function evaluateRatchet(baselineDoc, currentDoc, titleOf, retired = new Map()) {
   const previous = { version: baselineDoc.yardstick, requirements: baselineDoc.requirements };
-  const { rows } = compare(previous, currentDoc);
+  const { rows } = compare(previous, currentDoc, { retired });
   const baselineBasis = new Map((baselineDoc.requirements || []).map((b) => [b.id, b.basis || 'run']));
   const failures = [];
   let held = 0;
   const improved = [];
   const changed = [];
   for (const r of rows) {
+    if (r.classification === 'retired') {
+      changed.push({ id: r.id, title: titleOf(r.id), before: r.previous.status, after: `retired → ${r.successor}` });
+      continue;
+    }
     if (r.classification === 'yardstick-only') {
       if (r.side === 'previous') {
         // a requirement the baseline held is not decided by this run's yardstick AT ALL
@@ -238,7 +245,8 @@ if (isMain(import.meta.url)) {
   try { reg = loadYardstick(); }
   catch (e) { console.error(`✗ ratchet: cannot load the yardstick register (${e.message})`); process.exit(2); }
   const titleById = new Map(reg.requirements.map((d) => [d.id, d.title]));
-  const titleOf = (id) => titleById.get(id) || id;
+  const retired = retiredOf(reg);
+  const titleOf = (id) => titleById.get(id) || (retired.has(id) ? `${id} (retired: ${retired.get(id).why})` : id);
 
   const baselineFile = flag('--baseline');
   const baselineRef = flag('--baseline-ref');
@@ -256,13 +264,13 @@ if (isMain(import.meta.url)) {
       try { baselineDoc = loadBaselineFromRef(repoFlag, baselineRef); }
       catch (e) { console.error(`✗ ratchet: ${baselineRef}:packet/baseline.yaml in ${repoFlag} is not a valid baseline (fails closed):\n${e.message}`); process.exit(2); }
     }
-    const { failures, held, improved, changed } = evaluateRatchet(baselineDoc, currentDoc, titleOf);
+    const { failures, held, improved, changed } = evaluateRatchet(baselineDoc, currentDoc, titleOf, retired);
     if (failures.length) {
       console.error(`✗ ratchet: ${failures.length} requirement(s) the baseline held are now worse:\n`);
       for (const f of failures) console.error(`  ✗ ${f}`);
       exitCode = 1;
     } else {
-      console.log(`✓ ratchet held: held ${held}, improved ${improved.length}, changed (not-applicable) ${changed.length}`);
+      console.log(`✓ ratchet held: held ${held}, improved ${improved.length}, changed (not-applicable or retired) ${changed.length}`);
       for (const r of improved) console.log(`  ↑ ${r.id} — ${r.title}: ${r.before} → ${r.after}`);
       // to/from not-applicable is never a failure — decided only from the map — but it IS a
       // change, so it is reported here rather than folded silently into "held".
