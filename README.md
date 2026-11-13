@@ -229,7 +229,8 @@ that misfiles a finding turns the suite red.
 Repeatability is three numbers. **Fact presence** asks whether every run recorded a
 fact about the same thing; **descriptor agreement** asks whether the runs judged
 it the same way (reversibility, gate type and the other finding descriptors the
-views compute from); **requirement agreement** asks whether the runs reached the
+views compute from), measured per listed effect candidate so how a run groups candidates
+into findings never reads as disagreement; **requirement agreement** asks whether the runs reached the
 same verdict on each requirement the yardstick decides from them, the layer a
 reader acts on. `node assay.mjs variance <run> <run> …` reports all three, with a
 direction for each descriptor divergence: all one way is consistent with the target

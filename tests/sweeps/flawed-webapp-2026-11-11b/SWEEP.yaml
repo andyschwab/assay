@@ -31,6 +31,7 @@ date: "2026-11-11"
 blind: true
 threshold:
   fact_presence: 100         # measured 7 of 7 union facts caught by all three (100%; 12 files, so the fact key folds most findings)
+  candidate_agreement: 100   # measured per listed candidate (#312): 1 of 1 (100%). Before → after: per channel 3 of 4 (75%) → per candidate 1 of 1 (100%). The one listed candidate (http write (js)) reads alike in every sweep; the divergent channel per channel is among the 4 effect findings no candidate maps to, counted apart; no scope disagreement
   descriptor_agreement: 75   # measured 3 of 4 shared effect channels identical on all six descriptors (75%)
   requirement_agreement: 83  # measured 10 of 12 decided requirements identical in all three (83%)
 sweeps: [sweep-1, sweep-2, sweep-3]

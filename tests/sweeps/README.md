@@ -28,10 +28,25 @@ date: "YYYY-MM-DD"
 blind: true | false        # true only for fresh contexts that never saw an answer sheet
 threshold:
   fact_presence: <0–100>         # % of union facts every sweep caught (measure 1)
-  descriptor_agreement: <0–100>  # % of shared effect channels with all six descriptors identical (measure 2)
+  candidate_agreement: <0–100>   # % of listed candidates every sweep maps whose six descriptors are identical (measure 2, primary)
+  descriptor_agreement: <0–100>  # % of shared effect channels with all six descriptors identical (measure 2, per channel; one release)
   requirement_agreement: <0–100> # % of requirements any sweep decides whose status is identical in every sweep (measure 3)
 sweeps: [sweep-1, sweep-2, …]    # at least two directory names inside the set
 ```
+
+**Which figure gates descriptors** (#312). Both keys gate, each its own figure. `candidate_agreement`
+is the primary one: a listed candidate (a member of the run's `map/raw/enumerate.json` effect
+population that its `map/effect-triage.yaml` maps to an effect finding) takes that finding's six
+descriptors, and every candidate all sweeps map is compared field by field, however each lane
+grouped candidates into findings. A candidate one sweep maps and another triages out of scope or
+leaves untriaged is a scope disagreement, and an effect finding no candidate maps to is counted by
+its slug; both are reported apart and never enter the figure. A set whose sweeps carry no candidate
+list compares no candidate, so its `candidate_agreement` is 0 (not measured, and a threshold above 0
+over it is a breach). `descriptor_agreement` keeps its meaning, the per-channel figure (a channel is
+the sorted set of candidates one finding covers, else the finding's slug, #298), and gates beside it
+for one release so the committed sets stay comparable; in the release after that, the key, the
+per-channel figure and its `descriptors` output are retired together, and `candidate_agreement`
+alone gates descriptors.
 
 Each sweep is an ordinary run: it validates (`node assay.mjs validate`), and its run
 record names the model of record per pass (`map/SCHEMA.md` §5a), which variance reads

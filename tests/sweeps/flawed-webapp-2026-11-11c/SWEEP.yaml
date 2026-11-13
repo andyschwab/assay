@@ -26,6 +26,7 @@ date: "2026-11-11"
 blind: true
 threshold:
   fact_presence: 88          # measured 7 of 8 union facts caught by all three (88%)
+  candidate_agreement: 0     # measured per listed candidate (#312): 0 of 1 (0%). Before → after: per channel 3 of 4 (75%) → per candidate 0 of 1 (0%). The one listed candidate (http write (js)) parts on reversibility (reversible / irreversible / reversible); the 3 identical channels per channel are among the 6 effect findings no candidate maps to, counted apart; no scope disagreement
   descriptor_agreement: 75   # measured 3 of 4 shared effect channels identical on all six descriptors (75%)
   requirement_agreement: 73  # measured 9 of 12 decided requirements identical in all three (75%). Re-blessed with #286 (M6): d-change-gates-fail-closed (unmet in all three) reads not measured, since this v0.8.0 enumeration lists no populations.changeGates; 8 of 11 agree (73%). d-credentials-enumerated still parts (mixed, unmet, met): enumerate listed no secrets on this target, so no list closes its two hardcoded credentials. With #286's rule for a member outside the candidate list, d-credentials-enumerated moves from mixed, unmet, met to unmet, unmet, not measured: its hardcoded credentials sit outside an empty list, their gaps still fail the row, and sweep-3's strengths decide nothing; it still parts, so the threshold holds
 sweeps: [sweep-1, sweep-2, sweep-3]

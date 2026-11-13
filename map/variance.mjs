@@ -41,6 +41,14 @@
 //      (31%). The figure the tree reproduces is a committed sweep set's (THE GATE below):
 //      the first blind set over this repository (tests/sweeps/assay-2026-10-01, three
 //      fresh contexts at c30912c) read 38% fact presence and 20% descriptor agreement.
+//      It is taken two ways (#312). PER LISTED CANDIDATE (candidateAgreement) is the primary
+//      figure: each member of a run's enumerated effect population that its triage maps to an
+//      effect finding takes that finding's descriptors, and a candidate every sweep maps is
+//      compared, however each lane grouped candidates into findings; scope disagreements and
+//      effect findings no candidate maps to are counted apart. PER CHANNEL (descriptorAgreement)
+//      is the figure it replaces, kept beside it for one release so committed sets stay
+//      comparable: a channel there is the sorted candidate set one finding covers, so lanes that
+//      group the same candidates differently read as channels each seen once.
 //
 //   3. REQUIREMENT AGREEMENT (requirementAgreement) — given the same findings bases, did
 //      every sweep reach the same verdict on each requirement? Each sweep is measured
@@ -57,9 +65,9 @@
 //
 // THE GATE. A committed SWEEP SET (tests/sweeps/<set>/SWEEP.yaml, tests/sweeps/README.md)
 // names its sweeps and the threshold each measure must reach; `--set` measures the set and
-// exits 1 when either measure is below its threshold (2 when the set is malformed), so a
+// exits 1 when any measure is below its threshold (2 when the set is malformed), so a
 // repeatability claim is a number the tree reproduces and the harness checks, not prose.
-// `--min-facts N` / `--min-descriptors N` gate an ad-hoc set of run dirs the same way.
+// `--min-facts N` / `--min-candidates N` / `--min-descriptors N` / `--min-requirements N` gate an ad-hoc set of run dirs the same way.
 //
 // Zero-dep. Usage: node assay.mjs variance <run-dir> <run-dir> [<run-dir> ...]
 //                  node assay.mjs variance --set <sweep-set-dir> [--json]
@@ -73,7 +81,8 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { loadFindings, loadManifest, modelOf, PRACTICE_REVIEW_PASSES } from './project.mjs';
 import { isMain } from './doctrine.mjs';
 import { projectRun, loadYardstick } from '../yardstick/measure.mjs';
-import { channelKeys } from './effect-triage.mjs';
+import { channelKeys, loadChannelFiles } from './effect-triage.mjs';
+import { closure } from './triage.mjs';
 
 // A channel's identity (#298): an effect finding the run's map/effect-triage.yaml maps a candidate to
 // is keyed by that candidate (map/effect-triage.mjs candidateKeysOf), so two lanes' spellings of one
@@ -191,6 +200,35 @@ const RANK = {
 };
 
 const norm = (v) => (v === undefined || v === null ? null : String(v).trim().toLowerCase());
+const tupleOf = (f) => Object.fromEntries(DESCRIPTOR_FIELDS.map((k) => [k, norm(f.effect[k])]));
+
+// One comparison of the six descriptors across the sweeps that carry one item (a channel, or a
+// listed candidate), shared by both descriptor measures so they can never count differently.
+// present: [[sweep index, tuple]]; byField and directions are tallied in place. Returns the
+// fields that part, each with every sweep's value.
+function compareTuples(present, byField, directions) {
+  const fieldsDiffering = [];
+  for (const k of DESCRIPTOR_FIELDS) {
+    const vals = present.map(([, t]) => t[k]);
+    // fail_mode is NOT APPLICABLE where a sweep recorded gate_type: none — the schema
+    // only requires it when a gate exists. Counting it there double-counts a single
+    // gate_type disagreement as two, deflating the fail_mode column for a difference
+    // it did not independently observe. Skip the field entirely for that item.
+    if (k === 'fail_mode' && present.some(([, t]) => t.gate_type === 'none')) continue;
+    byField[k].of += 1;
+    if (vals.every((v) => v === vals[0])) { byField[k].agree += 1; continue; }
+    fieldsDiffering.push({ field: k, values: present.map(([i, t]) => ({ sweep: i, value: t[k] })) });
+    // direction, first sweep -> last sweep that carries the item
+    const a = RANK[k] ? RANK[k][vals[0]] : undefined;
+    const b = RANK[k] ? RANK[k][vals[vals.length - 1]] : undefined;
+    if (a === undefined || b === undefined || a === b) directions.unordered += 1;
+    else if (b > a) directions.safer += 1;
+    else directions.riskier += 1;
+  }
+  return fieldsDiffering;
+}
+const emptyByField = () => Object.fromEntries(DESCRIPTOR_FIELDS.map((k) => [k, { agree: 0, of: 0, pct: 0 }]));
+const finishByField = (byField) => { for (const k of DESCRIPTOR_FIELDS) byField[k].pct = byField[k].of ? Math.round(100 * byField[k].agree / byField[k].of) : 0; };
 
 // descriptorAgreement(sweeps) — sweeps is an array of FINDINGS ARRAYS (pure; no I/O), so
 // it is testable without fixtures. Each sweep contributes at most one descriptor tuple per
@@ -204,7 +242,7 @@ export function descriptorAgreement(sweeps, keys) {
       if (!f || f.subject_type !== 'effect' || !f.effect) continue;
       const ch = norm(channelOf(f, keys && keys[si]));
       if (!ch || byChannel.has(ch)) continue;
-      byChannel.set(ch, Object.fromEntries(DESCRIPTOR_FIELDS.map((k) => [k, norm(f.effect[k])])));
+      byChannel.set(ch, tupleOf(f));
     }
     return byChannel;
   });
@@ -213,35 +251,18 @@ export function descriptorAgreement(sweeps, keys) {
   const shared = [...allChannels].filter((ch) => perSweep.filter((m) => m.has(ch)).length >= 2).sort();
   const unshared = [...allChannels].filter((ch) => !shared.includes(ch)).sort();
 
-  const byField = Object.fromEntries(DESCRIPTOR_FIELDS.map((k) => [k, { agree: 0, of: 0, pct: 0 }]));
+  const byField = emptyByField();
   const divergences = [];
   let allAgree = 0;
   const directions = { safer: 0, riskier: 0, unordered: 0 };
 
   for (const ch of shared) {
     const present = perSweep.map((m, i) => [i, m.get(ch)]).filter(([, t]) => t);
-    const fieldsDiffering = [];
-    for (const k of DESCRIPTOR_FIELDS) {
-      const vals = present.map(([, t]) => t[k]);
-      // fail_mode is NOT APPLICABLE where a sweep recorded gate_type: none — the schema
-      // only requires it when a gate exists. Counting it there double-counts a single
-      // gate_type disagreement as two, deflating the fail_mode column for a difference
-      // it did not independently observe. Skip the field entirely for that channel.
-      if (k === 'fail_mode' && present.some(([, t]) => t.gate_type === 'none')) continue;
-      byField[k].of += 1;
-      if (vals.every((v) => v === vals[0])) { byField[k].agree += 1; continue; }
-      fieldsDiffering.push({ field: k, values: present.map(([i, t]) => ({ sweep: i, value: t[k] })) });
-      // direction, first sweep -> last sweep that carries the channel
-      const a = RANK[k] ? RANK[k][vals[0]] : undefined;
-      const b = RANK[k] ? RANK[k][vals[vals.length - 1]] : undefined;
-      if (a === undefined || b === undefined || a === b) directions.unordered += 1;
-      else if (b > a) directions.safer += 1;
-      else directions.riskier += 1;
-    }
+    const fieldsDiffering = compareTuples(present, byField, directions);
     if (!fieldsDiffering.length) allAgree += 1;
     else divergences.push({ channel: ch, fields: fieldsDiffering, sweeps: present.map(([i]) => i) });
   }
-  for (const k of DESCRIPTOR_FIELDS) byField[k].pct = byField[k].of ? Math.round(100 * byField[k].agree / byField[k].of) : 0;
+  finishByField(byField);
 
   return {
     N: sweeps.length,
@@ -259,6 +280,87 @@ export function descriptorAgreement(sweeps, keys) {
 // runDir wrapper — loads then delegates.
 export function computeDescriptorAgreement(runDirs) {
   return descriptorAgreement(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => channelKeys(d)));
+}
+
+// ── measure 2, per listed candidate (#312): the primary descriptor figure ─────
+// Per channel, two lanes that group the same listed candidates into findings differently
+// (`a | b` as one finding beside `a` and `b` as two) read as different channels each seen once,
+// so the per-channel figure measures grouping style more than judgment. A listed candidate is
+// the list's own unit: each member of the run's map/raw/enumerate.json effect population that
+// its triage maps to an effect finding takes that finding's six descriptors, and a candidate
+// every sweep maps is compared field by field, however each sweep grouped it. Counted apart,
+// never inside the figure:
+//   • scope: a candidate one sweep mapped and another triaged out of scope or left untriaged
+//     (a disagreement on whether it is an effect, not on how it is described);
+//   • not listed in every sweep: a candidate some sweep's list does not carry;
+//   • unmapped: effect findings no candidate maps to, keyed by their slug as before.
+// sweeps: one { findings, candidates, triage } per sweep (candidates null = the run carries no
+// list; triage null = no triage file), the way map/effect-triage.mjs loadChannelFiles reads them.
+export function candidateAgreement(sweeps) {
+  const N = sweeps.length;
+  const per = sweeps.map((s) => {
+    const findings = (s && s.findings) || [];
+    const byId = new Map(findings.filter((f) => f && f.id).map((f) => [String(f.id), f]));
+    const isEffect = (id) => { const f = byId.get(id); return !!(f && f.subject_type === 'effect' && f.effect && typeof f.effect === 'object'); };
+    const listed = Array.isArray(s && s.candidates) ? s.candidates : null;
+    const { judged, outOfScope } = listed ? closure(listed, s.triage, isEffect) : { judged: new Map(), outOfScope: [] };
+    const mapped = new Set(judged.values());
+    const unmapped = new Map();
+    for (const f of findings) {
+      if (!f || f.subject_type !== 'effect' || !f.effect || (f.id && mapped.has(String(f.id)))) continue;
+      const slug = norm(f.effect.channel || f.channel);
+      if (slug && !unmapped.has(slug)) unmapped.set(slug, f);
+    }
+    return { listed, set: new Set(listed || []), judged, out: new Set(outOfScope), byId, unmapped };
+  });
+
+  const status = (p, c) => (!p.listed || !p.set.has(c) ? 'not-listed' : p.judged.has(c) ? 'mapped' : p.out.has(c) ? 'out-of-scope' : 'untriaged');
+  const all = [...new Set(per.flatMap((p) => p.listed || []))].sort();
+  const byField = emptyByField();
+  const directions = { safer: 0, riskier: 0, unordered: 0 };
+  const divergences = [], scope = [], notListed = [];
+  let compared = 0, agree = 0, outOfScopeEverywhere = 0, untriagedEverywhere = 0;
+  for (const c of all) {
+    const st = per.map((p) => status(p, c));
+    if (st.includes('not-listed')) { notListed.push({ candidate: c, statuses: st }); continue; }
+    if (st.every((x) => x === 'mapped')) {
+      compared += 1;
+      const present = per.map((p, i) => [i, tupleOf(p.byId.get(p.judged.get(c)))]);
+      const fields = compareTuples(present, byField, directions);
+      if (!fields.length) agree += 1;
+      else divergences.push({ candidate: c, fields, findings: per.map((p) => p.judged.get(c)) });
+    } else if (st.includes('mapped')) scope.push({ candidate: c, statuses: st });
+    else if (st.every((x) => x === 'out-of-scope')) outOfScopeEverywhere += 1;
+    else untriagedEverywhere += 1;
+  }
+  finishByField(byField);
+
+  const slugs = [...new Set(per.flatMap((p) => [...p.unmapped.keys()]))].sort();
+  const unmapped = slugs.map((slug) => ({ slug, sweeps: per.map((p, i) => (p.unmapped.has(slug) ? i : -1)).filter((i) => i >= 0) }));
+
+  return {
+    N,
+    listed: per.some((p) => p.listed),
+    candidates: { total: all.length, compared, notListed: notListed.length, outOfScopeEverywhere, untriagedEverywhere },
+    byField,
+    allFields: { agree, of: compared, pct: compared ? Math.round(100 * agree / compared) : 0 },
+    divergences,
+    directions,
+    bothWays: directions.safer > 0 && directions.riskier > 0,
+    scope: { disagreements: scope.length, list: scope },
+    notListed,
+    unmapped: { total: unmapped.length, inEvery: unmapped.filter((u) => u.sweeps.length === N).length, list: unmapped },
+  };
+}
+
+// runDir wrapper: each run's own list and triage. A list or triage present but unreadable halts
+// the measurement (fail closed), never reads as a run with no list.
+export function computeCandidateAgreement(runDirs) {
+  return candidateAgreement(runDirs.map((d) => {
+    const { candidates, triage, errors } = loadChannelFiles(d);
+    if (errors.length) throw new Error(`${d}: ${errors[0]}`);
+    return { findings: loadFindings(d), candidates, triage };
+  }));
 }
 
 // ── requirement agreement (measure 3) ───────────────────────────────────────
@@ -285,6 +387,11 @@ export function computeRequirementAgreement(runDirs, reg = loadYardstick()) {
 }
 
 // ── the sweep set and its gate ──────────────────────────────────────────────
+// The gate's four measures (tests/sweeps/README.md). candidate_agreement is the primary descriptor
+// figure (#312); descriptor_agreement gates the per-channel figure it replaces, kept beside it for one
+// release so the committed sets stay comparable, then retired with its output.
+const THRESHOLD_KEYS = ['fact_presence', 'candidate_agreement', 'descriptor_agreement', 'requirement_agreement'];
+
 // loadSweepSet(dir) → { meta, threshold, runDirs }; throws on a malformed set (a set
 // that cannot say what it gates on is never an ungated pass).
 export function loadSweepSet(dir) {
@@ -295,8 +402,8 @@ export function loadSweepSet(dir) {
   for (const k of ['target', 'target_commit', 'method_commit', 'date']) if (typeof meta[k] !== 'string' || !meta[k].trim()) bad(`${k} must be a non-empty string`);
   if (typeof meta.blind !== 'boolean') bad('blind must be true or false (a set authored beside its answers is not blind)');
   const thr = meta.threshold;
-  if (!thr || typeof thr !== 'object') bad('threshold is required: { fact_presence, descriptor_agreement, requirement_agreement }, each a percentage');
-  for (const k of ['fact_presence', 'descriptor_agreement', 'requirement_agreement']) if (typeof thr[k] !== 'number' || thr[k] < 0 || thr[k] > 100) bad(`threshold.${k} must be a percentage 0–100`);
+  if (!thr || typeof thr !== 'object') bad(`threshold is required: { ${THRESHOLD_KEYS.join(', ')} }, each a percentage`);
+  for (const k of THRESHOLD_KEYS) if (typeof thr[k] !== 'number' || thr[k] < 0 || thr[k] > 100) bad(`threshold.${k} must be a percentage 0–100`);
   if (!Array.isArray(meta.sweeps) || meta.sweeps.length < 2) bad('sweeps must list at least two sweep directories');
   for (const s of meta.sweeps) {
     if (typeof s !== 'string' || !/^[\w.-]+$/.test(s) || s === '..' || s === '.') bad(`sweep ${JSON.stringify(s)} must be a directory name inside the set`);
@@ -305,14 +412,19 @@ export function loadSweepSet(dir) {
   return { meta, threshold: thr, runDirs: meta.sweeps.map((s) => join(dir, s)) };
 }
 
-// sweepGate(r, d, threshold, q) → breaches (empty = the set holds). r is computeVariance's
-// result, d descriptorAgreement's, q requirementAgreement's. A descriptor threshold over
-// no shared channel, or a requirement threshold over no decided requirement, is a breach:
-// the measure was not taken, which never reads as met.
-export function sweepGate(r, d, threshold, q = null) {
+// sweepGate(r, d, threshold, q, c) → breaches (empty = the set holds). r is computeVariance's
+// result, d descriptorAgreement's, q requirementAgreement's, c candidateAgreement's. A descriptor
+// threshold over no shared channel, a candidate threshold over no candidate every sweep maps, or a
+// requirement threshold over no decided requirement, is a breach: the measure was not taken, which
+// never reads as met.
+export function sweepGate(r, d, threshold, q = null, c = null) {
   const out = [];
   if (typeof threshold.fact_presence === 'number' && r.pct < threshold.fact_presence)
     out.push(`fact presence ${r.pct}% is below the threshold ${threshold.fact_presence}%`);
+  if (typeof threshold.candidate_agreement === 'number') {
+    if (!c || !c.candidates.compared) { if (threshold.candidate_agreement > 0) out.push(`per-candidate descriptor agreement not measured: no listed candidate every sweep maps to an effect finding, threshold ${threshold.candidate_agreement}%`); }
+    else if (c.allFields.pct < threshold.candidate_agreement) out.push(`per-candidate descriptor agreement ${c.allFields.pct}% is below the threshold ${threshold.candidate_agreement}%`);
+  }
   if (typeof threshold.descriptor_agreement === 'number') {
     if (!d.channels.shared) { if (threshold.descriptor_agreement > 0) out.push(`descriptor agreement not measured: no shared effect channel, threshold ${threshold.descriptor_agreement}%`); }
     else if (d.allFields.pct < threshold.descriptor_agreement) out.push(`descriptor agreement ${d.allFields.pct}% is below the threshold ${threshold.descriptor_agreement}%`);
@@ -332,23 +444,48 @@ function reportRequirements(q) {
   console.log('');
 }
 
+const printFields = (byField) => { for (const k of DESCRIPTOR_FIELDS)
+  console.log(`      ${k.padEnd(15)} ${String(byField[k].agree).padStart(3)}/${String(byField[k].of).padStart(3)}  ${String(byField[k].pct + '%').padStart(5)}`); };
+const printDirection = (x) => {
+  console.log(`\n    direction: ${x.directions.safer} safer · ${x.directions.riskier} riskier · ${x.directions.unordered} unordered`);
+  console.log(x.bothWays
+    ? `    ⚠ divergences move in BOTH directions — the signature of judgment drift, not target change.\n` +
+      `      A cross-run coverage delta computed over these descriptors is not a trend.`
+    : `    divergences move one way — consistent with the target having changed between sweeps.`);
+};
+
+function reportCandidates(c) {
+  console.log(`  descriptor agreement per listed candidate (the primary figure; the gate's candidate_agreement):`);
+  if (!c.listed) { console.log(`    no sweep carries a candidate list (map/raw/enumerate.json) — not measured.\n`); return; }
+  console.log(`    listed candidates: ${c.candidates.total}; mapped to an effect finding by every sweep: ${c.candidates.compared}`);
+  console.log(`    counted apart: ${c.scope.disagreements} scope disagreement(s) (mapped by one sweep, out of scope or untriaged in another) · ` +
+    `${c.candidates.outOfScopeEverywhere} out of scope in every sweep · ${c.candidates.untriagedEverywhere} untriaged in every sweep · ${c.candidates.notListed} not listed by every sweep`);
+  for (const v of c.scope.list) console.log(`      scope: ${v.candidate.padEnd(40)} ${v.statuses.join(' / ')}`);
+  console.log(`    effect findings no candidate maps to (by slug): ${c.unmapped.total}, ${c.unmapped.inEvery} in every sweep`);
+  if (!c.candidates.compared) { console.log(`    no candidate every sweep maps — nothing to compare.\n`); return; }
+  console.log(`    all ${DESCRIPTOR_FIELDS.length} descriptors identical: ${c.allFields.agree}/${c.allFields.of}  (${c.allFields.pct}%)`);
+  printFields(c.byField);
+  if (c.divergences.length) {
+    console.log(`\n    divergent candidates:`);
+    for (const v of c.divergences)
+      console.log(`      ${v.candidate.padEnd(40)} ${v.fields.map((f) => `${f.field}: ${f.values.map((x) => x.value).join(' vs ')}`).join(' · ')}`);
+    printDirection(c);
+  }
+  console.log('');
+}
+
 function reportDescriptors(d) {
-  console.log(`  descriptor agreement (the layer every shipped number is computed from):`);
+  console.log(`  descriptor agreement per channel (kept beside the per-candidate figure for one release; the gate's descriptor_agreement):`);
   console.log(`    effect channels shared by 2+ sweeps: ${d.channels.shared} of ${d.channels.total}` +
     (d.channels.unshared ? `  (${d.channels.unshared} seen by only one sweep: ${d.channels.unsharedList.join(', ')})` : ''));
   if (!d.channels.shared) { console.log(`    no shared channel — nothing to compare.\n`); return; }
   console.log(`    all ${DESCRIPTOR_FIELDS.length} descriptors identical: ${d.allFields.agree}/${d.allFields.of}  (${d.allFields.pct}%)`);
-  for (const k of DESCRIPTOR_FIELDS)
-    console.log(`      ${k.padEnd(15)} ${String(d.byField[k].agree).padStart(3)}/${String(d.byField[k].of).padStart(3)}  ${String(d.byField[k].pct + '%').padStart(5)}`);
+  printFields(d.byField);
   if (d.divergences.length) {
     console.log(`\n    divergent channels:`);
     for (const v of d.divergences)
       console.log(`      ${v.channel.padEnd(26)} ${v.fields.map((f) => `${f.field}: ${f.values.map((x) => x.value).join(' vs ')}`).join(' · ')}`);
-    console.log(`\n    direction: ${d.directions.safer} safer · ${d.directions.riskier} riskier · ${d.directions.unordered} unordered`);
-    console.log(d.bothWays
-      ? `    ⚠ divergences move in BOTH directions — the signature of judgment drift, not target change.\n` +
-        `      A cross-run coverage delta computed over these descriptors is not a trend.`
-      : `    divergences move one way — consistent with the target having changed between sweeps.`);
+    printDirection(d);
   }
   console.log('');
 }
@@ -373,7 +510,7 @@ function report(r) {
 // ── CLI ─────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
-  const VALUED = ['--set', '--min-facts', '--min-descriptors', '--min-requirements'];
+  const VALUED = ['--set', '--min-facts', '--min-candidates', '--min-descriptors', '--min-requirements'];
   const flag = (n) => { const i = argv.indexOf(n); return i > -1 ? argv[i + 1] : null; };
   let runs = argv.filter((a, i) => !a.startsWith('--') && !VALUED.includes(argv[i - 1]));
   let threshold = {}, set = null;
@@ -381,20 +518,25 @@ if (isMain(import.meta.url)) {
     try { set = loadSweepSet(flag('--set')); } catch (e) { console.error(`✗ variance: malformed sweep set — ${e.message}`); process.exit(2); }
     runs = set.runDirs; threshold = { ...set.threshold };
   }
-  for (const [f, k] of [['--min-facts', 'fact_presence'], ['--min-descriptors', 'descriptor_agreement'], ['--min-requirements', 'requirement_agreement']]) {
+  for (const [f, k] of [['--min-facts', 'fact_presence'], ['--min-candidates', 'candidate_agreement'], ['--min-descriptors', 'descriptor_agreement'], ['--min-requirements', 'requirement_agreement']]) {
     if (flag(f) === null) continue;
     const n = Number(flag(f));
     if (!Number.isFinite(n)) { console.error(`${f} takes a percentage`); process.exit(2); }
     threshold[k] = n;
   }
-  if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...] | --set <sweep-set-dir>  [--min-facts N] [--min-descriptors N] [--min-requirements N] [--json]'); process.exit(2); }
+  if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...] | --set <sweep-set-dir>  [--min-facts N] [--min-candidates N] [--min-descriptors N] [--min-requirements N] [--json]'); process.exit(2); }
   const r = computeVariance(runs);
   const d = computeDescriptorAgreement(runs);
+  const c = computeCandidateAgreement(runs);
   const q = computeRequirementAgreement(runs);
   const gated = Object.keys(threshold).length > 0;
-  const breaches = gated ? sweepGate(r, d, threshold, q) : [];
+  const breaches = gated ? sweepGate(r, d, threshold, q, c) : [];
   if (process.argv.includes('--json')) console.log(JSON.stringify({
     pct: r.pct, union: r.union, core: r.core, byDimension: r.byDimension, byModelPair: r.byModelPair,
+    candidates: { pct: c.allFields.pct, listed: c.listed, total: c.candidates.total, compared: c.candidates.compared, agree: c.allFields.agree,
+                  byField: c.byField, divergences: c.divergences, directions: c.directions, bothWays: c.bothWays,
+                  scope: c.scope, outOfScopeEverywhere: c.candidates.outOfScopeEverywhere, untriagedEverywhere: c.candidates.untriagedEverywhere,
+                  notListed: c.notListed, unmapped: c.unmapped },
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
     requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences },
@@ -403,9 +545,9 @@ if (isMain(import.meta.url)) {
   }, null, 2));
   else {
     if (set) console.log(`\nsweep set ${flag('--set')}: ${set.meta.target} @ ${set.meta.target_commit}, method @ ${set.meta.method_commit}, ${set.meta.date}${set.meta.blind ? ', blind' : ', NOT blind (authored beside its answers)'}`);
-    report(r); reportDescriptors(d); reportRequirements(q);
+    report(r); reportCandidates(c); reportDescriptors(d); reportRequirements(q);
     if (gated) {
-      console.log(`  gate: fact presence ≥ ${threshold.fact_presence ?? '—'}% · descriptor agreement ≥ ${threshold.descriptor_agreement ?? '—'}% · requirement agreement ≥ ${threshold.requirement_agreement ?? '—'}%`);
+      console.log(`  gate: fact presence ≥ ${threshold.fact_presence ?? '—'}% · per-candidate descriptor agreement ≥ ${threshold.candidate_agreement ?? '—'}% · per-channel descriptor agreement ≥ ${threshold.descriptor_agreement ?? '—'}% · requirement agreement ≥ ${threshold.requirement_agreement ?? '—'}%`);
       if (breaches.length) for (const b of breaches) console.log(`  ✗ ${b}`);
       else console.log('  ✓ the set holds its threshold');
     }

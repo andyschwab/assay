@@ -332,8 +332,14 @@ maturity coverage from `gate_type`/`fail_mode`/`telemetry`, the halt flags from
 `reversibility`/`external`/`gate_type`, the chain ranking from `blast_scope` and
 `preconditions`, and the gate from all of them. So two runs can agree on every fact and
 still produce different verdicts. `variance.mjs` measures this as a second, separate
-number (`descriptorAgreement`): per-field and all-field agreement over the channels both
-runs recorded, plus the **direction** of each divergence. Divergences that all move one way
+number, taken per **listed candidate** (`candidateAgreement`, #312): each member of a run's
+enumerated effect population (§6e) that its triage maps to an effect finding takes that
+finding's descriptors, and a candidate every run maps is compared per field and across all
+six, however each run grouped candidates into findings. A candidate one run maps and another
+triages out of scope or leaves untriaged is a scope disagreement, and an effect finding no
+candidate maps to is counted by its slug; both are reported apart, never inside the figure.
+The per-channel figure it replaces (`descriptorAgreement`, over the channels both runs
+recorded) is reported beside it for one release. Each carries the **direction** of each divergence. Divergences that all move one way
 are consistent with the target having changed; divergences moving **both ways at once** are
 the signature of judgment drift, and a cross-run coverage delta computed over them is not a
 trend. `backlog.mjs --prior` emits them as `descriptor-divergence` items. Measured in the field,
@@ -1138,10 +1144,12 @@ A list with no candidates in any of the three populations is closed and empty (`
 **A channel is its triaged candidate** (#298). Two runs' lanes spell one channel's slug as they
 like (`tool-install`, `tools-install`); the candidate they triage to it is the list's own name for
 it. So where a run's triage maps a candidate to an effect finding, a comparison of channels across
-runs (`map/variance.mjs`: fact presence, descriptor agreement, and backlog's descriptor
+runs (`map/variance.mjs`: fact presence, the per-channel descriptor figure, and backlog's descriptor
 divergence) keys that finding by the candidate (`candidate: <member>`), a finding several
 candidates map to by the sorted set (joined by ` | `), and a finding no candidate maps to by its
-own slug. The triage names findings and
+own slug. The primary descriptor figure goes one step further and compares each listed candidate
+itself, so two runs that group the same candidates into findings differently still compare them
+(§2, #312). The triage names findings and
 never requirements: a finding carries no requirement id, and the yardstick reads the
 population (#257 Q1; `yardstick/README.md`, "The effect population"). An effect the list
 does not name is still recorded as a finding: the triage closes the list, it does not bound
