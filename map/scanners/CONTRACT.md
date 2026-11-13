@@ -128,6 +128,10 @@ map:
       build-supply-chain: "…"
       release-path-trust: "…"
 default: FAIL          # unmapped native_category => loud error, never a silent axis
+row_per_check: true    # optional, an instrument's: it writes a row (pass, gap or fact) for every
+                       #   check it runs, its checks the categories map: names, so one of them
+                       #   decided with no row in a run reads
+                       #   not measured (that version never ran the check), never ran clean
 decides:               # optional — the yardstick rows this scanner decides (rule 7, #177):
   - requirement: d-…   #   the row, the native category whose rows decide it, and the
     category: B        #   optional not_applicable_when / not_measured_when / audits /
@@ -564,8 +568,8 @@ node assay.mjs ingest <run-dir> --tool dependency-scan --raw dependency-scan.jso
 **What it measures.** Four rows a run could not decide before except by an
 LLM-authored census (`d-architecture-page`, `d-agent-contract`, `d-runbook`,
 `d-ci-gate-on-default-branch`; the first beyond the floor since #161, the other three floor), decided deterministically from the tree, read-only,
-offline, zero deps, plus six owner-evidence transcript checks (below). Four
-tree checks:
+offline, zero deps, plus five owner-evidence transcript checks and three
+operability checks over the application's signals (below). Four tree checks:
 
 - **architecture-page** — ARCHITECTURE.md / docs/ARCHITECTURE.md /
   docs/architecture.md / docs/architecture/*.md (case-insensitive), or a README
@@ -661,11 +665,11 @@ of the tool itself),
 --tool repo-census` accepts both. A crash of the runner itself exits `2` and halts
 the intake. The converter writes one gap row per `gap` check and one strength row
 per `pass` check (so the axis sees the evidence, not just the absence of a gap); a
-`not-measured` check (the six owner-evidence checks and ci-gate) yields a FACT
+`not-measured` check (the five owner-evidence checks and ci-gate) yields a FACT
 row in its own `<check>-unverifiable` category, never the check's own category, so
 the requirement it decides reads not-measured rather than a silent met; a
-`not-applicable` check (the same six, over a tree with no deployment signal —
-below) likewise yields a FACT row in its own `<check>-not-applicable` category,
+`not-applicable` check (the same five, over a tree with no deployment signal,
+and the three signal checks with nothing to declare, report or route — below) likewise yields a FACT row in its own `<check>-not-applicable` category,
 so the requirement reads not-applicable, never met by silence. Rows carry no
 severity; the views band every gap `Medium` (`views/severity.mjs`), except a
 ci-gate gap from a fail-open step — recorded on the row as the fact `fail_open:
@@ -696,14 +700,14 @@ their check read exactly the named path(s) instead of searching, and a pointer t
 a missing path is a `gap` naming it, never a silent fallback to discovery. A check
 that followed a pointer says so in its observation.
 
-**The six owner-evidence checks**.
-Six more floor rows describe things a repository cannot show by itself — a
+**The five owner-evidence checks**.
+Five floor rows describe things a repository cannot show by itself — a
 backup was restored, a rollback ran, a deploy came up as the committed sha, a
-smoke check hit the deployed app, a monitoring alert fired and was received,
-cost alerts are named per metered account. `repo-census` checks a dated
+smoke check hit the deployed app, the live health report was read and stated
+each signal. `repo-census` checks a dated
 transcript, named `evidence-<descriptor-id>`
 (`d-backup-restore-exercised`, `d-rollback-exercised`, `d-deploy-one-command`,
-`d-smoke-on-deployed`, `d-monitoring-with-alert`, `d-cost-alerts`), root only —
+`d-smoke-on-deployed`, `d-health-reported`), root only —
 **a person who ran the procedure commits it, or a CI job writes it from the
 procedure's own output; an agent never writes one** (`produced_by: ci | person`
 says which, `owner/evidence/README.md`). It decides the transcript's shape,
@@ -716,7 +720,7 @@ refuses to guess. The format — path, header keys, per-row keys, body minimum,
 freshness window — is documented once, at `owner/evidence/README.md`; this is
 the one home of it.
 
-**The deployment signal.** The six rows ask for proof about a deployed
+**The deployment signal.** The five rows ask for proof about a deployed
 application, so they apply only where the tree shows one. Before reading any
 transcript, the census walks the whole tree (skipping `.git`, `node_modules`,
 `.venv`, `venv`, `__pycache__`) and records every **deployment signal** in the
@@ -750,7 +754,7 @@ document's `deployment.signals` (`kind`, `path`, what it is):
   root) or the packet's `evidence` pointer: the owner already keeps transcripts;
 - `unwalked` — a tree past 20000 entries the walk did not finish: not ruled out.
 
-With **no** signal, each of the six checks reads `not-applicable`, citing the
+With **no** signal, each of the five checks reads `not-applicable`, citing the
 root, its observation naming what was looked for — never `pass`, and the
 requirement reads not-applicable, never met. With **any one** signal, every
 check is read exactly as above and a missing transcript is a `gap`. The list is
@@ -758,6 +762,56 @@ deliberately conservative: any doubt keeps the rows measured. A real service
 that deploys from somewhere the tree does not show (a console, another
 repository) still reads not-applicable; the signal states what the tree shows,
 and widening it is a reviewed change here, never a silent one.
+
+**The three signal checks** (#311). The operability rows measure whether an
+application declares its signals, reports their state and routes them by a stated,
+proportionate policy, never whether alerts exist. The three interfaces are stated
+by property, in any format, in `yardstick/README.md` ("Operability interfaces").
+The census reads them at the root:
+
+- **expectation-declared** — one check per **scheduled job** and per **declared
+  signal**, its row's `native_id` naming the subject (`expectation-declared@job:<name>`,
+  `@effect:<path>`, `@cost:<account>`). The census finds a scheduled job itself in a
+  GitHub workflow whose `on:` carries `schedule:` with a `cron:` entry (one job per
+  workflow, named by its file's stem, citing the cron line), and takes the jobs the
+  application schedules in its own format from the reader. A job no declaration
+  watches is a `gap` citing the job; a declaration missing what is expected, its
+  evidence or its runbook anchor is a `gap` citing the declaration; a complete one is
+  a `pass`. With no job and no declaration, one `not-applicable` check: the
+  requirement's effect half is read by the yardstick over the run's triaged effects.
+- **health-report** — `pass` when the health report's schema names where the report
+  is served and states, for every declared signal, `last_success`, `last_count` and
+  `since`; a `gap` naming each signal it misses or field it lacks, or that no schema
+  was found.
+- **routing-policy** — `pass` when the policy is data and routes every declared signal
+  at `record`, `digest` or `notify`, each with a destination role and a budget, and
+  holds at least one below `notify`; a `gap` naming what it misses, and a policy whose
+  every route is at `notify` is a gap (the flood its readers mute). The row's detail
+  carries the count at each class.
+
+health-report and routing-policy read `not-applicable` only when the tree has no
+scheduled job, declares no signal and shows no deployment signal (above). A
+declaration file the reader cannot parse is a `gap` naming it, never an absence.
+
+**The format reader is the replaceable part.** The census names no application's
+format. Its adapter names the reader (`adapters/repo-census.yaml`, `signals.reader`),
+a module beside it exporting `readSignals(dir)` and `FORMAT` (a phrase naming what it
+reads). `readSignals` returns, every entry citing `file:line` in the tree:
+
+```
+{ files: [path],
+  jobs: [{ name, at, how }],                     # the jobs the application schedules itself
+  declarations: [{ name, watches: { kind: job | effect | cost, target }, expect, evidence, runbook, at }],
+  health: null | { at, report, signals: [{ name, fields: [..], at }] },
+  policy: null | { at, routes: [{ signal, class, to, budget, at }] },
+  problems: [{ interface: declarations | health | policy, file, at, what }] }   # present but unreadable
+```
+
+The reader shipped (`adapters/repo-census/signals.mjs`) reads a foundation template's
+format; its header is the one home of that format, and nothing in the core names it. An application whose declarations take another format
+is read by another reader with the same return shape. A reader not named, or that does
+not load, halts the census (exit `2`): a census that cannot read declarations never
+reads them absent.
 
 ```sh
 node assay.mjs repo-census <target-dir> --out repo-census.json [--default-branch main] [--as-of YYYY-MM-DD] [--evidence-max-age 90] [--packet <dir|manifest.yaml>]

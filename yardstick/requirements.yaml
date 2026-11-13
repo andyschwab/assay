@@ -111,7 +111,7 @@ members:
     means: a per-run or per-process ceiling on paid calls enforced before the call; no row takes it (the paid-spend-capped candidate, #257)
   - term: billing alert
     subject_types: [control, process]
-    means: an alert on an account's bill after the spend; d-cost-alerts is decided by the repo census's owner-evidence transcript alone
+    means: an alert on an account's bill after the spend; a cost account is a declared signal, and d-expectations-declared, d-health-reported and d-routing-proportionate take only the repo census's rows (#311)
   - term: request authorization
     subject_types: [control, contract]
     means: whether the server checks who is asking before it answers; d-routes-authorized takes only its instruments' rows
@@ -130,7 +130,16 @@ members:
 # names one still loads: validate reads its row as retired, compare and Since show it retired
 # with its successor, and the ratchet reports it moved, never held or regressed. An id here is
 # never a live row's, and every successor is.
-retired: []
+retired:
+  - id: d-errors-reach-a-person
+    successor: d-health-reported
+    why: "an error is a signal's state: the health report is where a person, or a watcher reading it, sees whether each signal still holds (#311)"
+  - id: d-monitoring-with-alert
+    successor: d-expectations-declared
+    why: "a monitor watches an expectation: each scheduled job and external effect now declares what is expected of it, its evidence and its runbook step, instead of one monitor with a tested alert (#311)"
+  - id: d-cost-alerts
+    successor: d-routing-proportionate
+    why: "a cost account is a signal like any other: its threshold is its declared expectation and its recipient a route in the policy (#311)"
 
 requirements:
 
@@ -772,22 +781,8 @@ requirements:
       fix: "Have your AI remove the packages and code nothing uses, one change at a time with the tests green after each; if the app loads parts of itself by name, first have it list those starting points for the unused-code checker so it can tell what is really unused."
 
   # ── operability: we can see it and afford it ─────────────────────────────
-  - id: d-errors-reach-a-person
-    title: Errors and logs reach somewhere a person looks
-    tier: operability
-    topic: operability
-    tags: [floor, fleet]
-    harm: [people]
-    decide:
-      kind: instrument
-    check: an error sink configured and one induced error observed arriving
-    sources: [floor/o-errors]
-    status: draft
-    owner:
-      risk: "If errors only print to a log nobody watches, the app can be failing for real users right now and you would only find out when they complain, if they bother to."
-      fix: "Set up a place that collects errors from the running app, and deliberately cause one error to confirm it actually arrives there."
-  - id: d-monitoring-with-alert
-    title: Uptime or smoke monitoring exists with an alert route that has been tested
+  - id: d-expectations-declared
+    title: Every scheduled job and external effect declares what is expected of it, with its evidence and runbook step
     tier: operability
     topic: operability
     tags: [floor, fleet]
@@ -795,33 +790,54 @@ requirements:
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence-d-monitoring-with-alert
-      not_applicable_when: evidence-d-monitoring-with-alert-not-applicable
-      not_measured_when: evidence-d-monitoring-with-alert-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-monitoring-with-alert.md naming the monitor and carrying the alert-fired and alert-received timestamps (received not before fired); whether the alert truly fired and was received rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
-    sources: [floor/o-monitoring]
+      category: expectation-declared
+      not_applicable_when: expectation-declared-not-applicable
+      effects: declared
+    check: "the repo census, over the application's signal declarations (yardstick/README.md, Operability interfaces): the population is every scheduled job the census finds (a CI workflow's schedule, and the jobs the application schedules in its own declared format) and every effect finding in the run's triaged effect inventory (map/effect-triage.yaml); met when each one has a signal declaration naming it, with what is expected (runs every N, at least one result, succeeds, under a threshold), the evidence that shows it and a runbook anchor. A job with no declaration is a gap citing the job, and an effect is declared when a complete declaration watches a file the effect finding cites. An application with no declaration reads unmet over its scheduled jobs, never not measured; with no scheduled job, the row reads over the effects alone, not measured while the run carries no closed, triaged effect inventory, and not applicable only when the census finds no job and the inventory holds no effect. Whether an expectation holds in production is the health report's, never this check's"
+    sources: [issue/311, foundation/alerting, floor/o-monitoring]
     status: draft
     owner:
-      risk: "Without a check that watches whether the app is actually up, and an alert proven to reach a real person, the app can go down and stay down until a user happens to notice and tell you."
-      fix: "Set up an uptime or health check with an alert to a person, then deliberately trigger it once and confirm the alert arrives."
-  - id: d-cost-alerts
-    title: Cost alerts exist on every metered account from day one
+      risk: "Most of what breaks quietly is something that did not happen: a scheduled job that never started, a sync that ran and touched nothing, a delivery that sent nothing. If nothing says what each job and outside action is expected to do, nobody notices it stopped until a person downstream does."
+      fix: "Have your AI write down, for every scheduled job and every action the app takes in the outside world, what should happen (how often, at least how many results), how you would see it, and which runbook step to follow when it does not."
+  - id: d-health-reported
+    title: A machine-readable health report states the state of every declared signal
     tier: operability
     topic: operability
     tags: [floor, fleet]
-    harm: [money]
+    harm: [people, recovery]
+    decide:
+      kind: instrument
+      deciders:
+        - scanner: repo-census
+          category: health-report
+          not_applicable_when: health-report-not-applicable
+        - scanner: repo-census
+          category: evidence-d-health-reported
+          not_applicable_when: evidence-d-health-reported-not-applicable
+          not_measured_when: evidence-d-health-reported-unverifiable
+    check: "the repo census, two parts that must both hold: the health report's schema in the tree states, for every declared signal, when it last held, what it last counted and since when (deterministic, read through the format reader the census adapter names); and a fresh, complete, passing transcript at ops/evidence/d-health-reported.md naming where the live report was read and the state it gave each signal (owner/evidence/README.md), whose truth rests on the named person's attestation in version history; the commit it names must resolve in the checkout's history, else a gap, and a shallow checkout that cannot confirm it reads not-measured, never met. Not applicable only when the tree has no scheduled job, declares no signal and shows no deployment signal (map/scanners/CONTRACT.md §3d)"
+    sources: [issue/311, foundation/alerting, floor/o-errors, floor/o-monitoring]
+    status: draft
+    owner:
+      risk: "If nothing reports, in one place a machine can read, whether each thing you expect is still happening, a job that stopped or an error that keeps recurring is found only when someone goes looking, usually after a user has noticed first."
+      fix: "Have your AI add one health report that lists every signal you declared with when it last succeeded, what it last counted and since when, then read the live report once and commit what it said."
+  - id: d-routing-proportionate
+    title: Who reads which signal is a routing policy kept as data, and its classes are proportionate
+    tier: operability
+    topic: operability
+    tags: [floor, fleet]
+    harm: [people, money]
     decide:
       kind: instrument
       scanner: repo-census
-      category: evidence-d-cost-alerts
-      not_applicable_when: evidence-d-cost-alerts-not-applicable
-      not_measured_when: evidence-d-cost-alerts-unverifiable
-    check: the repo census, a fresh, complete, passing transcript at ops/evidence/d-cost-alerts.md listing at least one account, each naming the account, its threshold, and its recipient; whether the alerts truly exist in the billing console rests on the named person's attestation in version history, not on this check; the commit it names must resolve in the checkout's history, else a gap — a shallow checkout that cannot confirm this reads not-measured, never pass; with no deployment signal anywhere in the tree (map/scanners/CONTRACT.md §3d) the census records that it looked and found none, and the requirement reads not-applicable — never met
-    sources: [floor/o-cost, foundation/budgets]
+      category: routing-policy
+      not_applicable_when: routing-policy-not-applicable
+    check: "the repo census, over the routing policy read through the format reader the census adapter names: met when the policy is data in the tree and classes every declared signal at record, digest or notify, each route with a destination role and a budget, and at least one signal held below notify. A cost account is a declared signal like any other: its threshold is its expectation and its route says who reads it. Judged, weighing whether the classes are proportionate: a policy that sends every signal immediately is a gap, not a strength, and a signal belongs at notify only after it was seen quiet and accurate at record or digest, which the tree does not show and the census never infers. Not applicable only when the tree has no scheduled job, declares no signal and shows no deployment signal"
+    sources: [issue/311, foundation/alerting, floor/o-cost, foundation/budgets]
     status: draft
     owner:
-      risk: "A hosting plan, database, or AI provider with no spending limit or alert means a bug, a loop, or someone else using a leaked key can run up a bill far larger than expected before anyone notices."
-      fix: "On every account the app pays for, turn on a spending alert with a threshold and a recipient, today."
+      risk: "Alerts that all fire at once, for everything, get muted within a week, and then the one that matters, a stalled job or a bill running away, goes unread. With no written policy, who is told about what is decided in code nobody reviews."
+      fix: "Have your AI write one small policy file that lists every signal with who reads it, how (recorded, a daily digest, or an immediate notice) and how often at most, starting everything at recorded and promoting a signal only once it has proved quiet and accurate."
   - id: d-runbook
     title: A one-page runbook covers restart, roll back, rotate a key, restore
     tier: operability
@@ -957,7 +973,7 @@ requirements:
       measures: [model-call-telemetry, model-calls]
       why: "census (#262): a run closes the population by reading the tree, since every model call is a provider SDK import, a call to a provider's API, or a local stand-in for one that the code defines and names as such (#293), and whether the call writes a record is read at the call site"
       candidates: [modelCalls]
-    check: "Population: every model call site, each place the application obtains model output: a call to a provider's SDK or HTTP API, or a local stand-in, a stub or wrapper the application calls in place of one; each file map/raw/enumerate.json lists in populations.modelCalls (a provider call, or a function whose name or the comment directly above it says it stands in for a model call) one candidate, triaged once in map/census-triage.yaml to the one finding that judges the calls in it, listed as the model-call-telemetry census's member, or out of scope with the reason (an import no call uses), and a stand-in enumerate does not list is a member outside the list; excluded: what the call can reach, the AI context's (d-capability-budget), a ceiling on spend enforced before the call, which no row takes, and an alert on the bill after it, which is d-cost-alerts'. Question: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome? Met when, on every return of the call, success or error, a record carries the model or tier, the usage or cost, and the outcome as fields of a structured entry (an object or JSON log line, a table row, a metrics event), never only words in a message; a record missing any of the three, or a call with none, is a gap. A census with no members never reads met"
+    check: "Population: every model call site, each place the application obtains model output: a call to a provider's SDK or HTTP API, or a local stand-in, a stub or wrapper the application calls in place of one; each file map/raw/enumerate.json lists in populations.modelCalls (a provider call, or a function whose name or the comment directly above it says it stands in for a model call) one candidate, triaged once in map/census-triage.yaml to the one finding that judges the calls in it, listed as the model-call-telemetry census's member, or out of scope with the reason (an import no call uses), and a stand-in enumerate does not list is a member outside the list; excluded: what the call can reach, the AI context's (d-capability-budget), a ceiling on spend enforced before the call, which no row takes, and an alert on the bill after it, a declared cost signal routed by d-routing-proportionate. Question: does the call emit one structured record, in a machine-readable sink, of its tier, its spend and its outcome? Met when, on every return of the call, success or error, a record carries the model or tier, the usage or cost, and the outcome as fields of a structured entry (an object or JSON log line, a table row, a metrics event), never only words in a message; a record missing any of the three, or a call with none, is a gap. A census with no members never reads met"
     sources: [manifest/d6-telemetry-native, method/spend-meter]
     status: draft
     owner:

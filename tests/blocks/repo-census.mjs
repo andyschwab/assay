@@ -5,17 +5,22 @@
 // database) and gaps for apps/one (no docs there at all); agent-contract gaps at the
 // root citing the planted `## Status` heading, and gaps for apps/one (absent); runbook
 // gaps naming the missing restore procedure; ci-gate gaps citing the planted
-// continue-on-error step; and the six owner-evidence transcript checks read one pass
-// (d-backup-restore-exercised, a complete fresh transcript) and five gaps, each for a
+// continue-on-error step; the five owner-evidence transcript checks read one pass
+// (d-backup-restore-exercised, a complete fresh transcript) and four gaps, each for a
 // different planted defect: an email-shaped `by` plus `result: fail` (d-rollback-
 // exercised), a `deployed_sha` that disagrees with `commit` (d-deploy-one-command), a
-// date outside the freshness window (d-smoke-on-deployed), a stub body (d-monitoring-
-// with-alert), and an absent file (d-cost-alerts). The converter turns every gap into
+// date outside the freshness window (d-smoke-on-deployed), and a stub body
+// (d-health-reported); and the three signal checks (#311) read the tree with no
+// scheduled job and no declaration: expectation-declared not applicable, health-report
+// and routing-policy gaps (the fixture is deployed). #311 re-pinned this block: the
+// six evidence checks became five (d-monitoring-with-alert and d-cost-alerts retired),
+// and the absent-file case moved with d-cost-alerts to repo-census-no-deployment, which
+// pins it per deployment signal. The converter turns every gap into
 // a gap row (Medium, except ci-gate fail-open which is High) and every pass into a
 // strength row; a runner crash (exit 2) halts it; every category maps; an all-pass run
-// reads the ten re-kinded floor rows met, with a skipped manifest reading not-measured
+// reads the re-kinded floor rows met, with a skipped manifest reading not-measured
 // instead; the real (non-synthetic) run reads d-backup-restore-exercised met and the
-// other five evidence rows unmet.
+// other four evidence rows unmet.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
@@ -79,7 +84,7 @@ export async function run() {
     if (rb?.status !== 'gap' || !/restore/.test(rb.observation)) fail(`runbook must gap naming restore (got ${rb?.status}/${rb?.observation})`);
     const ci = doc.checks.find((c) => c.name === 'ci-gate');
     if (ci?.status !== 'gap' || !/continue-on-error/.test(ci.observation) || !ci.evidence[0]?.includes('ci.yml')) fail(`ci-gate must gap citing the continue-on-error line (got ${ci?.status}/${ci?.observation}/${ci?.evidence})`);
-    // the six owner-evidence checks: one pass, five gaps, each for its own planted reason
+    // the five owner-evidence checks: one pass, four gaps, each for its own planted reason
     const ev = (id) => doc.checks.find((c) => c.name === `evidence-${id}`);
     const backupRestore = ev('d-backup-restore-exercised');
     if (backupRestore?.status !== 'pass' || !/attests, by platform-eng at commit/.test(backupRestore.observation) || !/not that the procedure actually happened/.test(backupRestore.observation))
@@ -93,29 +98,30 @@ export async function run() {
     const smoke = ev('d-smoke-on-deployed');
     if (smoke?.status !== 'gap' || !/stale: dated 2026-01-01/.test(smoke.observation))
       fail(`d-smoke-on-deployed must gap as stale, naming the planted date (got ${smoke?.status}/${smoke?.observation})`);
-    const monitoring = ev('d-monitoring-with-alert');
-    if (monitoring?.status !== 'gap' || !/stub/.test(monitoring.observation))
-      fail(`d-monitoring-with-alert must gap as a stub body (got ${monitoring?.status}/${monitoring?.observation})`);
-    const costAlerts = ev('d-cost-alerts');
-    if (costAlerts?.status !== 'gap' || !/No evidence transcript found/.test(costAlerts.observation) || costAlerts.evidence?.[0] !== '.:1')
-      fail(`d-cost-alerts must gap as absent, evidence .:1 (got ${costAlerts?.status}/${costAlerts?.observation}/${costAlerts?.evidence})`);
+    const healthRead = ev('d-health-reported');
+    if (healthRead?.status !== 'gap' || !/stub/.test(healthRead.observation))
+      fail(`d-health-reported must gap as a stub body (got ${healthRead?.status}/${healthRead?.observation})`);
+    // the three signal checks: no scheduled job and no declaration in a deployed tree
+    const sig = (nm) => doc.checks.filter((c) => c.name === nm);
+    if (sig('expectation-declared').map((c) => c.status).join() !== 'not-applicable') fail(`expectation-declared reads one not-applicable check with no job and no declaration (got ${sig('expectation-declared').map((c) => c.status)})`);
+    for (const nm of ['health-report', 'routing-policy']) if (sig(nm).map((c) => c.status).join() !== 'gap') fail(`${nm} gaps in a deployed tree that declares nothing (got ${sig(nm).map((c) => c.status)})`);
     // the document never carries the transcript's body — header fields (counts) only
     const docText = JSON.stringify(doc);
     if (/torn down after verification/.test(docText)) fail('the document must never carry evidence body text, only header fields and line counts');
     if (typeof backupRestore?.detail?.bodyNonEmptyLines !== 'number' || typeof backupRestore?.detail?.bodyHasFencedBlock !== 'boolean') fail('an evidence check detail must carry body line counts, not body text');
-    if (doc.checks.length !== 12) fail(`the fixture must yield 12 checks (2 architecture-page + 2 agent-contract + runbook + ci-gate + 6 evidence; got ${doc.checks.length})`);
+    if (doc.checks.length !== 14) fail(`the fixture must yield 14 checks (2 architecture-page + 2 agent-contract + runbook + ci-gate + 5 evidence + 3 signal; got ${doc.checks.length})`);
     // (b) convert: a gap row per gap check, a strength row per pass check
     const rows = convert('repo-census', raw, 1);
-    if (rows.length !== 12) fail(`convert must yield 12 rows (got ${rows.length})`);
+    if (rows.length !== 14) fail(`convert must yield 14 rows (got ${rows.length})`);
     const byNc = {}; for (const r of rows) (byNc[r.native_category] ??= []).push(r);
     if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'strength').length !== 1) fail('exactly one architecture-page strength row (root)');
     if ((byNc['architecture-page'] || []).filter((r) => r.polarity === 'gap').length !== 1) fail('exactly one architecture-page gap row (apps/one)');
     if ((byNc['agent-contract'] || []).filter((r) => r.polarity === 'gap').length !== 2) fail('two agent-contract gap rows (root + apps/one)');
     if ((byNc['runbook'] || []).length !== 1 || byNc['runbook'][0].polarity !== 'gap') fail('one runbook gap row');
     if ((byNc['ci-gate'] || []).length !== 1 || byNc['ci-gate'][0].polarity !== 'gap' || viewSev(byNc['ci-gate'][0]) !== 'High') fail(`ci-gate fail-open must read gap, banded High by the view (got ${byNc['ci-gate']?.[0]?.polarity}/${viewSev(byNc['ci-gate']?.[0] || {})})`);
-    // the six evidence categories: native_category is the real, colon-bearing name;
-    // one strength row (the pass), five gap rows (the rest)
-    const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts'];
+    // the five evidence categories: native_category is the real, colon-bearing name;
+    // one strength row (the pass), four gap rows (the rest)
+    const EVIDENCE_IDS = ['d-backup-restore-exercised', 'd-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-health-reported'];
     for (const id of EVIDENCE_IDS) {
       const nc = `evidence-${id}`;
       const want = id === 'd-backup-restore-exercised' ? 'strength' : 'gap';
@@ -137,7 +143,7 @@ export async function run() {
     // sense run: one strength row per check, no gap rows
     const cleanDoc = { ...doc, exit: 0, checks: doc.checks.map((c) => ({ ...c, status: 'pass', observation: `${c.name} passes`, evidence: (c.evidence && c.evidence.length) ? c.evidence : ['README.md:1'] })) };
     const cleanRows = convert('repo-census', JSON.stringify(cleanDoc), 0);
-    if (cleanRows.length !== 12 || cleanRows.some((r) => r.polarity !== 'strength')) fail('an all-passing document must convert to strength rows only, one per check');
+    if (cleanRows.length !== 14 || cleanRows.some((r) => r.polarity !== 'strength')) fail('an all-passing document must convert to strength rows only, one per check');
     // (e) projection: every category maps, onto existing axes, and the instrument contributes none
     const proj = projectMulti(rows, adaptersOnce());
     if (proj.unmapped.length) fail(`repo-census rows must all map (unmapped: ${proj.unmapped.map((u) => u.cat).join(', ')})`);
@@ -146,15 +152,15 @@ export async function run() {
     // the agent contract stays on the axis the yardstick homes d-agent-contract on (improvement-loop): the adapter follows the yardstick, never the reverse
     if (axisOf('agent-contract') !== 'improvement-loop') fail('agent-contract must land on improvement-loop, the axis the yardstick homes d-agent-contract on');
     if (axisOf('ci-gate') !== 'deterministic-gates') fail('ci-gate must land on the shared deterministic-gates axis');
-    // the six evidence categories land on a fixed axis each (their requirements' topics have no axis)
+    // the evidence and signal categories land on a fixed axis each (their requirements' topics have no axis)
     const EVIDENCE_AXES = {
       'd-backup-restore-exercised': 'code-security',
       'd-rollback-exercised': 'context-economy',
       'd-deploy-one-command': 'code-security',
       'd-smoke-on-deployed': 'deterministic-gates',
-      'd-monitoring-with-alert': 'verification',
-      'd-cost-alerts': 'artifact-legibility',
+      'd-health-reported': 'verification',
     };
+    for (const nm of ['expectation-declared-not-applicable', 'health-report', 'routing-policy']) if (axisOf(nm) !== 'verification') fail(`${nm} must land on verification (got ${axisOf(nm)})`);
     for (const [id, wantAxis] of Object.entries(EVIDENCE_AXES)) {
       const got = axisOf(`evidence-${id}`);
       if (got !== wantAxis) fail(`evidence-${id} must land on ${wantAxis} (got ${got})`);
@@ -162,24 +168,26 @@ export async function run() {
     if (contributedBySources(adaptersOnce(), ['repo-census']).size !== 0) fail('repo-census is an instrument and must contribute no axis');
     const rogue = projectMulti([{ ...rows[0], native_category: 'unknown-check' }], adaptersOnce());
     if (!rogue.unmapped.length) fail('an unknown repo-census category must halt at projection (default: FAIL)');
-    // (f) the yardstick: the four pre-existing re-kinded floor rows, plus the
-    // six evidence rows, read met from an all-pass run with a `ran` manifest, and
-    // not-measured (with the reason) when repo-census is recorded skipped instead
+    // (f) the yardstick: the four pre-existing re-kinded floor rows, the five evidence
+    // rows and d-routing-proportionate read met from an all-pass run with a `ran`
+    // manifest, and not-measured (with the reason) when repo-census is recorded skipped
+    // instead; d-expectations-declared also reads the run's effects (#311), so it is
+    // pinned with them in operability-signals-met
     const reg = loadYardstick();
-    const RC_DESCRIPTOR_IDS = ['d-architecture-page', 'd-agent-contract', 'd-runbook', 'd-ci-gate-on-default-branch', ...EVIDENCE_IDS];
+    const RC_DESCRIPTOR_IDS = ['d-architecture-page', 'd-agent-contract', 'd-runbook', 'd-ci-gate-on-default-branch', ...EVIDENCE_IDS, 'd-routing-proportionate'];
     const metRows = Object.fromEntries(measureRun({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     for (const id of RC_DESCRIPTOR_IDS) {
       if (metRows[id]?.status !== 'met') fail(`${id} must read met from an all-pass repo-census run (got ${metRows[id]?.status})`);
     }
     const skippedRows = Object.fromEntries(measureRun({ findings: cleanRows, manifest: [{ scanner: 'repo-census', status: 'skipped', reason: 'no filesystem access' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
-    for (const id of RC_DESCRIPTOR_IDS) {
+    for (const id of [...RC_DESCRIPTOR_IDS, 'd-expectations-declared']) {
       if (skippedRows[id]?.status !== 'not-measured' || !/no filesystem access/.test(skippedRows[id].note)) fail(`${id} must read not-measured with the recorded reason when repo-census is skipped (got ${skippedRows[id]?.status}/${skippedRows[id]?.note})`);
     }
     // the REAL (non-synthetic) run: d-backup-restore-exercised is the one evidence row
-    // actually met; the other five are actually unmet (planted gaps), same `ran` manifest
+    // actually met; the other four are actually unmet (planted gaps), same `ran` manifest
     const realRows = Object.fromEntries(measureRun({ findings: rows, manifest: [{ scanner: 'repo-census', status: 'ran' }], inputs: null, coverage: {} }, reg).map((r) => [r.id, r]));
     if (realRows['d-backup-restore-exercised']?.status !== 'met') fail(`d-backup-restore-exercised must read met from the real fixture run (got ${realRows['d-backup-restore-exercised']?.status})`);
-    for (const id of ['d-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-monitoring-with-alert', 'd-cost-alerts']) {
+    for (const id of ['d-rollback-exercised', 'd-deploy-one-command', 'd-smoke-on-deployed', 'd-health-reported', 'd-routing-proportionate']) {
       if (realRows[id]?.status !== 'unmet') fail(`${id} must read unmet from the real fixture run (its planted gap; got ${realRows[id]?.status})`);
     }
     // the CLI end to end: ingest writes the rows file and the raw archive, and the run validates green

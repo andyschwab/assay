@@ -50,7 +50,7 @@
       "deep-code-review": {
         "status": "adopted",
         "ran_in": 2,
-        "decides_alone": 5,
+        "decides_alone": 4,
         "unique_recoveries": [],
         "corroborated": 4,
         "fails_loud": "dcr-machine-report"
@@ -193,7 +193,7 @@
       ]
     },
     "fixtures-root/requirements": {
-      "agree": 30,
+      "agree": 28,
       "disagree": 0,
       "out_of_scope": 0,
       "disagreements": []

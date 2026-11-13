@@ -1,0 +1,25 @@
+# the jobs this application schedules itself, and one declaration per signal
+schedule:
+  - name: weekly-digest
+    cron: "0 8 * * 1"
+signals:
+  - name: nightly-sync-ran
+    watches: job nightly-sync
+    expect: "runs every 24h and touches at least one row"
+    evidence: "the sync run record (count, at)"
+    runbook: "RUNBOOK.md#nightly-sync"
+  - name: weekly-digest-sent
+    watches: job weekly-digest
+    expect: "runs every Monday and sends at least one mail"
+    evidence: "the digest send log"
+    runbook: "RUNBOOK.md#weekly-digest"
+  - name: digest-mail-delivered
+    watches: effect src/mail.mjs
+    expect: "every send is accepted by the provider"
+    evidence: "the provider's accepted-message ids"
+    runbook: "RUNBOOK.md#mail"
+  - name: mail-provider-spend
+    watches: cost mail-provider
+    expect: "under 20 units a month"
+    evidence: "the provider's monthly usage"
+    runbook: "RUNBOOK.md#spend"

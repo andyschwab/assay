@@ -1,0 +1,18 @@
+# the routing policy: every signal starts at record
+routes:
+  - signal: nightly-sync-ran
+    class: record
+    to: maintainer
+    budget: "1 per day"
+  - signal: weekly-digest-sent
+    class: record
+    to: maintainer
+    budget: "1 per week"
+  - signal: digest-mail-delivered
+    class: record
+    to: maintainer
+    budget: "1 per day"
+  - signal: mail-provider-spend
+    class: record
+    to: owner
+    budget: "1 per month"
