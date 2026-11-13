@@ -108,7 +108,7 @@ const fileKeyOf = (p) => {
 // no requirement takes it. `measurement` is yardstick.yaml's rows
 // (yardstick/measure.mjs); `yardstick` the registry (requirements.yaml), whose rows give each
 // requirement's tier and whose `tiers:` give their order, joined here as every view joins them.
-export function tiersOfFindings(measurement, yardstick) {
+function tiersOfFindings(measurement, yardstick) {
   const tiers = yardstick.tiers;
   const tierOfReq = new Map((yardstick.requirements || []).map((d) => [d.id, d.tier]));
   const out = new Map();
@@ -132,7 +132,7 @@ const byId = (a, b) => String(a).localeCompare(String(b), 'en', { numeric: true 
 // The one ordering key (the header above; views/README.md, `handoff/sequence.json`). Sorts
 // `items` in place, each `{ ps, … }`, and gives each a `rank` of its worst open gap:
 // { halt, tier, severity }, tier the yardstick tier's name or null when no requirement takes it.
-export function rankItems(items, { tierOf, tiers }) {
+function rankItems(items, { tierOf, tiers }) {
   const open = (it) => it.ps.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
   const keyOf = (p) => {
     const at = tierOf.get(String(p.f.id));
