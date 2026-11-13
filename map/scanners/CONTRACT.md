@@ -588,7 +588,14 @@ tree checks:
   workspace's parent is its project, a nested project's is the root. It is named
   by its path from the root, by its path from the directory its project runs in
   (`apps/api` inside `templates/x`, or inside the root's `app/`), or by its scoped package name (`@org/ui`); a bare package name is
-  never matched, and a README counts only its Architecture section. A root with no
+  never matched, and a README counts only its Architecture section. A **workspace**
+  (never a nested project) with no page of its own is **covered by the tree** (`pass`,
+  `cover: tree`, citing the parent's page) when its parent's page passes, named or
+  not, unless it is a **separately deployed unit**: it holds a container file, a
+  hosting config, or an infrastructure-as-code or service manifest of its own (the
+  census's own deployment signals of those kinds; a server entry point alone does
+  not make one, since it can run inside its project's deploy). Such a unit is
+  covered only by a naming (#306). A root with no
   page of its own and no workspaces of its own is **covered by its projects**
   (`pass`, `delegatedTo`, citing each project's page) when every nested project
   carries a page that passes on its own. A positional `architecture` or
@@ -596,7 +603,8 @@ tree checks:
   path order (or the packet's own `apps` order).
   A location that has its own page is checked on that page.
 - **agent-contract** — AGENTS.md or CLAUDE.md (every location, the same rule,
-  parent cover included: a passing parent contract that names the location). The
+  parent cover included: a passing parent contract that names the location, and the
+  tree's cover of a workspace not deployed apart). The
   parent's contract is the file **and what it imports** (#249): each `@path` token
   outside a fenced or indented code block and a code span, resolved from the
   importing file, imports nesting up to five hops, each file read once, a target
@@ -620,12 +628,18 @@ tree checks:
   line-based reader (zero deps, no YAML library; handles the common shapes: `on:
   [push, pull_request]`, block-form `on: / push: / branches: [main]`,
   `pull_request:` with no filters). A workflow **gates** when it triggers on
-  pull_request (or push to the default branch — `--default-branch`, else `git
-  symbolic-ref refs/remotes/origin/HEAD`, else `main`) and runs a step whose
-  `run:` invokes a test / lint / typecheck / build command (npm / pnpm / yarn
+  pull_request or merge_group (a merge queue's run before the default branch moves),
+  or on push to the default branch (`--default-branch`, else `git
+  symbolic-ref refs/remotes/origin/HEAD`, else `main`), and runs a step whose
+  `run:` invokes a test / check / lint / typecheck / build command (npm / pnpm / yarn
   test|lint|typecheck|build, `tsc`, `jest`, `vitest`, `pytest`, `go test`, `cargo
   test`, `make test`, `deno test` / `bun test`, `node --test`, or `node` running a
-  file in a `test/` / `tests/` directory or named `*.test.*` / `*.spec.*`). It **fails open** — a gap, cited by file:line — when the
+  file in a `test/` / `tests/` directory or named `*.test.*` / `*.spec.*`). A step
+  that runs a package script is read through it (#306): with the package manager's
+  flags before the script skipped (`pnpm -r build`, `pnpm --filter web test`, `turbo
+  run build`), the script gates when its name is a check's (test, check, lint,
+  typecheck, build, each with an optional `:suffix`), or when the root
+  `package.json` declares it and its body is itself a gate command. It **fails open** — a gap, cited by file:line — when the
   gating job or step carries `continue-on-error: true`, or the step's own `run:`
   script swallows a non-zero exit (a command ending `|| true` / `|| exit 0` /
   `|| :`, or a `set +e` line anywhere in a multi-line block-scalar script,
@@ -892,6 +906,8 @@ run:
   bin: <binary>              # found on PATH; absent → skipped, with `install`'s line
   args: [ … ]                # run from inside the target; an arg holding `{report}` names a
                              #   scratch file the tool writes its report to (else stdout)
+                             #   `{adapters}` is the adapters directory, for a file the
+                             #   adapter vendors beside it (a tool's config, #306)
   ok_exits: [0, 1]           # the exits that are a completed run; any other → failed
   no_input_exits: [128]      # optional: the tool found nothing to read
   inputs: [".github/workflows/*.yml", …]   # optional globs: none in the tree → not started
@@ -907,12 +923,27 @@ run:
     flag: "--config"         #   the arg before each rule path
     dir: <dir>               #   vendored under map/scanners/adapters/, with its source
     repo: [ … ]              #   files the target may carry, run beside the vendored set
+  agreed_values:             # optional: values every environment states alike (#306)
+    flag: "--var-file"       #   the arg before the scratch file the runner writes
+    files: [ … ]             #   globs of the tree's value files
+    loaded: [ … ]            #   file names the tool loads itself, left to it
+    skip: [ … ]              #   directory names not walked
   control:                   # optional: a positive control, run before the target (#223)
     dir: <dir>               #   planted cases vendored under map/scanners/adapters/
     results: <path>          #   where the tool's JSON output holds its hits
     fields: { rule: <path>, path: <path>, line: <path> }   # where each hit names them
     expect: [ "<rule> <file>:<line>", … ]                 # the hits the rules must report
 ```
+
+`agreed_values` serves a tool that judges a configuration's variables from their defaults
+and the value files it loads itself, so that a variable the tree sets only per environment
+reaches a check as a bare reference and fails it whatever every environment sets. The runner
+reads each value file `files` finds that the tool does not load (`loaded`), keeps each
+variable that every one of them sets to one identical literal (a quoted string, a number,
+true or false, on its own line), writes those to one scratch file and passes it after `flag`;
+the envelope records `agreed_values: { files, names }`. A variable the environments disagree
+on, set in only some, or set to anything else is not handed on: the tool judges it
+unresolved, as before, never as the value one environment chose.
 
 `{rules}` in `args` expands to `flag <path>` for the vendored set and for each `repo` file
 the target carries, which runs beside it and never takes its place: the vendored rules are

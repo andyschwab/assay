@@ -25,6 +25,8 @@ export async function run() {
     rmSync(tmp, { recursive: true, force: true });
     put('package.json', pkg('app', { workspaces: ['apps/*', 'packages/*'] }));
     put('apps/web/package.json', pkg('web'));
+    // apps/web ships its own container: a separately deployed unit, covered only by a naming (#306)
+    put('apps/web/Dockerfile', 'FROM node:22\n');
     put('packages/db/package.json', pkg('db'));
     put('docs/architecture.md', arch);
     put('CLAUDE.md', contract);

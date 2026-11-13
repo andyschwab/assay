@@ -509,7 +509,7 @@ requirements:
       scanner: repo-census
       category: ci-gate
       not_measured_when: ci-gate-unverifiable
-    check: the repo census, a workflow that triggers on pull_request or push to the default branch and runs a test/lint/typecheck/build step with no step failing open (continue-on-error, or a run script that swallows its own non-zero exit with `|| true` / `|| exit 0` / `|| :` / `set +e`); a `set +e` that reads the exit status and exits non-zero on it, or hands it through $GITHUB_OUTPUT to a later step of the same job that exits non-zero under an if: on it, does not fail open, and one whose hand-on the census cannot follow reads not-measured, never met; whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
+    check: the repo census, a workflow that triggers on pull_request, merge_group or push to the default branch and runs a test/check/lint/typecheck/build step, directly or through a package script the repository declares, with no step failing open (continue-on-error, or a run script that swallows its own non-zero exit with `|| true` / `|| exit 0` / `|| :` / `set +e`); a `set +e` that reads the exit status and exits non-zero on it, or hands it through $GITHUB_OUTPUT to a later step of the same job that exits non-zero under an if: on it, does not fail open, and one whose hand-on the census cannot follow reads not-measured, never met; whether the check is required by branch protection is not visible from the tree and stays a sidecar claim
     sources: [floor/v-ci, foundation/branch-protection]
     status: draft
     owner:
@@ -692,7 +692,7 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: architecture-page
-    check: the repo census, an architecture page present (at the root and every location map/projects.mjs finds) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
+    check: the repo census, an architecture page present (at the root and every location map/projects.mjs finds; a workspace with none of its own is covered by its project's passing page unless it is a separately deployed unit, a container file, hosting config or infrastructure manifest of its own) naming at least one external service or data store; a full match against every effect channel the inventory found stays a sidecar claim
     sources: [floor/l-architecture, foundation/docs-architecture]
     status: draft
     owner:
@@ -708,7 +708,7 @@ requirements:
       kind: instrument
       scanner: repo-census
       category: agent-contract
-    check: the repo census, AGENTS.md or CLAUDE.md present (at the root and every location map/projects.mjs finds) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
+    check: the repo census, AGENTS.md or CLAUDE.md present (at the root and every location map/projects.mjs finds; a workspace with none of its own is covered by its project's passing contract unless it is a separately deployed unit, a container file, hosting config or infrastructure manifest of its own) with no status/history/changelog/todo/backlog heading and no dated changelog line; dated evidence it is used stays a sidecar claim
     sources: [floor/l-agent-contract, manifest/d2-tiered-contract, manifest/d1-contract-history-separation, foundation/CLAUDE.md]
     status: draft
     owner:
