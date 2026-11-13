@@ -21,30 +21,7 @@
 // fails loud (CLAUDE.md rule 3), never reads as untaken.
 import { loadAdapters } from '../map/project.mjs';
 import { loadYardstick } from './measure.mjs';
-import { requirementTaking, parseCheck } from './population.mjs';
-
-// census name → the term its census row's population names (null when its check names none)
-function censusTerms(reg) {
-  const terms = (reg.members || []).map((m) => m.term);
-  const out = new Map();
-  for (const d of reg.requirements || []) {
-    if (d?.decide?.kind !== 'census') continue;
-    const p = parseCheck(d.check, terms);
-    for (const name of d.decide.measures || []) out.set(String(name), p ? p.term : null);
-  }
-  return out;
-}
-// context list name → the term its claim row's population names
-function contextTerms(reg) {
-  const terms = (reg.members || []).map((m) => m.term);
-  const out = new Map();
-  for (const d of reg.requirements || []) {
-    if (d?.decide?.kind !== 'claim' || !Array.isArray(d.decide.context)) continue;
-    const p = parseCheck(d.check, terms);
-    for (const name of d.decide.context) out.set(String(name), p ? p.term : null);
-  }
-  return out;
-}
+import { requirementTaking, censusTerms, contextTerms } from './population.mjs';
 
 // { findings, censuses, reg, adapters } → the findings no requirement takes, in input order.
 //   findings       the run's findings (map/project.mjs loadFindings)

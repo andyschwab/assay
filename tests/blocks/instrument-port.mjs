@@ -48,17 +48,18 @@ export async function run() {
     rmSync(tmp, { recursive: true, force: true });
   }
   // id allocation (found on a real history scan: a gitleaks block of over a thousand rows ran past the
-  // deep-code-review and fresh-clone floors and the validator went red on duplicate ids)
+  // deep-code-review and fresh-clone floors and the validator went red on duplicate ids); every floor
+  // is in the ingest range, F-10000 plus the profile's offset (#304)
   {
     const tmp = join(HERE, '.tmp-nextstart'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
-    if (nextStart(tmp, 'deep-code-review').start !== 800) fail('an empty run starts deep-code-review at its floor F-800');
+    if (nextStart(tmp, 'deep-code-review').start !== 10800) fail('an empty run starts deep-code-review at its floor F-10800');
     const row = (n) => `- id: F-${n}\n  source: gitleaks\n  native_id: "r@a.ts:${n}"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
-    writeFileSync(join(tmp, 'map', 'findings', 'gitleaks.yaml'), Array.from({ length: 807 }, (_, i) => row(700 + i)).join(''));
+    writeFileSync(join(tmp, 'map', 'findings', 'gitleaks.yaml'), Array.from({ length: 807 }, (_, i) => row(10700 + i)).join(''));
     const ns = nextStart(tmp, 'deep-code-review');
-    if (ns.start !== 1600 || ns.highest !== 1506) fail(`with gitleaks rows to F-1506, deep-code-review must start at F-1600 (got F-${ns.start}, highest ${ns.highest})`);
-    if (nextStart(tmp, 'gitleaks').start !== 700) fail('a re-ingest of the same tool ignores its own file and lands at its floor again');
-    writeFileSync(join(tmp, 'map', 'findings', 'deep-code-review.yaml'), row(1600));
-    if (nextStart(tmp, 'fresh-clone').start !== 1700) fail('fresh-clone must start above both existing blocks (F-1700)');
+    if (ns.start !== 11600 || ns.highest !== 11506) fail(`with gitleaks rows to F-11506, deep-code-review must start at F-11600 (got F-${ns.start}, highest ${ns.highest})`);
+    if (nextStart(tmp, 'gitleaks').start !== 10700) fail('a re-ingest of the same tool ignores its own file and lands at its floor again');
+    writeFileSync(join(tmp, 'map', 'findings', 'deep-code-review.yaml'), row(11600));
+    if (nextStart(tmp, 'fresh-clone').start !== 11700) fail('fresh-clone must start above both existing blocks (F-11700)');
     rmSync(tmp, { recursive: true, force: true });
   }
   // the raw archive of a gitleaks report must be location-only: the CLI once copied the raw

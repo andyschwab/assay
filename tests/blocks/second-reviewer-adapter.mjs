@@ -76,7 +76,7 @@ export async function run() {
     try { rows = convert(ID, REPORT, null); } catch (e) { fail(`a machine report from ${ID} must ingest through its adapter alone (${e.message})`); }
     if (rows.length !== 2) fail(`the two-finding report must yield 2 rows (got ${rows.length})`);
     if (rows.some((r) => r.source !== ID)) fail(`rows must carry source ${ID} (got ${rows.map((r) => r.source).join(', ')})`);
-    if (rows[0]?.id !== 'F-880') fail(`ids must start at the adapter's ingest.start_id, F-880 (got ${rows[0]?.id})`);
+    if (rows[0]?.id !== 'F-10880') fail(`ids must start at the adapter's ingest.start_id in the ingest range, F-10880 (got ${rows[0]?.id})`);
     if (rows.coverage?.scanner !== ID) fail(`the coverage block must name ${ID} (got ${rows.coverage?.scanner})`);
     let threw = false;
     try { convert(ID, REPORT.replace(`  tool: ${ID}\n`, '  tool: another-reviewer\n'), null); } catch { threw = true; }

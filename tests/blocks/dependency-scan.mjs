@@ -57,7 +57,7 @@ export async function run() {
   if (by.high?.evidence[0] !== 'package-lock.json:1') fail(`an advisory row must cite its lockfile at :1 (got ${by.high?.evidence[0]})`);
   if (by['lockfile-failed']?.evidence[0] !== 'packages/foo/package-lock.json:1') fail('a failed-lockfile row must cite its own lockfile path');
   if (!/left-pad/.test(by.high?.fix || '') || !/GHSA-aaaa-bbbb-cccc/.test(by.high?.observation || '')) fail('an advisory row must name the package (fix) and the advisory id (observation)');
-  if (rows[0]?.id !== 'F-950') fail(`dependency-scan ids start at F-950 (got ${rows[0]?.id})`);
+  if (rows[0]?.id !== 'F-10950') fail(`dependency-scan ids start at F-10950, its floor in the ingest range (#304) (got ${rows[0]?.id})`);
   // (b) a runner crash halts; an exit/document mismatch halts; truncation halts
   mustThrow('a runner crash (exit 2)', () => convert('dependency-scan', raw, 2));
   mustThrow('a document whose exit disagrees with the runner exit', () => convert('dependency-scan', raw, 0));

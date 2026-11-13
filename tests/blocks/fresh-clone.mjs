@@ -55,7 +55,7 @@ export async function run() {
     if (claimRow?.evidence[0] !== `README.md:${claims.deploy?.line}`) fail(`a missing claim must cite README.md:<line> (got ${claimRow?.evidence[0]})`);
     if (rows.find((r) => r.native_category === 'lint')?.evidence[0] !== 'package.json:1') fail('a step row must cite the manifest that declares the steps');
     if (rows.some((r) => r.native_category === 'test' || r.native_category === 'build')) fail('a passing step must yield no row');
-    if (rows[0]?.id !== 'F-900') fail(`fresh-clone ids start at F-900 (got ${rows[0]?.id})`);
+    if (rows[0]?.id !== 'F-10900') fail(`fresh-clone ids start at F-10900, its floor in the ingest range (#304) (got ${rows[0]?.id})`);
     if (JSON.stringify(rows).includes('output_tail') || JSON.stringify(rows).includes('> fresh-clone-target@')) fail('step output must never be copied into rows (it stays in the raw archive)');
     // a failed install/build/test reads High; timed-out likewise; not-declared reads Medium
     const failedDoc = { ...doc, exit: 1, steps: doc.steps.map((s) => s.name === 'build' ? { ...s, status: 'failed', exit_code: 1 } : s.name === 'test' ? { ...s, status: 'timed-out', exit_code: null, reason: 'exceeded 1s' } : s) };

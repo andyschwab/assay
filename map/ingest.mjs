@@ -46,15 +46,18 @@
 // halts. A tool skipped or failed is a <category>-not-run fact, never 0 rows.
 //
 // Usage:
-//   node assay.mjs ingest <run-dir> --tool <instrument> --raw <file> --exit <code> [--start F-7xx]
-//   node assay.mjs ingest <run-dir> --tool <reviewer> --raw <machine report .yaml> [--start F-8xx]
+//   node assay.mjs ingest <run-dir> --tool <instrument> --raw <file> --exit <code> [--start F-107xx]
+//   node assay.mjs ingest <run-dir> --tool <reviewer> --raw <machine report .yaml> [--start F-108xx]
 // Writes <run-dir>/map/findings/<tool>.yaml and archives the raw report to
-// <run-dir>/map/raw/<tool>.<json|yaml>. Without --start, ids begin at the profile floor or
-// the next hundred above the run's highest existing id, whichever is higher (nextStart).
+// <run-dir>/map/raw/<tool>.<json|yaml>. Every id ingest allocates is in the ingest range,
+// F-10000 and above (map/ids.mjs): a lane numbers its own findings below it, so the two never
+// collide. Without --start, ids begin at the profile floor or the next hundred above the
+// highest ingested id already in the run, whichever is higher (nextStart).
 // Library: convert(tool, rawText, exitCode, startId), nextStart(runDir, tool).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve, relative, sep, isAbsolute } from 'node:path';
 import { isMain } from './doctrine.mjs';
+import { INGEST_FLOOR, INGEST_RANGE, LANE_RANGE, idNumber } from './ids.mjs';
 import { parseYaml, q } from '../lib/yaml-min.mjs';
 import { loadAdapters, verifiedPin } from './project.mjs';
 import { findingsDir, findingsPath, coverageDir, coveragePath, rawDir, rawPath as rawArtifactPath, scannersPath } from '../lib/run-layout.mjs';
@@ -77,7 +80,7 @@ const dropKeys = (raw, keys) => JSON.parse(raw, (k, v) => (keys.includes(k) ? un
 // below that reads its report (CLAUDE.md rule 7).
 const PROFILES = {
   'fresh-clone': {
-    startId: 900,
+    startId: INGEST_FLOOR + 900,
     // 0 = every declared step passed and every README claim present, at the root AND
     // in every workspace; 1 = at least one step failed / timed out or a claim is
     // missing, anywhere. Both are successful RUNS. A crash of the runner itself exits
@@ -317,7 +320,7 @@ const PROFILES = {
     },
   },
   'dependency-scan': {
-    startId: 950,
+    startId: INGEST_FLOOR + 950,
     // a failed audit's stderr tail (which may echo environment values) stays out of map/raw/
     archive: (raw) => JSON.stringify(dropKeys(raw, ['stderr_tail']), null, 2) + '\n',
     // 0 = every lockfile in the tree audited with zero advisories; 1 = any advisory,
@@ -422,7 +425,7 @@ const PROFILES = {
     },
   },
   'repo-census': {
-    startId: 960,
+    startId: INGEST_FLOOR + 960,
     // 0 = every check passed (or was not-applicable); 1 = at least one check is a gap.
     // Both are successful RUNS. A crash of the runner itself exits 2 and halts here.
     okExits: [0, 1],
@@ -509,7 +512,7 @@ const PROFILES = {
     },
   },
   'structure-scan': {
-    startId: 970,
+    startId: INGEST_FLOOR + 970,
     // the document already holds each tool's report less code text; a failed tool's own
     // reason stays, and nothing else is copied out of it into a row
     archive: (raw) => JSON.stringify(dropKeys(raw, ['fragment']), null, 2) + '\n',
@@ -787,7 +790,7 @@ export function convert(tool, rawText, exitCode, startId = null, opts = {}) {
 const FORMATS = {
   'machine-report': (id, adapter) => ({
     raw: `${id}.yaml`,
-    startId: Number(adapter.ingest.start_id),
+    startId: INGEST_FLOOR + Number(adapter.ingest.start_id),
     exitless: true,      // an LLM skill's machine report: completeness, not an exit code, is the fail-loud property
     convert(raw, startId) {
       let rep;
@@ -817,6 +820,11 @@ const FORMATS = {
       if (rep.needs_validation !== undefined && rep.needs_validation !== null && !Array.isArray(rep.needs_validation)) throw new Error('machine report needs_validation: must be a list of rows');
       const asked = (rep.needs_validation || []).map((f) => (f && typeof f === 'object' && f.verdict === undefined) ? { ...f, verdict: 'needs_validation' } : f);
       for (const f of asked) if (f && typeof f === 'object' && f.verdict !== 'needs_validation') throw new Error(`needs_validation row ${f.id || '?'}: verdict "${f.verdict}" in the needs_validation list`);
+      // a commit the reviewer cites in its own form (the adapter's ingest.commit_citation, the
+      // prefix it writes before a sha) is filed in the schema's one form, commit:<sha> (SCHEMA.md
+      // §1), which validate checks as a sha and against the target's history
+      const ownForm = adapter.ingest.commit_citation ? String(adapter.ingest.commit_citation) : null;
+      const commitCite = (e) => (ownForm && e.startsWith(ownForm) ? `commit:${e.slice(ownForm.length).trim().toLowerCase()}` : e);
       const rows = /** @type {any} */ ([]); let n = 0;
       const rejected = /** @type {{id: string, reason: string}[]} */ ([]);
       const nonEmpty = (v) => typeof v === 'string' && v.trim() !== '';
@@ -853,7 +861,7 @@ const FORMATS = {
           native_category: String(f.area),
           polarity: f.polarity,
           observation: oneLine(f.observation),
-          evidence: f.evidence.map((e) => String(e)),
+          evidence: f.evidence.map((e) => commitCite(String(e))),
         };
         if (f.title) row.title = oneLine(f.title);
         if (f.tag) row.native_tag = oneLine(f.tag);
@@ -906,7 +914,7 @@ const FORMATS = {
     const minimise = (leaks) => leaks.map((l) => Object.fromEntries(keep.filter((k) => l[k] !== undefined).map((k) => [k, abbreviate.has(k) ? String(l[k]).slice(0, 12) : l[k]])));
     return {
       raw: `${id}.json`,
-      startId: Number(spec.start_id),
+      startId: INGEST_FLOOR + Number(spec.start_id),
       okExits: (adapter.run?.ok_exits || spec.ok_exits || [0]).map(Number),
       // the raw archive is LOCATION-ONLY: none of the matched value, nor its author, enters a run
       archive(raw) {
@@ -953,7 +961,7 @@ const FORMATS = {
     const label = String(spec.label || id);
     return {
       raw: `${id}.json`,
-      startId: Number(spec.start_id),
+      startId: INGEST_FLOOR + Number(spec.start_id),
       okExits: (spec.ok_exits || [0]).map(Number),
       convert(raw, startId) {
         const rep = parseJson(raw, id);
@@ -1127,7 +1135,7 @@ function envelopeFormat(id, adapter, convertReport) {
   const noInputExits = (run.no_input_exits || []).map(Number);
   return {
     raw: `${id}.json`,
-    startId: Number(adapter.ingest.start_id),
+    startId: INGEST_FLOOR + Number(adapter.ingest.start_id),
     okExits: [...(run.ok_exits || [0]).map(Number), ...noInputExits],
     convert(raw, startId, exitCode) {
       const env = readEnvelope(id, raw);
@@ -1149,6 +1157,7 @@ function profileOf(tool) {
     if (!make) throw new Error(`adapters/${tool}.yaml ingest.format "${spec.format}" is not a format ingest reads (${Object.keys(FORMATS).join(', ')})`);
     if (!spec.tool && ['machine-report', 'sarif'].includes(spec.format)) throw new Error(`adapters/${tool}.yaml ingest: needs tool, the tool name its report carries`);
     if (!/^\d+$/.test(String(spec.start_id ?? ''))) throw new Error(`adapters/${tool}.yaml ingest: needs start_id, the id floor, as digits`);
+    if (Number(spec.start_id) >= INGEST_FLOOR) throw new Error(`adapters/${tool}.yaml ingest: start_id ${spec.start_id} is the floor's offset in the ingest range, below ${INGEST_FLOOR} (its rows start at F-${INGEST_FLOOR} + start_id)`);
     if (spec.format === 'leak-list' && !(spec.category && spec.fix && Array.isArray(spec.keep) && spec.keep.length && /^\d+$/.test(String(spec.found_exit ?? '')))) throw new Error(`adapters/${tool}.yaml ingest: a leak-list needs category, fix, keep (the location fields a run may archive) and found_exit`);
     if (spec.format === 'check-scores' && !(Number(spec.strength_at) >= 0)) throw new Error(`adapters/${tool}.yaml ingest: check-scores needs strength_at, the score at or above which a check is a strength`);
     return make(tool, adapter);
@@ -1157,13 +1166,19 @@ function profileOf(tool) {
   throw new Error(`unknown instrument "${tool}" (profiles: ${known.join(', ')})`);
 }
 
-// ── id allocation: above the base's highest id, never inside another block ──
-// Each profile has a documented floor (an adapter's ingest.start_id: 700 for the secret
-// scan, 750 for the retired check-scores instrument, 800 for the code reviewer), fresh-clone 900, dependency-scan 950, repo-census 960, structure-scan 970). A real history scan can run past the next floor (a real
-// history scan's leak block ran F-700..F-1866), so the default start is the profile floor OR the
-// next hundred above the highest id already in the run's OTHER findings files,
-// whichever is higher. The profile's own file is excluded so a re-ingest of the same
-// tool lands where it did before instead of drifting upward on every run.
+// ── id allocation: in the ingest range, above the base's highest ingested id ──
+// Every id ingest allocates is F-10000 or above (map/ids.mjs): a review lane numbers its own
+// findings below it in a scratch run that holds no instrument rows, and cannot see what ingest
+// gave, so the two ranges are disjoint by construction and neither renumbers the other. Each
+// profile has a documented floor in that range, F-10000 plus its offset (an adapter's
+// ingest.start_id: 700 for the secret scan, so F-10700; 750 for the retired check-scores
+// instrument, 800 for the code reviewer; fresh-clone 900, dependency-scan 950, repo-census 960,
+// structure-scan 970). A real
+// history scan can run past the next floor (one secret scan's leak block ran 1,166 rows), so
+// the default start is the profile floor OR the next hundred above the highest INGESTED id
+// already in the run's other findings files, whichever is higher; a lane's ids, below the
+// range, never move it. The profile's own file is excluded so a re-ingest of the same tool
+// lands where it did before instead of drifting upward on every run.
 export function nextStart(runDir, tool) {
   const p = profileOf(tool);
   const fd = findingsDir(runDir);
@@ -1172,14 +1187,15 @@ export function nextStart(runDir, tool) {
   if (existsSync(fd)) {
     for (const f of readdirSync(fd)) {
       if (!f.endsWith('.yaml') || f === ownFile) continue;
-      const m = readFileSync(join(fd, f), 'utf8').match(/^-\s+id:\s*F-(\d+)/gm) || [];
-      for (const s of m) { const n = Number(s.replace(/^-\s+id:\s*F-/, '')); if (n > max) { max = n; } }
+      const m = (readFileSync(join(fd, f), 'utf8').match(/^-\s+id:\s*(F-\d+)/gm) || [])
+        .map((s) => idNumber(s.replace(/^-\s+id:\s*/, ''))).filter((n) => n !== null && n >= INGEST_FLOOR);
+      for (const n of m) if (n > max) max = n;
       if (m.length) seenIn.push(f);
     }
   }
   const above = max ? Math.ceil((max + 1) / 100) * 100 : 0;
   const start = Math.max(p.startId, above);
-  return { start, floor: p.startId, highest: max, reason: start === p.startId ? `the profile floor (highest existing id F-${max} is below it)` : `the next hundred above the base's highest id F-${max} (in ${seenIn.join(', ')}); the profile floor is F-${p.startId}` };
+  return { start, floor: p.startId, highest: max, reason: start === p.startId ? (max ? `the profile floor (the highest ingested id, F-${max}, is below it)` : 'the profile floor (no other ingested id in the run)') : `the next hundred above the run's highest ingested id F-${max} (in ${seenIn.join(', ')}); the profile floor is F-${p.startId}` };
 }
 
 // ── YAML emit (the schema's constrained subset: block style, folded scalars) ─
@@ -1255,20 +1271,29 @@ function coverageYaml(c) {
 // ── CLI ──────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
   const args = process.argv.slice(2);
-  const runDir = args[0];
+  const runDir = args[0] && !args[0].startsWith('--') ? args[0] : null;
   const opt = (name) => { const i = args.indexOf(name); return i > -1 ? args[i + 1] : null; };
   const tool = opt('--tool'), rawPath = opt('--raw'), exit = opt('--exit'), start = opt('--start'), stripPrefix = opt('--strip-prefix'), model = opt('--model');
+  const usage = (why) => {
+    if (why) console.error(`assay ingest: ${why}`);
+    console.error('usage: node assay.mjs ingest <run-dir> --tool <instrument> --raw <file> --exit <code> [--start F-107xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
+    console.error('       node assay.mjs ingest <run-dir> --tool <reviewer, an adapter with ingest:> --raw <machine report .yaml> [--start F-108xx] [--model <id>]');
+    console.error(`       ids are allocated in the ingest range, ${INGEST_RANGE}; a lane numbers its own findings ${LANE_RANGE}`);
+    process.exit(2);
+  };
+  // the run and the tool are read first, before anything is built from them: a missing one is
+  // a usage error, never a stack
+  if (!runDir) usage('no run directory given');
+  if (!tool) usage('no --tool given');
+  let profile = null;
+  try { profile = profileOf(tool); } catch (e) { usage(e.message); }
+  const exitless = !!(profile && profile.exitless);
+  if (!rawPath || (exit === null && !exitless)) usage(!rawPath ? 'no --raw report given' : `no --exit given (${tool} is read with its exit code)`);
+  if (!existsSync(rawPath)) usage(`no such report: ${rawPath}`);
+  if (start !== null && !(idNumber(start) !== null && idNumber(start) >= INGEST_FLOOR)) usage(`--start ${start} is not an id in the ingest range (${INGEST_RANGE})`);
   // the run's target root: --target, else the one the run record holds (`assay start` writes it)
   let target = opt('--target');
   if (!target && existsSync(scannersPath(runDir))) { try { const t = parseYaml(readFileSync(scannersPath(runDir), 'utf8')).target; if (typeof t === 'string' && t) target = t; } catch { /* validate reports a malformed record */ } }
-  let profile = null;
-  try { profile = tool ? profileOf(tool) : null; } catch { /* convert reports an unknown tool */ }
-  const exitless = !!(profile && profile.exitless);
-  if (!runDir || !tool || !rawPath || (exit === null && !exitless)) {
-    console.error('usage: node assay.mjs ingest <run-dir> --tool <instrument> --raw <file> --exit <code> [--start F-7xx] [--strip-prefix <target-root>] [--target <run target root>] [--model <id>]');
-    console.error('       node assay.mjs ingest <run-dir> --tool <reviewer, an adapter with ingest:> --raw <machine report .yaml> [--start F-8xx] [--model <id>]');
-    process.exit(2);
-  }
   const rawText = readFileSync(rawPath, 'utf8');
   let rows, startNote = null;
   let startId = start;

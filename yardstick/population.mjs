@@ -112,6 +112,55 @@ function owners(reg) {
 }
 const asList = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]).map(String);
 
+// census name → the term its census row's population names (null when its check names none):
+// the term the check of the census row whose `decide.measures` names the census opens on
+export function censusTerms(reg) {
+  const terms = (reg.members || []).map((m) => m.term);
+  const out = new Map();
+  for (const d of reg.requirements || []) {
+    if (d?.decide?.kind !== 'census') continue;
+    const p = parseCheck(d.check, terms);
+    for (const name of d.decide.measures || []) out.set(String(name), p ? p.term : null);
+  }
+  return out;
+}
+// context list name → the term its claim row's population names (#262)
+export function contextTerms(reg) {
+  const terms = (reg.members || []).map((m) => m.term);
+  const out = new Map();
+  for (const d of reg.requirements || []) {
+    if (d?.decide?.kind !== 'claim' || !Array.isArray(d.decide.context)) continue;
+    const p = parseCheck(d.check, terms);
+    for (const name of d.decide.context) out.set(String(name), p ? p.term : null);
+  }
+  return out;
+}
+
+/**
+ * Why a finding cannot be placed on a term, or null when it can: the term is not in the
+ * vocabulary, the finding's subject type is not one the term admits, or its own facets place it
+ * on another term. requirementTaking throws exactly this; validate reports it on every census and
+ * context-list member (#304), so the compile is never the first to find it.
+ * @param {any} finding @param {string} term @param {any} [reg]
+ * @returns {string|null}
+ */
+export function placementError(finding, term, reg = loadYardstick()) {
+  const vocab = new Map((reg.members || []).map((m) => [m.term, m]));
+  const record = recordOf(finding);
+  if (record) {
+    const byRecord = [...vocab.values()].find((m) => m.record === record);
+    if (!byRecord) return `yardstick: no members: term takes the ${record} record`;
+    if (term !== byRecord.term) return `${finding.id}: placed on "${term}", but its own facets place it on "${byRecord.term}"`;
+  }
+  const m = vocab.get(term);
+  if (!m) return `${finding?.id}: "${term}" is not a term of the yardstick's members: vocabulary`;
+  if (finding?.subject_type && !m.subject_types.includes(finding.subject_type)) return `${finding.id}: a ${finding.subject_type} finding is not a "${term}" (the term admits ${m.subject_types.join(', ') || 'no subject type'})`;
+  return null;
+}
+// the record an effect or capability finding's own facets give it, or null
+const recordOf = (finding) => (finding?.subject_type === 'effect' && finding.effect ? (isHaltClass(finding.effect) ? 'halt-class-effect' : 'effect')
+  : finding?.subject_type === 'capability' && finding.capabilities ? 'capability' : null);
+
 /**
  * Which requirement takes a finding. Throws on a member the vocabulary does not name, on a
  * member whose subject types the finding's does not fit, and on a member that contradicts the
@@ -132,20 +181,17 @@ export function requirementTaking(finding, { member = null, reg = loadYardstick(
     if (cats.includes(String(finding.native_category))) candidates.add(d.id);
   }
   // 2. an effect or capability finding is taken by its own facets
-  const record = finding?.subject_type === 'effect' && finding.effect ? (isHaltClass(finding.effect) ? 'halt-class-effect' : 'effect')
-    : finding?.subject_type === 'capability' && finding.capabilities ? 'capability' : null;
+  const record = recordOf(finding);
   let term = member;
   if (record) {
     const byRecord = [...vocab.values()].find((m) => m.record === record);
     if (!byRecord) throw new Error(`yardstick: no members: term takes the ${record} record`);
-    if (member && member !== byRecord.term) throw new Error(`${finding.id}: placed on "${member}", but its own facets place it on "${byRecord.term}"`);
-    term = byRecord.term;
+    term = member || byRecord.term;
   }
   // 3. the row whose population names the term
   if (term) {
-    const m = vocab.get(term);
-    if (!m) throw new Error(`${finding?.id}: "${term}" is not a term of the yardstick's members: vocabulary`);
-    if (finding?.subject_type && !m.subject_types.includes(finding.subject_type)) throw new Error(`${finding.id}: a ${finding.subject_type} finding is not a "${term}" (${m.subject_types.join(', ') || 'no finding is'})`);
+    const why = placementError(finding, term, reg);
+    if (why) throw new Error(why);
     for (const id of own.get(term) || []) candidates.add(id);
   }
   const list = [...candidates];

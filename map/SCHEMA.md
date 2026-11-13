@@ -30,7 +30,8 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
   subject_type: effect         # effect | control | artifact | contract | process | capability
   observation: >               # ONE grounded sentence — the fact, not the interpretation
     The agent sends email as the user with no draft/confirm step.
-  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo (an instrument run inside it is rebased onto it at ingest)
+  evidence: [path:line, path:line]     # MANDATORY, non-empty; repo-relative to the TARGET repo (an instrument run inside it is rebased onto it at ingest),
+                                       #   or commit:<sha>, a commit of the target's history (below)
   confidence: confirmed        # confirmed | plausible | unverified
   # ── facets (conditional-required — see §4) ──
   effect:                      # REQUIRED iff subject_type == effect
@@ -68,6 +69,16 @@ Lean neutral core, with facets attached only when the `subject_type` requires th
 
 **Mandatory keys on every finding:** `id`, `dimension`, `polarity`,
 `subject_type`, `observation`, `evidence` (non-empty), `confidence`.
+
+**Evidence (#304).** Each entry is a `path:line` (or `path:a-b`) citation of the target's tree,
+or `commit:<sha>`: a commit of the target's history, 7 to 40 lowercase hex digits. A commit is
+evidence of history, so a finding that cites one states a fact about the tree's history (a
+commit's subject, what it changed), never a free claim; `validate --target` checks that the
+commit is in the target's history when the target is a git repository of its own, and a shallow
+clone that lacks it is warned, not passed silently. A reviewer that writes a commit in its own
+form names that form on its adapter (`ingest.commit_citation`, `map/scanners/CONTRACT.md`), and
+ingest files it as `commit:<sha>`. A commit names no file, so an evidence condition that reads a
+finding's files reads none from it.
 
 **Optional keys:** `preconditions`, `reaches`, `explained_by`, `escapes`, `covers`, `label`,
 `property`, the two facets (which become mandatory under §4), and the **overlay** fields
@@ -360,8 +371,24 @@ enforces it via filename↔dimension.
   — this is a **dispatch convenience, not a schema constraint**, it has no ceiling, and it
   carries no dimension meaning (a collision is renumbered freely; the validator enforces only
   global uniqueness). Or author pass-local and let the merge assign final ids.
-- The only hard rules the validator enforces: every id is a well-formed unique `F-###`, every
-  `reaches`/`explained_by`/`escapes` resolves, and filename↔dimension holds.
+- The only hard rules the validator enforces: every id is a well-formed unique `F-###` in its
+  range (below), every `reaches`/`explained_by`/`escapes` resolves, and filename↔dimension holds.
+
+**Two ranges (#304).** A review lane writes its findings in a scratch run that holds no
+instrument rows, and cannot see the ids `ingest` gives; `ingest` runs before the lane is
+collected, or after. So the two never share a range, and nothing is renumbered at collection:
+- a **lane's** findings (the passes of this method: no `source`, or `source: practice-review`)
+  are numbered `F-001` to `F-9999`;
+- every row **`ingest`** allocates, instrument and reviewer alike, is `F-10000` or above: each
+  profile's floor is `F-10000` plus its offset (an adapter's `ingest.start_id`, 700 for the secret
+  scan, so `F-10700`), and the next start above it
+  reads only the ingested ids already in the run (`map/ingest.mjs` `nextStart`).
+
+`validate` holds the boundary both ways, naming the range: a lane's finding at `F-10000` or
+above is refused in every run; an ingested row below it is refused in a run whose record carries
+`ingest_ids_from: 10000` (§5a; `start` writes it). A run drawn before the ranges carries no such
+key and keeps its ids: its ingested rows sit below the floor, and no lane's finding of it ever
+reached the ingest range (`map/ids.mjs`).
 
 **`unprompted`** is a first-class dimension for a seam-finding no criterion asked for; a
 finding with `dimension: unprompted` may live in any `map/findings/practice-review-*.yaml` file and takes an
@@ -508,6 +535,7 @@ identity:                     # the target, as the run states it (#265); optiona
   repository: "https://github.com/<owner>/<repo>"   # the origin remote, userinfo stripped
   path: "."                   # the target's path within the repository: `.`, or e.g. targets/<name>
 drawn: "2026-11-11"           # the day the run was drawn, YYYY-MM-DD; optional, written by start
+ingest_ids_from: 10000        # the run was drawn under the two id ranges (§3, #304); written by start
 scanners:
   practice-review:
     status: ran
@@ -801,7 +829,11 @@ no coverage, and decides nothing. The measurement carries its ids on the claim r
 `context:`, beside its status and never in its `findings:`, and the views show them under
 "Seen in this run (context, not a decision)" (`views/README.md`). `validate` refuses a list no
 claim row names, an id the run does not carry, an id listed twice, and an id that is also a
-census member: a finding is listed once, on the one population it is a member of.
+census member: a finding is listed once, on the one population it is a member of. It refuses,
+too, a member whose subject type the row's term does not admit (the term's `subject_types` in
+`members:`, `yardstick/requirements.yaml`), naming the term and the types it admits, and so for a
+census member (#304): the compile places each member on that term (`yardstick/population.mjs`),
+and validate reads the same source, so a lane's own check sees it before it publishes.
 
 | claim row | context list |
 |---|---|
@@ -1185,14 +1217,15 @@ violation). It checks, and **fails closed** — an input it cannot parse is an e
 a pass (the run's own CI-1 lesson, applied to the checker):
 
 1. Every finding carries the mandatory keys (§1); `evidence` is present and non-empty, and
-   every entry is a `path:line` (or `path:a-b`) string — a bare path, a map, or `:12`
-   alone is refused.
+   every entry is a `path:line` (or `path:a-b`) string or a `commit:<sha>` (§1) — a bare
+   path, a map, `:12` alone, or a commit that is not 7 to 40 lowercase hex digits is refused.
 2. Every closed-vocab field holds an allowed value (§2), including facet sub-fields.
 3. Conditional-required facets are present and complete (§4), incl. the `fail_mode`
    rule and the **fail-closed discovery rule** (§6d): an unheld-halt effect — a chain
    sink — must state its `preconditions`, never leave difficulty to default.
-4. Ids are unique across the run and well-formed `F-###` (§3) — no dimension-band check;
-   the id carries no dimension meaning.
+4. Ids are unique across the run and well-formed `F-###` (§3), each in its range: a lane's
+   below `F-10000`, an ingested row at or above it in a run drawn under the ranges — no
+   dimension-band check; the id carries no dimension meaning.
 5. Filename ↔ dimension agreement (§5), `unprompted` excepted — the actual source of truth
    for a finding's dimension.
 6. Every `F-###` in `reaches` / `explained_by` / `escapes` resolves to a finding.

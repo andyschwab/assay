@@ -105,7 +105,10 @@ adopted: false         # optional — a candidate, or with retired: "<why>" a re
 ingest:                # optional — how map/ingest.mjs reads this scanner's report when
   format: machine-report   #   no built-in profile does: the format,
   tool: <reviewer>     #   the review.tool value a report must carry,
-  start_id: 800        #   and the id floor its rows are numbered from
+  start_id: 800        #   and the id floor its rows are numbered from, as its offset in the ingest
+                       #   range: rows start at F-10000 + start_id (SCHEMA.md §3)
+  commit_citation: "git:"  #   optional: the prefix its report writes before a commit it cites,
+                       #   filed as the schema's commit:<sha> (SCHEMA.md §1)
 contributes:           # the axes this scanner's OWN methodology measures
   - code-correctness   #   (contribution = the axis joins the roster; a scanner may
   - code-security      #    also FEED axes it does not contribute, via map rows)

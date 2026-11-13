@@ -13,6 +13,11 @@
 # - No send-back: each lane's own check came clean within three runs (sweep-2 one missing
 #   precondition, sweep-3 a census-triage indentation), and every run validated on collection.
 # - No deviation recorded: every listing excluded the blind paths; 0 evidence lines dropped.
+# - One member taken off after collection (#304): sweep-2 listed F-213, a contract, on the
+#   model-qualification context list, whose term ("model in use") admits artifact, process and
+#   control. validate did not check a member's subject type then, and the compile threw on it;
+#   validate does now, so the member is off the list. A context list decides nothing, so no
+#   requirement status moves.
 # - Spend per session (practice-review row of each run record): USD 18.93, 19.35, 17.42.
 # Against assay-2026-11-12 read at the same engine (71%, 10 of 14): requirement agreement 13 of 14.
 # d-effects-traced, d-capability-budget and d-agent-consumable-surface now agree; d-effects-gated

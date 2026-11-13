@@ -62,7 +62,7 @@ context:
   - name: second-accounts
     members: [F-133, F-134, F-135, F-136, F-137]
   - name: model-qualification
-    members: [F-213, F-214, F-215]
+    members: [F-214, F-215]
   - name: guard-fixtures
     members: [F-314, F-315, F-316, F-317]
   - name: rubric-calibration
