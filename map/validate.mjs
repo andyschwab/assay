@@ -30,6 +30,7 @@ import { emailShape, looksLikePersonName } from '../yardstick/packet.mjs';
 import { legacyIn } from './migrate-run.mjs';
 import { censusCount, memberErrors } from './census.mjs';
 import { identityProblems } from './target-identity.mjs';
+import { CONSEQUENCE, policyRecordProblems, policyOfRun } from './consequence.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -139,6 +140,20 @@ function checkProperty(f, at) {
   if (reqIds.has(f.property)) err(at, `property "${f.property}" is a requirement id of the yardstick: a finding names the property it observes, never a requirement (the yardstick holds that link, #257 Q1)`);
 }
 
+// `judged_consequence:` (optional, SCHEMA.md §1; #319): a lane's judgment that the gap matters more
+// than its facts give: { value, because }, value one of the consequence scale. It may raise an item's
+// consequence, never lower it (map/consequence.mjs).
+function checkJudgedConsequence(f, at) {
+  const j = f.judged_consequence;
+  if (j === undefined) return;
+  if (!j || typeof j !== 'object' || Array.isArray(j)) { err(at, `judged_consequence must be { value, because }`); return; }
+  if (!CONSEQUENCE.includes(j.value)) err(at, `judged_consequence.value must be one of ${CONSEQUENCE.join(', ')} (got ${JSON.stringify(j.value)})`);
+  if (typeof j.because !== 'string' || !j.because.trim()) err(at, `judged_consequence.because must say, in one sentence, what the facts do not carry`);
+  for (const k of Object.keys(j)) if (!['value', 'because'].includes(k)) err(at, `judged_consequence: unknown key "${k}" (value, because)`);
+}
+let yardstickForPolicy = null;
+const loadYardstickForPolicy = () => (yardstickForPolicy ||= parseYaml(readFileSync(join(HERE, '..', 'yardstick', 'requirements.yaml'), 'utf8')));
+
 function checkFinding(f, fileLabel, expectDim) {
   const id = f.id;
   const at = `${fileLabel}:${id || '??'}`;
@@ -146,6 +161,7 @@ function checkFinding(f, fileLabel, expectDim) {
   if (allById.has(id)) err(at, `duplicate id (also in ${allById.get(id).file})`);
   else allById.set(id, { f, file: fileLabel });
   checkProperty(f, at);
+  checkJudgedConsequence(f, at);
   // External-scanner findings (overlay, SCHEMA §2a): a finding from another
   // evaluator carries `source` + `native_category` and is validated under the
   // PORT (map/scanners/CONTRACT.md §1), not the native practice-review schema —
@@ -290,6 +306,13 @@ for (const file of passFiles) {
         // what the run states of itself (#265): its target's identity, never a local path, and the day it was drawn
         if (m.identity !== undefined) for (const p of identityProblems(m.identity)) err(`${MANIFEST_FILE}:identity`, p);
         if (m.drawn !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(m.drawn))) err(`${MANIFEST_FILE}:drawn`, `drawn is the day the run was drawn, YYYY-MM-DD`);
+        // the consequence policy the operator named for the run (#319): it loads, its rules read only
+        // the closed facts, and it is the file the record's digest names (map/consequence.mjs)
+        if (m.consequence_policy !== undefined) {
+          const probs = policyRecordProblems(m.consequence_policy);
+          if (probs.length) for (const p of probs) err(`${MANIFEST_FILE}:consequence_policy`, p);
+          else { try { policyOfRun(runDir, loadYardstickForPolicy()); } catch (e) { err(`${MANIFEST_FILE}:consequence_policy`, e.message); } }
+        }
         const adopted = adoptedAdapters(ADAPTERS);
         for (const id of Object.keys(adopted)) if (!m.scanners[id]) err(`${MANIFEST_FILE}:${id}`, `adopted scanner has no disposition — record ran, skipped (with the reason), or failed (with the error)`);
         for (const [id, row] of Object.entries(m.scanners)) {

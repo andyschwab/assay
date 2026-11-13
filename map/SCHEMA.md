@@ -102,6 +102,15 @@ a step row whose runner reason is a closed code carries `status` and `reason_cod
 declared because it `needs-live-database`, a step skipped because a declared service was
 `service-not-provided`).
 
+**`judged_consequence` (#319).** A lane may record, on a gap it wrote, that the gap matters
+more than its facts give: `judged_consequence: { value, because }`, `value` one of the
+consequence scale (`severe`, `significant`, `contained`, `cosmetic`) and `because` one sentence
+saying what the facts do not carry. The fix sequence's consequence (`yardstick/README.md`,
+"Consequence") is derived from the facts by the consequence policy; a judgment above that value
+raises it, by the engine's `lane-judgment` rule, and one at or below it is recorded on the item as
+refused, never applied. A judgment may raise consequence, never lower it. `validate` holds the
+shape.
+
 **`property` (#264).** The property the finding observes, named so two runs, or two
 targets, that observe it meet on one name: kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`),
 stack-free (`secrets-rotated`, never a tool, framework or vendor), and stated as what is,
@@ -592,6 +601,14 @@ without `.git`, is one target; two paths within it are two), a run that states n
 identity is refused, naming the field, and `--target <run>=<repository>[#<path>]` states
 it for a stored run, never a directory name. The tally's date is `drawn:`, else the latest
 `reviewed.date` on a row, else `--date <run>=YYYY-MM-DD`; never the file system's.
+
+**The consequence policy (#319).** A run whose operator named their own consequence policy
+(`node assay.mjs compile <run> --consequence-policy <file>`) records it here, above `scanners:`,
+as `consequence_policy: { file, sha256 }`: the file and its digest. Every later compile of the run
+reads that policy; a file whose digest has moved since is refused, and `validate` refuses a record
+that is malformed, names a file that does not load, or names one whose rules read a fact outside
+the closed list (`yardstick/README.md`, "Consequence"). A run with none reads the default,
+`yardstick/consequence.yaml`.
 
 A row may carry `model:`, the model id a judgment scanner ran on (practice-review,
 a peer reviewer, a census authored by a model), and `spend:`, what its inference spent,

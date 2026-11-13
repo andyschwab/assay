@@ -1,0 +1,98 @@
+# yardstick/consequence.yaml — the default consequence policy (#319). yardstick/README.md,
+# "Consequence", is the contract; map/consequence.mjs reads it.
+#
+# Two questions, kept apart. What can the code do is a set of facts from closed lists, read off the
+# map: the effect a gap is or touches (its six descriptors, map/SCHEMA.md §1), whether that effect
+# is an unheld halt (map/doctrine.mjs isHalt), the live chain that carries the gap (its reach and
+# its effort to trigger, map/SCHEMA.md §6d), and the requirement row it bears on (its tier, its
+# tags, whether it is floor). How much that matters is this file: a policy over those facts, held
+# as data, which an operator may replace for a run (`compile --consequence-policy <file>`, recorded
+# in the run record) without touching code.
+#
+# Each rule says: when these facts hold, the consequence is AT LEAST this. Every rule is read, top
+# to bottom; the highest value that fires wins, and among rules firing at that value the first one
+# down the file is the one the item cites. No rule, no value: the sequence halts.
+#
+# `when:` maps a fact to a value, or to a list of values any of which matches; every fact named
+# must match, and a fact the run could not read (null) matches nothing. `tags` matches when the
+# row carries any value listed. `when: {}` fires on every open gap. A rule naming a fact outside
+# the closed list, a value outside that fact's vocabulary, or a consequence outside the scale is
+# refused when the policy loads.
+#
+# The facts (closed; map/consequence.mjs FACTS):
+#   reversibility  reversible · reversible-with-window · irreversible
+#   external       true · false
+#   gate_type      deterministic-halt · staged-reversible · scope-bound · rate-throttle ·
+#                  disclosure-only · external-halt · initiated-by-person · none
+#   fail_mode      open · closed · unterminated
+#   telemetry      none · unstructured · structured-event · audited
+#   blast_scope    user · tenant · fleet · cross-tenant
+#   halt           true · false   (an unheld halt: halt-class, and no stop that holds)
+#   reach          user · tenant · fleet · cross-tenant   (the live chain's widest sink)
+#   trigger        trivial · low · moderate · high   (effort to trigger: the chain's, else the
+#                  effect's hardest stated precondition)
+#   tier           the yardstick's tiers
+#   tags           the yardstick's tags
+#   floor          true · false   (the row it bears on is a floor row)
+#
+# The scale (closed, ordered, never a number): severe · significant · contained · cosmetic.
+# A tool's or a lane's severity label is not a fact and is read by no rule.
+schema: assay.consequence-policy
+version: 1
+rules:
+  - name: unheld-halt
+    says: an irreversible or external effect with no stop that holds, whose damage reaches beyond one person
+    when: { halt: true, blast_scope: [tenant, fleet, cross-tenant] }
+    at_least: severe
+  - name: chain-reaches-every-tenant
+    says: a live chain from untrusted input reaches an unheld halt whose damage reaches every tenant, or across tenants
+    when: { reach: [fleet, cross-tenant] }
+    at_least: severe
+  - name: unheld-halt-one-person
+    says: an irreversible or external effect with no stop that holds, on one person's data or account
+    when: { halt: true }
+    at_least: significant
+  - name: crosses-tenants
+    says: an effect that reaches from one tenant's actor or data into another tenant's data
+    when: { blast_scope: cross-tenant }
+    at_least: significant
+  - name: irreversible-effect
+    says: an effect whose prior state is gone, or that someone outside has received
+    when: { reversibility: irreversible }
+    at_least: significant
+  - name: external-to-every-tenant
+    says: an effect that leaves the system and reaches every tenant or consumer at once
+    when: { external: true, blast_scope: fleet }
+    at_least: significant
+  - name: easily-triggered-chain
+    says: a live chain from untrusted input whose hardest step is trivial or low effort
+    when: { trigger: [trivial, low], reach: [user, tenant] }
+    at_least: significant
+  - name: custody-row
+    says: a gap on a custody requirement, who holds the accounts, credentials and knowledge
+    when: { tier: custody }
+    at_least: significant
+  - name: safety-floor-row
+    says: a gap on a safety requirement of the floor, whose gap can harm data, people, money or recovery
+    when: { tier: safety, floor: true }
+    at_least: significant
+  - name: floor-row
+    says: a gap on a floor requirement
+    when: { floor: true }
+    at_least: contained
+  - name: external-effect
+    says: an effect that leaves the repository's own process and checkout
+    when: { external: true }
+    at_least: contained
+  - name: working-tier-row
+    says: a gap on a safety, reproducibility, verification or operability requirement
+    when: { tier: [safety, reproducibility, verification, operability] }
+    at_least: contained
+  - name: legibility-row
+    says: a gap on a legibility requirement, what a reader can learn from the files
+    when: { tier: legibility }
+    at_least: cosmetic
+  - name: any-open-gap
+    says: the scale's floor, an open gap no other rule values
+    when: {}
+    at_least: cosmetic

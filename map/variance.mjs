@@ -199,6 +199,9 @@ const RANK = {
   blast_scope: { 'cross-tenant': 0, fleet: 1, tenant: 2, user: 3 },
 };
 
+// the same order, read by map/consequence.mjs: a contested descriptor reads its riskier value (#319)
+export const DESCRIPTOR_RANK = RANK;
+
 const norm = (v) => (v === undefined || v === null ? null : String(v).trim().toLowerCase());
 const tupleOf = (f) => Object.fromEntries(DESCRIPTOR_FIELDS.map((k) => [k, norm(f.effect[k])]));
 

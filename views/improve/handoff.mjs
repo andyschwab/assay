@@ -38,9 +38,10 @@
 //   FINDINGS.md      the complete projected base (held/open/facts, verbatim + evidence)
 //   plan/NN-*.md     one session prompt per sequenced remedy (interview→fix→prove)
 //   sequence.json    the same sequence as data: each item's kind, voice, finding ids, plan
-//                    file, rank (the key that placed it) and confidence (how much assay knows
-//                    about it, map/confidence.mjs), plus the pending ids (lib/run-data.mjs
-//                    checkSequence)
+//                    file, rank (the key that placed it), confidence (how much assay knows
+//                    about it, map/confidence.mjs) and consequence (what is at stake, the
+//                    consequence policy over the facts of what it touches, map/consequence.mjs),
+//                    the pending ids and the policy read (lib/run-data.mjs checkSequence)
 //
 // Usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]... [--sweep-set <dir>]...
 //   --sweep-set names a sweep set (tests/sweeps/README.md) that measured a source's repeatability;
@@ -56,6 +57,7 @@ import { SEQUENCE_SCHEMA, SEQUENCE_VOICES, checkSequence } from '../../lib/run-d
 import { loadYardstick, loadMeasurement, projectRun as measureRunOf } from '../../yardstick/measure.mjs';
 import { buildRoadmap, buildSequence, clientProofFor, handoffConfig, stripLine, urgentNote } from './sequence.mjs';
 import { loadConfidenceContext, confidencePhrase, checkAdapterConfidence } from '../../map/confidence.mjs';
+import { loadConsequenceContext, consequencePhrase, factsPhrase, ENGINE_RULES } from '../../map/consequence.mjs';
 import { mdText, mdCode } from '../../lib/display.mjs';
 
 const arg = process.argv[2];
@@ -122,7 +124,13 @@ const measurement = loadMeasurement(runDir) ?? measureRunOf(runDir, yardstick);
 // sources states the kind of evidence its source produces, or the handoff halts (fail closed)
 const confErrors = sources.flatMap((src) => checkAdapterConfidence(adapters[src]));
 if (confErrors.length) { console.error(`CONFIDENCE UNDECLARED — an adapter must say how its evidence is confirmed:\n  ${confErrors.join('\n  ')}`); process.exit(1); }
-const context = loadConfidenceContext(runDir, { sweepSets });
+// what is at stake for each item (map/consequence.mjs): the policy the run record names, else the
+// default, refused (and the handoff halted) when it does not load
+let consequence;
+try { consequence = loadConsequenceContext(runDir, { sweepSets, yardstick }); }
+catch (e) { console.error(`CONSEQUENCE POLICY REFUSED — ${e.message}`); process.exit(1); }
+const context = { ...loadConfidenceContext(runDir, { sweepSets }), consequence };
+const policyRule = (name) => consequence.policy.rules.find((r) => r.name === name) || ENGINE_RULES.find((r) => r.name === name);
 let built;
 try { built = buildSequence({ decided, adapters, roadmap, measurement, yardstick, context }); }
 catch (e) { console.error(`SEQUENCE HALTED — ${e.message}`); process.exit(1); }
@@ -209,8 +217,9 @@ function startHere() {
   schema: SEQUENCE_SCHEMA, run: runId,
   sequence: seq.map((s) => ({
     n: s.n, kind: s.kind, voice: SEQUENCE_VOICES[s.kind], source: s.kind === 'authored' ? null : s.source,
-    title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null, rank: s.rank, confidence: s.confidence,
+    title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null, rank: s.rank, confidence: s.confidence, consequence: s.consequence,
   })),
+  policy: { file: consequence.policy.named || 'yardstick/consequence.yaml', sha256: consequence.policy.sha256, rules: consequence.policy.rules.map((r) => r.name) },
   pending: pending.map((p) => p.f.id),
 };
 const sequenceErrors = checkSequence(sequenceDoc, new Set(decided.map((p) => p.f.id)));
@@ -264,7 +273,7 @@ ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) 
 
 ## Sequence
 
-${seq.length ? `Each item says how much assay knows about it, in one phrase: **confirmed** (a deterministic instrument's result, or a cited finding re-resolved at the head and itself confirmed), **judged** (a reviewer's or a lane's reading, with its measured repeatability where a sweep set measured it), **absent evidence** (an evidence file looked for and not found), **not measured** (a step or check that could not run, never a failure) or **known misfire** (a rule its scanner's adapter declares does not apply here, with the reason). Each value is assigned by one stated rule (map/confidence.mjs), never by a tool's severity.\n\n` : ''}${seq.length ? `In working order: an item holding a halt first (an unheld halt, or a confirmed gap at or above the severity its requirement names as a halt), then by severity class (Blocker, Critical and High; then Medium; then Low, Nit and unrated), so no High ever follows a Low. Within a class, an item whose confidence is absent evidence comes after every gap observed in the code, then items go by the tier of the requirement their worst finding bears on (${yardstick.tiers.join(', ')}; a finding no requirement takes after every tiered one), then by severity. One its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage, a scanner's fix or the owner's to define, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
+${seq.length ? `Each item says how much assay knows about it, in one phrase: **confirmed** (a deterministic instrument's result, or a cited finding re-resolved at the head and itself confirmed), **judged** (a reviewer's or a lane's reading, with its measured repeatability where a sweep set measured it), **absent evidence** (an evidence file looked for and not found), **not measured** (a step or check that could not run, never a failure) or **known misfire** (a rule its scanner's adapter declares does not apply here, with the reason). Each value is assigned by one stated rule (map/confidence.mjs), never by a tool's severity.\n\nEach item also says what is at stake, its **consequence**: severe, significant, contained or cosmetic, the consequence policy (${consequence.policy.named ? `\`${consequence.policy.named}\`, named for this run` : 'the default, `yardstick/consequence.yaml`'}) applied to the facts of what the item's gaps touch (the effect's reversibility, reach and stop, the live chain that carries it, the tier and tags of its requirement), with the rule that fired. A tool's or a lane's severity label decides nothing; a fact the run or a sweep set contests reads its riskier value and says so, and a lane's judgment may raise it, never lower it. The order below does not read it yet.\n\n` : ''}${seq.length ? `In working order: an item holding a halt first (an unheld halt, or a confirmed gap at or above the severity its requirement names as a halt), then by severity class (Blocker, Critical and High; then Medium; then Low, Nit and unrated), so no High ever follows a Low. Within a class, an item whose confidence is absent evidence comes after every gap observed in the code, then items go by the tier of the requirement their worst finding bears on (${yardstick.tiers.join(', ')}; a finding no requirement takes after every tiered one), then by severity. One its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage, a scanner's fix or the owner's to define, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
 
 ---
 _Generated by the assay engine. Run \`${runId}\`.${confNote}_
@@ -284,7 +293,17 @@ const seqLine = (s) => {
   const gist = s.kind === 'authored' ? clean(s.r.body).split(/(?<=\.)\s+/)[0]
     : s.kind === 'triage' ? `Confirm which hits are live before fixing anything.`
     : clean((s.ps[0]?.f.observation) || '').split(/(?<=\.)\s+/)[0] + (s.ids.length > 1 ? ` (+${s.ids.length - 1} more ${s.kind === 'owner' ? 'on the same requirement or property' : 'sharing this remedy'})` : '');
-  return `${s.n}. **${seqTitle(s)}** _(${prov}; ${confidencePhrase(s.confidence)})_ — \`${idsDisplay(seqIds(s))}\` — ${gist}${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
+  return `${s.n}. **${seqTitle(s)}** _(${prov}; ${confidencePhrase(s.confidence)}; ${consequencePhrase(s.consequence)})_ — \`${idsDisplay(seqIds(s))}\` — ${gist}${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
+};
+
+// one line under each REMEDIATION heading: the value, the rule that fired and what it says, the
+// facts it read, any contest, and a lane's judgment applied or refused
+const consequenceLine = (c) => {
+  if (!c) return '_Consequence: none._';
+  const r = policyRule(c.rule);
+  const contest = (c.contested || []).map((x) => `${x.fact} contested (${x.values.join(' vs ')}, by ${x.where.join(', ')}), read as ${x.read}`).join('; ');
+  const judged = c.judgment ? (c.judgment.applied ? `; a lane judged it ${c.judgment.value} (${clean(c.judgment.because)}), raised from ${c.judgment.facts_value} by \`${c.judgment.facts_rule}\`` : `; a lane's judgment of ${c.judgment.value} was refused: ${c.judgment.refused}`) : '';
+  return `_Consequence: ${c.value} (rule \`${c.rule}\`${r ? `: ${clean(r.says)}` : ''}; read off \`${c.finding}\`${c.effect ? `, the effect \`${c.effect}\` it touches` : ''}). Facts: ${factsPhrase(c) || 'none read'}${contest ? `. ${contest}` : ''}${judged}._`;
 };
 
 // ── REMEDIATION.md — the full spine ──────────────────────────────────────────
@@ -301,6 +320,7 @@ function remediation() {
   for (const s of seq) {
     out.push(`## ${s.n}. ${seqTitle(s)}`, '');
     out.push(`_Confidence: ${confidencePhrase(s.confidence)}${s.confidence && s.confidence.reason ? ` — ${clean(s.confidence.reason)}` : ''} (rule \`${s.confidence ? s.confidence.rule : 'none'}\`, read off \`${s.confidence ? s.confidence.finding : ''}\`)._`, '');
+    out.push(consequenceLine(s.consequence), '');
     const planNote = s.plan ? ` · session prompt: [\`plan/${s.plan}\`](plan/${s.plan})` : '';
     if (s.kind === 'authored') {
       out.push(`_eval-authored remedy · findings \`${idsDisplay(s.r.ps.map((p) => p.f.id))}\`${planNote}_`, '');

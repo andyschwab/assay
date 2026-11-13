@@ -490,6 +490,84 @@ scanner's adapter, so a stored run still projects; the row is decided by no requ
 Prose is never read. An observation that mentions a topic is not a measurement.
 Census names are accepted as a list per requirement; a new run uses the first.
 
+## Consequence: what is at stake, a policy over facts
+
+`consequence.yaml` is the default **consequence policy** (#319). It answers how much a gap
+matters, and it answers it apart from what the code can do. What the code can do is a set of
+facts from closed lists, read off the map; how much that matters is this policy over them, held
+as data, so an operator can read it and change it without touching code. `map/consequence.mjs`
+applies it, and every fix-sequence item records the result (`views/README.md`, "What is at
+stake").
+
+**The scale** is closed and ordered, most consequential first: `severe`, `significant`,
+`contained`, `cosmetic`. It is never a number, and nothing combines it with confidence.
+
+**The facts** a rule may test are a closed list (`map/consequence.mjs` `FACTS`):
+
+| Fact | Values | Read from |
+| --- | --- | --- |
+| `reversibility`, `external`, `gate_type`, `fail_mode`, `telemetry`, `blast_scope` | their closed vocabularies (`map/SCHEMA.md` §2) | the effect the gap is, or each effect it touches: one it `reaches`, or one `explained_by` it |
+| `halt` | `true`, `false` | that effect is an unheld halt (`map/doctrine.mjs` `isHalt`) |
+| `reach` | `user`, `tenant`, `fleet`, `cross-tenant` | the live chain that carries the gap (its entry, path, sinks or cuts): the chain's widest sink (`map/SCHEMA.md` §6d) |
+| `trigger` | `trivial`, `low`, `moderate`, `high` | the effort to trigger: that chain's, else the hardest precondition the effect (else the gap) states; null when none is stated |
+| `tier` | this file's `tiers:` | the requirement row the gap bears on, read as the sequence reads its tier: the rows that list it unmet or mixed, else met or not applicable, else not measured; the most urgent |
+| `tags` | this file's `tags:` | the union of those rows' tags |
+| `floor` | `true`, `false` | one of those rows is a floor row |
+
+A fact the run could not read is null and matches no rule. A severity label, a tool's or a
+lane's, is not a fact, and no rule may read it.
+
+**A rule** is `{ name, says, when, at_least }`: when every fact `when` names holds (a value, or a
+list of values any of which matches; `tags` matches when the row carries any value listed), the
+consequence is at least `at_least`. `when: {}` fires on every gap. Every rule is read, top to
+bottom; the highest value that fires wins, and among rules firing at that value the first down the
+file is the one the item cites. A gap read under several effects takes the most consequential.
+A rule naming a fact outside the list, a value outside its fact's vocabulary, a consequence
+outside the scale, or the engine's own rule name, refuses the policy when it loads (`checkPolicy`).
+A gap no rule values halts the sequence: no item carries a consequence without its rule.
+
+**The default policy**, in its order:
+
+| Rule | At least | When |
+| --- | --- | --- |
+| `unheld-halt` | severe | an unheld halt whose `blast_scope` is tenant, fleet or cross-tenant |
+| `chain-reaches-every-tenant` | severe | a live chain whose `reach` is fleet or cross-tenant |
+| `unheld-halt-one-person` | significant | an unheld halt (one person's data or account) |
+| `crosses-tenants` | significant | `blast_scope: cross-tenant` |
+| `irreversible-effect` | significant | `reversibility: irreversible` |
+| `external-to-every-tenant` | significant | `external: true` and `blast_scope: fleet` |
+| `easily-triggered-chain` | significant | a live chain reaching one user or tenant whose `trigger` is trivial or low |
+| `custody-row` | significant | `tier: custody` |
+| `safety-floor-row` | significant | `tier: safety` and `floor: true` |
+| `floor-row` | contained | `floor: true` |
+| `external-effect` | contained | `external: true` |
+| `working-tier-row` | contained | `tier` safety, reproducibility, verification or operability |
+| `legibility-row` | cosmetic | `tier: legibility` |
+| `any-open-gap` | cosmetic | every gap: the scale's floor |
+
+**Monotone.** Only two things move a consequence above what the facts give, and nothing moves it
+below:
+
+- **a contested fact** reads its riskier value: a descriptor the run's effect findings on one
+  channel record differently (keyed as `map/variance.mjs` keys a channel: the candidate its triage
+  maps, else the slug), or that the sweeps of a set named for the run (`compile --sweep-set`) part
+  on, reads the riskier by variance's per-field order, and the item lists the fact as contested,
+  with its values and where they came from;
+- **a lane's judgment** (`judged_consequence: { value, because }` on its finding, `map/SCHEMA.md`
+  §1) raises the value when it is higher, by the engine's rule `lane-judgment`, which cites the
+  policy rule the facts gave; one at or below the facts is recorded on the item as refused, never
+  applied.
+
+A severity label raises nothing either: it is carried on the finding for display and decides no
+consequence, so the same facts give the same consequence whichever tool found them and whatever
+it called them.
+
+**An operator's policy.** `node assay.mjs compile <run> --consequence-policy <file>` checks the
+file, then records it in the run record with its digest (`consequence_policy: { file, sha256 }`,
+`map/SCHEMA.md` §5a); every later compile of the run reads it, a file whose digest has moved since
+is refused, and `validate` holds the record. Its format is this file's. `handoff/sequence.json`
+names the policy each run's values were read under.
+
 ## The packet: a repository's own claims
 
 A repository that states its own claims keeps a **packet** — `/owner/PACKET.md`
