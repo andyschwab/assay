@@ -10,7 +10,9 @@
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
 // is an error, not a pass — a checker that silently accepts unparseable input hides the very thing it exists to catch.
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { INGEST_FLOOR, RECORD_KEY as ID_RECORD_KEY, rangeError } from './ids.mjs';
+import { readFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -74,9 +76,16 @@ const warn = (where, msg) => warnings.push(`${where}: ${msg}`);
 // every evidence entry is a path:line string (SCHEMA §1): `:12` alone cites no file, and a
 // bare path or a map cites no line (no claim without evidence)
 const CITE = /^(.*):(\d+)(?:-(\d+))?$/;
+// or a commit of the target's history (#304, SCHEMA.md §1): `commit:<sha>`, 7 to 40 lowercase
+// hex digits, checked against the target's git history when --target is a repository. A
+// commit is evidence of history, so a finding citing one states a fact about the tree's
+// history, never a free claim.
+const COMMIT_CITE = /^commit:([0-9a-f]{7,40})$/;
+const isCommitCite = (ev) => typeof ev === 'string' && ev.trim().startsWith('commit:');
 function emptyCites(f, at) {
   if (!Array.isArray(f.evidence)) return;
   for (const ev of f.evidence) {
+    if (isCommitCite(ev)) { if (!COMMIT_CITE.test(ev.trim())) err(at, `evidence ${JSON.stringify(ev)} is not a commit citation (commit:<sha>, 7 to 40 lowercase hex digits)`); continue; }
     const m = typeof ev === 'string' ? ev.trim().match(CITE) : null;
     if (m && !m[1]) err(at, `evidence "${ev}" cites no path`);
     else if (!m) err(at, `evidence ${JSON.stringify(ev)} is not a path:line citation`);
@@ -398,16 +407,54 @@ for (const file of passFiles) {
   }
 }
 
+// the two id ranges (#304; SCHEMA.md §3, map/ids.mjs): a lane numbers its findings below the
+// ingest floor and ingest allocates at or above it, so a lane collected into a run beside its
+// instruments collides with none of them. A lane's finding in the ingest range is refused in
+// every run (no run before the ranges numbered one there); an ingested row in the lane range is
+// refused in a run whose record says it was drawn under the ranges (ingest_ids_from:, written by
+// start). A stored run drawn before them carries no such key and keeps its ids.
+{
+  let held = false;
+  if (existsSync(scannersPath(runDir))) {
+    let m = null;
+    try { m = parseYaml(readFileSync(scannersPath(runDir), 'utf8')); } catch { /* reported with the run record */ }
+    const v = m && typeof m === 'object' && !Array.isArray(m) ? m[ID_RECORD_KEY] : undefined;
+    if (v !== undefined && Number(v) !== INGEST_FLOOR) err(`map/scanners.yaml:${ID_RECORD_KEY}`, `${ID_RECORD_KEY}: ${v} is not this engine's ingest floor (${INGEST_FLOOR}): the run says its ingests allocated from a floor no engine used`);
+    held = v !== undefined;
+  }
+  for (const [id, { f, file }] of allById) { const e = rangeError(f, held); if (e) err(`${file}:${id}`, e); }
+}
+
 // optional: evidence against the target repo (fail-closed on a cited path that does not
 // exist, and on a cited line past the end of the file it names). A path that resolves
 // and a line inside the file is what --target can check; it cannot check that the line
 // says what the observation claims.
 const evidencePathErrors = [];   // structured, for --json / map/backlog.mjs
+// whether --target holds a git history to check a commit citation against, read once
+let historyOf = null;
+const targetHistory = () => historyOf ??= (() => {
+  const g = (a) => spawnSync('git', ['-C', target, ...a], { encoding: 'utf8' });
+  // the target's own history only: a tree inside another repository (a fixture inside this one)
+  // has none of its own, and its commits are not the enclosing repository's
+  const top = g(['rev-parse', '--show-toplevel']);
+  if (top.status !== 0 || realpathSync(top.stdout.trim()) !== realpathSync(target)) return { repo: false, shallow: false };
+  return { repo: true, shallow: g(['rev-parse', '--is-shallow-repository']).stdout.trim() === 'true' };
+})();
 if (target) {
   if (!existsSync(target)) { err('--target', `target repo not found: ${target}`); }
   else for (const [id, { f, file }] of allById) {
     if (!Array.isArray(f.evidence)) continue;
     for (const ev of f.evidence) {
+      if (isCommitCite(ev)) {
+        const sha = (COMMIT_CITE.exec(ev.trim()) || [])[1];
+        if (!sha) continue;   // a malformed one is already a schema error (emptyCites)
+        const h = targetHistory();
+        if (!h.repo) continue;   // a target with no git history: the form is all that can be checked
+        if (spawnSync('git', ['-C', target, 'cat-file', '-e', `${sha}^{commit}`], { stdio: 'ignore' }).status === 0) continue;
+        if (h.shallow) warn(`${file}:${id}`, `evidence commit:${sha} is not in the target's history, which is a shallow clone: not checked`);
+        else err(`${file}:${id}`, `evidence commit:${sha} is not a commit in the target's history`);
+        continue;
+      }
       const m = typeof ev === 'string' ? ev.trim().match(CITE) : null;
       if (!m || !m[1]) continue;   // not path:line is already a schema error (emptyCites)
       const p = m[1], end = Number(m[3] || m[2]);
@@ -650,6 +697,20 @@ if (existsSync(censusesPath(runDir))) {
   try { cz = parseYaml(readFileSync(censusesPath(runDir), 'utf8')); }
   catch (e) { err(censusesLabel, `YAML parse failed (fail-closed; the measurement reads this file with the same reader): ${e.message}`); }
   if (cz) {
+    // every member's placement (#304): a census or context-list member is placed on the term its
+    // row's population names, and the compile reads "which requirement takes it" off that term
+    // (yardstick/population.mjs requirementTaking, which throws on a subject type the term does not
+    // admit). The same reading is made here, from the same source, so a lane's own check sees it
+    // before it publishes and the compile is never the first to find it.
+    const { loadYardstick } = await import('../yardstick/measure.mjs');
+    const { censusTerms, contextTerms, placementError } = await import('../yardstick/population.mjs');
+    const reg = loadYardstick();
+    const placed = (term, id, at, list) => {
+      if (!term || typeof id !== 'string' || !findingOf.has(id)) return;
+      const why = placementError(findingOf.get(id), term, reg);
+      if (why) err(at, `members: ${why}: a ${list} member is placed on "${term}", the term its row's population names (yardstick/requirements.yaml members:) — list it where its subject type is admitted, or take it off the list`);
+    };
+    const censusTermOf = censusTerms(reg), contextTermOf = contextTerms(reg);
     // a file holding only context lists (#262) has no dimensions to grade
     if (cz.dimensions === undefined && cz.context !== undefined) { /* context lists only */ }
     else if (!Array.isArray(cz.dimensions)) err(censusesLabel, `dimensions must be a list`);
@@ -668,6 +729,7 @@ if (existsSync(censusesPath(runDir))) {
         if (s.members !== undefined) {
           for (const k of ['met', 'of']) if (s[k] !== undefined && typeof s[k] !== 'number') err(sat, `${k} must be a number (or left out: members: decides it)`);
           for (const e of memberErrors(s, findingOf, sat)) errors.push(e);
+          if (Array.isArray(s.members)) for (const id of s.members) placed(censusTermOf.get(String(s.name)) ?? null, id, sat, 'census');
         } else if (typeof s.met !== 'number' || typeof s.of !== 'number' || s.of < 1) err(sat, `a sampled census needs members: (the finding ids of its population) or numeric met/of`);
         if (!s.method) err(sat, `a sampled census must state its method`);
       }
@@ -676,7 +738,6 @@ if (existsSync(censusesPath(runDir))) {
     // list named by one claim row's decide.context. A context list decides nothing and counts in
     // no coverage; its members are this run's findings, each listed once, in no census as well.
     if (cz.context !== undefined) {
-      const { loadYardstick } = await import('../yardstick/measure.mjs');
       const named = new Set(loadYardstick().requirements.flatMap((d) => (d.decide.kind === 'claim' && Array.isArray(d.decide.context) ? d.decide.context : [])));
       const inCensus = new Set();
       for (const x of Array.isArray(cz.dimensions) ? cz.dimensions : []) for (const s of (x && Array.isArray(x.sampled) ? x.sampled : [])) for (const id of (s && Array.isArray(s.members) ? s.members : [])) inCensus.add(String(id));
@@ -691,6 +752,7 @@ if (existsSync(censusesPath(runDir))) {
         for (const id of c.members) {
           if (typeof id !== 'string' || !id) { err(cat, `members: ${JSON.stringify(id)} is not a finding id`); continue; }
           if (!findingOf.has(id)) err(cat, `members: ${id} is not a finding in this run`);
+          placed(contextTermOf.get(String(c.name)) ?? null, id, cat, 'context-list');
           if (listed.has(id)) err(cat, `members: ${id} is listed in two context lists (a finding is listed once, on the one population it is a member of)`);
           if (inCensus.has(id)) err(cat, `members: ${id} is also a census member (a finding is listed once, on the one population it is a member of)`);
           listed.add(id);

@@ -105,7 +105,10 @@ adopted: false         # optional — a candidate, or with retired: "<why>" a re
 ingest:                # optional — how map/ingest.mjs reads this scanner's report when
   format: machine-report   #   no built-in profile does: the format,
   tool: <reviewer>     #   the review.tool value a report must carry,
-  start_id: 800        #   and the id floor its rows are numbered from
+  start_id: 800        #   and the id floor its rows are numbered from, as its offset in the ingest
+                       #   range: rows start at F-10000 + start_id (SCHEMA.md §3)
+  commit_citation: "git:"  #   optional: the prefix its report writes before a commit it cites,
+                       #   filed as the schema's commit:<sha> (SCHEMA.md §1)
 contributes:           # the axes this scanner's OWN methodology measures
   - code-correctness   #   (contribution = the axis joins the roster; a scanner may
   - code-security      #    also FEED axes it does not contribute, via map rows)
@@ -197,7 +200,8 @@ evaluator with its own taxonomy and prose-worthy findings). Its adapter declares
   scripts still run as the evaluator's user, with their filesystem and network
   — so fresh-clone belongs in a disposable container or VM: `assay start` runs
   it only under `--allow-exec` and otherwise records it `skipped` with that
-  reason; the routine, whose checkout is a fresh CI job, always runs it, in a
+  reason (and starts a target's declared services only under `--allow-services`
+  as well, §3b); the routine, whose checkout is a fresh CI job, always runs it, in a
   job of its own that hands the gate only fresh-clone's raw report
   (`routine/README.md` "Two jobs").
   `tests/instruments/exec-planted` (a planted `.yarnrc` and lifecycle scripts)
@@ -214,6 +218,14 @@ runs that carry its rows still project. The wider candidate roster:
 
 ### 3b. The fresh-clone instrument (`map/fresh-clone.mjs`)
 
+**What it measures, and on what machine (#256).** A clean machine with no service and
+no credential of assay's own: the child gets only the allow-list above, and assay
+starts no database of its own and keeps none. A target that needs a service declares
+it (below), and only under an explicit opt-in is that declared service started,
+throwaway, for the steps it is declared for. Otherwise a step bound to a declared
+service is not measured — it reads `skipped`, never failed — and a step whose target
+declares nothing reads by its own exit, as it always has.
+
 **What it measures.** Whether the repository is true from a clean checkout — the
 reproducibility and verification floor the yardstick asks a scripted
 fresh-clone run to prove (`d-fresh-clone-runs`, `d-tests-execute-core`,
@@ -226,7 +238,8 @@ the declared toolchain; a second family such as pyproject is recorded
 typecheck, test, migrate** (the package scripts of those names; install when
 dependencies or a lockfile are declared; migrate only through a
 `DATABASE_URL`-free dry form — `migrate:dry` / `migrate:check` / `migrate:status`
-/ `--dry-run` — because the runner carries no database), and replays the README's
+/ `--dry-run` — because the runner carries no database, unless the target declares
+one and the opt-in starts it, below), and replays the README's
 command claims: every fenced-block line starting `npm run <script>`, `npm test`,
 `npx <bin>`, `node <file>` or `make <target>` is a claim, `present` when the
 script / binary / file / target exists in the tree, else `missing`. Each step
@@ -342,11 +355,84 @@ command runs a package manager not on PATH (`npm run build`) reads `skipped` the
 same way. A shell's exit 127 is
 the instrument's gap, never the target's failed install.
 
+**Services a target declares (#256).** A step can need a service the clean machine
+does not have: a suite whose core queries a database, a migration that replays into
+one. assay never guesses that from signals or output. The target says so, in one file
+at its repository root, **`.assay/services.yaml`**. That home is the repository's own,
+so it is measured at the commit it describes; it is a file of assay's (one directory,
+one name) rather than a key in `package.json`, so it holds for any toolchain family and
+a template ships it, unchanged, to every application built from it; and it is YAML,
+read by the engine's own strict reader (`lib/yaml-min.mjs`), so it carries comments
+and refuses what it cannot read. Its keys are closed (`map/services.mjs`):
+
+```yaml
+services:                       # one or more; each started as a throwaway container
+  - name: postgres              # a short lower-case name
+    image: postgres:16.4-alpine # pinned by a tag other than latest, or by @sha256: digest
+    port: 5432                  # the container's port, published on 127.0.0.1 only
+    env:                        # the container's own environment (optional)
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ready: pg_isready -U postgres -h 127.0.0.1   # run inside the container; exit 0 = ready
+    wait: 60                    # seconds to wait for ready (optional, default 60, at most 600)
+steps: [test, migrate]          # the steps that need the services, from test and migrate
+env:                            # the environment those steps (and setup) get
+  DATABASE_URL: "postgres://postgres@${postgres.host}:${postgres.port}/app"
+setup:                          # run once the services are ready, before migrate (optional)
+  - npm run db:roles
+```
+
+An unknown key, an unpinned image, a `steps` entry outside `test` and `migrate`, an
+`env` name the child allow-list owns (`PATH`, `HOME`, `CI`, the proxy plumbing,
+`npm_config_*`) or a `${…}` naming anything but a declared service's `host` or `port`
+is refused. A refused declaration is recorded (`services: { declared_in, refused }`),
+one `service-setup` gap row says why, and the steps run as if nothing were declared.
+There is no key for a volume, a network, a privilege or a host path.
+
+- **With the opt-in** (`fresh-clone --services`; `assay start --allow-exec
+  --allow-services`, a second consent on top of `--allow-exec`, never instead of it)
+  and a container runtime (`docker` on the evaluator's PATH), each service is started
+  as a throwaway container (`docker run -d --rm`, a random name, labelled
+  `assay.throwaway=true`), its `ready` check is retried until it passes or `wait`
+  runs out, then, once install has run, the `setup` commands run, then `migrate`
+  (the target's own migrate script, run for real against the empty database, dry
+  form or not) and `test`, with the declared `env`. Every container started is
+  removed, always: after the steps, and in the run's `finally` on a failure, a
+  timeout or a crash of the runner. Each bound step's row names what it ran with,
+  `services: [{ name, image, throwaway: true }]`; the document carries `services: {
+  declared_in, requested, provided, reason, steps, services, containers: [{ name,
+  image, container, started, ready, removed }], setup: [<rows>] }`. **A setup command
+  that fails is its own row** (`services.setup[]`, and one `service-setup` gap), never
+  charged to `test`: the bound steps read `skipped`, "the declared setup `<command>`
+  failed (exit N); test not attempted".
+- **Declared, but no opt-in, no runtime, or a service that did not start or come
+  ready:** the bound steps read `skipped` with the reason "needs <service>, which this
+  measurement did not provide (<why>)", so `d-tests-execute-core` and
+  `d-schema-versioned` read **not measured** through their `<step>-not-run` facts,
+  never failed or unmet. A migrate with a dry form still runs it, as below.
+- **Not declared:** nothing changes. A failing step stays `failed`.
+
+The declared `env` reaches only the bound steps and the setup commands; every other
+step, and every other project and workspace in the tree, gets the allow-list alone.
+The declaration binds the root project (its application directory included), not its
+workspaces or nested projects. The runtime runs with the evaluator's environment (it is
+assay's command, not the target's); the target's code never sees it.
+
+**A failed step's reason, where it is safe (#256).** A step's last 40 lines of output
+stay in fresh-clone's own document (`--out`), and ingest drops them before archiving it
+into the run, as above: a run is uploaded, and a value a build prints must not travel
+with it. An operator whose runner holds no secrets can keep the report as drawn: `assay
+start --unstripped-report <file>` also writes fresh-clone's report, output tails
+included, to `<file>`, which must lie outside the run (start refuses a path inside it).
+**That file is the operator's**: assay never archives it into a run, never uploads it,
+and never reads it again; the run's own `map/raw/fresh-clone.json` stays stripped.
+
 **What it deliberately does not do.** It never executes a README command beyond
 the declared steps it already ran — presence in the tree is what the claim replay
 decides, and a `missing` claim is a gap; a `present` one is not proof the command
-works. It does not run a migration against a live database, does not attempt a
-toolchain family it cannot exercise, and does not read step output into rows.
+works. It does not run a migration against a live database of anyone's (only against
+a target's own declared, throwaway service, on the opt-in), starts no service a target
+did not declare and keeps none, does not attempt a toolchain family it cannot
+exercise, and does not read step output into rows.
 
 **Where it runs (#35).** A repository with no root `package.json` and exactly one
 directory directly beneath the root holding one (`app/`) is that directory's
@@ -361,7 +447,7 @@ the target nor inside it, the rows are kept as written and ingest warns with bot
 paths, never halts (a component-scoped run over a subtree is normal).
 
 ```sh
-node assay.mjs fresh-clone <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone] [--app <dir>]
+node assay.mjs fresh-clone <target-dir | git URL> --out fresh-clone.json [--timeout 600] [--no-clone] [--app <dir>] [--services]
 node assay.mjs ingest <run-dir> --tool fresh-clone --raw fresh-clone.json --exit <its exit code> [--target <run target root>]
 ```
 

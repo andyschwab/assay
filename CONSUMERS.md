@@ -17,12 +17,12 @@ command's usage line names its flags. These are the ones a consumer may call:
 | --- | --- |
 | `node assay.mjs tools install [--dir <bin>] [--run] [--only <scanner>]` | the pinned external tools, each download checked against its pinned sha256 |
 | `node assay.mjs tools verify [--run] [--only <scanner>]` | exit 0 only when every pinned tool is on PATH and answers at its pin |
-| `node assay.mjs start --out <run> <target> [--allow-exec]` | a run drawn with every offline instrument, and the target's enumerated populations at `map/raw/enumerate.json`; exit 3 when the tools are not ready, and nothing is written |
+| `node assay.mjs start --out <run> <target> [--allow-exec [--allow-services]] [--unstripped-report <file>]` | a run drawn with every offline instrument, and the target's enumerated populations at `map/raw/enumerate.json`; exit 3 when the tools are not ready, and nothing is written. `--allow-services` (only with `--allow-exec`) starts the services the target declares in `.assay/services.yaml` as throwaway containers for fresh-clone's test and migrate steps (`map/scanners/CONTRACT.md` §3b); without it those steps read skipped, not measured. `--unstripped-report <file>` also writes fresh-clone's report with its step output tails to `<file>`, which must lie outside the run; that file is the operator's, never archived into the run |
 | `node assay.mjs lane <scanner> --name <Name> [--head <ref>] [--focus <text>] [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>]` | the read-only seed a judgment scanner's review session starts from; a reviewer whose adapter pins its method by commit is seeded to fetch and read exactly that commit, and to stop when it cannot; a lane with `inputs` (practice-review reads `map/raw/enumerate.json`) is refused without `--inputs-dir`, the directory holding them at the run's own paths |
 | `node assay.mjs lane --list [--json]` | every lane, unfilled: `{ lanes: [{ scanner, lane, outputs, inputs, passes }] }`; the built-in scanner's lane carries its passes (the `practice-review-<pass>.yaml` files), every other lane `passes: []`; a seed carries the same `passes` |
-| `node assay.mjs ingest <run> --tool <scanner> --raw <file> --exit <code> [--target <root>] [--model <id>]` | a scanner's output turned into findings, its row in the run record flipped to ran |
+| `node assay.mjs ingest <run> --tool <scanner> --raw <file> --exit <code> [--target <root>] [--model <id>]` | a scanner's output turned into findings, its row in the run record flipped to ran; every id it allocates is in the ingest range, `F-10000` and above (§ Finding ids); a missing run, tool, report or exit prints the usage and exits 2 |
 | `node assay.mjs record <run> <scanner> <ran\|skipped\|failed> [--reason <text>] [--model <id>] [--pass <pass>]` | one scanner's disposition in the run record |
-| `node assay.mjs validate <run> [--target <target>] [--lane <scanner>]` | exit 0 only for a run that validates; fails closed |
+| `node assay.mjs validate <run> [--target <target>] [--lane <scanner>]` | exit 0 only for a run that validates; fails closed. It holds the id ranges (§ Finding ids), and refuses a census or context-list member whose subject type its term does not admit, naming the term and the types it admits, in `--lane` mode too (#304) |
 | `node assay.mjs project <run> [--json]` | the run's projection and chains, read straight off its findings, so it reads a run that validates red: `{ run, axes: { <axis>: n }, unmapped: [{ id, category }], needs_axis: [{ id, category }], chains: { live: n, lead: <entry label> \| null } }`, `axes` the primary findings per axis in the run's roster; an unmapped row is printed and exits 1 |
 | `node assay.mjs toolchain <checkout> [--json]` | the checkout's toolchain as fresh-clone reads it, executing nothing: `{ toolchain: { family, manifest, package_manager, lockfile, declared, other_families, database_signals, … } }`, `family` one of `node`, `python`, `go`, `rust`, `ruby`, `jvm`, `none`; for dispatching the fresh-clone measurement of a run drawn without `--allow-exec` |
 | `node assay.mjs compile <run> [--target <target>] [--since <prev-run>] [--packet <dir>]` | the measurement and every view, written in one pass |
@@ -36,6 +36,20 @@ command's usage line names its flags. These are the ones a consumer may call:
 
 A command that cannot do its work exits non-zero and says why; it never prints an
 empty result and exits 0.
+
+## Finding ids
+
+A run's finding ids are two ranges that never meet (`map/SCHEMA.md` §3, #304). A review lane
+numbers its own findings `F-001` to `F-9999`; `ingest` allocates every instrument's and
+reviewer's rows at `F-10000` and above. A consumer collects a lane's files into a run that
+already holds instrument rows, or ingests after collecting, without renumbering anything:
+the ranges are disjoint by construction. `validate` refuses a lane's finding in the ingest
+range in every run, and an ingested row in the lane range in a run whose record carries
+`ingest_ids_from:` (every run `start` draws). A run drawn before the ranges keeps its ids.
+
+Evidence is a `path:line` (or `path:a-b`) citation into the target, or `commit:<sha>`, a commit
+of the target's history (7 to 40 lowercase hex digits), which `validate --target` checks
+exists when the target is a git repository (`map/SCHEMA.md` §1).
 
 ## The floor
 
@@ -87,7 +101,7 @@ that places them, and `views/README.md` states each data format.
 
 | Path in a run | What it holds |
 | --- | --- |
-| `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason, and for a reviewer pinned by commit the method it read (`method: { release, commit }`); the target's identity (`identity: { repository, path }`, never a local path) and the day it was drawn (`drawn:`), written by `start` (`map/SCHEMA.md` §5a, #265) |
+| `map/scanners.yaml` | the run record: each scanner ran, skipped or failed, with its reason, and for a reviewer pinned by commit the method it read (`method: { release, commit }`); the target's identity (`identity: { repository, path }`, never a local path) and the day it was drawn (`drawn:`), written by `start` (`map/SCHEMA.md` §5a, #265); and `ingest_ids_from: 10000`, written by `start`: the run was drawn under the id ranges (§ Finding ids) |
 | `map/findings/<scanner>.yaml` | the findings, one file per scanner (`map/SCHEMA.md`) |
 | `map/raw/enumerate.json` | the target's enumerated populations, written by `start` (`map/SCHEMA.md` §6e, §6f); the practice-review lane's input |
 | `map/effect-triage.yaml` | the practice-review lane's triage of every channel candidate, route handler and effect-site member in `map/raw/enumerate.json`: the effect finding that covers it, or out of scope with the reason (`map/SCHEMA.md` §6e) |

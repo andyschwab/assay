@@ -436,7 +436,8 @@ function evidenceCondition(spec, fs, disp, key, answered = new Set()) {
 // a gap beside a strength reads mixed, except on a safety-tier row (a cleanliness claim) and
 // on a row marked `any_gap: unmet` (a check every listed property must hold, #177)
 const mixable = (d) => d.tier !== 'safety' && d.decide.any_gap !== 'unmet';
-const evidenceFiles = (f) => (f.evidence || []).map((e) => String(e).replace(/:\d+(-\d+)?$/, '')).filter(Boolean);
+// the files a finding cites: a commit citation (commit:<sha>, SCHEMA.md §1) names no file
+const evidenceFiles = (f) => (f.evidence || []).filter((e) => !/^commit:/.test(String(e))).map((e) => String(e).replace(/:\d+(-\d+)?$/, '')).filter(Boolean);
 const asList = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]).map(String);
 
 // The deciders of an instrument row (#177): its own (the single form on decide, or

@@ -39,6 +39,8 @@ map:
     axis: deterministic-gates
   readme-claim:                 # the README is true, measured by replaying it
     axis: artifact-legibility
+  service-setup:                # a target's declared service setup (#256): a refused declaration,
+    axis: context-economy       # or a setup command that failed — its own row, never charged to test
   # a fact row per SKIPPED step (install broke, so it never ran): homed beside its step,
   # it decides that step's requirement not measured (not_measured_when), never met
   install-not-run:

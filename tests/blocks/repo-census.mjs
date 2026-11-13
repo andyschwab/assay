@@ -124,7 +124,7 @@ export async function run() {
     }
     if (rows.filter((r) => r.polarity === 'gap').some((r) => r.native_category !== 'ci-gate' && viewSev(r) !== 'Medium')) fail('every non-ci-gate gap must read Medium in the view');
     if (rows.some((r) => !Array.isArray(r.evidence) || !r.evidence.length)) fail('every row needs at least one path:line');
-    if (rows[0]?.id !== 'F-960') fail(`repo-census ids start at F-960 (got ${rows[0]?.id})`);
+    if (rows[0]?.id !== 'F-10960') fail(`repo-census ids start at F-10960, its floor in the ingest range (#304) (got ${rows[0]?.id})`);
     // (c) a runner crash halts; a document that disagrees with the exit code halts; truncation halts
     mustThrow('a runner crash (exit 2)', () => convert('repo-census', raw, 2));
     mustThrow('a document whose exit disagrees with the runner exit', () => convert('repo-census', raw, 0));
