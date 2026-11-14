@@ -35,7 +35,7 @@ import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYard
 import { loadPolicy } from '../map/consequence.mjs';
 import { setConsequencePolicy, setLens, updateRunRecord } from '../map/record.mjs';
 import { loadLens, BUILTIN_LENS_FILE } from './improve/lens.mjs';
-import { buildRows } from './floor-fleet.mjs';
+import { buildRows } from './rows.mjs';
 import { buildOwner } from './owner.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';

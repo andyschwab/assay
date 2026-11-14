@@ -39,7 +39,7 @@ export async function run() {
     if (rOwner.changed.length) fail(`a held owner claim moved to not-applicable is a failure, never only a reported change (got ${JSON.stringify(rOwner.changed)})`);
   }
   if (rFromNa.changed.length !== 1) fail(`a departure from not-applicable must be reported in changed (got ${JSON.stringify(rFromNa.changed)})`);
-  // views/floor-fleet.mjs: a not-applicable row is listed separately, never counted as met
+  // views/rows.mjs: a not-applicable row is listed separately, never counted as met
   const tmp = join(HERE, 'tmp-not-applicable'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('cleanlib', tmp); copyFixtureScanners('cleanlib', tmp);
   try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'measure', tmp, '--write'], { stdio: 'pipe' }); } catch (e) { fail(`measure --write must succeed over the cleanlib fixture (${e.message})`); }

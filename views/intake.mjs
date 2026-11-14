@@ -15,7 +15,7 @@
 // Usage: node assay.mjs intake <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows, toYaml, basisNote, contextText, joinContradictions } from './floor-fleet.mjs';
+import { buildRows, toYaml, basisNote, contextText, joinContradictions } from './rows.mjs';
 import { loadYardstick, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml, q as yq } from '../lib/yaml-min.mjs';

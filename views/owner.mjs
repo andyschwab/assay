@@ -6,7 +6,7 @@
 // measurement, the yardstick (title/check/tier/topic/owner) and the run
 // manifest (what was not looked at this run) — never findings directly, and
 // it decides nothing a run/census/facet/claim did not already decide
-// (floor-fleet.mjs's buildRows, the same helper Intake and Maintain use).
+// (views/rows.mjs's buildRows, the one way a view of a population is built).
 //
 // This is the register for a person who built the app with an AI and is not
 // an engineer: consequence first, plain words, a term explained in a short
@@ -22,7 +22,7 @@
 // Usage: node assay.mjs owner <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows, CONTEXT_LABEL } from './floor-fleet.mjs';
+import { buildRows, CONTEXT_LABEL } from './rows.mjs';
 import { loadFindings } from '../map/project.mjs';
 import { loadYardstick } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';

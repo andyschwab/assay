@@ -256,6 +256,11 @@ export const ENTRIES = [
     from: '(?:\\\\{|true\\\\b)`).test(opts)',
     to: '(?:\\\\{|true\\\\b|false\\\\b)`).test(opts)',
     check: 'signals-hono-limiter', red: /\(4\) a route whose options turn the limiter off carries no signal/ },
+  { rule: 'a view of a population is built one way: buildRows takes a predicate as well as a tag, so a consumer selects its own rows with no tag on the yardstick (#339)',
+    file: 'views/rows.mjs',
+    from: "const matches = typeof select === 'function' ? select : (d) => (d.tags || []).includes(select);",
+    to: 'const matches = (d) => (d.tags || []).includes(select);',
+    check: 'rows-by-predicate', red: /a predicate over an id list selects exactly those rows/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────
