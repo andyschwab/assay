@@ -26,7 +26,9 @@ export async function run() {
   const yardstick = loadYardstick();
   // re-pinned with #319: an adapter states the kind of evidence its source produces, or no
   // confidence rule fires and the sequence halts (map/confidence.mjs); the stand-in declares one
-  const seqOf = (decided, measurement) => buildSequence({ decided, adapters: { x: { scanner: 'x', confidence: { evidence: 'deterministic' } } }, roadmap: [], measurement, yardstick }).seq;
+  // re-pinned with #319 (slice 3): the order handed on is a lens over the quadrants, and this key is
+  // its tie-break inside one; these are the key's edges, so they read the key's order, keyOrder
+  const seqOf = (decided, measurement) => buildSequence({ decided, adapters: { x: { scanner: 'x', confidence: { evidence: 'deterministic' } } }, roadmap: [], measurement, yardstick }).keyOrder;
 
   // (a) F-1 High on a verification row that read not measured; F-2 Low on a verification row decided
   {

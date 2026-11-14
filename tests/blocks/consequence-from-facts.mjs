@@ -41,6 +41,9 @@
 //   (k) START-HERE renders each item's consequence in one phrase beside its confidence, and
 //       REMEDIATION its rule, facts, contest and judgment;
 //   (l) the order is #318's: the slice-1 fixture's items sit in the order consequence did not touch;
+//       re-pinned by #319 (slice 3): the order handed on is now a lens over the quadrants, which
+//       read consequence, so (l) and (i)'s order clause hold the key's order (keyOrder), which still
+//       does not, and that the operator's policy moves an item only through its quadrant;
 //   (m) lib/run-data.mjs restates the scale, the facts and the engine's rules as map/consequence.mjs
 //       states them, and checkSequence refuses a consequence that does not hold its shape.
 import { spawnSync } from 'node:child_process';
@@ -237,7 +240,14 @@ export async function run() {
       if (opDoc.policy?.file !== opFile) fail(`sequence.json names the operator's policy (got ${JSON.stringify(opDoc.policy)})`);
       if (!opDoc.sequence.every((s) => s.consequence.value === 'contained' && s.consequence.rule === 'everything-contained')) fail('every value moves to the operator\'s rule');
       if (JSON.stringify(defDoc.sequence.map((s) => s.consequence.value)) === JSON.stringify(opDoc.sequence.map((s) => s.consequence.value))) fail('swapping in the operator\'s policy changes the values');
-      if (JSON.stringify(defDoc.sequence.map((s) => s.findings)) !== JSON.stringify(opDoc.sequence.map((s) => s.findings))) fail('the operator\'s policy moves no item: the order does not read consequence in this slice');
+      // inside any one quadrant both policies place their shared items, the key orders them alike
+      const keyed = (d) => d.sequence.map((s) => [s.findings.join('+'), s.quadrant ? s.quadrant.value : null]);
+      const dq = new Map(keyed(defDoc)), oq = new Map(keyed(opDoc));
+      for (const q of new Set([...dq.values(), ...oq.values()])) {
+        const both = (d) => keyed(d).filter(([k]) => dq.get(k) === q && oq.get(k) === q).map(([k]) => k).join(' ');
+        if (both(defDoc) !== both(opDoc)) fail(`the operator's policy moves an item only through its quadrant: inside ${q || 'not valued'} the key orders them alike (default ${both(defDoc)}, operator's ${both(opDoc)})`);
+      }
+      if (new Set(defDoc.sequence.flatMap((s) => s.findings)).size !== new Set(opDoc.sequence.flatMap((s) => s.findings)).size) fail('the operator\'s policy sequences the same findings');
       const c3 = spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), 'compile', run2], { encoding: 'utf8' });
       const again = c3.status === 0 ? JSON.parse(readFileSync(join(run2, 'handoff', 'sequence.json'), 'utf8')) : null;
       if (again?.policy?.file !== opFile) fail(`a later compile of the run reads the policy its record names (got ${JSON.stringify(again && again.policy)})`);
@@ -275,9 +285,9 @@ export async function run() {
     if (!/a lane's judgment of cosmetic was refused/.test(rem)) fail('REMEDIATION states the refused judgment');
 
     // (l) the order is the key's: consequence moves no item
-    const ordered = buildSequence({ decided, adapters, roadmap: [], measurement, yardstick, context: { consequence: { ...ctx, policy: { ...policy, rules: [{ name: 'flat', says: 'flat', when: {}, at_least: 'cosmetic' }] } } } }).seq;
-    const asSeq = buildSequence({ decided, adapters, roadmap: [], measurement, yardstick, context: { consequence: ctx } }).seq;
-    if (ordered.map((s) => s.ps[0].f.id).join(' ') !== asSeq.map((s) => s.ps[0].f.id).join(' ')) fail('the order does not read consequence in this slice: a flat policy and the default give one order');
+    const ordered = buildSequence({ decided, adapters, roadmap: [], measurement, yardstick, context: { consequence: { ...ctx, policy: { ...policy, rules: [{ name: 'flat', says: 'flat', when: {}, at_least: 'cosmetic' }] } } } }).keyOrder;
+    const asSeq = buildSequence({ decided, adapters, roadmap: [], measurement, yardstick, context: { consequence: ctx } }).keyOrder;
+    if (ordered.map((s) => s.ps[0].f.id).join(' ') !== asSeq.map((s) => s.ps[0].f.id).join(' ')) fail('the key does not read consequence: a flat policy and the default give one key order');
 
     // (m) the restatement, and the schema refusing a malformed consequence
     if (JSON.stringify(SEQUENCE_CONSEQUENCE) !== JSON.stringify(CONSEQUENCE)) fail(`lib/run-data.mjs SEQUENCE_CONSEQUENCE must be map/consequence.mjs's scale (got ${SEQUENCE_CONSEQUENCE.join(', ')})`);

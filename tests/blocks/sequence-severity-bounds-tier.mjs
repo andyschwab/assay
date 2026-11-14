@@ -31,10 +31,16 @@
 //   (e) the K and M findings are on their rows: release trust on d-release-path-trusted, the
 //       pinning Low on d-dependencies-pinned, the alerting Medium on d-routing-proportionate;
 //   (f) renaming every scanner, with its adapter, leaves the order as it was.
+// Re-pinned by #319 (slice 3): the order handed on is now a named lens over the quadrants, and this
+// key is the default lens's tie-break inside a quadrant. (a) to (c) hold on the key's order, read off
+// the engine (buildSequence's keyOrder, tests/blocks/quadrants-and-lenses.mjs keyOrderOf), exactly
+// as before; sequence.json and START-HERE are held to that order grouped by risk-first's quadrants,
+// and (b) still holds inside every quadrant of sequence.json; (f) reads keyOrder.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
+import { keyOrderOf, riskFirstOf } from './quadrants-and-lenses.mjs';
 import { buildSequence } from '../../views/improve/sequence.mjs';
 import { loadFindings, loadAdapters, projectMulti } from '../../map/project.mjs';
 import { decideProjected, loadDecisions } from '../../map/decisions.mjs';
@@ -109,22 +115,30 @@ export async function run() {
     if (h.status !== 0) { fail(`handoff.mjs must compile the fixture (exit ${h.status}): ${h.stderr.slice(0, 600)}`); return; }
     const doc = JSON.parse(readFileSync(join(tmp, 'handoff', 'sequence.json'), 'utf8'));
     const start = existsSync(join(tmp, 'handoff', 'START-HERE.md')) ? readFileSync(join(tmp, 'handoff', 'START-HERE.md'), 'utf8') : '';
-    const got = doc.sequence.map((s) => s.findings.join('+'));
+    const listed = doc.sequence.map((s) => s.findings.join('+'));
+    const keyed = keyOrderOf(tmp);
+    const got = keyed.map((s) => s.ps.map((p) => p.f.id).join('+'));
     const at = (id) => got.indexOf(id);
     const rankOf = (id) => (doc.sequence.find((s) => s.findings.includes(id)) || {}).rank || {};
 
-    // (a) the halt and the release-trust High lead, in sequence.json and START-HERE alike
-    if (got.join(' ') !== EXPECTED.join(' ')) fail(`sequence.json must order ${EXPECTED.join(' ')} (got ${got.join(' ')})`);
-    if (new Set(got.slice(0, 2)).size !== 2 || !['F-1001', 'F-053'].every((id) => got.slice(0, 2).includes(id))) fail(`the unheld halt and the release-trust High must be items 1 and 2 (got ${got.slice(0, 2).join(', ')})`);
+    // (a) the halt and the release-trust High lead the key, and sequence.json and START-HERE are its
+    // order grouped by the default lens's quadrants
+    if (got.join(' ') !== EXPECTED.join(' ')) fail(`the sequence key must order ${EXPECTED.join(' ')} (got ${got.join(' ')})`);
+    const qOf = new Map(doc.sequence.map((s) => [s.findings.join('+'), s.quadrant ? s.quadrant.value : null]));
+    const lensed = riskFirstOf(EXPECTED, (k) => qOf.get(k));
+    if (listed.join(' ') !== lensed.join(' ')) fail(`sequence.json must be the key's order grouped by the default lens's quadrants: ${lensed.join(' ')} (got ${listed.join(' ')})`);
+    if (new Set(got.slice(0, 2)).size !== 2 || !['F-1001', 'F-053'].every((id) => got.slice(0, 2).includes(id))) fail(`the unheld halt and the release-trust High must be items 1 and 2 under the sequence key (got ${got.slice(0, 2).join(', ')})`);
     for (const id of ['F-1001', 'F-053']) if (rankOf(id).halt !== true) fail(`${id}'s rank must say halt (got ${JSON.stringify(rankOf(id))})`);
     for (const id of EXPECTED.filter((x) => !['F-1001', 'F-053'].includes(x))) if (rankOf(id).halt !== false) fail(`${id} is no halt (got ${JSON.stringify(rankOf(id))})`);
     const lines = (start.split('## Sequence')[1] || '').split('\n').filter((l) => /^\d+\. /.test(l));
     const startOrder = lines.map((l) => (EXPECTED.find((id) => l.includes('`' + id + '`')) || '?'));
-    if (startOrder.join(' ') !== EXPECTED.join(' ')) fail(`START-HERE must list the same order as sequence.json (got ${startOrder.join(' ')})`);
+    if (startOrder.join(' ') !== listed.join(' ')) fail(`START-HERE must list the same order as sequence.json (got ${startOrder.join(' ')})`);
 
-    // (b) severity bounds tier: no item ranks below an item of a less severe class
+    // (b) severity bounds tier: under the key, no item ranks below an item of a less severe class,
+    // and so inside every quadrant of sequence.json
     const cls = (s) => SEVERITY_CLASS[s.rank.severity] ?? 2;
-    doc.sequence.forEach((s, i) => { for (const later of doc.sequence.slice(i + 1)) if (!later.rank.halt && !s.rank.halt && cls(later) < cls(s)) fail(`item ${later.n} (${later.rank.severity}, ${later.findings.join('+')}) must not rank below item ${s.n} (${s.rank.severity}, ${s.findings.join('+')})`); });
+    keyed.forEach((s, i) => keyed.forEach((later, j) => { if (j > i && !later.rank.halt && !s.rank.halt && cls(later) < cls(s)) fail(`item ${j + 1} (${later.rank.severity}, ${later.ps.map((p) => p.f.id).join('+')}) must not rank below item ${i + 1} (${s.rank.severity}, ${s.ps.map((p) => p.f.id).join('+')}) under the sequence key`); }));
+    doc.sequence.forEach((s, i) => { for (const later of doc.sequence.slice(i + 1)) if (later.quadrant?.value === s.quadrant?.value && !later.rank.halt && !s.rank.halt && cls(later) < cls(s)) fail(`inside ${s.quadrant?.value || 'not valued'}, item ${later.n} (${later.rank.severity}) must not rank below item ${s.n} (${s.rank.severity})`); });
     if (at('F-1003') > at('F-1005') || at('F-902') > at('F-054')) fail(`no High may rank below a Low (got ${got.join(' ')})`);
 
     // (c) absent evidence after every confirmed Medium, whatever its tier
@@ -151,10 +165,10 @@ export async function run() {
     const adapters = loadAdapters();
     const { projected } = projectMulti(loadFindings(tmp), adapters);
     const decided = decideProjected(projected, loadDecisions(tmp), '');
-    const before = order(buildSequence({ decided, adapters, roadmap: [], measurement: y, yardstick }).seq);
+    const before = order(buildSequence({ decided, adapters, roadmap: [], measurement: y, yardstick }).keyOrder);
     for (const name of [(s) => `zz-${s.split('').reverse().join('')}`, (s) => `aa-${s.length}-${s}`]) {
       const r = renamed(decided, adapters, name);
-      const after = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement: y, yardstick }).seq);
+      const after = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement: y, yardstick }).keyOrder);
       if (after !== before) fail(`renaming the scanners must not move the sequence (was ${before}, renamed ${after})`);
     }
   } finally { rmSync(tmp, { recursive: true, force: true }); }

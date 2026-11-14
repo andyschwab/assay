@@ -35,9 +35,12 @@ export async function run() {
   if (seq && D) {
     const errs = D.checkSequence(seq);
     if (errs.length) fail(`the handoff's own sequence must pass its schema (got ${errs.join('; ')})`);
-    const first = (seq.sequence || [])[0];
-    if (!first || first.kind !== 'authored' || first.voice !== 'eval-authored' || !(first.findings || []).includes('F-050') || first.plan !== 'plan/01-close-admin-default.md')
-      fail(`sequence[0] must be the roadmap item with its voice, finding ids and plan file (got ${JSON.stringify(first)})`);
+    // re-pinned by #319 (slice 3): the order is the default lens over the quadrants, so the roadmap
+    // item sits where its quadrant places it (it was item 1 under the key alone, by its halt); its
+    // shape is what is held here, its plan file numbered by its place
+    const first = (seq.sequence || []).find((s) => s.kind === 'authored');
+    if (!first || first.voice !== 'eval-authored' || !(first.findings || []).includes('F-050') || first.plan !== `plan/${String(first.n).padStart(2, '0')}-close-admin-default.md`)
+      fail(`the roadmap item must carry its voice, finding ids and plan file (got ${JSON.stringify(first)})`);
     for (const s of seq.sequence || []) if (s.plan && !existsSync(join(tmp, 'handoff', s.plan))) fail(`sequence item ${s.n} names ${s.plan}, which the handoff did not write`);
     if (!Array.isArray(seq.pending)) fail('the sequence must carry the pending (owner-defined) ids, even when empty');
   }
