@@ -108,7 +108,7 @@ export async function run() {
       writeFileSync(join(d, 'map', 'effect-triage.yaml'), 'schema: effect-triage\nversion: 1\ntriage:\n' + s.triage.map((e) => `  - candidate: "${e.candidate}"\n    finding: ${e.finding}\n`).join(''));
       writeFileSync(join(d, 'map', 'findings', 'practice-review-delegation.yaml'), yamlOf(s.findings));
     });
-    writeFileSync(join(tmp, 'SWEEP.yaml'), 'target: "t"\ntarget_commit: "0"\nmethod_commit: "0"\ndate: "2026-11-13"\nblind: false\nthreshold:\n  fact_presence: 0\n  candidate_agreement: 100\n  descriptor_agreement: 0\n  requirement_agreement: 0\nsweeps: [sweep-1, sweep-2, sweep-3]\n');
+    writeFileSync(join(tmp, 'SWEEP.yaml'), 'target: "t"\ntarget_commit: "0"\nmethod_commit: "0"\ndate: "2026-11-13"\nblind: false\nthreshold:\n  fact_presence: 100\n  candidate_agreement: 100\n  requirement_agreement: 100\nnot_measured:\n  descriptor_agreement: \"the three sweeps group the candidates three ways, so no channel is shared\"\nsweeps: [sweep-1, sweep-2, sweep-3]\n');
     const c = V.computeCandidateAgreement(['sweep-1', 'sweep-2', 'sweep-3'].map((s) => join(tmp, s)));
     if (c.candidates.compared !== 3 || c.allFields.pct !== 100) fail(`the run-dir wrapper must read each run's own list and triage (got ${c.allFields.agree}/${c.candidates.compared})`);
     const j = cli(['--set', tmp, '--json']);
@@ -135,9 +135,10 @@ export async function run() {
   for (const s of sets) {
     let set = null;
     try { set = V.loadSweepSet(join(SWEEPS, s)); } catch (e) { fail(`tests/sweeps/${s}/SWEEP.yaml must load (${e.message})`); continue; }
-    if (typeof set.threshold.candidate_agreement !== 'number') { fail(`tests/sweeps/${s}/SWEEP.yaml must state threshold.candidate_agreement`); continue; }
+    if (typeof set.threshold.candidate_agreement !== 'number' && !('candidate_agreement' in set.notMeasured)) { fail(`tests/sweeps/${s}/SWEEP.yaml must state threshold.candidate_agreement or declare it not measured`); continue; }
     const c = V.computeCandidateAgreement(set.runDirs);
-    if (!c.candidates.compared) { if (set.threshold.candidate_agreement > 0) fail(`tests/sweeps/${s}: no candidate is compared, so candidate_agreement must be 0 (got ${set.threshold.candidate_agreement})`); }
+    // re-pinned with #323: a set that compares no candidate declares candidate_agreement not measured, where it read a threshold of 0
+    if (!c.candidates.compared) { if (!('candidate_agreement' in set.notMeasured)) fail(`tests/sweeps/${s}: no candidate is compared, so candidate_agreement must be declared under not_measured (got threshold ${set.threshold.candidate_agreement})`); }
     else if (c.allFields.pct < set.threshold.candidate_agreement) fail(`tests/sweeps/${s}: per-candidate agreement ${c.allFields.pct}% is below its threshold ${set.threshold.candidate_agreement}%`);
   }
 }

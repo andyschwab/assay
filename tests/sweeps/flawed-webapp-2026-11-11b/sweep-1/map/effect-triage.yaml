@@ -1,9 +1,0 @@
-# map/effect-triage.yaml — targets/flawed-webapp @ 7f7c89d, blind (SCHEMA.md §6e)
-# Candidates: enumerate.json channelCandidates (0), routeHandlers (0), effectSites (1).
-# The hand-enumerated route surface (terrain.md) is covered by F-401..F-404 regardless;
-# the triage closes the enumerated list only.
-schema: effect-triage
-version: 1
-triage:
-  - candidate: "http write (js)"
-    finding: F-403

@@ -10,4 +10,4 @@ map/raw/
 .env
 .env.*
 # the harness blocks' scratch directories (tests/blocks/*: join(HERE, 'tmp-…')), never committed (#216)
-tests/tmp-*/
+tests/tmp-*

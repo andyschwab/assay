@@ -4,8 +4,7 @@
 
 ## How this is verified
 
-<!-- Concrete evidence, not intent: the harness output, a recompiled fixture diff,
-     a new invariant that pins the behavior, confirmed red with the rule it pins
-     reverted (CLAUDE.md, "How a change lands"). `npm test` must be green. A change
-     that moves a pinned score re-blesses tests/golden.json in this same PR, with
-     the reason; a failing unit/negative invariant is never re-blessed. -->
+<!-- Concrete evidence, not intent: the gate's exit line (`npm run gate`), each new
+     assertion confirmed red with the rule it pins reverted, and any re-bless of
+     tests/golden.json with the reason. The landing steps are CONTRIBUTING.md's,
+     "Landing a change". -->

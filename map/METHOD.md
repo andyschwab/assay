@@ -1,7 +1,7 @@
 ---
 type: skill
 name: practice-review
-description: "Cold-start an AI-native evaluation of a repository: a neutral evidence base (findings) projected through per-scanner adapters onto a flat, scanner-contributed axis roster, and compiled into the package — the maintainer report (the lead), a per-axis walk, and an agent-ready remediation handoff. practice-review is the built-in scanner (seven dimension passes → leverage/maturity/security views); external scanners overlay in on shared, property-named axes."
+description: "Cold-start an AI-native evaluation of a repository: a neutral evidence base (findings) projected through per-scanner adapters onto a flat, scanner-contributed axis roster, and compiled into the package — the maintainer report (the lead), a per-axis walk, and an agent-ready remediation handoff. practice-review is the built-in scanner (terrain + seven dimension passes, read by the maturity and security views inside Improve); external scanners overlay in on shared, property-named axes."
 ---
 # practice-review — AI-native codebase evaluation
 
@@ -9,18 +9,19 @@ You evaluate a repository for **AI-native maturity**: how well it supports
 inference as a core capability — an environment where AI work is legible,
 verifiable, and safely delegable. This SKILL is practice-review's own scanner method;
 its findings are then projected onto the flat axis roster
-(`map/scanners/CONTRACT.md`) and compiled into the package (Pass 8.5 +
-Pass 9 — the lead deliverable). The scanner method runs in two layers:
+(`map/scanners/CONTRACT.md`) and compiled into the package (the walk and the
+package, below; `node assay.mjs compile` writes both). The scanner method runs in two layers:
 
-1. A **neutral evidence base** — findings against the seven artifact dimensions (enumerated in Passes 1-7 below), recorded as
- *facts with structured descriptors and evidence*. The base **never asserts a
- severity or a priority**; it records what is.
-2. Three **views inside Improve** (the method's own readings; the engine's
- views — Intake, Maintain, Improve, Owner and Since — are `views/README.md`'s) that compile the same base into different judgments —
- **leverage** (faster/better/reordered), **maturity** (measured coverage per dimension +
- judged depth), and
- **security** (always-on; exposures ranked by likelihood, no deploy verdict) —
- reconciled by a **meta-synthesis** into one roadmap.
+1. A **neutral evidence base**: findings against the seven artifact dimensions (Passes 1–7
+ below), recorded as *facts with structured descriptors and evidence*. The base **never
+ asserts a severity or a priority**; it records what is.
+2. Two **views inside Improve** (the method's own readings; the engine's views, Intake,
+ Maintain, Improve, Owner and Since, are `views/README.md`'s) that read the same base:
+ **maturity** (measured coverage per dimension, `map/censuses.yaml` →
+ `views/improve/maturity-grades.yaml`) and **security** (always-on; exposures ranked by
+ likelihood, no deploy verdict, `views/improve/security-gate.yaml`). The order the work is
+ done in is computed, never authored: the handoff's sequence (`views/README.md`, "The
+ sequence's order").
 
 The one rule is `README.md`'s, and the base is where it binds: a base finding never
 asserts a severity or a priority; the views compute both from its descriptors. That
@@ -50,7 +51,7 @@ critical finding (the failure this architecture exists to prevent).
  so your working set stays small (terrain + current slice + accumulating base).
 - **Illumination is real but the ordering is owned.** Strengths are first-class
  findings and every view names them. But *ordering* serves the view's purpose:
- the maturity/leverage views lead with strengths (a team should feel seen, then
+ the maturity view and the report lead with strengths (a team should feel seen, then
  stretched); the **security view leads with exposure** (a buried critical
  finding is a liability). Illumination-first is a choice, not a view from
  nowhere — own it per view.
@@ -157,8 +158,8 @@ run of the same target exists**, diff the new base against it (matching on *fact
 not id) and re-verify any prior-only fact — a cheap, deterministic completeness
 check that recovers real misses.
 
-**Every `.md` file you author in a run** (`map/terrain.md`, `views/improve/*.md`,
-`views/improve/synthesis.md`, `map/censuses.md`) opens with OKF
+**Every `.md` file you author in a run** (`map/terrain.md`, `views/improve/maturity.md`,
+`views/improve/security.md`) opens with OKF
 frontmatter — `type: doc` plus a `title:` — so the file is well-formed wherever an
 OKF bundle guardrail reads it. The generated docs (report + handoff) get theirs
 from the tools; see `SCHEMA.md` §5.
@@ -410,124 +411,19 @@ effect or agent acts as (Pass 5, identity under breadth), what it may touch (Pas
 `blast_scope`), whether context entries carry their origin (Pass 5, composition), and usage
 and outcome telemetry endpoints (Pass 6, instrumentation-readiness).
 
-## The finding schema (base layer)
+## The finding format
 
-> **`SCHEMA.md` is authoritative.** It holds the full field spec, the closed
-> vocabularies, the **id allocation**, the **canonical run layout**, and
-> the security view's machine-readable stage tail — so you never reconstruct
-> conventions by reading a prior run. `map/validate.mjs` enforces all of it and
-> **fails closed**; run it before compiling the views (see "Validate & compile"
-> below). The block here is the working reference; if it and `SCHEMA.md` ever
-> disagree, `SCHEMA.md` wins.
-
-One finding per object in a per-pass `map/findings/practice-review-<dim>.yaml` file
-(ids unique within the run, `SCHEMA.md` §3). Lean neutral core + facets
-attached only when relevant.
+`map/SCHEMA.md` is the finding format's one home: the fields and their facets (§1), the
+closed vocabularies (§2), id allocation (§3), the conditional-required facets (§4) and the
+run layout (§5). `map/validate.mjs` enforces all of it and **fails closed**; run it before
+compiling anything downstream (below). Each pass writes its findings, one per list item, to
+its own `map/findings/practice-review-<dim>.yaml`.
 
 Every YAML file a run writes is read by one strict reader. What it reads, and the plain
 form to write for what it refuses (an anchor, a tag, a flow collection nested in another),
 is `SCHEMA.md` §9, "What the reader reads": read it before writing the files.
 
-```yaml
-- id: F-023 # stable across re-runs (lets a later run diff "still open?")
- dimension: delegation # …|artifact-legibility|context-economy|deterministic-gates
- # |verification|improvement-loop|multiplayer| unprompted
- polarity: gap # strength | gap | fact (views read this oppositely)
- subject_type: effect # effect | control | artifact | contract | process | capability
- observation: > # ONE grounded sentence — the fact, not the interpretation
- The agent sends email as the user with no draft/confirm step.
- evidence: [path:line, path:line] # mandatory
- confidence: confirmed # confirmed | plausible | unverified
- effect: # REQUIRED when subject_type == effect
- channel: gmail-send
- reversibility: irreversible # reversible | reversible-with-window | irreversible
- external: true # does the effect leave the trust boundary?
- gate_type: none # deterministic-halt | staged-reversible | scope-bound |
- # rate-throttle | disclosure-only | external-halt |
- # initiated-by-person (one authenticated person's own recorded act) | none
- fail_mode: closed # open | closed | unterminated — how the gate behaves if a dependency
- # is absent; unterminated = the check can run without ever reaching a verdict.
- # A `fail_mode: open` gate is gate_type:none under that condition
- # (e.g. an egress hook that allows everything if `jq` is missing).
- # Required whenever gate_type is not none.
- telemetry: unstructured # none | unstructured | structured-event | audited
- blast_scope: tenant # user | tenant | fleet | cross-tenant
- capabilities: # REQUIRED when subject_type == capability
- untrusted_input: true
- private_data: true
- external_effect: write # none | read (only fetches from outside) | write (sends, publishes, changes)
- preconditions: [prompt-injection] # what an attacker needs (controlled list, below)
- reaches: [F-055] # findings reachable from here in one context (feeds kill-chain)
- explained_by: [F-090] # links UP to a systemic finding (feeds fan-out)
- escapes: [F-081] # this effect's damage pierces the containment/ceiling that these
- # strength findings establish (e.g. reaches the host or fleet
- # despite per-tenant isolation) — makes "escapes the ceiling"
- # computable, not narrated; the security view weights it heavily
- property: secrets-rotated # optional: the property observed, kebab-case, stack-free;
- # never a requirement id (validate refuses one)
-```
-
-**`property:` — name what you observed (optional, `SCHEMA.md` §1).** When a finding
-observes a property, name it: kebab-case, stack-free (`secrets-rotated`,
-`migrations-reversible`, never a tool or framework name), stated as what is. It is never
-a requirement id: the yardstick decides which findings a requirement reads, and a
-finding never names one. Observe freely; nothing here limits what a pass records, and a
-finding need not carry one. After measuring, `compile` lists the findings no requirement
-takes, grouped by `property:` (`views/improve/candidates.yaml`, `IMPROVE.md` §8): the
-properties the yardstick has no row for yet. Reuse a name an earlier finding in the run
-already gave the same property, so the two group together.
-
-**Conditional-required rule (load-bearing):** effect/capability facets are not
-globally required, but *if `subject_type: effect`* the `effect` facet
-(reversibility, external, gate_type, telemetry, blast_scope) is **mandatory**
-(`fail_mode` additionally required whenever `gate_type` is not `none` — a real gate
-must declare how it fails), and *if `subject_type: capability`* the three
-`capabilities` booleans are mandatory. `escapes` is optional but the security view
-weights it heavily — attach it to any effect whose damage leaves a containment the
-base records elsewhere as a strength.
-This guarantees the halt-and-observability inventory is complete — an effect
-cannot be recorded without answering "what stops it? does it leave a trace? how
-far does its damage reach?"
-
-**Controlled vocabularies** (keep closed — comparability depends on it):
-
-| Field | Values |
-|---|---|
-| dimension | artifact-legibility · context-economy · deterministic-gates · verification · delegation · improvement-loop · multiplayer · **unprompted** |
-| polarity | strength · gap · fact |
-| subject_type | effect · control · artifact · contract · process · capability |
-| confidence | confirmed · plausible · unverified |
-| reversibility | reversible · reversible-with-window · irreversible |
-| gate_type | deterministic-halt · staged-reversible · scope-bound · rate-throttle · disclosure-only · external-halt · initiated-by-person · none |
-| telemetry | none · unstructured · structured-event · audited |
-| blast_scope | user · tenant · fleet · cross-tenant |
-| fail_mode | open · closed · unterminated (how a gate behaves when a dependency is absent; open ⇒ gate_type:none under that condition; unterminated = the check never reaches a verdict, and holds no more than open) |
-| verified_as.privilege | bound · elevated (optional `verified_as`: the principal a gate check ran as; elevated ⇒ confidence plausible, see SCHEMA.md §1) |
-| preconditions | prompt-injection · stolen-credential · malicious-dependency · network-position · insider · zero-day · physical |
-
-(`escapes` is a link, not an enum — a list of the strength-finding ids whose
-containment this effect pierces; see the schema example.)
-
-**Precondition → difficulty** (the anti-alarm dial): prompt-injection = trivial;
-stolen-credential / malicious-dependency = moderate; network-position / insider =
-hard; zero-day / physical = exotic.
-
-`unprompted` is a first-class dimension: findings no criterion asked for
-(a cross-cutting systemic gap, a novel strength) land here and are `reaches`/
-`explained_by`-linkable, so seam-findings are not stranded.
-
-## The views (each reads the findings base under `map/findings/`, writes its own artifact; never edits the base)
-
-### Leverage view → `views/improve/leverage.md`
-Read gaps as opportunities. For each, estimate leverage on **all three** axes —
-*faster* (whose hours does closing it save?), *better* (what becomes possible
-that isn't today? — including work that ships at all where the fixed overhead
-currently prevents it), and *reordered* (does closing it change the shape or
-order of the process itself — a check cheap enough to move earlier, a handoff
-that disappears — rather than speeding any step?). Any axis may be "none";
-never merge them — a cost-only estimate is blind to the other two, and a
-duration-inside-the-existing-shape estimate is blind to the third. Order by
-leverage per unit of verification cost, strengths noted first.
+## The views inside Improve (each reads the findings base under `map/findings/`, writes its own artifact; never edits the base)
 
 ### Maturity view → `views/improve/maturity.md` + `map/censuses.yaml`
 Maturity is **measured coverage, not rung words** (SCHEMA §6b): for each dimension,
@@ -590,11 +486,11 @@ met only over a complete triage. The other censuses' rows say why no tool lists 
  (`SCHEMA.md` §2 — decide it once, never re-choose per run). Measured on
  calibration pairs (a repeated run over one frozen target), this roughly doubled
  fact-level repeatability (48% to 78% in one pair measured in the field, off-repo, before
- the committed sweep sets). The tree's own figure is the committed blind set's
- (`tests/sweeps/assay-2026-10-01/`, three fresh contexts over this repository at one
- commit): 38% of union facts caught by all three, 20% of shared effect channels judged
- identically on all six descriptors — lower than the field pair, and the number the gate
- holds (`tests/sweeps/README.md`). A base sweep stays fine for a one-off client read.
+ the committed sweep sets). The tree's own figure is the newest committed blind set's
+ (`tests/sweeps/assay-2026-11-12c/`, three fresh contexts over this repository at one
+ commit): 13% of union facts caught by all three, 40% of listed candidates judged
+ identically on all six descriptors, 92% of decided requirements read alike — the
+ numbers the gate holds (`tests/sweeps/README.md`). A base sweep stays fine for a one-off client read.
 - **Author depth separately**: one judged sentence per dimension on how good the
  *best instance* is, with finding ids. High depth over low coverage is a finding
  in itself ("the team knows how; the work is doing it everywhere").
@@ -665,7 +561,7 @@ writes `views/improve/security-gate.yaml` (`SCHEMA.md` §6a): one
 `exposure` per chain/exposure with its `findings`, `who`, `likelihood`, optional
 `standing_watch`, the one-line `fix` (breaks_the_chain / leverage action), and what
 it `unlocks`. This is the only structured artifact a view produces; the maintainer
-report's exposures section (Pass 9) compiles from it, so severity stays computed in
+report's exposures section (the package, below) compiles from it, so severity stays computed in
 the view layer, never asserted in the base.
 
 ## Validate before compiling anything downstream
@@ -681,7 +577,7 @@ recorded as not run all halt),
 and **view/report citation-integrity** (every `F-###` a view or report cites must
 resolve). Green is the gate: don't compile views or the report on an unvalidated base
 (`views/compile.mjs` runs it first and refuses otherwise).
-Re-run it after the views and after Pass 9 (it then also checks the gate sidecar and
+Re-run it after the views and after the package (it then also checks the gate sidecar and
 the report's citations).
 
 When the target repo is available in-session (it usually is), run it with
@@ -692,57 +588,7 @@ it, failing closed on a cited path that does not exist or a line past its end �
 ("no CI") must cite what it *did* inspect (the human-run gate that exists instead),
 not the missing path, and state the absence in the observation.
 
-## Pass 8 — Meta-synthesis → `views/improve/synthesis.md`
-
-Reconcile the three method views (leverage, maturity, security) into one document (reads only the view artifacts):
-
-1. **Snapshot** — five sentences: what the repo is, standout strength, binding
- constraint, the maturity coverage numbers in one line, and the lead security
- exposure (the most likely, widest-reach open risk — a property, not a verdict). If a dimension measures high
- *and* carries a critical exposure, say both — do not let one average the other.
-2. **Strengths worth stealing** — 3–7, each written so another team could copy it.
-3. **One roadmap** — interleave all three views' items, **safety first**: order by
- what cannot be undone and how soon it could happen. What anyone can reach today and
- what fires unattended on a schedule come first (likelihood and who can trigger it —
- the chain ranking already orders reach × difficulty); then what is irreversible but
- waits on a person's act; then leverage (faster/better/reordered) × likelihood ×
- damage; then addressability (cheapest-to-verify first — telemetry-blind effects sort
- behind the telemetry fix). Flag any item whose payoff depends on another landing
- first, and order it after that one. This order is the synthesis's reading; the handoff
- places each item by what its findings are, like every other item (`views/README.md`, "The
- sequence's order"), so a dependency between items is stated in the item's body.
- **An item states a cause, not a pile of findings.** When findings from several
- scanners share one cause (a clean clone that does not install, a lockfile regenerated
- at deploy, actions on movable tags and a hundred advisories can all be one missing
- lockfile), write one item for the cause and cite every finding it absorbs: the
- findings are the evidence under the item, their scanners' fixes are quoted in its
- card, and the handoff sequences them once, inside it. Say what would prove the
- reading wrong. Its `done_when` is the proof the team runs with its own tools.
- **An unknown is a variable with a stated default.** A roadmap item lists what it
- assumes (`assumptions`) and does so unless the owner says otherwise; it asks at most one
- `question`, always with a `recommended` answer, and marks it `blocking: true` only when no
- safe default exists. Of several approaches, mark the one it proceeds with
- `recommended: true`. An item never gates on a question the owner might not answer.
- **An irreversible fix is prepared, then performed by a person**: a credential
- rotation, a history rewrite, a production deploy. The item gets it ready; the owner
- does it. When the repository is changing hands, rotating every credential at the
- handover makes every value in the history dead in one act, and a history purge
- becomes a later decision.
-4. **Key questions** — what only the owning team can answer (the `confidence:
- plausible/unverified` findings and the "couldn't determine from the repo"
- list). Real questions, not rhetorical gap-pointing.
- Ask only what no stated default can stand in for: where the repo leaves a value
- unknown, write the assumption and its safe default into the roadmap item instead, and
- keep here the few questions with no safe default, each with a recommended answer.
-
-Ordering note: for a **security-purpose** engagement, lead the whole document
-with the security posture + gate verdict, *then* strengths. For a **self-eval /
-adoption** engagement, lead with strengths. Same evidence, owned ordering.
-
-`synthesis.md` is the **internal** synthesis (dense, operator-facing, cites every
-finding). The **external, maintainer-facing** deliverable is Pass 9.
-
-## Pass 8.5 — The walk (per-axis profiles) → `views/improve/axes.md`
+## The walk (per-axis profiles) → `views/improve/axes.md`
 
 The detail layer under the axis model (`map/scanners/CONTRACT.md`):
 `node views/improve/axes.mjs <run-dir> [--base <dir>]...` projects the base
@@ -763,10 +609,10 @@ reader's). An axis no present scanner `contributes:` reads **"not measured"**,
 never "clean" — a fed-only axis renders its findings but is flagged as not a
 measure. The projection is **fail-closed** (unmapped category halts, in
 `validate` too). The deduped, severity-banded remediation spine seeds the
-**scanner-verbatim voice** of the Pass 9 handoff, quoting each fix verbatim,
+**scanner-verbatim voice** of the package's handoff, quoting each fix verbatim,
 never rewritten.
 
-## Pass 9 — The package (engine deliverable)
+## The package (engine deliverable)
 
 One command assembles the whole deliverable over the projected base:
 `node assay.mjs compile <run-dir>`. Three readers, one bundle
@@ -919,7 +765,26 @@ authored**:
  proceeds with the recommended answer; only `blocking: true` waits), `options[]`
  (`{name, tradeoff, recommended?}` — the agent proceeds with the recommended one, else
  presents and does not choose), `done_when[]`
- (closure tied to finding ids the next run re-checks).
+ (closure tied to finding ids the next run re-checks). The unknowns' rule (an unknown is a
+ variable with a stated default) is `SCHEMA.md` §6c's.
+ - **One roadmap, one item per cause.** An item states a cause, not a pile of findings:
+ when findings from several scanners share one cause (a clean clone that does not install, a
+ lockfile regenerated at deploy, actions on movable tags and a hundred advisories can all be
+ one missing lockfile), write one item for the cause and cite every finding it absorbs; their
+ scanners' fixes are quoted in its card, and the handoff sequences them once, inside it. Say
+ what would prove the reading wrong; `done_when` is the proof the team runs with its own
+ tools. The roadmap's order is not authored: the handoff places each item by what its
+ findings are (`views/README.md`, "The sequence's order"), so a dependency between items is
+ stated in the item's body. **An irreversible fix is prepared, then performed by a person**
+ (a credential rotation, a history rewrite, a production deploy): the item gets it ready,
+ the owner does it. When the repository is changing hands, rotating every credential at the
+ handover makes every value in the history dead in one act, and a history purge becomes a
+ later decision.
+ - `strengths[]` names 3–7 strengths, each written so another team could copy it.
+ `key_questions[]` asks only what no stated default can stand in for: what only the owning
+ team can answer (the `plausible`/`unverified` findings, what the repository could not
+ settle), each with a recommended answer; where the repository leaves a value unknown, the
+ assumption and its safe default go in the roadmap item instead.
  - Every gate-view exposure needs a human `title:` alongside its slug `name:` — validator
  rejects a missing one; `lib/display.mjs` translates the remaining machine vocab.
  - **Cover every unsupervised kind (solution-coverage, `SCHEMA.md` §6c).** Each unguarded
