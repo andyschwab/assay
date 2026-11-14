@@ -6,6 +6,9 @@
 //       measured as the handoff does, every source and adapter renamed;
 //   (b) over two items tied on the whole key, from two scanners whose names sort the other way
 //       once renamed: the tie still goes to the lower finding id.
+// Re-pinned by #319 (slice 3): the order handed on is a named lens over the quadrants, and this key
+// is the default lens's tie-break inside a quadrant, so (a) and (b) read the key's order
+// (buildSequence's keyOrder); (a) also holds the lens's order, sequence.json's, unmoved.
 import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { HERE, negFailures } from '../harness.mjs';
@@ -36,11 +39,14 @@ export async function run() {
   const { projected } = projectMulti(loadFindings(tmp), adapters);
   const decided = decideProjected(projected, loadDecisions(tmp), '');
   const measurement = projectRun(tmp, yardstick);
-  const before = order(buildSequence({ decided, adapters, roadmap: [], measurement, yardstick }).seq);
+  const before = order(buildSequence({ decided, adapters, roadmap: [], measurement, yardstick }).keyOrder);
+  const beforeLens = order(buildSequence({ decided, adapters, roadmap: [], measurement, yardstick }).seq);
   for (const name of [(s) => `zz-${s.split('').reverse().join('')}`, (s) => `aa-${s.length}-${s}`]) {
     const r = renamed(decided, adapters, name);
-    const got = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement, yardstick }).seq);
+    const got = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement, yardstick }).keyOrder);
     if (got !== before) fail(`renaming the scanners must not move the sequence (was ${before}, renamed ${got})`);
+    const gotLens = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement, yardstick }).seq);
+    if (gotLens !== beforeLens) fail(`renaming the scanners must not move the lens's order (was ${beforeLens}, renamed ${gotLens})`);
   }
   if (!/^F-053 F-1003 /.test(before)) fail(`the fixture must still sequence the halt then the safety High first (got ${before})`);
   rmSync(tmp, { recursive: true, force: true });
@@ -52,8 +58,8 @@ export async function run() {
   // re-pinned with #319: an adapter states the kind of evidence its source produces, or no
   // confidence rule fires and the sequence halts (map/confidence.mjs); both stand-ins declare one
   const tieAdapters = { alpha: { scanner: 'alpha', confidence: { evidence: 'deterministic' } }, beta: { scanner: 'beta', confidence: { evidence: 'deterministic' } } };
-  const t1 = order(buildSequence({ decided: tied, adapters: tieAdapters, roadmap: [], measurement: tieMeasure, yardstick }).seq);
+  const t1 = order(buildSequence({ decided: tied, adapters: tieAdapters, roadmap: [], measurement: tieMeasure, yardstick }).keyOrder);
   const r = renamed(tied, tieAdapters, (s) => (s === 'alpha' ? 'zulu' : 'able'));
-  const t2 = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement: tieMeasure, yardstick }).seq);
+  const t2 = order(buildSequence({ decided: r.decided, adapters: r.adapters, roadmap: [], measurement: tieMeasure, yardstick }).keyOrder);
   if (t1 !== 'F-1 F-2' || t2 !== 'F-1 F-2') fail(`a tie must go to the lower finding id, never to a scanner's name (got ${t1}, renamed ${t2})`);
 }

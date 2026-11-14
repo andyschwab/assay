@@ -162,6 +162,25 @@ export function setConsequencePolicy(text, { file, sha256 }) {
   return lines.join('\n') + (hadTrailingNL ? '\n' : '');
 }
 
+// setLens — the lens the operator named for the run (#319, slice 3: `compile --lens <name>` and/or
+// `--lens-file <file>`): a top-level `lens: { name, file, sha256 }` block written just above
+// `scanners:`, replacing any the record already carries, spliced as setConsequencePolicy splices.
+// views/improve/lens.mjs lensOfRun reads it, and refuses a file whose digest has moved since.
+export function setLens(text, { name, file, sha256 }) {
+  const hadTrailingNL = text.endsWith('\n');
+  const lines = (hadTrailingNL ? text.slice(0, -1) : text).split('\n');
+  const at = lines.findIndex((l) => /^lens:/.test(l));
+  if (at > -1) {
+    let end = at + 1;
+    while (end < lines.length && /^\s+\S/.test(lines[end])) end++;
+    lines.splice(at, end - at);
+  }
+  const sIdx = lines.findIndex((l) => /^scanners:\s*$/.test(l));
+  if (sIdx === -1) throw new Error('no top-level "scanners:" map in this file (fail-closed — is it a run manifest?)');
+  lines.splice(sIdx, 0, 'lens:', `  name: ${q(name)}`, `  file: ${q(file)}`, `  sha256: ${q(sha256)}`);
+  return lines.join('\n') + (hadTrailingNL ? '\n' : '');
+}
+
 // updateRunRecord — the run record's one read-modify-write: reads the file, applies
 // edit(text) → new text, writes it back, all under a lock file beside it
 // (<scanners.yaml>.lock, created exclusively), so two writers — `record`, `ingest`,

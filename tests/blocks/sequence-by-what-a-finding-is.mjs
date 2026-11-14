@@ -20,10 +20,16 @@
 // severity), so the two census Mediums come after every High and before the verification Low;
 // a High still never follows them, and neither carries evidence_absent here, so neither is
 // moved by the absent-evidence clause (tests/blocks/sequence-severity-bounds-tier.mjs pins it).
+// Re-pinned by #319 (slice 3): the order handed on is now a named lens over the quadrants, and this
+// key is the default lens's tie-break inside a quadrant. The key's order is read off the engine
+// (buildSequence's keyOrder, tests/blocks/quadrants-and-lenses.mjs keyOrderOf), where every
+// assertion on it holds as before; sequence.json and START-HERE are held to that order grouped by
+// risk-first's quadrants, so the key still decides every place inside a quadrant.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
+import { keyOrderOf, riskFirstOf } from './quadrants-and-lenses.mjs';
 
 export const label = 'sequence-by-what-a-finding-is';
 
@@ -79,17 +85,21 @@ export async function run() {
     return { doc, lines, order: doc.sequence.map((s) => s.findings.join('+')) };
   };
   const startOrder = (lines) => lines.map((l) => (EXPECTED.find((id) => new RegExp('`' + id + '`').test(l)) || '?'));
+  const keyIds = () => keyOrderOf(tmp).map((s) => s.ps.map((p) => p.f.id).join('+'));
+  const lensOf = (r) => { const q = new Map(r.doc.sequence.map((s) => [s.findings.join('+'), s.quadrant ? s.quadrant.value : null])); return riskFirstOf(EXPECTED, (k) => q.get(k)); };
 
   // (a) the order, in sequence.json and in START-HERE
   writeRankFixture(tmp);
   const h = handoff();
   if (h.status !== 0) { fail(`handoff.mjs must compile the fixture (exit ${h.status}): ${h.stderr.slice(0, 600)}`); rmSync(tmp, { recursive: true, force: true }); return; }
   const a = read();
-  if (a.order.join(' ') !== EXPECTED.join(' ')) fail(`sequence.json must order halt, safety High, verification High, documentation Medium, evidence Medium, verification Low: ${EXPECTED.join(' ')} (got ${a.order.join(' ')})`);
-  if (startOrder(a.lines).join(' ') !== EXPECTED.join(' ')) fail(`START-HERE must list the same order as sequence.json: ${EXPECTED.join(' ')} (got ${startOrder(a.lines).join(' ')})`);
-  const at = (id) => a.order.indexOf(id);
-  if (at('F-053') !== 0) fail(`the unheld halt must be item 1 (got item ${at('F-053') + 1})`);
-  if (at('F-1003') !== 1) fail(`the code-review High on a safety-tier row must be item 2 (got item ${at('F-1003') + 1})`);
+  const ka = keyIds();
+  if (ka.join(' ') !== EXPECTED.join(' ')) fail(`the sequence key must order halt, safety High, verification High, documentation Medium, evidence Medium, verification Low: ${EXPECTED.join(' ')} (got ${ka.join(' ')})`);
+  if (a.order.join(' ') !== lensOf(a).join(' ')) fail(`sequence.json must be the key's order grouped by the default lens's quadrants: ${lensOf(a).join(' ')} (got ${a.order.join(' ')})`);
+  if (startOrder(a.lines).join(' ') !== a.order.join(' ')) fail(`START-HERE must list the same order as sequence.json: ${a.order.join(' ')} (got ${startOrder(a.lines).join(' ')})`);
+  const at = (id) => ka.indexOf(id);
+  if (at('F-053') !== 0) fail(`the unheld halt must be item 1 under the sequence key (got item ${at('F-053') + 1})`);
+  if (at('F-1003') !== 1) fail(`the code-review High on a safety-tier row must be item 2 under the sequence key (got item ${at('F-1003') + 1})`);
   for (const doc of ['F-1100', 'F-1101']) for (const gap of ['F-1003', 'F-902'])
     if (at(doc) < at(gap)) fail(`the census row ${doc} must come after the High ${gap} (items ${at(doc) + 1} and ${at(gap) + 1})`);
 
@@ -113,8 +123,11 @@ export async function run() {
   const h2 = handoff();
   const c = read();
   if (h2.status !== 0) fail(`handoff.mjs must compile the fixture with a roadmap (exit ${h2.status}): ${h2.stderr.slice(0, 600)}`);
-  if (c.order.join(' ') !== EXPECTED.join(' ')) fail(`an authored item must take the place its findings give it, the same order as without the roadmap: ${EXPECTED.join(' ')} (got ${c.order.join(' ')})`);
-  if (c.doc.sequence[0]?.kind !== 'authored' || c.doc.sequence[4]?.kind !== 'authored') fail(`the two authored items must be items 1 and 5 (got kinds ${c.doc.sequence.map((s) => s.kind).join(', ')})`);
+  const kc = keyOrderOf(tmp);
+  const kcIds = kc.map((s) => s.ps.map((p) => p.f.id).join('+'));
+  if (kcIds.join(' ') !== EXPECTED.join(' ')) fail(`an authored item must take the place its findings give it, the same order as without the roadmap: ${EXPECTED.join(' ')} (got ${kcIds.join(' ')})`);
+  if (kc[0]?.kind !== 'authored' || kc[4]?.kind !== 'authored') fail(`the two authored items must be items 1 and 5 under the sequence key (got kinds ${kc.map((s) => s.kind).join(', ')})`);
+  if (c.order.join(' ') !== a.order.join(' ')) fail(`the item's kind moves it nowhere under the lens either: ${a.order.join(' ')} (got ${c.order.join(' ')})`);
 
   rmSync(tmp, { recursive: true, force: true });
 }

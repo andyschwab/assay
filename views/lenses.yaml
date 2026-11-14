@@ -1,0 +1,56 @@
+# views/lenses.yaml — the named lenses over the fix sequence (#319, slice 3). views/README.md,
+# "The sequence's order", is the contract; views/improve/lens.mjs reads it.
+#
+# Every sequence item records two dimensions, each by its own stated rule: its confidence (how
+# much assay knows, map/confidence.mjs) and its consequence (what is at stake, map/consequence.mjs).
+# views/improve/quadrants.mjs places it in a quadrant by those two values alone. A LENS is an
+# ordering over that: which quadrants it shows and in what order, what it does with the items no
+# quadrant takes (not valued), and how it breaks ties inside a quadrant. A lens reads the recorded
+# dimensions and never changes one: picking another lens never moves an item's confidence,
+# consequence or quadrant, only its place.
+#
+# A lens is data, so an operator may write their own file in this format and name it for a run
+# (`compile --lens-file <file> [--lens <name>]`, recorded in the run record with the file's digest).
+#
+# Fields of a lens (any other is refused when the file loads):
+#   name        [a-z0-9-]+, unique in the file
+#   says        what the lens is for, in a sentence
+#   quadrants   the quadrants it shows, in its order: act-now · verify-first · hygiene · park.
+#               A quadrant it does not list is LEFT OUT, never silently: START-HERE and
+#               sequence.json say how many items each left-out quadrant held.
+#   not_valued  last (the items no quadrant takes come after every quadrant) or left-out (they are
+#               not sequenced; START-HERE and sequence.json say how many)
+#   tie_break   the order inside a quadrant, one of a closed list (views/improve/lens.mjs TIE_BREAKS):
+#                 sequence-key  the sequence key of #318 (a halt, severity class, absent evidence
+#                               after observed gaps, the requirement's tier, severity), the item
+#                               placed by its worst gap; ties to the lowest finding id
+#                 consequence   the item's consequence on its scale, most at stake first, then the
+#                               sequence key
+#                 finding-id    the item's lowest finding id
+#
+# `default:` names the lens a compile reads when none is named.
+schema: assay.lenses
+version: 1
+default: risk-first
+lenses:
+  - name: risk-first
+    says: >
+      What to do first: the confirmed high stakes, then the high stakes to confirm, then confirmed
+      low-stake hygiene, then what is parked, then the items no rule values.
+    quadrants: [act-now, verify-first, hygiene, park]
+    not_valued: last
+    tie_break: sequence-key
+  - name: verification-plan
+    says: >
+      What to confirm: the high stakes assay does not yet know and the steps that could not run,
+      then the confirmed high stakes. Hygiene, park and the items no rule values are left out.
+    quadrants: [verify-first, act-now]
+    not_valued: left-out
+    tie_break: sequence-key
+  - name: hygiene-sprint
+    says: >
+      Confirmed low-stake work alone. Every other quadrant and the items no rule values are left
+      out, and counted.
+    quadrants: [hygiene]
+    not_valued: left-out
+    tie_break: sequence-key
