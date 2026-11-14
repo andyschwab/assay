@@ -9,6 +9,15 @@ import { loadYardstick, loadMeasurement, decidersOf } from '../yardstick/measure
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';
 import { q as yq } from '../lib/yaml-min.mjs';
 
+// The one contract module for building a view of a population (CONSUMERS.md, "Modules"):
+// a consumer imports from here, lib/run-layout.mjs and assay.mjs, and nothing else of the
+// engine. So the loaders a view needs and the text helpers that make its output match the
+// engine's are re-exported here, exactly these: the yaml scalar quoter q (lib/yaml-min.mjs)
+// and mdText (lib/display.mjs). tests/blocks/rows-contract-exports.mjs holds the set.
+export { loadYardstick, loadMeasurement, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
+export { q } from '../lib/yaml-min.mjs';
+export { mdText } from '../lib/display.mjs';
+
 // Join a run's raw contradictions (yardstick.yaml: id/claim/run_status/findings)
 // with the register's title, for display — read by the Owner view
 // (yardstick/README.md, owner/PACKET.md): a repository's own packet claimed a

@@ -281,6 +281,11 @@ export const ENTRIES = [
     from: '  errors.push(...tagPropertyErrors(reg));',
     to: '  void tagPropertyErrors;',
     check: 'yardstick-tags-name-a-property', red: /a tag with no property must be refused/ },
+  { rule: 'views/rows.mjs is the one contract module a consumer builds a view with: it exports exactly the set CONSUMERS.md lists (#339)',
+    file: 'views/rows.mjs',
+    from: "export { mdText } from '../lib/display.mjs';",
+    to: '// mdText not re-exported',
+    check: 'rows-contract-exports', red: /views\/rows\.mjs exports exactly its contract set \(missing mdText/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────

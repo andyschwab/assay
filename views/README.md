@@ -61,6 +61,10 @@ contradictions)` writes such a population as a data file (`view:`, `run:`,
 (`yardstick/measure.mjs` `loadContradictions`) to each requirement's title;
 `basisNote(row)` and `contextText(row)` are the words a page puts after a row
 decided by the owner's packet and on a claim row's context, under `CONTEXT_LABEL`.
+The module also re-exports what a view needs beside them, so a consumer imports it,
+`lib/run-layout.mjs` and nothing else of the engine (`CONSUMERS.md`, "Modules"): the
+loaders `loadYardstick`, `loadMeasurement`, `loadContradictions` and `loadRunPacket`, and
+`q` and `mdText`, which quote a YAML scalar and escape a page line as the engine does.
 
 `met` and `of` appear when the requirement is decided over a counted population.
 `decided_by` names what would decide a row still to run: a scanner, `census`, or

@@ -146,19 +146,15 @@ that places them, and `views/README.md` states each data format.
 
 ## Modules
 
-These modules are contract, and only the exports named here. No other export is: a
-consumer that needs a value no command prints asks for a command.
+These modules are contract, and only the exports named here. No other module or export
+is: a consumer imports these three modules and `assay.mjs`'s commands, nothing else of the
+engine, and one that needs a value none of them gives asks for a command.
 
 | Module | What a consumer may import |
 | --- | --- |
 | `lib/run-layout.mjs` | the functions that place a run's paths (§ The run layout), e.g. `findingsDir(run)`, `chainsDataPath(run)`, `improveReportDataPath(run)`, `viewPath(run, name)`, `prosePath(run)`, and `pagePath(run, name)`, a page at the run's root by name, for a consumer's own page or a page an earlier engine wrote |
 | `map/child-env.mjs` | `childEnv(set)`: the allow-listed environment to give a target's own script (`PATH`, `HOME`, `CI`, the network plumbing whose proxy URL carries no credential, and the `npm_config_*` values in `set`), so a session's tokens never reach it; pass it to `spawn` as `env` |
-| `views/rows.mjs` | a view of a population of requirements, built from the measurement (§ Views a consumer builds; `views/README.md`, "A view of a population"): `buildRows(run, select, { withFloor })`, `select` a tag or a predicate over the register's rows; `toYaml`, `joinContradictions`, `basisNote`, `contextText`, `CONTEXT_LABEL` |
-| `yardstick/measure.mjs` | the loaders `buildRows` rests on: `loadYardstick()`, the register, validated; `loadMeasurement(run)`, the run's `yardstick.yaml` rows, `null` when unmeasured; `loadContradictions(run)`; `loadRunPacket(run)`, the run's copied packet or `null`; `decidersOf(row, adapters)` |
-| `map/project.mjs` | the run record's loaders `buildRows` rests on: `loadManifest(run)`, `loadAdapters()`, `dispositions(manifest, adapters)` |
-| `map/doctrine.mjs` | `isMain(import.meta.url)`: whether a module is the command being run |
-| `lib/yaml-min.mjs` | `parseYaml(text)`, the strict reader every data file above is written for, and `q(s)`, a scalar quoted for it |
-| `lib/display.mjs` | `mdText(s)`: text from a run made safe to put on a Markdown page |
+| `views/rows.mjs` | the one module a consumer builds a view of a population with (§ Views a consumer builds; `views/README.md`, "A view of a population"), and exactly these exports: `buildRows(run, select, { withFloor })`, `select` a tag or a predicate over the register's rows; `toYaml`, `joinContradictions`, `basisNote`, `contextText`, `CONTEXT_LABEL`; the loaders a view needs, `loadYardstick()` (the register, validated), `loadMeasurement(run)` (the run's `yardstick.yaml` rows, `null` when unmeasured), `loadContradictions(run)`, `loadRunPacket(run)` (the run's copied packet, or `null`); and the text helpers that make a view's output match the engine's, `q(s)` (a YAML scalar quoted as the engine writes it) and `mdText(s)` (text from a run made safe on a Markdown page) |
 
 ## Views a consumer builds
 
@@ -202,12 +198,7 @@ CONSUMERS.md
 assay.mjs
 lib/run-layout.mjs
 map/child-env.mjs
-views/rows.mjs                                   # buildRows and its siblings (§ Modules)
-yardstick/measure.mjs                            # the loaders buildRows rests on (§ Modules)
-map/project.mjs                                  # the run record's loaders (§ Modules)
-map/doctrine.mjs                                 # isMain (§ Modules)
-lib/yaml-min.mjs                                 # parseYaml, q (§ Modules)
-lib/display.mjs                                  # mdText (§ Modules)
+views/rows.mjs                                   # the one module a consumer builds a view with (§ Modules)
 views/README.md
 views/lenses.yaml
 yardstick/list.mjs
@@ -225,9 +216,6 @@ yardstick/requirements.yaml                      # the check: text a lane is tol
 yardstick/consequence.yaml                       # the default consequence policy, and the format of an operator's own
 ```
 
-The six from `views/rows.mjs` to `lib/display.mjs` hold the exports § Modules names, and
-much else: a commit that leaves those exports' names, arguments and results as they were
-says so, `Consumer: none, <why>`.
 The nine from `map/enumerate.mjs` to `yardstick/requirements.yaml` write what this page names as the lane's input, outputs, seed and questions (#297).
 They change often, and many changes leave what a consumer reads as it was: such a commit says so,
 `Consumer: none, <why>`, and its trailer never heads the notes. The modules that hold a lane's
