@@ -39,7 +39,10 @@ requirements contract, and `views/README.md` the views' data formats.
    row or view field that exists because one operator's tooling reads it names
    that consumer on the row, phrased for any operator. assay depends on no
    operator's repository and pins an integration only through its adapter's
-   `verified_against`. `tests/blocks/core-names-no-scanner.mjs` holds it.
+   `verified_against`. No view, command or yardstick tag exists because one consumer
+   reads it: a tag names a property of the requirement, and a consumer builds its own
+   view from the measurement (`views/rows.mjs`). `tests/blocks/core-names-no-scanner.mjs`
+   and `tests/blocks/yardstick-tags-name-a-property.mjs` hold it.
 
 ## Checks
 

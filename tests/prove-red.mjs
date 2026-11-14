@@ -276,6 +276,11 @@ export const ENTRIES = [
     from: "return r.basis === 'owner' ? \", by the owner's word\" : '';",
     to: "return '';",
     check: 'rows-hold-the-measurement', red: /a row the packet decided says so/ },
+  { rule: 'the core names no consumer: a yardstick tag names a property of the requirement, never who reads the row (#339, CLAUDE.md rule 7)',
+    file: 'yardstick/measure.mjs',
+    from: '  errors.push(...tagPropertyErrors(reg));',
+    to: '  void tagPropertyErrors;',
+    check: 'yardstick-tags-name-a-property', red: /a tag with no property must be refused/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────

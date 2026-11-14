@@ -16,11 +16,14 @@ version: 0
 namespace: assay
 tiers: [custody, safety, reproducibility, verification, legibility, operability]
 # tags: properties of the requirement itself, never the view or the consumer that reads it
-# (yardstick/README.md, "The tags", #339). floor: its gap can cause harm to data, to people, to
-# money or to recovery, the harm named on the row from harms: below. ai-operating: it bears on AI
-# at work in or on the repository. A reader that watches its own set of rows selects them itself
-# (views/rows.mjs buildRows, by a tag or a predicate).
+# (yardstick/README.md, "The tags", #339). A reader that watches its own set of rows selects them
+# itself (views/rows.mjs buildRows, by a tag or a predicate).
+# tag_properties: the property each tag names, one entry per tag; the yardstick refuses a tag
+# without one, and one that names who reads the row instead.
 tags: [floor, ai-operating]
+tag_properties:
+  floor: its gap can cause harm to data, to people, to money or to recovery, the harm named on the row from harms below
+  ai-operating: it bears on AI at work in or on the repository, a model call, an AI context and what it can reach, an agent's surface, or work an AI produced
 # harm (every floor row, and only a floor row): what its gap can harm. A row is floor when its
 # gap can cause harm to data, to people, to money or to recovery (yardstick/README.md, #161).
 harms: [data, people, money, recovery]

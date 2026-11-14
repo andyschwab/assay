@@ -94,11 +94,28 @@ function validateDecider(spec, at) {
   if (spec.gaps_only !== undefined && spec.gaps_only !== true) errors.push(`${at}: gaps_only is true or absent`);
   return errors;
 }
+// A tag names a property of the requirement itself, never who reads the row (#339,
+// yardstick/README.md "The tags"): every tag in `tags:` states its property in
+// `tag_properties:`, and a property that names a view, a reader or a consumer is refused.
+export const TAG_READER_WORDS = /\b(views?|reads?|readers?|operators?|consumers?|stewards?|routines?|watch(es|ed)?|Intake|Maintain|Improve|Owner|Since)\b/;
+export function tagPropertyErrors(reg) {
+  const errors = [];
+  const props = reg.tag_properties && typeof reg.tag_properties === 'object' && !Array.isArray(reg.tag_properties) ? reg.tag_properties : null;
+  if (!props) return ['yardstick: tag_properties must map every tag to the property of the requirement it names'];
+  for (const t of reg.tags || []) {
+    const p = props[t];
+    if (typeof p !== 'string' || !p.trim()) errors.push(`yardstick: tag "${t}" names no property of the requirement (tag_properties.${t})`);
+    else if (TAG_READER_WORDS.test(p)) errors.push(`yardstick: tag "${t}" names who reads the row ("${p.match(TAG_READER_WORDS)[0]}"), not a property of the requirement`);
+  }
+  for (const t of Object.keys(props)) if (!(reg.tags || []).includes(t)) errors.push(`yardstick: tag_properties names "${t}", which is not in the yardstick's tags`);
+  return errors;
+}
 export function validateYardstick(reg) {
   const errors = [];
   if (!reg || !Array.isArray(reg.requirements)) return ['yardstick: no requirements list'];
   if (!Array.isArray(reg.tiers) || !reg.tiers.length) errors.push('yardstick: tiers must be a non-empty list');
   const tiers = new Set(reg.tiers || []), tags = new Set(reg.tags || []), harms = new Set(reg.harms || []), topics = new Set(TOPICS), seen = new Set();
+  errors.push(...tagPropertyErrors(reg));
   for (const d of reg.requirements) {
     const at = `yardstick: ${d.id ?? '(no id)'}`;
     if (!d.id || !/^d-[a-z0-9-]+$/.test(d.id)) errors.push(`${at}: id must match d-<slug>`);

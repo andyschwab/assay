@@ -100,7 +100,10 @@ the core names no operator (`CLAUDE.md` rule 7).
 (`floor`), what it bears on (`ai-operating`). It never names a view, a routine or a
 consumer that reads the row (#339): a reader that watches a set of rows keeps that list
 itself and selects them from the measurement with `views/rows.mjs`'s `buildRows`, by a
-tag or by a predicate over the rows (`CONSUMERS.md`, "Modules").
+tag or by a predicate over the rows (`CONSUMERS.md`, "Modules"). The file's
+`tag_properties:` states, for each tag, the property it names; `measure.mjs` refuses a
+tag without one, one whose property names a view, a reader or a consumer, and a property
+for a tag `tags:` does not carry (`tests/blocks/yardstick-tags-name-a-property.mjs`).
 
 **When a lane reviewed a row.** A row a review lane decides (`map/scanners/CONTRACT.md`
 §3h) carries `reviewed:` in `yardstick.yaml`, one entry per lane that ran and recorded what
