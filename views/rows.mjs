@@ -1,14 +1,25 @@
-// floor-fleet.mjs — shared row-building for Intake (floor-tagged) and Maintain
-// (fleet-tagged): both are views of the SAME measurement (yardstick.yaml),
-// filtered to a tag population. Neither reads findings directly — only the
-// yardstick's measurement plus the yardstick (title/check/tier/topic) and the
-// run manifest (what was not seen). Ordering: tier order, then register order.
+// rows.mjs — a view of a population of requirements, built from the measurement
+// (yardstick.yaml) and nothing else: the generic way any reader of a run, assay's own
+// Owner view or a consumer's, builds the rows of the requirements it watches
+// (CONSUMERS.md, "Modules"). It reads no finding directly: only the yardstick's
+// measurement, the yardstick (title/check/tier/topic) and the run record (what was not
+// seen), and it decides nothing the measurement did not. Ordering: tier order, then
+// register order.
 import { loadYardstick, loadMeasurement, decidersOf } from '../yardstick/measure.mjs';
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';
 import { q as yq } from '../lib/yaml-min.mjs';
 
+// The one contract module for building a view of a population (CONSUMERS.md, "Modules"):
+// a consumer imports from here, lib/run-layout.mjs and assay.mjs, and nothing else of the
+// engine. So the loaders a view needs and the text helpers that make its output match the
+// engine's are re-exported here, exactly these: the yaml scalar quoter q (lib/yaml-min.mjs)
+// and mdText (lib/display.mjs). tests/blocks/rows-contract-exports.mjs holds the set.
+export { loadYardstick, loadMeasurement, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
+export { q } from '../lib/yaml-min.mjs';
+export { mdText } from '../lib/display.mjs';
+
 // Join a run's raw contradictions (yardstick.yaml: id/claim/run_status/findings)
-// with the register's title, for display — read by both Intake and Maintain
+// with the register's title, for display — read by the Owner view
 // (yardstick/README.md, owner/PACKET.md): a repository's own packet claimed a
 // requirement satisfied; this run found the mechanism absent.
 export function joinContradictions(raw, reg) {
@@ -25,7 +36,7 @@ function decidedBy(d) {
   return d.decide.kind;
 }
 
-// The plain-language basis tag Intake and Maintain both append to a row's
+// The plain-language basis tag a page appends to a row's
 // sentence (yardstick/README.md, owner/PACKET.md) — "" for the default (the
 // run decided it), so a raw base without a packet reads exactly as it always
 // has, and a packet-decided row is named as such, never silently blended in.
@@ -33,21 +44,22 @@ export function basisNote(r) {
   return r.basis === 'owner' ? ", by the owner's word" : '';
 }
 
-// Build the three lists + not_seen for one tag population (floor or fleet).
-// withFloor: also stamp `floor: true|false` on every row (Maintain's population
-// is fleet-tagged but still needs to say which of those are ALSO floor rows).
+// Build the four lists + not_seen for one population of requirements.
+// select: a tag of the yardstick's `tags:` (every row carrying it), or a predicate
+// (d) => boolean over the register's rows, for a population no tag names (Owner's
+// "beyond the floor", or a consumer's own list of ids).
+// withFloor: also stamp `floor: true|false` on every row, for a population that
+// mixes floor rows with others and must say which are which.
 // Returns null when the run has no yardstick measurement yet.
-export function buildRows(runDir, tag, { withFloor = false } = {}) {
+export function buildRows(runDir, select, { withFloor = false } = {}) {
   const reg = loadYardstick();
   const measurement = loadMeasurement(runDir);
   if (!measurement) return null;
   const byId = new Map(measurement.map((r) => [r.id, r]));
   const tierRank = Object.fromEntries((reg.tiers || []).map((t, i) => [t, i]));
 
-  // tag: a tag name ("floor" | "fleet") to filter by membership, or a predicate
-  // function (d) => boolean for a population no single tag names (Owner's
-  // "beyond the floor" — every row NOT tagged floor, regardless of fleet/ai-operating).
-  const matches = typeof tag === 'function' ? tag : (d) => (d.tags || []).includes(tag);
+  // select: a tag to filter by membership, or a predicate for a population no tag names
+  const matches = typeof select === 'function' ? select : (d) => (d.tags || []).includes(select);
   const population = reg.requirements
     .map((d, i) => ({ d, i }))
     .filter(({ d }) => matches(d))
@@ -132,12 +144,12 @@ function contradictionYaml(c) {
   return [`  - id: ${c.id}`, `    claim: ${c.claim}`, `    run_status: ${c.run_status}`, `    findings: [${(c.findings || []).join(', ')}]`].join('\n');
 }
 
-// Renders the full data file for a view (Intake or Maintain): view name,
-// run, the yardstick's version, counts, then the five lists. `not_applicable`
-// rows are listed separately and never counted as met (yardstick/README.md —
-// decided only from the map, never a packet claim). `contradictions` (Intake
-// only — yardstick/README.md) is the run's own recorded list (yardstick/measure.mjs
-// loadContradictions); omitted entirely for Maintain.
+// Renders the full data file for a view of one population: view name, run, the
+// yardstick's version, counts, then the five lists. `not_applicable` rows are listed
+// separately and never counted as met (yardstick/README.md — decided only from the
+// map, never a packet claim). `contradictions` (yardstick/README.md) is the run's own
+// recorded list (yardstick/measure.mjs loadContradictions), joined to titles by
+// joinContradictions; omitted entirely when not given.
 export function toYaml(view, runName, yardstickVersion, built, contradictions) {
   const { population, open, met, to_run, not_applicable, not_seen } = built;
   const L = [`# ${view}.yaml — GENERATED by views/${view}.mjs. Do not hand-edit.`, `view: ${view}`, `run: ${runName}`, `yardstick: ${yardstickVersion}`];

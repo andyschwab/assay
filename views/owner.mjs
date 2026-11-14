@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// owner.mjs — Owner: what is true of this application? A fourth view of the
-// same measurement Intake and Maintain read (yardstick.yaml), joined with the
+// owner.mjs — Owner: what is true of this application? A view of the
+// same measurement every view reads (yardstick.yaml), joined with the
 // register's `owner:` block on every requirement (yardstick/requirements.yaml
 // — yardstick/README.md documents the field). Reads ONLY the yardstick's
 // measurement, the yardstick (title/check/tier/topic/owner) and the run
 // manifest (what was not looked at this run) — never findings directly, and
 // it decides nothing a run/census/facet/claim did not already decide
-// (floor-fleet.mjs's buildRows, the same helper Intake and Maintain use).
+// (views/rows.mjs's buildRows, the one way a view of a population is built).
 //
 // This is the register for a person who built the app with an AI and is not
 // an engineer: consequence first, plain words, a term explained in a short
@@ -22,9 +22,9 @@
 // Usage: node assay.mjs owner <run-dir> [--stdout]
 import { writeFileSync, existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
-import { buildRows, CONTEXT_LABEL } from './floor-fleet.mjs';
+import { buildRows, CONTEXT_LABEL, joinContradictions } from './rows.mjs';
 import { loadFindings } from '../map/project.mjs';
-import { loadYardstick } from '../yardstick/measure.mjs';
+import { loadYardstick, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
 import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
 import { viewPath, ownerPagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
@@ -80,10 +80,9 @@ export function ownerRow(r, status, byId, findingById) {
   return out;
 }
 
-// floor: the same population Intake reads (tags: [floor]). beyond_floor: every
-// requirement NOT tagged floor, regardless of fleet/ai-operating — no single
-// tag names that population, so buildRows takes a predicate here (its one
-// other caller shape, alongside the string tags Intake/Maintain pass).
+// floor: the rows tagged floor. beyond_floor: every requirement NOT tagged floor,
+// whatever else it carries — no single tag names that population, so buildRows
+// takes a predicate here, the same form a consumer's own list of ids takes.
 export function buildOwner(runDir) {
   const reg = loadYardstick();
   const byId = new Map(reg.requirements.map((d) => [d.id, d]));
@@ -97,10 +96,130 @@ export function buildOwner(runDir) {
     met: built.met.map((r) => ownerRow(r, 'met', byId, findingById)),
     // decided from the map as not applying to this repository (no database, so nothing
     // to migrate); listed, never folded into met, never dropped — the same bucket
-    // Intake carries, so the two views cannot disagree on a row
+    // buildRows lists, so no view can disagree with another on a row
     not_applicable: (built.not_applicable || []).map((r) => ownerRow(r, 'not-applicable', byId, findingById)),
   });
-  return { floor: group(floorBuilt), beyond_floor: group(beyondBuilt), not_looked_at: floorBuilt.not_seen, reg };
+  // what the run's own packet said (#339): the claims this run contradicts, joined to their titles,
+  // and the packet's custody facts; both read off the run, never decided here
+  const contradictions = joinContradictions(loadContradictions(runDir), reg);
+  const packet = buildOwnerBlock(loadRunPacket(runDir));
+  return { floor: group(floorBuilt), beyond_floor: group(beyondBuilt), not_looked_at: floorBuilt.not_seen, contradictions, packet, reg };
+}
+
+// ── the owner's packet: what a repository's own packet says about itself ──────
+// Facts only, never a verdict (owner/PACKET.md). Shown on OWNER.md as "What the owner
+// told us" and written to owner.yaml as `packet:` (views/README.md).
+const t = mdText;
+const yn3 = (v) => (v === 'yes' || v === 'no' || v === 'unsure' ? v : 'unknown');   // the packet's four answers; 'unsure' is the owner's partial knowledge, never folded into unknown
+const orgLabel = (v) => (v === 'yes' ? 'organisational' : v === 'no' ? 'personal' : v === 'unsure' ? 'personal or organisational: unsure' : 'personal or organisational: unknown');
+// a role list: undefined/absent -> null ("unknown" — the packet never spoke to
+// it); [] -> [] ("nobody can", owner/PACKET.md's own placeholder-free convention);
+// a filled list -> itself.
+const roleList = (v) => (Array.isArray(v) ? v : null);
+
+// buildOwnerBlock(packet) — the run's own copied packet (yardstick/measure.mjs
+// loadRunPacket), reduced to the facts owner/PACKET.md's custody: block carries.
+// null when the run has no packet at all. Every sub-object is present even when
+// the packet is silent on it, so a consumer never has to guess a missing shape.
+export function buildOwnerBlock(packet) {
+  if (!packet) return null;
+  const custody = packet.custody || {};
+  const accounts = Array.isArray(custody.accounts) ? custody.accounts.filter(Boolean) : [];
+  const transferable = { yes: 0, no: 0, unsure: 0, unknown: 0 };
+  for (const a of accounts) transferable[yn3(a.transferable)]++;
+  const credentials = Array.isArray(custody.credentials) ? custody.credentials.filter(Boolean) : [];
+  const lives = [...new Set(credentials.map((c) => c.lives).filter(Boolean))];
+  const readers = [...new Set(credentials.flatMap((c) => (Array.isArray(c.readers) ? c.readers : [])))];
+  const neverRotated = credentials.filter((c) => /^\s*never\b/i.test(String(c.rotated || ''))).length;
+  const rotationUnknown = credentials.filter((c) => !c.rotated || /^\s*unknown\b/i.test(String(c.rotated))).length;
+  const people = custody.people || {};
+  const data = custody.data || {};
+  const money = custody.money || {};
+  return {
+    answered: packet.answered ? { date: packet.answered.date ?? 'unknown', by: packet.answered.by ?? 'unknown', via: packet.answered.via ?? 'unknown' } : null,
+    accounts: {
+      count: accounts.length,
+      personal: accounts.filter((a) => a.organisational === 'no').length,
+      organisational: accounts.filter((a) => a.organisational === 'yes').length,
+      transferable,
+      rows: accounts.map((a) => ({
+        what: a.account ?? 'unknown', provider: a.provider ?? 'unknown', owner_role: a.owner_role ?? 'unknown',
+        personal_or_organisational: orgLabel(a.organisational), transferable: yn3(a.transferable),
+      })),
+    },
+    credentials: {
+      count: credentials.length, lives, never_rotated: neverRotated, rotation_unknown: rotationUnknown, readers,
+      rows: credentials.map((c) => ({ name: c.name ?? 'unknown', lives: c.lives ?? 'unknown', readers: Array.isArray(c.readers) ? c.readers : null, rotated: c.rotated ?? 'unknown' })),
+    },
+    people: { build: roleList(people.build), deploy: roleList(people.deploy), restore: roleList(people.restore), restore_done: yn3(people.restore_done) },
+    data: { personal: data.personal ?? 'unknown', leaves_via: Array.isArray(data.leaves_via) ? data.leaves_via : [] },
+    money: { monthly: Array.isArray(money.monthly) ? money.monthly.map((m) => ({ provider: m.provider ?? 'unknown', amount: m.amount ?? 'unknown' })) : [], alerts: money.alerts ?? 'unknown' },
+    handover: custody.handover ?? 'unknown',
+    notes: packet.notes ?? null,
+  };
+}
+
+const oq = (s) => yq(s == null ? '' : s);
+// a free-text list as a block sequence at `indent`: a flow list's commas split an item on read-back
+const seq = (arr, indent) => ((arr || []).length ? (arr || []).map((s) => `\n${indent}- ${oq(s)}`).join('') : ' []');
+// key: the block's name in the file it is written to (owner.yaml writes it as `packet:`)
+export function ownerYaml(owner, key = 'owner') {
+  if (!owner) return `${key}: null\n`;
+  const L = [`${key}:`];
+  L.push(...(owner.answered ? ['  answered:', `    date: ${oq(owner.answered.date)}`, `    by: ${oq(owner.answered.by)}`, `    via: ${oq(owner.answered.via)}`] : ['  answered: null']));
+  L.push('  accounts:', `    count: ${owner.accounts.count}`, `    personal: ${owner.accounts.personal}`, `    organisational: ${owner.accounts.organisational}`);
+  L.push('    transferable:', `      yes: ${owner.accounts.transferable.yes}`, `      no: ${owner.accounts.transferable.no}`, `      unsure: ${owner.accounts.transferable.unsure}`, `      unknown: ${owner.accounts.transferable.unknown}`);
+  if (owner.accounts.rows.length) {
+    L.push('    rows:');
+    for (const r of owner.accounts.rows) L.push(`      - what: ${oq(r.what)}`, `        provider: ${oq(r.provider)}`, `        owner_role: ${oq(r.owner_role)}`, `        personal_or_organisational: ${oq(r.personal_or_organisational)}`, `        transferable: ${oq(r.transferable)}`);
+  } else L.push('    rows: []');
+  L.push('  credentials:', `    count: ${owner.credentials.count}`, `    lives:${seq(owner.credentials.lives, '      ')}`, `    never_rotated: ${owner.credentials.never_rotated}`, `    rotation_unknown: ${owner.credentials.rotation_unknown}`, `    readers:${seq(owner.credentials.readers, '      ')}`);
+  if (owner.credentials.rows.length) {
+    L.push('    rows:');
+    for (const r of owner.credentials.rows) L.push(`      - name: ${oq(r.name)}`, `        lives: ${oq(r.lives)}`, `        readers:${r.readers === null ? ' null' : seq(r.readers, '          ')}`, `        rotated: ${oq(r.rotated)}`);
+  } else L.push('    rows: []');
+  L.push('  people:');
+  L.push(`    build:${owner.people.build === null ? ' null' : seq(owner.people.build, '      ')}`);
+  L.push(`    deploy:${owner.people.deploy === null ? ' null' : seq(owner.people.deploy, '      ')}`);
+  L.push(`    restore:${owner.people.restore === null ? ' null' : seq(owner.people.restore, '      ')}`);
+  L.push(`    restore_done: ${oq(owner.people.restore_done)}`);
+  L.push('  data:', `    personal: ${oq(owner.data.personal)}`, `    leaves_via:${seq(owner.data.leaves_via, '      ')}`);
+  if (owner.money.monthly.length) {
+    L.push('  money:', '    monthly:');
+    for (const m of owner.money.monthly) L.push(`      - provider: ${oq(m.provider)}`, `        amount: ${oq(m.amount)}`);
+    L.push(`    alerts: ${oq(owner.money.alerts)}`);
+  } else L.push('  money:', '    monthly: []', `    alerts: ${oq(owner.money.alerts)}`);
+  L.push(`  handover: ${oq(owner.handover)}`);
+  L.push(`  notes: ${owner.notes == null ? 'null' : oq(owner.notes)}`);
+  return L.join('\n') + '\n';
+}
+
+export function renderOwnerSection(owner) {
+  const out = ['## What the owner told us', ''];
+  out.push("_What a repository's own packet says about itself — facts only; assay computes no verdict");
+  out.push('here (owner/PACKET.md). Unknowns are shown as unknown, never dropped._', '');
+  if (!owner) {
+    out.push("_No owner's packet yet: the owner prompt (`assay.mjs ask-owner`) collects these._", '');
+    return out;
+  }
+  const roleLine = (v) => (v === null ? 'unknown' : v.length ? v.map(t).join(', ') : 'nobody');
+  const a = owner.accounts;
+  out.push(`- **Accounts** — ${a.count} total: ${a.personal} personal, ${a.organisational} organisational. Transferable: ${a.transferable.yes} yes, ${a.transferable.no} no, ${a.transferable.unsure} unsure, ${a.transferable.unknown} unknown.`);
+  for (const r of a.rows) out.push(`  - ${t(r.what)} (${t(r.provider)}) — owner: ${t(r.owner_role)}, ${r.personal_or_organisational}, transferable: ${r.transferable}.`);
+  const c = owner.credentials;
+  out.push(`- **Credentials** — ${c.count} total. Never rotated: ${c.never_rotated}; rotation unknown: ${c.rotation_unknown}.`);
+  for (const r of c.rows) out.push(`  - ${t(r.name)} — lives: ${t(r.lives)}; readers: ${r.readers === null ? 'unknown' : r.readers.length ? r.readers.map(t).join(', ') : 'nobody'}; rotated: ${t(r.rotated)}.`);
+  const p = owner.people;
+  out.push(`- **People** — build: ${roleLine(p.build)}. deploy: ${roleLine(p.deploy)}. restore: ${roleLine(p.restore)}. Restore ever done: ${p.restore_done}.`);
+  const d = owner.data;
+  out.push(`- **Data** — personal data: ${t(d.personal)}. Leaves via: ${d.leaves_via.length ? d.leaves_via.map(t).join(', ') : 'unknown'}.`);
+  const m = owner.money;
+  out.push(`- **Money** — ${m.monthly.length ? m.monthly.map((x) => `${t(x.provider)}: ${t(x.amount)}`).join('; ') : 'unknown'}. Alerts: ${t(m.alerts)}.`);
+  out.push(`- **Handover** — ${t(owner.handover)}.`);
+  if (owner.notes) out.push(`- **Notes** — ${t(owner.notes)}`);
+  out.push('');
+  if (owner.answered) out.push(`_Answered ${t(owner.answered.date)} by ${t(owner.answered.by)}, via ${t(owner.answered.via)}._`, '');
+  return out;
 }
 
 // ── YAML (yaml-min's constrained block-only subset — decide: is the load-bearing precedent for a nested map inside a list item) ──
@@ -136,7 +255,10 @@ export function toYaml(runId, yardstickVersion, built) {
   L.push(groupYaml('beyond_floor', built.beyond_floor));
   L.push('not_looked_at:');
   for (const r of built.not_looked_at) L.push(`  - scanner: ${r.scanner}`, `    status: ${r.status}`, `    reason: ${q(r.reason)}`);
-  return L.join('\n') + '\n';
+  // a packet claim of satisfied this run found unmet: the claim, the run's status and its findings
+  L.push((built.contradictions || []).length ? 'contradictions:' : 'contradictions: []');
+  for (const c of built.contradictions || []) L.push(`  - id: ${c.id}`, `    title: ${q(c.title)}`, `    claim: ${c.claim}`, `    run_status: ${c.run_status}`, `    findings: [${(c.findings || []).join(', ')}]`);
+  return L.join('\n') + '\n' + ownerYaml(built.packet ?? null, 'packet');
 }
 
 // ── the page ──────────────────────────────────────────────────────────────────
@@ -225,6 +347,18 @@ export function renderMd(runId, built, { confidential = false, name, date, commi
     for (const r of beyond_floor.not_applicable) out.push(`- **${r.title}** — ${mdText(r.reason)}`);
     out.push('');
   }
+
+  // a claim from the owner's own packet this run found the mechanism absent for: never silently
+  // overwritten, the claim and the run's own status stand side by side (owner/PACKET.md)
+  const contradictions = built.contradictions || [];
+  out.push('## Where this run disagrees with what you told us', '');
+  out.push("_Your packet said these hold; this run found what they need missing. Neither is overwritten: the claim and what the run found stand side by side._", '');
+  if (contradictions.length) {
+    for (const c of contradictions) out.push(`- **${mdText(c.title)}** _(${c.id})_ — you said: ${c.claim}. This run: ${c.run_status}${c.findings && c.findings.length ? ` (map rows ${c.findings.join(', ')})` : ''}.`);
+  } else out.push('_None._');
+  out.push('');
+
+  out.push(...renderOwnerSection(built.packet ?? null));
 
   out.push('## What was not looked at', '');
   if (not_looked_at.length) {

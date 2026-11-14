@@ -32,7 +32,7 @@ export async function run() {
   if (ml !== 'line one line two line three') fail(`q() must keep a multi-line value on one line (got ${JSON.stringify(ml)})`);
   // the writers that quote YAML values all go through the one helper
   const copies = [];
-  for (const f of ['yardstick/measure.mjs', 'yardstick/ratchet.mjs', 'views/improve/topics.mjs', 'views/improve/maturity.mjs', 'views/since.mjs', 'views/intake.mjs', 'views/owner.mjs', 'views/floor-fleet.mjs', 'routine/run.mjs', 'map/record.mjs', 'map/start.mjs', 'map/ingest.mjs']) {
+  for (const f of ['yardstick/measure.mjs', 'yardstick/ratchet.mjs', 'views/improve/topics.mjs', 'views/improve/maturity.mjs', 'views/since.mjs', 'views/owner.mjs', 'views/rows.mjs', 'routine/run.mjs', 'map/record.mjs', 'map/start.mjs', 'map/ingest.mjs']) {
     if (/const (?:q|oq) = \(s\) => `"\$\{/.test(readFileSync(join(ROOT, f), 'utf8'))) copies.push(f);
   }
   if (copies.length) fail(`a private quote helper is back (use q() from lib/yaml-min.mjs): ${copies.join(', ')}`);

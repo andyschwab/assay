@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 // compile.mjs — assemble the full evaluation package for a run: one map, one
-// yardstick, four views.
+// yardstick, its measurement, and the views of it.
 //
-// One command → the whole deliverable, four readers over one measurement:
-//   • INTAKE   (views/intake.yaml + INTAKE.md)     — views/intake.mjs           [can this map be carried?]
-//   • MAINTAIN (views/maintain.yaml + MAINTAIN.md) — views/maintain.mjs         [is it still healthy?]
+// One command → the whole deliverable, every reader over one measurement:
+//   • the measurement (yardstick.yaml)            — yardstick/measure.mjs      [what the run decides, per requirement]
 //   • IMPROVE  (views/improve.yaml + IMPROVE.md)   — views/improve/{report,axes,handoff,topics}.mjs [what makes it better?]
 //   • OWNER    (views/owner.yaml + OWNER.md)       — views/owner.mjs            [what is true of it, for the person who is not an engineer?]
 //   • the INDEX (INDEX.md)                        — written here               [front door]
-// Assay draws a map, measures it against a yardstick, then writes these four
-// views. Improve's lead page (IMPROVE.md) compiles only when the run carries
+// Assay draws a map, measures it against a yardstick, then writes these views.
+// A consumer builds its own views of a population from the measurement with
+// views/rows.mjs's buildRows (CONSUMERS.md, "Modules"); compile writes none for
+// one. Improve's lead page (IMPROVE.md) compiles only when the run carries
 // its authored inputs (views/improve/prose.yaml); a raw base still gets the
-// walk + handoff + Intake + Maintain + Owner, and the INDEX says which lead is
-// present. Scanner-native reports (a peer reviewer's own) are listed as
+// walk + handoff + Owner, and the INDEX says which lead is present. A stored run
+// that carries pages an earlier engine wrote (INTAKE.md, MAINTAIN.md and their
+// data files) keeps them as they are: compile neither rewrites nor removes them. Scanner-native reports (a peer reviewer's own) are listed as
 // APPENDICES — provenance in each scanner's own voice, never merged.
 // Branded/PDF output lives outside assay (Andy's decision, 2026-09-24) — this
 // writes Markdown + YAML only.
@@ -35,7 +37,6 @@ import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYard
 import { loadPolicy } from '../map/consequence.mjs';
 import { setConsequencePolicy, setLens, updateRunRecord } from '../map/record.mjs';
 import { loadLens, BUILTIN_LENS_FILE } from './improve/lens.mjs';
-import { buildRows } from './floor-fleet.mjs';
 import { buildOwner } from './owner.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';
@@ -115,7 +116,7 @@ console.log('· topics   (improve.yaml) …');   run('improve/topics.mjs', ['--w
 // the findings no requirement takes, by the property each names (#264): read after measuring
 console.log('· candidates (improve/candidates.yaml) …'); run('improve/candidates.mjs', ['--write']);
 
-// ── the four views ───────────────────────────────────────────────────────────
+// ── the views ──────────────────────────────────────────────────────────────────
 console.log('· walk     (improve/axes) …');   run('improve/axes.mjs', confArgs);
 console.log('· handoff  (improve/handoff) …'); run('improve/handoff.mjs', [...confArgs, ...sweepArgs]);
 let reportOk = false;
@@ -124,8 +125,6 @@ if (hasProse) {
 } else {
   console.log('· report   — skipped (no views/improve/prose.yaml; the walk is the human read for a raw base)');
 }
-console.log('· intake   (can it be carried?) …'); run('intake.mjs', confArgs);
-console.log('· maintain (is it still healthy?) …'); run('maintain.mjs', confArgs);
 console.log('· owner    (what is true of it?) …'); run('owner.mjs', confArgs);
 let sinceOk = false;
 if (previousRun) {
@@ -185,12 +184,11 @@ const descSum = summarizeMeasurement(descRows);
 const descUnmet = descRows.filter((r) => r.status === 'unmet').map((r) => `\`${r.id}\``);
 const descClaims = descRows.filter((r) => r.kind === 'claim' && r.status === 'not-measured').length;   // the claim rows no packet decided
 
-// ── the four views' own counts, for the lead lines ─────────────────────────
-const intakeBuilt = buildRows(runDir, 'floor');
-const maintainBuilt = buildRows(runDir, 'fleet', { withFloor: true });
+// ── the views' own counts, for the lead lines ──────────────────────────────
 const ownerBuilt = buildOwner(runDir);
-const viewCount = (b) => b ? `${b.open.length} open · ${b.met.length} met · ${b.to_run.length} to run` : 'not measured yet';
+// a packet claim the run contradicts is named on the front door too, never only inside a page
 const ownerCount = (b) => b ? `${b.floor.open.length} open · ${b.floor.met.length} met · ${b.floor.not_measured.length} could not tell` : 'not measured yet';
+const ownerContradicted = (b) => (b && b.contradictions.length ? ` ${b.contradictions.length} claim${b.contradictions.length === 1 ? '' : 's'} of the owner's packet this run contradicts.` : '');
 
 // ── INDEX.md — the front door ────────────────────────────────────────────────
 const rel = (p) => relative(runDir, p) || basename(p);
@@ -210,18 +208,16 @@ ${CONFIDENTIAL ? 'confidential: true\n' : ''}title: "${runId} — evaluation pac
 
 # ${runId} — evaluation package
 
-One map, one yardstick, four views. No single verdict: one flat axis roster,
+One map, one yardstick, its measurement and the views of it. No single verdict: one flat axis roster,
 each axis its own posture; a requirement is met, unmet, mixed, or not measured
 — never priced, never graded pass/fail.
 
 **Scanners:** ${scannerLine(manifest, sources, adapters)} · **${projected.length} findings** · run ${runDate}${hasDecisions ? ' · owner triage applied (`owner/decisions.yaml`)' : ' · raw base (no triage)'}.
 ${models ? `\n**Models of record:** ${models}.\n` : ''}
-## The four views
+## The views
 
-- **Intake** _(can this map be carried?)_ — [\`INTAKE.md\`](INTAKE.md): ${viewCount(intakeBuilt)} of the floor requirements.
-- **Maintain** _(is it still healthy?)_ — [\`MAINTAIN.md\`](MAINTAIN.md): ${viewCount(maintainBuilt)} of the fleet requirements.
 - ${improveRow}${sinceRow}
-- **Owner** _(what is true of it, and what do I do first?)_ — [\`OWNER.md\`](OWNER.md): ${ownerCount(ownerBuilt)} of the floor requirements, in the owner's own register.
+- **Owner** _(what is true of it, and what do I do first?)_ — [\`OWNER.md\`](OWNER.md): ${ownerCount(ownerBuilt)} of the floor requirements, in the owner's own register.${ownerContradicted(ownerBuilt)}
 
 ## The roster (glance)
 
@@ -236,9 +232,7 @@ ${descSum.decided} of ${descSum.of} requirements decided by this run (met ${desc
 
 | Artifact | Reader | What it is |
 |---|---|---|
-| [\`views/intake.yaml\`](views/intake.yaml) | machine | Intake's floor rows: open, met, to run, not seen. |
-| [\`views/maintain.yaml\`](views/maintain.yaml) | machine | Maintain's fleet rows: open, met, to run, not seen. |
-| [\`views/owner.yaml\`](views/owner.yaml) | machine | Owner's floor and beyond-floor rows, each joined with the owner's risk/fix register, plus what was not looked at. |${sinceOk ? `\n| [\`views/since.yaml\`](views/since.yaml) | machine | What changed vs \`${basename(previousRun)}\`: regressed, improved, newly/no-longer measured, findings new/no-longer-found. |` : ''}
+| [\`views/owner.yaml\`](views/owner.yaml) | machine | Owner's floor and beyond-floor rows, each joined with the owner's risk/fix register, plus what was not looked at, the claims this run contradicts and what the owner's packet says. |${sinceOk ? `\n| [\`views/since.yaml\`](views/since.yaml) | machine | What changed vs \`${basename(previousRun)}\`: regressed, improved, newly/no-longer measured, findings new/no-longer-found. |` : ''}
 | [\`views/improve.yaml\`](views/improve.yaml) | machine | Every requirement on the yardstick, grouped by topic. |
 | [\`views/improve/candidates.yaml\`](views/improve/candidates.yaml) | machine | The findings no requirement takes, grouped by the property each names: what the yardstick has no row for yet. |
 | [\`yardstick.yaml\`](yardstick.yaml) | machine, and what a repository's own claims are compared against | The measurement itself: per requirement, what this run decides and how; claim rows read not measured by construction. |
@@ -271,4 +265,4 @@ _assay evaluation engine. Run \`${runId}\`.${CONFIDENTIAL ? ' Confidential.' : '
 `;
 
 writeFileSync(indexPath(runDir), index);
-console.log(`\n✓ package assembled — INDEX.md + INTAKE.md + MAINTAIN.md + OWNER.md${reportOk ? ' + IMPROVE.md' : ''}${sinceOk ? ' + SINCE.md' : ''} + views/improve/axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);
+console.log(`\n✓ package assembled — INDEX.md + OWNER.md${reportOk ? ' + IMPROVE.md' : ''}${sinceOk ? ' + SINCE.md' : ''} + views/improve/axes.md + handoff/ (${apps.length} appendix source${apps.length === 1 ? '' : 's'})`);

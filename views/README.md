@@ -1,14 +1,14 @@
 ---
 type: doc
-title: "views/ — Intake, Maintain, Improve and Owner: what each writes"
+title: "views/ — Improve, Owner and Since, and how a view of a population is built"
 ---
 # views/
 
-Four views of one run, written by one command from the same measurement, plus a
-fifth — Since — of two runs, when there is a previous one to compare against:
+Two views of one run, written by one command from the same measurement, plus a
+third — Since — of two runs, when there is a previous one to compare against:
 
 ```sh
-node assay.mjs compile <run>                     # Intake, Maintain, Improve, Owner
+node assay.mjs compile <run>                     # the measurement, Improve, Owner
 node assay.mjs compile <run> --since <prev-run>  # + Since
 ```
 
@@ -24,23 +24,26 @@ legibility, operability), then in `requirements.yaml` order. Each data file is
 the contract a publisher builds on; each page is its plain rendering. A view field
 that exists because one operator's tooling reads it names that consumer in its own
 text (a `consumer:` key or a sentence) and is phrased for any operator; the core
-names no operator (`CLAUDE.md` rule 7).
+names no operator (`CLAUDE.md` rule 7). assay writes no view for one consumer: a
+consumer builds its own from the measurement (below).
 
-## Intake: can it be carried?
+## A view of a population: `views/rows.mjs`
 
-`views/intake.mjs` → `views/intake.yaml` and `INTAKE.md`. The requirements tagged
-`floor`: the bar for taking a repository on.
+`buildRows(run, select, { withFloor })` is the one way a view of a set of
+requirements is built from a run, assay's own Owner view and a consumer's alike
+(`CONSUMERS.md`, "Modules"). `select` is a tag of the yardstick's `tags:` (every
+row carrying it) or a predicate over the register's rows, `(d) => boolean`, for a
+population no tag names: Owner's "beyond the floor", or a consumer's own list of
+requirement ids. It reads only the measurement (`yardstick.yaml`), the yardstick
+and the run record, and returns `null` when the run has not been measured:
 
 ```yaml
-view: intake
-run: <run name>
-yardstick: <requirements.yaml version>
-counts: { requirements: N, open: N, met: N, to_run: N, not_applicable: N }
+population: [<the register's rows selected, tier order then register order>]
 open:              # status unmet or mixed
   - { id, tier, topic, title, status, basis, met, of, findings: [F-…], note, check }
 met:               # findings: what the row was met by (#260): a census's members, the effect
                    # findings a met effect row read, an instrument's strength rows; [] when none
-  - { id, tier, topic, title, basis, findings: [F-…], note }
+  - { id, tier, topic, title, basis, findings: [F-…], note, check }
 to_run:            # status not-measured
   - { id, tier, topic, title, check, decided_by, basis, note, context: [F-…] }
                    # context: on a claim row only, and only when the run saw any (#262)
@@ -48,71 +51,49 @@ not_applicable:    # status not-applicable — decided from the map, NEVER count
   - { id, tier, topic, title, basis, note }
 not_seen:          # every run-record row that did not run
   - { scanner, status, reason }
-contradictions:    # a packet claim of satisfied against a run-decided unmet row (Intake and Maintain)
-  - { id, claim, run_status, findings: [F-…] }
-owner:             # what the run's own packet says about itself, facts only (Intake only)
-  answered: { date, by, via } | null
-  accounts: { count, personal, organisational, transferable: { yes, no, unknown },
-              rows: [{ what, provider, owner_role, personal_or_organisational, transferable }] }
-  credentials: { count, lives: […], never_rotated, readers: […] }
-  people: { build: […] | null, deploy: […] | null, restore: […] | null, restore_done }
-  data: { personal, leaves_via: […] }
-  money: { monthly: [{ provider, amount }], alerts }
-  handover
-  notes
 ```
+
+With `withFloor: true` every row also carries `floor: true | false`, for a
+population that mixes floor rows with others. `toYaml(view, run, version, built,
+contradictions)` writes such a population as a data file (`view:`, `run:`,
+`yardstick:`, `counts:`, the five lists, and `contradictions:` when given);
+`joinContradictions(raw, reg)` joins the run's recorded contradictions
+(`yardstick/measure.mjs` `loadContradictions`) to each requirement's title;
+`basisNote(row)` and `contextText(row)` are the words a page puts after a row
+decided by the owner's packet and on a claim row's context, under `CONTEXT_LABEL`.
+The module also re-exports what a view needs beside them, so a consumer imports it,
+`lib/run-layout.mjs` and nothing else of the engine (`CONSUMERS.md`, "Modules"): the
+loaders `loadYardstick`, `loadMeasurement`, `loadContradictions` and `loadRunPacket`, and
+`q` and `mdText`, which quote a YAML scalar and escape a page line as the engine does.
 
 `met` and `of` appear when the requirement is decided over a counted population.
 `decided_by` names what would decide a row still to run: a scanner, `census`, or
 `owner` for a claim only the owner can make (`owner/ask-owner.md`,
 `owner/PACKET.md`). `basis` (`run | owner`) is who decided the row THIS run —
 `owner` only where a repository's own packet decided it (`yardstick/measure.mjs
---packet`, `owner/PACKET.md`); the page renders it as "met, by the owner's word".
+--packet`, `owner/PACKET.md`); `basisNote` renders it as "met, by the owner's word".
 `context` (#262, M4 of #257) is a claim row's: the finding ids the run listed on that
 row's population (its context list, `map/SCHEMA.md` §6b), read off `yardstick.yaml`'s
 `context:`. It is what the run saw bearing on a row only the owner decides, never what
 its status rests on: it is not `findings`, it rides on whichever list the row's status
-put it in (`to_run` without a packet, `met`/`open` when the packet decided it), and the
-page renders it as "Seen in this run (context, not a decision): F-…", a label that never
-reads as met or unmet. It appears only when the run saw any.
+put it in (`to_run` without a packet, `met`/`open` when the packet decided it), and
+`contextText` renders it as "Seen in this run (context, not a decision): F-…", a label
+that never reads as met or unmet. It appears only when the run saw any.
 `not_applicable` rows are listed on their own, separate from `met` — a
 requirement that does not apply was not satisfied, and it is never counted or
 rendered as met (`yardstick/README.md`'s `not-applicable` status: decided only
-from the map, never a packet claim on a run-decided row). `contradictions` is
-the run's own recorded list (never recomputed by a view) — a packet's
-`satisfied` claim the run itself found unmet, the claim and the run's status and
-findings kept side by side, never merged. `INTAKE.md`'s "Contradicted claims"
-section renders it.
+from the map, never a packet claim on a run-decided row).
 
-`owner` is the run's own copied packet (`owner/manifest.yaml`, `owner/PACKET.md`),
-reduced to facts — assay issues no verdict on any of it, the same rule that
-governs everything else this view writes. `null` when the run carries no
-packet at all; `INTAKE.md`'s "What the owner told us" section then reads "No
-owner's packet yet: the owner prompt (`assay.mjs ask-owner`) collects these."
-A role list (`people.build/deploy/restore`) is `null` when the packet never
-spoke to it (rendered "unknown") and `[]` when the owner named nobody
-(rendered "nobody") — the same placeholder-free convention `owner/PACKET.md`
-already uses; every other unknown value renders as the word "unknown", never
-dropped. `custody.credentials` also informs `d-credentials-enumerated`, but
-ONLY as a trailing note on whatever list (open/met/to_run) the run itself put
-that row in ("… (the owner listed N credentials)") — it never changes the
-row's run-decided status; a claim never lets presence stand in for
-enforcement.
-
-## Maintain: is it still healthy?
-
-`views/maintain.mjs` → `views/maintain.yaml` and `MAINTAIN.md`. The requirements
-tagged `fleet`: what a steward's routines read to keep a repository healthy
-without a person looking. Same shape as Intake, including `basis` (shown the
-same way on the page) and `contradictions` (the run's own recorded list, same
-shape and rendering as Intake's — a claim a steward's routines must not lose
-sight of between intake and the next human look), with `view: maintain` and
-`floor: true | false` on every row (whether Intake also reads it).
+A run an earlier engine compiled may carry `INTAKE.md`, `MAINTAIN.md`,
+`views/intake.yaml` and `views/maintain.yaml`, written for one consumer before
+#339. It still validates and compiles, and Since, `compare` and the ratchet read it as
+before (they read `yardstick.yaml`); compile leaves those files as they are and
+never writes them again.
 
 ## Owner: what is true of it?
 
-`views/owner.mjs` → `views/owner.yaml` and `OWNER.md`. The same measurement as
-Intake and Maintain, for the person who built the app with an AI and is not an
+`views/owner.mjs` → `views/owner.yaml` and `OWNER.md`. The same measurement,
+built with `buildRows` (above), for the person who built the app with an AI and is not an
 engineer — consequence first, plain words, a term explained in a short clause
 the first time, no stack names, no tool names; no score, no grade, no verdict.
 The tier order (custody, safety, reproducibility, verification, legibility,
@@ -125,7 +106,7 @@ view: owner
 run: <run name>
 yardstick: <requirements.yaml version>
 counts: { floor_open, floor_not_measured, floor_met, floor_not_applicable, beyond_floor_open, beyond_floor_not_measured, beyond_floor_met, beyond_floor_not_applicable }
-floor:                # the same population Intake reads (tags: [floor])
+floor:                # buildRows(run, 'floor'): the rows tagged floor
   open:
     - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], check, reason }
   not_measured:       # context / context_seen: a claim row's, only when the run saw any (#262)
@@ -134,13 +115,39 @@ floor:                # the same population Intake reads (tags: [floor])
     - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], seen: ["…"], check, reason }
   not_applicable:    # decided from the map as having nothing to apply to; listed, never counted as met
     - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, reason }
-beyond_floor:          # every requirement NOT tagged floor — fleet and ai-operating rows together
+beyond_floor:          # buildRows(run, (d) => not floor): every requirement NOT tagged floor
   open: [...]
   not_measured: [...]
   met: [...]
 not_looked_at:         # every run-record row that did not run (map/scanners.yaml)
   - { scanner, status, reason }
+contradictions:        # a packet claim of satisfied the run found unmet; [] when none (#339)
+  - { id, title, claim, run_status, findings: [F-…] }
+packet:                # what the run's own packet says about itself, facts only; null with no packet (#339)
+  answered: { date, by, via } | null
+  accounts: { count, personal, organisational, transferable: { yes, no, unsure, unknown },
+              rows: [{ what, provider, owner_role, personal_or_organisational, transferable }] }
+  credentials: { count, lives: […], never_rotated, rotation_unknown, readers: […],
+                 rows: [{ name, lives, readers, rotated }] }
+  people: { build: […] | null, deploy: […] | null, restore: […] | null, restore_done }
+  data: { personal, leaves_via: […] }
+  money: { monthly: [{ provider, amount }], alerts }
+  handover
+  notes
 ```
+
+`contradictions` is the run's own recorded list (`yardstick/measure.mjs`
+`loadContradictions`, never recomputed by a view), joined to each requirement's title:
+a packet's `satisfied` claim the run itself found unmet, the claim and the run's status
+and findings kept side by side, never merged; the row itself stays where the run put it.
+`OWNER.md`'s "Where this run disagrees with what you told us" renders it, `None` when
+empty. `packet` is the run's own copied packet (`owner/manifest.yaml`,
+`owner/PACKET.md`) reduced to facts; assay issues no verdict on any of it. `OWNER.md`'s
+"What the owner told us" renders it, and reads "No owner's packet yet: the owner prompt
+(`assay.mjs ask-owner`) collects these." when it is `null`. A role list
+(`people.build/deploy/restore`) is `null` when the packet never spoke to it (rendered
+"unknown") and `[]` when the owner named nobody (rendered "nobody"); every other unknown
+value renders as the word "unknown", never dropped.
 
 `status` is `unmet | mixed | met | not-measured` — the same statuses
 `yardstick.yaml` carries, never a score or a severity word. `findings` is the
@@ -154,14 +161,14 @@ on a `met` row, the observations of the strengths it cites, which `OWNER.md` ren
 "Holds" as what was seen in place, so the owner reads what holds and not only that nothing
 was found missing; `[]` on every other row and on a met row that cites no strength. `decided_by` names what would decide a
 `not_measured` row (a scanner, `census`, or `owner` for a claim only the
-owner can make) — present only there, the same convention as Intake's
-`to_run`. A claim row the run saw evidence on carries `context` (the ids, as Intake's) and
+owner can make) — present only there, the same convention as `buildRows`'s
+`to_run`. A claim row the run saw evidence on carries `context` (the ids, as `buildRows`'s) and
 `context_seen` (their observations, in the owner's words), kept apart from `findings`,
 `where` and `seen` so they never read as what the status rests on; `OWNER.md` renders them
 after "What would tell" as "Seen in this run (context, not a decision): …". `OWNER.md` renders `floor` in full (one fix prompt per open row, in
 tier order) and `beyond_floor` compactly; its "Fix in this order" list and
-`floor.open` always agree by id and status with Intake's `open` list — same
-measurement, never a second opinion.
+`floor.open` always agree by id and status with `buildRows(run, 'floor')`'s `open`
+list — same measurement, never a second opinion.
 
 ## Improve: what makes it better?
 
@@ -455,5 +462,7 @@ only one run apart from it.
 
 ## The index
 
-`INDEX.md` leads with the four pages, one line each with its counts, then lists
+`INDEX.md` leads with the view pages (Improve, Owner, and Since when there is a previous
+run), one line each with its counts, Owner's naming how many of the packet's claims the
+run contradicts when any, then lists
 the data files and any scanner's native report kept as an appendix.

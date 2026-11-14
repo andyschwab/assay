@@ -27,10 +27,12 @@ export async function run() {
   // Since is the two-run view and is named apart wherever the count is stated.
   const NUM = ['zero', 'one', 'two', 'three', 'four', 'five', 'six'];
   const layout = await import('../../lib/run-layout.mjs');
-  const ORDER = ['intake', 'maintain', 'improve', 'owner'];
+  const ORDER = ['improve', 'owner'];
   const views = Object.keys(layout).filter((k) => /PagePath$/.test(k) && k !== 'sincePagePath')
     .map((k) => k.replace(/PagePath$/, '')).sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b)).map((v) => v[0].toUpperCase() + v.slice(1));
-  if (views.length !== 4) fail(`run-layout places ${views.length} one-run view pages (${views.join(', ')}); this block's view names below assume Intake, Maintain, Improve, Owner`);
+  // re-pinned with #339: Intake and Maintain left the engine (they existed for one consumer),
+  // so two one-run views remain
+  if (views.length !== 2) fail(`run-layout places ${views.length} one-run view pages (${views.join(', ')}); this block's view names below assume Improve, Owner`);
   const word = NUM[views.length];
   for (const f of ['README.md', 'CLAUDE.md', 'package.json', 'assay.mjs', 'views/README.md', 'views/compile.mjs', 'views/owner.mjs', 'yardstick/measure.mjs']) {
     const t = flat(read(f));

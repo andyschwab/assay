@@ -1,7 +1,7 @@
 // ── two code-maintainability rows a structure-scan run decides (#110) ─────────
 // d-no-drifting-duplicates (structure-scan `duplicate`) and d-no-dead-code
 // (structure-scan `unused` and `stale-artifact`) are instrument rows on the
-// code-maintainability topic, read by fleet and beyond the floor (#161: quality that speeds
+// code-maintainability topic, beyond the floor (#161: quality that speeds
 // work, which harms nothing by its absence, leaves the floor). Pinned on synthetic rows shaped like
 // map/ingest.mjs's structure-scan profile:
 //   (a) the register carries both, as instrument rows of structure-scan, with
@@ -15,10 +15,14 @@
 //   (d) knip's unused files, exports, types and members decide d-no-dead-code only
 //       when the target configures knip (#121); unconfigured they stay rows flagged
 //       detail.unconfigured, and an unused dependency decides it either way;
-//   (c) Owner renders each row's risk and fix beyond the floor, and Intake, which reads the floor only, lists neither.
+//   (c) Owner renders each row's risk and fix beyond the floor, and buildRows(run, 'floor'), the floor
+//       only, lists neither (re-pinned with #339: the rows were tagged fleet, a tag naming who read
+//       them, and Intake's page held the floor half; both left the engine, so the floor half is held
+//       on buildRows, which built Intake's rows).
 import { loadYardstick, measureRun } from '../../yardstick/measure.mjs';
+import { buildRows } from '../../views/rows.mjs';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { convert } from '../../map/ingest.mjs';
 import * as SS from '../../map/structure-scan.mjs';
@@ -39,7 +43,7 @@ export async function run() {
     if (d.decide.kind !== 'instrument' || d.decide.scanner !== 'structure-scan' || got.join(',') !== cats.join(','))
       fail(`${id} must be decided by structure-scan category ${cats.join(' + ')} (got ${d.decide.kind} ${d.decide.scanner} ${got.join(',')})`);
     if (d.tier !== 'legibility' || d.topic !== 'code-maintainability') fail(`${id} must be tier legibility, topic code-maintainability (got ${d.tier}, ${d.topic})`);
-    if (!(d.tags || []).includes('fleet') || (d.tags || []).includes('floor')) fail(`${id} must be tagged fleet and not floor (#161) (got ${(d.tags || []).join(',')})`);
+    if ((d.tags || []).includes('floor') || d.harm !== undefined) fail(`${id} must be beyond the floor, naming no harm (#161) (got tags ${(d.tags || []).join(',')})`);
     if (!String(d.owner?.risk || '').trim() || !String(d.owner?.fix || '').trim()) fail(`${id} must carry owner.risk and owner.fix`);
   }
   if (!/50 tokens/.test(String(byId['d-no-drifting-duplicates']?.check || ''))) fail('d-no-drifting-duplicates states its own clone threshold (50 tokens) in check');
@@ -115,23 +119,23 @@ export async function run() {
 
   // (c) the notesbox fixture records structure-scan skipped: measured and compiled, both
   // rows read not-measured with that reason; Owner carries each row's risk and fix and
-  // renders them beyond the floor when the row is open; Intake, the floor only, lists neither (#161)
+  // renders them beyond the floor when the row is open; buildRows(run, 'floor') lists neither (#161)
   const tmp = join(HERE, 'tmp-yardstick-maintainability'); rmSync(tmp, { recursive: true, force: true });
   copyFixtureFindings('notesbox', tmp);
   copyFixtureScanners('notesbox', tmp);
   try {
     execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' });
-    execFileSync(process.execPath, [join(ROOT, 'views', 'intake.mjs'), tmp], { stdio: 'pipe' });
-  } catch (e) { fail(`measure --write and intake must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
+  } catch (e) { fail(`measure --write must succeed on the notesbox fixture (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
   const ownerView = await import('../../views/owner.mjs');
   const built = ownerView.buildOwner(tmp);
-  const intakePage = existsSync(join(tmp, 'INTAKE.md')) ? readFileSync(join(tmp, 'INTAKE.md'), 'utf8') : '';
-  const toRun = intakePage.split('## To run')[1]?.split('\n## ')[0] || '';
+  const floorRows = buildRows(tmp, 'floor');
+  if (!floorRows) fail('buildRows(run, \'floor\') must build over the measured fixture');
+  const floorIds = floorRows ? [...floorRows.open, ...floorRows.met, ...floorRows.to_run, ...floorRows.not_applicable].map((r) => r.id) : [];
   for (const id of Object.keys(want)) {
     const o = built?.beyond_floor.not_measured.find((x) => x.id === id);
     if (!o || !/structure-scan skipped/.test(String(o.reason))) fail(`Owner must read ${id} beyond the floor, could-not-tell with the run record's reason (got ${o ? o.reason : 'no row'})`);
     else if (o.risk !== byId[id].owner.risk || o.fix !== byId[id].owner.fix) fail(`Owner must carry ${id}'s risk and fix from the register`);
-    if (toRun.includes(`**${id}**`)) fail(`INTAKE.md reads the floor only, so ${id} is not under To run (#161)`);
+    if (floorIds.includes(id)) fail(`buildRows(run, 'floor') reads the floor only, so ${id} is not among its rows (#161)`);
   }
   if (built) {
     const open = Object.keys(want).map((id) => ({ ...built.beyond_floor.not_measured.find((x) => x.id === id), status: 'unmet' })).filter((x) => x.id);

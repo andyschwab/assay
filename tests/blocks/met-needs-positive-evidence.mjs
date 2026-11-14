@@ -6,7 +6,8 @@
 //     authored count) never reads met;
 //  3. a strength never turns a row with a gap to met (and on a safety row, never to mixed);
 //  4. an authored met/of that disagrees with members: fails validate;
-//  5. the views render the cited strengths on a met row (Maintain's findings:, Owner's seen:);
+//  5. the views render the cited strengths on a met row (buildRows's findings:, Owner's seen:;
+//     re-pinned with #339 from Maintain's findings: onto views/rows.mjs, which built it);
 //  6. a met effect row cites the effect findings it read.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, cpSync } from 'node:fs';
@@ -15,6 +16,7 @@ import { join } from 'node:path';
 import { loadYardstick, measureRun, projectRun } from '../../yardstick/measure.mjs';
 import { censusesPath, viewPath, ownerPagePath } from '../../lib/run-layout.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
+import { buildRows } from '../../views/rows.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'met-needs-positive-evidence';
@@ -47,9 +49,8 @@ export async function run() {
     const c = assay('compile', run);
     if (c.status !== 0) fail(`compile over the met census must succeed (exit ${c.status}): ${(c.stderr || '').split('\n').slice(-3).join(' | ')}`);
     else {
-      const maintain = parseYaml(readFileSync(viewPath(run, 'maintain'), 'utf8'));
-      const mrow = (maintain.met || []).find((x) => x.id === DR);
-      if (!mrow || JSON.stringify(mrow.findings) !== '["F-001"]') fail(`Maintain's met row for ${DR} must carry findings: [F-001] (got ${JSON.stringify(mrow)})`);
+      const mrow = (buildRows(run, (d) => d.id === DR)?.met || []).find((x) => x.id === DR);
+      if (!mrow || JSON.stringify(mrow.findings) !== '["F-001"]') fail(`buildRows's met row for ${DR} must carry findings: [F-001] (got ${JSON.stringify(mrow)})`);
       const owner = parseYaml(readFileSync(viewPath(run, 'owner'), 'utf8'));
       const orow = (owner.beyond_floor?.met || []).find((x) => x.id === DR);
       if (!orow || !Array.isArray(orow.seen) || !orow.seen.some((s) => /full ADR/.test(s))) fail(`Owner's met row for ${DR} must say what was seen in place, F-001's observation (got seen: ${JSON.stringify(orow?.seen)})`);

@@ -2,20 +2,22 @@
 
 **Evidence-based repository evaluation.** assay reads a codebase into a **map**
 of what exists and what is true of it, measures the map against a **yardstick**
-of requirements, and writes four **views** of the result:
+of requirements, writes the **measurement** (`yardstick.yaml`: each requirement
+met, unmet, mixed, not measured or not applicable), and two **views** of it:
 
 | View | The question | Page | Data |
 |---|---|---|---|
-| **Intake** | Can this repository be taken on, and what must be true first? | `INTAKE.md` | `views/intake.yaml` |
-| **Maintain** | Is it still healthy, and what do routines watch? | `MAINTAIN.md` | `views/maintain.yaml` |
 | **Improve** | What makes it better next? | `IMPROVE.md`, the axis walk, `handoff/` | `views/improve.yaml` |
 | **Owner** | What is true of my app, and what do I do first? | `OWNER.md` | `views/owner.yaml` |
 
-With a previous run to compare against, a fifth, **Since**, reads two runs:
+With a previous run to compare against, a third, **Since**, reads two runs:
 what changed between them (`SINCE.md`, `views/since.yaml`).
 
-Every view is computed from the same map in one pass, so the four never
-disagree about the repository. Owner reads the same measurement in plain,
+Every view is computed from the same map in one pass, so they never
+disagree about the repository. assay writes no view for one consumer: an
+operator that watches its own set of requirements builds its view from the
+measurement with `views/rows.mjs`'s `buildRows`, by a tag or by its own list
+(`CONSUMERS.md`, "Modules"). Owner reads the same measurement in plain,
 non-engineer language — consequence first, no score, no grade, no verdict —
 for the person who built the app with an AI. Each writes a data file with a
 schema and a plain page; anything fancier (a branded report, a deck) is a
@@ -26,8 +28,9 @@ template over the data file and lives with whoever publishes it.
 not run and why, and compiles the views. (Someone who stands behind a
 repository may call that role a steward; assay does not.) The **owner** is the
 person whose repository it is, and supplies what no scan can show (`owner/`).
-The **maintainer** is whoever changes the code next. The operator reads Intake
-and Maintain, the maintainer reads Improve, and the owner reads Owner.
+The **maintainer** is whoever changes the code next. The operator reads the
+measurement and builds what it needs from it, the maintainer reads Improve, and
+the owner reads Owner.
 
 **The one rule that makes it honest: the map states what is; the views compute
 how good, how bad, how urgent.** A finding may record "this effect is
@@ -45,11 +48,10 @@ rule's one home; every other page cites it here.
 
 ```
 repository ─ scanners and instruments ─▶ map/ ─▶ yardstick/ ─▶ views/
-                                          │          │            ├ Intake
-   facts with file:line, counted          │          │            ├ Maintain
-   populations, attack paths, and a  ─────┘          │            ├ Improve
-   record of what was not looked at                  │            ├ Owner
-                                                     │            └ Since (two runs)
+                                          │          │            ├ the measurement
+   facts with file:line, counted          │          │            ├ Improve
+   populations, attack paths, and a  ─────┘          │            ├ Owner
+   record of what was not looked at                  │            └ Since (two runs)
                   requirements, each decided from the map:
                   met · unmet · mixed · not measured · not applicable
 ```
@@ -112,20 +114,21 @@ clean. The finding format is `map/SCHEMA.md`; the scanner contract is
 repository must meet to be stood behind, stated without naming a stack. Each has
 a **tier** (the order to fix things when taking a repository on: custody,
 safety, reproducibility, verification, legibility, operability), a **topic**
-(what part of the code it is about), tags saying which view reads it (`floor`
-for Intake, `fleet` for Maintain: what the routines read to keep a repository
-healthy once it is taken on), and the mechanism that **decides** it from
-the map. A requirement no run can decide is a **claim** only the owner can make,
+(what part of the code it is about), tags naming properties of the requirement
+(`floor`: its gap can harm data, people, money or recovery; `ai-operating`: it
+bears on AI at work in or on the repository), and the mechanism that **decides**
+it from the map. A requirement no run can decide is a **claim** only the owner can make,
 and reads not measured until the owner does. `yardstick/README.md` is the
 contract.
 
-**The views** (`views/`). Intake reads the floor requirements in tier order;
-Maintain reads the fleet requirements; Improve reads every requirement by topic
+**The views** (`views/`). Improve reads every requirement by topic
 and adds the maturity of each dimension, the attack paths through the code, and
 a fix prompt per gap; Owner reads the same floor and beyond-floor requirements
 in plain, non-engineer language, joined with a risk and a fix from the
 yardstick's own `owner:` register; Since compares two runs' measurements and
-findings. `views/README.md` gives each data file's schema.
+findings. `views/rows.mjs` builds a view of any population of requirements from
+the measurement, the way Owner does and a consumer does. `views/README.md` gives
+each data file's schema.
 
 **What the owner supplies** (`owner/`). Some requirements are about things a
 repository cannot show by itself: a restore was run, a rollback was exercised,
@@ -245,7 +248,7 @@ set's threshold; the blind set there is the repeatability figure the gate holds
 assay.mjs        the command line
 map/             drawing the map: the finding format, the built-in method, scanners, instruments, validation
 yardstick/       the requirements, the measurement of one map against them, and comparing two (since/ratchet)
-views/           Intake, Maintain, Improve, Owner and Since, and the one compile that writes them
+views/           Improve, Owner and Since, the rows any view of a population is built from, and the one compile that writes them
 owner/           what a repository's owner supplies that no scan can
 routine/         the routine a repository taken on runs on its own schedule (GitHub Actions template + driver)
 lib/             shared helpers

@@ -75,7 +75,7 @@ finding, never silently overwritten.
 | `title` | the requirement, one sentence, no stack in it |
 | `tier` | the order to fix things when taking a repository on, which is also the order of irreversibility: custody, safety, reproducibility, verification, legibility, operability (the file's `tiers:` list) |
 | `topic` | what part of the code it is about: an axis of the roster (`map/project.mjs`), or custody, reproducibility or operability, which no scanner measures as an axis. Improve groups by topic |
-| `tags` | which view reads it: `floor` (Intake: the bar for taking a repository on), `fleet` (Maintain: what a steward's routines read), `ai-operating` (the model-call layer). Every row in the register carries at least one, so no measured row is read by Owner alone |
+| `tags` | properties of the requirement itself, from the file's closed `tags:` list: `floor` (its gap can cause harm to data, people, money or recovery, named in `harm`), `ai-operating` (it bears on AI at work in or on the repository). A row may carry none. A tag never names the view or the consumer that reads a row (§ The tags) |
 | `harm` | on a `floor` row, and only there: what its gap can harm, from the file's closed `harms:` list (`data`, `people`, `money`, `recovery`). `owner.risk` says how, in plain words. A row with no harm to name is valuable and measured, and lives beyond the floor |
 | `decide` | the deciding mechanism, one of four kinds below |
 | `check` | the proving check: what shows the requirement met |
@@ -87,14 +87,23 @@ finding, never silently overwritten.
 **The floor.** A row is `floor` when its gap can cause harm to data, to people, to
 money or to recovery (#161), and it names which in `harm`. Quality that makes work
 faster or safer to change, but harms nothing by its absence, is valuable and
-measured, and lives beyond the floor: Maintain reads it through `fleet`, and Owner
-lists it beyond the floor. This says which view reads a row, never a severity: the
-map still states what is (`CLAUDE.md` rule 1). `measure.mjs` refuses a floor row
+measured, and lives beyond the floor: Owner lists it beyond the floor. `floor` is a
+property of the requirement (what its gap can harm), never a severity: the map still
+states what is (`CLAUDE.md` rule 1). `measure.mjs` refuses a floor row
 with no harm, and a harm on a row beyond the floor.
 
 A row that exists because one operator's tooling reads it names that consumer in
 its own text (a `consumer:` field or a sentence) and is phrased for any operator;
 the core names no operator (`CLAUDE.md` rule 7).
+
+**The tags.** A tag names a property of the requirement itself: what its gap can harm
+(`floor`), what it bears on (`ai-operating`). It never names a view, a routine or a
+consumer that reads the row (#339): a reader that watches a set of rows keeps that list
+itself and selects them from the measurement with `views/rows.mjs`'s `buildRows`, by a
+tag or by a predicate over the rows (`CONSUMERS.md`, "Modules"). The file's
+`tag_properties:` states, for each tag, the property it names; `measure.mjs` refuses a
+tag without one, one whose property names a view, a reader or a consumer, and a property
+for a tag `tags:` does not carry (`tests/blocks/yardstick-tags-name-a-property.mjs`).
 
 **When a lane reviewed a row.** A row a review lane decides (`map/scanners/CONTRACT.md`
 §3h) carries `reviewed:` in `yardstick.yaml`, one entry per lane that ran and recorded what
@@ -110,7 +119,7 @@ record does not produce as drift.
 | `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below) | met or unmet with the population, a met effect row citing the effect findings it read; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
 | `census` | an enumerated population in the run's `map/censuses.yaml`, by measure name, read off the finding ids its `members:` lists (below) | met only when every member is a strength, citing them; unmet on a gap (mixed when a strength sits beside it, except on a `safety` row); mixed when a member carries no verdict; with `met of N`; not-measured when no census of that name ran. A census with no `members:` never reads met |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file; for an instrument whose adapter carries `row_per_check: true` (it writes a row for every check it runs, its checks the categories its `map:` names), such a category decided with no row reads not-measured, the check never run by the version that drew the run (#311) | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
-| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (the Intake view says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). A claim row with a `decide.context` also carries the findings the run listed on its population as `context:`, never as `findings:` (below). The claim rows a packet never speaks to are the list of instruments still to build |
+| `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (`views/rows.mjs` says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). A claim row with a `decide.context` also carries the findings the run listed on its population as `context:`, never as `findings:` (below). The claim rows a packet never speaks to are the list of instruments still to build |
 
 **A facet or census row's check names its population and its question** (#261, M3 of #257).
 If two careful readers holding the yardstick put one finding on different rows, the
@@ -332,7 +341,7 @@ saw in place, never by the absence of a gap, and its row cites what that was:
   population (above), and a met row cites the effect findings in the rule's population, the
   ones the triage drew in; an unmet row cites the ones that fail.
 
-The views show it: Intake and Maintain carry a met row's `findings:`, and Owner says what was
+The views show it: `views/rows.mjs` carries a met row's `findings:`, and Owner says what was
 seen in place, the cited strengths' observations, under "Holds" (`views/README.md`).
 
 **Who decides an `instrument` row.** The row may name one decider itself (`scanner`,

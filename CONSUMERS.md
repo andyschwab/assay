@@ -53,8 +53,10 @@ exists when the target is a git repository (`map/SCHEMA.md` §1).
 
 ## The floor
 
-The floor is the requirements Intake reads: the rows of `yardstick/requirements.yaml`
-tagged `floor`, each with the harm its gap can do (`yardstick/README.md`). The floor
+The floor is the rows of `yardstick/requirements.yaml` tagged `floor`: the requirements
+whose gap can harm data, people, money or recovery, each with the harm it names
+(`yardstick/README.md`). `floor` is a property of the requirement, never a view: a tag
+names what is true of a row, never who reads it (`yardstick/README.md`, "The tags"). The floor
 moves between releases, so a consumer reads it, never names its rows by heart:
 
 ```sh
@@ -135,22 +137,43 @@ that places them, and `views/README.md` states each data format.
 | `map/effect-triage.yaml` | the practice-review lane's triage of every channel candidate, route handler and effect-site member in `map/raw/enumerate.json`: the effect finding that covers it, or out of scope with the reason (`map/SCHEMA.md` §6e). From `version: 2` each entry names its `clause`, the scope clause that decided it (`map/SCHEMA.md` §6e, "Scope, by a closed rule"), and each entry that maps a candidate in carries `answers`, `{ <question>: { answer: yes | no | not-determinable, evidence: [path:line], what?, held_by? } }` for every question of the checklist, which give its finding's `gate_type` and `reversibility` (§6e, "The answers"); an answer that differs from a signal `map/raw/enumerate.json` records on its candidate carries `against_signal: "<why>"` and its own `path:line` evidence, and validate refuses one without them, naming the candidate, the question and the signal, and refuses `against_signal` on any other answer (§6e, "The signals"); `version: 1` carries neither, reads as written, and validate marks it unanswered. The run's own `enumerate.json` decides scope (#333): an entry that maps in a candidate it lists under `excluded` is refused at either version, one that maps in a candidate it offers is never refused for that, and only a `version: 2` triage against a list with no `excluded` is held to the rule by the candidate's paths |
 | `map/census-triage.yaml` | the practice-review lane's triage of every candidate of a census its row closes over a listed population (`populations.secrets`, `changeGates`, `modelCalls` in `map/raw/enumerate.json`): the one census member that judges it, or out of scope with the reason (`map/SCHEMA.md` §6f, #286) |
 | `yardstick.yaml` | the measurement: each requirement met, unmet, mixed, not measured or not applicable; a claim row the run saw evidence on carries `context:`, those finding ids, never part of its status (#262) |
-| `views/intake.yaml`, `maintain.yaml`, `improve.yaml`, `owner.yaml`, `since.yaml` | each view as data (`views/README.md`); a met row in `intake.yaml` and `maintain.yaml` carries `findings:`, what it was met by, and every `owner.yaml` row carries `seen:`, a met row's cited strengths' observations (#260); a claim row the run saw evidence on carries `context:` (and in `owner.yaml` `context_seen:`, their observations), shown as context and never as met or unmet (#262) |
+| `views/improve.yaml`, `owner.yaml`, `since.yaml` | each view as data (`views/README.md`); every `owner.yaml` row carries `seen:`, a met row's cited strengths' observations (#260); a claim row the run saw evidence on carries `context:` and `context_seen:`, their observations, shown as context and never as met or unmet (#262); `owner.yaml` carries `contradictions:`, each packet claim of satisfied the run found unmet, joined to its title, and `packet:`, the run's own packet reduced to facts, `null` without one (#339) |
 | `views/improve/chains.json`, `handoff/sequence.json` | Improve's ranked chains and its fix sequence as data; the sequence is in the order one key gives (a halt, then severity class, then a gap whose confidence is absent evidence after observed ones, then the requirement's tier, then severity: `views/README.md`, "The sequence's order"), and each item's `rank: { halt, tier, severity, absent_evidence }` is the key that placed it (#306, #316); each item's `confidence: { value, rule, finding, … }` is how much assay knows about it, one of `confirmed`, `judged`, `absent-evidence`, `not-measured`, `known-misfire`, each by a named rule (`views/README.md`, "How much assay knows", #319); each item's `consequence: { value, rule, finding, facts, … }` is what is at stake for it, one of `severe`, `significant`, `contained`, `cosmetic`, the consequence policy applied to the facts of what its gaps touch, with the rule that fired, or `unvalued` (outside the scale: `rule: null` and a `reason`, where no rule reads a fact the run holds of it), the facts it read and any it read contested, and the sequence's `policy: { file, sha256, rules }` names that policy (`views/README.md`, "What is at stake", #319). Since #319's slice 3 the order is a **lens's** (`views/README.md`, "The sequence's order"): each item's `quadrant: { value, rule }` is where it sits, one of `act-now`, `verify-first`, `hygiene`, `park` by a named rule over its confidence and consequence alone, or `null` when its consequence is `unvalued`; the sequence's `lens: { name, file, sha256 }` names the lens that ordered it (by default `risk-first`: act now, verify first, hygiene, park, then not valued, the key above the tie-break inside each); `left_out: [{ quadrant, findings }]` names what the lens does not show; `not_valued_head` names the not-valued findings their source labels Blocker or Critical; and each item's `confidence.mix` and `consequence.mix` count its gaps per value |
 | `views/improve/candidates.yaml` | the findings no requirement takes, grouped by the `property:` each names (a reviewer's row by the property its adapter places it on), the ones naming none as `unnamed`, and `unplaced: [{ finding, reason }]` the reviewer rows its adapter could not place (`views/README.md`): the run's candidate properties (#264, #306) |
 | `views/improve/report.json` | the Improve report's model, labels applied: capabilities with their counts and trace phrases, the chains with each live chain's cuts and, when tentative, its weakest step, every entry naming a finding with its confidence and word, the supervision split with its fixes, the label tables (the confidence words among them) and the how-to text; a renderer of the report reads it with `views/improve/prose.yaml`, `security-gate.yaml` and `maturity-grades.yaml`, and imports nothing |
-| `INDEX.md`, `INTAKE.md`, `MAINTAIN.md`, `IMPROVE.md`, `OWNER.md`, `SINCE.md` | the pages, for a person |
+| `INDEX.md`, `IMPROVE.md`, `OWNER.md`, `SINCE.md` | the pages, for a person |
 | `routine.yaml` | what the routine did, when a routine drew the run (`routine/README.md`) |
 
 ## Modules
 
-Two modules are contract, each a small pure function a command would only wrap. No
-other export is: a consumer that needs a value no command prints asks for a command.
+These modules are contract, and only the exports named here. No other module or export
+is: a consumer imports these three modules and `assay.mjs`'s commands, nothing else of the
+engine, and one that needs a value none of them gives asks for a command.
 
 | Module | What a consumer may import |
 | --- | --- |
-| `lib/run-layout.mjs` | the functions that place a run's paths (§ The run layout), e.g. `findingsDir(run)`, `chainsDataPath(run)`, `improveReportDataPath(run)` |
+| `lib/run-layout.mjs` | the functions that place a run's paths (§ The run layout), e.g. `findingsDir(run)`, `chainsDataPath(run)`, `improveReportDataPath(run)`, `viewPath(run, name)`, `prosePath(run)`, and `pagePath(run, name)`, a page at the run's root by name, for a consumer's own page or a page an earlier engine wrote |
 | `map/child-env.mjs` | `childEnv(set)`: the allow-listed environment to give a target's own script (`PATH`, `HOME`, `CI`, the network plumbing whose proxy URL carries no credential, and the `npm_config_*` values in `set`), so a session's tokens never reach it; pass it to `spawn` as `env` |
+| `views/rows.mjs` | the one module a consumer builds a view of a population with (§ Views a consumer builds; `views/README.md`, "A view of a population"), and exactly these exports: `buildRows(run, select, { withFloor })`, `select` a tag or a predicate over the register's rows; `toYaml`, `joinContradictions`, `basisNote`, `contextText`, `CONTEXT_LABEL`; the loaders a view needs, `loadYardstick()` (the register, validated), `loadMeasurement(run)` (the run's `yardstick.yaml` rows, `null` when unmeasured), `loadContradictions(run)`, `loadRunPacket(run)` (the run's copied packet, or `null`); and the text helpers that make a view's output match the engine's, `q(s)` (a YAML scalar quoted as the engine writes it) and `mdText(s)` (text from a run made safe on a Markdown page) |
+
+## Views a consumer builds
+
+assay writes the measurement and its own views; it writes no view for one consumer
+(`CLAUDE.md` rule 7, #339). A consumer that watches a set of requirements keeps that set
+itself and builds its view from the measurement with `buildRows`, passing a predicate
+over the register's rows (its own list of ids) or a tag that names a property of the
+requirement (`floor`). #339 removed, as a breaking change to this surface:
+
+| Removed | What replaces it |
+| --- | --- |
+| the commands `intake` and `maintain` (`assay.mjs`) | `buildRows(run, 'floor')` and `buildRows(run, (d) => ids.has(d.id), { withFloor: true })` over `yardstick.yaml`, written with `toYaml` |
+| the files `compile` wrote for them: `INTAKE.md`, `MAINTAIN.md`, `views/intake.yaml`, `views/maintain.yaml` | the measurement, `yardstick.yaml`, which every view reads; the packet's block and the contradicted claims are on `views/owner.yaml` and `OWNER.md` (§ The run layout) |
+| the `fleet` tag of `yardstick/requirements.yaml`, on 41 rows; a consequence policy rule that reads `tags: fleet` is now refused, the `tags` fact's values being the yardstick's | the consumer's own list of requirement ids, selected with a predicate |
+| `lib/run-layout.mjs`'s `intakePagePath(run)` and `maintainPagePath(run)` | `pagePath(run, name)` |
+
+A run an earlier engine compiled still carries those files: it validates and compiles,
+Since, `compare` and the ratchet read it as before, and `compile` neither rewrites nor
+removes them.
 
 ## Releases
 
@@ -175,6 +198,7 @@ CONSUMERS.md
 assay.mjs
 lib/run-layout.mjs
 map/child-env.mjs
+views/rows.mjs                                   # the one module a consumer builds a view with (§ Modules)
 views/README.md
 views/lenses.yaml
 yardstick/list.mjs

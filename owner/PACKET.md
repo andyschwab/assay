@@ -160,7 +160,8 @@ number. `node assay.mjs measure <run> --packet <dir>` (and `compile <run>
 - a claim on a requirement the run itself decides (`facet`, `census`,
   `instrument`) never changes that row's status — a claim never lets presence
   stand in for enforcement. When the claim says `satisfied` and the run says
-  `unmet`, it is recorded as a **contradiction**, surfaced in Intake.
+  `unmet`, it is recorded as a **contradiction**, surfaced in the Owner view (`OWNER.md`,
+  `views/owner.yaml`) and failing the ratchet.
 
 Every row in a run's `yardstick.yaml` carries `basis: run | owner` — who
 decided it this time, never a judgment about which is more true.

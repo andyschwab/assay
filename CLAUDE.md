@@ -1,8 +1,9 @@
 # CLAUDE.md — working in the assay repo
 
 This repository is **assay**. It draws a map of a repository, measures the map
-against a yardstick of requirements, and writes four views of one run (Intake,
-Maintain, Improve, Owner) plus Since, of two. `README.md` is the front door. `map/SCHEMA.md` is the authoritative
+against a yardstick of requirements, and writes the measurement and two views of
+one run (Improve, Owner) plus Since, of two; a consumer builds its own views from
+the measurement (`views/rows.mjs`). `README.md` is the front door. `map/SCHEMA.md` is the authoritative
 finding format, `map/METHOD.md` the built-in scanner, `yardstick/README.md` the
 requirements contract, and `views/README.md` the views' data formats.
 
@@ -38,7 +39,10 @@ requirements contract, and `views/README.md` the views' data formats.
    row or view field that exists because one operator's tooling reads it names
    that consumer on the row, phrased for any operator. assay depends on no
    operator's repository and pins an integration only through its adapter's
-   `verified_against`. `tests/blocks/core-names-no-scanner.mjs` holds it.
+   `verified_against`. No view, command or yardstick tag exists because one consumer
+   reads it: a tag names a property of the requirement, and a consumer builds its own
+   view from the measurement (`views/rows.mjs`). `tests/blocks/core-names-no-scanner.mjs`
+   and `tests/blocks/yardstick-tags-name-a-property.mjs` hold it.
 
 ## Checks
 

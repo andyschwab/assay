@@ -44,7 +44,8 @@ export async function run() {
   catch (e) { fail(`measure --write must succeed over an all-clean run (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
   try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'compile', tmp], { stdio: 'pipe' }); }
   catch (e) { fail(`compile must succeed over an all-clean run (${String(e.stderr || e.message).split('\n').slice(-3).join(' | ')})`); }
-  if (!existsSync(join(tmp, 'INDEX.md')) || !existsSync(join(tmp, 'INTAKE.md')) || !existsSync(join(tmp, 'MAINTAIN.md'))) fail('compile must write INDEX/INTAKE/MAINTAIN even for an all-clean run');
+  // re-pinned with #339: compile writes INDEX and OWNER (Intake and Maintain left the engine)
+  if (!existsSync(join(tmp, 'INDEX.md')) || !existsSync(join(tmp, 'OWNER.md'))) fail('compile must write INDEX/OWNER even for an all-clean run');
   // the truly empty case (no findings AND no manifest) must still refuse — this
   // guard is narrowed, not removed
   let threw = false;
