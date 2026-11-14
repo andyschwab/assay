@@ -31,7 +31,8 @@ import { isHalt, sevRank } from './doctrine.mjs';
 import { DESCRIPTOR_RANK, DESCRIPTOR_FIELDS, loadSweepSet, computeDescriptorAgreement, computeCandidateAgreement } from './variance.mjs';
 import { buildChains, DIFFICULTY_WORDS, triggerOf } from './chains.mjs';
 import { channelKeys } from './effect-triage.mjs';
-import { loadManifest } from './project.mjs';
+import { loadManifest, loadAdapters } from './project.mjs';
+import { words } from './placement.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_POLICY = join(HERE, '..', 'yardstick', 'consequence.yaml');
@@ -45,6 +46,17 @@ export const CONSEQUENCE = ['severe', 'significant', 'contained', 'cosmetic'];
 export const UNVALUED = 'unvalued';
 const RANK_OF = (v) => (CONSEQUENCE.includes(v) ? CONSEQUENCE.indexOf(v) : CONSEQUENCE.length);   // lower = more consequential; unvalued below the scale
 const higher = (a, b) => RANK_OF(a) < RANK_OF(b);
+
+// WHAT A TRUE FINDING WOULD EXPOSE (#330): closed and property-named, riskiest first, each value
+// defined once in yardstick/README.md, "Consequence". Read only off the finding's own adapter, by
+// its closed table of markers (`consequence.exposure`, map/scanners/CONTRACT.md §3): never off the
+// source's name, never a guess, never a default. A finding several entries place takes the riskiest:
+// a credential exposed hands its holder the authority it grants, so it ranks over authority; acting
+// beyond a grant reaches others' data and state, so it ranks over both; disclosure cannot be taken
+// back, a changed state can be repaired from its record, and an exhausted resource returns when the
+// load passes; a missing second layer shows no direct path, and hygiene no security consequence.
+export const EXPOSURE = ['credential', 'authority', 'others-data', 'integrity', 'availability', 'hardening', 'hygiene'];
+const EXPOSURE_SELECTORS = ['category', 'tag', 'native_id'];
 
 const BLAST = Object.keys(DESCRIPTOR_RANK.blast_scope);
 const ordered = (field) => Object.keys(DESCRIPTOR_RANK[field]).map((v) => (field === 'external' ? v === 'true' : v));
@@ -65,6 +77,7 @@ export const FACTS = {
   tags: { from: 'row', values: (y) => y.tags, list: true },
   floor: { from: 'row', values: () => [true, false] },
   halt_at: { from: 'row', values: () => [true, false] },
+  exposure: { from: 'finding', values: () => EXPOSURE },
 };
 export const FACT_NAMES = Object.keys(FACTS);
 
@@ -90,8 +103,8 @@ export function checkPolicy(doc, yardstick) {
   const names = new Set();
   doc.rules.forEach((r, i) => {
     const at = `rules[${i}]${r && r.name ? ` (${r.name})` : ''}`;
-    if (!r || typeof r !== 'object' || Array.isArray(r)) { e.push(`${at}: a rule is { name, says, when, at_least }`); return; }
-    for (const k of Object.keys(r)) if (!['name', 'says', 'when', 'at_least'].includes(k)) e.push(`${at}: unknown key "${k}" (name, says, when, at_least)`);
+    if (!r || typeof r !== 'object' || Array.isArray(r)) { e.push(`${at}: a rule is { name, says, when, unless?, at_least }`); return; }
+    for (const k of Object.keys(r)) if (!['name', 'says', 'when', 'unless', 'at_least'].includes(k)) e.push(`${at}: unknown key "${k}" (name, says, when, unless, at_least)`);
     if (typeof r.name !== 'string' || !RULE_NAME.test(r.name)) e.push(`${at}: name must be kebab-case`);
     else if (names.has(r.name)) e.push(`${at}: name appears twice`);
     else if (ENGINE_RULE_NAMES.has(r.name)) e.push(`${at}: ${r.name} is the engine's own rule`);
@@ -99,13 +112,16 @@ export function checkPolicy(doc, yardstick) {
     if (typeof r.says !== 'string' || !r.says.trim()) e.push(`${at}: says must state what the rule reads, in words`);
     if (!CONSEQUENCE.includes(r.at_least)) e.push(`${at}: at_least must be one of ${CONSEQUENCE.join(', ')} (got ${JSON.stringify(r.at_least)})`);
     if (!r.when || typeof r.when !== 'object' || Array.isArray(r.when)) { e.push(`${at}: when must map facts to the values it reads ({} fires on every gap)`); return; }
-    for (const [fact, want] of Object.entries(r.when)) {
+    // unless (#330): facts that, all holding, keep the rule from firing; a fact the run could not
+    // read (null) holds nothing, so an unknown never keeps a rule from firing
+    if (r.unless !== undefined && (!r.unless || typeof r.unless !== 'object' || Array.isArray(r.unless) || !Object.keys(r.unless).length)) e.push(`${at}: unless must map facts to the values that keep the rule from firing`);
+    for (const [key, clause] of [['when', r.when], ...(r.unless && typeof r.unless === 'object' && !Array.isArray(r.unless) ? [['unless', r.unless]] : [])]) for (const [fact, want] of Object.entries(clause)) {
       const def = FACTS[fact];
-      if (!def) { e.push(`${at}: when names "${fact}", which is not a fact the policy may read (${FACT_NAMES.join(', ')})`); continue; }
+      if (!def) { e.push(`${at}: ${key} names "${fact}", which is not a fact the policy may read (${FACT_NAMES.join(', ')})`); continue; }
       const vocab = def.values(yardstick || {}) || [];
       const vals = Array.isArray(want) ? want : [want];
-      if (!vals.length) e.push(`${at}: when.${fact} lists no value`);
-      for (const v of vals) if (!vocab.includes(v)) e.push(`${at}: when.${fact}: ${JSON.stringify(v)} is not one of ${vocab.map(String).join(', ')}`);
+      if (!vals.length) e.push(`${at}: ${key}.${fact} lists no value`);
+      for (const v of vals) if (!vocab.includes(v)) e.push(`${at}: ${key}.${fact}: ${JSON.stringify(v)} is not one of ${vocab.map(String).join(', ')}`);
     }
   });
   return e;
@@ -120,7 +136,7 @@ export function loadPolicy(file, yardstick) {
   try { doc = parseYaml(text); } catch (err) { throw new Error(`consequence policy ${file} does not parse: ${err.message}`); }
   const problems = checkPolicy(doc, yardstick);
   if (problems.length) throw new Error(`consequence policy ${file} refused:\n  ${problems.join('\n  ')}`);
-  return { file, sha256: sha256(text), rules: doc.rules.map((r) => ({ name: r.name, says: r.says.trim(), when: r.when, at_least: r.at_least })) };
+  return { file, sha256: sha256(text), rules: doc.rules.map((r) => ({ name: r.name, says: r.says.trim(), when: r.when, ...(r.unless ? { unless: r.unless } : {}), at_least: r.at_least })) };
 }
 export const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 
@@ -245,7 +261,7 @@ export function consequenceIndex({ decided, measurement, yardstick, context = {}
   }
   const policy = context.policy || { ...loadPolicy(DEFAULT_POLICY, yardstick), named: null };
   return {
-    byId, touchedBy, onChain, policy, yardstick,
+    byId, touchedBy, onChain, policy, yardstick, adapters: context.adapters || null,
     rows: rowFactsOf(measurement, yardstick),
     contest: contestIndex(findings, context.keys, context.sweepContest),
   };
@@ -254,7 +270,7 @@ export function consequenceIndex({ decided, measurement, yardstick, context = {}
 // The fact sets one gap is read under: one per effect it is or touches (an effect finding is its
 // own), else one with no effect. Each carries every fact of the closed list, null where the run
 // could not read it.
-function factSets(f, idx) {
+function factSets(f, idx, exposure) {
   const row = idx.rows.get(String(f.id)) || { tier: null, tags: [], floor: false, haltAt: null, rows: [] };
   // halt_at: the gap reaches the halt its row names (yardstick/requirements.yaml `halt_at:`), read
   // exactly as the sequence's halt clause reads it (views/improve/sequence.mjs): a gap the row bears
@@ -268,6 +284,7 @@ function factSets(f, idx) {
     reach: chain ? chain.reach : null,
     trigger: chain ? chain.trigger : (triggerOf(eff) || triggerOf(f)),
     tier: row.tier, tags: row.tags, floor: row.floor, halt_at: haltAt,
+    exposure,
   });
   if (!effects.length) return [{ effect: null, facts: { ...Object.fromEntries(DESCRIPTOR_FIELDS.map((x) => [x, null])), halt: false, ...base(null) }, contested: [] }];
   return effects.map((e) => {
@@ -276,30 +293,33 @@ function factSets(f, idx) {
   });
 }
 
-const matches = (when, facts) => Object.entries(when).every(([fact, want]) => {
+const holds = (clause, facts) => Object.entries(clause).every(([fact, want]) => {
   const got = facts[fact];
   const vals = Array.isArray(want) ? want : [want];
   if (FACTS[fact].list) return Array.isArray(got) && got.some((g) => vals.includes(g));
   return got !== null && got !== undefined && vals.includes(got);
 });
+// a rule fires when every fact `when` names holds, unless every fact `unless` names holds too
+const matches = (r, facts) => holds(r.when, facts) && !(r.unless && holds(r.unless, facts));
 
 // The policy applied to one fact set: the highest value a rule fires at, and the first rule down
 // the file at that value; null when none fires.
 function applyPolicy(policy, facts) {
   let best = null;
-  for (const r of policy.rules) if (matches(r.when, facts) && (!best || higher(r.at_least, best.at_least))) best = r;
+  for (const r of policy.rules) if (matches(r, facts) && (!best || higher(r.at_least, best.at_least))) best = r;
   return best ? { value: best.at_least, rule: best.name } : null;
 }
 
 // One gap's consequence: { value, rule, finding, facts, effect?, contested?, judgment? }, or, when no
 // rule of the policy fires on any of its fact sets, { value: 'unvalued', rule: null, reason, finding,
 // facts }: never a value of the scale without the rule that gave it. `p` is a projected finding
-// ({ f, source }); `idx` consequenceIndex's. The source is never read: renaming every scanner moves
-// nothing.
+// ({ f, source }); `idx` consequenceIndex's. The source names only which adapter's exposure table is
+// read (as confidence reads its adapter): renaming every scanner, adapter and all, moves nothing.
 export function consequenceOf(p, idx) {
   const f = p.f;
   let out = /** @type {any} */ (null);
-  for (const s of factSets(f, idx)) {
+  const exposure = idx.adapters ? exposureOf(f, idx.adapters[p.source]) : null;
+  for (const s of factSets(f, idx, exposure ? exposure.value : null)) {
     const hit = applyPolicy(idx.policy, s.facts);
     if (!hit) { if (!out) out = /** @type {any} */ ({ value: UNVALUED, rule: null, reason: unvaluedReason(idx.policy), finding: f.id, facts: s.facts, ...(s.effect ? { effect: s.effect } : {}), ...(s.contested.length ? { contested: s.contested } : {}) }); continue; }
     if (!out || out.value === UNVALUED || higher(hit.value, out.value)) {
@@ -326,6 +346,64 @@ const unvaluedReason = (policy) => `no fact on the closed list that a rule of ${
 // The most consequential of several, the first among equals (callers pass them in the key's order).
 export const highest = (cs) => cs.reduce((best, c) => (!best || higher(c.value, best.value) ? c : best), null);
 
+// ── what a finding exposes ───────────────────────────────────────────────────
+// An adapter's table (`consequence: { exposure: [{ id, when, value, reason }] }`, CONTRACT.md §3):
+// each entry tests fields the source's rows already carry, every selector it names holding:
+//   category   the row's native_category is one listed;
+//   tag        the row's native_tag carries a listed marker as whole words, without regard to case
+//              (map/placement.mjs words, as #316's markers are read); never its title or observation;
+//   native_id  the row's native_id matches the regex (a check id, as confidence.misfires reads it).
+// Returns { value, entries } for the riskiest value any entry places (EXPOSURE order), or null when
+// no entry places the finding, or its adapter declares no table: unknown, never a default.
+export function exposureOf(f, adapter) {
+  const table = adapter && adapter.consequence && Array.isArray(adapter.consequence.exposure) ? adapter.consequence.exposure : [];
+  const tag = words(f.native_tag);
+  const hits = table.filter((x) => {
+    const w = x.when || {};
+    if (w.category !== undefined && !asList(w.category).map(String).includes(String(f.native_category))) return false;
+    if (w.tag !== undefined && !asList(w.tag).some((m) => words(m).trim() && tag.includes(words(m)))) return false;
+    if (w.native_id !== undefined && !new RegExp(String(w.native_id)).test(String(f.native_id ?? ''))) return false;
+    return EXPOSURE_SELECTORS.some((k) => w[k] !== undefined);
+  });
+  if (!hits.length) return null;
+  const value = EXPOSURE.find((v) => hits.some((x) => x.value === v));
+  return { value, entries: hits.filter((x) => x.value === value).map((x) => x.id) };
+}
+const asList = (v) => (Array.isArray(v) ? v : [v]);
+
+// An adapter's `consequence:` block, checked: every entry names its id (kebab, unique), a value of
+// EXPOSURE, its reason, and at least one selector of the closed list, each well formed (a category
+// of the adapter's own map:, non-empty markers, a regex that compiles). Empty when it holds, or
+// when the adapter declares none (its findings read null).
+export function checkAdapterConsequence(adapter) {
+  const c = adapter && adapter.consequence;
+  if (c === undefined) return [];
+  const who = `adapters/${adapter && adapter.scanner}.yaml consequence`;
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return [`${who}: must be a map { exposure: [...] }`];
+  const e = [];
+  for (const k of Object.keys(c)) if (k !== 'exposure') e.push(`${who}: unknown key "${k}" (exposure)`);
+  if (!Array.isArray(c.exposure) || !c.exposure.length) return [...e, `${who}.exposure must list at least one entry`];
+  const ids = new Set();
+  c.exposure.forEach((x, i) => {
+    const at = `${who}.exposure[${i}]${x && x.id ? ` (${x.id})` : ''}`;
+    if (!x || typeof x !== 'object' || Array.isArray(x)) { e.push(`${at}: an entry is { id, when, value, reason }`); return; }
+    for (const k of Object.keys(x)) if (!['id', 'when', 'value', 'reason'].includes(k)) e.push(`${at}: unknown key "${k}" (id, when, value, reason)`);
+    if (typeof x.id !== 'string' || !RULE_NAME.test(x.id)) e.push(`${at}: id must be kebab-case`);
+    else if (ids.has(x.id)) e.push(`${at}: id appears twice`);
+    ids.add(x.id);
+    if (!EXPOSURE.includes(x.value)) e.push(`${at}: value must be one of ${EXPOSURE.join(', ')} (got ${JSON.stringify(x.value)})`);
+    if (typeof x.reason !== 'string' || !x.reason.trim()) e.push(`${at}: reason must say why these markers mean that exposure`);
+    const w = x.when;
+    if (!w || typeof w !== 'object' || Array.isArray(w)) { e.push(`${at}: when must name at least one of ${EXPOSURE_SELECTORS.join(', ')}`); return; }
+    for (const k of Object.keys(w)) if (!EXPOSURE_SELECTORS.includes(k)) e.push(`${at}: when names "${k}", not one of ${EXPOSURE_SELECTORS.join(', ')}`);
+    if (!EXPOSURE_SELECTORS.some((k) => w[k] !== undefined)) e.push(`${at}: when must name at least one of ${EXPOSURE_SELECTORS.join(', ')}`);
+    if (w.category !== undefined) for (const cat of asList(w.category)) if (!(adapter.map && String(cat) in adapter.map)) e.push(`${at}: category ${cat} is not one of this adapter's map: categories`);
+    if (w.tag !== undefined && !(asList(w.tag).length && asList(w.tag).every((m) => typeof m === 'string' && words(m).trim()))) e.push(`${at}: tag must list marker words or phrases`);
+    if (w.native_id !== undefined) { try { new RegExp(String(w.native_id)); } catch (err) { e.push(`${at}: native_id ${JSON.stringify(w.native_id)} is not a regex: ${err.message}`); } }
+  });
+  return e;
+}
+
 // ── the run's context ────────────────────────────────────────────────────────
 // What the rules read beyond the findings: the policy the run record names (else the default), the
 // run's channel keys (its effect triage), and per named sweep set, every descriptor value its
@@ -335,7 +413,11 @@ export function loadConsequenceContext(runDir, { sweepSets = [], yardstick } = {
   let keys = null;
   try { keys = channelKeys(runDir); } catch { keys = null; }
   const policy = policyOfRun(runDir, yardstick);
-  return { policy, keys, sweepContest: sweepSets.map(sweepContestOf) };
+  // the adapters' exposure tables, checked: a table that does not hold refuses, never reads as none
+  const adapters = loadAdapters();
+  const problems = Object.values(adapters).flatMap(checkAdapterConsequence);
+  if (problems.length) throw new Error(`adapter consequence table refused:\n  ${problems.join('\n  ')}`);
+  return { policy, keys, adapters, sweepContest: sweepSets.map(sweepContestOf) };
 }
 
 function sweepContestOf(dir) {

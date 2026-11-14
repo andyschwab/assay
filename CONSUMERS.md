@@ -103,8 +103,11 @@ the caller in full and says what it deletes and what it keeps.
 
 `yardstick/consequence.yaml` is the default consequence policy, and its format is the format of an
 operator's own (`yardstick/README.md`, "Consequence"): `{ schema: assay.consequence-policy,
-version: 1, rules: [{ name, says, when, at_least }] }`, every rule read, the highest value that
-fires winning, over a closed list of facts. A consumer that names its own with `compile
+version: 1, rules: [{ name, says, when, unless?, at_least }] }`, every rule read, the highest value
+that fires winning, over a closed list of facts; `exposure` joined the list with #330, its values
+closed (`yardstick/README.md`, "Consequence") and read off each scanner's adapter
+(`consequence.exposure`, `map/scanners/CONTRACT.md` §3), so an adapter's table moves the value an
+operator's rule on `exposure` reads. A consumer that names its own with `compile
 --consequence-policy` relies on that format and that list; the default's rules may change between
 releases, and a commit that changes them says so in its `Consumer:` trailer.
 

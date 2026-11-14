@@ -161,6 +161,16 @@ confidence:            # how much assay knows about this scanner's gaps (#319, b
       category: <native category>
       when: { <detail key>: <value> | { at_most: N } | { at_least: N } | { present: true } }
       reason: "…"
+consequence:           # optional — what a true finding of this scanner would expose (#330, below)
+  exposure:
+    - id: <slug>
+      when:            #   at least one; every one named must hold
+        category: [B]  #   the row's native_category is one listed (of this adapter's map:)
+        tag: ["defence in depth", …]   # the row's native_tag carries a marker as whole words
+        native_id: "<regex>"           # the row's native_id matches (a check id)
+      value: hardening #   credential | authority | others-data | integrity | availability |
+                       #   hardening | hygiene (yardstick/README.md, "Consequence")
+      reason: "…"
 handoff:               # optional — how the handoff bundles and proves this scanner's
                         #   remedies (§7); block style only, same as everything below
   unit: finding         # finding (default) | file | scanner — §7
@@ -229,6 +239,20 @@ could fire for its gaps:
   ingest) say it could not have measured what it names: the category, the `detail:` facts it
   reads (an equality, `at_most`, `at_least` or `present`), and the reason. A matching gap reads
   `not-measured`, never a failure.
+
+**What a finding exposes is a table of its adapter's (#330).** The consequence policy reads a
+closed fact, `exposure` (`yardstick/README.md`, "Consequence", defines each value once), and the
+only place it comes from is the finding's own adapter: `consequence.exposure`, a closed, reasoned
+list of entries over fields the scanner's rows already carry, its native category, a reviewer's tag
+(`native_tag`, markers matched whole and without regard to case, as #316's are; never the title or
+the observation) or an instrument's check id (`native_id`, a regex). An entry places a finding when
+every selector it names holds; a finding several entries place takes the riskiest value; one no
+entry places, or whose adapter declares no table, reads null, never a guess and never a default.
+The core reads the table and never the scanner's name, so renaming a scanner with its adapter moves
+nothing. An entry is built from the scanner's documented categories, the codes and classes it
+writes and its policy set's names for its checks, never from one run's findings.
+`checkAdapterConsequence` (`map/consequence.mjs`) holds the shape, and a table that does not hold
+halts the handoff; `tests/blocks/consequence-reads-exposure.mjs` holds the rest.
 
 `checkAdapterConfidence` holds the block's shape; `tests/blocks/confidence-on-every-item.mjs`
 holds the rules, and that a renamed scanner keeps every value, a misfire following its adapter.
