@@ -40,12 +40,12 @@ const CURRENT_TRIAGE_VERSION = 2;
 // the run's two files, read as they are: { candidates, triage, errors, excluded, files, version }.
 // candidates is null when the run carries no list; triage is null when it carries no triage file.
 // excluded: member → reason, the list's candidates out of scope by construction (populations.excluded,
-// absent from a list drawn before #315); files: member → the files its evidence cites; version: the
-// triage's. A file present but unreadable is an error, and reads as absent to the measurement (never
+// absent from a list drawn before #315); ruled: whether the list carries that population, so the scope
+// rule decided what it offers; files: member → the files its evidence cites; version: the triage's. A file present but unreadable is an error, and reads as absent to the measurement (never
 // as an empty list).
 export function loadChannelFiles(run) {
   const errors = [];
-  let candidates = null, triage = null, version = null;
+  let candidates = null, triage = null, version = null, ruled = false;
   const excluded = new Map(), files = new Map();
   const ep = enumeratePath(run);
   if (existsSync(ep)) {
@@ -57,6 +57,7 @@ export function loadChannelFiles(run) {
       else {
         candidates = [...new Set(lists.flat().map((c) => c.member))];
         for (const c of lists.flat()) files.set(c.member, [...(files.get(c.member) || []), ...(Array.isArray(c.evidence) ? c.evidence : []).map((e) => String(e).replace(/:\d+(?:-\d+)?$/, ''))]);
+        ruled = Array.isArray(pops.excluded);
         for (const x of Array.isArray(pops.excluded) ? pops.excluded : []) if (x && typeof x.member === 'string') excluded.set(x.member, typeof x.reason === 'string' ? x.reason : 'a test or fixture file');
       }
     } catch (e) { errors.push(`${ENUMERATE_FILE}: JSON parse failed (fail-closed): ${e.message}`); }
@@ -72,19 +73,24 @@ export function loadChannelFiles(run) {
       else { triage = doc.triage; version = doc.version; }
     }
   }
-  return { candidates, triage, errors, excluded, files, version };
+  return { candidates, triage, errors, excluded, ruled, files, version };
 }
 
 const isEffect = (f) => f && f.subject_type === 'effect' && f.effect && typeof f.effect === 'object';
 
 // validate's check of the triage against the list and the base (map/triage.mjs holds the rules
 // both closed populations share). findingsById: id → finding.
-// The scope rule (map/effect-scope.mjs) holds in every version: a candidate whose files are all test
-// or fixture files is never mapped in, and a workflow write is never triaged out; at version 2 every
+// The scope rule (map/effect-scope.mjs), as the run's own enumeration decided it (#333): a candidate it
+// lists under excluded is never mapped in, at any version (entryErrors: it is not listed); a candidate
+// it offers was decided in scope by the tree, which the run does not carry, so a triage made against
+// it is never refused for mapping it in. The one exception is a version 2 triage against a list drawn
+// before the rule (no excluded population): it is held to the rule by the paths the list cites, a
+// candidate whose files are all test or fixture files never mapped in. A workflow write is never
+// triaged out, at any version. At version 2 every
 // entry names the clause that decided it, and the clause must hold. At version 2 every entry that maps
 // a candidate in carries its answers (map/effect-answers.mjs), and a finding's gate_type and
 // reversibility are what its candidates' answers give, the riskiest across them.
-export function triageErrors({ candidates, triage, excluded = new Map(), files = new Map(), version = 1 }, findingsById) {
+export function triageErrors({ candidates, triage, excluded = new Map(), ruled = false, files = new Map(), version = 1 }, findingsById) {
   if (triage === null) return [];   // no triage file: nothing to hold; the measurement reads every candidate untriaged
   if (candidates === null) return [`${TRIAGE_FILE}: triages channel candidates, and the run carries no candidate list (${ENUMERATE_FILE}, which assay start writes)`];
   const listed = new Set(candidates);
@@ -94,7 +100,7 @@ export function triageErrors({ candidates, triage, excluded = new Map(), files =
     const mappedIn = x.finding !== undefined && x.finding !== null && x.finding !== '';
     if (!mappedIn && x.out_of_scope === undefined) return;   // neither: entryErrors names it
     const fs = files.get(x.candidate) || [];
-    const testReason = fs.length && fs.every((f) => testOrFixture(f)) ? testOrFixture(fs[0]) : null;
+    const testReason = version >= 2 && !ruled && fs.length && fs.every((f) => testOrFixture(f)) ? testOrFixture(fs[0]) : null;
     const why = constructionError({ candidate: x.candidate, mappedIn, testReason }) || (version >= 2 ? clauseError({ candidate: x.candidate, mappedIn, clause: x.clause }) : null);
     if (why) scope.push(`${TRIAGE_FILE}[${i}]: ${why}`);
   });

@@ -6,6 +6,10 @@
 // Re-pinned (#315): a test file's tool was skipped, so the assertion read "never in the output".
 // It is now listed under `excluded` with its reason (out of scope by construction, never offered for
 // triage), so the assertion reads the populations: never a channel candidate, and excluded.
+// Re-pinned (#333): the fixture's test file was test-agent.mjs, a test by the `test-*` name #328 read
+// in any language. No JS runner reads that name, so a `test-` module is now a runtime module like any
+// other; the fixture's test file is renamed agent.test.mjs, a test by its runner's convention, and the
+// assertion is unchanged.
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { HERE, ROOT, negFailures } from '../harness.mjs';

@@ -4,8 +4,8 @@
 // a contract test, a read-only route. The rule is closed:
 //  1. out by construction: a candidate in a test or fixture file (here a contract test, by its
 //     name) is listed under `excluded` with the reason and never offered for triage, and validate
-//     refuses a triage that maps one in (one the list excluded, or one a list drawn before the rule
-//     still offers);
+//     refuses a triage that maps one in (one the list excluded, at any version, or, at version 2, one
+//     a list drawn before the rule still offers);
 //  2. in by construction: a workflow write is never triaged out of scope, at any triage version;
 //  3. the stated rule for the rest: at version 2 every entry names the clause that decided it, on
 //     the entry's side and for the candidate's kind; a read-only GET route is triaged out by
@@ -111,14 +111,22 @@ export async function run() {
     triage(1, complete);
     validates(false, /unknown key "clause"/, 'a version 1 triage carrying version 2 keys');
 
-    // (1) a list drawn before the rule still offers the contract test: mapping it in is refused
+    // (1) a list drawn before the rule still offers the contract test: mapping it in at version 2 is
+    // refused, by the paths the list cites.
+    // Re-pinned (#333): this read a version 1 triage, refused for mapping in a candidate its own
+    // stored list offered. A stored run's own enumeration decides its triage: a version 1 triage made
+    // against a list that offered the candidate is never refused for mapping it in (that case now
+    // validates, below, and tests/blocks/test-files-by-convention.mjs holds it), and the refusal by
+    // path holds for a version 2 triage against a list drawn before the rule.
     const old = JSON.parse(readFileSync(enumeratePath(run), 'utf8'));
     old.version = 1;
     old.populations.effectSites.push({ member: CONTRACT, note: 'http write (js)', gateable: false, evidence: ['src/clients/billing.contract-test.mjs:3'] });
     delete old.populations.excluded;
     writeFileSync(enumeratePath(run), JSON.stringify(old));
+    triage(2, [...complete, [CONTRACT, 'finding: F-053', 'clause: client-call-runtime']]);
+    validates(false, /is out of scope by construction \(a contract test \(by its name\)\)/, 'a stored list that offers the contract test, mapped in at version 2');
     triage(1, [...complete.map((x) => x.slice(0, 2)), [CONTRACT, 'finding: F-053']]);
-    validates(false, /is out of scope by construction \(a contract test \(by its name\)\)/, 'a stored list that offers the contract test, mapped in');
+    validates(true, null, 'a stored list that offers the contract test, mapped in by a version 1 triage made against it');
     triage(1, [...complete.map((x) => x.slice(0, 2)), [CONTRACT, 'out_of_scope: "a contract test"']]);
     validates(true, null, 'a stored list that offers the contract test, triaged out');
   } finally { rmSync(tmp, { recursive: true, force: true }); }
