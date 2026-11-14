@@ -65,10 +65,30 @@ record names the model of record per pass (`map/SCHEMA.md` §5a), which variance
 for its per-model-pair agreement. Only the judgment scanner is swept; every other
 scanner row is `skipped` with the reason.
 
-**When to re-run.** A set is pinned to `method_commit`. Re-run it, and re-commit it
-as a reviewed change, when `map/METHOD.md` or `map/SCHEMA.md` moves in a way that
-changes what a pass records; between those moves the committed set stands. A
-threshold change is a reviewed change to `SWEEP.yaml`, never a silent drift.
+**Re-measure before re-run** (#324). A set is pinned to `method_commit`. What variance computes
+from the stored runs is the measure; what a pass records is the method. A change that moves only
+the measure re-measures the stored runs under the current engine, with no session (#312 did this
+for every set here). A set is re-run, and re-committed as a reviewed change, only when the text a
+pass records under moved since its `method_commit`. That text, and nothing else, is:
+
+- `map/METHOD.md`'s pass sections: "Ground rules", "Pass 0", the "Passes 1–7" introduction, and
+  each "Pass <n>" (each from its heading to the next heading of its level or above);
+- the `map/SCHEMA.md` sections `map/passes.yaml` names (each pass's `schema:`), by number;
+- `map/passes.yaml`, read as data: each pass's entry, so a comment that moves changes no pass.
+
+`node assay.mjs variance --set <set> --check-method` applies the rule (`map/sweep-method.mjs`):
+it prints `re-measure` when none of that moved, or `re-run` naming each piece that moved and the
+passes it is theirs (the ground rules, Pass 0 and the introduction are every pass's; a pass's own
+section and map entry are that pass's; a SCHEMA.md section is the passes whose `schema:` names it).
+A `method_commit` the clone does not hold exits 2: fetch it, never guess. The rule is the same for
+a committed set and an operator's own: run the check before scheduling a sweep. A threshold change
+is a reviewed change to `SWEEP.yaml`, never a silent drift.
+
+**Cost.** `variance` prints each sweep's cost as its run record has it: the `spend:` and
+`duration:` of the scanner that ran (`map/SCHEMA.md` §5a, `node assay.mjs record … --spend
+--duration`), copied as written (`cost` in `--json`). A sweep whose record carries neither reads
+`not recorded`; nothing is estimated. The run record is the one home of a session's cost, so
+`SWEEP.yaml` carries no copy of it.
 
 **The sets here.** One set per target, the newest, plus two older sets the mapping set reads.
 A set a later set of the same target supersedes is removed in the change that commits the later
