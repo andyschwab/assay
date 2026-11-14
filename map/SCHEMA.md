@@ -1177,12 +1177,23 @@ triage:
   - candidate: "tool: send_invoice"      # a member of the three populations, exactly as enumerate.json writes it
     finding: F-052                       # the effect finding that covers it (several candidates may share one)
     clause: channel-acts                 # the scope clause that decided it (below)
+    answers:                             # in scope: its answers to the checklist (below)
+      refuses_unless: { answer: no, evidence: ["agent/tools.mjs:41"] }
+      second_act: { answer: no, evidence: ["agent/tools.mjs:41"] }
+      staged: { answer: no, evidence: ["agent/tools.mjs:44"] }
+      person_act: { answer: no, evidence: ["agent/loop.mjs:12"] }
+      declared_scope: { answer: no, evidence: ["agent/tools.mjs:41"] }
+      rate_limit: { answer: not-determinable }
+      disclosed: { answer: no, evidence: ["agent/tools.mjs:44"] }
+      received_or_gone: { answer: yes, evidence: ["agent/tools.mjs:44"] }
+      window: { answer: not-determinable }
   - candidate: "tool: read_invoice"
     out_of_scope: "read-only: returns a record, writes nothing"   # or out of scope, with the reason
     clause: channel-reads-only
   - candidate: "http write (js) @ lib/sync.mjs"   # an effect-site member: one file's fetch/axios writes
     finding: F-053
     clause: client-call-runtime
+    answers: { … }                       # every question, as above
 ```
 
 A list with no candidates in any of the three populations is closed and empty (`triage: []`).
@@ -1206,6 +1217,41 @@ candidate in a test or fixture file is never mapped in, whether the list exclude
 before the rule still offers it, and a workflow write is never triaged out; these two hold at every
 version. A stored `version: 1` triage names no clause and reads as it was written.
 
+**The answers** (#315; `map/effect-answers.mjs`). Read whole, `gate_type` asks two things at once:
+what mechanism stands in front of the effect, and whether it holds. At `version: 2` each entry that
+maps a candidate to a finding records the mechanism as facts instead: its `answers`, one per question
+below, each `{ answer: yes | no | not-determinable, evidence: [path:line, …] }`, the evidence required
+for a yes or a no, and a `refuses_unless` yes also saying `what` it checks and who holds it
+(`held_by: code | outside`). An out-of-scope entry carries none. The values follow from the answers
+by §1's order, the first whose question is answered yes:
+
+| question (`answers.<key>`) | a yes gives |
+|---|---|
+| `refuses_unless`: is there a check that refuses the effect unless a condition holds (a required approval, tests green, a signature, an input checked before the write)? | `deterministic-halt` when the repository's code or config holds it (`held_by: code`), `external-halt` when a system outside does, invoked by config the repository ships (`outside`) |
+| `second_act`: is a second explicit act required after the code has shown what will happen (a plan then an apply, a confirm prompt, a dry run by default with an apply flag)? | `deterministic-halt` |
+| `staged`: is the effect written in a staged form a separate later act promotes or discards (a draft, a pull request, quarantine)? | `staged-reversible` |
+| `person_act`: is the effect caused only by one person's own explicit act (a click, a command they run, a manual dispatch), not a schedule, a push or a pull request that starts a job? | `initiated-by-person` |
+| `declared_scope`: does a declared scope at the effect govern what it can touch (a token's or job's declared permissions, a sandbox, a runner with no credential)? | `scope-bound` |
+| `rate_limit`: is there a limit on how often or how much? | `rate-throttle` |
+| `disclosed`: is the effect announced to those it reaches, before or as it happens (a log line is not)? | `disclosure-only` |
+| none of the seven | `none` |
+| `received_or_gone`: has anything outside received the effect, or is the prior state gone? | `irreversible`; a no is required for anything else |
+| `window`: can the effect be undone only for a period the code or platform states? | `reversible-with-window`; a no gives `reversible` |
+
+Whether the mechanism holds stays `map/doctrine.mjs`'s, read from the descriptors (an
+`initiated-by-person` gate holds only while `telemetry` is not `none`), so the checklist asks for the
+person's act and not whether it is recorded. An answer the evidence does not decide reads as the
+riskier one: a gate the evidence does not show is not there, and a prior state the evidence does not
+show kept is gone (`received_or_gone` not determinable gives `irreversible`, `window` not determinable
+gives `reversible-with-window`). A finding several candidates map to is one effect reached several
+ways, so by §1's paths rule it carries the riskiest value any of its candidates' answers give: the
+lowest `gate_type` in the order, the first `reversibility`. validate refuses a finding whose
+`gate_type` or `reversibility` the answers do not give, naming each candidate and its answers. A
+stored `version: 1` triage carries no answers: its findings' descriptors are read as written, and
+validate marks it unanswered. The lanes are compared on the answers (`map/variance.mjs`): where
+every run answers a candidate, its two values are the ones its answers give, and each answer is
+counted per question.
+
 **A channel is its triaged candidate** (#298). Two runs' lanes spell one channel's slug as they
 like (`tool-install`, `tools-install`); the candidate they triage to it is the list's own name for
 it. So where a run's triage maps a candidate to an effect finding, a comparison of channels across
@@ -1225,7 +1271,10 @@ and it reads; the triage's `version` is one the engine reads (1 or 2); every can
 exactly once; every entry names a candidate on the list, never an excluded one; each entry carries
 exactly one of `finding` or `out_of_scope`; every `finding` resolves to a finding of this run whose
 `subject_type` is `effect`; every `out_of_scope` gives its reason; the scope rule above holds, and at
-`version: 2` every entry's `clause` with it. A candidate list that does not read, or that lacks one of the three populations, is
+`version: 2` every entry's `clause` with it, every in-scope entry's `answers` (every question
+answered once from the closed set, a yes or a no with `path:line` evidence that, with `--target`,
+resolves there), and each answered finding's `gate_type` and `reversibility` are what its
+candidates' answers give. A candidate list that does not read, or that lacks one of the three populations, is
 an error, never an empty list. With no triage
 file, nothing is refused (a run whose lane has not run has none): the yardstick reads every
 candidate untriaged, so a met effect row reads mixed, and `d-effect-channels-enumerated`
@@ -1342,8 +1391,9 @@ a pass (the run's own CI-1 lesson, applied to the checker):
 12. **The effect-channel triage, when present** (§6e): every channel candidate, route handler
    and effect-site member in `map/raw/enumerate.json` triaged exactly once, to an `effect` finding of this run or out of
    scope with a reason, by the closed scope rule (a test or fixture candidate never in, a workflow
-   write never out, and at `version: 2` the clause that decided each); a candidate list that does
-   not read is an error.
+   write never out, and at `version: 2` the clause that decided each, and each in-scope
+   candidate's answers, which give its finding's `gate_type` and `reversibility`); a candidate
+   list that does not read is an error.
 
 13. **The run's data files, when present** (`lib/run-data.mjs`): `views/improve/chains.json`
    and `handoff/sequence.json` hold their schemas and name only ids in this base;

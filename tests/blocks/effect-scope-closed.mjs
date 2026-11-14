@@ -51,7 +51,10 @@ export async function run() {
     const run = join(tmp, 'run');
     cpSync(join(HERE, 'fixtures', 'notesbox'), run, { recursive: true });
     writeFileSync(enumeratePath(run), ej.stdout);
-    const triage = (version, entries) => writeFileSync(effectTriagePath(run), `schema: effect-triage\nversion: ${version}\ntriage:\n${entries.map((x) => `  - candidate: "${x[0]}"\n${x.slice(1).map((l) => `    ${l}\n`).join('')}`).join('')}`);
+    // at version 2 an entry mapped in carries its answers (#315 slice 2): here each answers as F-052
+    // and F-053 are written (gate_type none, irreversible), so only the scope rule is under test
+    const ANSWERS = ['answers:', ...['refuses_unless', 'second_act', 'staged', 'person_act', 'declared_scope', 'rate_limit', 'disclosed'].map((k) => `  ${k}: { answer: no, evidence: ["server.mjs:5"] }`), '  received_or_gone: { answer: yes, evidence: ["server.mjs:5"] }', '  window: { answer: not-determinable }'];
+    const triage = (version, entries) => writeFileSync(effectTriagePath(run), `schema: effect-triage\nversion: ${version}\ntriage:\n${entries.map((x) => `  - candidate: "${x[0]}"\n${[...x.slice(1), ...(version >= 2 && x.some((l) => /^finding:/.test(l)) ? ANSWERS : [])].map((l) => `    ${l}\n`).join('')}`).join('')}`);
     const validates = (want, re, what) => {
       const v = assay('validate', run);
       const out = v.stdout + v.stderr;

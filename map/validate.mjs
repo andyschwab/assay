@@ -544,10 +544,29 @@ const findingOf = new Map([...allById.entries()].map(([id, v]) => [id, v.f]));
 // triaged exactly once, every finding an effect finding of this run, every out-of-scope entry a
 // reason. A candidate list or a triage that does not read is an error, never an empty one.
 {
-  const { loadChannelFiles, triageErrors } = await import('./effect-triage.mjs');
+  const { loadChannelFiles, triageErrors, unansweredOf } = await import('./effect-triage.mjs');
   const files = loadChannelFiles(runDir);
   for (const e of files.errors) errors.push(e);
   for (const e of triageErrors(files, findingOf)) errors.push(e);
+  // a stored version 1 triage carries no answers (#315): it reads as written, and says so
+  const unanswered = unansweredOf(files);
+  if (unanswered) warn('map/effect-triage.yaml', `version 1, unanswered: ${unanswered} in-scope candidate(s) carry no answers (#315), so their gate_type and reversibility are read as written`);
+  // with --target, an answer's evidence resolves in the target as a finding's does
+  if (target && existsSync(target) && Array.isArray(files.triage)) {
+    const { answerCitations } = await import('./effect-answers.mjs');
+    files.triage.forEach((x, i) => {
+      for (const [k, ev] of answerCitations(x && x.answers)) {
+        const m = ev.match(CITE);
+        if (!m || !m[1]) continue;   // the form is answerErrors'
+        const at = `map/effect-triage.yaml[${i}]: answers.${k}`, p = m[1], end = Number(m[3] || m[2]);
+        if (!existsSync(join(target, p))) { err(at, `evidence path not found in target: ${p}`); continue; }
+        if (!statSync(join(target, p)).isFile()) continue;
+        const txt = readFileSync(join(target, p), 'utf8');
+        const lines = txt === '' ? 0 : txt.split('\n').length - (txt.endsWith('\n') ? 1 : 0);
+        if (end > lines) err(at, `evidence line ${end} is past the end of ${p} (${lines} lines)`);
+      }
+    });
+  }
 }
 
 // fail-closed PROJECTION gate (coverage integrity, CI-enforced — not render-only):

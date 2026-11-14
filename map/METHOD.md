@@ -333,6 +333,8 @@ are defined there too):
 - **The triage** — Pass 0's candidate list (`map/raw/enumerate.json`) closes against these
  effect findings in `map/effect-triage.yaml` (`SCHEMA.md` §6e): each candidate to the effect
  finding that covers it, or out of scope with the reason, and the scope clause that decided it.
+ Each candidate mapped in records its answers to the checklist (`SCHEMA.md` §6e, "The answers"),
+ each with its evidence; they give the finding's `gate_type` and `reversibility`.
 - **The halt** (`gate_type`) — are destructive or external effects (deploy, publish, migrate,
  spend, send, delete) gated at explicit narrow points a human actually holds, at the
  *irreversible boundary* (not ceremony at every step)? Do irreversible ops exist only in

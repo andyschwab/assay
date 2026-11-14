@@ -18,6 +18,7 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { enumeratePath, effectTriagePath } from '../lib/run-layout.mjs';
 import { entryErrors, closure } from './triage.mjs';
 import { testOrFixture, constructionError, clauseError } from './effect-scope.mjs';
+import { answerErrors, descriptorsFrom, gateTypeFrom, reversibilityFrom, answersLine } from './effect-answers.mjs';
 
 const TRIAGE_SCHEMA = 'effect-triage';
 const ENUMERATE_FILE = 'map/raw/enumerate.json';
@@ -29,8 +30,10 @@ const TRIAGE_FILE = 'map/effect-triage.yaml';
 export const CANDIDATE_POPULATIONS = ['channelCandidates', 'routeHandlers', 'effectSites'];
 
 // The triage's versions (#315): version 1 is each entry's candidate and finding or out_of_scope;
-// version 2 adds, on every entry, the scope clause that decided it (map/effect-scope.mjs). A stored
-// version 1 triage reads as it was written.
+// version 2 adds, on every entry, the scope clause that decided it (map/effect-scope.mjs), and on
+// every entry that maps a candidate to a finding, its answers to the checklist that decide its
+// gate_type and reversibility (map/effect-answers.mjs). A stored version 1 triage reads as it was
+// written: its descriptors as the findings carry them, unanswered.
 const TRIAGE_VERSIONS = [1, 2];
 const CURRENT_TRIAGE_VERSION = 2;
 
@@ -78,7 +81,9 @@ const isEffect = (f) => f && f.subject_type === 'effect' && f.effect && typeof f
 // both closed populations share). findingsById: id → finding.
 // The scope rule (map/effect-scope.mjs) holds in every version: a candidate whose files are all test
 // or fixture files is never mapped in, and a workflow write is never triaged out; at version 2 every
-// entry names the clause that decided it, and the clause must hold.
+// entry names the clause that decided it, and the clause must hold. At version 2 every entry that maps
+// a candidate in carries its answers (map/effect-answers.mjs), and a finding's gate_type and
+// reversibility are what its candidates' answers give, the riskiest across them.
 export function triageErrors({ candidates, triage, excluded = new Map(), files = new Map(), version = 1 }, findingsById) {
   if (triage === null) return [];   // no triage file: nothing to hold; the measurement reads every candidate untriaged
   if (candidates === null) return [`${TRIAGE_FILE}: triages channel candidates, and the run carries no candidate list (${ENUMERATE_FILE}, which assay start writes)`];
@@ -93,9 +98,10 @@ export function triageErrors({ candidates, triage, excluded = new Map(), files =
     const why = constructionError({ candidate: x.candidate, mappedIn, testReason }) || (version >= 2 ? clauseError({ candidate: x.candidate, mappedIn, clause: x.clause }) : null);
     if (why) scope.push(`${TRIAGE_FILE}[${i}]: ${why}`);
   });
+  if (version >= 2) scope.push(...answersErrors(triage, findingsById));
   return [...entryErrors(triage, candidates, {
     at: TRIAGE_FILE,
-    keys: version >= 2 ? ['clause'] : [],
+    keys: version >= 2 ? ['clause', 'answers'] : [],
     missingCandidate: `a member of ${ENUMERATE_FILE}'s ${CANDIDATE_POPULATIONS.join(', ')}, as it is written there`,
     notListed: (c) => excluded.has(c)
       ? `is out of scope by construction (${excluded.get(c)}): ${ENUMERATE_FILE} lists it under excluded, and it is never offered for triage`
@@ -110,6 +116,46 @@ export function triageErrors({ candidates, triage, excluded = new Map(), files =
     },
     missing: (cs) => `${TRIAGE_FILE}: ${cs.length} channel candidate(s) not triaged: ${cs.join(', ')} — record each as the effect finding that covers it, or out of scope with the reason`,
   }), ...scope];
+}
+
+// The answers at version 2: on each entry that maps a candidate in, and on no other; each holds
+// (answerErrors); and each finding every one of whose candidates is answered carries the gate_type and
+// reversibility those answers give, by #302's order (descriptorsFrom). A refusal names the finding,
+// what it says, what the answers give, and each candidate with its answers.
+function answersErrors(triage, findingsById) {
+  const errors = [], byFinding = new Map();
+  triage.forEach((x, i) => {
+    if (!x || typeof x !== 'object' || typeof x.candidate !== 'string') return;
+    const at = `${TRIAGE_FILE}[${i}]`;
+    const mappedIn = x.finding !== undefined && x.finding !== null && x.finding !== '';
+    if (!mappedIn) { if (x.answers !== undefined) errors.push(`${at}: "${x.candidate}" is out of scope: answers describe an in-scope effect, and an out-of-scope entry carries none`); return; }
+    if (x.answers === undefined) { errors.push(`${at}: "${x.candidate}" is in scope and carries no answers: a version 2 triage answers the checklist for every candidate it maps to a finding (map/SCHEMA.md §6e, "The answers")`); return; }
+    const errs = answerErrors(x.answers, `${at}: answers`);
+    errors.push(...errs);
+    const id = String(x.finding);
+    if (!byFinding.has(id)) byFinding.set(id, []);
+    byFinding.get(id).push(errs.length ? null : x);
+  });
+  for (const [id, entries] of byFinding) {
+    const f = findingsById.get(id);
+    if (!isEffect(f) || entries.includes(null)) continue;   // a finding that is no effect, or answers that do not hold, are named above
+    const want = descriptorsFrom(entries.map((x) => x.answers));
+    /** @type {[string, (answers: any) => string][]} */
+    const fields = [['gate_type', gateTypeFrom], ['reversibility', reversibilityFrom]];
+    for (const [field, of] of fields) {
+      const said = f.effect[field];
+      if (said === want[field]) continue;
+      const each = entries.map((x) => `"${x.candidate}" (${answersLine(x.answers)}) → ${of(x.answers)}`).join('; ');
+      errors.push(`${TRIAGE_FILE}: finding ${id}'s ${field} is ${said}, but its candidates' answers give ${want[field]}: ${each}`);
+    }
+  }
+  return errors;
+}
+
+// The candidates a version 1 triage maps in, which carry no answers: read as written, unanswered.
+export function unansweredOf({ triage, version }) {
+  if (!Array.isArray(triage) || version !== 1) return 0;
+  return triage.filter((x) => x && typeof x === 'object' && x.finding !== undefined && x.finding !== null && x.finding !== '').length;
 }
 
 // the measurement's read of the population: { listed, triaged, candidates, untriaged, covered, outOfScope, reason }.
