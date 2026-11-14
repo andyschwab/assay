@@ -17,7 +17,7 @@
 // names no tool or library here (CLAUDE.md rule 7). The file is read once; a file that does not read,
 // or an entry with no reason, halts enumerate (fail loud).
 import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { CHECKLIST_KEYS } from './effect-answers.mjs';
@@ -61,11 +61,15 @@ export function loadMarkers(path = MARKERS_FILE) {
   question(rt.question, 'routes'); supports(rt.supports, 'routes');
   reasoned(rt.limiter_modules, 'module', 'routes.limiter_modules');
   reasoned(rt.limiter_calls, 'call', 'routes.limiter_calls');
+  reasoned(rt.route_option_keys, 'key', 'routes.route_option_keys');
   if (!Array.isArray(rt.limiter_words) || !rt.limiter_words.length || !nonEmpty(rt.limiter_words_reason)) bad('routes.limiter_words: a non-empty list, and limiter_words_reason');
+  if (!Array.isArray(rt.limiter_path_words) || !rt.limiter_path_words.length || !nonEmpty(rt.limiter_path_words_reason)) bad('routes.limiter_path_words: a non-empty list, and limiter_path_words_reason');
   const sd = doc.soft_delete || bad('soft_delete: the soft-delete markers');
   question(sd.question, 'soft_delete'); supports(sd.supports, 'soft_delete');
   if (!nonEmpty(sd.reason)) bad('soft_delete: says why (reason)');
   reasoned(sd.columns, 'column', 'soft_delete.columns');
+  reasoned(sd.table_factories, 'factory', 'soft_delete.table_factories');
+  reasoned(sd.model_schema_extensions, 'extension', 'soft_delete.model_schema_extensions');
   return doc;
 }
 
@@ -196,6 +200,8 @@ function closeOf(ls, i, c) {
   }
   return ls.length - 1;
 }
+// the text of the call whose paren opens at (i, c), its lines joined with a space
+const callText = (ls, i, c) => [ls[i].slice(c), ...ls.slice(i + 1, closeOf(ls, i, c) + 1)].join(' ');
 // the handler's lines [from, to] for the route registered at line i, by its form; null when unread
 function routeExtent(ls, i, path) {
   const l = ls[i];
@@ -211,13 +217,17 @@ function routeExtent(ls, i, path) {
 }
 
 // The limiter names a file binds: from a listed module (an import or require, and an instance made
-// from one), or defined by the tree under a name that says it limits (in the file, or imported from a
-// relative path). Map<name, line>.
+// from one), or defined by the tree: a name that says it limits (defined in the file, or imported from
+// a relative path), or any binding imported from a relative module whose file name says it limits
+// (`./middleware/rate-limit`, `../lib/throttle`). Map<name, { at: line, tree: whether the tree defines it }>.
 function limiterNames(ls, M) {
   const names = new Map();
+  const put = (n, i, tree) => { if (!names.has(n)) names.set(n, { at: i, tree }); };
   const mods = M.routes.limiter_modules.map((m) => esc(m.module)).join('|');
   const words = M.routes.limiter_words.map((w) => String(w).toLowerCase());
   const limiterWord = (n) => words.some((w) => n.toLowerCase().includes(w));
+  const pathWords = M.routes.limiter_path_words.map((w) => String(w).toLowerCase());
+  const limiterPath = (spec) => { const base = spec.split('/').pop().replace(/\.[^.]*$/, '').toLowerCase(); return pathWords.some((w) => base.includes(w)); };
   const bindings = (clause) => {
     const out = [];
     const c = clause.trim();
@@ -237,25 +247,68 @@ function limiterNames(ls, M) {
     const m = l.match(IMPORT) || l.match(REQUIRE);
     if (!m) return;
     const fromList = listed.test(m[2]), relativeTree = /^\.\.?\//.test(m[2]);
-    for (const n of bindings(m[1])) if (fromList || (relativeTree && limiterWord(n))) if (!names.has(n)) names.set(n, i);
+    for (const n of bindings(m[1])) {
+      if (fromList) put(n, i, false);
+      else if (relativeTree && (limiterWord(n) || limiterPath(m[2]))) put(n, i, true);
+    }
   });
   // an instance made from a listed binding, and a limiter defined in this file under a limiting name
   ls.forEach((l, i) => {
     if (!codeLine(l)) return;
     const inst = l.match(/\b(?:const|let|var)\s+([\w$]+)\s*=\s*(?:await\s+)?(?:new\s+)?([\w$]+)\s*[(.]/);
-    if (inst && names.has(inst[2]) && !names.has(inst[1])) names.set(inst[1], i);
+    if (inst && names.has(inst[2])) put(inst[1], i, /** @type {any} */ (names.get(inst[2])).tree);
     const def = l.match(/^\s*(?:export\s+)?(?:(?:async\s+)?function\s*\*?\s*([\w$]+)|(?:const|let|var)\s+([\w$]+)\s*=)/);
     const n = def && (def[1] || def[2]);
-    if (n && limiterWord(n) && !names.has(n)) names.set(n, i);
+    if (n && limiterWord(n)) put(n, i, true);
   });
   return names;
 }
 
+// Where the tree imports a listed limiter module: "path:line" of the first such import, or null. Read
+// once per file; a route's own limit option configures that module's plugin.
+const PLUGIN = new WeakMap();
+function limiterPluginIn(tree, read, M, own) {
+  const key = `${own}`;
+  if (!PLUGIN.has(tree)) PLUGIN.set(tree, new Map());
+  const memo = PLUGIN.get(tree);
+  if (memo.has(key)) return memo.get(key);
+  const mods = M.routes.limiter_modules.map((m) => esc(m.module)).join('|');
+  const re = new RegExp(`(?:\\bfrom\\s+|\\brequire\\(\\s*|\\bimport\\(\\s*)['"](?:${mods})['"]`);
+  let found = null;
+  // the route's own file first, then the tree in path order, so the evidence is the same on every disk
+  for (const p of [own, ...[...tree.files].sort()]) {
+    if (!p || !/\.(?:[mc]?[jt]sx?)$/.test(p)) continue;
+    const i = read(p).findIndex((l) => codeLine(l) && re.test(l));
+    if (i >= 0) { found = `${p}:${i + 1}`; break; }
+  }
+  memo.set(key, found);
+  return found;
+}
+
 /** A route's signal: a limiter its registering file applies to it. @returns {Map<string, any>} */
-function routeLimitSignals(ls, at, path, M) {
+function routeLimitSignals(ls, at, path, M, ctx) {
   const out = new Map();
   const rt = M.routes;
   const names = limiterNames(ls, M);
+  // a route's own options naming a limit (`app.post('/login', { config: { rateLimit: { … } } }, …)`),
+  // read where the tree imports a listed limiter module whose plugin the option configures
+  const optKeys = rt.route_option_keys.map((k) => esc(k.key)).join('|');
+  const optionAt = (i) => {
+    const ext = routeExtent(ls, i, path);
+    if (!ext || !ext.express || !ctx) return -1;
+    const call = callText(ls, i, ls[i].indexOf('(', ls[i].search(EXPRESS)));
+    const o = call.match(/^\(\s*(['"`])[^'"`]*\1\s*,\s*\{/);
+    if (!o) return -1;
+    const opts = call.slice(o[0].length - 1, Math.max(o[0].length - 1, closeIn(call, o[0].length - 1)) + 1);
+    if (!new RegExp(`(?<![\\w$])(?:${optKeys})\\s*:\\s*(?:\\{|true\\b)`).test(opts)) return -1;
+    for (let j = i; j <= ext.to; j++) if (new RegExp(`(?<![\\w$])(?:${optKeys})\\s*:`).test(ls[j])) return j;
+    return -1;
+  };
+  const plugin = ctx ? limiterPluginIn(ctx.tree, ctx.read, M, ctx.path) : null;
+  if (plugin && at.length && at.every((i) => optionAt(i) >= 0)) {
+    out.set(rt.question, { question: rt.question, supports: rt.supports, lines: at.map(optionAt), extra: [plugin], marker: `limiter: route option ${rt.route_option_keys.map((k) => k.key).join(', ')}` });
+    return out;
+  }
   if (!names.size) return out;
   const nameRe = [...names.keys()].map(esc).join('|');
   const calls = rt.limiter_calls.map((c) => esc(c.call)).join('|');
@@ -265,24 +318,31 @@ function routeLimitSignals(ls, at, path, M) {
     if (!ext) return false;
     let hitAt = -1, name = null;
     if (ext.express) {
-      // a route argument before the handler, or a .use( on the same receiver, earlier, at the route's path
-      const args = ls[i].slice(ls[i].search(EXPRESS)).replace(EXPRESS, '');
+      // a route argument before the handler, or a .use( on the same receiver, earlier, at the route's
+      // path; each call read whole, across its lines
+      const args = callText(ls, i, ls[i].indexOf('(', ls[i].search(EXPRESS))).replace(/^\(\s*(['"`])[^'"`]*\1/, '');
       const arg = args.match(new RegExp(`^\\s*,(?:\\s*[\\w$.]+\\s*,)*?\\s*(${nameRe})\\s*(?:[,)]|\\()`));
       if (arg) { hitAt = i; name = arg[1]; }
       else for (let j = 0; j < i && hitAt < 0; j++) {
         if (!codeLine(ls[j])) continue;
-        const u = ls[j].match(new RegExp(`\\b${esc(ext.express.recv)}\\s*[.]\\s*use\\s*\\(\\s*(?:(['"\`])(\\/[^'"\`]*)\\1\\s*,\\s*)?(${nameRe})\\s*[,)(]`));
-        if (u && (!u[2] || ext.express.path === u[2] || ext.express.path.startsWith(u[2].replace(/\/$/, '') + '/'))) { hitAt = j; name = u[3]; }
+        const at = ls[j].search(new RegExp(`\\b${esc(ext.express.recv)}\\s*[.]\\s*use\\s*\\(`));
+        if (at < 0) continue;
+        const u = callText(ls, j, ls[j].indexOf('(', at)).match(new RegExp(`^\\(\\s*(?:(['"\`])(\\/[^'"\`]*|\\*)\\1\\s*,\\s*)?(${nameRe})\\s*[,)(]`));
+        // a mount path covers the route at it or under it; a trailing `*` or `/*` (Hono's) is the same prefix
+        const pre = u && u[2] ? u[2].replace(/\/?\*$/, '').replace(/\/$/, '') : '';
+        if (u && (!pre || ext.express.path === pre || ext.express.path.startsWith(pre + '/'))) { hitAt = j; name = u[3]; }
       }
     }
-    // a limiter's refusing call inside the handler
+    // a limiter's refusing call inside the handler (`.limit(`, `.consume(` on a limiter), or a call of a
+    // limiter the tree defines, by its name
+    const treeRe = [...names].filter(([, v]) => v.tree).map(([n]) => esc(n)).join('|');
     for (let j = ext.from; j <= ext.to && hitAt < 0; j++) {
       if (!codeLine(ls[j])) continue;
-      const c = ls[j].match(new RegExp(`\\b(${nameRe})\\s*[.]\\s*(?:${calls})\\s*\\(`));
+      const c = ls[j].match(new RegExp(`\\b(${nameRe})\\s*[.]\\s*(?:${calls})\\s*\\(`)) || (treeRe ? ls[j].match(new RegExp(`(?<![\\w$.])(${treeRe})\\s*\\(`)) : null);
       if (c) { hitAt = j; name = c[1]; }
     }
     if (hitAt < 0) return false;
-    lines.push(hitAt, names.get(name));
+    lines.push(hitAt, /** @type {any} */ (names.get(name)).at);
     markers.add(name);
     return true;
   });
@@ -290,16 +350,123 @@ function routeLimitSignals(ls, at, path, M) {
   return out;
 }
 
-/** A soft delete in the candidate's own code: a literal statement that sets a listed column, and no hard delete beside it. */
-function softDeleteSignal(ls, from, to, M) {
+// the index in `text` where the bracket opened at `at` closes, reading past strings; -1 when it never does
+function closeIn(text, at) {
+  const close = { '(': ')', '[': ']', '{': '}' };
+  const stack = [];
+  let q = null;
+  for (let k = at; k < text.length; k++) {
+    const ch = text[k];
+    if (q) { if (ch === '\\') k++; else if (ch === q) q = null; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { q = ch; continue; }
+    if (close[ch]) stack.push(close[ch]);
+    else if (ch === ')' || ch === ']' || ch === '}') { stack.pop(); if (!stack.length) return k; }
+  }
+  return -1;
+}
+const lineAt = (text, idx) => text.slice(0, idx).split('\n').length - 1;
+
+// The ORM tables the tree defines: Map<name, [{ path, at, text }]>, each an exported const assigned a
+// call of a listed table factory, its text the call's arguments. Read once per tree.
+const TABLES = new WeakMap();
+function tablesOf(tree, read, M) {
+  if (TABLES.has(tree)) return TABLES.get(tree);
+  const out = new Map();
+  const fac = M.soft_delete.table_factories.map((f) => esc(f.factory)).join('|');
+  const DEF = new RegExp(`\\bexport\\s+const\\s+([\\w$]+)\\s*=\\s*(?:${fac})\\s*\\(`, 'g');
+  for (const path of tree.files) {
+    if (!/\.(?:[mc]?[jt]sx?)$/.test(path)) continue;
+    const text = read(path).join('\n');
+    if (!DEF.test(text)) continue;
+    DEF.lastIndex = 0;
+    let m;
+    while ((m = DEF.exec(text))) {
+      const open = m.index + m[0].length - 1, end = closeIn(text, open);
+      if (!out.has(m[1])) out.set(m[1], []);
+      out.get(m[1]).push({ path, at: lineAt(text, m.index), text: text.slice(open, end < 0 ? text.length : end + 1) });
+    }
+  }
+  TABLES.set(tree, out);
+  return out;
+}
+// The table a binding names in this file: the definition in the file it imports it from (a relative
+// path, with its extensions tried), else the one definition of that name the tree holds; null when
+// neither reads (an alias the tree defines twice, or a table defined by no listed factory).
+function tableOf(binding, path, ls, tree, read, M) {
+  const all = tablesOf(tree, read, M).get(binding) || [];
+  const imp = ls.map((l) => l.match(/^\s*import\s+(.+?)\s+from\s+['"]([^'"]+)['"]/)).find((m) => m && new RegExp(`(?<![\\w$])${esc(binding)}(?![\\w$])|\\*\\s+as\\s+`).test(m[1]));
+  if (imp && /^\.\.?\//.test(imp[2])) {
+    const base = posix.normalize(posix.join(posix.dirname(path), imp[2])).replace(/\.[mc]?js$/, '');
+    const tries = ['', '.ts', '.tsx', '.mts', '.js', '.mjs', '/index.ts', '/index.js'].map((x) => base + x);
+    const own = all.find((t) => tries.includes(t.path));
+    if (own) return own;
+  }
+  const here = all.find((t) => t.path === path);
+  if (here) return here;
+  return all.length === 1 ? all[0] : null;
+}
+// The model a client accessor names (`db.note` → `model Note`), in the tree's model schema files:
+// { path, at, lines } of its block, or null.
+function modelOf(accessor, tree, read, M) {
+  const exts = M.soft_delete.model_schema_extensions.map((e) => e.extension);
+  const found = [];
+  for (const path of tree.files) {
+    if (!exts.some((x) => path.endsWith(x))) continue;
+    const ls = read(path);
+    ls.forEach((l, i) => {
+      const m = l.match(/^\s*model\s+(\w+)\s*\{/);
+      if (!m || m[1][0].toLowerCase() + m[1].slice(1) !== accessor) return;
+      let j = i + 1;
+      while (j < ls.length && !/^\s*\}/.test(ls[j])) j++;
+      found.push({ path, at: i, lines: ls.slice(i, j + 1) });
+    });
+  }
+  return found.length === 1 ? found[0] : null;
+}
+
+/**
+ * A soft delete in the candidate's own code, and no hard delete beside it: a literal SQL statement
+ * that sets a listed column; or an ORM update that sets one on a table the tree defines with that
+ * column (`update(<table>).set({ <col>: … })` with `<table>` a listed factory's table, or
+ * `<client>.<model>.update|updateMany({ data: { <col>: … } })` with `<model>` a model in a schema file
+ * that declares it). A table or model the tree does not define once, by its name, is not read.
+ */
+function softDeleteSignal(ls, from, to, M, ctx) {
   const sd = M.soft_delete;
   const text = ls.slice(from, to + 1).join('\n');
-  if (/\bDELETE\s+FROM\b/i.test(text)) return null;
+  if (/\bDELETE\s+FROM\b/i.test(text) || /[.]delete\s*\(\s*[\w$.]+\s*\)|[.](?:delete|deleteMany)\s*\(\s*\{/.test(text)) return null;
   const cols = sd.columns.map((c) => esc(c.column)).join('|');
-  const m = new RegExp(`\\bUPDATE\\s+[\\w."\`\\[\\]]+\\s+SET\\b(?:(?!\\bWHERE\\b)[^;])*?\\b(${cols})\\s*=`, 'i').exec(text);
-  if (!m) return null;
-  const line = from + text.slice(0, m.index + m[0].length).split('\n').length - 1;
-  return { question: sd.question, supports: sd.supports, lines: [line], marker: `soft delete: ${m[1]}` };
+  const sql = new RegExp(`\\bUPDATE\\s+[\\w."\`\\[\\]]+\\s+SET\\b(?:(?!\\bWHERE\\b)[^;])*?\\b(${cols})\\s*=`, 'i').exec(text);
+  if (sql) return { question: sd.question, supports: sd.supports, lines: [from + lineAt(text, sql.index + sql[0].length)], marker: `soft delete: ${sql[1]}` };
+  if (!ctx) return null;
+  const KEY = new RegExp(`(?<![\\w$])(${cols})\\s*:`);
+  // update(<table>).set({ <col>: … })
+  const SET = /[.]update\s*\(\s*(?:[\w$]+\s*[.]\s*)?([\w$]+)\s*\)\s*[.]set\s*\(\s*\{/g;
+  let m;
+  while ((m = SET.exec(text))) {
+    const open = m.index + m[0].length - 1, body = text.slice(open, Math.max(open, closeIn(text, open)));
+    const k = body.match(KEY);
+    if (!k) continue;
+    const t = tableOf(m[1], ctx.path, ls, ctx.tree, ctx.read, M);
+    const col = t && new RegExp(`(?<![\\w$])${esc(k[1])}\\s*:`).exec(t.text);
+    if (!col) continue;
+    return { question: sd.question, supports: sd.supports, lines: [from + lineAt(text, open + /** @type {number} */ (k.index))], extra: [`${t.path}:${t.at + lineAt(t.text, col.index) + 1}`], marker: `soft delete: ${k[1]} (update … set, table ${m[1]})` };
+  }
+  // <client>.<model>.update|updateMany({ … data: { <col>: … } … })
+  const UPD = /\b[\w$]+\s*[.]\s*([\w$]+)\s*[.]\s*(?:update|updateMany)\s*\(\s*\{/g;
+  while ((m = UPD.exec(text))) {
+    const open = m.index + m[0].length - 1, call = text.slice(open, Math.max(open, closeIn(text, open)));
+    const d = /\bdata\s*:\s*\{/.exec(call);
+    if (!d) continue;
+    const dOpen = d.index + d[0].length - 1, data = call.slice(dOpen, Math.max(dOpen, closeIn(call, dOpen)));
+    const k = data.match(KEY);
+    if (!k) continue;
+    const model = modelOf(m[1], ctx.tree, ctx.read, M);
+    const colAt = model ? model.lines.findIndex((l) => new RegExp(`^\\s*${esc(k[1])}\\s+\\S`).test(l)) : -1;
+    if (colAt < 0) continue;
+    return { question: sd.question, supports: sd.supports, lines: [from + lineAt(text, open + dOpen + /** @type {number} */ (k.index))], extra: [`${model.path}:${model.at + colAt + 1}`], marker: `soft delete: ${k[1]} (update … data, model ${m[1]})` };
+  }
+  return null;
 }
 
 // ── one candidate ───────────────────────────────────────────────────────────
@@ -315,8 +482,9 @@ const isScript = (pop, member) => (pop === 'channelCandidates' && /^(?:cli|surfa
  * @param {{ pop: string, member: string, evidence: Iterable<string> }} c
  * @param {(path: string) => string[]} read  a file's lines, by its target-relative path
  * @param {any} M  the markers (loadMarkers)
+ * @param {{ files: string[] }} [tree]  the tree's files, target-relative: where a write's table or model is defined
  */
-export function signalsOf({ pop, member, evidence }, read, M) {
+export function signalsOf({ pop, member, evidence }, read, M, tree = { files: [] }) {
   const byFile = new Map();
   for (const e of evidence) {
     const m = String(e).match(/^(.+):(\d+)$/);
@@ -328,22 +496,23 @@ export function signalsOf({ pop, member, evidence }, read, M) {
   const perFile = [...byFile].map(([path, at]) => {
     const ls = read(path);
     const out = new Map();
+    const ctx = { path, tree, read };
     const put = (m) => { for (const [q, s] of m) out.set(q, s); };
     if (isWorkflow(pop, member)) put(workflowSignals(ls, at, M));
     if (isScript(pop, member)) put(scriptSignals(ls, M));
     if (pop === 'routeHandlers') {
-      put(routeLimitSignals(ls, at, path, M));
-      const sds = at.map((i) => { const x = routeExtent(ls, i, path); return x && softDeleteSignal(ls, x.from, x.to, M); });
-      if (sds.length && sds.every(Boolean)) out.set(sds[0].question, { ...sds[0], lines: sds.flatMap((s) => s.lines), marker: [...new Set(sds.map((s) => s.marker))].join(', ') });
+      put(routeLimitSignals(ls, at, path, M, ctx));
+      const sds = at.map((i) => { const x = routeExtent(ls, i, path); return x && softDeleteSignal(ls, x.from, x.to, M, ctx); });
+      if (sds.length && sds.every(Boolean)) out.set(sds[0].question, { ...sds[0], lines: sds.flatMap((s) => s.lines), extra: sds.flatMap((s) => s.extra || []), marker: [...new Set(sds.map((s) => s.marker))].join(', ') });
     }
-    if (pop === 'channelCandidates' && /^(?:cli|surface): /.test(member)) { const s = softDeleteSignal(ls, 0, ls.length - 1, M); if (s) out.set(s.question, s); }
+    if (pop === 'channelCandidates' && /^(?:cli|surface): /.test(member)) { const s = softDeleteSignal(ls, 0, ls.length - 1, M, ctx); if (s) out.set(s.question, s); }
     return { path, out };
   });
   const signals = [];
   for (const q of CHECKLIST_KEYS) {
     const all = perFile.map((p) => p.out.get(q));
     if (all.some((s) => !s) || all.some((s) => s.supports !== all[0].supports)) continue;
-    const evidence = [...new Set(perFile.flatMap((p, k) => all[k].lines.filter((i) => i >= 0).map((i) => `${p.path}:${i + 1}`)))]
+    const evidence = [...new Set(perFile.flatMap((p, k) => [...all[k].lines.filter((i) => i >= 0).map((i) => `${p.path}:${i + 1}`), ...(all[k].extra || [])]))]
       .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
     const { held_by, what } = all[0];
     signals.push({ question: q, supports: all[0].supports, evidence, marker: [...new Set(all.map((s) => s.marker))].join('; '), ...(held_by ? { held_by, what } : {}) });

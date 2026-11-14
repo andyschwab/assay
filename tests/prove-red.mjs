@@ -246,6 +246,16 @@ export const ENTRIES = [
     from: 'for (const f of sc.apply_flags) {',
     to: "for (const f of [...sc.apply_flags, { flag: '--apply', reason: 'a marker written in code' }]) {",
     check: 'signals-markers-data', red: /\(1\) renaming flag: "--apply" in the data file takes/ },
+  { rule: "an ORM soft delete's table is read, never assumed: deletedAt set on a table that declares no such column carries no signal (#315)",
+    file: 'map/effect-signals.mjs',
+    from: '    if (!col) continue;',
+    to: "    if (!col) return { question: sd.question, supports: sd.supports, lines: [from + lineAt(text, open)], marker: 'soft delete: assumed' };",
+    check: 'signals-orm-soft-delete', red: /\(4\) deletedAt set on a table that declares no such column carries no signal/ },
+  { rule: "a route option that turns the limiter off never reads rate_limit yes (#315)",
+    file: 'map/effect-signals.mjs',
+    from: '(?:\\\\{|true\\\\b)`).test(opts)',
+    to: '(?:\\\\{|true\\\\b|false\\\\b)`).test(opts)',
+    check: 'signals-hono-limiter', red: /\(4\) a route whose options turn the limiter off carries no signal/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────

@@ -814,7 +814,8 @@ const JSON_MODE = process.argv.includes('--json');   // suppress the pretty enum
 const MARKERS = loadMarkers();
 const fileLines = new Map();
 const readRel = (p) => { if (!fileLines.has(p)) fileLines.set(p, lines(join(target, p))); return fileLines.get(p); };
-const signalsFor = (pop, member, evidence) => signalsOf({ pop, member, evidence }, readRel, MARKERS);
+const TREE = { files: files.map((f) => rel(f).replace(/\\/g, '/')) };
+const signalsFor = (pop, member, evidence) => signalsOf({ pop, member, evidence }, readRel, MARKERS, TREE);
 
 // --json without --run: the populations as data (#259). `assay start` writes this into the run
 // (lib/run-layout.mjs enumeratePath), and the run's channel candidates are the population the

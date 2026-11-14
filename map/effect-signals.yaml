@@ -88,11 +88,17 @@ routes:
       reason: "A hosted limiter's refusing call: a handler that calls it on a limiter refuses past the rate."
     - call: consume
       reason: "A points limiter's refusing call: it rejects once the points in the window are spent."
+  route_option_keys:
+    - key: rateLimit
+      reason: "A route's own options naming a limit (a framework's per-route config for its rate-limit plugin): read only where the tree imports a listed limiter module, and only with an object or true, never false."
   limiter_words: [ratelimit, rate_limit, limiter, throttle]
   limiter_words_reason: "A limiter the tree defines itself is read only where its name says it limits, and only where the route's file applies it by that name."
+  limiter_path_words: [limit, throttle]
+  limiter_path_words_reason: "A binding imported from a module of the tree whose file name says it limits (rate-limit.ts, throttle.mjs) is that module's limiter; it counts only where the route's file applies it by that name or calls it in the handler."
 
-# A soft delete: read where the SQL is literal in the candidate's own code (a route's handler, a
-# script's file).
+
+# A soft delete: read in the candidate's own code (a route's handler, a script's file), where the SQL
+# is literal, or where an ORM update sets a listed column on a table or model the tree defines with it.
 soft_delete:
   question: window
   supports: "yes"
@@ -110,3 +116,28 @@ soft_delete:
       reason: "The discard gem's soft-delete column."
     - column: is_deleted
       reason: "A soft-delete flag."
+    - column: deletedAt
+      reason: "The soft-delete timestamp as an ORM names its property."
+    - column: archivedAt
+      reason: "An archive timestamp as an ORM names its property."
+    - column: trashedAt
+      reason: "A trash timestamp as an ORM names its property."
+    - column: discardedAt
+      reason: "A discard timestamp as an ORM names its property."
+    - column: isDeleted
+      reason: "A soft-delete flag as an ORM names its property."
+  # Not listed: revoked_at, ended_at and the like. They record that an act happened (a revocation, an
+  # ending), not that a row is hidden and kept to be restored; that act is the effect itself.
+  # An ORM write: the table a typed query builder defines with one of these calls ...
+  table_factories:
+    - factory: pgTable
+      reason: "A Postgres table definition: its properties are the columns an update's set() names."
+    - factory: mysqlTable
+      reason: "A MySQL table definition, read the same way."
+    - factory: sqliteTable
+      reason: "A SQLite table definition, read the same way."
+  # ... or the model a schema file declares, for a client's <model>.update|updateMany({ data }).
+  model_schema_extensions:
+    - extension: ".prisma"
+      reason: "A model schema file: each `model <Name> { <field> <Type> }` block declares the fields a client's update data names."
+
