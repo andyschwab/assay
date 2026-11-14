@@ -31,11 +31,12 @@
 //                                          # available parallelism, or ASSAY_TEST_JOBS)
 
 import { join } from 'node:path';
+import { isMain } from '../map/doctrine.mjs';
 import { HERE, GOLDEN, bless, negFailures, current, convertedRows, verdict, loadBlocks, runBlocks, runBlocksParallel, defaultJobs, gateLabels, gateLine } from './harness.mjs';
 
 // The closed list: the blocks that cannot run beside another, each with its reason. Each runs
 // alone, nothing else in the pool beside it. A label here that is no block is refused.
-const CLOSED = {
+export const CLOSED = {
   'instrument-roster': 'plants an adapter (map/scanners/adapters/quill-review.yaml) that every loadAdapters() reads, and a bare run under tests/.tmp-roster-bare',
   'second-reviewer-adapter': 'plants an adapter (map/scanners/adapters/quill-review.yaml) that every loadAdapters() reads',
   'second-secret-scanner-adapter': 'plants an adapter (map/scanners/adapters/keyhound.yaml) that every loadAdapters() reads',
@@ -43,31 +44,34 @@ const CLOSED = {
   'repo-files-nested': 'plants an untracked nested repository under tests/, the shape repoFiles() must drop; a whole-tree block beside it would read the tree mid-plant',
 };
 
-const { blocks, errors } = await loadBlocks(join(HERE, 'blocks'));
-for (const e of errors) negFailures.push('runner: ' + e);
-let ran;
-if (process.argv.includes('--serial')) ran = await runBlocks(blocks, negFailures);
-else {
-  const j = process.argv.indexOf('--jobs');
-  const jobs = j > -1 ? Number(process.argv[j + 1]) : defaultJobs();
-  if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs takes a whole number of blocks at once, 1 or more'); process.exit(2); }
-  const r = await runBlocksParallel(blocks, { jobs, closed: CLOSED, onOutput: (b, out) => { if (out) process.stdout.write(out); } });
-  negFailures.push(...r.failures);
-  Object.assign(current._score, r.score);
-  convertedRows.push(...r.rows);
-  ran = r.ran;
+// the run itself, only when this file is the command (tests/prove-red.mjs imports CLOSED)
+if (isMain(import.meta.url)) {
+  const { blocks, errors } = await loadBlocks(join(HERE, 'blocks'));
+  for (const e of errors) negFailures.push('runner: ' + e);
+  let ran;
+  if (process.argv.includes('--serial')) ran = await runBlocks(blocks, negFailures);
+  else {
+    const j = process.argv.indexOf('--jobs');
+    const jobs = j > -1 ? Number(process.argv[j + 1]) : defaultJobs();
+    if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs takes a whole number of blocks at once, 1 or more'); process.exit(2); }
+    const r = await runBlocksParallel(blocks, { jobs, closed: CLOSED, onOutput: (b, out) => { if (out) process.stdout.write(out); } });
+    negFailures.push(...r.failures);
+    Object.assign(current._score, r.score);
+    convertedRows.push(...r.rows);
+    ran = r.ran;
+  }
+
+  // the line's two counts are the negative fixtures and scored fixtures the blocks declare
+  const count = (name) => {
+    const b = blocks.find((x) => Array.isArray(x.mod[name]));
+    if (!b) { negFailures.push(`runner: no block exports ${name}, so the gate line cannot count it`); return 0; }
+    return b.mod[name].length;
+  };
+  const negative = count('NEGATIVE'), scored = count('SCORED');
+
+  const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
+  for (const l of v.out) console.log(l);
+  for (const l of v.err) console.error(l);
+  if (v.ok) console.log(gateLine({ negative, scored, labels: gateLabels(ran) }));
+  process.exit(v.exit);
 }
-
-// the line's two counts are the negative fixtures and scored fixtures the blocks declare
-const count = (name) => {
-  const b = blocks.find((x) => Array.isArray(x.mod[name]));
-  if (!b) { negFailures.push(`runner: no block exports ${name}, so the gate line cannot count it`); return 0; }
-  return b.mod[name].length;
-};
-const negative = count('NEGATIVE'), scored = count('SCORED');
-
-const v = verdict({ bless, negFailures, current, goldenPath: GOLDEN });
-for (const l of v.out) console.log(l);
-for (const l of v.err) console.error(l);
-if (v.ok) console.log(gateLine({ negative, scored, labels: gateLabels(ran) }));
-process.exit(v.exit);
