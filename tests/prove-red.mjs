@@ -261,6 +261,11 @@ export const ENTRIES = [
     from: "const matches = typeof select === 'function' ? select : (d) => (d.tags || []).includes(select);",
     to: 'const matches = (d) => (d.tags || []).includes(select);',
     check: 'rows-by-predicate', red: /a predicate over an id list selects exactly those rows/ },
+  { rule: "a claim the run contradicts is never silently lost: the Owner view carries the owner packet's satisfied claim beside the run's own unmet status (#339)",
+    file: 'views/owner.mjs',
+    from: 'const contradictions = joinContradictions(loadContradictions(runDir), reg);',
+    to: 'const contradictions = [];',
+    check: 'owner-contradictions', red: /owner\.yaml must carry the contradiction on d-secrets-out-of-history/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────

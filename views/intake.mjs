@@ -18,59 +18,10 @@ import { basename, dirname } from 'node:path';
 import { buildRows, toYaml, basisNote, contextText, joinContradictions } from './rows.mjs';
 import { loadYardstick, loadContradictions, loadRunPacket } from '../yardstick/measure.mjs';
 import { isMain } from '../map/doctrine.mjs';
-import { parseYaml, q as yq } from '../lib/yaml-min.mjs';
+import { parseYaml } from '../lib/yaml-min.mjs';
 import { viewPath, intakePagePath, prosePath as runProsePath } from '../lib/run-layout.mjs';
 import { mdText as t } from '../lib/display.mjs';
-
-// ── "What the owner told us" — facts from the run's own packet, never a verdict ──
-const yn3 = (v) => (v === 'yes' || v === 'no' || v === 'unsure' ? v : 'unknown');   // the packet's four answers; 'unsure' is the owner's partial knowledge, never folded into unknown
-const orgLabel = (v) => (v === 'yes' ? 'organisational' : v === 'no' ? 'personal' : v === 'unsure' ? 'personal or organisational: unsure' : 'personal or organisational: unknown');
-// a role list: undefined/absent -> null ("unknown" — the packet never spoke to
-// it); [] -> [] ("nobody can", owner/PACKET.md's own placeholder-free convention);
-// a filled list -> itself.
-const roleList = (v) => (Array.isArray(v) ? v : null);
-
-// buildOwnerBlock(packet) — the run's own copied packet (yardstick/measure.mjs
-// loadRunPacket), reduced to the facts owner/PACKET.md's custody: block carries.
-// null when the run has no packet at all. Every sub-object is present even when
-// the packet is silent on it, so a consumer never has to guess a missing shape.
-export function buildOwnerBlock(packet) {
-  if (!packet) return null;
-  const custody = packet.custody || {};
-  const accounts = Array.isArray(custody.accounts) ? custody.accounts.filter(Boolean) : [];
-  const transferable = { yes: 0, no: 0, unsure: 0, unknown: 0 };
-  for (const a of accounts) transferable[yn3(a.transferable)]++;
-  const credentials = Array.isArray(custody.credentials) ? custody.credentials.filter(Boolean) : [];
-  const lives = [...new Set(credentials.map((c) => c.lives).filter(Boolean))];
-  const readers = [...new Set(credentials.flatMap((c) => (Array.isArray(c.readers) ? c.readers : [])))];
-  const neverRotated = credentials.filter((c) => /^\s*never\b/i.test(String(c.rotated || ''))).length;
-  const rotationUnknown = credentials.filter((c) => !c.rotated || /^\s*unknown\b/i.test(String(c.rotated))).length;
-  const people = custody.people || {};
-  const data = custody.data || {};
-  const money = custody.money || {};
-  return {
-    answered: packet.answered ? { date: packet.answered.date ?? 'unknown', by: packet.answered.by ?? 'unknown', via: packet.answered.via ?? 'unknown' } : null,
-    accounts: {
-      count: accounts.length,
-      personal: accounts.filter((a) => a.organisational === 'no').length,
-      organisational: accounts.filter((a) => a.organisational === 'yes').length,
-      transferable,
-      rows: accounts.map((a) => ({
-        what: a.account ?? 'unknown', provider: a.provider ?? 'unknown', owner_role: a.owner_role ?? 'unknown',
-        personal_or_organisational: orgLabel(a.organisational), transferable: yn3(a.transferable),
-      })),
-    },
-    credentials: {
-      count: credentials.length, lives, never_rotated: neverRotated, rotation_unknown: rotationUnknown, readers,
-      rows: credentials.map((c) => ({ name: c.name ?? 'unknown', lives: c.lives ?? 'unknown', readers: Array.isArray(c.readers) ? c.readers : null, rotated: c.rotated ?? 'unknown' })),
-    },
-    people: { build: roleList(people.build), deploy: roleList(people.deploy), restore: roleList(people.restore), restore_done: yn3(people.restore_done) },
-    data: { personal: data.personal ?? 'unknown', leaves_via: Array.isArray(data.leaves_via) ? data.leaves_via : [] },
-    money: { monthly: Array.isArray(money.monthly) ? money.monthly.map((m) => ({ provider: m.provider ?? 'unknown', amount: m.amount ?? 'unknown' })) : [], alerts: money.alerts ?? 'unknown' },
-    handover: custody.handover ?? 'unknown',
-    notes: packet.notes ?? null,
-  };
-}
+import { buildOwnerBlock, ownerYaml, renderOwnerSection } from './owner.mjs';
 
 // Let the owner's own credential count inform d-credentials-enumerated as a
 // NOTE only, on whichever list (open/met/to_run) the run itself put the row —
@@ -85,68 +36,6 @@ function annotateCredentialsRow(built, owner) {
     if (row) row.note = `${row.note}${suffix}`;
   }
   return built;
-}
-
-const oq = (s) => yq(s == null ? '' : s);
-// a free-text list as a block sequence at `indent`: a flow list's commas split an item on read-back
-const seq = (arr, indent) => ((arr || []).length ? (arr || []).map((s) => `\n${indent}- ${oq(s)}`).join('') : ' []');
-export function ownerYaml(owner) {
-  if (!owner) return 'owner: null\n';
-  const L = ['owner:'];
-  L.push(...(owner.answered ? ['  answered:', `    date: ${oq(owner.answered.date)}`, `    by: ${oq(owner.answered.by)}`, `    via: ${oq(owner.answered.via)}`] : ['  answered: null']));
-  L.push('  accounts:', `    count: ${owner.accounts.count}`, `    personal: ${owner.accounts.personal}`, `    organisational: ${owner.accounts.organisational}`);
-  L.push('    transferable:', `      yes: ${owner.accounts.transferable.yes}`, `      no: ${owner.accounts.transferable.no}`, `      unsure: ${owner.accounts.transferable.unsure}`, `      unknown: ${owner.accounts.transferable.unknown}`);
-  if (owner.accounts.rows.length) {
-    L.push('    rows:');
-    for (const r of owner.accounts.rows) L.push(`      - what: ${oq(r.what)}`, `        provider: ${oq(r.provider)}`, `        owner_role: ${oq(r.owner_role)}`, `        personal_or_organisational: ${oq(r.personal_or_organisational)}`, `        transferable: ${oq(r.transferable)}`);
-  } else L.push('    rows: []');
-  L.push('  credentials:', `    count: ${owner.credentials.count}`, `    lives:${seq(owner.credentials.lives, '      ')}`, `    never_rotated: ${owner.credentials.never_rotated}`, `    rotation_unknown: ${owner.credentials.rotation_unknown}`, `    readers:${seq(owner.credentials.readers, '      ')}`);
-  if (owner.credentials.rows.length) {
-    L.push('    rows:');
-    for (const r of owner.credentials.rows) L.push(`      - name: ${oq(r.name)}`, `        lives: ${oq(r.lives)}`, `        readers:${r.readers === null ? ' null' : seq(r.readers, '          ')}`, `        rotated: ${oq(r.rotated)}`);
-  } else L.push('    rows: []');
-  L.push('  people:');
-  L.push(`    build:${owner.people.build === null ? ' null' : seq(owner.people.build, '      ')}`);
-  L.push(`    deploy:${owner.people.deploy === null ? ' null' : seq(owner.people.deploy, '      ')}`);
-  L.push(`    restore:${owner.people.restore === null ? ' null' : seq(owner.people.restore, '      ')}`);
-  L.push(`    restore_done: ${oq(owner.people.restore_done)}`);
-  L.push('  data:', `    personal: ${oq(owner.data.personal)}`, `    leaves_via:${seq(owner.data.leaves_via, '      ')}`);
-  if (owner.money.monthly.length) {
-    L.push('  money:', '    monthly:');
-    for (const m of owner.money.monthly) L.push(`      - provider: ${oq(m.provider)}`, `        amount: ${oq(m.amount)}`);
-    L.push(`    alerts: ${oq(owner.money.alerts)}`);
-  } else L.push('  money:', '    monthly: []', `    alerts: ${oq(owner.money.alerts)}`);
-  L.push(`  handover: ${oq(owner.handover)}`);
-  L.push(`  notes: ${owner.notes == null ? 'null' : oq(owner.notes)}`);
-  return L.join('\n') + '\n';
-}
-
-export function renderOwnerSection(owner) {
-  const out = ['## What the owner told us', ''];
-  out.push("_What a repository's own packet says about itself — facts only; assay computes no verdict");
-  out.push('here (owner/PACKET.md). Unknowns are shown as unknown, never dropped._', '');
-  if (!owner) {
-    out.push("_No owner's packet yet: the owner prompt (`assay.mjs ask-owner`) collects these._", '');
-    return out;
-  }
-  const roleLine = (v) => (v === null ? 'unknown' : v.length ? v.map(t).join(', ') : 'nobody');
-  const a = owner.accounts;
-  out.push(`- **Accounts** — ${a.count} total: ${a.personal} personal, ${a.organisational} organisational. Transferable: ${a.transferable.yes} yes, ${a.transferable.no} no, ${a.transferable.unsure} unsure, ${a.transferable.unknown} unknown.`);
-  for (const r of a.rows) out.push(`  - ${t(r.what)} (${t(r.provider)}) — owner: ${t(r.owner_role)}, ${r.personal_or_organisational}, transferable: ${r.transferable}.`);
-  const c = owner.credentials;
-  out.push(`- **Credentials** — ${c.count} total. Never rotated: ${c.never_rotated}; rotation unknown: ${c.rotation_unknown}.`);
-  for (const r of c.rows) out.push(`  - ${t(r.name)} — lives: ${t(r.lives)}; readers: ${r.readers === null ? 'unknown' : r.readers.length ? r.readers.map(t).join(', ') : 'nobody'}; rotated: ${t(r.rotated)}.`);
-  const p = owner.people;
-  out.push(`- **People** — build: ${roleLine(p.build)}. deploy: ${roleLine(p.deploy)}. restore: ${roleLine(p.restore)}. Restore ever done: ${p.restore_done}.`);
-  const d = owner.data;
-  out.push(`- **Data** — personal data: ${t(d.personal)}. Leaves via: ${d.leaves_via.length ? d.leaves_via.map(t).join(', ') : 'unknown'}.`);
-  const m = owner.money;
-  out.push(`- **Money** — ${m.monthly.length ? m.monthly.map((x) => `${t(x.provider)}: ${t(x.amount)}`).join('; ') : 'unknown'}. Alerts: ${t(m.alerts)}.`);
-  out.push(`- **Handover** — ${t(owner.handover)}.`);
-  if (owner.notes) out.push(`- **Notes** — ${t(owner.notes)}`);
-  out.push('');
-  if (owner.answered) out.push(`_Answered ${t(owner.answered.date)} by ${t(owner.answered.by)}, via ${t(owner.answered.via)}._`, '');
-  return out;
 }
 
 export function renderMd(runId, built, confidential = false, contradictions = [], owner = null) {

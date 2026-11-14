@@ -140,7 +140,33 @@ beyond_floor:          # every requirement NOT tagged floor — fleet and ai-ope
   met: [...]
 not_looked_at:         # every run-record row that did not run (map/scanners.yaml)
   - { scanner, status, reason }
+contradictions:        # a packet claim of satisfied the run found unmet; [] when none (#339)
+  - { id, title, claim, run_status, findings: [F-…] }
+packet:                # what the run's own packet says about itself, facts only; null with no packet (#339)
+  answered: { date, by, via } | null
+  accounts: { count, personal, organisational, transferable: { yes, no, unsure, unknown },
+              rows: [{ what, provider, owner_role, personal_or_organisational, transferable }] }
+  credentials: { count, lives: […], never_rotated, rotation_unknown, readers: […],
+                 rows: [{ name, lives, readers, rotated }] }
+  people: { build: […] | null, deploy: […] | null, restore: […] | null, restore_done }
+  data: { personal, leaves_via: […] }
+  money: { monthly: [{ provider, amount }], alerts }
+  handover
+  notes
 ```
+
+`contradictions` is the run's own recorded list (`yardstick/measure.mjs`
+`loadContradictions`, never recomputed by a view), joined to each requirement's title:
+a packet's `satisfied` claim the run itself found unmet, the claim and the run's status
+and findings kept side by side, never merged; the row itself stays where the run put it.
+`OWNER.md`'s "Where this run disagrees with what you told us" renders it, `None` when
+empty. `packet` is the run's own copied packet (`owner/manifest.yaml`,
+`owner/PACKET.md`) reduced to facts; assay issues no verdict on any of it. `OWNER.md`'s
+"What the owner told us" renders it, and reads "No owner's packet yet: the owner prompt
+(`assay.mjs ask-owner`) collects these." when it is `null`. A role list
+(`people.build/deploy/restore`) is `null` when the packet never spoke to it (rendered
+"unknown") and `[]` when the owner named nobody (rendered "nobody"); every other unknown
+value renders as the word "unknown", never dropped.
 
 `status` is `unmet | mixed | met | not-measured` — the same statuses
 `yardstick.yaml` carries, never a score or a severity word. `findings` is the

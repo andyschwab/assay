@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../../views/intake.mjs';
+import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../../views/owner.mjs';
 import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
 
 export const label = 'intake-owner';

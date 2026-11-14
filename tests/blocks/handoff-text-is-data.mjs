@@ -9,7 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseYaml } from '../../lib/yaml-min.mjs';
-import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../../views/intake.mjs';
+import { buildOwnerBlock, ownerYaml, renderOwnerSection } from '../../views/owner.mjs';
 import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
 
 export const label = 'handoff-text-is-data';
