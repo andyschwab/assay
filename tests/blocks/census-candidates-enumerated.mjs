@@ -63,6 +63,7 @@ export async function run() {
   if (self) {
     if ((self.modelCalls || []).some((x) => /map\/enumerate\.mjs/.test(x.member))) fail('enumerate lists its own model-call patterns as a model call site');
     if ((self.changeGates || []).some((x) => /enumerate-fixture/.test(x.evidence.join(' ')))) fail('a fixture under tests/ is listed as one of this repository\'s change gates');
-    if (!(self.changeGates || []).some((x) => x.member === 'ci step: ci.yml/test: npm test')) fail('this repository\'s own CI test step is a change gate (ci step: ci.yml/test: npm test)');
+    // re-pinned for #321: CI runs the one gate command, npm run gate, in place of npm test
+    if (!(self.changeGates || []).some((x) => x.member === 'ci step: ci.yml/test: npm run gate')) fail('this repository\'s own CI gate step is a change gate (ci step: ci.yml/test: npm run gate)');
   }
 }
