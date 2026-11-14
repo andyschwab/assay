@@ -16,7 +16,9 @@
 #
 # `when:` maps a fact to a value, or to a list of values any of which matches; every fact named
 # must match, and a fact the run could not read (null) matches nothing. `tags` matches when the
-# row carries any value listed. A rule naming a fact outside
+# row carries any value listed. `unless:` (optional) is read the same way and keeps the rule from
+# firing when every fact it names holds; a null fact holds nothing, so an unknown never keeps a
+# rule from firing (#330). A rule naming a fact outside
 # the closed list, a value outside that fact's vocabulary, or a consequence outside the scale is
 # refused when the policy loads.
 #
@@ -38,6 +40,10 @@
 #   halt_at        true · false   (a confirmed gap at or above the halt_at: its row bears; null
 #                  when the row names none. The one fact that reads a severity: the row names the
 #                  bar, never the tool)
+#   exposure       credential · authority · others-data · integrity · availability · hardening ·
+#                  hygiene   (what a true finding would expose, riskiest first, read off the
+#                  finding's own adapter's closed table, consequence.exposure; null when no entry
+#                  places it. Defined in yardstick/README.md, "Consequence")
 #
 # The scale (closed, ordered, never a number): severe · significant · contained · cosmetic.
 # A tool's or a lane's severity label is not a fact and is read by no rule; halt_at compares a
@@ -81,22 +87,38 @@ rules:
     says: a gap on a custody requirement, who holds the accounts, credentials and knowledge
     when: { tier: custody }
     at_least: significant
+  # #330: a safety row's gap reads significant unless its own adapter places it positively as a
+  # missing second layer (hardening) or as having no security consequence (hygiene); an unknown
+  # exposure (null) keeps it significant, as an unknown reads riskier. No rule here raises on
+  # exposure: what it names says what a true finding would expose, not how easily or how widely,
+  # which the effect and chain facts above already read.
   - name: safety-floor-row
-    says: a gap on a safety requirement of the floor, whose gap can harm data, people, money or recovery
+    says: a gap on a safety requirement of the floor, whose gap can harm data, people, money or recovery, unless its adapter places it as hardening or hygiene
     when: { tier: safety, floor: true }
+    unless: { exposure: [hardening, hygiene] }
     at_least: significant
+  - name: safety-row-hardening
+    says: a gap on a safety requirement that its adapter places as hardening, a second layer missing where no direct path is shown
+    when: { tier: safety, exposure: hardening }
+    at_least: contained
   - name: floor-row
-    says: a gap on a floor requirement
+    says: a gap on a floor requirement, unless it is on a safety requirement and its adapter places it as hygiene
     when: { floor: true }
+    unless: { tier: safety, exposure: hygiene }
     at_least: contained
   - name: external-effect
     says: an effect that leaves the repository's own process and checkout
     when: { external: true }
     at_least: contained
   - name: working-tier-row
-    says: a gap on a safety, reproducibility, verification or operability requirement
+    says: a gap on a safety, reproducibility, verification or operability requirement, unless it is on a safety requirement and its adapter places it as hygiene
     when: { tier: [safety, reproducibility, verification, operability] }
+    unless: { tier: safety, exposure: hygiene }
     at_least: contained
+  - name: safety-row-hygiene
+    says: a gap on a safety requirement that its adapter places as hygiene, with no security consequence
+    when: { tier: safety, exposure: hygiene }
+    at_least: cosmetic
   - name: legibility-row
     says: a gap on a legibility requirement, what a reader can learn from the files
     when: { tier: legibility }
