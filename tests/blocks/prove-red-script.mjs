@@ -101,7 +101,8 @@ export async function run() {
     for (const [what, re] of [['not measured never reads met', /not measured never reads met/], ['an unmapped category halts the projection', /unmapped category halts/],
       ['no confidence value without its rule', /no confidence value without its rule/], ['a known misfire never reads met', /known misfire never reads met/],
       ['the core names no scanner', /core names no scanner/], ['validate refuses a claim without file:line', /without file:line/],
-      ["the sequence key's halt clause", /halt clause/], ['a threshold of 0 is refused', /threshold of 0 is refused/]])
+      ["the sequence key's halt clause", /halt clause/], ['a threshold of 0 is refused', /threshold of 0 is refused/],
+      ['a judgment never lowers consequence (#319)', /judgment never lowers consequence/]])
       if (!ENTRIES.some((e) => re.test(e.rule))) fail(`(g) the list must hold an entry for ${what} (#321)`);
 
     // (h) the landing rule, and the known cost
