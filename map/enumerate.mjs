@@ -31,7 +31,7 @@ import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { secretShape } from '../yardstick/packet.mjs';
 import { ENUMERATE_POPULATIONS } from './enumerate-populations.mjs';
-import { testOrFixture } from './effect-scope.mjs';
+import { testOrFixture, runtimeImported } from './effect-scope.mjs';
 
 const target = process.argv[2];
 if (!target || target.startsWith('--')) {
@@ -71,6 +71,11 @@ const files = walk(target);
 if (!files.length) { console.error(`enumerate: target yields no files: ${target}`); process.exit(2); }
 const rel = (f) => relative(target, f);
 function lines(f) { try { return readFileSync(f, 'utf8').split('\n'); } catch { return []; } }
+// A file is a test's by the tree's own convention (map/effect-scope.mjs testOrFixture), never when a
+// non-test module of the tree imports it (runtimeImported, #333): read once, from the tree's code.
+const IMPORT_READ = /\.(?:[mc]?[jt]sx?|mts|cts|py)$/;
+const RUNTIME_IMPORTED = runtimeImported(files.map((f) => ({ path: rel(f).replace(/\\/g, '/'), text: IMPORT_READ.test(f) ? lines(f).join('\n') : '' })));
+const testInTree = (path) => (RUNTIME_IMPORTED.has(String(path).replace(/\\/g, '/')) ? null : testOrFixture(path));
 
 // ── population detectors ──
 // Each detector returns a Map<key, {evidence:Set<"path:line">, note}>. The key is
@@ -121,7 +126,7 @@ const PER_FILE_MEMBER = new Set(['effectSites']);
 // and is never offered for triage.
 const CANDIDATE_POPS = new Set(['channelCandidates', 'routeHandlers', 'effectSites']);
 function hit(pop, key, path, i, note) {
-  const testReason = CANDIDATE_POPS.has(pop) ? testOrFixture(path) : null;
+  const testReason = CANDIDATE_POPS.has(pop) ? testInTree(path) : null;
   if (testReason) {
     const member = `${key} @ ${path}`;
     const x = pops.excluded;
@@ -514,7 +519,7 @@ for (const f of files) {
   // a test or fixture file is read for code and workflow steps only (its data quotes calls it does
   // not make), and what it lists goes under `excluded` (hit, #315)
   const workflow = isWorkflowFile(r, ls);
-  const effectReadable = !/\.md$/.test(base) && !/(^|\/)runs\//.test(r) && !adapterData(r) && (!testOrFixture(r) || isCode || workflow);
+  const effectReadable = !/\.md$/.test(base) && !/(^|\/)runs\//.test(r) && !adapterData(r) && (!testInTree(r) || isCode || workflow);
   const spawns = effectReadable && isCode && ls.some((l) => NODE_CP.test(l));
   const steps = effectReadable && workflow ? workflowSteps(ls) : null;
   if (!adapterData(r)) routeHandlers(r, ls);

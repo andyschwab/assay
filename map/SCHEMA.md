@@ -1170,10 +1170,15 @@ evidence and note:
 
 A candidate of the three found in a test or fixture file is **out of scope by construction**
 (#315): it is listed under `populations.excluded`, one member per file (`<member> @ <path>`), with
-the `population` it would have joined and the `reason` (a contract test, by its name; a file under
-`__tests__/`, `fixtures/`, `test/` or `tests/`; a `*.test.*`, `*.spec.*`, `test-*`, `test_*` or
-`*_test.*` file; `map/effect-scope.mjs` `testOrFixture`, the first that matches), and is never
-offered for triage. In such a file only code and workflow steps are read: its data quotes calls it
+the `population` it would have joined and the `reason`, and is never offered for triage. A file is
+a test's only where the tree's own convention says so (#333; `map/effect-scope.mjs`
+`testOrFixture`, the first that matches): a contract test, by its name; a file under `__tests__/`,
+`fixtures/`, `test/` or `tests/`; or a name the language's test runner reads: `*.test.*` and
+`*.spec.*` in JS/TS, `*_test.go`, `test_*.py` and `*_test.py`. A `test-` or `test_` name in any
+other language is no runner's convention, and its file is read as any other. And a file a non-test
+module of the tree imports, directly or through files it imports, is never a test's, whatever its
+path (`runtimeImported`: a relative JS/TS import or `require`, a Python `import` or `from … import`;
+the go tool never builds a `_test.go` file into a program). In such a file only code and workflow steps are read: its data quotes calls it
 does not make. A list drawn before the rule (`version: 1`) carries no `excluded`, and reads as it was.
 
 The last two close a target with no agentic channel, such as a web app, where an empty
@@ -1224,9 +1229,13 @@ Each entry at `version: 2` names in `clause` the one that decided it:
 A clause decides only its own kind, on its own side. Where the member carries the signal, the clause
 it gives holds and no entry is triaged against it: a route whose method is POST, PUT, PATCH or
 DELETE is in by `route-method-writes`, and a GET, HEAD or OPTIONS route cannot claim that clause. A
-candidate in a test or fixture file is never mapped in, whether the list excluded it or a list drawn
-before the rule still offers it, and a workflow write is never triaged out; these two hold at every
-version. A stored `version: 1` triage names no clause and reads as it was written.
+workflow write is never triaged out, at every version. Whether a candidate is a test's is the run's
+own enumeration's to say (#333), since the run does not carry the tree its imports were read from: a
+candidate it lists under `excluded` is never mapped in, at every version, and a triage is never
+refused for mapping in a candidate it offers. The one exception is a `version: 2` triage against a
+list drawn before the rule (no `excluded`): a candidate whose cited files are all test or fixture
+files by their paths is never mapped in. A stored `version: 1` triage names no clause and reads as it
+was written.
 
 **The answers** (#315; `map/effect-answers.mjs`). Read whole, `gate_type` asks two things at once:
 what mechanism stands in front of the effect, and whether it holds. At `version: 2` each entry that
