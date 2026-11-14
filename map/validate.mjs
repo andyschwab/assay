@@ -31,6 +31,7 @@ import { legacyIn } from './migrate-run.mjs';
 import { censusCount, memberErrors } from './census.mjs';
 import { identityProblems } from './target-identity.mjs';
 import { CONSEQUENCE, policyRecordProblems, policyOfRun } from './consequence.mjs';
+import { lensRecordProblems, lensOfRun } from '../views/improve/lens.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
 
@@ -312,6 +313,13 @@ for (const file of passFiles) {
           const probs = policyRecordProblems(m.consequence_policy);
           if (probs.length) for (const p of probs) err(`${MANIFEST_FILE}:consequence_policy`, p);
           else { try { policyOfRun(runDir, loadYardstickForPolicy()); } catch (e) { err(`${MANIFEST_FILE}:consequence_policy`, e.message); } }
+        }
+        // the lens the operator named for the fix sequence (#319, slice 3): it loads, names only the
+        // closed quadrants and tie-breaks, and is the file the record's digest names (views/improve/lens.mjs)
+        if (m.lens !== undefined) {
+          const probs = lensRecordProblems(m.lens);
+          if (probs.length) for (const p of probs) err(`${MANIFEST_FILE}:lens`, p);
+          else { try { lensOfRun(runDir); } catch (e) { err(`${MANIFEST_FILE}:lens`, e.message); } }
         }
         const adopted = adoptedAdapters(ADAPTERS);
         for (const id of Object.keys(adopted)) if (!m.scanners[id]) err(`${MANIFEST_FILE}:${id}`, `adopted scanner has no disposition — record ran, skipped (with the reason), or failed (with the error)`);

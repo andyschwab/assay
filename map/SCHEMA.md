@@ -616,7 +616,8 @@ the closed list (`yardstick/README.md`, "Consequence"). A run with none reads th
 `lens: { name, file, sha256 }`: the lens, its file (`views/lenses.yaml` for the built-in, read from
 assay's own tree; an operator's by its absolute path) and the file's digest. Every later compile of
 the run reads that lens; a file whose digest has moved since, or that no longer holds the lens or
-its format, is refused and the handoff halts (`views/README.md`, "The sequence's order"). A run with
+its format, is refused: the handoff halts, and `validate` refuses the record, as it refuses one
+that is malformed (`views/README.md`, "The sequence's order"). A run with
 none reads the built-in default, `risk-first`. A lens orders the sequence; it never changes what the
 map records.
 

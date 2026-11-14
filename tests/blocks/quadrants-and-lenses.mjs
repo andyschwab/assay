@@ -28,7 +28,8 @@
 //       dimensions or quadrant; hygiene-sprint says what it leaves out, by quadrant;
 //   (g) an operator's lens file named with compile --lens-file is recorded in the run record with its
 //       digest, sequence.json names it, a later compile reads it, and once the file changes it is
-//       refused; a lens naming an unknown quadrant or tie-break refuses to load;
+//       refused, by the handoff and by validate, which also refuses a malformed record; a lens naming
+//       an unknown quadrant or tie-break refuses to load;
 //   (h) renaming every scanner, with its adapter, changes no quadrant;
 //   (i) lib/run-data.mjs restates the quadrants and their rules as views/improve/quadrants.mjs states
 //       them, and checkSequence refuses a quadrant that is not its rule's, an unvalued item with one,
@@ -281,6 +282,16 @@ export async function run() {
       writeFileSync(opFile, readFileSync(opFile, 'utf8').replace('tie_break: consequence', 'tie_break: finding-id'));
       const c3 = handoff(run4);
       if (c3.status === 0 || !/changed since the run record named it/.test(c3.stderr)) fail(`a lens file changed since the record named it is refused (exit ${c3.status}: ${c3.stderr.slice(0, 300)})`);
+      // validate holds the record too: a moved digest, or a malformed record, fails it naming lens
+      const validate = () => spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), 'validate', run4], { encoding: 'utf8' });
+      const v1 = validate();
+      if (v1.status === 0 || !/scanners\.yaml:lens[\s\S]*changed since the run record named it/.test(v1.stdout + v1.stderr)) fail(`validate refuses a run record whose lens file changed since it was named (exit ${v1.status}: ${(v1.stdout + v1.stderr).slice(-300)})`);
+      const recPath = join(run4, 'map', 'scanners.yaml');
+      const recText = readFileSync(recPath, 'utf8');
+      writeFileSync(recPath, recText.replace(/^lens:\n(  .*\n)+/m, 'lens:\n  name: "stakes-first"\n  file: "x"\n'));
+      const v2 = validate();
+      if (v2.status === 0 || !/scanners\.yaml:lens[\s\S]*sha256 must be/.test(v2.stdout + v2.stderr)) fail(`validate refuses a malformed lens record (exit ${v2.status}: ${(v2.stdout + v2.stderr).slice(-300)})`);
+      writeFileSync(recPath, recText);
       const c4 = compile(run4, ['--lens', 'risk-first']);
       if (c4.status !== 0 || readDoc(run4).lens?.name !== 'risk-first' || (readFileSync(join(run4, 'map', 'scanners.yaml'), 'utf8').match(/^lens:/gm) || []).length !== 1) fail(`compile --lens names a built-in lens, replacing the record, never adding a second (exit ${c4.status})`);
     }

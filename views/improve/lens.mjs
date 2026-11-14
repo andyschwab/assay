@@ -83,7 +83,7 @@ export function loadLens(file = BUILTIN_LENS_FILE, name = null) {
   return { name: l.name, says: l.says.trim(), quadrants: [...l.quadrants], not_valued: l.not_valued, tie_break: l.tie_break, file, sha256: sha256(text) };
 }
 
-function lensRecordProblems(rec) {
+export function lensRecordProblems(rec) {
   if (!rec || typeof rec !== 'object' || Array.isArray(rec)) return ['must be { name, file, sha256 }'];
   const e = [];
   if (typeof rec.name !== 'string' || !NAME.test(rec.name)) e.push('name must name the lens');
