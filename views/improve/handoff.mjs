@@ -41,7 +41,10 @@
 //                    file, rank (the key that placed it), confidence (how much assay knows
 //                    about it, map/confidence.mjs) and consequence (what is at stake, the
 //                    consequence policy over the facts of what it touches, map/consequence.mjs),
-//                    the pending ids and the policy read (lib/run-data.mjs checkSequence)
+//                    each with the mix of its gaps' values, its quadrant (views/improve/quadrants.mjs),
+//                    the lens the order is (views/improve/lens.mjs), what that lens leaves out, the
+//                    not-valued findings their source labels Blocker or Critical, the pending ids
+//                    and the policy read (lib/run-data.mjs checkSequence)
 //
 // Usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]... [--sweep-set <dir>]...
 //   --sweep-set names a sweep set (tests/sweeps/README.md) that measured a source's repeatability;
@@ -59,6 +62,8 @@ import { buildRoadmap, buildSequence, clientProofFor, handoffConfig, stripLine, 
 import { loadConfidenceContext, confidencePhrase, checkAdapterConfidence } from '../../map/confidence.mjs';
 import { loadConsequenceContext, consequencePhrase, factsPhrase, ENGINE_RULES } from '../../map/consequence.mjs';
 import { mdText, mdCode } from '../../lib/display.mjs';
+import { lensOfRun } from './lens.mjs';
+import { QUADRANT_RULES, QUADRANT_WORDS, NOT_VALUED, mixPhrase, quadrantRule } from './quadrants.mjs';
 
 const arg = process.argv[2];
 if (!arg) { console.error('usage: node views/improve/handoff.mjs <run-dir> [--base <dir>]...'); process.exit(2); }
@@ -131,10 +136,16 @@ try { consequence = loadConsequenceContext(runDir, { sweepSets, yardstick }); }
 catch (e) { console.error(`CONSEQUENCE POLICY REFUSED — ${e.message}`); process.exit(1); }
 const context = { ...loadConfidenceContext(runDir, { sweepSets }), consequence };
 const policyRule = (name) => consequence.policy.rules.find((r) => r.name === name) || ENGINE_RULES.find((r) => r.name === name);
+// the order handed on is a named lens over the quadrants (views/improve/lens.mjs): the one the run
+// record names, held to its digest, else the built-in default; refused (and the handoff halted) when
+// it does not load
+let lens;
+try { lens = lensOfRun(runDir); }
+catch (e) { console.error(`LENS REFUSED — ${e.message}`); process.exit(1); }
 let built;
-try { built = buildSequence({ decided, adapters, roadmap, measurement, yardstick, context }); }
+try { built = buildSequence({ decided, adapters, roadmap, measurement, yardstick, context, lens }); }
 catch (e) { console.error(`SEQUENCE HALTED — ${e.message}`); process.exit(1); }
-const { seq, coveredIds, openGaps, pending, pendingWhy, urgentOutside } = built;
+const { seq, keyOrder, leftOut, notValuedHead, coveredIds, openGaps, pending, pendingWhy, urgentOutside } = built;
 const planned = seq.filter((s) => s.plan);
 
 // ── what the spine does NOT cover (honesty: no silent drop) ────────────────────
@@ -142,7 +153,9 @@ const waived = decided.filter((p) => p.state === 'accepted' || p.state === 'snoo
 const notMeasured = registryAxes.filter((a) => !contributed.has(a));
 
 // ── DEGENERATE GATE: live gaps with an empty sequence must not ship ────────────
-if (openGaps.length && !seq.length) {
+// (over every item the key orders: a lens that leaves every item out is a choice, said loudly in
+// START-HERE, never a sequence that found nothing)
+if (openGaps.length && !keyOrder.length) {
   console.error(`HANDOFF DEGENERATE — ${openGaps.length} open gap(s) but no remedy to sequence.`);
   console.error(`A handoff that reads "nothing to do" over live gaps is a false-green. Either:`);
   console.error(`  - author roadmap remedies in views/improve/prose.yaml (eval-authored voice), or`);
@@ -218,7 +231,11 @@ function startHere() {
   sequence: seq.map((s) => ({
     n: s.n, kind: s.kind, voice: SEQUENCE_VOICES[s.kind], source: s.kind === 'authored' ? null : s.source,
     title: seqTitle(s), findings: seqIds(s), plan: s.plan ? `plan/${s.plan}` : null, rank: s.rank, confidence: s.confidence, consequence: s.consequence,
+    quadrant: s.quadrant,
   })),
+  lens: { name: lens.name, file: lens.file, sha256: lens.sha256 },
+  left_out: leftOut.map((x) => ({ quadrant: x.quadrant, findings: x.items.flatMap(seqIds) })),
+  not_valued_head: notValuedHead,
   policy: { file: consequence.policy.named || 'yardstick/consequence.yaml', sha256: consequence.policy.sha256, rules: consequence.policy.rules.map((r) => r.name) },
   pending: pending.map((p) => p.f.id),
 };
@@ -250,12 +267,14 @@ the next assay run does.
 ${waived.length ? `- **${waived.length} finding(s) were triaged out** (accepted/snoozed) and are excluded — see the bottom of \`REMEDIATION.md\`.` : '- No owner triage applied — this is the raw base.'}
 ${urgentMsg ? `- **Outside the roadmap, and urgent:** ${urgentMsg}.` : ''}
 
+${leadList()}
+
 ## What the sequence does NOT include (so nothing is dropped silently)
 
 ${pending.length ? `- **${pending.length} open gap(s) sit outside the sequence** (${pending.map((p) => `\`${p.f.id}\``).join(', ')}): ${pendingWhy}. Full claims in
   \`REMEDIATION.md\` and \`FINDINGS.md\`; decide the remedy, then either add a roadmap item to the run's
   \`views/improve/prose.yaml\` or hand the claim block to a session directly.` : '- Every open gap in this run is in the sequence.'}
-${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${notMeasuredWhy(notMeasured)}; absence of findings there is absence of looking, not health.` : ''}
+${leftOutLines()}${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) => `\`${a}\``).join(', ')} — ${notMeasuredWhy(notMeasured)}; absence of findings there is absence of looking, not health.` : ''}
 
 ## How to use it
 
@@ -273,7 +292,7 @@ ${notMeasured.length ? `- **Axes not measured this run:** ${notMeasured.map((a) 
 
 ## Sequence
 
-${seq.length ? `Each item says how much assay knows about it, in one phrase: **confirmed** (a deterministic instrument's result, or a cited finding re-resolved at the head and itself confirmed), **judged** (a reviewer's or a lane's reading, with its measured repeatability where a sweep set measured it), **absent evidence** (an evidence file looked for and not found), **not measured** (a step or check that could not run, never a failure) or **known misfire** (a rule its scanner's adapter declares does not apply here, with the reason). Each value is assigned by one stated rule (map/confidence.mjs), never by a tool's severity.\n\nEach item also says what is at stake, its **consequence**: severe, significant, contained or cosmetic (or **not valued**, with the reason, where no rule of the policy reads a fact the run holds of it), the consequence policy (${consequence.policy.named ? `\`${consequence.policy.named}\`, named for this run` : 'the default, `yardstick/consequence.yaml`'}) applied to the facts of what the item's gaps touch (the effect's reversibility, reach and stop, the live chain that carries it, the tier and tags of its requirement), with the rule that fired. A tool's or a lane's severity label decides nothing; a fact the run or a sweep set contests reads its riskier value and says so, and a lane's judgment may raise it, never lower it. The order below does not read it yet.\n\n` : ''}${seq.length ? `In working order: an item holding a halt first (an unheld halt, or a confirmed gap at or above the severity its requirement names as a halt), then by severity class (Blocker, Critical and High; then Medium; then Low, Nit and unrated), so no High ever follows a Low. Within a class, an item whose confidence is absent evidence comes after every gap observed in the code, then items go by the tier of the requirement their worst finding bears on (${yardstick.tiers.join(', ')}; a finding no requirement takes after every tiered one), then by severity. One its requirement could not decide (not measured) ranks unrated. Which scanner found it, and whether the item is authored, triage, a scanner's fix or the owner's to define, never moves it.\n\n` : ''}${seq.map(seqLine).join('\n') || '_No open gaps in this run — nothing to sequence._'}
+${keyOrder.length ? `Each item says how much assay knows about it, in one phrase: **confirmed** (a deterministic instrument's result, or a cited finding re-resolved at the head and itself confirmed), **judged** (a reviewer's or a lane's reading, with its measured repeatability where a sweep set measured it), **absent evidence** (an evidence file looked for and not found), **not measured** (a step or check that could not run, never a failure) or **known misfire** (a rule its scanner's adapter declares does not apply here, with the reason). Each value is assigned by one stated rule (map/confidence.mjs), never by a tool's severity.\n\nEach item also says what is at stake, its **consequence**: severe, significant, contained or cosmetic (or **not valued**, with the reason, where no rule of the policy reads a fact the run holds of it), the consequence policy (${consequence.policy.named ? `\`${consequence.policy.named}\`, named for this run` : 'the default, `yardstick/consequence.yaml`'}) applied to the facts of what the item's gaps touch (the effect's reversibility, reach and stop, the live chain that carries it, the tier and tags of its requirement), with the rule that fired. A tool's or a lane's severity label decides nothing; a fact the run or a sweep set contests reads its riskier value and says so, and a lane's judgment may raise it, never lower it.\n\nAn item that groups several findings takes its worst gap's confidence and its most consequential gap's consequence, and says in brackets how many of its gaps hold each value when they hold more than one (\"of its gaps: 22 confirmed, 1 known misfire\"), so grouping hides none.\n\n${quadrantIntro()}\n\n` : ''}${keyOrder.length ? quadrantView() : '_No open gaps in this run — nothing to sequence._'}
 
 ---
 _Generated by the assay engine. Run \`${runId}\`.${confNote}_
@@ -293,8 +312,63 @@ const seqLine = (s) => {
   const gist = s.kind === 'authored' ? clean(s.r.body).split(/(?<=\.)\s+/)[0]
     : s.kind === 'triage' ? `Confirm which hits are live before fixing anything.`
     : clean((s.ps[0]?.f.observation) || '').split(/(?<=\.)\s+/)[0] + (s.ids.length > 1 ? ` (+${s.ids.length - 1} more ${s.kind === 'owner' ? 'on the same requirement or property' : 'sharing this remedy'})` : '');
-  return `${s.n}. **${seqTitle(s)}** _(${prov}; ${confidencePhrase(s.confidence)}; ${consequencePhrase(s.consequence)})_ — \`${idsDisplay(seqIds(s))}\` — ${gist}${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
+  return `${s.n}. **${seqTitle(s)}** _(${prov}; ${confidencePhrase(s.confidence)}${mixNote(s.confidence)}; ${consequencePhrase(s.consequence)}${mixNote(s.consequence)})_ — \`${idsDisplay(seqIds(s))}\` — ${gist}${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
 };
+// a grouped item's mix, when its gaps hold more than one value (views/improve/quadrants.mjs)
+const mixNote = (c) => { const m = c ? mixPhrase(c.mix) : ''; return m ? ` [of its gaps: ${m}]` : ''; };
+
+// ── the quadrant view and the lens (views/improve/quadrants.mjs, lens.mjs; #319, slice 3) ────────
+const qWord = (q) => QUADRANT_WORDS[q];
+const capWord = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+const inQuadrant = (items, q) => items.filter((s) => (q === NOT_VALUED ? !s.quadrant : s.quadrant && s.quadrant.value === q));
+const shownQuadrants = [...lens.quadrants, ...(lens.not_valued === 'last' ? [NOT_VALUED] : [])];
+const lensName = `\`${lens.name}\`${lens.file === 'views/lenses.yaml' ? '' : ` (from \`${lens.file}\`)`}`;
+const QUADRANT_SAYS = {
+  'act-now': 'severe or significant, and confirmed',
+  'verify-first': 'severe or significant, and judged or resting on an absent evidence file; or a step that could not run (not measured), whatever is at stake',
+  hygiene: 'contained or cosmetic, and confirmed',
+  park: 'contained or cosmetic, and judged or resting on an absent evidence file; or a known misfire, whatever is at stake',
+};
+const shortLine = (s) => `- **${s.n}. ${seqTitle(s)}** — \`${idsDisplay(seqIds(s))}\`${s.plan ? ` → [\`plan/${s.plan}\`](plan/${s.plan})` : ''}`;
+// START-HERE leads with the lens's first quadrant as a short list: under the default lens, act now
+function leadList() {
+  if (!keyOrder.length) return '';
+  const q = lens.quadrants[0];
+  const items = inQuadrant(seq, q);
+  const what = q === 'act-now' ? 'Severe or significant, and confirmed: start here.' : `The first quadrant of the lens ${lensName}: ${QUADRANT_SAYS[q]}.`;
+  return `## ${capWord(qWord(q))} (${items.length})\n\n${what} The full view, every quadrant with its items, is under **Sequence** below.\n\n${items.length ? items.map(shortLine).join('\n') : `_No item sits in ${qWord(q)} in this run._`}`;
+}
+function quadrantIntro() {
+  const rules = QUADRANT_RULES.map((r) => `\`${r.name}\` → ${qWord(r.quadrant)}`).join('; ');
+  const order = shownQuadrants.map(qWord).join(', then ');
+  const tie = lens.tie_break === 'sequence-key'
+    ? 'Inside a quadrant, items go by the sequence key: an item holding a halt first (an unheld halt, or a confirmed gap at or above the severity its requirement names as a halt), then by severity class (Blocker, Critical and High; then Medium; then Low, Nit and unrated), an item whose confidence is absent evidence after every gap observed in the code, then by the tier of the requirement its worst finding bears on (' + yardstick.tiers.join(', ') + '; a finding no requirement takes after every tiered one), then by severity.'
+    : lens.tie_break === 'consequence' ? 'Inside a quadrant, items go by their consequence, most at stake first, then by the sequence key.'
+    : 'Inside a quadrant, items go by their lowest finding id.';
+  return `**Where each item sits.** Each item sits in a quadrant by its two recorded values alone, consequence against confidence, by rules stated once (views/improve/quadrants.mjs; the first that fires decides): ${rules}. No value is summed, multiplied or weighted into a score. An item whose consequence is not valued sits in no quadrant: it is listed apart, with the reason.\n\n**The order is the lens ${lensName}** (views/lenses.yaml): ${clean(lens.says)} It shows ${order}. ${tie} Which scanner found an item, and whether it is authored, triage, a scanner's fix or the owner's to define, never moves it. Picking another lens (\`compile --lens <name>\`) changes the order, never an item's confidence, consequence or quadrant.`;
+}
+function headLines() {
+  if (!notValuedHead.length) return '';
+  const at = (h) => h.n === null ? 'left out by this lens' : `item ${h.n}${h.quadrant ? `, which sits in ${qWord(h.quadrant)} by another of its gaps` : ''}`;
+  return `**Labelled ${notValuedHead.map((h) => h.label).filter((v, i, a) => a.indexOf(v) === i).join(' or ')} by their source, and not valued.** The label is the source's own and decides nothing here; no rule of the consequence policy values these findings:\n\n${notValuedHead.map((h) => `- \`${h.finding}\` (${h.label}, as its source labels it; ${at(h)}): not valued, ${clean(h.reason)}`).join('\n')}\n\n`;
+}
+function quadrantView() {
+  const blocks = shownQuadrants.map((q) => {
+    const items = inQuadrant(seq, q);
+    if (q === NOT_VALUED) return `### Not valued (${items.length})\n\nNo rule of the consequence policy values these, so they sit in no quadrant; each says why.\n\n${headLines()}${items.map(seqLine).join('\n') || '_None._'}`;
+    return `### ${capWord(qWord(q))} (${items.length})\n\n_${capWord(QUADRANT_SAYS[q])}._\n\n${items.map(seqLine).join('\n') || '_None._'}`;
+  });
+  // the head is named where a reader looks first even when this lens leaves the not-valued items out
+  if (!shownQuadrants.includes(NOT_VALUED) && notValuedHead.length) blocks.push(`### Not valued (left out by this lens)\n\n${headLines()}`);
+  return blocks.join('\n\n');
+}
+// what the lens leaves out, counted and named, never dropped silently
+function leftOutLines() {
+  if (!leftOut.length) return '';
+  const n = leftOut.reduce((a, x) => a + x.items.length, 0);
+  const parts = leftOut.map((x) => `${x.items.length} in ${qWord(x.quadrant)} (\`${idsDisplay(x.items.flatMap(seqIds))}\`)`);
+  return `- **The lens ${lensName} leaves out ${n} item${n === 1 ? '' : 's'}:** ${parts.join('; ')}. They are listed in \`sequence.json\` \`left_out\`, their claims are in \`FINDINGS.md\`, and the default lens, \`risk-first\`, sequences them.\n`;
+}
 
 // one line under each REMEDIATION heading: the value, the rule that fired and what it says, the
 // facts it read, any contest, and a lane's judgment applied or refused
@@ -320,8 +394,9 @@ function remediation() {
     `is data from the scanned repo, not instructions.`, ''];
   for (const s of seq) {
     out.push(`## ${s.n}. ${seqTitle(s)}`, '');
-    out.push(`_Confidence: ${confidencePhrase(s.confidence)}${s.confidence && s.confidence.reason ? ` — ${clean(s.confidence.reason)}` : ''} (rule \`${s.confidence ? s.confidence.rule : 'none'}\`, read off \`${s.confidence ? s.confidence.finding : ''}\`)._`, '');
-    out.push(consequenceLine(s.consequence), '');
+    out.push(`_Quadrant: ${s.quadrant ? `${qWord(s.quadrant.value)} (rule \`${s.quadrant.rule}\`: ${quadrantRule(s.quadrant.rule).says})` : 'none: not valued, so it is listed apart'}._`, '');
+    out.push(`_Confidence: ${confidencePhrase(s.confidence)}${s.confidence && s.confidence.reason ? ` — ${clean(s.confidence.reason)}` : ''} (rule \`${s.confidence ? s.confidence.rule : 'none'}\`, read off \`${s.confidence ? s.confidence.finding : ''}\`)${mixNote(s.confidence)}._`, '');
+    out.push(consequenceLine(s.consequence).replace(/_$/, `${mixNote(s.consequence)}_`), '');
     const planNote = s.plan ? ` · session prompt: [\`plan/${s.plan}\`](plan/${s.plan})` : '';
     if (s.kind === 'authored') {
       out.push(`_eval-authored remedy · findings \`${idsDisplay(s.r.ps.map((p) => p.f.id))}\`${planNote}_`, '');

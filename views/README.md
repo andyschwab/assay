@@ -178,11 +178,39 @@ over `views/improve/templates/`). It needs the run's authored
 | `views/improve/maturity.md`, `views/improve/security.md`, `views/improve/security-gate.yaml` | the maturity reading and the exposures and attack paths, written by the built-in method's view passes (`map/METHOD.md`) and checked by `validate` |
 | `views/improve/leverage.md` | where one change moves the most: no pass writes it any more (#326), but a stored run may still hold one, and `validate` still checks that every finding id it cites resolves |
 | `handoff/` | the remediation handoff (`START-HERE.md`, `REMEDIATION.md`, `FINDINGS.md`, `plan/`), one sequence shared with `IMPROVE.md` §6 (`views/improve/sequence.mjs`) of the reviewer's roadmap items, one read-first triage item per scanner that declares one, and every remaining scanner-fix remedy grouped per its adapter's declared `handoff.unit` (`map/scanners/CONTRACT.md` §7), in the order below. Every remedy carries two proofs — what the repository's own tools can check, and what the next assay run checks. |
-| `handoff/sequence.json` | the same sequence as data, for an agent that iterates the work (`assay.handoff-sequence/1`, `lib/run-data.mjs`): `{ schema, run, sequence: [{ n, kind: authored \| triage \| remedy \| owner, voice: eval-authored \| triage \| scanner-verbatim \| owner-defined, source, title, findings: [F-…], plan: plan/NN-*.md \| null, rank: { halt, tier, severity, absent_evidence }, confidence: { value: confirmed \| judged \| absent-evidence \| not-measured \| known-misfire, rule, finding, reason?, declared?, repeatability?: [{ set, sweeps, requirement_agreement, candidate_agreement }] }, consequence: { value: severe \| significant \| contained \| cosmetic \| unvalued, rule \| null, reason?, finding, facts: { reversibility, external, gate_type, fail_mode, telemetry, blast_scope, halt, reach, trigger, tier, tags, floor, halt_at }, effect?, contested?: [{ fact, values, read, where }], judgment?: { value, because, applied, facts_value?, facts_rule?, refused? } } }], pending: [F-…], policy: { file, sha256, rules: [name] } }`; `rank` is the key that placed the item, read off its worst open gap (`tier` null when no requirement takes it; a sequence written before #306 carries none, one written before #316 no `absent_evidence`); `confidence` is how much assay knows about that gap, the value and the rule that assigned it (below, "How much assay knows"; a sequence written before #319 carries none), with `reason` and `declared` (the adapter's pair) on a misfire or a not-measured step, and `repeatability` on a judged item only where a named sweep set measured its source, each figure `{ agree, of, pct }` or `null` when the set could not take it; `consequence` is what is at stake for that item, its most consequential open gap's: the value, the policy rule that fired (or the engine's `lane-judgment`; `null`, with the `reason`, on an `unvalued` one), the finding it was read off, every fact of the closed list it read (`null` where the run could not read one), the effect finding whose facts it read when the gap touches one rather than is one, the facts the run or a sweep set contested (`values` riskier first, `read` the riskier) and a lane's judgment, applied or refused (below, "What is at stake"; a sequence written before slice 2 of #319 carries none); `policy` names the consequence policy the values were read under, its digest and its rule names (`yardstick/consequence.yaml`, or the operator's file the run record names); an `owner` item's `source` names every scanner or lane among its findings; `pending` holds only the fix-less gaps no requirement takes and no property names; `handoff.mjs` checks it before writing, `validate` reads it back |
+| `handoff/sequence.json` | the same sequence as data, for an agent that iterates the work (`assay.handoff-sequence/1`, `lib/run-data.mjs`): `{ schema, run, sequence: [{ n, kind: authored \| triage \| remedy \| owner, voice: eval-authored \| triage \| scanner-verbatim \| owner-defined, source, title, findings: [F-…], plan: plan/NN-*.md \| null, rank: { halt, tier, severity, absent_evidence }, confidence: { value: confirmed \| judged \| absent-evidence \| not-measured \| known-misfire, rule, finding, reason?, declared?, repeatability?: [{ set, sweeps, requirement_agreement, candidate_agreement }] }, consequence: { value: severe \| significant \| contained \| cosmetic \| unvalued, rule \| null, reason?, finding, facts: { reversibility, external, gate_type, fail_mode, telemetry, blast_scope, halt, reach, trigger, tier, tags, floor, halt_at }, effect?, contested?: [{ fact, values, read, where }], judgment?: { value, because, applied, facts_value?, facts_rule?, refused? }, mix }, quadrant: { value: act-now \| verify-first \| hygiene \| park, rule } \| null }], pending: [F-…], policy: { file, sha256, rules: [name] }, lens: { name, file, sha256 }, left_out: [{ quadrant, findings: [F-…] }], not_valued_head: [{ finding, label: Blocker \| Critical, reason, n \| null, quadrant \| null }] }`; the list is in the order of the lens the run reads (below, "The sequence's order"), and `lens` names it, its file and the file's digest; `quadrant` is where the item sits, consequence against confidence, by the rule that placed it, `null` when its consequence is unvalued (below, "Where an item sits"); `confidence.mix` and `consequence.mix` count the item's open gaps (else its cited findings) per value, in the scale's order, so a grouped item hides no value its findings carry; `left_out` lists, per quadrant (or `not-valued`), the findings of the items the lens does not show, never dropped silently; `not_valued_head` names every open gap no rule values whose source labels it Blocker or Critical, with the reason, the place of its item (`null` when the lens leaves it out) and that item's quadrant (`null` when the item itself is not valued); a sequence written before slice 3 of #319 carries none of these; `rank` is the key that placed the item, read off its worst open gap (`tier` null when no requirement takes it; a sequence written before #306 carries none, one written before #316 no `absent_evidence`); `confidence` is how much assay knows about that gap, the value and the rule that assigned it (below, "How much assay knows"; a sequence written before #319 carries none), with `reason` and `declared` (the adapter's pair) on a misfire or a not-measured step, and `repeatability` on a judged item only where a named sweep set measured its source, each figure `{ agree, of, pct }` or `null` when the set could not take it; `consequence` is what is at stake for that item, its most consequential open gap's: the value, the policy rule that fired (or the engine's `lane-judgment`; `null`, with the `reason`, on an `unvalued` one), the finding it was read off, every fact of the closed list it read (`null` where the run could not read one), the effect finding whose facts it read when the gap touches one rather than is one, the facts the run or a sweep set contested (`values` riskier first, `read` the riskier) and a lane's judgment, applied or refused (below, "What is at stake"; a sequence written before slice 2 of #319 carries none); `policy` names the consequence policy the values were read under, its digest and its rule names (`yardstick/consequence.yaml`, or the operator's file the run record names); an `owner` item's `source` names every scanner or lane among its findings; `pending` holds only the fix-less gaps no requirement takes and no property names; `handoff.mjs` checks it before writing, `validate` reads it back |
 
-**The sequence's order** (#306, #316) is one key, read off what each item's findings are;
-which scanner found a finding, and whether the item is authored, triage, a scanner's fix or
-the owner's to define, never moves it. It is expressed once, as the tuple `KEY` in
+**The sequence's order** (#306, #316, #319) is a **lens**: a named ordering over what each item
+records, held as data in `views/lenses.yaml` (or an operator's own file in its format), never a
+score. Each item first sits in a **quadrant** by its consequence and its confidence alone (below,
+"Where an item sits"), or in none when its consequence is unvalued. A lens then lists the quadrants
+it shows, in its order; says whether the items no quadrant takes come **last** or are **left out**
+(counted and named, never silently: `left_out` in `sequence.json`, a line in START-HERE); and names
+its **tie-break** inside a quadrant from a closed list (`views/improve/lens.mjs` `TIE_BREAKS`):
+`sequence-key` (the key below), `consequence` (most at stake first, then the key) or `finding-id`.
+The built-in lenses:
+
+| Lens | Shows, in order | Not valued | Tie-break |
+| --- | --- | --- | --- |
+| `risk-first` (the default) | act now, verify first, hygiene, park | last | `sequence-key` |
+| `verification-plan` | verify first, act now | left out | `sequence-key` |
+| `hygiene-sprint` | hygiene | left out | `sequence-key` |
+
+`compile --lens <name>` picks one of the built-in file's lenses and `--lens-file <file>` reads an
+operator's file (its `default:` unless `--lens` names another); either is checked, refused when a
+lens names a quadrant or a tie-break outside the closed lists, and recorded in the run record as
+`lens: { name, file, sha256 }` (`map/SCHEMA.md` §5a), so every later compile of the run reads it and
+a file whose digest has moved is refused. A run that names none reads `risk-first`. Changing the
+lens changes the order, never an item's confidence, consequence or quadrant. START-HERE leads with
+the lens's first quadrant as a short list (act now, under `risk-first`), then shows each quadrant
+the lens shows with its count and items, then the not-valued list, which opens with any not-valued
+finding its source labels Blocker or Critical, named with the reason; the label is the source's
+and decides nothing. `IMPROVE.md` §6 names the same numbers and the count per quadrant. Locality
+(#319's optional dimension) is not recorded, so no lens reads it.
+
+**The sequence key** is `risk-first`'s tie-break inside a quadrant, read off what each item's
+findings are; which scanner found a finding, and whether the item is authored, triage, a scanner's
+fix or the owner's to define, never moves it. It is expressed once, as the tuple `KEY` in
 `views/improve/sequence.mjs`. Each open gap the item holds is keyed by, in this order:
 
 1. **Halt** comes first: an unheld halt (`map/doctrine.mjs` `isHalt` over its effect facet), or
@@ -207,10 +235,35 @@ the owner's to define, never moves it. It is expressed once, as the tuple `KEY` 
 5. **Severity** within the class: Blocker before Critical before High, Low before Nit before
    unrated.
 
-An item is placed by its worst gap, so a group bundled by `handoff.unit` sits where its worst
+An item is keyed by its worst gap, so a group bundled by `handoff.unit` sits where its worst
 member would; an item holding no open gap comes last. Ties go to the item whose lowest finding
 id comes first. No item is held first for any other reason: a reviewer's roadmap item is placed
-by the findings it cites like any other, and a triage item by the hits it holds.
+by the findings it cites like any other, and a triage item by the hits it holds. The key's
+clauses keep their meaning inside a quadrant: a halt, an absent evidence file and an owner item
+are placed there exactly as the key places them.
+
+**Where an item sits** (#319, slice 3). Each item sits in one quadrant, consequence against
+confidence, by the first of these rules, stated once in `views/improve/quadrants.mjs`
+(`QUADRANT_RULES`), that takes its two recorded values. A rule lists the values it takes; nothing
+sums, multiplies or weights the two scales into a number, and nothing else of the item (its
+severity label, its scanner, its kind) is read.
+
+| Rule | Quadrant | Confidence | Consequence |
+| --- | --- | --- | --- |
+| `known-misfire-parks` | park | known misfire | any value of the scale: the rule does not apply here, and the finding stays visible |
+| `not-measured-verifies-first` | verify first | not measured | any value of the scale: nothing was measured, so the next act is to measure |
+| `high-stake-confirmed` | act now | confirmed | severe, significant |
+| `high-stake-unconfirmed` | verify first | judged, absent evidence | severe, significant |
+| `low-stake-confirmed` | hygiene | confirmed | contained, cosmetic |
+| `low-stake-unconfirmed` | park | judged, absent evidence | contained, cosmetic |
+
+An item whose consequence is **unvalued** sits in no quadrant, whatever its confidence: a
+quadrant would put a stake on it that no fact gave. It is listed apart as **not valued**, with the
+reason its consequence carries. An item takes its worst gap's confidence and its most
+consequential gap's consequence, and its quadrant from those; `confidence.mix` and
+`consequence.mix` count how many of its gaps hold each value, and START-HERE and REMEDIATION render
+the mix when it holds more than one (`of its gaps: 22 confirmed, 1 known misfire`), so grouping
+hides no value. A pair of values no rule takes halts the handoff; it never reads a default.
 
 **How much assay knows** (#319). Every item records its **confidence**, how much assay knows
 about its worst gap, on a closed scale. Each value is assigned by one named rule, stated once in
@@ -239,7 +292,7 @@ repeatability, requirement agreement and per-candidate descriptor agreement (`ma
 under `tests/sweeps/` or the operator's own) whose every sweep ran that source; with none named,
 no figure, and a figure the set could not take is `null`, never a number. START-HERE renders each
 item's confidence in one phrase, REMEDIATION with its rule and reason. The key does not reorder by
-confidence beyond clause 3: the quadrant view and the lenses are #319's next slices.
+confidence beyond clause 3; the quadrant the item sits in reads it (above, "Where an item sits").
 
 **What is at stake** (#319, slice 2). Every item also records its **consequence**: the
 consequence policy applied to the facts of what its gaps touch, on a closed scale (severe,
@@ -260,8 +313,8 @@ An item takes its most consequential open gap's value, the first in the key's or
 it reads unvalued only when every open gap it holds does.
 START-HERE renders it in one phrase beside the confidence (`consequence <value> (<rule>)`, the
 contested facts named, or `consequence not valued: <reason>`), REMEDIATION with the rule, what it says, the facts read, any contest and
-any judgment. The key does not read it: the order is the one above, and the quadrant view and the
-lenses that would read consequence and confidence together are #319's next slice. Nothing sums,
+any judgment. The key does not read it; the quadrant the item sits in reads it beside its
+confidence (above, "Where an item sits"), and the lens orders the quadrants. Nothing sums,
 multiplies or otherwise combines the two.
 
 **What is sequenced** (#316). Every open gap the roadmap does not cover is in the sequence or

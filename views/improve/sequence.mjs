@@ -31,7 +31,13 @@
 // Every item also records its CONSEQUENCE (#319, slice 2): the policy (yardstick/consequence.yaml, or
 // the operator's file the run record names) applied to the facts of what its gaps touch, by
 // map/consequence.mjs; the item takes its most consequential gap's, the first in the key's order
-// among equals. Consequence does not reorder the key: the quadrant view and the lenses are slice 3.
+// among equals. Each also carries the MIX of its gaps' values (confidence.mix, consequence.mix), so a
+// grouped item hides no value its findings carry.
+// THE QUADRANT AND THE LENS (#319, slice 3): each item then sits in a quadrant by its two recorded
+// values alone (views/improve/quadrants.mjs), or none when its consequence is unvalued, and the
+// order handed on is a named LENS over the quadrants (views/improve/lens.mjs, views/lenses.yaml).
+// Under the default lens, risk-first, KEY is the tie-break inside a quadrant: the key orders the
+// items, and the lens then groups them by quadrant, keeping the key's order within each.
 //
 // A scanner item every one of whose findings a roadmap item cites is ABSORBED into that roadmap
 // card (never sequenced twice). An open gap with no fix and no roadmap coverage is an OWNER item:
@@ -42,7 +48,9 @@ import { sevRank, buildFixSpine, isHalt } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
 import { propertyOf } from '../../map/placement.mjs';
 import { confidenceOf, strongest } from '../../map/confidence.mjs';
-import { consequenceIndex, consequenceOf, highest } from '../../map/consequence.mjs';
+import { consequenceIndex, consequenceOf, highest, UNVALUED } from '../../map/consequence.mjs';
+import { quadrantOf, mixOf, CONFIDENCE_MIX_ORDER, CONSEQUENCE_MIX_ORDER } from './quadrants.mjs';
+import { applyLens, loadLens } from './lens.mjs';
 
 const nn = (i) => String(i + 1).padStart(2, '0');
 export const SLUG_RE = /^[a-z0-9-]+$/;
@@ -181,7 +189,7 @@ function rankItems(items, { tierOf, tiers, confOf, consOf }) {
       const c = { ...confOf(p), finding: p.f.id };
       const g = gapFacts(p, tierOf.get(String(p.f.id)), c);
       const k = KEY(g, tiers.length);
-      gaps.push({ k, p });
+      gaps.push({ k, p, c });
       const cmp = worst ? lex(k, worst.k) : -1;
       if (cmp < 0) worst = { k, g, cs: [c] };
       else if (cmp === 0) worst.cs.push(c);
@@ -191,10 +199,18 @@ function rankItems(items, { tierOf, tiers, confOf, consOf }) {
       ? { halt: worst.g.halt, tier: worst.g.tier === null ? null : tiers[worst.g.tier], severity: worst.g.severity, absent_evidence: worst.g.absent }
       : { halt: false, tier: null, severity: 'unrated', absent_evidence: false };
     // an item citing no open gap has no gap to know about: its strongest cited finding's value
-    it.confidence = worst ? strongest(worst.cs) : (it.ps.length ? strongest(it.ps.map((p) => ({ ...confOf(p), finding: p.f.id }))) : null);
+    const confs = gaps.length ? gaps.map((x) => x.c) : it.ps.map((p) => ({ ...confOf(p), finding: p.f.id }));
+    it.confidence = worst ? { ...strongest(worst.cs) } : (confs.length ? { ...strongest(confs) } : null);
     // what is at stake: the most consequential open gap, else (no open gap) its cited findings'
     const cited = gaps.length ? gaps.sort((a, b) => lex(a.k, b.k) || byId(a.p.f.id, b.p.f.id)).map((x) => x.p) : [...it.ps].sort((a, b) => byId(a.f.id, b.f.id));
-    it.consequence = cited.length ? highest(cited.map(consOf)) : null;
+    const cons = cited.map(consOf);
+    it.consequence = cited.length ? { ...highest(cons) } : null;
+    // nothing hidden by grouping (#319, slice 3): how many of its gaps (else cited findings) hold
+    // each value, beside the one value the item takes. A count per value, never a weight.
+    if (it.confidence) it.confidence.mix = mixOf(confs.map((c) => c.value), CONFIDENCE_MIX_ORDER);
+    if (it.consequence) it.consequence.mix = mixOf(cons.map((c) => c.value), CONSEQUENCE_MIX_ORDER);
+    // each gap's own consequence and its source's label, for the not-valued list's head
+    it.gapDims = cited.map((p, i) => ({ id: p.f.id, label: p.f.severity ?? null, consequence: cons[i] }));
     return { it, key: worst ? worst.k : NO_GAP, first };
   });
   keyed.sort((a, b) => lex(a.key, b.key) || byId(a.first, b.first));
@@ -209,8 +225,10 @@ function rankItems(items, { tierOf, tiers, confOf, consOf }) {
 // signals, the sweep sets named for the run); without it the rules read the findings alone. Its
 // `consequence` is map/consequence.mjs loadConsequenceContext's (the policy the run record names,
 // its channel keys, the named sweep sets' contests); without it, the default policy over the run.
-/** @param {{ decided: any[], adapters: any, roadmap: any[], measurement: any, yardstick: any, context?: any }} args */
-export function buildSequence({ decided, adapters, roadmap, measurement, yardstick, context = {} }) {
+// `lens` is the lens the order is read through (views/improve/lens.mjs: the run record's, else the
+// built-in default, risk-first); without one, the built-in default.
+/** @param {{ decided: any[], adapters: any, roadmap: any[], measurement: any, yardstick: any, context?: any, lens?: any }} args */
+export function buildSequence({ decided, adapters, roadmap, measurement, yardstick, context = {}, lens = null }) {
   const coveredIds = new Set(roadmap.flatMap((r) => r.ps.map((p) => p.f.id)));
   const openGaps = decided.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
   const standalone = openGaps.filter((p) => p.f.fix && !coveredIds.has(p.f.id));
@@ -274,14 +292,21 @@ export function buildSequence({ decided, adapters, roadmap, measurement, yardsti
     sev: worstSeverity(g.ps), axis: g.ps[0]?.axis, slug: g.requirement || g.property,
   }));
 
-  const seq = rankItems([
+  const keyOrder = rankItems([
     ...roadmap.map((r) => ({ kind: 'authored', r, ps: r.ps })),
     ...triageItems,
     ...remedies,
     ...ownerItems,
   ], { tierOf, tiers: yardstick.tiers, confOf: (p) => confidenceOf(p, adapters, context),
     consOf: ((idx) => (p) => consequenceOf(p, idx))(consequenceIndex({ decided, measurement, yardstick, context: context.consequence })) });
+  // where each item sits (views/improve/quadrants.mjs): by its two recorded values alone, or none
+  // when its consequence is unvalued; then the order is the lens's (views/improve/lens.mjs), the
+  // key's order above its tie-break inside a quadrant under risk-first
+  for (const s of keyOrder) s.quadrant = quadrantOf(s.confidence, s.consequence);
+  const theLens = lens || loadLens();
+  const { ordered: seq, leftOut } = applyLens(keyOrder, theLens);
   seq.forEach((s, i) => { s.n = i + 1; });
+  for (const x of leftOut) for (const s of x.items) s.n = null;
 
   // plan files: every roadmap item, every triage item, every remedy whose worst severity is High
   // or above (applied to the group), and every owner item that leads (a halt), is High or above,
@@ -306,7 +331,24 @@ export function buildSequence({ decided, adapters, roadmap, measurement, yardsti
     if (criticalIds.length) urgentOutside.push({ n: s.n, kind: 'critical', ids: criticalIds });
   }
 
-  return { seq, coveredIds, openGaps, pending, pendingWhy, urgentOutside, roadmapCount: roadmap.length };
+  return { seq, keyOrder, lens: theLens, leftOut, notValuedHead: notValuedHead(keyOrder), coveredIds, openGaps, pending, pendingWhy, urgentOutside, roadmapCount: roadmap.length };
+}
+
+// The labels that put a not-valued finding at the head of the not-valued list (#319, slice 3): a
+// gap its source labels Blocker or Critical that no rule of the consequence policy values is named
+// where a reader looks first, never counted silently. The label is the source's, shown as its own,
+// and it decides nothing else: no quadrant, no consequence, no value.
+export const HEAD_LABELS = ['Blocker', 'Critical'];
+// Every open gap (else cited finding) of every item whose own consequence is unvalued and whose
+// source labels it Blocker or Critical: { finding, label, reason, n, quadrant }, `n` the item's place
+// (null when the lens leaves it out) and `quadrant` the item's (null when the item is not valued:
+// a finding can be unvalued inside an item another gap values). Blocker first, then by finding id.
+function notValuedHead(items) {
+  const out = [];
+  for (const s of items) for (const g of s.gapDims || [])
+    if (g.consequence && g.consequence.value === UNVALUED && HEAD_LABELS.includes(g.label))
+      out.push({ finding: g.id, label: g.label, reason: g.consequence.reason, n: s.n ?? null, quadrant: s.quadrant ? s.quadrant.value : null });
+  return out.sort((a, b) => HEAD_LABELS.indexOf(a.label) - HEAD_LABELS.indexOf(b.label) || byId(a.finding, b.finding));
 }
 
 // One stderr-ready sentence for the urgentOutside register (handoff.mjs prints

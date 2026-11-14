@@ -29,6 +29,8 @@ import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYard
 import { buildTopicsForRun } from './topics.mjs';
 import { buildCandidates, candidatesMd } from './candidates.mjs';
 import { buildRoadmap, buildSequence, urgentNote } from './sequence.mjs';
+import { lensOfRun } from './lens.mjs';
+import { QUADRANT_WORDS, NOT_VALUED } from './quadrants.mjs';
 import { loadConfidenceContext } from '../../map/confidence.mjs';
 import { loadConsequenceContext } from '../../map/consequence.mjs';
 
@@ -386,13 +388,14 @@ function sharedSequence() {
   // the same confidence context the handoff reads (map/confidence.mjs), so the two orders agree
   // and the same consequence policy (map/consequence.mjs): the one the run record names, else the default
   const context = { ...loadConfidenceContext(runDir), consequence: loadConsequenceContext(runDir, { yardstick }) };
-  return (SHARED = { rm, ...buildSequence({ decided, adapters, roadmap: rm, measurement, yardstick, context }) });
+  // and the same lens (views/improve/lens.mjs): the one the run record names, else the default
+  return (SHARED = { rm, ...buildSequence({ decided, adapters, roadmap: rm, measurement, yardstick, context, lens: lensOfRun(runDir) }) });
 }
 const itemList = (ns) => ns.length === 1 ? `item ${ns[0]}` : `items ${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}`;
 function sequenceFollowup() {
   const sq = sharedSequence();
   if (!sq) return '_Roadmap/base drift — see the handoff package (`handoff/START-HERE.md`) for detail._';
-  const { seq, urgentOutside, rm } = sq;
+  const { seq, urgentOutside, rm, lens, leftOut, notValuedHead } = sq;
   const R = rm.length;
   const after = seq.filter((s) => s.kind !== 'authored');
   if (!after.length) return R
@@ -402,9 +405,15 @@ function sequenceFollowup() {
   const owner = after.filter((s) => s.kind === 'owner');
   const remedies = after.filter((s) => s.kind !== 'triage' && s.kind !== 'owner');
   const parts = [];
-  parts.push(R
-    ? 'The handoff sequences these items beside the roadmap, each placed by what its worst finding is (a halt, then its severity class, an absent evidence file after observed gaps, then its requirement\'s tier, then its severity), not by which scanner found it.'
-    : 'With no authored roadmap, the handoff\'s sequence is the items below, each placed by what its worst finding is (a halt, then its severity class, an absent evidence file after observed gaps, then its requirement\'s tier, then its severity), not by which scanner found it.');
+  // the order is the lens's (views/improve/lens.mjs), the same one the handoff reads: each item sits
+  // in a quadrant by its consequence and its confidence, and the lens orders the quadrants
+  const shown = [...lens.quadrants, ...(lens.not_valued === 'last' ? [NOT_VALUED] : [])];
+  const inQ = (q) => seq.filter((s) => (q === NOT_VALUED ? !s.quadrant : s.quadrant && s.quadrant.value === q));
+  const counts = shown.map((q) => { const xs = inQ(q); return `${QUADRANT_WORDS[q]} ${xs.length}${xs.length ? ` (${itemList(xs.map((s) => s.n))})` : ''}`; }).join('; ');
+  parts.push(`${R ? 'The handoff sequences these items beside the roadmap' : 'With no authored roadmap, the handoff\'s sequence is the items below'}, in the order of the lens \`${lens.name}\`: each item sits in a quadrant by what is at stake and how much assay knows (act now, verify first, hygiene, park, or not valued where no rule values it), and inside a quadrant by what its worst finding is (a halt, then its severity class, an absent evidence file after observed gaps, then its requirement's tier, then its severity), never by which scanner found it. By quadrant: ${counts}.`);
+  const outN = leftOut.reduce((a, x) => a + x.items.length, 0);
+  if (outN) parts.push(`The lens leaves out ${outN} item${outN === 1 ? '' : 's'} (${leftOut.map((x) => `${x.items.length} in ${QUADRANT_WORDS[x.quadrant]}`).join(', ')}); the handoff counts and names them.`);
+  if (notValuedHead.length) parts.push(`Not valued, though their source labels them ${[...new Set(notValuedHead.map((h) => h.label))].join(' or ')}: ${notValuedHead.map((h) => h.finding).join(', ')}; the label is the source's and decides nothing.`);
   if (triage.length) parts.push(`Triage: ${triage.map((t) => `the ${t.source} triage (item ${t.n}, ${t.ids.length} hit${t.ids.length === 1 ? '' : 's'})`).join('; ')}.`);
   if (remedies.length) {
     const bySrcUnit = new Map();

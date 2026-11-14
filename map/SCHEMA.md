@@ -610,6 +610,17 @@ that is malformed, names a file that does not load, or names one whose rules rea
 the closed list (`yardstick/README.md`, "Consequence"). A run with none reads the default,
 `yardstick/consequence.yaml`.
 
+**The lens (#319, slice 3).** A run whose operator named a lens for its fix sequence
+(`node assay.mjs compile <run> --lens <name>`, a lens of the built-in `views/lenses.yaml`, or
+`--lens-file <file>`, their own file in its format) records it here, above `scanners:`, as
+`lens: { name, file, sha256 }`: the lens, its file (`views/lenses.yaml` for the built-in, read from
+assay's own tree; an operator's by its absolute path) and the file's digest. Every later compile of
+the run reads that lens; a file whose digest has moved since, or that no longer holds the lens or
+its format, is refused: the handoff halts, and `validate` refuses the record, as it refuses one
+that is malformed (`views/README.md`, "The sequence's order"). A run with
+none reads the built-in default, `risk-first`. A lens orders the sequence; it never changes what the
+map records.
+
 A row may carry `model:`, the model id a judgment scanner ran on (practice-review,
 a peer reviewer, a census authored by a model), and `spend:`, what its inference spent,
 with the unit (`"41k tokens"`, `"$1.20"`) or as a whole number. Any row, an instrument's

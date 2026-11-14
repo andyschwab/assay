@@ -33,7 +33,8 @@ import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterF
 import { loadDecisions, decideProjected } from '../map/decisions.mjs';
 import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYardstick } from '../yardstick/measure.mjs';
 import { loadPolicy } from '../map/consequence.mjs';
-import { setConsequencePolicy, updateRunRecord } from '../map/record.mjs';
+import { setConsequencePolicy, setLens, updateRunRecord } from '../map/record.mjs';
+import { loadLens, BUILTIN_LENS_FILE } from './improve/lens.mjs';
 import { buildRows } from './floor-fleet.mjs';
 import { buildOwner } from './owner.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -57,9 +58,17 @@ const sweepArgs = sweepIdx.flatMap((i) => ['--sweep-set', argv[i + 1]]);
 // record with its digest, so every later compile of the run reads the same policy
 const policyIdx = argv.indexOf('--consequence-policy');
 const policyFile = policyIdx > -1 ? argv[policyIdx + 1] : null;
-const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1, targetIdx > -1 ? targetIdx + 1 : -1, policyIdx > -1 ? policyIdx + 1 : -1, ...sweepIdx.map((i) => i + 1)].filter((i) => i > -1));
+// --lens <name> and --lens-file <file>: the lens the sequence's order is read through (#319, slice 3;
+// views/lenses.yaml is the built-in file and the format): checked, then recorded in the run record
+// with the file's digest, so every later compile of the run reads the same lens. --lens alone names
+// a lens of the built-in file; --lens-file alone reads that file's default lens.
+const lensIdx = argv.indexOf('--lens');
+const lensName = lensIdx > -1 ? argv[lensIdx + 1] : null;
+const lensFileIdx = argv.indexOf('--lens-file');
+const lensFile = lensFileIdx > -1 ? argv[lensFileIdx + 1] : null;
+const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1, targetIdx > -1 ? targetIdx + 1 : -1, policyIdx > -1 ? policyIdx + 1 : -1, lensIdx > -1 ? lensIdx + 1 : -1, lensFileIdx > -1 ? lensFileIdx + 1 : -1, ...sweepIdx.map((i) => i + 1)].filter((i) => i > -1));
 const arg = argv.find((a, i) => !a.startsWith('--') && !reserved.has(i));
-if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>] [--sweep-set <dir>]... [--consequence-policy <file>]'); process.exit(2); }
+if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>] [--sweep-set <dir>]... [--consequence-policy <file>] [--lens <name>] [--lens-file <file>]'); process.exit(2); }
 const runDir = arg;
 const runId = basename(runDir);
 
@@ -87,6 +96,16 @@ if (policyIdx > -1) {
     updateRunRecord(scannersPath(runDir), (text) => setConsequencePolicy(text, { file: resolve(policyFile), sha256: p.sha256 }));
     console.log(`· consequence policy ${policyFile} recorded in the run record (sha256 ${p.sha256.slice(0, 12)}…)`);
   } catch (e) { console.error(`✗ consequence policy refused: ${e.message}`); process.exit(1); }
+}
+if (lensIdx > -1 || lensFileIdx > -1) {
+  if (lensIdx > -1 && (!lensName || lensName.startsWith('--'))) { console.error('✗ --lens needs the lens name'); process.exit(2); }
+  if (lensFileIdx > -1 && (!lensFile || lensFile.startsWith('--'))) { console.error('✗ --lens-file needs the lens file'); process.exit(2); }
+  try {
+    const file = lensFile ? resolve(lensFile) : BUILTIN_LENS_FILE;
+    const l = loadLens(file, lensName);
+    updateRunRecord(scannersPath(runDir), (text) => setLens(text, { name: l.name, file, sha256: l.sha256 }));
+    console.log(`· lens ${l.name} (${lensFile || BUILTIN_LENS_FILE}) recorded in the run record (sha256 ${l.sha256.slice(0, 12)}…)`);
+  } catch (e) { console.error(`✗ lens refused: ${e.message}`); process.exit(1); }
 }
 console.log('· validate …');                  run('../map/validate.mjs', targetArgs);
 // the measurement: every package carries yardstick.yaml (yardstick/README.md); the
