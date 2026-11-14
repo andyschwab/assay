@@ -2,4 +2,5 @@
 // one list of their names. enumerate.mjs prints and writes them in this order, the effect triage
 // takes three of them (map/effect-triage.mjs CANDIDATE_POPULATIONS), and a census row may name
 // others as its candidates (yardstick/requirements.yaml decide.candidates, map/census-triage.mjs).
-export const ENUMERATE_POPULATIONS = ['channelCandidates', 'routeHandlers', 'secrets', 'secretConstants', 'changeGates', 'modelCalls', 'socketMounts', 'containerClasses', 'effectSites', 'egressControls', 'contracts', 'reportPaths'];
+// `excluded` lists the three's candidates found in a test or fixture file (#315): no triage's, no census's.
+export const ENUMERATE_POPULATIONS = ['channelCandidates', 'routeHandlers', 'secrets', 'secretConstants', 'changeGates', 'modelCalls', 'socketMounts', 'containerClasses', 'effectSites', 'egressControls', 'contracts', 'reportPaths', 'excluded'];

@@ -17,6 +17,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { enumeratePath, effectTriagePath } from '../lib/run-layout.mjs';
 import { entryErrors, closure } from './triage.mjs';
+import { testOrFixture, constructionError, clauseError } from './effect-scope.mjs';
 
 const TRIAGE_SCHEMA = 'effect-triage';
 const ENUMERATE_FILE = 'map/raw/enumerate.json';
@@ -27,12 +28,22 @@ const TRIAGE_FILE = 'map/effect-triage.yaml';
 // One entry per member.
 export const CANDIDATE_POPULATIONS = ['channelCandidates', 'routeHandlers', 'effectSites'];
 
-// the run's two files, read as they are: { candidates, triage, errors }. candidates is null when
-// the run carries no list; triage is null when it carries no triage file. A file present but
-// unreadable is an error, and reads as absent to the measurement (never as an empty list).
+// The triage's versions (#315): version 1 is each entry's candidate and finding or out_of_scope;
+// version 2 adds, on every entry, the scope clause that decided it (map/effect-scope.mjs). A stored
+// version 1 triage reads as it was written.
+const TRIAGE_VERSIONS = [1, 2];
+const CURRENT_TRIAGE_VERSION = 2;
+
+// the run's two files, read as they are: { candidates, triage, errors, excluded, files, version }.
+// candidates is null when the run carries no list; triage is null when it carries no triage file.
+// excluded: member → reason, the list's candidates out of scope by construction (populations.excluded,
+// absent from a list drawn before #315); files: member → the files its evidence cites; version: the
+// triage's. A file present but unreadable is an error, and reads as absent to the measurement (never
+// as an empty list).
 export function loadChannelFiles(run) {
   const errors = [];
-  let candidates = null, triage = null;
+  let candidates = null, triage = null, version = null;
+  const excluded = new Map(), files = new Map();
   const ep = enumeratePath(run);
   if (existsSync(ep)) {
     try {
@@ -40,7 +51,11 @@ export function loadChannelFiles(run) {
       const pops = doc && doc.schema === 'enumerate' && doc.populations;
       const lists = CANDIDATE_POPULATIONS.map((p) => pops && pops[p]);
       if (!lists.every((list) => Array.isArray(list) && list.every((c) => c && typeof c.member === 'string' && c.member))) errors.push(`${ENUMERATE_FILE}: not an enumerate --json record (schema: enumerate, populations.${CANDIDATE_POPULATIONS.join(', populations.')}: [{ member }]) — regenerate: node assay.mjs enumerate <target> --json`);
-      else candidates = [...new Set(lists.flat().map((c) => c.member))];
+      else {
+        candidates = [...new Set(lists.flat().map((c) => c.member))];
+        for (const c of lists.flat()) files.set(c.member, [...(files.get(c.member) || []), ...(Array.isArray(c.evidence) ? c.evidence : []).map((e) => String(e).replace(/:\d+(?:-\d+)?$/, ''))]);
+        for (const x of Array.isArray(pops.excluded) ? pops.excluded : []) if (x && typeof x.member === 'string') excluded.set(x.member, typeof x.reason === 'string' ? x.reason : 'a test or fixture file');
+      }
     } catch (e) { errors.push(`${ENUMERATE_FILE}: JSON parse failed (fail-closed): ${e.message}`); }
   }
   const tp = effectTriagePath(run);
@@ -49,24 +64,42 @@ export function loadChannelFiles(run) {
     try { doc = parseYaml(readFileSync(tp, 'utf8')); } catch (e) { errors.push(`${TRIAGE_FILE}: YAML parse failed (fail-closed): ${e.message}`); doc = undefined; }
     if (doc !== undefined) {
       if (!doc || typeof doc !== 'object' || Array.isArray(doc) || doc.schema !== TRIAGE_SCHEMA) errors.push(`${TRIAGE_FILE}: needs schema: ${TRIAGE_SCHEMA} and a triage: list (map/SCHEMA.md §6e)`);
+      else if (!TRIAGE_VERSIONS.includes(doc.version)) errors.push(`${TRIAGE_FILE}: version ${JSON.stringify(doc.version)} is not a triage version this engine reads (${TRIAGE_VERSIONS.join(', ')}; a new triage is version ${CURRENT_TRIAGE_VERSION})`);
       else if (!Array.isArray(doc.triage)) errors.push(`${TRIAGE_FILE}: triage: must be a list, one entry per channel candidate (an empty list is [])`);
-      else triage = doc.triage;
+      else { triage = doc.triage; version = doc.version; }
     }
   }
-  return { candidates, triage, errors };
+  return { candidates, triage, errors, excluded, files, version };
 }
 
 const isEffect = (f) => f && f.subject_type === 'effect' && f.effect && typeof f.effect === 'object';
 
 // validate's check of the triage against the list and the base (map/triage.mjs holds the rules
 // both closed populations share). findingsById: id → finding.
-export function triageErrors({ candidates, triage }, findingsById) {
+// The scope rule (map/effect-scope.mjs) holds in every version: a candidate whose files are all test
+// or fixture files is never mapped in, and a workflow write is never triaged out; at version 2 every
+// entry names the clause that decided it, and the clause must hold.
+export function triageErrors({ candidates, triage, excluded = new Map(), files = new Map(), version = 1 }, findingsById) {
   if (triage === null) return [];   // no triage file: nothing to hold; the measurement reads every candidate untriaged
   if (candidates === null) return [`${TRIAGE_FILE}: triages channel candidates, and the run carries no candidate list (${ENUMERATE_FILE}, which assay start writes)`];
-  return entryErrors(triage, candidates, {
+  const listed = new Set(candidates);
+  const scope = [];
+  triage.forEach((x, i) => {
+    if (!x || typeof x !== 'object' || typeof x.candidate !== 'string' || !listed.has(x.candidate)) return;
+    const mappedIn = x.finding !== undefined && x.finding !== null && x.finding !== '';
+    if (!mappedIn && x.out_of_scope === undefined) return;   // neither: entryErrors names it
+    const fs = files.get(x.candidate) || [];
+    const testReason = fs.length && fs.every((f) => testOrFixture(f)) ? testOrFixture(fs[0]) : null;
+    const why = constructionError({ candidate: x.candidate, mappedIn, testReason }) || (version >= 2 ? clauseError({ candidate: x.candidate, mappedIn, clause: x.clause }) : null);
+    if (why) scope.push(`${TRIAGE_FILE}[${i}]: ${why}`);
+  });
+  return [...entryErrors(triage, candidates, {
     at: TRIAGE_FILE,
+    keys: version >= 2 ? ['clause'] : [],
     missingCandidate: `a member of ${ENUMERATE_FILE}'s ${CANDIDATE_POPULATIONS.join(', ')}, as it is written there`,
-    notListed: () => `is not a channel candidate in ${ENUMERATE_FILE} (${CANDIDATE_POPULATIONS.join(', ')})`,
+    notListed: (c) => excluded.has(c)
+      ? `is out of scope by construction (${excluded.get(c)}): ${ENUMERATE_FILE} lists it under excluded, and it is never offered for triage`
+      : `is not a channel candidate in ${ENUMERATE_FILE} (${CANDIDATE_POPULATIONS.join(', ')})`,
     exactlyOne: 'finding (the effect finding that covers it) or out_of_scope (the reason)',
     reasonHint: 'for example, read-only: writes nothing',
     findingError: (id) => {
@@ -76,7 +109,7 @@ export function triageErrors({ candidates, triage }, findingsById) {
       return null;
     },
     missing: (cs) => `${TRIAGE_FILE}: ${cs.length} channel candidate(s) not triaged: ${cs.join(', ')} — record each as the effect finding that covers it, or out of scope with the reason`,
-  });
+  }), ...scope];
 }
 
 // the measurement's read of the population: { listed, triaged, candidates, untriaged, covered, outOfScope, reason }.

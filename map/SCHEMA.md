@@ -1157,6 +1157,14 @@ evidence and note:
   the directories its adapter declares (`run.rules.dir`, `run.control.dir`), which are data the
   scanner reads, not code the target runs.
 
+A candidate of the three found in a test or fixture file is **out of scope by construction**
+(#315): it is listed under `populations.excluded`, one member per file (`<member> @ <path>`), with
+the `population` it would have joined and the `reason` (a contract test, by its name; a file under
+`__tests__/`, `fixtures/`, `test/` or `tests/`; a `*.test.*`, `*.spec.*`, `test-*`, `test_*` or
+`*_test.*` file; `map/effect-scope.mjs` `testOrFixture`, the first that matches), and is never
+offered for triage. In such a file only code and workflow steps are read: its data quotes calls it
+does not make. A list drawn before the rule (`version: 1`) carries no `excluded`, and reads as it was.
+
 The last two close a target with no agentic channel, such as a web app, where an empty
 `channelCandidates` once read as a closed list (#269). The practice-review lane is given the
 file (`inputs:`) and Pass 0 records one triage entry per candidate:
@@ -1164,17 +1172,39 @@ file (`inputs:`) and Pass 0 records one triage entry per candidate:
 ```yaml
 # map/effect-triage.yaml (authored)
 schema: effect-triage
-version: 1
+version: 2
 triage:
   - candidate: "tool: send_invoice"      # a member of the three populations, exactly as enumerate.json writes it
     finding: F-052                       # the effect finding that covers it (several candidates may share one)
+    clause: channel-acts                 # the scope clause that decided it (below)
   - candidate: "tool: read_invoice"
     out_of_scope: "read-only: returns a record, writes nothing"   # or out of scope, with the reason
+    clause: channel-reads-only
   - candidate: "http write (js) @ lib/sync.mjs"   # an effect-site member: one file's fetch/axios writes
     finding: F-053
+    clause: client-call-runtime
 ```
 
 A list with no candidates in any of the three populations is closed and empty (`triage: []`).
+
+**Scope, by a closed rule** (#315; `map/effect-scope.mjs`). Whether a listed candidate is an
+effect is decided by the tree where it carries the signal, and by a stated clause where it does not.
+Each entry at `version: 2` names in `clause` the one that decided it:
+
+| the candidate (by its member) | in scope (`finding`) | out of scope (`out_of_scope`) |
+|---|---|---|
+| a workflow write (`… (workflow) @ …`) | `workflow-write`, by construction: it acts on the world whatever gates it, and its gate is a descriptor, not a scope question | never |
+| a route (`route: …`) | `route-method-writes`: its method writes (POST, PUT, PATCH, DELETE; for `ANY` or `?`, a write method the handler serves); `route-calls-write-site`: its handler calls a listed write site | `route-reads-only`: its method reads and its handler calls no listed write site |
+| a client call site (`http write`, `http write (js)`, `message/mail send`, `git push`, `docker control`) | `client-call-runtime`: some importer of its module reaches it at run time | `client-call-test-or-build-only`: every importer of its module is test or build tooling |
+| a spawn (`shell exec`, `process spawn (js)`) | `spawn-runtime` | `spawn-build-time`: it runs only at build or code-generation time, as a declared build script |
+| a channel (`cli:`, `skill:`, `surface:`, `tool:`, `mcp-toolset:`) | `channel-acts`: invoking it writes, sends or executes, or calls a listed write site | `channel-reads-only` |
+
+A clause decides only its own kind, on its own side. Where the member carries the signal, the clause
+it gives holds and no entry is triaged against it: a route whose method is POST, PUT, PATCH or
+DELETE is in by `route-method-writes`, and a GET, HEAD or OPTIONS route cannot claim that clause. A
+candidate in a test or fixture file is never mapped in, whether the list excluded it or a list drawn
+before the rule still offers it, and a workflow write is never triaged out; these two hold at every
+version. A stored `version: 1` triage names no clause and reads as it was written.
 
 **A channel is its triaged candidate** (#298). Two runs' lanes spell one channel's slug as they
 like (`tool-install`, `tools-install`); the candidate they triage to it is the list's own name for
@@ -1191,10 +1221,11 @@ does not name is still recorded as a finding: the triage closes the list, it doe
 the passes.
 
 Validator-checked, when the triage file is present: the run carries `map/raw/enumerate.json`
-and it reads; every candidate is triaged exactly once; every entry names a candidate on the
-list; each entry carries exactly one of `finding` or `out_of_scope`; every `finding` resolves
-to a finding of this run whose `subject_type` is `effect`; every `out_of_scope` gives its
-reason. A candidate list that does not read, or that lacks one of the three populations, is
+and it reads; the triage's `version` is one the engine reads (1 or 2); every candidate is triaged
+exactly once; every entry names a candidate on the list, never an excluded one; each entry carries
+exactly one of `finding` or `out_of_scope`; every `finding` resolves to a finding of this run whose
+`subject_type` is `effect`; every `out_of_scope` gives its reason; the scope rule above holds, and at
+`version: 2` every entry's `clause` with it. A candidate list that does not read, or that lacks one of the three populations, is
 an error, never an empty list. With no triage
 file, nothing is refused (a run whose lane has not run has none): the yardstick reads every
 candidate untriaged, so a met effect row reads mixed, and `d-effect-channels-enumerated`
@@ -1310,7 +1341,9 @@ a pass (the run's own CI-1 lesson, applied to the checker):
 
 12. **The effect-channel triage, when present** (§6e): every channel candidate, route handler
    and effect-site member in `map/raw/enumerate.json` triaged exactly once, to an `effect` finding of this run or out of
-   scope with a reason; a candidate list that does not read is an error.
+   scope with a reason, by the closed scope rule (a test or fixture candidate never in, a workflow
+   write never out, and at `version: 2` the clause that decided each); a candidate list that does
+   not read is an error.
 
 13. **The run's data files, when present** (`lib/run-data.mjs`): `views/improve/chains.json`
    and `handoff/sequence.json` hold their schemas and name only ids in this base;

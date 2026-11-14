@@ -20,9 +20,10 @@ const hasFinding = (x) => x.finding !== undefined && x.finding !== null && x.fin
  * @param {string[]} candidates
  * @param {{ at: string, notListed: (c: string) => string, missingCandidate: string,
  *   exactlyOne: string, reasonHint: string, findingError: (id: string) => string|null,
- *   oneEach?: boolean, missing: (cs: string[]) => string }} o
+ *   oneEach?: boolean, missing: (cs: string[]) => string, keys?: string[] }} o
  *   at: the label an entry's index is appended to; findingError: why a finding id may not judge a
- *   candidate here, or null; oneEach: a finding judges at most one candidate
+ *   candidate here, or null; oneEach: a finding judges at most one candidate; keys: the keys an entry
+ *   may carry beyond these three (the effect triage's clause and answers, #315)
  */
 export function entryErrors(entries, candidates, o) {
   const errors = [];
@@ -30,7 +31,8 @@ export function entryErrors(entries, candidates, o) {
   entries.forEach((x, i) => {
     const at = `${o.at}[${i}]`;
     if (!x || typeof x !== 'object' || Array.isArray(x)) { errors.push(`${at}: an entry is a map (candidate, and finding or out_of_scope)`); return; }
-    for (const k of Object.keys(x)) if (!TRIAGE_KEYS.includes(k)) errors.push(`${at}: unknown key "${k}" (${TRIAGE_KEYS.join(', ')})`);
+    const keys = [...TRIAGE_KEYS, ...(o.keys || [])];
+    for (const k of Object.keys(x)) if (!keys.includes(k)) errors.push(`${at}: unknown key "${k}" (${keys.join(', ')})`);
     const c = typeof x.candidate === 'string' ? x.candidate : null;
     if (!c) errors.push(`${at}: missing candidate (${o.missingCandidate})`);
     else if (!listed.has(c)) errors.push(`${at}: "${c}" ${o.notListed(c)}`);

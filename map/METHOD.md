@@ -91,8 +91,10 @@ list, plus the **ROUTE HANDLERS** (`routeHandlers`) and the **EFFECT CALL SITES*
 writes, Node subprocesses and workflow writes among them, `SCHEMA.md` §6e). Triage every candidate in all
 three to either an `effect`
 finding (in the delegation pass) or an explicit out-of-scope note (read-only tools land
-here) — do not hand-draft a short list from memory — and record the triage in
-`map/effect-triage.yaml`, one entry per candidate (`SCHEMA.md` §6e). The triage is a
+here), by the closed scope rule, naming the clause that decided it (`SCHEMA.md` §6e, "Scope, by
+a closed rule") — do not hand-draft a short list from memory — and record the triage in
+`map/effect-triage.yaml`, one entry per candidate (`SCHEMA.md` §6e). A candidate in a test or
+fixture file is not on the list: enumerate lists it under `excluded`, out of scope by construction. The triage is a
 measured population: the yardstick reads an effect requirement met only when the list
 exists and every candidate on it is triaged; an untriaged candidate reads the row mixed,
 naming it, and a run with no list reads it not measured (`yardstick/README.md`, "The effect
@@ -330,7 +332,7 @@ are defined there too):
 
 - **The triage** — Pass 0's candidate list (`map/raw/enumerate.json`) closes against these
  effect findings in `map/effect-triage.yaml` (`SCHEMA.md` §6e): each candidate to the effect
- finding that covers it, or out of scope with the reason.
+ finding that covers it, or out of scope with the reason, and the scope clause that decided it.
 - **The halt** (`gate_type`) — are destructive or external effects (deploy, publish, migrate,
  spend, send, delete) gated at explicit narrow points a human actually holds, at the
  *irreversible boundary* (not ceremony at every step)? Do irreversible ops exist only in
