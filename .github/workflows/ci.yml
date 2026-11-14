@@ -1,6 +1,8 @@
-# The engine's own deterministic gate: the regression harness (negative fixtures,
-# fail-closed unit invariants, doctrine lockstep, pinned fixture recall) runs on
-# every push and pull request. A repo that evaluates others for deterministic
+# The engine's own deterministic gate runs on every push and pull request: the one
+# command a contributor runs, `npm run gate` (lib/gate.mjs; CONTRIBUTING.md), so the
+# workflow and a contributor run the same check (#321): the regression harness, the red
+# proofs (tests/prove-red.mjs), typecheck, lint, the passes and the release notes, each
+# step named on its exit line. A repo that evaluates others for deterministic
 # gates runs one itself, and holds the invariants it holds the routine template
 # to (tests/blocks/ci-workflow.mjs): actions pinned to the same commit SHAs,
 # a read-only token, a timeout, and every Node major package.json declares.
@@ -28,12 +30,9 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: npm ci
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm run build
       # every pinned tool on PATH, so the harness runs with the instruments a routine
       # runs (#198), through the same action a consumer calls (#227): installed from the
       # adapters' own tool: blocks, each download checked against its pinned sha256 before
       # it is ever executed, and verified at its pin.
       - uses: ./.github/actions/tools
-      - run: npm test
+      - run: npm run gate

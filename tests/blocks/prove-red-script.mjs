@@ -11,7 +11,11 @@
 //   (f) a finished run, and a run killed mid-entry (SIGKILL, and SIGTERM), leave the tree it proves unchanged: the
 //       mutation is applied in a scratch copy, never in the tree; SIGTERM also removes the copy;
 //   (g) the list itself: every entry names a check that is a block, and the first set of #321
-//       is on it.
+//       is on it;
+//   (h) the landing rule: CLAUDE.md and CONTRIBUTING.md say an assertion holding a core invariant
+//       lands with its entry, and keep the "confirmed red" line for the rest; tests/README.md
+//       states the known cost (an entry is pinned to code text: re-pinning it is a reviewed diff,
+//       never a regression).
 import { readFileSync, writeFileSync, existsSync, rmSync, readdirSync, mkdirSync } from 'node:fs';
 import { spawn, execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -100,6 +104,15 @@ export async function run() {
       ["the sequence key's halt clause", /halt clause/], ['a threshold of 0 is refused', /threshold of 0 is refused/]])
       if (!ENTRIES.some((e) => re.test(e.rule))) fail(`(g) the list must hold an entry for ${what} (#321)`);
 
+    // (h) the landing rule, and the known cost
+    const flat = (f) => readFileSync(join(ROOT, f), 'utf8').replace(/\s+/g, ' ');
+    for (const f of ['CLAUDE.md', 'CONTRIBUTING.md']) {
+      const t = flat(f);
+      if (!/core invariant lands with its entry in `tests\/prove-red\.mjs`/.test(t)) fail(`(h) ${f} must say an assertion holding a core invariant lands with its entry in tests/prove-red.mjs`);
+      if (!/confirmed red/.test(t)) fail(`(h) ${f} keeps the "confirmed red" line for assertions the list does not cover`);
+    }
+    const readme = flat('tests/README.md');
+    if (!/## Red proofs/.test(readme) || !/pinned to code text/.test(readme) || !/reviewed diff[^.]*never a regression/.test(readme)) fail('(h) tests/README.md must state the known cost: an entry is pinned to code text, and re-pinning it is a reviewed diff, never a regression');
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(marker, { force: true });
