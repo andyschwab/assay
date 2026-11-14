@@ -8,9 +8,11 @@
 //       row as context:, in yardstick.yaml too;
 //   (b) a packet that decides the row decides it alone: met by the owner's word, findings: still
 //       empty, the context still beside it;
-//   (c) the views carry the ids as context (Intake/Maintain to_run, Owner not_measured with the
-//       observations), never under met or open from the run, and every page labels them
-//       "Seen in this run (context, not a decision)";
+//   (c) the views carry the ids as context (views/rows.mjs buildRows's to_run over every row,
+//       Owner not_measured with the observations), never under met or open from the run, and
+//       every page labels them "Seen in this run (context, not a decision)". Re-pinned with #339:
+//       Intake and Maintain, which rendered buildRows's rows, left the engine, so the rows are
+//       held on buildRows directly and its contextText, the words any page puts on them;
 //   (d) requirementTaking places each listed finding on its claim row, so none is a discovery
 //       candidate, and an unplaced finding stays one;
 //   (e) validate refuses a context list no claim row names, an id the run lacks, an id listed in
@@ -26,6 +28,7 @@ import { untakenFindings } from '../../yardstick/untaken.mjs';
 import { loadFindings, loadAdapters } from '../../map/project.mjs';
 import { censusesPath, viewPath, ownerPagePath, yardstickPath } from '../../lib/run-layout.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
+import { buildRows, contextText, CONTEXT_LABEL } from '../../views/rows.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'claim-context-not-a-decision';
@@ -102,19 +105,23 @@ export async function run() {
     else {
       const ys = parseYaml(readFileSync(yardstickPath(run), 'utf8')).requirements.find((x) => x.id === QUAL);
       if (JSON.stringify(ys?.context) !== '["F-064"]' || (ys?.findings || []).length) fail(`yardstick.yaml carries context: [F-064] and findings: [] on ${QUAL} (got ${JSON.stringify(ys)})`);
-      for (const view of ['maintain', 'intake']) {
-        const y = parseYaml(readFileSync(viewPath(run, view), 'utf8'));
-        for (const key of ['met', 'open']) if ((y[key] || []).some((x) => [QUAL, EVALS, 'd-guards-bite'].includes(x.id))) fail(`${view}: a claim row is never under ${key} from the run`);
-      }
+      const rows = buildRows(run, () => true);
+      if (!rows) fail('buildRows builds every row over the compiled run');
+      for (const key of ['met', 'open']) if ((rows?.[key] || []).some((x) => [QUAL, EVALS, 'd-guards-bite'].includes(x.id))) fail(`buildRows: a claim row is never under ${key} from the run`);
+      if (CONTEXT_LABEL !== LABEL) fail(`views/rows.mjs's CONTEXT_LABEL is "${LABEL}" (got "${CONTEXT_LABEL}")`);
       const owner = parseYaml(readFileSync(viewPath(run, 'owner'), 'utf8'));
       const nm = (owner.beyond_floor?.not_measured || []).find((x) => x.id === QUAL);
       if (JSON.stringify(nm?.context) !== '["F-064"]' || !(nm?.context_seen || []).some((s) => /No file records which model/.test(s)) || (nm?.findings || []).length || (nm?.where || []).length || (nm?.seen || []).length) fail(`Owner's not_measured ${QUAL} carries context: [F-064] and its observation in context_seen, with findings, where and seen empty (got ${JSON.stringify(nm)})`);
-      const pages = { 'OWNER.md': readFileSync(ownerPagePath(run), 'utf8'), ...Object.fromEntries(['INTAKE.md', 'MAINTAIN.md'].map((p) => [p, (() => { try { return readFileSync(join(run, p), 'utf8'); } catch { return ''; } })()])) };
+      const contextRows = (rows?.to_run || []).filter((x) => x.context && x.context.length);
+      const pages = { 'OWNER.md': readFileSync(ownerPagePath(run), 'utf8'), 'views/rows.mjs contextText': contextRows.map((x) => `- **${x.id}**${contextText(x)}`).join('\n') };
       if (!pages['OWNER.md'].includes(`${LABEL}: No file records which model`)) fail(`OWNER.md renders the context after the row as "${LABEL}: <observation>"`);
-      const maintainYaml = parseYaml(readFileSync(viewPath(run, 'maintain'), 'utf8'));
-      const fleetClaims = (maintainYaml.to_run || []).filter((x) => x.context && x.context.length);
-      if (JSON.stringify(fleetClaims.map((x) => [x.id, x.context])) !== '[["d-guards-bite",["F-067"]]]') fail(`Maintain's to_run carries d-guards-bite (a fleet claim row) with context: [F-067], and no other row with a context (got ${JSON.stringify(fleetClaims.map((x) => [x.id, x.context]))})`);
-      for (const x of fleetClaims) if (!new RegExp(`\\*\\*${x.id}\\*\\*.*${LABEL.replace(/[()]/g, '\\$&')}: ${x.context.join(', ')}`).test(pages['MAINTAIN.md'])) fail(`MAINTAIN.md labels ${x.id}'s context "${LABEL}"`);
+      const want = JSON.stringify([['d-guards-bite', ['F-067']], [QUAL, ['F-064']], [EVALS, ['F-065']]].sort());
+      const got = JSON.stringify(contextRows.map((x) => [x.id, x.context]).sort());
+      if (got !== want) fail(`buildRows's to_run carries d-guards-bite with context: [F-067], ${QUAL} with [F-064] and ${EVALS} with [F-065], and no other row with a context (got ${got})`);
+      for (const x of contextRows) {
+        if ((x.findings || []).some((id) => x.context.includes(id))) fail(`buildRows: ${x.id}'s context never rides in its findings (got findings ${JSON.stringify(x.findings)})`);
+        if (!new RegExp(`\\*\\*${x.id}\\*\\*.*${LABEL.replace(/[()]/g, '\\$&')}: ${x.context.join(', ')}`).test(pages['views/rows.mjs contextText'])) fail(`contextText labels ${x.id}'s context "${LABEL}"`);
+      }
       for (const [p, text] of Object.entries(pages)) for (const line of text.split('\n').filter((l) => l.includes(LABEL))) {
         if (/\b(met|unmet|mixed)\b/i.test(line.slice(line.indexOf(LABEL)))) fail(`${p}: the context label and what follows it never read met or unmet ("${line.slice(line.indexOf(LABEL), line.indexOf(LABEL) + 120)}")`);
       }

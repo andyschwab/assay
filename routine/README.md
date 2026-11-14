@@ -19,7 +19,7 @@ run the identical path.
 ## What it produces, and where
 
 Each firing writes an ordinary assay run directory — `map/`, `yardstick.yaml`,
-`views/`, `INDEX.md`, `INTAKE.md`, `MAINTAIN.md`, `SINCE.md` when `--since` was
+`views/`, `INDEX.md`, `OWNER.md`, `IMPROVE.md` when the run carries its prose, `SINCE.md` when `--since` was
 given (`views/README.md`) — and the workflow uploads that directory as a
 build artifact (`assay-run-<run id>`, kept per the template's
 `retention-days`). Nothing is written back into the repository: the routine

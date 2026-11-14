@@ -3,7 +3,8 @@
 // fence, whose tag is per run; an evidence path carrying a backtick stays one code span;
 // a roadmap slug with path segments fails validate and halts the handoff before anything
 // is written outside handoff/; a packet note, an observation, an evidence path or a run
-// reason carrying a link or a tag renders escaped in INTAKE, SINCE and OWNER; and the
+// reason carrying a link or a tag renders escaped in SINCE and OWNER (the packet's section
+// moved from INTAKE to OWNER with #339); and the
 // owner's YAML quotes every free-text scalar and writes free-text lists as block sequences.
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
@@ -76,8 +77,8 @@ export async function run() {
   const packet = { custody: { accounts: [{ account: `hosting ${LINK}`, provider: TAG, owner_role: 'owner', organisational: 'unsure', transferable: 'yes' }],
     credentials: [{ name: 'API key', lives: 'env, vault', readers: ['ci, deploy', 'app'], rotated: 'never' }] }, notes: `see ${LINK} ${TAG}` };
   const ownerBlock = buildOwnerBlock(packet);
-  const intakeMd = renderOwnerSection(ownerBlock).join('\n');
-  if (intakeMd.includes(LINK) || intakeMd.includes(TAG) || !intakeMd.includes('\\[doc\\]') || !intakeMd.includes('\\<img')) fail(`INTAKE must escape a packet note's link and tag (got:\n${intakeMd})`);
+  const packetMd = renderOwnerSection(ownerBlock).join('\n');
+  if (packetMd.includes(LINK) || packetMd.includes(TAG) || !packetMd.includes('\\[doc\\]') || !packetMd.includes('\\<img')) fail(`OWNER's "What the owner told us" must escape a packet note's link and tag (got:\n${packetMd})`);
   const sinceView = await import('../../views/since.mjs');
   const emptySince = { regressed: [], improved: [], newly_measured: [], no_longer_measured: [], yardstick_only: [] };
   const sinceMd = sinceView.renderMd('curr', 'prev', emptySince, { new: [{ id: 'F-1', source: 'practice-review', observation: `obs ${LINK} ${TAG}`, evidence: ['src/a`b.mjs:1'] }], no_longer_found: [] });

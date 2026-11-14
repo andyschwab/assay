@@ -266,6 +266,16 @@ export const ENTRIES = [
     from: 'const contradictions = joinContradictions(loadContradictions(runDir), reg);',
     to: 'const contradictions = [];',
     check: 'owner-contradictions', red: /owner\.yaml must carry the contradiction on d-secrets-out-of-history/ },
+  { rule: 'a requirement that does not apply was not satisfied: buildRows lists a not-applicable row on its own, never as met (#339, moved from the Intake view onto buildRows)',
+    file: 'views/rows.mjs',
+    from: "if (m.status === 'met') {",
+    to: "if (m.status === 'met' || m.status === 'not-applicable') {",
+    check: 'not-applicable-views', red: /buildRows must NEVER count a not-applicable row as met/ },
+  { rule: "a row the owner's packet decided says so, never silently blended in with what the run decided (#339, moved from the Intake view onto buildRows)",
+    file: 'views/rows.mjs',
+    from: "return r.basis === 'owner' ? \", by the owner's word\" : '';",
+    to: "return '';",
+    check: 'rows-hold-the-measurement', red: /a row the packet decided says so/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────

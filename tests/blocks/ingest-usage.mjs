@@ -14,7 +14,7 @@ import { ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'ingest-usage';
 
-const RUN_DIR_COMMANDS = ['validate', 'record', 'migrate-run', 'project', 'score', 'backlog', 'measure', 'ratchet', 'compile', 'intake', 'maintain', 'owner', 'since', 'maturity'];
+const RUN_DIR_COMMANDS = ['validate', 'record', 'migrate-run', 'project', 'score', 'backlog', 'measure', 'ratchet', 'compile', 'owner', 'since', 'maturity'];
 const STACK = /^\s+at |TypeError|ReferenceError|node:internal/m;
 
 export async function run() {

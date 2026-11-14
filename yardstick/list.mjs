@@ -7,7 +7,7 @@
 // fails.
 //
 // Usage:  node assay.mjs yardstick [--floor] [--json]
-//   --floor   only the rows tagged floor (the rows Intake reads)
+//   --floor   only the rows tagged floor (a gap that can harm data, people, money or recovery)
 //   --json    { floor, requirements: [{ id, title, tier, topic, tags, harm }] }
 import { isMain } from '../map/doctrine.mjs';
 import { loadYardstick } from './measure.mjs';

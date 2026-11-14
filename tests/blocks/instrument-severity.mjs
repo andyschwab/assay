@@ -2,8 +2,7 @@
 // Every row the blocks above converted from an instrument report (gitleaks, scorecard,
 // fresh-clone, dependency-scan, repo-census) carries no severity field: CLAUDE.md rule 1
 // keeps no exception for the bands. The projection every view reads hands the view the
-// band views/severity.mjs computes (the report rendering in intake-maintain-improve pins
-// it end to end over dependency-scan rows written with no severity).
+// band views/severity.mjs computes, over rows written with no severity.
 import { projectMulti } from '../../map/project.mjs';
 import { negFailures, convertedRows, adaptersOnce } from '../harness.mjs';
 

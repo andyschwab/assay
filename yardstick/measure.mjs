@@ -694,8 +694,8 @@ export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir), census: loadCensusTriage(runDir) }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
-// recomputed. This is what the four views (Intake, Maintain, Improve's topic
-// grouping, Owner) read: only this measurement plus the yardstick (for
+// recomputed. This is what every view (Improve's topic grouping, Owner, and
+// views/rows.mjs's buildRows, which a consumer builds its own views with) reads: only this measurement plus the yardstick (for
 // title/tier/topic/check), never findings directly. Returns null when the run
 // has not been measured yet.
 export function loadMeasurement(dir) {

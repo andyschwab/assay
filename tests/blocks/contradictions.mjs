@@ -1,12 +1,13 @@
-// ── contradictions surface in Maintain too, and ratchet always fails on one
-// (yardstick/README.md; views/README.md) — a repository's own packet claimed a
-// run-decided requirement satisfied; this run found it unmet, never silently
-// overridden. Checked with NO --baseline at all: a contradiction is a failure
-// under stewardship every time, never something a flag can wave through.
+// ── ratchet always fails on a contradiction (yardstick/README.md; views/README.md)
+// A repository's own packet claimed a run-decided requirement satisfied; this run found
+// it unmet, never silently overridden. Checked with NO --baseline at all: a contradiction
+// is a failure under stewardship every time, never something a flag can wave through.
+// The view half of this block pinned Maintain's yaml and page; Maintain left the engine
+// with #339, and the contradiction's place on a page is held on the Owner view by
+// tests/blocks/owner-contradictions.mjs.
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseYaml } from '../../lib/yaml-min.mjs';
 import { loadContradictions } from '../../yardstick/measure.mjs';
 import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
 
@@ -28,15 +29,6 @@ export async function run() {
   try { execFileSync(process.execPath, [join(ROOT, 'yardstick', 'measure.mjs'), tmp, '--write'], { stdio: 'pipe' }); }
   catch (e) { fail(`measure --write must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
   if (loadContradictions(tmp).length !== 1) fail(`test setup: expected exactly one contradiction (got ${JSON.stringify(loadContradictions(tmp))})`);
-
-  try { execFileSync(process.execPath, [join(ROOT, 'views', 'maintain.mjs'), tmp], { stdio: 'pipe' }); }
-  catch (e) { fail(`views/maintain.mjs must succeed (${String(e.stderr || e.message).split('\n').slice(-2).join(' | ')})`); }
-  const maintainYamlPath = join(tmp, 'views', 'maintain.yaml');
-  const maintainDoc = existsSync(maintainYamlPath) ? parseYaml(readFileSync(maintainYamlPath, 'utf8')) : null;
-  if (!maintainDoc || !(maintainDoc.contradictions || []).some((c) => c.id === 'd-secrets-out-of-history'))
-    fail(`maintain.yaml must carry the contradiction, same shape as Intake (got ${JSON.stringify(maintainDoc && maintainDoc.contradictions)})`);
-  const maintainPage = existsSync(join(tmp, 'MAINTAIN.md')) ? readFileSync(join(tmp, 'MAINTAIN.md'), 'utf8') : '';
-  if (!/## Contradicted claims/.test(maintainPage) || !/d-secrets-out-of-history/.test(maintainPage)) fail('MAINTAIN.md must carry a "Contradicted claims" section naming the contradiction');
 
   // ratchet: a contradiction is ALWAYS a failure, even with no --baseline given.
   let out = '', err = '', status = 0;

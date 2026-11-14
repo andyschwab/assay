@@ -24,7 +24,7 @@ code is who holds the accounts and keys, who can do what, and where the money an
 Your job is to find that out with the owner, kindly and quickly, and write it down in one
 block of YAML at the end. Tell the owner where it goes: the block becomes the app's
 **packet**, a file the team keeps in the app's own code once they take it on, and the
-team's intake page shows what it says about accounts, keys, people, data and money.
+app's Owner page (`OWNER.md`) shows what it says about accounts, keys, people, data and money.
 
 ## How to run this conversation
 

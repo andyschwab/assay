@@ -13,16 +13,18 @@ export async function run() {
   const R = join(tmpdir(), 'assay-layout-probe');
   const rel = (p) => p.slice(R.length + 1).split(/[\\/]/).join('/');
   // re-pinned with #323: synthesisPath left the layout, since no code writes or reads
-  // views/improve/synthesis.md (map/METHOD.md's Pass 8 described a file nothing produced)
+  // views/improve/synthesis.md (map/METHOD.md's Pass 8 described a file nothing produced).
+  // Re-pinned with #339: intakePagePath and maintainPagePath left with the Intake and Maintain
+  // views; pagePath(run, name) places any root page by name, a stored run's INTAKE.md among them
   const want = [
-    ['indexPath', [], 'INDEX.md'], ['intakePagePath', [], 'INTAKE.md'], ['maintainPagePath', [], 'MAINTAIN.md'],
+    ['indexPath', [], 'INDEX.md'], ['pagePath', ['INTAKE'], 'INTAKE.md'],
     ['improvePagePath', [], 'IMPROVE.md'], ['ownerPagePath', [], 'OWNER.md'], ['sincePagePath', [], 'SINCE.md'],
     ['routinePath', [], 'routine.yaml'], ['handoffDir', [], 'handoff'],
     ['scannersPath', [], 'map/scanners.yaml'], ['findingsDir', [], 'map/findings'], ['findingsPath', ['gitleaks'], 'map/findings/gitleaks.yaml'],
     ['practiceReviewPassPath', ['gates'], 'map/findings/practice-review-gates.yaml'], ['coveragePath', ['deep-code-review'], 'map/coverage/deep-code-review.yaml'],
     ['censusesPath', [], 'map/censuses.yaml'], ['backlogPath', [], 'map/backlog.yaml'], ['terrainPath', [], 'map/terrain.md'],
     ['nativeReportPath', ['deep-code-review'], 'map/native/deep-code-review.md'], ['rawPath', ['x.json'], 'map/raw/x.json'],
-    ['yardstickPath', [], 'yardstick.yaml'], ['viewPath', ['intake'], 'views/intake.yaml'],
+    ['yardstickPath', [], 'yardstick.yaml'], ['viewPath', ['owner'], 'views/owner.yaml'],
     ['prosePath', [], 'views/improve/prose.yaml'], ['axesPath', [], 'views/improve/axes.md'], ['leveragePath', [], 'views/improve/leverage.md'],
     ['maturityPath', [], 'views/improve/maturity.md'], ['maturityGradesPath', [], 'views/improve/maturity-grades.yaml'],
     ['securityPath', [], 'views/improve/security.md'], ['securityGatePath', [], 'views/improve/security-gate.yaml'],
@@ -34,4 +36,5 @@ export async function run() {
     const got = rel(L[fn](R, ...args));
     if (got !== path) fail(`${fn} places ${got}; the run layout says ${path}`);
   }
+  for (const gone of ['intakePagePath', 'maintainPagePath']) if (gone in L) fail(`lib/run-layout.mjs still exports ${gone}; the page left the engine with #339`);
 }

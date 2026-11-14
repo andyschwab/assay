@@ -1,4 +1,6 @@
 // ── the not-applicable status: compare(), ratchet, and the views ────────────
+// The views' part is re-pinned with #339 from Intake (its yaml and page, which left the
+// engine) onto views/rows.mjs's buildRows, which built Intake's rows, and onto the Owner view.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -6,6 +8,7 @@ import { parseYaml } from '../../lib/yaml-min.mjs';
 import { classify } from '../../yardstick/compare.mjs';
 import { evaluateRatchet } from '../../yardstick/ratchet.mjs';
 import { viewPath as runViewPath } from '../../lib/run-layout.mjs';
+import { buildRows } from '../../views/rows.mjs';
 import { HERE, ROOT, negFailures, copyFixtureFindings, copyFixtureScanners } from '../harness.mjs';
 
 export const label = 'not-applicable-views';
@@ -44,18 +47,24 @@ export async function run() {
   copyFixtureFindings('cleanlib', tmp); copyFixtureScanners('cleanlib', tmp);
   try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'measure', tmp, '--write'], { stdio: 'pipe' }); } catch (e) { fail(`measure --write must succeed over the cleanlib fixture (${e.message})`); }
   // hand-edit the written yardstick.yaml: flip one met row to not-applicable, so
-  // Intake/Maintain must read it as not_applicable, never as met
+  // buildRows and the Owner view must read it as not_applicable, never as met
   const yardstickFile = join(tmp, 'yardstick.yaml');
   let ys = readFileSync(yardstickFile, 'utf8');
   const before = ys;
   ys = ys.replace(/(- id: d-secrets-out-of-history\n\s+status: )met/, '$1not-applicable');
   if (ys === before) fail('the cleanlib fixture must have decided d-secrets-out-of-history met to flip for this test to mean anything');
   writeFileSync(yardstickFile, ys);
-  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'intake', tmp], { stdio: 'pipe' }); } catch (e) { fail(`intake must render over a not-applicable row (${e.message})`); }
-  const intakeYaml = parseYaml(readFileSync(runViewPath(tmp, 'intake'), 'utf8'));
-  if (!Array.isArray(intakeYaml.not_applicable) || !intakeYaml.not_applicable.some((r) => r.id === 'd-secrets-out-of-history')) fail('Intake must list the not-applicable row under not_applicable');
-  if (intakeYaml.met.some((r) => r.id === 'd-secrets-out-of-history')) fail('Intake must NEVER count a not-applicable row as met');
-  const intakeMd = readFileSync(join(tmp, 'INTAKE.md'), 'utf8');
-  if (!/## Not applicable/.test(intakeMd) || !/d-secrets-out-of-history/.test(intakeMd.split('## Not applicable')[1] || '')) fail('INTAKE.md must render a Not applicable section naming the row');
+  const built = buildRows(tmp, 'floor');
+  if (!built || !Array.isArray(built.not_applicable) || !built.not_applicable.some((r) => r.id === 'd-secrets-out-of-history')) fail('buildRows must list the not-applicable row under not_applicable');
+  for (const key of ['met', 'open', 'to_run']) if ((built?.[key] || []).some((r) => r.id === 'd-secrets-out-of-history')) fail(`buildRows must NEVER count a not-applicable row as ${key === 'met' ? 'met' : key}`);
+  try { execFileSync(process.execPath, [join(ROOT, 'assay.mjs'), 'owner', tmp], { stdio: 'pipe' }); } catch (e) { fail(`owner must render over a not-applicable row (${e.message})`); }
+  const ownerYaml = parseYaml(readFileSync(runViewPath(tmp, 'owner'), 'utf8'));
+  if (!(ownerYaml.floor?.not_applicable || []).some((r) => r.id === 'd-secrets-out-of-history')) fail('owner.yaml must list the not-applicable row under floor.not_applicable');
+  if ((ownerYaml.floor?.met || []).some((r) => r.id === 'd-secrets-out-of-history')) fail('owner.yaml must NEVER count a not-applicable row as met');
+  const title = (built?.not_applicable || []).find((r) => r.id === 'd-secrets-out-of-history')?.title || 'd-secrets-out-of-history';
+  const ownerMd = readFileSync(join(tmp, 'OWNER.md'), 'utf8');
+  const naSection = (ownerMd.split('## Does not apply')[1] || '').split('\n## ')[0];
+  if (!naSection.includes(title)) fail('OWNER.md must render a "Does not apply" section naming the row');
+  if ((ownerMd.split('## Holds')[1] || '').split('\n## ')[0].includes(title)) fail('OWNER.md must never list a not-applicable row under Holds');
   rmSync(tmp, { recursive: true, force: true });
 }

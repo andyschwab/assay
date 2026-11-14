@@ -3,8 +3,9 @@
 // engine script with its arguments.
 //
 // One map (map/), drawn once; one yardstick (yardstick/) it is measured
-// against; four views (views/) written from that measurement, plus Since
-// when there is a previous run to compare against. Zero
+// against; the measurement (yardstick.yaml) and the views (views/) written from
+// it, Improve and Owner, plus Since when there is a previous run to compare
+// against. Zero
 // dependencies: this file is a thin process dispatcher over node itself.
 import { spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
@@ -38,7 +39,7 @@ const GROUPS = [
     'roster': ['map/roster.mjs', 'per scanner: what it alone decides, what would read not measured if retired, and over runs its unique recoveries, corroborations and cost'],
   }],
   ['Yardstick: measuring the map against the requirements', {
-    'yardstick': ['yardstick/list.mjs', 'list the requirements, or with --floor the floor rows Intake reads ([--floor] [--json]): a consumer reads the floor here, never by heart'],
+    'yardstick': ['yardstick/list.mjs', 'list the requirements, or with --floor the floor rows, each with the harm its gap can do ([--floor] [--json]): a consumer reads the floor here, never by heart'],
     'measure': ['yardstick/measure.mjs', 'per requirement: met, unmet, mixed or not measured'],
     'compare': ['yardstick/compare.mjs', 'what moved between two measurements of one target: regressed, no longer measured, improved, newly measured ([--json])'],
     'ratchet': ['yardstick/ratchet.mjs', 'fail when a baseline requirement regresses or drops off the scale'],
@@ -48,10 +49,8 @@ const GROUPS = [
   ['Routine: what a stewarded repository runs on its own schedule', {
     'routine': ['routine/run.mjs', "the routine (routine/README.md): verify the tools, draw the run, record the rest, validate, compile and ratchet; writes the run and its routine.yaml (<repo> --out <run> [--baseline <file>] [--base-ref <ref>] [--since <prev-run>]), or the two-job target step (<repo> --target-steps --handoff <dir>)"],
   }],
-  ['Views: Intake, Maintain, Improve, Owner, Since', {
+  ['Views: Improve, Owner, Since', {
     'compile': ['views/compile.mjs', 'measure, then write every view and the index (<run> [--target <target>] [--since <prev-run>] [--packet <dir>] [--sweep-set <dir>]... [--consequence-policy <file>] [--lens <name>] [--lens-file <file>])'],
-    'intake': ['views/intake.mjs', 'the Intake view alone, from an existing measurement'],
-    'maintain': ['views/maintain.mjs', 'the Maintain view alone, from an existing measurement'],
     'owner': ['views/owner.mjs', "the Owner view alone: what is true of it, in the owner's own register"],
     'since': ['views/since.mjs', 'what changed since a previous run — regressions, improvements, new/gone findings'],
     'maturity': ['views/improve/maturity.mjs', "Improve's maturity coverage per dimension"],
@@ -62,7 +61,7 @@ const GROUPS = [
 const COMMANDS = Object.fromEntries(GROUPS.flatMap(([, cmds]) => Object.entries(cmds).map(([k, v]) => [k, v[0]])));
 
 function help() {
-  console.log('assay: a map, a yardstick, four views (plus Since).\n');
+  console.log('assay: a map, a yardstick, its measurement, and two views of it, Improve and Owner (plus Since).\n');
   console.log('Usage: node assay.mjs <command> [args]\n');
   console.log("fresh-clone, dependency-scan and structure-scan execute the target's code (install, scripts, its package manager, knip's load of its tool config)");
   console.log('with an allow-listed environment only; run them in a disposable container or VM.\n');
@@ -88,7 +87,7 @@ if (!script) {
 // what the script prints when it is given nothing, so it is never restated here. ingest is not
 // among them: it makes the run's map when the directory is new (start ingests its instruments
 // before it writes anything else), and refuses a missing run, tool or report itself.
-const RUN_DIR_COMMANDS = new Set(['validate', 'record', 'migrate-run', 'project', 'score', 'backlog', 'measure', 'ratchet', 'compile', 'intake', 'maintain', 'owner', 'since', 'maturity']);
+const RUN_DIR_COMMANDS = new Set(['validate', 'record', 'migrate-run', 'project', 'score', 'backlog', 'measure', 'ratchet', 'compile', 'owner', 'since', 'maturity']);
 if (RUN_DIR_COMMANDS.has(cmd) && args[0] !== undefined && !args[0].startsWith('-') && !(existsSync(args[0]) && statSync(args[0]).isDirectory())) {
   console.error(`assay ${cmd}: no such run directory: ${args[0]}`);
   const u = spawnSync(process.execPath, [join(HERE, script)], { encoding: 'utf8' });

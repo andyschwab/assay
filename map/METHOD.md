@@ -15,8 +15,8 @@ package, below; `node assay.mjs compile` writes both). The scanner method runs i
 1. A **neutral evidence base**: findings against the seven artifact dimensions (Passes 1–7
  below), recorded as *facts with structured descriptors and evidence*. The base **never
  asserts a severity or a priority**; it records what is.
-2. Two **views inside Improve** (the method's own readings; the engine's views, Intake,
- Maintain, Improve, Owner and Since, are `views/README.md`'s) that read the same base:
+2. Two **views inside Improve** (the method's own readings; the engine's views, Improve,
+ Owner and Since, are `views/README.md`'s) that read the same base:
  **maturity** (measured coverage per dimension, `map/censuses.yaml` →
  `views/improve/maturity-grades.yaml`) and **security** (always-on; exposures ranked by
  likelihood, no deploy verdict, `views/improve/security-gate.yaml`). The order the work is

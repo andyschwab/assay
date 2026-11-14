@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// owner.mjs — Owner: what is true of this application? A fourth view of the
-// same measurement Intake and Maintain read (yardstick.yaml), joined with the
+// owner.mjs — Owner: what is true of this application? A view of the
+// same measurement every view reads (yardstick.yaml), joined with the
 // register's `owner:` block on every requirement (yardstick/requirements.yaml
 // — yardstick/README.md documents the field). Reads ONLY the yardstick's
 // measurement, the yardstick (title/check/tier/topic/owner) and the run
@@ -80,10 +80,9 @@ export function ownerRow(r, status, byId, findingById) {
   return out;
 }
 
-// floor: the same population Intake reads (tags: [floor]). beyond_floor: every
-// requirement NOT tagged floor, regardless of fleet/ai-operating — no single
-// tag names that population, so buildRows takes a predicate here (its one
-// other caller shape, alongside the string tags Intake/Maintain pass).
+// floor: the rows tagged floor. beyond_floor: every requirement NOT tagged floor,
+// whatever else it carries — no single tag names that population, so buildRows
+// takes a predicate here, the same form a consumer's own list of ids takes.
 export function buildOwner(runDir) {
   const reg = loadYardstick();
   const byId = new Map(reg.requirements.map((d) => [d.id, d]));
@@ -97,7 +96,7 @@ export function buildOwner(runDir) {
     met: built.met.map((r) => ownerRow(r, 'met', byId, findingById)),
     // decided from the map as not applying to this repository (no database, so nothing
     // to migrate); listed, never folded into met, never dropped — the same bucket
-    // Intake carries, so the two views cannot disagree on a row
+    // buildRows lists, so no view can disagree with another on a row
     not_applicable: (built.not_applicable || []).map((r) => ownerRow(r, 'not-applicable', byId, findingById)),
   });
   // what the run's own packet said (#339): the claims this run contradicts, joined to their titles,

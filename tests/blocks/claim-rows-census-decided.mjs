@@ -5,7 +5,8 @@
 // whose review lists that census decides it. Pinned on a fixture run (notesbox, which calls a
 // model and ingests notes), for each row:
 //   (a) a census whose members are all strengths reads the row met, citing them, and the run
-//       validates and compiles, Maintain or Intake carrying it under met;
+//       validates and compiles, buildRows (views/rows.mjs) and Owner carrying it under met
+//       (re-pinned with #339 from Intake and Maintain, which rendered buildRows's rows);
 //   (b) a census with a gap member reads it unmet, citing the gap;
 //   (c) with no census of that name the row reads not measured, never met, and is no longer a
 //       claim (how: census);
@@ -17,11 +18,12 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, appendFileSync, rmSync, cpSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { projectRun, loadYardstick } from '../../yardstick/measure.mjs';
+import { projectRun } from '../../yardstick/measure.mjs';
 import { untakenFindings } from '../../yardstick/untaken.mjs';
 import { loadFindings } from '../../map/project.mjs';
 import { censusesPath, viewPath, enumeratePath, censusTriagePath } from '../../lib/run-layout.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
+import { buildRows } from '../../views/rows.mjs';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
 
 export const label = 'claim-rows-census-decided';
@@ -110,15 +112,12 @@ export async function run() {
     const c = assay('compile', run);
     if (c.status !== 0) fail(`the met fixture run compiles (exit ${c.status}): ${(c.stderr || '').split('\n').slice(-3).join(' | ')}`);
     else {
-      const maintain = parseYaml(readFileSync(viewPath(run, 'maintain'), 'utf8'));
-      const intake = parseYaml(readFileSync(viewPath(run, 'intake'), 'utf8'));
-      const met = [...(maintain.met || []), ...(intake.met || [])].map((x) => x.id);
+      const met = (buildRows(run, () => true)?.met || []).map((x) => x.id);
       const owner = parseYaml(readFileSync(viewPath(run, 'owner'), 'utf8'));
       const ownerMet = [...(owner.floor?.met || []), ...(owner.beyond_floor?.met || [])].map((x) => x.id);
       for (const id of Object.keys(ROWS)) {
         if (!ownerMet.includes(id)) fail(`${id}: Owner carries the census-decided row under met`);
-        const d = loadYardstick().requirements.find((y) => y.id === id);
-        if (((d.tags || []).includes('fleet') || (d.tags || []).includes('floor')) && !met.includes(id)) fail(`${id}: Intake or Maintain carries it under met`);
+        if (!met.includes(id)) fail(`${id}: buildRows carries it under met`);
       }
     }
 
