@@ -49,7 +49,10 @@ population that its `map/effect-triage.yaml` maps to an effect finding) takes th
 descriptors, and every candidate all sweeps map is compared field by field, however each lane
 grouped candidates into findings. A candidate one sweep maps and another triages out of scope or
 leaves untriaged is a scope disagreement, and an effect finding no candidate maps to is counted by
-its slug; both are reported apart and never enter the figure. A set whose sweeps carry no candidate
+its slug; both are reported apart and never enter the figure. Where every sweep's triage answers a
+candidate's checklist (#315), its `gate_type` and `reversibility` are the values its answers give,
+and agreement per answer is reported beside the figure; a set whose triages carry no answers reads
+as before. A set whose sweeps carry no candidate
 list compares no candidate, so it declares `candidate_agreement` under `not_measured`, and a threshold
 over it would be a breach. `descriptor_agreement` keeps its meaning, the per-channel figure (a channel is
 the sorted set of candidates one finding covers, else the finding's slug, #298), and gates beside it

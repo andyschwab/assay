@@ -86,6 +86,7 @@ import { isMain } from './doctrine.mjs';
 import { projectRun, loadYardstick } from '../yardstick/measure.mjs';
 import { channelKeys, loadChannelFiles } from './effect-triage.mjs';
 import { closure } from './triage.mjs';
+import { CHECKLIST_KEYS, gateTypeFrom, reversibilityFrom, answerValue } from './effect-answers.mjs';
 
 // A channel's identity (#298): an effect finding the run's map/effect-triage.yaml maps a candidate to
 // is keyed by that candidate (map/effect-triage.mjs candidateKeysOf), so two lanes' spellings of one
@@ -219,8 +220,10 @@ function compareTuples(present, byField, directions) {
     // fail_mode is NOT APPLICABLE where a sweep recorded gate_type: none — the schema
     // only requires it when a gate exists. Counting it there double-counts a single
     // gate_type disagreement as two, deflating the fail_mode column for a difference
-    // it did not independently observe. Skip the field entirely for that item.
-    if (k === 'fail_mode' && present.some(([, t]) => t.gate_type === 'none')) continue;
+    // it did not independently observe. Skip the field entirely for that item, and where a sweep's
+    // finding records no fail_mode (a candidate whose own answers give a gate, mapped to a finding
+    // whose riskier path has none, #315).
+    if (k === 'fail_mode' && present.some(([, t]) => t.gate_type === 'none' || t.fail_mode === null)) continue;
     byField[k].of += 1;
     if (vals.every((v) => v === vals[0])) { byField[k].agree += 1; continue; }
     fieldsDiffering.push({ field: k, values: present.map(([i, t]) => ({ sweep: i, value: t[k] })) });
@@ -300,6 +303,12 @@ export function computeDescriptorAgreement(runDirs) {
 //     (a disagreement on whether it is an effect, not on how it is described);
 //   • not listed in every sweep: a candidate some sweep's list does not carry;
 //   • unmapped: effect findings no candidate maps to, keyed by their slug as before.
+// Where every sweep's triage records the candidate's answers to the checklist (#315 slice 2,
+// map/effect-answers.mjs), the lanes are compared on the answers: the candidate's gate_type and
+// reversibility are the values its own answers give, not its finding's as written (which is the
+// riskiest of every candidate the finding covers), and each answer is counted per question
+// (`answers`). A candidate some sweep did not answer (a version 1 triage) is compared as written and
+// counted `unanswered`.
 // sweeps: one { findings, candidates, triage } per sweep (candidates null = the run carries no
 // list; triage null = no triage file), the way map/effect-triage.mjs loadChannelFiles reads them.
 export function candidateAgreement(sweeps) {
@@ -317,7 +326,9 @@ export function candidateAgreement(sweeps) {
       const slug = norm(f.effect.channel || f.channel);
       if (slug && !unmapped.has(slug)) unmapped.set(slug, f);
     }
-    return { listed, set: new Set(listed || []), judged, out: new Set(outOfScope), byId, unmapped };
+    const answers = new Map();
+    for (const e of Array.isArray(s && s.triage) ? s.triage : []) if (e && typeof e.candidate === 'string' && e.answers && typeof e.answers === 'object' && !answers.has(e.candidate)) answers.set(e.candidate, e.answers);
+    return { listed, set: new Set(listed || []), judged, out: new Set(outOfScope), byId, unmapped, answers };
   });
 
   const status = (p, c) => (!p.listed || !p.set.has(c) ? 'not-listed' : p.judged.has(c) ? 'mapped' : p.out.has(c) ? 'out-of-scope' : 'untriaged');
@@ -325,13 +336,33 @@ export function candidateAgreement(sweeps) {
   const byField = emptyByField();
   const directions = { safer: 0, riskier: 0, unordered: 0 };
   const divergences = [], scope = [], notListed = [];
-  let compared = 0, agree = 0, outOfScopeEverywhere = 0, untriagedEverywhere = 0;
+  let compared = 0, agree = 0, outOfScopeEverywhere = 0, untriagedEverywhere = 0, unanswered = 0;
+  const byAnswer = Object.fromEntries(CHECKLIST_KEYS.map((k) => [k, { agree: 0, of: 0, pct: 0 }]));
+  const answerDivergences = [];
+  let answeredCompared = 0, answersAgree = 0;
   for (const c of all) {
     const st = per.map((p) => status(p, c));
     if (st.includes('not-listed')) { notListed.push({ candidate: c, statuses: st }); continue; }
     if (st.every((x) => x === 'mapped')) {
       compared += 1;
-      const present = per.map((p, i) => [i, tupleOf(p.byId.get(p.judged.get(c)))]);
+      const answered = per.every((p) => p.answers.has(c));
+      const present = per.map((p, i) => {
+        const t = tupleOf(p.byId.get(p.judged.get(c)));
+        return [i, answered ? { ...t, gate_type: gateTypeFrom(p.answers.get(c)), reversibility: reversibilityFrom(p.answers.get(c)) } : t];
+      });
+      if (!answered) unanswered += 1;
+      else {
+        answeredCompared += 1;
+        const differ = [];
+        for (const k of CHECKLIST_KEYS) {
+          const vals = per.map((p) => answerValue(k, p.answers.get(c)[k]));
+          byAnswer[k].of += 1;
+          if (vals.every((v) => v === vals[0])) byAnswer[k].agree += 1;
+          else differ.push({ key: k, values: vals });
+        }
+        if (!differ.length) answersAgree += 1;
+        else answerDivergences.push({ candidate: c, answers: differ });
+      }
       const fields = compareTuples(present, byField, directions);
       if (!fields.length) agree += 1;
       else divergences.push({ candidate: c, fields, findings: per.map((p) => p.judged.get(c)) });
@@ -340,6 +371,7 @@ export function candidateAgreement(sweeps) {
     else untriagedEverywhere += 1;
   }
   finishByField(byField);
+  for (const k of CHECKLIST_KEYS) byAnswer[k].pct = byAnswer[k].of ? Math.round(100 * byAnswer[k].agree / byAnswer[k].of) : 0;
 
   const slugs = [...new Set(per.flatMap((p) => [...p.unmapped.keys()]))].sort();
   const unmapped = slugs.map((slug) => ({ slug, sweeps: per.map((p, i) => (p.unmapped.has(slug) ? i : -1)).filter((i) => i >= 0) }));
@@ -347,7 +379,7 @@ export function candidateAgreement(sweeps) {
   return {
     N,
     listed: per.some((p) => p.listed),
-    candidates: { total: all.length, compared, notListed: notListed.length, outOfScopeEverywhere, untriagedEverywhere },
+    candidates: { total: all.length, compared, notListed: notListed.length, outOfScopeEverywhere, untriagedEverywhere, unanswered },
     byField,
     allFields: { agree, of: compared, pct: compared ? Math.round(100 * agree / compared) : 0 },
     divergences,
@@ -356,6 +388,7 @@ export function candidateAgreement(sweeps) {
     scope: { disagreements: scope.length, list: scope },
     notListed,
     unmapped: { total: unmapped.length, inEvery: unmapped.filter((u) => u.sweeps.length === N).length, list: unmapped },
+    answers: { compared: answeredCompared, allAnswers: { agree: answersAgree, of: answeredCompared, pct: answeredCompared ? Math.round(100 * answersAgree / answeredCompared) : 0 }, byAnswer, divergences: answerDivergences },
   };
 }
 
@@ -492,8 +525,14 @@ function reportCandidates(c) {
   for (const v of c.scope.list) console.log(`      scope: ${v.candidate.padEnd(40)} ${v.statuses.join(' / ')}`);
   console.log(`    effect findings no candidate maps to (by slug): ${c.unmapped.total}, ${c.unmapped.inEvery} in every sweep`);
   if (!c.candidates.compared) { console.log(`    no candidate every sweep maps — nothing to compare.\n`); return; }
-  console.log(`    all ${DESCRIPTOR_FIELDS.length} descriptors identical: ${c.allFields.agree}/${c.allFields.of}  (${c.allFields.pct}%)`);
+  console.log(`    all ${DESCRIPTOR_FIELDS.length} descriptors identical: ${c.allFields.agree}/${c.allFields.of}  (${c.allFields.pct}%)` +
+    `  — ${c.answers.compared} compared on their answers (gate_type and reversibility as the answers give them), ${c.candidates.unanswered} unanswered in some sweep, as written`);
   printFields(c.byField);
+  if (c.answers.compared) {
+    console.log(`\n    answers identical (per candidate every sweep answers): ${c.answers.allAnswers.agree}/${c.answers.allAnswers.of}  (${c.answers.allAnswers.pct}%)`);
+    for (const k of CHECKLIST_KEYS) console.log(`      ${k.padEnd(17)} ${String(c.answers.byAnswer[k].agree).padStart(3)}/${String(c.answers.byAnswer[k].of).padStart(3)}  ${String(c.answers.byAnswer[k].pct + '%').padStart(5)}`);
+    for (const v of c.answers.divergences) console.log(`      ${v.candidate.padEnd(40)} ${v.answers.map((a) => `${a.key}: ${a.values.join(' vs ')}`).join(' · ')}`);
+  }
   if (c.divergences.length) {
     console.log(`\n    divergent candidates:`);
     for (const v of c.divergences)
@@ -566,7 +605,7 @@ if (isMain(import.meta.url)) {
     candidates: { pct: c.allFields.pct, listed: c.listed, total: c.candidates.total, compared: c.candidates.compared, agree: c.allFields.agree,
                   byField: c.byField, divergences: c.divergences, directions: c.directions, bothWays: c.bothWays,
                   scope: c.scope, outOfScopeEverywhere: c.candidates.outOfScopeEverywhere, untriagedEverywhere: c.candidates.untriagedEverywhere,
-                  notListed: c.notListed, unmapped: c.unmapped },
+                  notListed: c.notListed, unmapped: c.unmapped, unanswered: c.candidates.unanswered, answers: c.answers },
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
     requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences },

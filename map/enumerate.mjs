@@ -31,6 +31,7 @@ import { findingsDir, censusesPath, viewsDir } from '../lib/run-layout.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { secretShape } from '../yardstick/packet.mjs';
 import { ENUMERATE_POPULATIONS } from './enumerate-populations.mjs';
+import { testOrFixture } from './effect-scope.mjs';
 
 const target = process.argv[2];
 if (!target || target.startsWith('--')) {
@@ -88,6 +89,7 @@ const pops = {
   effectSites: new Map(),    // subprocess / http write / send → effect channels
   containerClasses: new Map(),// docker run/create + ROLE → container/agent classes
   channelCandidates: new Map(),// bin CLIs / effect skills / delivery surfaces → terrain effect inventory
+  excluded: new Map(),       // a candidate of the three above in a test or fixture file: out of scope by construction (#315)
 };
 // A file is gate-relevant if it is live surface, not a test, a doc, an example,
 // or research scratch. The gate counts only gate-relevant files; the printed
@@ -113,7 +115,20 @@ const PER_FILE = new Set(['socketMounts', 'contracts', 'reportPaths', 'egressCon
 // The other per-file populations key per file but name their member without it (a route names its
 // URL; a mount or contract is read through its file's evidence).
 const PER_FILE_MEMBER = new Set(['effectSites']);
+// Out of scope by construction (#315; map/effect-scope.mjs, SCHEMA.md §6e): a candidate of the three
+// populations the effect triage closes, found in a test or fixture file, is listed under `excluded`
+// with the population it would have joined and the reason, one member per file (`<member> @ <path>`),
+// and is never offered for triage.
+const CANDIDATE_POPS = new Set(['channelCandidates', 'routeHandlers', 'effectSites']);
 function hit(pop, key, path, i, note) {
+  const testReason = CANDIDATE_POPS.has(pop) ? testOrFixture(path) : null;
+  if (testReason) {
+    const member = `${key} @ ${path}`;
+    const x = pops.excluded;
+    if (!x.has(member)) x.set(member, { evidence: new Set(), note: note || '', gateable: false, member, file: path, population: pop, reason: testReason });
+    x.get(member).evidence.add(`${path}:${i + 1}`);
+    return;
+  }
   const m = pops[pop];
   const k = PER_FILE.has(pop) ? `${key} @ ${path}` : key;
   if (!m.has(k)) m.set(k, { evidence: new Set(), note: note || '', gateable: false, member: PER_FILE_MEMBER.has(pop) ? k : key, file: PER_FILE.has(pop) ? path : null });
@@ -496,9 +511,12 @@ for (const f of files) {
   // names every constant enumerate set apart, and would read each as declared in config (#292)
   const isEnvOrCfg = (/\.(env|ini|cfg|conf|ya?ml|toml|json)$/.test(base) || /\.env/.test(base) || base.startsWith('.env')) && !/(^|\/)(?:tests?|runs)\//.test(r);
   const isCode = /\.(?:[mc]?[jt]sx?|py|rb|go|java|kt|rs|php)$/.test(base);
-  const effectReadable = !/\.md$/.test(base) && !/(^|\/)(?:tests?|runs)\//.test(r) && !adapterData(r);
+  // a test or fixture file is read for code and workflow steps only (its data quotes calls it does
+  // not make), and what it lists goes under `excluded` (hit, #315)
+  const workflow = isWorkflowFile(r, ls);
+  const effectReadable = !/\.md$/.test(base) && !/(^|\/)runs\//.test(r) && !adapterData(r) && (!testOrFixture(r) || isCode || workflow);
   const spawns = effectReadable && isCode && ls.some((l) => NODE_CP.test(l));
-  const steps = effectReadable && isWorkflowFile(r, ls) ? workflowSteps(ls) : null;
+  const steps = effectReadable && workflow ? workflowSteps(ls) : null;
   if (!adapterData(r)) routeHandlers(r, ls);
   serverRoutes(r, ls);
   codeSecrets(r, ls, isCode);
@@ -571,14 +589,13 @@ for (const [name, s] of secretSites) {
 // hand-drafted inventory forgot. Each is a candidate the delegation pass triages to an effect
 // finding or an out-of-scope note.
 const EFFECT_VERB = /\b(send|deliver|publish|deploy|provision|rebuild|promote|revoke|upload|share|install|migrate|exec|browse|meeting|webhook|payment|mint|wipe|delete)\b/i;
-// A test file (a tests/ dir, or a test-/test_/*.test./*.spec. filename) commonly
-// builds fixture tool defs and effect-verb-named helpers; scanning it manufactures
-// channel candidates that are not part of the shipped surface. Skip the whole
-// channel-candidate scan for them.
+// A test file commonly builds fixture tool defs and effect-verb-named helpers; they are not part of
+// the shipped surface, so what the scan finds in one is listed under `excluded` (hit, #315), never
+// offered. isTestFile is the census scans' test filter (below).
 const isTestFile = (r, b) => /(^|\/)tests?\//.test(r) || /^test[-_]/.test(b) || /\.(test|spec)\.[^.]+$/.test(b);
 for (const f of files) {
   const r = rel(f), b = basename(f);
-  if (isTestFile(r, b) || adapterData(r)) continue;
+  if (adapterData(r)) continue;   // a test file's candidates go under `excluded` (hit, #315)
   // agent-facing CLI: an executable-looking file under a bin/ directory
   if (/(^|\/)bin\/[^/]+$/.test(r) && !/\.(md|txt|json)$/.test(b)) hit('channelCandidates', `cli: ${b}`, r, 0, 'an agent-invocable command — an effect channel unless proven inert');
   // effect-bearing skill: a SKILL.md whose dir or first lines name an acting verb
@@ -778,6 +795,7 @@ const LABEL = {
   effectSites: 'EFFECT CALL SITES (→ delegation: does each map to an enumerated effect channel?)',
   containerClasses: 'CONTAINER / AGENT CLASSES (→ assess EACH class separately — admin ≠ user)',
   channelCandidates: 'CHANNEL CANDIDATES (→ terrain effect inventory: derive it from THIS, not memory)',
+  excluded: 'EXCLUDED CANDIDATES (a channel, route or effect site in a test or fixture file: out of scope by construction, never offered for triage)',
 };
 const order = ENUMERATE_POPULATIONS;
 
@@ -794,15 +812,16 @@ function populationsJson() {
     const members = new Map();
     for (const [k, v] of pops[pop]) {
       const mem = v.member || k;
-      if (!members.has(mem)) members.set(mem, { member: mem, note: v.note, gateable: false, evidence: new Set() });
+      if (!members.has(mem)) members.set(mem, { member: mem, ...(v.population ? { population: v.population, reason: v.reason } : {}), note: v.note, gateable: false, evidence: new Set() });
       const g = members.get(mem);
       for (const e of v.evidence) g.evidence.add(e);
       if (v.gateable) g.gateable = true;
     }
     out[pop] = [...members.values()].sort((a, b) => a.member.localeCompare(b.member))
-      .map((g) => ({ member: g.member, note: g.note, gateable: g.gateable, evidence: [...g.evidence].sort() }));
+      .map((g) => ({ member: g.member, ...(g.population ? { population: g.population, reason: g.reason } : {}), note: g.note, gateable: g.gateable, evidence: [...g.evidence].sort() }));
   }
-  return { schema: 'enumerate', version: 1, target: basename(resolve(target)), files: files.length, populations: out };
+  // version 2 (#315) adds populations.excluded; a version 1 list carries none and reads as before
+  return { schema: 'enumerate', version: 2, target: basename(resolve(target)), files: files.length, populations: out };
 }
 if (JSON_MODE && !runDir) {
   // no process.exit here: it drops what a slow pipe has not yet read (the list is past 64 KB on
@@ -823,7 +842,7 @@ for (const pop of JSON_MODE ? [] : order) {
     if (v.file) g.files.add(v.file);
   }
   // for secrets the key IS the member
-  const members = PER_FILE.has(pop) ? byMember : new Map([...m].map(([k, v]) => [k, { evidence: v.evidence, note: v.note, files: new Set() }]));
+  const members = PER_FILE.has(pop) ? byMember : new Map([...m].map(([k, v]) => [k, { evidence: v.evidence, note: v.reason ? `${v.reason}; would be ${v.population}: ${v.note}` : v.note, files: new Set() }]));
   console.log(`── ${LABEL[pop]}  [${members.size}${PER_FILE.has(pop) ? ` across ${m.size} files` : ''}]`);
   for (const [key, v] of [...members.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     const ev = [...v.evidence].slice(0, 3).join(', ') + (v.evidence.size > 3 ? ` (+${v.evidence.size - 3})` : '');
