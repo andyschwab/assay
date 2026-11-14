@@ -16,15 +16,16 @@
 //   F-1312  checkov CKV_AWS_21, versioning, which the table leaves out     the same row
 // Held:
 //   (a) the defence-in-depth finding reads exposure hardening and contained, by safety-row-hardening,
-//       in sequence.json and on its REMEDIATION line;
-//   (b) the broken-access-control finding on the same row reads authority and stays significant or above;
+//       in sequence.json and on its REMEDIATION line, and leaves act now (#329) for hygiene;
+//   (b) the broken-access-control finding on the same row reads authority, stays significant or above,
+//       and stays in act now;
 //   (c) the cost finding reads hygiene and cosmetic, by safety-row-hygiene;
 //   (d) the logging check reads hardening; the public-access check authority or others-data; the
 //       unlisted check null, keeping today's value;
 //   (e) monotone: every gap whose exposure is not hardening or hygiene, the unplaced F-1303 among them,
 //       reads exactly what today's policy (the default without its exposure rules and unless clauses)
 //       gives, so a null never lowers; and a finding two entries place takes the riskier;
-//   (f) #322's four-pattern fixture lands as before, item by item;
+//   (f) #322's four-pattern fixture lands as before, item by item: consequence, quadrant and order;
 //   (g) renaming every scanner, adapter and run-record row with it, moves no value; with no adapter
 //       declaring a table every exposure reads null; a source with no table reads null even on a tag
 //       another adapter's table would place;
@@ -50,15 +51,18 @@ export const label = 'consequence-reads-exposure';
 const DCR = (id, tag) => `- id: ${id}\n  source: deep-code-review\n  native_id: "R${id.slice(2)}"\n  native_category: B\n  polarity: gap\n  severity: Medium\n  confidence: confirmed\n  title: "A route finding (${id})"\n  native_tag: "${tag}"\n  observation: "A route's handling falls short (${id})."\n  evidence: ["server.mjs:1"]\n  fix: "Change the route (${id})."\n`;
 const CKV = (id, check) => `- id: ${id}\n  source: checkov\n  native_id: "${check}@aws_s3_bucket.backups@main.tf"\n  native_category: terraform\n  polarity: gap\n  severity: Medium\n  observation: >\n    ${check}: aws_s3_bucket.backups in main.tf:2 fails it.\n  evidence: ["main.tf:2"]\n  fix: >\n    Change aws_s3_bucket.backups so it passes ${check}.\n`;
 
-// #322's four-pattern fixture as it compiled before this change: item by item, the finding the item
-// leads with, its consequence and the rule that gave it (PR #322's report, re-read at main 647bfd9)
+// #322's four-pattern fixture as it compiled before this change, in risk-first's order (#329): the
+// item's findings, its consequence, the rule that gave it and its quadrant (re-read at main 5cb948d)
 const FOUR_PATTERNS = [
-  ['F-1001', 'severe', 'halt-at-reached'], ['F-053+F-060', 'severe', 'unheld-halt'], ['F-1003', 'significant', 'safety-floor-row'],
-  ['F-10900', 'contained', 'floor-row'], ['F-055', 'significant', 'safety-floor-row'], ['F-990', 'significant', 'safety-floor-row'],
-  ['F-1007', 'significant', 'safety-floor-row'], ['F-1004', 'contained', 'floor-row'], ['F-991+F-992', 'unvalued', null],
-  ['F-1100', 'significant', 'safety-floor-row'], ['F-1101', 'contained', 'floor-row'], ['F-1005', 'significant', 'safety-floor-row'],
-  ['F-1006', 'significant', 'safety-floor-row'], ['F-1002', 'contained', 'floor-row'], ['F-054', 'severe', 'lane-judgment'],
-  ['F-062', 'contained', 'working-tier-row'], ['F-063', 'contained', 'working-tier-row'],
+  ['F-1001', 'severe', 'halt-at-reached', 'act-now'], ['F-1003', 'significant', 'safety-floor-row', 'act-now'],
+  ['F-1005', 'significant', 'safety-floor-row', 'act-now'], ['F-1006', 'significant', 'safety-floor-row', 'act-now'],
+  ['F-053+F-060', 'severe', 'unheld-halt', 'verify-first'], ['F-10900', 'contained', 'floor-row', 'verify-first'],
+  ['F-055', 'significant', 'safety-floor-row', 'verify-first'], ['F-1007', 'significant', 'safety-floor-row', 'verify-first'],
+  ['F-1100', 'significant', 'safety-floor-row', 'verify-first'], ['F-054', 'severe', 'lane-judgment', 'verify-first'],
+  ['F-1004', 'contained', 'floor-row', 'hygiene'], ['F-1002', 'contained', 'floor-row', 'hygiene'],
+  ['F-990', 'significant', 'safety-floor-row', 'park'], ['F-1101', 'contained', 'floor-row', 'park'],
+  ['F-062', 'contained', 'working-tier-row', 'park'], ['F-063', 'contained', 'working-tier-row', 'park'],
+  ['F-991+F-992', 'unvalued', null, null],
 ];
 
 export function writeExposureFixture(dir) {
@@ -106,6 +110,8 @@ export async function run() {
     const ddItem = itemOf('F-1300')?.consequence;
     if (ddItem?.value !== 'contained' || ddItem?.rule !== 'safety-row-hardening' || ddItem?.facts?.exposure !== 'hardening') fail(`its item in sequence.json reads contained by safety-row-hardening with exposure hardening (got ${JSON.stringify(ddItem)})`);
     if (!/^_Consequence: contained \(rule `safety-row-hardening`[^\n]*exposure hardening/m.test(rem)) fail('its REMEDIATION line names the rule and shows exposure hardening');
+    if (itemOf('F-1300')?.quadrant?.value === 'act-now' || itemOf('F-1300')?.quadrant?.value !== 'hygiene') fail(`a confirmed hardening finding leaves act now for hygiene (got ${JSON.stringify(itemOf('F-1300')?.quadrant)})`);
+    if (itemOf('F-1301')?.quadrant?.value !== 'act-now') fail(`a confirmed broken-access-control finding on the same row stays in act now (got ${JSON.stringify(itemOf('F-1301')?.quadrant)})`);
 
     // (b) broken access control on the same row: authority, significant or above
     const ac = cOf('F-1301');
@@ -147,9 +153,8 @@ export async function run() {
     if (h4.status !== 0) fail(`handoff.mjs must compile the four-pattern fixture (exit ${h4.status}): ${h4.stderr.slice(0, 400)}`);
     else {
       const seq = JSON.parse(readFileSync(join(four, 'handoff', 'sequence.json'), 'utf8')).sequence;
-      const got = seq.map((s) => [s.findings.join('+'), s.consequence.value, s.consequence.rule]);
-      const want = [...FOUR_PATTERNS].sort((a, b) => a[0].localeCompare(b[0]));
-      if (JSON.stringify([...got].sort((a, b) => a[0].localeCompare(b[0]))) !== JSON.stringify(want)) fail(`the four-pattern fixture lands as before (want ${JSON.stringify(want)}, got ${JSON.stringify(got)})`);
+      const got = seq.map((s) => [s.findings.join('+'), s.consequence.value, s.consequence.rule, s.quadrant ? s.quadrant.value : null]);
+      if (JSON.stringify(got) !== JSON.stringify(FOUR_PATTERNS)) fail(`the four-pattern fixture lands as before, consequence, quadrant and order alike (want ${JSON.stringify(FOUR_PATTERNS)}, got ${JSON.stringify(got)})`);
     }
 
     // (g) renaming every scanner moves nothing; no table, no exposure; another adapter's table is never read
