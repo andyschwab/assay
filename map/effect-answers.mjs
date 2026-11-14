@@ -96,7 +96,8 @@ export function answerErrors(answers, at) {
     const a = answers[k], where = `${at}.${k}`;
     if (a === undefined) { errors.push(`${where}: not answered: every question of the checklist is answered, yes, no or not-determinable`); continue; }
     if (!a || typeof a !== 'object' || Array.isArray(a)) { errors.push(`${where}: an answer is a map ({ answer, evidence })`); continue; }
-    for (const x of Object.keys(a)) if (!['answer', 'evidence', 'what', 'held_by'].includes(x)) errors.push(`${where}: unknown key "${x}" (answer, evidence, what, held_by)`);
+    for (const x of Object.keys(a)) if (!['answer', 'evidence', 'what', 'held_by', 'against_signal'].includes(x)) errors.push(`${where}: unknown key "${x}" (answer, evidence, what, held_by, against_signal)`);
+    if (a.against_signal !== undefined && !(typeof a.against_signal === 'string' && a.against_signal.trim())) errors.push(`${where}: against_signal says why the answer differs from the signal, a non-empty string`);
     if (!ANSWER_VALUES.includes(a.answer)) { errors.push(`${where}: answer ${JSON.stringify(a.answer)} is not one of ${ANSWER_VALUES.join(', ')}`); continue; }
     if (a.answer !== 'not-determinable') {
       if (!Array.isArray(a.evidence) || !a.evidence.length) errors.push(`${where}: a ${a.answer} carries its evidence, a non-empty list of path:line citations of the code or config that shows it`);
@@ -115,4 +116,33 @@ export function answerCitations(answers) {
   const out = [];
   for (const k of CHECKLIST_KEYS) { const a = answers && answers[k]; if (a && Array.isArray(a.evidence)) for (const ev of a.evidence) if (typeof ev === 'string') out.push([k, ev.trim()]); }
   return out;
+}
+
+// A lane may not silently contradict a signal (#315 slice 3; map/effect-signals.mjs, map/SCHEMA.md
+// §6e, "The signals"). Where the candidate list records a signal for a question, an answer that
+// differs from the answer it supports carries against_signal, why, and its own evidence, a non-empty
+// list of path:line citations (a not-determinable answer included); an answer that agrees with it
+// carries nothing more. against_signal is said only of an answer some signal records otherwise. A
+// list that records no signal (one drawn before the signals) holds nothing here, so a stored run reads
+// as before. A refusal names the candidate, the question and the signal.
+/** @param {any} answers @param {any[]} signals @param {string} at @param {string} candidate @returns {string[]} */
+export function againstSignalErrors(answers, signals, at, candidate) {
+  if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return [];
+  const errors = [];
+  const byQ = new Map((Array.isArray(signals) ? signals : []).filter((s) => s && typeof s === 'object').map((s) => [s.question, s]));
+  for (const k of CHECKLIST_KEYS) {
+    const a = answers[k];
+    if (!a || typeof a !== 'object' || !ANSWER_VALUES.includes(a.answer)) continue;   // its form is answerErrors'
+    const s = byQ.get(k), where = `${at}.${k}`;
+    const differs = s && a.answer !== s.supports;
+    const sig = s ? `${k}: ${s.supports}, read by ${s.marker} at ${(s.evidence || []).join(', ')}` : '';
+    if (differs) {
+      const cites = Array.isArray(a.evidence) && a.evidence.length > 0 && a.evidence.every((ev) => typeof ev === 'string' && CITE.test(ev.trim()));
+      if (!(typeof a.against_signal === 'string' && a.against_signal.trim()) || !cites)
+        errors.push(`${where}: "${candidate}" answers ${k} ${a.answer} against the signal the candidate list records (${sig}): an answer against a signal says why in against_signal, with its own path:line evidence`);
+    } else if (a.against_signal !== undefined) {
+      errors.push(`${where}: "${candidate}" carries against_signal, and ${s ? `its answer agrees with the signal (${sig})` : `the candidate list records no signal on ${k}`}: against_signal is said only of an answer against a signal`);
+    }
+  }
+  return errors;
 }

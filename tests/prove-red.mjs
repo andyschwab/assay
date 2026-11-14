@@ -231,6 +231,21 @@ export const ENTRIES = [
     from: "exposure: { from: 'finding', values: () => EXPOSURE },",
     to: "exposure: { from: 'finding', values: () => [...EXPOSURE, 'critical-data'] },",
     check: 'consequence-reads-exposure', red: /a rule naming an exposure outside the set in when is refused/ },
+  { rule: 'a lane may not silently contradict a signal: an answer against one with no against_signal and evidence fails validate (#315)',
+    file: 'map/effect-answers.mjs',
+    from: "if (!(typeof a.against_signal === 'string' && a.against_signal.trim()) || !cites)",
+    to: 'if (false)',
+    check: 'answers-against-signals', red: /\(1\) an answer against a signal with no against_signal must fail validate/ },
+  { rule: 'a signal is read, never inferred: a route behind no limiter carries no signal, never rate_limit no (#315)',
+    file: 'map/effect-signals.mjs',
+    from: 'if (every) out.set(rt.question, { question: rt.question, supports: rt.supports,',
+    to: "out.set(rt.question, { question: rt.question, supports: every ? rt.supports : 'no',",
+    check: 'signals-from-code', red: /\(3\) a route behind no limiter carries no signal at all, never rate_limit no/ },
+  { rule: "the signals' markers come from map/effect-signals.yaml alone: a marker renamed there takes its signal (#315, CLAUDE.md rule 7)",
+    file: 'map/effect-signals.mjs',
+    from: 'for (const f of sc.apply_flags) {',
+    to: "for (const f of [...sc.apply_flags, { flag: '--apply', reason: 'a marker written in code' }]) {",
+    check: 'signals-markers-data', red: /\(1\) renaming flag: "--apply" in the data file takes/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────

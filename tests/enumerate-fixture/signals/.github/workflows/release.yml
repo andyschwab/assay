@@ -1,0 +1,17 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: the tag to release
+        required: true
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cut the release
+        run: gh release create "${{ inputs.tag }}" --generate-notes

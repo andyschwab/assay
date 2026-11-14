@@ -1,0 +1,112 @@
+# map/effect-signals.yaml — the markers enumerate reads a signal from (#315 slice 3; map/SCHEMA.md
+# §6e, "The signals"). A signal is a fact the tree states about one listed candidate, with its
+# file:line, naming the question of the checklist it bears on and the answer it supports. This file
+# is the one table of the markers: map/effect-signals.mjs reads how to find each in the tree, and
+# names none of them itself. Every entry says why it supports what it supports. A marker not listed
+# here is not read, and a candidate with no marker for a question carries no signal for it.
+schema: effect-signals
+version: 1
+
+# A workflow write (#300's kinds): read from the workflow file that holds the step, at the job that
+# runs it (a job-level key) or at the top of the file (a workflow-level key, or the trigger).
+workflow:
+  job_keys:
+    - key: environment
+      question: refuses_unless
+      supports: "yes"
+      held_by: outside
+      what: "the named environment's protection rules, which live outside the repository: the tree names the environment, and whether it requires a reviewer or a wait is not in it"
+      reason: "A job that names an environment runs only once that environment's protection rules pass, and those rules are kept by the platform, not by this repository's code."
+    - key: permissions
+      question: declared_scope
+      supports: "yes"
+      unbounded: [write-all]
+      reason: "A permissions block declares what the job's token may touch, a scope at the effect; write-all declares no bound, so it is no scope."
+  workflow_keys:
+    - key: permissions
+      question: declared_scope
+      supports: "yes"
+      unbounded: [write-all]
+      reason: "A workflow-level permissions block declares the token's scope for every job that declares none of its own; write-all declares no bound."
+  triggers:
+    question: person_act
+    person:
+      - trigger: workflow_dispatch
+        reason: "A manual dispatch runs only when one person starts it, by name, with the inputs they give."
+    automatic:
+      - trigger: push
+        reason: "A push starts the job without anyone choosing to run it."
+      - trigger: pull_request
+        reason: "A pull request event starts the job without anyone choosing to run it."
+      - trigger: pull_request_target
+        reason: "The pull request event run in the base's context: it starts the job without anyone choosing to run it."
+      - trigger: schedule
+        reason: "A schedule starts the job on the clock, with no person's act."
+      - trigger: merge_group
+        reason: "A merge queue starts the job as the queue moves, with no person's act on this job."
+
+# A script or CLI: read from the candidate's own file, its argument parsing.
+scripts:
+  question: second_act
+  supports: "yes"
+  reason: "SCHEMA.md §6e names a dry run by default with an apply flag among second_act's cases: the run shows what it would do, and the effect needs a second, explicit act."
+  apply_flags:
+    - flag: "--apply"
+      reason: "The common name for the act that turns a dry run into the effect."
+    - flag: "--yes"
+      reason: "An explicit confirmation given on the command line, in place of a prompt."
+    - flag: "--execute"
+      reason: "The act that turns a planned run into the effect."
+    - flag: "--no-dry-run"
+      dry_run_default: true
+      reason: "Its name says a dry run is the default, and this flag is the act that leaves it."
+  dry_run_words: [dry_run, dryRun, DRY_RUN, dry-run, dryrun]
+
+# A route: read from the file that registers it, an Express-style app.<method> or router.<method>:
+# a limiter applied by name as a route argument, by a .use( on the same receiver before the route,
+# or called to refuse inside the handler.
+routes:
+  question: rate_limit
+  supports: "yes"
+  limiter_modules:
+    - module: express-rate-limit
+      reason: "Express middleware that refuses a client past a request count in a window."
+    - module: express-slow-down
+      reason: "Express middleware that delays a client past a request count in a window."
+    - module: rate-limiter-flexible
+      reason: "A limiter library whose instances refuse past a count of points in a window."
+    - module: "@fastify/rate-limit"
+      reason: "Fastify's request-rate plugin."
+    - module: koa-ratelimit
+      reason: "Koa's request-rate middleware."
+    - module: "@upstash/ratelimit"
+      reason: "A hosted limiter whose limit() call refuses past a rate."
+    - module: hono-rate-limiter
+      reason: "Hono's request-rate middleware."
+  limiter_calls:
+    - call: limit
+      reason: "A hosted limiter's refusing call: a handler that calls it on a limiter refuses past the rate."
+    - call: consume
+      reason: "A points limiter's refusing call: it rejects once the points in the window are spent."
+  limiter_words: [ratelimit, rate_limit, limiter, throttle]
+  limiter_words_reason: "A limiter the tree defines itself is read only where its name says it limits, and only where the route's file applies it by that name."
+
+# A soft delete: read where the SQL is literal in the candidate's own code (a route's handler, a
+# script's file).
+soft_delete:
+  question: window
+  supports: "yes"
+  reason: "A write that sets a soft-delete column keeps the row, so the effect can be undone until something purges it; the riskier reading of an undo the tree does not bound is a window."
+  columns:
+    - column: deleted_at
+      reason: "The common soft-delete timestamp."
+    - column: deleted_on
+      reason: "A soft-delete date."
+    - column: archived_at
+      reason: "An archive timestamp: the row is kept and hidden."
+    - column: trashed_at
+      reason: "A trash timestamp: the row is kept until emptied."
+    - column: discarded_at
+      reason: "The discard gem's soft-delete column."
+    - column: is_deleted
+      reason: "A soft-delete flag."
