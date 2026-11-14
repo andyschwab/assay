@@ -23,6 +23,8 @@ const PRECOND_RANK = {
   'network-position': 3, 'insider': 3, 'zero-day': 3, 'physical': 3,
 };
 const RANK_WORD = { 0: 'trivial', 1: 'low', 2: 'moderate', 3: 'high' };
+// effort-to-trigger in words, easiest first (map/consequence.mjs reads it as the `trigger` fact, #319)
+export const DIFFICULTY_WORDS = Object.values(RANK_WORD);
 const PRECOND_WHY = {
   'prompt-injection': 'a planted instruction the assistant reads',
   'malicious-dependency': 'a poisoned software package',
@@ -42,6 +44,9 @@ const hardestPrecond = (f) => {
   for (const p of (f && f.preconditions) || []) if ((PRECOND_RANK[p] || 0) > r) { r = PRECOND_RANK[p] || 0; best = p; }
   return best;
 };
+// the effort to trigger one finding on its own: its hardest stated precondition, in words; null
+// when it states none (nothing is known of who can start it)
+export const triggerOf = (f) => ((f && Array.isArray(f.preconditions) && f.preconditions.length) ? RANK_WORD[nodeCost(f)] : null);
 const label = (f, fallback) => (f && f.label) || fallback || (f && f.id) || '';
 const sinkFallbackWith = (notes) => (f) => (f.effect && channelLabel(f.effect.channel, notes)) || f.id;
 const confWord = (c) => CONFIDENCE_WORD[c] || null;  // null for confirmed

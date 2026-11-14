@@ -30,6 +30,7 @@ import { buildTopicsForRun } from './topics.mjs';
 import { buildCandidates, candidatesMd } from './candidates.mjs';
 import { buildRoadmap, buildSequence, urgentNote } from './sequence.mjs';
 import { loadConfidenceContext } from '../../map/confidence.mjs';
+import { loadConsequenceContext } from '../../map/consequence.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TEMPLATE = join(HERE, 'templates', 'maintainer-report.md');
@@ -383,7 +384,8 @@ function sharedSequence() {
   const yardstick = loadYardstick();
   const measurement = loadMeasurement(runDir) ?? measureRunOf(runDir, yardstick);
   // the same confidence context the handoff reads (map/confidence.mjs), so the two orders agree
-  const context = loadConfidenceContext(runDir);
+  // and the same consequence policy (map/consequence.mjs): the one the run record names, else the default
+  const context = { ...loadConfidenceContext(runDir), consequence: loadConsequenceContext(runDir, { yardstick }) };
   return (SHARED = { rm, ...buildSequence({ decided, adapters, roadmap: rm, measurement, yardstick, context }) });
 }
 const itemList = (ns) => ns.length === 1 ? `item ${ns[0]}` : `items ${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}`;

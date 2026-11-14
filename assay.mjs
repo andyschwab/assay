@@ -49,7 +49,7 @@ const GROUPS = [
     'routine': ['routine/run.mjs', "the routine (routine/README.md): verify the tools, draw the run, record the rest, validate, compile and ratchet; writes the run and its routine.yaml (<repo> --out <run> [--baseline <file>] [--base-ref <ref>] [--since <prev-run>]), or the two-job target step (<repo> --target-steps --handoff <dir>)"],
   }],
   ['Views: Intake, Maintain, Improve, Owner, Since', {
-    'compile': ['views/compile.mjs', 'measure, then write every view and the index'],
+    'compile': ['views/compile.mjs', 'measure, then write every view and the index (<run> [--target <target>] [--since <prev-run>] [--packet <dir>] [--sweep-set <dir>]... [--consequence-policy <file>])'],
     'intake': ['views/intake.mjs', 'the Intake view alone, from an existing measurement'],
     'maintain': ['views/maintain.mjs', 'the Maintain view alone, from an existing measurement'],
     'owner': ['views/owner.mjs', "the Owner view alone: what is true of it, in the owner's own register"],

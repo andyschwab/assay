@@ -26,17 +26,19 @@
 //   --packet   validate a repository's own packet and fold it into the measurement
 //              (forwarded to yardstick/measure.mjs --write; owner/PACKET.md)
 import { writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, basename, dirname, relative } from 'node:path';
+import { join, basename, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, modelsLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
 import { loadDecisions, decideProjected } from '../map/decisions.mjs';
-import { projectRun as measureRunOf, summarize as summarizeMeasurement } from '../yardstick/measure.mjs';
+import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYardstick } from '../yardstick/measure.mjs';
+import { loadPolicy } from '../map/consequence.mjs';
+import { setConsequencePolicy, updateRunRecord } from '../map/record.mjs';
 import { buildRows } from './floor-fleet.mjs';
 import { buildOwner } from './owner.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';
-import { prosePath as runProsePath, nativeDir, indexPath, sincePagePath } from '../lib/run-layout.mjs';
+import { prosePath as runProsePath, nativeDir, indexPath, sincePagePath, scannersPath } from '../lib/run-layout.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -50,9 +52,14 @@ const targetArgs = targetIdx > -1 ? ['--target', argv[targetIdx + 1]] : [];
 // README.md); the handoff carries its figures beside a judged item from that source (#319)
 const sweepIdx = argv.flatMap((a, i) => (a === '--sweep-set' ? [i] : []));
 const sweepArgs = sweepIdx.flatMap((i) => ['--sweep-set', argv[i + 1]]);
-const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1, targetIdx > -1 ? targetIdx + 1 : -1, ...sweepIdx.map((i) => i + 1)].filter((i) => i > -1));
+// --consequence-policy <file>: the operator's consequence policy for this run (#319,
+// yardstick/consequence.yaml is the default and the format); checked, then recorded in the run
+// record with its digest, so every later compile of the run reads the same policy
+const policyIdx = argv.indexOf('--consequence-policy');
+const policyFile = policyIdx > -1 ? argv[policyIdx + 1] : null;
+const reserved = new Set([packetIdx > -1 ? packetIdx + 1 : -1, sinceIdx > -1 ? sinceIdx + 1 : -1, targetIdx > -1 ? targetIdx + 1 : -1, policyIdx > -1 ? policyIdx + 1 : -1, ...sweepIdx.map((i) => i + 1)].filter((i) => i > -1));
 const arg = argv.find((a, i) => !a.startsWith('--') && !reserved.has(i));
-if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>] [--sweep-set <dir>]...'); process.exit(2); }
+if (!arg) { console.error('usage: node assay.mjs compile <run-dir> [--packet <dir>] [--since <prev-run-dir>] [--target <repo>] [--sweep-set <dir>]... [--consequence-policy <file>]'); process.exit(2); }
 const runDir = arg;
 const runId = basename(runDir);
 
@@ -73,6 +80,14 @@ const confArgs = CONFIDENTIAL ? ['--confidential'] : [];
 // validate.mjs is the format contract AND the run manifest (every adopted scanner's
 // disposition). A package that compiles over a base with an unrecorded scanner
 // reads as coverage that never happened; so the package never compiles without it.
+if (policyIdx > -1) {
+  if (!policyFile || policyFile.startsWith('--')) { console.error('✗ --consequence-policy needs the policy file'); process.exit(2); }
+  try {
+    const p = loadPolicy(resolve(policyFile), loadYardstick());
+    updateRunRecord(scannersPath(runDir), (text) => setConsequencePolicy(text, { file: resolve(policyFile), sha256: p.sha256 }));
+    console.log(`· consequence policy ${policyFile} recorded in the run record (sha256 ${p.sha256.slice(0, 12)}…)`);
+  } catch (e) { console.error(`✗ consequence policy refused: ${e.message}`); process.exit(1); }
+}
 console.log('· validate …');                  run('../map/validate.mjs', targetArgs);
 // the measurement: every package carries yardstick.yaml (yardstick/README.md); the
 // validator drift-checks it on the next validate, so a stale read cannot outlive its base

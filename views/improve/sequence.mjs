@@ -28,6 +28,10 @@
 // Every item also records its CONFIDENCE (#319): how much assay knows about its worst gap, on the
 // closed scale map/confidence.mjs derives by one stated rule per value; among gaps tied at the
 // worst key, the strongest value applies. Confidence does not reorder the key beyond clause 3.
+// Every item also records its CONSEQUENCE (#319, slice 2): the policy (yardstick/consequence.yaml, or
+// the operator's file the run record names) applied to the facts of what its gaps touch, by
+// map/consequence.mjs; the item takes its most consequential gap's, the first in the key's order
+// among equals. Consequence does not reorder the key: the quadrant view and the lenses are slice 3.
 //
 // A scanner item every one of whose findings a roadmap item cites is ABSORBED into that roadmap
 // card (never sequenced twice). An open gap with no fix and no roadmap coverage is an OWNER item:
@@ -38,6 +42,7 @@ import { sevRank, buildFixSpine, isHalt } from '../../map/doctrine.mjs';
 import { axisShort } from '../../lib/display.mjs';
 import { propertyOf } from '../../map/placement.mjs';
 import { confidenceOf, strongest } from '../../map/confidence.mjs';
+import { consequenceIndex, consequenceOf, highest } from '../../map/consequence.mjs';
 
 const nn = (i) => String(i + 1).padStart(2, '0');
 export const SLUG_RE = /^[a-z0-9-]+$/;
@@ -164,15 +169,19 @@ const NO_GAP = [2, Infinity, Infinity, Infinity, Infinity];   // an item citing 
 // Sorts `items` in place by KEY, each `{ ps, … }`, and gives each a `rank` of its worst open
 // gap: { halt, tier, severity, absent_evidence }, tier the yardstick tier's name or null when no
 // requirement takes it, and a `confidence` of that gap (map/confidence.mjs): { value, rule,
-// finding, reason?, declared?, repeatability? }, the strongest among the gaps tied at the worst key.
-function rankItems(items, { tierOf, tiers, confOf }) {
+// finding, reason?, declared?, repeatability? }, the strongest among the gaps tied at the worst key;
+// and a `consequence` (map/consequence.mjs): { value, rule, finding, facts, effect?, contested?,
+// judgment? }, its most consequential open gap's, the first in the key's order among equals.
+function rankItems(items, { tierOf, tiers, confOf, consOf }) {
   const open = (it) => it.ps.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
   const keyed = items.map((it) => {
     let worst = null;
+    const gaps = [];
     for (const p of open(it)) {
       const c = { ...confOf(p), finding: p.f.id };
       const g = gapFacts(p, tierOf.get(String(p.f.id)), c);
       const k = KEY(g, tiers.length);
+      gaps.push({ k, p });
       const cmp = worst ? lex(k, worst.k) : -1;
       if (cmp < 0) worst = { k, g, cs: [c] };
       else if (cmp === 0) worst.cs.push(c);
@@ -183,6 +192,9 @@ function rankItems(items, { tierOf, tiers, confOf }) {
       : { halt: false, tier: null, severity: 'unrated', absent_evidence: false };
     // an item citing no open gap has no gap to know about: its strongest cited finding's value
     it.confidence = worst ? strongest(worst.cs) : (it.ps.length ? strongest(it.ps.map((p) => ({ ...confOf(p), finding: p.f.id }))) : null);
+    // what is at stake: the most consequential open gap, else (no open gap) its cited findings'
+    const cited = gaps.length ? gaps.sort((a, b) => lex(a.k, b.k) || byId(a.p.f.id, b.p.f.id)).map((x) => x.p) : [...it.ps].sort((a, b) => byId(a.f.id, b.f.id));
+    it.consequence = cited.length ? highest(cited.map(consOf)) : null;
     return { it, key: worst ? worst.k : NO_GAP, first };
   });
   keyed.sort((a, b) => lex(a.key, b.key) || byId(a.first, b.first));
@@ -194,7 +206,10 @@ function rankItems(items, { tierOf, tiers, confOf }) {
 // `roadmap` is buildRoadmap's output; `measurement` is the run's measurement (yardstick.yaml
 // rows) and `yardstick` the registry, which together say each finding's tier.
 // `context` is map/confidence.mjs loadConfidenceContext's (the run record, the census's deployment
-// signals, the sweep sets named for the run); without it the rules read the findings alone.
+// signals, the sweep sets named for the run); without it the rules read the findings alone. Its
+// `consequence` is map/consequence.mjs loadConsequenceContext's (the policy the run record names,
+// its channel keys, the named sweep sets' contests); without it, the default policy over the run.
+/** @param {{ decided: any[], adapters: any, roadmap: any[], measurement: any, yardstick: any, context?: any }} args */
 export function buildSequence({ decided, adapters, roadmap, measurement, yardstick, context = {} }) {
   const coveredIds = new Set(roadmap.flatMap((r) => r.ps.map((p) => p.f.id)));
   const openGaps = decided.filter((p) => p.f.polarity === 'gap' && p.state === 'open');
@@ -264,7 +279,8 @@ export function buildSequence({ decided, adapters, roadmap, measurement, yardsti
     ...triageItems,
     ...remedies,
     ...ownerItems,
-  ], { tierOf, tiers: yardstick.tiers, confOf: (p) => confidenceOf(p, adapters, context) });
+  ], { tierOf, tiers: yardstick.tiers, confOf: (p) => confidenceOf(p, adapters, context),
+    consOf: ((idx) => (p) => consequenceOf(p, idx))(consequenceIndex({ decided, measurement, yardstick, context: context.consequence })) });
   seq.forEach((s, i) => { s.n = i + 1; });
 
   // plan files: every roadmap item, every triage item, every remedy whose worst severity is High
