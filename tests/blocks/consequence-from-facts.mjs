@@ -21,7 +21,8 @@
 //   (b) the unheld halt reaching the fleet reads severe, by unheld-halt;
 //   (c) the "High" template expansion is not severe: its facts are internal, reversible and
 //       maintainer-triggered, and its label decided nothing; the "Low" twin reads the same, and
-//       swapping or dropping every label in the run moves no consequence;
+//       swapping or dropping every label in the run moves no consequence but through halt_at, the
+//       one fact that compares a gap's severity to the bar its own requirement row names;
 //   (d) the lane's judgment below the facts is refused and recorded; the one above is applied, by
 //       lane-judgment, citing the policy rule the facts gave;
 //   (e) the contested blast_scope reads tenant on both findings and says so; a sweep set that parts
@@ -29,8 +30,11 @@
 //   (f) a legibility-tier gap with no effect is valued by legibility-row;
 //   (g) a policy naming a fact outside the closed list refuses to load, and a run whose record
 //       names it halts its handoff and fails validate;
-//   (h) a policy that values no rule for some gap halts the sequence: no item gets a consequence
-//       without its rule;
+//   (h) no value of the scale without its rule: a gap no rule values reads unvalued, outside the
+//       scale, with the reason (never cosmetic, never a label), and the default policy carries no
+//       rule that fires on every gap; the template expansion of (c) is such a gap;
+//   (n) the release-path High reaches the halt_at its row names and reads severe by halt-at-reached;
+//       the same finding plausible, or on no halt_at row, does not;
 //   (i) compile --consequence-policy records the operator's file and digest in the run record, the
 //       values move to its rules, sequence.json names it, and a file changed since is refused;
 //   (j) renaming every scanner, with its adapter and run-record row, moves no consequence;
@@ -48,9 +52,9 @@ import { buildSequence } from '../../views/improve/sequence.mjs';
 import { loadFindings, loadAdapters, projectMulti } from '../../map/project.mjs';
 import { decideProjected, loadDecisions } from '../../map/decisions.mjs';
 import { loadYardstick, projectRun } from '../../yardstick/measure.mjs';
-import { CONSEQUENCE, FACT_NAMES, ENGINE_RULES, consequenceIndex, consequenceOf, loadPolicy, loadConsequenceContext, checkPolicy, DEFAULT_POLICY, sha256 } from '../../map/consequence.mjs';
+import { CONSEQUENCE, UNVALUED, FACT_NAMES, ENGINE_RULES, consequenceIndex, consequenceOf, loadPolicy, loadConsequenceContext, checkPolicy, DEFAULT_POLICY, sha256 } from '../../map/consequence.mjs';
 import { setConsequencePolicy } from '../../map/record.mjs';
-import { checkSequence, SEQUENCE_CONSEQUENCE, SEQUENCE_CONSEQUENCE_FACTS, SEQUENCE_CONSEQUENCE_ENGINE_RULES } from '../../lib/run-data.mjs';
+import { checkSequence, SEQUENCE_CONSEQUENCE, SEQUENCE_CONSEQUENCE_FACTS, SEQUENCE_CONSEQUENCE_ENGINE_RULES, SEQUENCE_CONSEQUENCE_UNVALUED } from '../../lib/run-data.mjs';
 import { parseYaml } from '../../lib/yaml-min.mjs';
 
 export const label = 'consequence-from-facts';
@@ -85,8 +89,10 @@ const itemOf = (doc, id) => doc.sequence.find((s) => s.findings.includes(id));
 export function itemsWithoutRule(doc, policy) {
   return doc.sequence.filter((s) => {
     const c = s.consequence;
-    if (!c || !CONSEQUENCE.includes(c.value) || !s.findings.includes(c.finding)) return true;
+    if (!c || !s.findings.includes(c.finding)) return true;
     if (!c.facts || JSON.stringify(Object.keys(c.facts)) !== JSON.stringify(FACT_NAMES)) return true;
+    if (c.value === UNVALUED) return !(c.rule === null && typeof c.reason === 'string' && c.reason.trim());
+    if (!CONSEQUENCE.includes(c.value)) return true;
     if (c.rule === 'lane-judgment') return !(c.judgment && c.judgment.applied && CONSEQUENCE.indexOf(c.judgment.value) < CONSEQUENCE.indexOf(c.judgment.facts_value));
     const r = policy.rules.find((x) => x.name === c.rule);
     return !r || r.at_least !== c.value;
@@ -110,6 +116,8 @@ export async function run() {
     for (const s of itemsWithoutRule(doc, policy)) fail(`item ${s.n} (${s.findings.join('+')}) must carry a consequence from a rule of the policy firing at its value (got ${JSON.stringify(s.consequence)})`);
     const stripped = { ...doc, sequence: doc.sequence.map((s, i) => (i === 0 ? { ...s, consequence: undefined } : s)) };
     if (itemsWithoutRule(stripped, policy).length !== 1) fail('an item with no consequence must fail the every-item check');
+    const ruleless = { ...doc, sequence: doc.sequence.map((s, i) => (i === 0 ? { ...s, consequence: { ...s.consequence, value: 'cosmetic', rule: null } } : s)) };
+    if (itemsWithoutRule(ruleless, policy).length !== 1) fail('a value of the scale with no rule must fail the every-item check');
     if (doc.policy?.file !== 'yardstick/consequence.yaml' || doc.policy?.sha256 !== policy.sha256) fail(`sequence.json names the default policy it read, with its digest (got ${JSON.stringify(doc.policy)})`);
 
     // the engine, gap by gap
@@ -131,9 +139,12 @@ export async function run() {
     const high = cOf('F-991');
     const low = cOf('F-992');
     if (high.value === CONSEQUENCE[0]) fail(`a "High" template expansion whose facts are internal, reversible and maintainer-triggered is not ${CONSEQUENCE[0]} (got ${JSON.stringify(high)})`);
+    if (high.value !== UNVALUED || high.rule !== null || !/no fact on the closed list/.test(high.reason || '')) fail(`the expansion bears on no requirement and touches no effect a rule reads: it reads unvalued with the reason, never cosmetic (got ${JSON.stringify(high)})`);
     if (high.effect !== 'F-061' || high.facts.external !== false || high.facts.reversibility !== 'reversible' || high.facts.trigger !== 'high') fail(`the expansion reads the facts of the effect it touches, F-061: internal, reversible, an insider's to trigger (got ${JSON.stringify(high)})`);
     if (low.value !== high.value || low.rule !== high.rule || JSON.stringify(low.facts) !== JSON.stringify(high.facts)) fail(`the same facts reported "Low" read what the "High" reads (High ${JSON.stringify(high)}, Low ${JSON.stringify(low)})`);
-    const VALUES = (ps, i) => ps.filter((p) => p.f.polarity === 'gap').map((p) => `${p.f.id}=${consequenceOf(p, i).value}/${consequenceOf(p, i).rule}`).join(' ');
+    // through halt_at only: a gap whose row names a halt compares its severity to that bar
+    const VALUES = (ps, i) => ps.filter((p) => p.f.polarity === 'gap' && idx.rows.get(String(p.f.id))?.haltAt == null).map((p) => `${p.f.id}=${consequenceOf(p, i).value}/${consequenceOf(p, i).rule}`).join(' ');
+    if (!decided.some((p) => p.f.polarity === 'gap' && idx.rows.get(String(p.f.id))?.haltAt == null && consequenceOf(p, idx).rule === 'safety-floor-row')) fail('the label check reads the fixture\'s tiered gaps');
     const before = VALUES(decided, idx);
     for (const [why, relabel] of [['every label swapped', (s) => ({ High: 'Low', Low: 'High', Medium: 'Critical', Nit: 'Blocker' }[s] || 'High')], ['every label dropped', () => undefined]]) {
       const dec = decided.map((p) => ({ ...p, f: { ...p.f, severity: relabel(p.f.severity) } }));
@@ -190,17 +201,25 @@ export async function run() {
     if (!/consequence_policy[\s\S]*severity/.test(vOff.stdout + vOff.stderr)) fail(`validate refuses a run record naming that policy (got ${(vOff.stdout + vOff.stderr).slice(-400)})`);
     writeFileSync(recPath, recText);
 
-    // (h) no rule, no value: a policy that values no rule for some gap halts the sequence
-    const partial = { ...policy, rules: policy.rules.filter((r) => r.name !== 'any-open-gap') };
+    // (h) no value of the scale without its rule: a gap no rule values reads unvalued, with the reason
+    if (policy.rules.some((r) => !Object.keys(r.when).length)) fail('the default policy carries no rule that fires on every gap: a catch-all is a default, not a rule');
+    const partial = { ...policy, rules: policy.rules.filter((r) => r.name !== 'legibility-row') };
+    const pIdx = consequenceIndex({ decided: [...decided, leg], measurement: [...measurement, { id: readme.id, status: 'unmet', findings: ['F-993'] }], yardstick, context: { ...ctx, policy: partial } });
+    const un = consequenceOf(leg, pIdx);
+    if (un.value !== UNVALUED || un.rule !== null || !un.reason || CONSEQUENCE.includes(un.value)) fail(`a gap no rule of its policy values reads unvalued with the reason, never a value of the scale (got ${JSON.stringify(un)})`);
+    const unItem = itemOf(doc, 'F-991');
+    if (unItem?.consequence?.value !== UNVALUED || !unItem.consequence.reason) fail(`the item holding only unvalued gaps reads unvalued in sequence.json (got ${JSON.stringify(unItem?.consequence)})`);
     threw = '';
     try { buildSequence({ decided, adapters, roadmap: [], measurement, yardstick, context: { consequence: { ...ctx, policy: partial } } }); } catch (e) { threw = e.message; }
-    if (!/no consequence rule applies/.test(threw)) fail(`a gap no rule values halts the sequence (got ${JSON.stringify(threw)})`);
-    const partialFile = join(opDir, 'partial.yaml');
-    writeFileSync(partialFile, readFileSync(DEFAULT_POLICY, 'utf8').replace(/  - name: any-open-gap\n[\s\S]*$/, ''));
-    writeFileSync(recPath, setConsequencePolicy(recText, { file: partialFile, sha256: sha256(readFileSync(partialFile, 'utf8')) }));
-    const hPartial = handoff(tmp);
-    if (hPartial.status === 0 || !/no consequence rule applies/.test(hPartial.stderr)) fail(`the handoff halts on a gap its policy does not value (exit ${hPartial.status}: ${hPartial.stderr.slice(0, 300)})`);
-    writeFileSync(recPath, recText);
+    if (threw) fail(`an unvalued gap never halts the sequence (got ${JSON.stringify(threw)})`);
+
+    // (n) the release-path High reaches its row's halt_at: severe, by halt-at-reached
+    const rel = cOf('F-1001');
+    if (rel.value !== 'severe' || rel.rule !== 'halt-at-reached' || rel.facts.halt_at !== true) fail(`the release-path High reaches d-release-path-trusted's halt_at and reads severe by halt-at-reached (got ${JSON.stringify(rel)})`);
+    const relP = pOf('F-1001');
+    const plausible = consequenceOf({ ...relP, f: { ...relP.f, confidence: 'plausible' } }, idx);
+    if (plausible.facts.halt_at !== false || plausible.rule === 'halt-at-reached') fail(`a plausible gap does not reach its row's halt_at (got ${JSON.stringify(plausible)})`);
+    if (cOf('F-1003').facts.halt_at !== null) fail(`a gap whose row names no halt reads halt_at null (got ${JSON.stringify(cOf('F-1003').facts)})`);
 
     // (i) the operator's policy, named for the run with compile, recorded in the run record
     const run2 = join(tmp, 'notesbox');
@@ -243,11 +262,14 @@ export async function run() {
     if (lines.length !== doc.sequence.length) fail(`START-HERE lists every item (got ${lines.length} of ${doc.sequence.length})`);
     lines.forEach((l, i) => {
       const c = doc.sequence[i]?.consequence;
-      if (!c || !l.includes(`; consequence ${c.value} (`)) fail(`START-HERE item ${i + 1} renders its consequence beside its confidence (got ${l.slice(0, 220)})`);
+      const want = c && c.value === UNVALUED ? `; consequence not valued: ${c.reason}` : `; consequence ${c && c.value} (`;
+      if (!c || !l.includes(want)) fail(`START-HERE item ${i + 1} renders its consequence beside its confidence (got ${l.slice(0, 220)})`);
     });
     if (!/consequence significant \([a-z-]+; blast_scope contested\)/.test(start) && !/consequence [a-z]+ \([a-z-]+; blast_scope contested\)/.test(start)) fail('START-HERE says a fact was contested');
     if (!/consequence severe \(lane judgment over working-tier-row\)/.test(start)) fail('START-HERE names the rule a lane\'s judgment raised over');
-    const consLines = rem.match(/^_Consequence: .*$/gm) || [];
+    const consLines = rem.match(/^_Consequence(: | not valued: ).*$/gm) || [];
+    if (!/^_Consequence not valued: no fact on the closed list/m.test(rem)) fail('REMEDIATION says an unvalued item is not valued, with the reason');
+    if (/consequence cosmetic \(any-open-gap/.test(start)) fail('no item reads cosmetic by a catch-all');
     if (consLines.length !== doc.sequence.length) fail(`REMEDIATION renders a consequence line under every item (got ${consLines.length} of ${doc.sequence.length})`);
     if (!/blast_scope contested \(tenant vs user, by run\), read as tenant/.test(rem)) fail('REMEDIATION states the contest');
     if (!/a lane's judgment of cosmetic was refused/.test(rem)) fail('REMEDIATION states the refused judgment');
@@ -260,13 +282,15 @@ export async function run() {
     // (m) the restatement, and the schema refusing a malformed consequence
     if (JSON.stringify(SEQUENCE_CONSEQUENCE) !== JSON.stringify(CONSEQUENCE)) fail(`lib/run-data.mjs SEQUENCE_CONSEQUENCE must be map/consequence.mjs's scale (got ${SEQUENCE_CONSEQUENCE.join(', ')})`);
     if (JSON.stringify(SEQUENCE_CONSEQUENCE_FACTS) !== JSON.stringify(FACT_NAMES)) fail('lib/run-data.mjs SEQUENCE_CONSEQUENCE_FACTS must be map/consequence.mjs FACTS');
+    if (SEQUENCE_CONSEQUENCE_UNVALUED !== UNVALUED || CONSEQUENCE.includes(UNVALUED)) fail('lib/run-data.mjs restates unvalued as map/consequence.mjs states it, outside the scale');
     if (JSON.stringify(SEQUENCE_CONSEQUENCE_ENGINE_RULES) !== JSON.stringify(ENGINE_RULES.map((r) => r.name))) fail('lib/run-data.mjs SEQUENCE_CONSEQUENCE_ENGINE_RULES must be map/consequence.mjs ENGINE_RULES');
     if (checkSequence(doc).length) fail(`checkSequence must admit the written sequence (got ${checkSequence(doc).join('; ')})`);
     const one = itemOf(doc, 'F-060');
     const docWith = (c) => ({ ...doc, sequence: doc.sequence.map((s) => (s === one ? { ...s, consequence: c } : s)) });
     for (const bad of [{ ...one.consequence, value: 'critical' }, { ...one.consequence, rule: 'a-rule-no-policy-has' }, { ...one.consequence, finding: 'F-1' },
       { ...one.consequence, facts: { halt: true } }, { ...one.consequence, contested: [{ fact: 'blast_scope', values: ['tenant', 'user'], read: 'user', where: ['run'] }] }, { ...one.consequence, contested: [{ fact: 'tier', values: ['safety', 'custody'], read: 'safety', where: ['run'] }] },
-      { ...one.consequence, rule: 'lane-judgment' }, { ...one.consequence, judgment: { value: 'cosmetic', because: 'x', applied: true, facts_value: 'severe', facts_rule: 'unheld-halt' } }])
+      { ...one.consequence, rule: 'lane-judgment' }, { ...one.consequence, value: SEQUENCE_CONSEQUENCE_UNVALUED }, { ...one.consequence, value: SEQUENCE_CONSEQUENCE_UNVALUED, rule: null },
+      { ...one.consequence, reason: 'a reason only unvalued carries' }, { ...itemOf(doc, 'F-991').consequence, finding: 'F-060', rule: 'unheld-halt' }, { ...one.consequence, judgment: { value: 'cosmetic', because: 'x', applied: true, facts_value: 'severe', facts_rule: 'unheld-halt' } }])
       if (!checkSequence(docWith(bad)).length) fail(`checkSequence must refuse the consequence ${JSON.stringify(bad).slice(0, 160)}`);
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }

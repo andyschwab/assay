@@ -11,11 +11,12 @@
 #
 # Each rule says: when these facts hold, the consequence is AT LEAST this. Every rule is read, top
 # to bottom; the highest value that fires wins, and among rules firing at that value the first one
-# down the file is the one the item cites. No rule, no value: the sequence halts.
+# down the file is the one the item cites. A gap no rule values reads `unvalued`, outside the
+# scale, with the reason: never a value of the scale without the rule that gave it, never a guess.
 #
 # `when:` maps a fact to a value, or to a list of values any of which matches; every fact named
 # must match, and a fact the run could not read (null) matches nothing. `tags` matches when the
-# row carries any value listed. `when: {}` fires on every open gap. A rule naming a fact outside
+# row carries any value listed. A rule naming a fact outside
 # the closed list, a value outside that fact's vocabulary, or a consequence outside the scale is
 # refused when the policy loads.
 #
@@ -34,12 +35,20 @@
 #   tier           the yardstick's tiers
 #   tags           the yardstick's tags
 #   floor          true · false   (the row it bears on is a floor row)
+#   halt_at        true · false   (a confirmed gap at or above the halt_at: its row bears; null
+#                  when the row names none. The one fact that reads a severity: the row names the
+#                  bar, never the tool)
 #
 # The scale (closed, ordered, never a number): severe · significant · contained · cosmetic.
-# A tool's or a lane's severity label is not a fact and is read by no rule.
+# A tool's or a lane's severity label is not a fact and is read by no rule; halt_at compares a
+# gap's severity to the bar its own requirement row names, as the sequence's halt clause does.
 schema: assay.consequence-policy
 version: 1
 rules:
+  - name: halt-at-reached
+    says: a confirmed gap at or above the halt its requirement names (halt_at), a stop the row says does not hold
+    when: { halt_at: true }
+    at_least: severe
   - name: unheld-halt
     says: an irreversible or external effect with no stop that holds, whose damage reaches beyond one person
     when: { halt: true, blast_scope: [tenant, fleet, cross-tenant] }
@@ -91,8 +100,4 @@ rules:
   - name: legibility-row
     says: a gap on a legibility requirement, what a reader can learn from the files
     when: { tier: legibility }
-    at_least: cosmetic
-  - name: any-open-gap
-    says: the scale's floor, an open gap no other rule values
-    when: {}
     at_least: cosmetic
