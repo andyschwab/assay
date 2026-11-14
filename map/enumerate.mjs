@@ -32,6 +32,7 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { secretShape } from '../yardstick/packet.mjs';
 import { ENUMERATE_POPULATIONS } from './enumerate-populations.mjs';
 import { testOrFixture, runtimeImported } from './effect-scope.mjs';
+import { loadMarkers, signalsOf } from './effect-signals.mjs';
 
 const target = process.argv[2];
 if (!target || target.startsWith('--')) {
@@ -806,6 +807,16 @@ const order = ENUMERATE_POPULATIONS;
 
 const JSON_MODE = process.argv.includes('--json');   // suppress the pretty enumeration; emit only JSON
 
+// The signals (#315 slice 3; map/effect-signals.mjs, map/SCHEMA.md §6e, "The signals"): what the
+// tree states about a candidate of the three populations the effect triage closes, each with its
+// file:line and the marker that read it, from map/effect-signals.yaml. Read once per member, over
+// every file its evidence cites; a member with none carries an empty list, never a guessed answer.
+const MARKERS = loadMarkers();
+const fileLines = new Map();
+const readRel = (p) => { if (!fileLines.has(p)) fileLines.set(p, lines(join(target, p))); return fileLines.get(p); };
+const TREE = { files: files.map((f) => rel(f).replace(/\\/g, '/')) };
+const signalsFor = (pop, member, evidence) => signalsOf({ pop, member, evidence }, readRel, MARKERS, TREE);
+
 // --json without --run: the populations as data (#259). `assay start` writes this into the run
 // (lib/run-layout.mjs enumeratePath), and the run's channel candidates are the population the
 // effect-channel triage closes (map/SCHEMA.md §6e). One entry per member, keyed as the readable
@@ -823,9 +834,12 @@ function populationsJson() {
       if (v.gateable) g.gateable = true;
     }
     out[pop] = [...members.values()].sort((a, b) => a.member.localeCompare(b.member))
-      .map((g) => ({ member: g.member, ...(g.population ? { population: g.population, reason: g.reason } : {}), note: g.note, gateable: g.gateable, evidence: [...g.evidence].sort() }));
+      .map((g) => ({ member: g.member, ...(g.population ? { population: g.population, reason: g.reason } : {}), note: g.note, gateable: g.gateable, evidence: [...g.evidence].sort(),
+        ...(CANDIDATE_POPS.has(pop) ? { signals: signalsFor(pop, g.member, g.evidence) } : {}) }));
   }
-  // version 2 (#315) adds populations.excluded; a version 1 list carries none and reads as before
+  // version 2 (#315) adds populations.excluded; a version 1 list carries none and reads as before.
+  // A candidate's `signals` (#315 slice 3) is additive at version 2: a list drawn before it carries
+  // none, and reads as a list whose candidates carry no signal
   return { schema: 'enumerate', version: 2, target: basename(resolve(target)), files: files.length, populations: out };
 }
 if (JSON_MODE && !runDir) {
@@ -852,6 +866,8 @@ for (const pop of JSON_MODE ? [] : order) {
   for (const [key, v] of [...members.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     const ev = [...v.evidence].slice(0, 3).join(', ') + (v.evidence.size > 3 ? ` (+${v.evidence.size - 3})` : '');
     console.log(`   • ${key}${v.note ? `  — ${v.note}` : ''}\n       ${ev}`);
+    if (CANDIDATE_POPS.has(pop)) for (const sg of signalsFor(pop, key, v.evidence))
+      console.log(`       signal: ${sg.question} ${sg.supports} (${sg.marker}) ${sg.evidence.join(', ')}`);
   }
   console.log('');
 }

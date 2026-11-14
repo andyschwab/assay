@@ -1,0 +1,11 @@
+name: nightly
+on:
+  push:
+    branches: [main]
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the nightly
+        run: npm publish --tag nightly

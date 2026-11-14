@@ -320,8 +320,11 @@ export function computeDescriptorAgreement(runDirs) {
 // reversibility are the values its own answers give, not its finding's as written (which is the
 // riskiest of every candidate the finding covers), and each answer is counted per question
 // (`answers`). A candidate some sweep did not answer (a version 1 triage) is compared as written and
-// counted `unanswered`.
-// sweeps: one { findings, candidates, triage } per sweep (candidates null = the run carries no
+// counted `unanswered`. Each answer's count is split (#315 slice 3): `signalled`, the candidates some
+// sweep's list records a signal on for that question (map/effect-signals.mjs), its `of` the number of
+// candidates that carried one, and `unsignalled`, the rest, each with its own agreement, so a signal's
+// pull on the lanes reads apart from the questions it does not reach.
+// sweeps: one { findings, candidates, triage, signals? } per sweep (candidates null = the run carries no
 // list; triage null = no triage file), the way map/effect-triage.mjs loadChannelFiles reads them.
 export function candidateAgreement(sweeps) {
   const N = sweeps.length;
@@ -340,7 +343,8 @@ export function candidateAgreement(sweeps) {
     }
     const answers = new Map();
     for (const e of Array.isArray(s && s.triage) ? s.triage : []) if (e && typeof e.candidate === 'string' && e.answers && typeof e.answers === 'object' && !answers.has(e.candidate)) answers.set(e.candidate, e.answers);
-    return { listed, set: new Set(listed || []), judged, out: new Set(outOfScope), byId, unmapped, answers };
+    const signals = s && s.signals instanceof Map ? s.signals : new Map();
+    return { listed, set: new Set(listed || []), judged, out: new Set(outOfScope), byId, unmapped, answers, signals };
   });
 
   const status = (p, c) => (!p.listed || !p.set.has(c) ? 'not-listed' : p.judged.has(c) ? 'mapped' : p.out.has(c) ? 'out-of-scope' : 'untriaged');
@@ -349,7 +353,7 @@ export function candidateAgreement(sweeps) {
   const directions = { safer: 0, riskier: 0, unordered: 0 };
   const divergences = [], scope = [], notListed = [];
   let compared = 0, agree = 0, outOfScopeEverywhere = 0, untriagedEverywhere = 0, unanswered = 0;
-  const byAnswer = Object.fromEntries(CHECKLIST_KEYS.map((k) => [k, { agree: 0, of: 0, pct: 0 }]));
+  const byAnswer = Object.fromEntries(CHECKLIST_KEYS.map((k) => [k, { agree: 0, of: 0, pct: 0, signalled: { agree: 0, of: 0, pct: 0 }, unsignalled: { agree: 0, of: 0, pct: 0 } }]));
   const answerDivergences = [];
   let answeredCompared = 0, answersAgree = 0;
   for (const c of all) {
@@ -368,8 +372,10 @@ export function candidateAgreement(sweeps) {
         const differ = [];
         for (const k of CHECKLIST_KEYS) {
           const vals = per.map((p) => answerValue(k, p.answers.get(c)[k]));
-          byAnswer[k].of += 1;
-          if (vals.every((v) => v === vals[0])) byAnswer[k].agree += 1;
+          const same = vals.every((v) => v === vals[0]);
+          const part = per.some((p) => (p.signals.get(c) || []).some((x) => x && x.question === k)) ? byAnswer[k].signalled : byAnswer[k].unsignalled;
+          byAnswer[k].of += 1; part.of += 1;
+          if (same) { byAnswer[k].agree += 1; part.agree += 1; }
           else differ.push({ key: k, values: vals });
         }
         if (!differ.length) answersAgree += 1;
@@ -383,7 +389,8 @@ export function candidateAgreement(sweeps) {
     else untriagedEverywhere += 1;
   }
   finishByField(byField);
-  for (const k of CHECKLIST_KEYS) byAnswer[k].pct = byAnswer[k].of ? Math.round(100 * byAnswer[k].agree / byAnswer[k].of) : 0;
+  const pctOf = (x) => { x.pct = x.of ? Math.round(100 * x.agree / x.of) : 0; };
+  for (const k of CHECKLIST_KEYS) { pctOf(byAnswer[k]); pctOf(byAnswer[k].signalled); pctOf(byAnswer[k].unsignalled); }
 
   const slugs = [...new Set(per.flatMap((p) => [...p.unmapped.keys()]))].sort();
   const unmapped = slugs.map((slug) => ({ slug, sweeps: per.map((p, i) => (p.unmapped.has(slug) ? i : -1)).filter((i) => i >= 0) }));
@@ -408,9 +415,9 @@ export function candidateAgreement(sweeps) {
 // the measurement (fail closed), never reads as a run with no list.
 export function computeCandidateAgreement(runDirs) {
   return candidateAgreement(runDirs.map((d) => {
-    const { candidates, triage, errors } = loadChannelFiles(d);
+    const { candidates, triage, errors, signals } = loadChannelFiles(d);
     if (errors.length) throw new Error(`${d}: ${errors[0]}`);
-    return { findings: loadFindings(d), candidates, triage };
+    return { findings: loadFindings(d), candidates, triage, signals };
   }));
 }
 
@@ -570,7 +577,9 @@ function reportCandidates(c) {
   printFields(c.byField);
   if (c.answers.compared) {
     console.log(`\n    answers identical (per candidate every sweep answers): ${c.answers.allAnswers.agree}/${c.answers.allAnswers.of}  (${c.answers.allAnswers.pct}%)`);
-    for (const k of CHECKLIST_KEYS) console.log(`      ${k.padEnd(17)} ${String(c.answers.byAnswer[k].agree).padStart(3)}/${String(c.answers.byAnswer[k].of).padStart(3)}  ${String(c.answers.byAnswer[k].pct + '%').padStart(5)}`);
+    const frac = (x) => `${String(x.agree).padStart(3)}/${String(x.of).padStart(3)}  ${String(x.pct + '%').padStart(5)}`;
+    console.log(`      ${''.padEnd(17)} ${'all'.padEnd(14)} ${'signalled'.padEnd(14)} unsignalled`);
+    for (const k of CHECKLIST_KEYS) { const b = c.answers.byAnswer[k]; console.log(`      ${k.padEnd(17)} ${frac(b)}   ${frac(b.signalled)}   ${frac(b.unsignalled)}`); }
     for (const v of c.answers.divergences) console.log(`      ${v.candidate.padEnd(40)} ${v.answers.map((a) => `${a.key}: ${a.values.join(' vs ')}`).join(' · ')}`);
   }
   if (c.divergences.length) {

@@ -1,0 +1,5 @@
+model Note {
+  id        Int       @id @default(autoincrement())
+  body      String
+  deletedAt DateTime?
+}

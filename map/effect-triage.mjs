@@ -18,7 +18,8 @@ import { parseYaml } from '../lib/yaml-min.mjs';
 import { enumeratePath, effectTriagePath } from '../lib/run-layout.mjs';
 import { entryErrors, closure } from './triage.mjs';
 import { testOrFixture, constructionError, clauseError } from './effect-scope.mjs';
-import { answerErrors, descriptorsFrom, gateTypeFrom, reversibilityFrom, answersLine } from './effect-answers.mjs';
+import { answerErrors, againstSignalErrors, descriptorsFrom, gateTypeFrom, reversibilityFrom, answersLine } from './effect-answers.mjs';
+import { signalShapeErrors } from './effect-signals.mjs';
 
 const TRIAGE_SCHEMA = 'effect-triage';
 const ENUMERATE_FILE = 'map/raw/enumerate.json';
@@ -41,12 +42,14 @@ const CURRENT_TRIAGE_VERSION = 2;
 // candidates is null when the run carries no list; triage is null when it carries no triage file.
 // excluded: member → reason, the list's candidates out of scope by construction (populations.excluded,
 // absent from a list drawn before #315); ruled: whether the list carries that population, so the scope
-// rule decided what it offers; files: member → the files its evidence cites; version: the triage's. A file present but unreadable is an error, and reads as absent to the measurement (never
-// as an empty list).
+// rule decided what it offers; files: member → the files its evidence cites; signals: member → the
+// signals the list records on it (#315 slice 3, map/effect-signals.mjs; none on a list drawn before
+// them); version: the triage's. A file present but unreadable is an error, and reads as absent to the
+// measurement (never as an empty list).
 export function loadChannelFiles(run) {
   const errors = [];
   let candidates = null, triage = null, version = null, ruled = false;
-  const excluded = new Map(), files = new Map();
+  const excluded = new Map(), files = new Map(), signals = new Map();
   const ep = enumeratePath(run);
   if (existsSync(ep)) {
     try {
@@ -57,6 +60,11 @@ export function loadChannelFiles(run) {
       else {
         candidates = [...new Set(lists.flat().map((c) => c.member))];
         for (const c of lists.flat()) files.set(c.member, [...(files.get(c.member) || []), ...(Array.isArray(c.evidence) ? c.evidence : []).map((e) => String(e).replace(/:\d+(?:-\d+)?$/, ''))]);
+        CANDIDATE_POPULATIONS.forEach((p, k) => lists[k].forEach((c, i) => {
+          const errs = signalShapeErrors(c.signals, `${ENUMERATE_FILE}: populations.${p}[${i}]`);
+          errors.push(...errs);
+          if (!errs.length && Array.isArray(c.signals) && c.signals.length) signals.set(c.member, [...(signals.get(c.member) || []), ...c.signals]);
+        }));
         ruled = Array.isArray(pops.excluded);
         for (const x of Array.isArray(pops.excluded) ? pops.excluded : []) if (x && typeof x.member === 'string') excluded.set(x.member, typeof x.reason === 'string' ? x.reason : 'a test or fixture file');
       }
@@ -73,7 +81,7 @@ export function loadChannelFiles(run) {
       else { triage = doc.triage; version = doc.version; }
     }
   }
-  return { candidates, triage, errors, excluded, ruled, files, version };
+  return { candidates, triage, errors, excluded, ruled, files, signals, version };
 }
 
 const isEffect = (f) => f && f.subject_type === 'effect' && f.effect && typeof f.effect === 'object';
@@ -90,7 +98,7 @@ const isEffect = (f) => f && f.subject_type === 'effect' && f.effect && typeof f
 // entry names the clause that decided it, and the clause must hold. At version 2 every entry that maps
 // a candidate in carries its answers (map/effect-answers.mjs), and a finding's gate_type and
 // reversibility are what its candidates' answers give, the riskiest across them.
-export function triageErrors({ candidates, triage, excluded = new Map(), ruled = false, files = new Map(), version = 1 }, findingsById) {
+export function triageErrors({ candidates, triage, excluded = new Map(), ruled = false, files = new Map(), signals = new Map(), version = 1 }, findingsById) {
   if (triage === null) return [];   // no triage file: nothing to hold; the measurement reads every candidate untriaged
   if (candidates === null) return [`${TRIAGE_FILE}: triages channel candidates, and the run carries no candidate list (${ENUMERATE_FILE}, which assay start writes)`];
   const listed = new Set(candidates);
@@ -104,7 +112,7 @@ export function triageErrors({ candidates, triage, excluded = new Map(), ruled =
     const why = constructionError({ candidate: x.candidate, mappedIn, testReason }) || (version >= 2 ? clauseError({ candidate: x.candidate, mappedIn, clause: x.clause }) : null);
     if (why) scope.push(`${TRIAGE_FILE}[${i}]: ${why}`);
   });
-  if (version >= 2) scope.push(...answersErrors(triage, findingsById));
+  if (version >= 2) scope.push(...answersErrors(triage, findingsById, signals));
   return [...entryErrors(triage, candidates, {
     at: TRIAGE_FILE,
     keys: version >= 2 ? ['clause', 'answers'] : [],
@@ -128,7 +136,8 @@ export function triageErrors({ candidates, triage, excluded = new Map(), ruled =
 // (answerErrors); and each finding every one of whose candidates is answered carries the gate_type and
 // reversibility those answers give, by #302's order (descriptorsFrom). A refusal names the finding,
 // what it says, what the answers give, and each candidate with its answers.
-function answersErrors(triage, findingsById) {
+// An answer against a signal the list records says why (againstSignalErrors, #315 slice 3).
+function answersErrors(triage, findingsById, signals = new Map()) {
   const errors = [], byFinding = new Map();
   triage.forEach((x, i) => {
     if (!x || typeof x !== 'object' || typeof x.candidate !== 'string') return;
@@ -138,6 +147,7 @@ function answersErrors(triage, findingsById) {
     if (x.answers === undefined) { errors.push(`${at}: "${x.candidate}" is in scope and carries no answers: a version 2 triage answers the checklist for every candidate it maps to a finding (map/SCHEMA.md §6e, "The answers")`); return; }
     const errs = answerErrors(x.answers, `${at}: answers`);
     errors.push(...errs);
+    errors.push(...againstSignalErrors(x.answers, signals.get(x.candidate), `${at}: answers`, x.candidate));
     const id = String(x.finding);
     if (!byFinding.has(id)) byFinding.set(id, []);
     byFinding.get(id).push(errs.length ? null : x);

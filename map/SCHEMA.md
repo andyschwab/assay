@@ -1272,6 +1272,41 @@ validate marks it unanswered. The lanes are compared on the answers (`map/varian
 every run answers a candidate, its two values are the ones its answers give, and each answer is
 counted per question.
 
+**The signals** (#315; `map/effect-signals.mjs`, the markers in `map/effect-signals.yaml`). Some
+answers the tree states outright. `enumerate` reads them deterministically and records each on the
+candidate in `map/raw/enumerate.json` as a signal: `signals: [{ question, supports, evidence:
+["path:line"], marker }]`, the question of the checklist it bears on, the answer it supports, where
+the tree states it, and the marker that read it (a `refuses_unless` signal also says `held_by` and
+`what`). A signal is read only where the tree states it, never inferred: a candidate with no marker
+for a question carries no signal for it, never a no for want of one, and a candidate whose evidence
+spans several files carries a signal only where every one of them states it alike (§1's paths rule).
+Every candidate of the three populations carries the list, empty where the tree states nothing. The
+markers are data, each with its reason, and the module names none of them (`CLAUDE.md` rule 7). The
+first set:
+
+| the candidate | the marker, read where | signals | what it cannot see |
+|---|---|---|---|
+| a workflow write | a job-level `environment:` at every job holding the step | `refuses_unless` yes, `held_by: outside`, `what`: the named environment's protection rules | whether the environment requires a reviewer or a wait at all: its rules live outside the repository, so the tree says only that one is named |
+| a workflow write | a job-level `permissions:` at every job holding the step, or a workflow-level one (`write-all` declares no bound and is no scope) | `declared_scope` yes | what each permission lets the token touch, and a token the step brings itself |
+| a workflow write | the trigger (`on:`): `workflow_dispatch` alone | `person_act` yes | who may dispatch, and a workflow another calls |
+| a workflow write | the trigger: any of `push`, `pull_request`, `pull_request_target`, `schedule`, `merge_group`, beside a dispatch or not (the path that waits for no one decides) | `person_act` no | a trigger outside both lists (`workflow_call`, `release`, `issue_comment`, …): no signal |
+| a script or CLI (`cli:`, `surface:`, a non-workflow effect site) | its own file's argument parsing: an apply flag from the list (`--apply`, `--yes`, `--execute`, or `--no-dry-run`, whose name states the default), and a dry-run default (a dry-run name assigned true, `1` or a negation, or an argparse default) | `second_act` yes: a dry run by default with an apply flag is that question's case, not `staged`'s | whether every write in the file sits behind the flag; a script that takes its arguments in a module it imports |
+| a route (`route: …`) registered Express- or Hono-style (`<app>.<method>(path, …)`) | its registering file: a limiter from a listed module, or one the tree defines (a name that says it limits, or any binding imported from a relative module whose file name says it limits), applied by name as a route argument, by a `.use(` on the same receiver before it (with no path, or at a path that covers the route; a trailing `/*` is the prefix; the call read across its lines), called to refuse in its handler (`.limit(`, `.consume(` on a limiter, or a call of a limiter the tree defines), or configured in the route's own options (`rateLimit: { … }` or `true`) where the tree imports a listed limiter module | `rate_limit` yes | a limiter at a proxy, gateway or platform; one a parent app applies to a router it mounts from another file (`.route(…)`, `register(…, { prefix })`), or a plugin registered globally elsewhere; a Next.js `middleware.ts` and its matcher; a `node:http` dispatch; a limiter the tree defines under no limiting name in no limiting module; a skip or disable flag the limiter reads at run time. A route with no such reading carries no signal, never a no |
+| a route's handler, or a `cli:`/`surface:` script's file | a literal SQL `UPDATE … SET <col> =` for a listed soft-delete column; or an ORM update that sets one: `update(<table>).set({ <col>: … })` where `<table>` is a table a listed factory defines with that property (found through the file's relative import of it, else the one definition of that name in the tree), or `<client>.<model>.update\|updateMany({ data: { <col>: … } })` where a model schema file declares `<model>` once with that field; and in either case no hard delete beside it (`DELETE FROM`, `.delete(<table>)`, `.delete({`/`.deleteMany({`) | `window` yes | a write made in a module the handler calls (a service or repository); SQL or a query built at run time; a table defined twice by one name, or by a factory not listed; and whether a purge bounds the window or none does |
+
+The lane still answers every question; a signal never overwrites an answer. Where an answer differs
+from the answer a signal supports, it says why in `against_signal`, with its own `path:line`
+evidence (a `not-determinable` answer included):
+
+```yaml
+      refuses_unless: { answer: no, evidence: [".github/workflows/release.yml:9"], against_signal: "the environment is created with no protection rules" }
+```
+
+An answer that agrees with its signal carries nothing more, and `against_signal` is said only of an
+answer against one. A list drawn before the signals carries none, so a stored triage against it reads
+as it was written. The lanes are compared on each answer with the candidates that carried a signal
+on it apart from those that did not (`map/variance.mjs`).
+
 **A channel is its triaged candidate** (#298). Two runs' lanes spell one channel's slug as they
 like (`tool-install`, `tools-install`); the candidate they triage to it is the list's own name for
 it. So where a run's triage maps a candidate to an effect finding, a comparison of channels across
@@ -1293,8 +1328,11 @@ exactly one of `finding` or `out_of_scope`; every `finding` resolves to a findin
 `subject_type` is `effect`; every `out_of_scope` gives its reason; the scope rule above holds, and at
 `version: 2` every entry's `clause` with it, every in-scope entry's `answers` (every question
 answered once from the closed set, a yes or a no with `path:line` evidence that, with `--target`,
-resolves there), and each answered finding's `gate_type` and `reversibility` are what its
-candidates' answers give. A candidate list that does not read, or that lacks one of the three populations, is
+resolves there), each answer that differs from a signal the list records on its candidate carries
+`against_signal` and its own evidence, no other answer carries `against_signal`, and each answered
+finding's `gate_type` and `reversibility` are what its candidates' answers give. A candidate's
+`signals`, where the list records them, are well formed (one per question, each a question of the
+checklist, `yes` or `no`, `path:line` evidence and a marker). A candidate list that does not read, or that lacks one of the three populations, is
 an error, never an empty list. With no triage
 file, nothing is refused (a run whose lane has not run has none): the yardstick reads every
 candidate untriaged, so a met effect row reads mixed, and `d-effect-channels-enumerated`
@@ -1412,8 +1450,9 @@ a pass (the run's own CI-1 lesson, applied to the checker):
    and effect-site member in `map/raw/enumerate.json` triaged exactly once, to an `effect` finding of this run or out of
    scope with a reason, by the closed scope rule (a test or fixture candidate never in, a workflow
    write never out, and at `version: 2` the clause that decided each, and each in-scope
-   candidate's answers, which give its finding's `gate_type` and `reversibility`); a candidate
-   list that does not read is an error.
+   candidate's answers, which give its finding's `gate_type` and `reversibility`, each answer
+   against a signal the list records saying why in `against_signal`); a candidate list that does
+   not read, or whose signals are malformed, is an error.
 
 13. **The run's data files, when present** (`lib/run-data.mjs`): `views/improve/chains.json`
    and `handoff/sequence.json` hold their schemas and name only ids in this base;

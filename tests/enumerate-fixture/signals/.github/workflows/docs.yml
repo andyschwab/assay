@@ -1,0 +1,9 @@
+name: docs
+on: [workflow_dispatch, push]
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the docs
+        run: gh api -X POST repos/example/docs/pages/builds
