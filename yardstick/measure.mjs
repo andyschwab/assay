@@ -53,7 +53,7 @@ const EFFECT_RULES = new Set(['halts-gated', 'halts-traced', 'effects-provable',
 // three the effect triage closes (map/effect-triage.mjs), and the constants enumerate's shape
 // filter set apart as not credentials (map/enumerate.mjs: a name assigned an identifier or a
 // number and never read from the environment is not a candidate of any census)
-const CENSUS_LISTABLE = ENUMERATE_POPULATIONS.filter((p) => !CANDIDATE_POPULATIONS.includes(p) && p !== 'secretConstants');
+const CENSUS_LISTABLE = ENUMERATE_POPULATIONS.filter((p) => !CANDIDATE_POPULATIONS.includes(p) && p !== 'secretConstants' && p !== 'excluded');
 export const STATUSES = ['met', 'unmet', 'mixed', 'not-measured', 'not-applicable'];
 const STRUCTURED = new Set(['structured-event', 'audited']);
 // TOPICS — the roster a requirement's `topic:` must land on: the axis roster
