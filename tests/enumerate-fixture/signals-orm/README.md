@@ -7,6 +7,8 @@
   (no signal: the hard delete leaves nothing to undo).
 - `src/routes/aliased.ts`: the same soft delete, the table imported through a path alias the
   tree defines once.
+- `src/routes/members.ts`: a removal that keeps the row, once through `update(members).set({
+  removedAt })` (the table declares `removedAt`) and once as literal SQL, `UPDATE … SET removed_at`.
 - `prisma/schema.prisma` and `src/routes/v2.ts`: a client update whose data sets the model's
   `deletedAt`.
 

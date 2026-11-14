@@ -116,6 +116,10 @@ soft_delete:
       reason: "The discard gem's soft-delete column."
     - column: is_deleted
       reason: "A soft-delete flag."
+    - column: removed_at
+      reason: "a row kept with a removal mark and a restore path; a remove that restores"
+    - column: removedAt
+      reason: "a row kept with a removal mark and a restore path; a remove that restores"
     - column: deletedAt
       reason: "The soft-delete timestamp as an ORM names its property."
     - column: archivedAt
