@@ -828,7 +828,9 @@ the answers proves the pipeline and the recall floor, not blind determinism — 
 run (fresh context, answers unseen) is the separate measurement that earns the
 repeatability claim. Blind sweeps are committed as a sweep set under `tests/sweeps/`
 and gated at their own threshold (`node assay.mjs variance --set <set>`); re-run the set
-when `METHOD.md` or `SCHEMA.md` changes what a pass records.
+only when `METHOD.md` or `SCHEMA.md` changes what a pass records, and re-measure its stored
+runs otherwise: `variance --set <set> --check-method` says which, by the rule
+`tests/sweeps/README.md` states.
 
 ## Feedback hook — the run's second output
 

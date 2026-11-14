@@ -72,8 +72,20 @@
 // repeatability claim is a number the tree reproduces and the harness checks, not prose.
 // `--min-facts N` / `--min-candidates N` / `--min-descriptors N` / `--min-requirements N` gate an ad-hoc set of run dirs the same way.
 //
+// RE-MEASURE BEFORE RE-RUN (#324). `--set <dir> --check-method` says whether the set's stored runs
+// are re-measured under the current engine or must be re-run, by the rule map/sweep-method.mjs
+// holds: did what a pass records (map/METHOD.md's pass sections, the map/SCHEMA.md sections
+// map/passes.yaml names, map/passes.yaml's passes) move between the set's method_commit and HEAD.
+// It names each piece that moved and the passes it is theirs; a method_commit the clone does not
+// hold is exit 2, never a guess.
+//
+// COST. Each sweep's cost is what its run record (map/scanners.yaml, map/SCHEMA.md §5a) says the
+// scanner that ran spent and how long it took (`spend:`, `duration:`), printed as recorded; a sweep
+// whose record carries neither reads "not recorded", never an estimate.
+//
 // Zero-dep. Usage: node assay.mjs variance <run-dir> <run-dir> [<run-dir> ...]
 //                  node assay.mjs variance --set <sweep-set-dir> [--json]
+//                  node assay.mjs variance --set <sweep-set-dir> --check-method [--json]
 
 import { basename, join } from 'node:path';
 import { readFileSync, existsSync } from 'node:fs';
@@ -425,6 +437,34 @@ export function computeRequirementAgreement(runDirs, reg = loadYardstick()) {
   return requirementAgreement(runDirs.map((d) => projectRun(d, reg, null).map((r) => ({ id: r.id, status: r.status }))));
 }
 
+// ── cost, as each sweep's run record has it ─────────────────────────────────
+// sweepCost(manifests, names) → one { sweep, scanners: [{ scanner, spend?, duration? }] } per sweep:
+// every scanner row that ran, with the spend and duration its record carries, copied as written.
+// A field the record lacks is absent here, never filled in; a sweep with no such field has no row.
+export function sweepCost(manifests, names) {
+  return manifests.map((m, i) => {
+    const rows = m && m.scanners && typeof m.scanners === 'object' && !Array.isArray(m.scanners) ? Object.entries(m.scanners) : [];
+    const scanners = [];
+    for (const [scanner, r] of rows) {
+      if (!r || r.status !== 'ran') continue;
+      const one = { scanner };
+      if (r.spend !== undefined && r.spend !== null && String(r.spend).trim()) one.spend = String(r.spend);
+      if (r.duration !== undefined && r.duration !== null && String(r.duration).trim()) one.duration = String(r.duration);
+      if ('spend' in one || 'duration' in one) scanners.push(one);
+    }
+    return { sweep: names[i], scanners };
+  });
+}
+
+function reportCost(cost) {
+  console.log(`  cost (each sweep's run record, as recorded; never estimated):`);
+  for (const c of cost) {
+    if (!c.scanners.length) { console.log(`    ${c.sweep}: not recorded`); continue; }
+    for (const s of c.scanners) console.log(`    ${c.sweep}: ${s.scanner}${s.spend !== undefined ? `, spend ${s.spend}` : ''}${s.duration !== undefined ? `, duration ${s.duration}` : ''}`);
+  }
+  console.log('');
+}
+
 // ── the sweep set and its gate ──────────────────────────────────────────────
 // The gate's four measures (tests/sweeps/README.md). candidate_agreement is the primary descriptor
 // figure (#312); descriptor_agreement gates the per-channel figure it replaces, kept beside it for one
@@ -586,6 +626,15 @@ if (isMain(import.meta.url)) {
     try { set = loadSweepSet(flag('--set')); } catch (e) { console.error(`✗ variance: malformed sweep set — ${e.message}`); process.exit(2); }
     runs = set.runDirs; threshold = { ...set.threshold }; notMeasured = { ...set.notMeasured };
   }
+  if (argv.includes('--check-method')) {
+    if (!set) { console.error('--check-method reads a sweep set\'s method_commit: give --set <sweep-set-dir>'); process.exit(2); }
+    const { checkMethod, methodLines } = await import('./sweep-method.mjs');
+    let m;
+    try { m = checkMethod(String(set.meta.method_commit)); } catch (e) { console.error(`✗ variance --check-method: ${e.message}`); process.exit(2); }
+    if (argv.includes('--json')) console.log(JSON.stringify({ set: flag('--set'), ...m }, null, 2));
+    else { console.log(`sweep set ${flag('--set')}: method @ ${set.meta.method_commit}`); for (const l of methodLines(m)) console.log(l); }
+    process.exit(0);
+  }
   for (const [f, k] of [['--min-facts', 'fact_presence'], ['--min-candidates', 'candidate_agreement'], ['--min-descriptors', 'descriptor_agreement'], ['--min-requirements', 'requirement_agreement']]) {
     if (flag(f) === null) continue;
     const n = Number(flag(f));
@@ -598,6 +647,7 @@ if (isMain(import.meta.url)) {
   const d = computeDescriptorAgreement(runs);
   const c = computeCandidateAgreement(runs);
   const q = computeRequirementAgreement(runs);
+  const cost = sweepCost(runs.map((d) => loadManifest(d)), runs.map((d) => basename(d)));
   const gated = Object.keys(threshold).length > 0 || Object.keys(notMeasured).length > 0;
   const breaches = gated ? sweepGate(r, d, threshold, q, c, notMeasured) : [];
   if (process.argv.includes('--json')) console.log(JSON.stringify({
@@ -609,12 +659,13 @@ if (isMain(import.meta.url)) {
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
     requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences },
+    cost,
     ...(set ? { set: { target: set.meta.target, target_commit: set.meta.target_commit, method_commit: set.meta.method_commit, date: set.meta.date, blind: set.meta.blind } } : {}),
     ...(gated ? { gate: { threshold, not_measured: notMeasured, breaches } } : {}),
   }, null, 2));
   else {
     if (set) console.log(`\nsweep set ${flag('--set')}: ${set.meta.target} @ ${set.meta.target_commit}, method @ ${set.meta.method_commit}, ${set.meta.date}${set.meta.blind ? ', blind' : ', NOT blind (authored beside its answers)'}`);
-    report(r); reportCandidates(c); reportDescriptors(d); reportRequirements(q);
+    report(r); reportCandidates(c); reportDescriptors(d); reportRequirements(q); reportCost(cost);
     if (gated) {
       const at = (k) => (k in notMeasured ? 'not measured' : `≥ ${threshold[k] ?? '—'}%`);
       console.log(`  gate: fact presence ${at('fact_presence')} · per-candidate descriptor agreement ${at('candidate_agreement')} · per-channel descriptor agreement ${at('descriptor_agreement')} · requirement agreement ${at('requirement_agreement')}`);
