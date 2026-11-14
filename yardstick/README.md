@@ -514,15 +514,39 @@ stake").
 | `tags` | this file's `tags:` | the union of those rows' tags |
 | `floor` | `true`, `false` | one of those rows is a floor row |
 | `halt_at` | `true`, `false` | the gap reaches the `halt_at:` a row it bears on (unmet or mixed) names: its own confidence `confirmed`, its severity at or above the row's bar, as the sequence's halt clause reads it; null when no such row names one |
+| `exposure` | below | what a true finding would expose: read off the finding's own adapter, by its closed table of markers (`consequence.exposure`, `map/scanners/CONTRACT.md` §3); null when no entry places it, or its adapter declares no table (#330) |
+
+**What a finding exposes** (`exposure`, `map/consequence.mjs` `EXPOSURE`) is closed and
+property-named, never a tool's word, and each value is defined here once, riskiest first:
+
+| Value | What a true finding would expose |
+| --- | --- |
+| `credential` | a secret or token exposed |
+| `authority` | acting beyond a grant: an access-control or authentication bypass, a replayed assertion, a forged request, a privilege taken |
+| `others-data` | personal or confidential data of others disclosed, or kept against a stated promise |
+| `integrity` | state changed without the check that should hold it |
+| `availability` | a resource exhausted |
+| `hardening` | a second layer missing where no direct path is shown |
+| `hygiene` | no security consequence |
+
+A finding several entries place takes the riskiest, in that order: a credential exposed hands
+whoever holds it the authority it grants; acting beyond a grant reaches others' data and state;
+disclosure cannot be taken back, while a changed state can be repaired from its record and an
+exhausted resource returns when the load passes; a missing second layer shows no direct path, and
+hygiene no security consequence. The table reads only fields the source's rows already carry (a
+reviewer's area and tag, an instrument's check id), each entry with its reason, never the source's
+name; a finding no entry places reads null, which no rule matches and which no `unless:` holds, so
+an unknown exposure never lowers a value below what the rest of its facts give.
 
 A fact the run could not read is null and matches no rule. A severity label, a tool's or a
 lane's, is not a fact, and no rule may read it. `halt_at` is the one fact that compares a gap's
 severity, and only to the bar its own requirement row names: the row, not the tool, says what is a
 halt, so on such a row a label moves the value through it, and nowhere else.
 
-**A rule** is `{ name, says, when, at_least }`: when every fact `when` names holds (a value, or a
-list of values any of which matches; `tags` matches when the row carries any value listed), the
-consequence is at least `at_least`. Every rule is read, top to
+**A rule** is `{ name, says, when, unless?, at_least }`: when every fact `when` names holds (a
+value, or a list of values any of which matches; `tags` matches when the row carries any value
+listed), the consequence is at least `at_least`, unless every fact `unless` names holds too (read
+the same way; a null fact holds nothing, so an unknown never keeps a rule from firing, #330). Every rule is read, top to
 bottom; the highest value that fires wins, and among rules firing at that value the first down the
 file is the one the item cites. A gap read under several effects takes the most consequential.
 A rule naming a fact outside the list, a value outside its fact's vocabulary, a consequence
@@ -547,14 +571,24 @@ are what the next slice and #315 work down.
 | `external-to-every-tenant` | significant | `external: true` and `blast_scope: fleet` |
 | `easily-triggered-chain` | significant | a live chain reaching one user or tenant whose `trigger` is trivial or low |
 | `custody-row` | significant | `tier: custody` |
-| `safety-floor-row` | significant | `tier: safety` and `floor: true` |
-| `floor-row` | contained | `floor: true` |
+| `safety-floor-row` | significant | `tier: safety` and `floor: true`, unless `exposure` is `hardening` or `hygiene` |
+| `safety-row-hardening` | contained | `tier: safety` and `exposure: hardening` |
+| `floor-row` | contained | `floor: true`, unless `tier: safety` and `exposure: hygiene` |
 | `external-effect` | contained | `external: true` |
-| `working-tier-row` | contained | `tier` safety, reproducibility, verification or operability |
+| `working-tier-row` | contained | `tier` safety, reproducibility, verification or operability, unless `tier: safety` and `exposure: hygiene` |
+| `safety-row-hygiene` | cosmetic | `tier: safety` and `exposure: hygiene` |
 | `legibility-row` | cosmetic | `tier: legibility` |
 
+Exposure lowers only, and only on a safety row, only where the finding's adapter places it
+positively as `hardening` or `hygiene` (#330): a safety row's tier says a gap there can harm data,
+people, money or recovery, and a missing second layer or a finding with no security consequence
+does not show that path. An effect, chain or halt fact still raises such a gap as it raises any
+other. No default rule raises on exposure: it says what a true finding would expose, not how easily
+or how widely, which the effect and chain facts read.
+
 **Monotone.** Only two things move a consequence above what the facts give, and nothing moves it
-below:
+below (a positive `hardening` or `hygiene` placement is itself a fact the policy reads, and an
+unknown exposure reads as today's facts read without it):
 
 - **a contested fact** reads its riskier value: a descriptor the run's effect findings on one
   channel record differently (keyed as `map/variance.mjs` keys a channel: the candidate its triage

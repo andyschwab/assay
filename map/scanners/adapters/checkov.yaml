@@ -124,6 +124,66 @@ confidence:
       unless_deployed_on:
         - "^(docker-)?compose(\\..+)?\\.ya?ml$"
 
+# consequence (map/scanners/CONTRACT.md §3, map/consequence.mjs, #330): what a failed check
+# would expose, by a closed table of check ids, read off the row's native_id (check@resource@file).
+# Only checks whose meaning is plain from the policy set's own name for them are listed; a check
+# not listed reads null and keeps the value its row gives, never a guess. Unlisted on purpose:
+# versioning, replication and lifecycle (recovery and housekeeping, not one exposure), an image's
+# tag and HEALTHCHECK (reproducibility and operation; CKV_DOCKER_2's misfire is confidence's), and
+# whole-account admin policies (a grant too wide reads by what it reaches, which the check does not say).
+consequence:
+  exposure:
+    - id: public-write
+      when:
+        native_id: "^CKV_AWS_57@"
+      value: authority
+      reason: "a bucket ACL that allows public WRITE: anyone may write what only its owner is granted to"
+    - id: open-admin-ingress
+      when:
+        native_id: "^CKV_AWS_(24|25)@"
+      value: authority
+      reason: "a security group open to 0.0.0.0/0 on port 22 or 3389: an administrative entry point reachable by anyone, past the network grant"
+    - id: public-read
+      when:
+        native_id: "^CKV_AWS_(20|17)@"
+      value: others-data
+      reason: "a bucket ACL that allows public READ, or a database instance publicly accessible: the data it stores is open to anyone"
+    - id: unencrypted-at-rest
+      when:
+        native_id: "^CKV_AWS_(3|16|19)@"
+      value: others-data
+      reason: "data at rest not encrypted (an EBS volume, an RDS instance, an S3 bucket): whoever reaches the storage reads what it holds"
+    - id: unencrypted-in-transit
+      when:
+        native_id: "^CKV_AWS_2@"
+      value: others-data
+      reason: "a load balancer listener that does not use HTTPS: what passes through it is readable in transit"
+    - id: hard-coded-secret
+      when:
+        native_id: "^CKV_AWS_(41|45|46)@"
+      value: credential
+      reason: "an access key in a provider block, or a secret in a function's environment or an instance's user data: a credential written where others can read it"
+    - id: logging-and-monitoring
+      when:
+        native_id: "^(CKV_AWS_(18|67|126)|CKV2_AWS_62)@"
+      value: hardening
+      reason: "access logging, a trail in every region, detailed monitoring, event notifications: the layer that would notice an attack, missing where the check shows no direct path"
+    - id: second-layer-controls
+      when:
+        native_id: "^(CKV_AWS_(7|79|145)|CKV2_AWS_6)@"
+      value: hardening
+      reason: "key rotation, IMDSv2, a customer key over default encryption, a public access block: a second layer beside the control that decides (a bucket's own ACL and policy, which CKV_AWS_20 and CKV_AWS_57 check, decide whether it is public)"
+    - id: container-runs-as-root
+      when:
+        native_id: "^CKV_DOCKER_(3|8)@"
+      value: hardening
+      reason: "a container image with no user of its own, or whose last USER is root: least privilege inside the container, a second layer behind what runs in it"
+    - id: description-and-build-tidiness
+      when:
+        native_id: "^(CKV_AWS_23|CKV_DOCKER_11)@"
+      value: hygiene
+      reason: "a security group rule without a description, or a multistage build whose FROM aliases repeat: tidiness with no security consequence"
+
 decides:
   - requirement: d-infrastructure-config-secure
     category: [terraform, cloudformation, kubernetes, helm, kustomize, dockerfile, serverless, arm, bicep]

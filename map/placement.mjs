@@ -21,7 +21,7 @@
 
 const KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 // a label or marker as whole words: lowercase, every run of other characters one space
-const words = (t) => ` ${String(t ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+export const words = (t) => ` ${String(t ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
 
 /** The properties of a split category whose markers a finding's own labels carry.
  * @param {any} finding @param {any} entry  the category's map entry */
