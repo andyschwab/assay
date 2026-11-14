@@ -166,6 +166,111 @@ default: FAIL
 confidence:
   evidence: cited
 
+# consequence (map/scanners/CONTRACT.md §3, map/consequence.mjs, #330): what a true finding
+# would expose, by a closed table over what the reviewer writes on every row: its area
+# (native_category, the letters above) and its tag (native_tag), matched as whole words
+# without regard to case, never its title or observation (the title names the instance, the
+# observation is prose). Built from the reviewer's documented areas, the OWASP Top 10 and
+# CWE codes it cites in tags, and the classes it names there; never from one run's findings.
+# Only the two-digit OWASP codes whose meaning is the same in the 2021 and 2025 lists are read
+# (A01 access control, A07 authentication, A08 integrity, A09 logging): A02 to A06 and A10
+# changed meaning between the two, so the code alone does not say which. LLM codes are read
+# by their words, never their numbers, for the same reason. A finding two entries place takes
+# the riskiest (yardstick/README.md, "Consequence"); one no entry places reads null, and a null
+# never lowers a value.
+consequence:
+  exposure:
+    - id: secret-or-credential
+      when:
+        tag: ["secret", "secrets", "credential", "credentials", "hardcoded credential", "hard coded credential", "api key", "private key", "leaked token", "token leak", "cwe 798", "cwe 259", "cwe 522"]
+      value: credential
+      reason: "the tag names a secret, key or credential the code holds where another can read it (CWE-798 hard-coded credentials, CWE-259 hard-coded password, CWE-522 insufficiently protected credentials)"
+    - id: access-control
+      when:
+        tag: ["access control", "broken access control", "authorization", "authorisation", "authz", "missing authorization", "privilege escalation", "idor", "a01", "cwe 284", "cwe 285", "cwe 269", "cwe 639", "cwe 862", "cwe 863"]
+      value: authority
+      reason: "the tag names broken access control (OWASP A01): an actor reaches an action or a record its grant does not cover"
+    - id: authentication
+      when:
+        tag: ["authentication", "authn", "auth bypass", "session fixation", "a07", "cwe 287", "cwe 306", "cwe 384"]
+      value: authority
+      reason: "the tag names an authentication failure (OWASP A07, CWE-287, CWE-306 missing authentication for a critical function): an actor acts without proving who it is"
+    - id: replay-and-forged-requests
+      when:
+        tag: ["replay", "replayable", "ssrf", "server side request forgery", "csrf", "cross site request forgery", "cwe 294", "cwe 352", "cwe 918"]
+      value: authority
+      reason: "the tag names a replayed assertion or a forged request (CWE-294, CWE-352, CWE-918): the server acts on a grant its sender does not hold now, or for a sender who did not ask"
+    - id: injection
+      when:
+        tag: ["injection", "sql injection", "command injection", "prompt injection", "xss", "cross site scripting", "deserialization", "path traversal", "cwe 22", "cwe 77", "cwe 78", "cwe 79", "cwe 89", "cwe 94", "cwe 502"]
+      value: authority
+      reason: "the tag names an injection class: input runs, reads or writes as the application or as another user, beyond what its sender is granted"
+    - id: excessive-agency
+      when:
+        tag: ["excessive agency"]
+      value: authority
+      reason: "the tag names a model or agent acting with more permission than its task needs, as the OWASP LLM list defines excessive agency"
+    - id: release-gate-skipped
+      when:
+        tag: ["environment approval", "approval bypass", "trust condition", "release gate"]
+      value: authority
+      reason: "the tag names how a change reaches production: a path past its approval, or a deploy credential whose trust condition admits who it should not, lets a change act beyond the grant to release"
+    - id: fails-open
+      when:
+        tag: ["fail open", "fails open", "cwe 636"]
+      value: authority
+      reason: "the tag names a check that admits on error (CWE-636 not failing securely): what it should refuse is granted"
+    - id: personal-data
+      when:
+        tag: ["privacy", "pii", "personal data", "erasure", "retention", "gdpr", "consent", "data subject", "cwe 359"]
+      value: others-data
+      reason: "the tag names personal data: disclosed, or kept or left unerased against a stated promise (CWE-359 exposure of private personal information)"
+    - id: disclosure
+      when:
+        tag: ["information disclosure", "sensitive information disclosure", "data exposure", "data leak", "cross user", "cross tenant", "tenant isolation", "cwe 200", "cwe 201", "cwe 312", "cwe 319", "cwe 532"]
+      value: others-data
+      reason: "the tag names data of others disclosed: across users or tenants, in clear text at rest or in transit, or into a log (CWE-200, CWE-312, CWE-319, CWE-532)"
+    - id: integrity
+      when:
+        tag: ["data integrity", "integrity", "data loss", "data corruption", "lost update", "race", "race condition", "toctou", "key collision", "a08", "cwe 345", "cwe 362", "cwe 367"]
+      value: integrity
+      reason: "the tag names state changed or lost without the check that should hold it: a race, a collision, an unverified write (OWASP A08, CWE-345, CWE-362, CWE-367)"
+    - id: supply-chain
+      when:
+        tag: ["supply chain", "unpinned", "dependency confusion", "typosquat", "cwe 494", "cwe 829"]
+      value: integrity
+      reason: "the tag names a build that takes code no check holds: an unpinned or substitutable input (CWE-494 download of code without integrity check, CWE-829 untrusted control sphere)"
+    - id: exhaustion
+      when:
+        tag: ["denial of service", "dos", "redos", "resource exhaustion", "unbounded consumption", "rate limit", "rate limiting", "resource leak", "memory leak", "cwe 400", "cwe 401", "cwe 770", "cwe 1333"]
+      value: availability
+      reason: "the tag names a resource exhausted: unbounded consumption, a leak, or no limit on a caller (CWE-400, CWE-770, CWE-1333)"
+    - id: defence-in-depth
+      when:
+        tag: ["defence in depth", "defense in depth", "hardening", "least privilege", "csp", "content security policy", "security headers", "hsts", "a09", "security logging", "audit logging"]
+      value: hardening
+      reason: "the tag names a second layer: defence in depth, least privilege, a browser policy or header, or the logging that would notice an attack (OWASP A09); the reviewer files these where no direct path is shown, and a tag that also names a direct class reads that class instead"
+    - id: cost
+      when:
+        tag: ["cost", "ci cost"]
+      value: hygiene
+      reason: "the tag names spend, not a security consequence"
+    - id: source-comment
+      when:
+        tag: ["comment", "source comment"]
+      value: hygiene
+      reason: "the tag names a comment, which does not run; a secret or personal data in one carries that tag too, and reads that instead"
+    - id: maintainability-tags
+      when:
+        tag: ["dead code", "doc drift", "maintainability", "readability", "naming", "typo", "style"]
+      value: hygiene
+      reason: "the tag names maintainability or wording, with no security consequence of its own"
+    - id: maintainability-and-docs-areas
+      when:
+        category: [H, O]
+      value: hygiene
+      reason: "the area is tech debt and maintainability (H) or documentation and developer experience (O), with no security consequence of its own; a tag naming a direct class reads that class instead"
+
 # The yardstick rows this scanner decides (CLAUDE.md rule 7, #177): each names the
 # requirement and the native category whose rows decide it, so requirements.yaml names
 # no external scanner. A row may have several deciders; measure combines them.
