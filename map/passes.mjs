@@ -43,7 +43,12 @@ const asList = (v) => (Array.isArray(v) ? v : v === undefined || v === null ? []
 
 /** The passes, in order. @param {string} [file] @returns {any[]} */
 export function loadPasses(file = PASSES_FILE) {
-  const doc = parseYaml(readFileSync(file, 'utf8'));
+  return parsePasses(readFileSync(file, 'utf8'), file);
+}
+/** The passes of one map/passes.yaml text, in order (a stored engine's, for re-measure before
+ * re-run, map/sweep-method.mjs). @param {string} text @param {string} [file] @returns {any[]} */
+export function parsePasses(text, file = PASSES_FILE) {
+  const doc = parseYaml(text);
   if (!doc || !Array.isArray(doc.passes) || !doc.passes.length) throw new Error(`${file}: no passes: list`);
   return doc.passes.map((p) => ({ ...p, decides: asList(p.decides).map(String), context: asList(p.context).map(String), discovery: asList(p.discovery), schema: asList(p.schema).map(String) }));
 }
@@ -171,15 +176,15 @@ function sectionAt(text, find) {
   return lines.slice(h.line, next ? next.line : lines.length).join('\n').replace(/\s+$/, '') + '\n';
 }
 /** SCHEMA.md's section by number ("1", "6b"), or null. @param {string} text @param {string} n */
-function sectionByNumber(text, n) {
+export function sectionByNumber(text, n) {
   return sectionAt(text, (h) => h.level <= 3 && h.title.startsWith(`${n}. `));
 }
 /** A section by the start of its heading's title, or null. @param {string} text @param {string} title */
-function sectionByTitle(text, title) {
+export function sectionByTitle(text, title) {
   return sectionAt(text, (h) => h.title.startsWith(title));
 }
 // the passes' introduction: the "Passes 1–7" heading up to the first pass's own section
-function passesIntro(method) {
+export function passesIntro(method) {
   const s = sectionByTitle(method, 'Passes 1–7');
   if (!s) return null;
   const i = s.search(/^### Pass 1 /m);
