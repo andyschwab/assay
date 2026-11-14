@@ -34,7 +34,7 @@ export async function run() {
   const wide = convert('gitleaks', JSON.stringify(Array.from({ length: 5 }, (_, i) => ({ RuleID: 'r', File: 'a.ts', StartLine: i + 1 }))), 1, 'F-998');
   if (wide.map((r) => r.id).join(',') !== 'F-998,F-999,F-1000,F-1001,F-1002') fail(`ids must grow past three digits (got ${wide.map((r) => r.id).join(',')})`);
   {
-    const tmp = join(HERE, '.tmp-idwidth'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
+    const tmp = join(HERE, 'tmp-idwidth'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
     copyFileSync(join(HERE, 'sidecar-fixture', 'map', 'scanners.yaml'), join(tmp, 'map', 'scanners.yaml'));
     copyFileSync(join(HERE, 'sidecar-fixture', 'map', 'findings', 'practice-review-delegation.yaml'), join(tmp, 'map', 'findings', 'practice-review-delegation.yaml'));
     const row = (id) => `- id: ${id}\n  source: gitleaks\n  native_id: "r@a.ts:1"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
@@ -51,7 +51,7 @@ export async function run() {
   // deep-code-review and fresh-clone floors and the validator went red on duplicate ids); every floor
   // is in the ingest range, F-10000 plus the profile's offset (#304)
   {
-    const tmp = join(HERE, '.tmp-nextstart'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
+    const tmp = join(HERE, 'tmp-nextstart'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
     if (nextStart(tmp, 'deep-code-review').start !== 10800) fail('an empty run starts deep-code-review at its floor F-10800');
     const row = (n) => `- id: F-${n}\n  source: gitleaks\n  native_id: "r@a.ts:${n}"\n  native_category: "secret"\n  polarity: gap\n  observation: >\n    x\n  evidence: [a.ts:1]\n  fix: >\n    y\n`;
     writeFileSync(join(tmp, 'map', 'findings', 'gitleaks.yaml'), Array.from({ length: 807 }, (_, i) => row(10700 + i)).join(''));
@@ -65,7 +65,7 @@ export async function run() {
   // the raw archive of a gitleaks report must be location-only: the CLI once copied the raw
   // report into map/raw/ verbatim, matched values and author identity included
   {
-    const tmp = join(HERE, '.tmp-glarchive'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
+    const tmp = join(HERE, 'tmp-glarchive'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(join(tmp, 'map', 'findings'), { recursive: true });
     execFileSync(process.execPath, [join(ROOT, 'map', 'ingest.mjs'), tmp, '--tool', 'gitleaks', '--raw', join(HERE, 'instruments', 'gitleaks-sample.json'), '--exit', '1'], { stdio: 'pipe' });
     const archived = readFileSync(join(tmp, 'map', 'raw', 'gitleaks.json'), 'utf8');
     if (archived.includes('AKIAFAKE') || archived.includes('sk-FAKE') || /"(Secret|Match|Line|Author|Email)"/.test(archived)) fail('the archived gitleaks report must carry locations only — never Secret, Match, Line, Author or Email');

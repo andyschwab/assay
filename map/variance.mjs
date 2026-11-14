@@ -39,8 +39,9 @@
 //      off-repo, before tests/sweeps/ existed, on a cross-run pair (both canon-pinned,
 //      so channel identity was solved): 26 shared channels, descriptors identical on 8
 //      (31%). The figure the tree reproduces is a committed sweep set's (THE GATE below):
-//      the first blind set over this repository (tests/sweeps/assay-2026-10-01, three
-//      fresh contexts at c30912c) read 38% fact presence and 20% descriptor agreement.
+//      the newest blind set over this repository (tests/sweeps/assay-2026-11-12c, three
+//      fresh contexts at 2b247c0) read 13% fact presence, 40% descriptor agreement per
+//      listed candidate and per channel, and 92% requirement agreement.
 //      It is taken two ways (#312). PER LISTED CANDIDATE (candidateAgreement) is the primary
 //      figure: each member of a run's enumerated effect population that its triage maps to an
 //      effect finding takes that finding's descriptors, and a candidate every sweep maps is
@@ -64,8 +65,10 @@
 // coverage delta computed over them is not a trend. `bothWays` computes it.
 //
 // THE GATE. A committed SWEEP SET (tests/sweeps/<set>/SWEEP.yaml, tests/sweeps/README.md)
-// names its sweeps and the threshold each measure must reach; `--set` measures the set and
-// exits 1 when any measure is below its threshold (2 when the set is malformed), so a
+// names its sweeps and the threshold each measure must reach, or declares a measure it cannot take
+// not measured, with the reason; `--set` measures the set and exits 1 when any measure is below its
+// threshold or a declared one is taken after all (2 when the set is malformed, a threshold of 0
+// among them), so a
 // repeatability claim is a number the tree reproduces and the harness checks, not prose.
 // `--min-facts N` / `--min-candidates N` / `--min-descriptors N` / `--min-requirements N` gate an ad-hoc set of run dirs the same way.
 //
@@ -395,8 +398,11 @@ export function computeRequirementAgreement(runDirs, reg = loadYardstick()) {
 // release so the committed sets stay comparable, then retired with its output.
 const THRESHOLD_KEYS = ['fact_presence', 'candidate_agreement', 'descriptor_agreement', 'requirement_agreement'];
 
-// loadSweepSet(dir) → { meta, threshold, runDirs }; throws on a malformed set (a set
-// that cannot say what it gates on is never an ungated pass).
+// loadSweepSet(dir) → { meta, threshold, notMeasured, runDirs }; throws on a malformed set (a set
+// that cannot say what it gates on is never an ungated pass). Every measure is either gated, a
+// threshold above 0, or declared under `not_measured` with the reason the set cannot take it,
+// never both. A threshold of 0 is refused: it passes whatever the set measures, so it reads like a
+// gate and checks nothing (#323).
 export function loadSweepSet(dir) {
   const path = join(dir, 'SWEEP.yaml');
   if (!existsSync(path)) throw new Error(`no SWEEP.yaml in ${dir}`);
@@ -405,23 +411,43 @@ export function loadSweepSet(dir) {
   for (const k of ['target', 'target_commit', 'method_commit', 'date']) if (typeof meta[k] !== 'string' || !meta[k].trim()) bad(`${k} must be a non-empty string`);
   if (typeof meta.blind !== 'boolean') bad('blind must be true or false (a set authored beside its answers is not blind)');
   const thr = meta.threshold;
-  if (!thr || typeof thr !== 'object') bad(`threshold is required: { ${THRESHOLD_KEYS.join(', ')} }, each a percentage`);
-  for (const k of THRESHOLD_KEYS) if (typeof thr[k] !== 'number' || thr[k] < 0 || thr[k] > 100) bad(`threshold.${k} must be a percentage 0–100`);
+  if (!thr || typeof thr !== 'object' || Array.isArray(thr)) bad(`threshold is required: { ${THRESHOLD_KEYS.join(', ')} }, each a percentage above 0, or declared under not_measured`);
+  const nm = meta.not_measured === undefined ? {} : meta.not_measured;
+  if (!nm || typeof nm !== 'object' || Array.isArray(nm)) bad('not_measured must map each measure the set cannot take to the reason it cannot');
+  for (const k of Object.keys(thr)) if (!THRESHOLD_KEYS.includes(k)) bad(`threshold.${k} is no measure (${THRESHOLD_KEYS.join(', ')})`);
+  for (const k of Object.keys(nm)) {
+    if (!THRESHOLD_KEYS.includes(k)) bad(`not_measured.${k} is no measure (${THRESHOLD_KEYS.join(', ')})`);
+    if (typeof nm[k] !== 'string' || !nm[k].trim()) bad(`not_measured.${k} must say why the set cannot take it`);
+    if (k in thr) bad(`${k} is both gated by threshold.${k} and declared not measured; a measure is one or the other`);
+  }
+  for (const k of THRESHOLD_KEYS) {
+    if (k in nm) continue;
+    if (!(k in thr)) bad(`threshold.${k} is required, or declare ${k} under not_measured with the reason the set cannot take it`);
+    if (typeof thr[k] !== 'number' || thr[k] < 0 || thr[k] > 100) bad(`threshold.${k} must be a percentage 0–100`);
+    if (thr[k] === 0) bad(`threshold.${k} is 0, which passes whatever the set measures: gate ${k} above 0, or declare it under not_measured with the reason the set cannot take it`);
+  }
   if (!Array.isArray(meta.sweeps) || meta.sweeps.length < 2) bad('sweeps must list at least two sweep directories');
   for (const s of meta.sweeps) {
     if (typeof s !== 'string' || !/^[\w.-]+$/.test(s) || s === '..' || s === '.') bad(`sweep ${JSON.stringify(s)} must be a directory name inside the set`);
     if (!existsSync(join(dir, s))) bad(`sweep ${s} does not exist`);
   }
-  return { meta, threshold: thr, runDirs: meta.sweeps.map((s) => join(dir, s)) };
+  return { meta, threshold: thr, notMeasured: nm, runDirs: meta.sweeps.map((s) => join(dir, s)) };
 }
 
-// sweepGate(r, d, threshold, q, c) → breaches (empty = the set holds). r is computeVariance's
-// result, d descriptorAgreement's, q requirementAgreement's, c candidateAgreement's. A descriptor
-// threshold over no shared channel, a candidate threshold over no candidate every sweep maps, or a
-// requirement threshold over no decided requirement, is a breach: the measure was not taken, which
-// never reads as met.
-export function sweepGate(r, d, threshold, q = null, c = null) {
+// sweepGate(r, d, threshold, q, c, notMeasured) → breaches (empty = the set holds). r is
+// computeVariance's result, d descriptorAgreement's, q requirementAgreement's, c
+// candidateAgreement's. A descriptor threshold over no shared channel, a candidate threshold over
+// no candidate every sweep maps, or a requirement threshold over no decided requirement, is a
+// breach: the measure was not taken, which never reads as met. A measure the set declares not
+// measured is reported so and gates nothing, unless the set does take it: then the declaration is
+// false and is a breach naming it.
+export function sweepGate(r, d, threshold, q = null, c = null, notMeasured = {}) {
   const out = [];
+  const declared = (k, taken, what) => { if (k in notMeasured && taken) out.push(`${k} is declared not measured, but the set measures it (${what}): state its threshold`); };
+  declared('fact_presence', !!(r && r.union), `${r && r.union} union facts`);
+  declared('candidate_agreement', !!(c && c.candidates && c.candidates.compared), `${c && c.candidates && c.candidates.compared} candidates every sweep maps`);
+  declared('descriptor_agreement', !!(d && d.channels && d.channels.shared), `${d && d.channels && d.channels.shared} shared effect channels`);
+  declared('requirement_agreement', !!(q && q.decided), `${q && q.decided} decided requirements`);
   if (typeof threshold.fact_presence === 'number' && r.pct < threshold.fact_presence)
     out.push(`fact presence ${r.pct}% is below the threshold ${threshold.fact_presence}%`);
   if (typeof threshold.candidate_agreement === 'number') {
@@ -516,15 +542,16 @@ if (isMain(import.meta.url)) {
   const VALUED = ['--set', '--min-facts', '--min-candidates', '--min-descriptors', '--min-requirements'];
   const flag = (n) => { const i = argv.indexOf(n); return i > -1 ? argv[i + 1] : null; };
   let runs = argv.filter((a, i) => !a.startsWith('--') && !VALUED.includes(argv[i - 1]));
-  let threshold = {}, set = null;
+  let threshold = {}, notMeasured = {}, set = null;
   if (flag('--set')) {
     try { set = loadSweepSet(flag('--set')); } catch (e) { console.error(`✗ variance: malformed sweep set — ${e.message}`); process.exit(2); }
-    runs = set.runDirs; threshold = { ...set.threshold };
+    runs = set.runDirs; threshold = { ...set.threshold }; notMeasured = { ...set.notMeasured };
   }
   for (const [f, k] of [['--min-facts', 'fact_presence'], ['--min-candidates', 'candidate_agreement'], ['--min-descriptors', 'descriptor_agreement'], ['--min-requirements', 'requirement_agreement']]) {
     if (flag(f) === null) continue;
     const n = Number(flag(f));
-    if (!Number.isFinite(n)) { console.error(`${f} takes a percentage`); process.exit(2); }
+    if (!Number.isFinite(n) || n <= 0) { console.error(`${f} takes a percentage above 0 (a threshold of 0 passes whatever is measured)`); process.exit(2); }
+    if (k in notMeasured) { console.error(`${f}: the set declares ${k} not measured (${notMeasured[k]})`); process.exit(2); }
     threshold[k] = n;
   }
   if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...] | --set <sweep-set-dir>  [--min-facts N] [--min-candidates N] [--min-descriptors N] [--min-requirements N] [--json]'); process.exit(2); }
@@ -532,8 +559,8 @@ if (isMain(import.meta.url)) {
   const d = computeDescriptorAgreement(runs);
   const c = computeCandidateAgreement(runs);
   const q = computeRequirementAgreement(runs);
-  const gated = Object.keys(threshold).length > 0;
-  const breaches = gated ? sweepGate(r, d, threshold, q, c) : [];
+  const gated = Object.keys(threshold).length > 0 || Object.keys(notMeasured).length > 0;
+  const breaches = gated ? sweepGate(r, d, threshold, q, c, notMeasured) : [];
   if (process.argv.includes('--json')) console.log(JSON.stringify({
     pct: r.pct, union: r.union, core: r.core, byDimension: r.byDimension, byModelPair: r.byModelPair,
     candidates: { pct: c.allFields.pct, listed: c.listed, total: c.candidates.total, compared: c.candidates.compared, agree: c.allFields.agree,
@@ -544,13 +571,15 @@ if (isMain(import.meta.url)) {
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
     requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences },
     ...(set ? { set: { target: set.meta.target, target_commit: set.meta.target_commit, method_commit: set.meta.method_commit, date: set.meta.date, blind: set.meta.blind } } : {}),
-    ...(gated ? { gate: { threshold, breaches } } : {}),
+    ...(gated ? { gate: { threshold, not_measured: notMeasured, breaches } } : {}),
   }, null, 2));
   else {
     if (set) console.log(`\nsweep set ${flag('--set')}: ${set.meta.target} @ ${set.meta.target_commit}, method @ ${set.meta.method_commit}, ${set.meta.date}${set.meta.blind ? ', blind' : ', NOT blind (authored beside its answers)'}`);
     report(r); reportCandidates(c); reportDescriptors(d); reportRequirements(q);
     if (gated) {
-      console.log(`  gate: fact presence ≥ ${threshold.fact_presence ?? '—'}% · per-candidate descriptor agreement ≥ ${threshold.candidate_agreement ?? '—'}% · per-channel descriptor agreement ≥ ${threshold.descriptor_agreement ?? '—'}% · requirement agreement ≥ ${threshold.requirement_agreement ?? '—'}%`);
+      const at = (k) => (k in notMeasured ? 'not measured' : `≥ ${threshold[k] ?? '—'}%`);
+      console.log(`  gate: fact presence ${at('fact_presence')} · per-candidate descriptor agreement ${at('candidate_agreement')} · per-channel descriptor agreement ${at('descriptor_agreement')} · requirement agreement ${at('requirement_agreement')}`);
+      for (const [k, why] of Object.entries(notMeasured)) console.log(`  – ${k} not measured: ${why}`);
       if (breaches.length) for (const b of breaches) console.log(`  ✗ ${b}`);
       else console.log('  ✓ the set holds its threshold');
     }

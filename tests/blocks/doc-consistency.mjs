@@ -41,8 +41,9 @@ export async function run() {
       for (const v of [...views, 'Since']) if (!new RegExp(`\\b${v}\\b`).test(t)) fail(`${f} does not name the ${v} view`);
     }
   }
-  // map/METHOD.md's leverage/maturity/security are Improve's readings, never the engine's views
-  if (!/three views inside Improve/i.test(flat(read('map/METHOD.md')))) fail('map/METHOD.md must say its leverage/maturity/security views live inside Improve, not stand beside the engine\'s views');
+  // map/METHOD.md's maturity/security are Improve's readings, never the engine's views. Re-pinned
+  // with #323: the leverage view went (no code produced it), so the method names two views, not three
+  if (!/two views inside Improve/i.test(flat(read('map/METHOD.md')))) fail('map/METHOD.md must say its maturity/security views live inside Improve, not stand beside the engine\'s views');
 
   // (b) the cross-run fingerprint: its parts are probed off the code, and every
   // contract that states it names each part.

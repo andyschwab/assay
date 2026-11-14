@@ -30,7 +30,7 @@ git diff tests/golden.json            # review every moved number
 
 Commit `tests/golden.json` in the same commit as the change, saying why each
 number moved. A unit or negative assertion that fails is never re-blessed: it
-is a real regression; restore the rule it pins (`CLAUDE.md`, "Checks").
+is a real regression; restore the rule it pins (`CONTRIBUTING.md`, "Landing a change").
 
 ## Restart a routine run
 

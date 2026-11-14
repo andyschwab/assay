@@ -565,7 +565,8 @@ try {
   }
 } catch (e) { err('projection', `projection gate failed to run: ${e.message.split('\n')[0]}`); }
 
-// citation-integrity: every F-### mentioned in a view / synthesis / report resolves
+// citation-integrity: every F-### mentioned in a view or the report resolves (leverage.md only in a
+// stored run: no pass writes it since #323, and a stored one is still checked)
 function citationsIn(path) {
   if (!existsSync(path)) return;
   const txt = readFileSync(path, 'utf8');

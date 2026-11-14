@@ -1,7 +1,0 @@
-# map/effect-triage.yaml (authored, SCHEMA.md §6e): one entry per candidate in
-# map/raw/enumerate.json (channelCandidates, routeHandlers, effectSites).
-schema: effect-triage
-version: 1
-triage:
-  - candidate: "http write (js)"
-    finding: F-500

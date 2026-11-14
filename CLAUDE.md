@@ -42,18 +42,9 @@ requirements contract, and `views/README.md` the views' data formats.
 
 ## Checks
 
-```sh
-npm test                                            # the regression harness (fails closed)
-node assay.mjs validate <run>                       # validate a map
-node assay.mjs score <run> --answers <target>/ANSWERS.yaml   # grade recall
-```
-
-A change that moves a pinned score is a **reviewed** re-bless of
-`tests/golden.json` in the same commit, never a silent drift. A unit or negative
-assertion that fails is always a real regression, never re-blessed.
-
-A new harness block is a new file under `tests/blocks/` (`tests/README.md`); no existing
-file is edited to add one.
+The landing steps, and the one command that runs every check, are `CONTRIBUTING.md`'s:
+`npm run gate`. `node assay.mjs validate <run>` validates a map and
+`node assay.mjs score <run> --answers <target>/ANSWERS.yaml` grades recall.
 
 ## How a change lands
 

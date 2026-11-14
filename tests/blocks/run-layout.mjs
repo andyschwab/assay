@@ -12,6 +12,8 @@ export async function run() {
   const L = await import('../../lib/run-layout.mjs');
   const R = join(tmpdir(), 'assay-layout-probe');
   const rel = (p) => p.slice(R.length + 1).split(/[\\/]/).join('/');
+  // re-pinned with #323: synthesisPath left the layout, since no code writes or reads
+  // views/improve/synthesis.md (map/METHOD.md's Pass 8 described a file nothing produced)
   const want = [
     ['indexPath', [], 'INDEX.md'], ['intakePagePath', [], 'INTAKE.md'], ['maintainPagePath', [], 'MAINTAIN.md'],
     ['improvePagePath', [], 'IMPROVE.md'], ['ownerPagePath', [], 'OWNER.md'], ['sincePagePath', [], 'SINCE.md'],
@@ -24,7 +26,7 @@ export async function run() {
     ['prosePath', [], 'views/improve/prose.yaml'], ['axesPath', [], 'views/improve/axes.md'], ['leveragePath', [], 'views/improve/leverage.md'],
     ['maturityPath', [], 'views/improve/maturity.md'], ['maturityGradesPath', [], 'views/improve/maturity-grades.yaml'],
     ['securityPath', [], 'views/improve/security.md'], ['securityGatePath', [], 'views/improve/security-gate.yaml'],
-    ['synthesisPath', [], 'views/improve/synthesis.md'], ['decisionsPath', [], 'owner/decisions.yaml'], ['packetManifestPath', [], 'owner/manifest.yaml'],
+    ['decisionsPath', [], 'owner/decisions.yaml'], ['packetManifestPath', [], 'owner/manifest.yaml'],
     ['backlogAuthoredPath', [], 'map/backlog-authored.yaml'], ['chainsDataPath', [], 'views/improve/chains.json'], ['handoffSequencePath', [], 'handoff/sequence.json'],
   ];
   for (const [fn, args, path] of want) {

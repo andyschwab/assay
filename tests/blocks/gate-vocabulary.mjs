@@ -79,7 +79,8 @@ export async function run() {
   red({ gate_type: 'none', verified_as: { principal: 'x', privilege: 'bound' }, preconditions: 'insider' }, /verified_as on an effect whose gate_type is none/, 'verified_as on an ungated effect');
 
   // every gate_type and fail_mode value the validator admits is defined in the glossary and
-  // stated in SCHEMA §2 and METHOD, so the vocabularies stay one list
+  // stated in SCHEMA §2, so the vocabularies stay one list. Re-pinned with #323: METHOD.md restated
+  // the table, which is how two lists drift; it now points at SCHEMA.md, and carries no row to drift
   const src = readFileSync(join(ROOT, 'map', 'validate.mjs'), 'utf8');
   const vocab = (name) => [...(src.match(new RegExp(`const ${name} = new Set\\(\\[([^\\]]*)\\]`))?.[1] || '').matchAll(/'([^']+)'/g)].map((m) => m[1]);
   const gloss = parseYaml(readFileSync(join(ROOT, 'views', 'improve', 'templates', 'glossary.yaml'), 'utf8'));
@@ -92,7 +93,7 @@ export async function run() {
     for (const v of vals) {
       if (!gloss[gkey]?.[v]) fail(`glossary.yaml defines no ${gkey} "${v}"`);
       if (!row(schema).includes(v)) fail(`SCHEMA.md §2 does not list ${key} "${v}"`);
-      if (!row(method).includes(v)) fail(`METHOD.md's vocabulary table does not list ${key} "${v}"`);
     }
+    if (row(method)) fail(`METHOD.md restates the ${key} vocabulary row; SCHEMA.md §2 is its one home`);
   }
 }
