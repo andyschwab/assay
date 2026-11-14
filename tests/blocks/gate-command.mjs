@@ -20,10 +20,12 @@ export async function run() {
   if (!G) return;
   const { INSTALL_FOR_RUN } = await import('../../map/tools.mjs');
 
-  // (a) the steps, in order: the tools, then the suite, typecheck, lint, the passes, the release notes
+  // (a) the steps, in order: the tools, then the suite, the red proofs, typecheck, lint, the passes, the
+  // release notes. Re-pinned for #321: the red proofs (tests/prove-red.mjs) run after the suite, so a
+  // check that stopped being able to fail is named on the gate's exit line.
   const at = (s) => `${s.cmd === process.execPath ? 'node' : s.cmd} ${s.args.join(' ')}`;
   if (at(G.TOOLS) !== 'node assay.mjs tools verify --run') fail(`the gate's first step verifies the pinned tools (got ${at(G.TOOLS)})`);
-  const want = [['test', 'npm test'], ['typecheck', 'npm run typecheck'], ['lint', 'npm run lint'], ['passes', 'node map/passes.mjs'], ['release-notes', 'node lib/release-notes.mjs --check']];
+  const want = [['test', 'npm test'], ['prove-red', 'node tests/prove-red.mjs'], ['typecheck', 'npm run typecheck'], ['lint', 'npm run lint'], ['passes', 'node map/passes.mjs'], ['release-notes', 'node lib/release-notes.mjs --check']];
   if (G.STEPS.map((s) => s.name).join(',') !== want.map((w) => w[0]).join(',')) fail(`the gate runs ${want.map((w) => w[0]).join(', ')} in that order (got ${G.STEPS.map((s) => s.name).join(', ')})`);
   for (const [name, cmd] of want) {
     const s = G.STEPS.find((x) => x.name === name);

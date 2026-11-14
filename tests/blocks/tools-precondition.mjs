@@ -78,7 +78,8 @@ export async function run() {
       for (const l of body) { if (/^\s*-\s+(name|uses|run):/.test(l)) steps.push([l]); else if (steps.length) steps[steps.length - 1].push(l); }
       return steps.map((x) => x.join('\n'));
     };
-    for (const [file, job, runs] of [[join(ROOT, 'routine', 'assay-routine.yml'), 'routine', /routine\/run\.mjs/], [join(ROOT, '.github', 'workflows', 'ci.yml'), null, /^\s*-?\s*run:\s*npm test\s*$/m]]) {
+    // ci.yml runs assay through the gate (#321), which runs the suite
+    for (const [file, job, runs] of [[join(ROOT, 'routine', 'assay-routine.yml'), 'routine', /routine\/run\.mjs/], [join(ROOT, '.github', 'workflows', 'ci.yml'), null, /^\s*-?\s*run:\s*npm run gate\s*$/m]]) {
       const text = readFileSync(file, 'utf8');
       const name = file.slice(ROOT.length + 1);
       const steps = stepsOf(text, job);

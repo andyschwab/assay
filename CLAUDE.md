@@ -52,7 +52,11 @@ The landing steps, and the one command that runs every check, are `CONTRIBUTING.
   and confirm it red for its own reason, then restore the rule and confirm the
   suite green. An assertion never seen failing proves nothing. The pull
   request body and the commit message that lands the assertion say it was
-  confirmed red.
+  confirmed red. An assertion that holds a core invariant lands with its entry
+  in `tests/prove-red.mjs`, the mutation that breaks the invariant in the
+  source and the check that must go red with it; the gate re-proves every entry
+  on every run. The "confirmed red" line stays for assertions the list does not
+  cover.
 - **Engine learnings go to the issue tracker.** A gap a run exposes in the
   method, a scanner, the yardstick or a contract becomes an issue on this
   repository's issue tracker, stated with public evidence only (rule 6), and

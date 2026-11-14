@@ -2,7 +2,8 @@
 // The invariants the block above holds the shipped template to (SHA pins, contents:
 // read, timeout-minutes on every job) hold on the engine's own workflow too, with the
 // same pins the template uses; it runs every Node major package.json's engines floor
-// declares up to the current one, and runs the static gates package.json declares.
+// declares up to the current one, and runs the one gate command a contributor runs,
+// `npm run gate` (#321), never its steps one by one beside it.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, negFailures } from '../harness.mjs';
@@ -51,9 +52,13 @@ export async function run() {
 
   // CI installs assay's pinned tools before npm test (#198): tests/blocks/tools-precondition.mjs.
 
-  for (const s of ['lint', 'typecheck', 'build', 'test']) {
-    if (typeof pkg.scripts?.[s] !== 'string') fail(`package.json must declare a "${s}" script`);
-    const cmd = s === 'test' ? 'npm test' : `npm run ${s}`;
-    if (!lines.some((l) => (l.match(/^\s*(?:-\s*)?run:\s*(.*?)\s*$/) || [])[1] === cmd)) fail(`ci.yml must run "${cmd}"`);
-  }
+  // Re-pinned for #321: CI ran lint, typecheck, build and test as steps of their own, and the gate a
+  // contributor runs (lib/gate.mjs) holds more (the red proofs, the passes, the release notes), so the
+  // two drifted. CI runs `npm run gate`, the same check, and none of its steps beside it. build is
+  // lint's command (lib/check-syntax.mjs), which the gate runs.
+  for (const s of ['lint', 'typecheck', 'build', 'test', 'gate']) if (typeof pkg.scripts?.[s] !== 'string') fail(`package.json must declare a "${s}" script`);
+  if (pkg.scripts?.build && pkg.scripts.build !== pkg.scripts.lint) fail(`build runs ${pkg.scripts.build}, not lint's ${pkg.scripts.lint}: the gate runs lint only, so CI would no longer run build`);
+  const runs = lines.map((l) => (l.match(/^\s*(?:-\s*)?run:\s*(.*?)\s*$/) || [])[1]).filter(Boolean);
+  if (!runs.includes('npm run gate')) fail('ci.yml must run "npm run gate", the one check a contributor runs');
+  for (const s of ['npm test', 'npm run lint', 'npm run typecheck', 'npm run build']) if (runs.includes(s)) fail(`ci.yml runs "${s}" beside the gate; the gate runs it, so CI runs only "npm run gate"`);
 }

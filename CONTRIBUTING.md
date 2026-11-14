@@ -17,16 +17,20 @@ the rest.
    ```
 
 2. **Run the gate: `npm run gate`.** It verifies the pinned tools (and stops there, with the
-   install line, when one is missing), then runs `npm test`, `npm run typecheck`,
-   `npm run lint`, `node map/passes.mjs` and `node lib/release-notes.mjs --check`, every one of
-   them whatever the one before it did, and ends in one exit line: `✓ assay gate: …`, or
-   `✗ assay gate: …` naming each step that failed, exit 1. A change lands on a green gate. The
-   suite runs its blocks in parallel (`tests/README.md`, "How the blocks run"); it takes a few
-   minutes, so run the gate in the background and read its exit line before you push.
+   install line, when one is missing), then runs `npm test`, `node tests/prove-red.mjs`,
+   `npm run typecheck`, `npm run lint`, `node map/passes.mjs` and
+   `node lib/release-notes.mjs --check`, every one of them whatever the one before it did, and
+   ends in one exit line: `✓ assay gate: …`, or `✗ assay gate: …` naming each step that
+   failed, exit 1. A change lands on a green gate. CI runs this same command
+   (`.github/workflows/ci.yml`). The suite runs its blocks in parallel (`tests/README.md`,
+   "How the blocks run"); it takes a few minutes, so run the gate in the background and read
+   its exit line before you push.
 
 3. **Red, then green.** Confirm each new assertion red with the rule it pins reverted, for its
-   own reason, then green with the rule restored (`CLAUDE.md` § How a change lands). The commit
-   that lands the assertion and the pull request body say it was confirmed red. A new harness
+   own reason, then green with the rule restored (`CLAUDE.md` § How a change lands). An
+   assertion that holds a core invariant lands with its entry in `tests/prove-red.mjs`
+   (`tests/README.md`, "Red proofs"), which the gate re-proves on every run; for any other, the
+   commit that lands the assertion and the pull request body say it was confirmed red. A new harness
    block is a new file under `tests/blocks/` (`tests/README.md`); no existing file is edited to
    add one. An existing block that pins the old shape is re-pinned with the reason, in the
    block; a unit or negative assertion is never loosened.

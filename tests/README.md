@@ -9,6 +9,8 @@ closed: any unit or negative failure, any drift from the scores pinned in
 ```
 tests/regression.mjs   the runner: discovers the blocks, runs them, prints the verdict;
                        holds the closed list (the blocks that run alone)
+tests/prove-red.mjs    the red proofs: each core invariant's mutation, and the check it
+                       must turn red (below, "Red proofs")
 tests/harness.mjs      what every block shares: negFailures, the fixture helpers, the
                        verdict, and the runner's discovery and pools (loadBlocks,
                        runBlocks, runBlocksParallel)
@@ -44,6 +46,29 @@ and the gate's last line are the serial run's (`tests/blocks/parallel-runner.mjs
   beside another, with its reason; each runs alone. A label on it that is no block, or one
   with no reason, is refused. A new entry is a reviewed change with its reason, never a way
   to quiet a flaky block.
+
+## Red proofs
+
+`tests/prove-red.mjs` holds a list of the core invariants, one entry each:
+`{ rule, file, from, to, check, red }`, the invariant in words, the source file that holds it,
+an exact text in it and the text that breaks the rule, the one block that holds it, and a
+pattern one of that block's failure lines matches. For each entry the script copies the tree
+to a scratch directory (the tree itself is never written, so a run killed mid-entry leaves it as
+it was), requires `from` to occur exactly once, applies the mutation and runs the check alone,
+requiring it to fail for its own reason (a failure line matching `red`), then restores the file
+and requires the check to pass. It ends in one verdict line naming every entry that did not
+hold, exit 1. Entries run in parallel, each in its own copy; an entry whose check is on the
+closed list runs alone. `npm run gate` runs it after `npm test`, and CI runs the gate.
+`node tests/prove-red.mjs --only <check>` proves one check's entries.
+
+An assertion that holds a core invariant lands with its entry (`CLAUDE.md` § How a change
+lands). `tests/blocks/prove-red-script.mjs` holds the script itself.
+
+**The known cost.** An entry is pinned to code text, so it is a change detector: a change to
+the code an entry names fails that entry, `from occurs nowhere`, until the entry is re-pinned
+to the code as it now stands, with a mutation that still breaks the rule. Re-pinning is a
+reviewed diff in the same change, never a regression, and never a deleted entry: an invariant
+that moved still has a mutation that breaks it.
 
 ## How to add a block
 
