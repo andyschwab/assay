@@ -77,6 +77,8 @@ export function buildRows(runDir, select, { withFloor = false } = {}) {
     // a claim row's context (#262): what the run saw on its population, carried beside the row and
     // never in its findings:, so it cannot read as the evidence a status rests on
     if (Array.isArray(m.context) && m.context.length) base.context = m.context.map(String);
+    // the sweep sets a gap of the row rests on (#338), by name, beside its findings
+    if (Array.isArray(m.sweep_sets) && m.sweep_sets.length) base.sweep_sets = m.sweep_sets.map(String);
     if (withFloor) base.floor = (d.tags || []).includes('floor');
     if (m.status === 'met') {
       met.push({ ...base, note: m.note });

@@ -69,6 +69,8 @@ export function ownerRow(r, status, byId, findingById) {
   const seen = status === 'met' ? findings.map((id) => findingById.get(id)).filter((f) => f && f.polarity === 'strength' && f.observation).map((f) => String(f.observation).trim()) : [];
   const out = { id: r.id, tier: r.tier, topic: r.topic, title: r.title, status, risk: o.risk || '', fix: o.fix || '', where, findings, seen, check: r.check };
   if (lens) out.lens = lens;
+  // the sweep sets a gap rests on (#338): named where the gap's places are, nothing more
+  if (Array.isArray(r.sweep_sets) && r.sweep_sets.length) out.sweep_sets = r.sweep_sets;
   // a claim row's context (#262): what the run saw on its population, in the owner's words, kept
   // apart from findings/where/seen so it never reads as what the status rests on
   if (r.context && r.context.length) {
@@ -228,6 +230,7 @@ function rowYaml(r, pad) {
   const L = [`${pad}- id: ${r.id}`, `${pad}  tier: ${r.tier}`, `${pad}  topic: ${r.topic}`, `${pad}  title: ${q(r.title)}`, `${pad}  status: ${r.status}`];
   L.push(`${pad}  risk: ${q(r.risk)}`, `${pad}  fix: ${q(r.fix)}`);
   L.push(`${pad}  where: [${(r.where || []).map(q).join(', ')}]`, `${pad}  findings: [${(r.findings || []).join(', ')}]`);
+  if (r.sweep_sets && r.sweep_sets.length) L.push(`${pad}  sweep_sets: [${r.sweep_sets.map(q).join(', ')}]`);
   // free text: a block sequence, since a flow list's commas would split an item on read-back
   L.push((r.seen || []).length ? [`${pad}  seen:`, ...r.seen.map((x) => `${pad}    - ${q(x)}`)].join('\n') : `${pad}  seen: []`);
   L.push(`${pad}  check: ${q(r.check)}`);
@@ -266,8 +269,9 @@ export function toYaml(runId, yardstickVersion, built) {
 const seenText = (r) => (r.seen && r.seen.length ? `${/[.!?]$/.test(String(r.reason || '').trim()) ? '' : '.'} Seen in place: ${r.seen.map((x) => mdText(x).replace(/\.$/, '')).join('; ')}. Where: ${whereText(r)}.` : '');
 // a claim row's context (#262), labelled so it never reads as met or unmet
 const contextSeenText = (r) => (r.context && r.context.length ? ` ${CONTEXT_LABEL}: ${(r.context_seen.length ? r.context_seen.map((x) => mdText(x).replace(/\.$/, '')).join('; ') : r.context.join(', '))}.` : '');
-const whereText = (r) => (r.where && r.where.length ? r.where.map(mdCode).join(', ') + (r.lens ? ` (${r.lens})` : '')
-  : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)` : mdText(r.reason));
+const setsText = (r) => (r.sweep_sets && r.sweep_sets.length ? `, ${r.sweep_sets.map((s) => `sweep set ${mdCode(s)}`).join(', ')}` : '');
+const whereText = (r) => (r.where && r.where.length ? r.where.map(mdCode).join(', ') + setsText(r) + (r.lens ? ` (${r.lens})` : '')
+  : r.findings && r.findings.length ? `map rows ${r.findings.join(', ')} (no file cited)${setsText(r)}` : mdText(r.reason));
 
 export function renderMd(runId, built, { confidential = false, name, date, commit } = /** @type {any} */ ({})) {
   const { floor, beyond_floor, not_looked_at } = built;

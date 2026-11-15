@@ -33,7 +33,7 @@ function buildTopics(measurementRows, reg) {
     const g = byTopic.get(d.topic);
     const key = status === 'not-measured' ? 'not_measured' : status === 'not-applicable' ? 'not_applicable' : status;
     g[key] = (g[key] || 0) + 1;
-    g.rows.push({ id: d.id, title: d.title, status, _tier: tierRank[d.tier] ?? 999, _reg: i });
+    g.rows.push({ id: d.id, title: d.title, status, ...(m && Array.isArray(m.sweep_sets) && m.sweep_sets.length ? { sweep_sets: m.sweep_sets.map(String) } : {}), _tier: tierRank[d.tier] ?? 999, _reg: i });
   });
   for (const g of byTopic.values()) g.rows.sort((a, b) => a._tier - b._tier || a._reg - b._reg);
   for (const g of byTopic.values()) for (const r of g.rows) { delete r._tier; delete r._reg; }
@@ -48,7 +48,7 @@ export function toYaml(topics) {
   for (const t of topics) {
     L.push(`  - topic: ${t.topic}`, `    met: ${t.met}`, `    unmet: ${t.unmet}`, `    mixed: ${t.mixed}`, `    not_measured: ${t.not_measured}`, `    not_applicable: ${t.not_applicable}`);
     L.push('    rows:');
-    for (const r of t.rows) L.push(`      - id: ${r.id}`, `        title: ${q(r.title)}`, `        status: ${r.status}`);
+    for (const r of t.rows) L.push(`      - id: ${r.id}`, `        title: ${q(r.title)}`, `        status: ${r.status}`, ...(r.sweep_sets ? [`        sweep_sets: [${r.sweep_sets.map(q).join(', ')}]`] : []));
   }
   return L.join('\n') + '\n';
 }

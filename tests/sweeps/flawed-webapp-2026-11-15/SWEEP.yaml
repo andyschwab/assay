@@ -16,6 +16,9 @@
 #   and reversibility now follow from the answers, and the answers part where the descriptors did not.
 # - Spend per session (practice-review row of each run record): USD 9.39, 9.42, 9.23.
 target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+identity:                    # the target as a run states it (map/SCHEMA.md §5a): a run over it at target_commit reads the set for d-effect-facts-legible (#338)
+  repository: "https://github.com/andyschwab/assay-fixtures"
+  path: "targets/flawed-webapp"
 target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
 method_commit: "a17104d714ec76259e6d793954371885965f784a"
 date: "2026-11-15"

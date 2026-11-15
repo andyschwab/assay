@@ -609,6 +609,18 @@ that is malformed, names a file that does not load, or names one whose rules rea
 the closed list (`yardstick/README.md`, "Consequence"). A run with none reads the default,
 `yardstick/consequence.yaml`.
 
+**The sweep sets (#338).** A run compiled with `compile --sweep-set <dir>` records each set it was
+given here, above `scanners:`, as `sweep_sets: [{ dir, sha256, read, reason? }]`: the set (by its path
+from assay's root when it is a committed set, else its absolute path), the digest of its `SWEEP.yaml`
+and every file under each sweep's `map/`, and whether `d-effect-facts-legible` reads it. A set is read
+only when its `identity:` is this record's `identity:` and its `target_commit` the commit every
+`reviewed.head` here names; otherwise `read: false` and `reason` says which did not hold (another
+target, another commit, or one the run or the set does not state). Each compile given `--sweep-set`
+replaces the list; one given none reads it as it stands, so every later measurement reads the same
+sets. A set whose digest or reading has moved since is refused: the measurement halts, and
+`validate` refuses the record, as it refuses one that is malformed (`yardstick/README.md`, "An
+effect's facts, legible").
+
 **The lens (#319, slice 3).** A run whose operator named a lens for its fix sequence
 (`node assay.mjs compile <run> --lens <name>`, a lens of the built-in `views/lenses.yaml`, or
 `--lens-file <file>`, their own file in its format) records it here, above `scanners:`, as

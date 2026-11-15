@@ -313,6 +313,41 @@ met, without a list, over an empty one, with no triage, with a triage that carri
 bar"), and when no candidate is in scope. A candidate untriaged, or an answer not in the checklist's
 form, turns a met reading mixed and is named.
 
+**Where blind lanes over this tree part** (#338, third slice). A run's own lane answers once. The
+stronger evidence is a sweep set (`tests/sweeps/README.md`): several blind lanes over the same tree.
+Where they read one in-scope candidate two ways on a qualifying question, a gap in one sweep and
+legible in another (`factLegibility`, the one classifier the row and `variance` read), the tree does
+not state that fact where a reader finds it, whatever this run's lane answered. So that candidate is a
+gap on that question:
+
+- **Only a set about this run's tree.** `compile --sweep-set <dir>` hands the measurement a set's parted
+  pairs only when the set's `identity:` is the run's (`map/SCHEMA.md` §5a; one target by
+  `map/target-identity.mjs` `identityKey`) and its `target_commit` is the commit the run measured, the
+  `reviewed.head` every lane that ran records (one commit; a sha of at least 7 hex digits read as git
+  reads it, a prefix of the full one). Any other set is read for nothing on this row: the run reads
+  exactly as without it, and the run record names the set as not read, with why (another target,
+  another commit, or a run or set that states neither).
+- **Computed, never typed.** The pairs are computed from the set's runs each time the run is measured,
+  by `map/variance.mjs` `candidateAgreement` and `gapAgreement` (`map/sweep-partings.mjs`), the code
+  `variance --set` reports them with. A yes against a no is legible both ways and never a parting; a
+  question below the bar is never read.
+- **Matched exactly, never invented.** A candidate is matched by its member string as enumerate writes
+  it, and only one the run holds in scope is read. A parting on any other candidate is named in the
+  note as not read.
+- **The lane's answer stands.** The triage is not rewritten. The gap's note cites the candidate at its
+  `file:line`, names the set and each sweep's reading (`gap / legible / gap`). A pair the run's own
+  answer already reads as a gap is one gap with both sources named, never two. The row's status
+  follows the population rule above, and its note says how many gaps came from the run's own answers,
+  how many from a parting, and how many from both. The row carries `sweep_sets:`, the names of the sets
+  its gaps rest on, which Owner prints beside the gap's places and Improve beside the row.
+- **Recorded.** The run record carries each set compile was given (`map/SCHEMA.md` §5a, `sweep_sets:`),
+  read or not, with the digest of what was read. Every later measurement of the run reads the same sets
+  without the flag, and refuses one whose digest or reading has moved since (name it again). A set
+  that cannot be read stops compile, naming why; it is never skipped.
+
+A set at an earlier commit is not carried forward to a later run: the candidate may have moved, and
+when a parting still stands is a rule of its own, not yet written.
+
 **The bar** keeps assay's ambiguity apart from the target's. A question blind lanes part on over
 every target measures its own wording (#337), never the target. So a question **qualifies** only
 when its cross-target agreement clears a stated bar: the agreement per answer that

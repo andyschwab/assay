@@ -433,8 +433,10 @@ const LEGIBILITY_ROW = 'd-effect-facts-legible';
 // different answers on such a question is the stronger evidence #338 names that the tree does not
 // state the fact: careful blind readers of the same tree read it two ways. lanesPart lists each
 // { candidate, question, values }, one per sweep, over the qualifying questions only (a question below
-// the bar parts lanes on its wording, and is never listed). It is a list for a reader: in this slice it
-// feeds no run's measurement. c is candidateAgreement's result.
+// the bar parts lanes on its wording, and is never listed). It is a list for a reader of the raw
+// answers, and feeds no run's measurement: a yes against a no parts the answers and leaves the fact
+// legible both ways. What a run's measurement reads is gapAgreement's divergences, the readings that
+// part on gap or legible (compile --sweep-set, map/sweep-partings.mjs). c is candidateAgreement's result.
 export function lanesPart(c, qualifying) {
   const q = new Set(qualifying || []);
   return ((c && c.answers && c.answers.divergences) || []).flatMap((d) => d.answers.filter((a) => q.has(a.key)).map((a) => ({ candidate: d.candidate, question: a.key, values: a.values })));
@@ -654,7 +656,7 @@ function reportCandidates(c) {
 
 // The candidates where blind lanes part on a question that clears the legibility bar (#338).
 function reportLegibility(l, c, g) {
-  console.log(`  where lanes part on a question that clears the legibility bar (${l.bar}; read by no run's measurement yet):`);
+  console.log(`  where lanes part on a question that clears the legibility bar (${l.bar}; a run compiled with --sweep-set over this set's target and commit reads the gap-or-legible partings below as gaps):`);
   if (!l.qualifying.length) { console.log(`    no checklist question has cleared the cross-target bar: nothing is listed.\n`); return; }
   if (!c.answers.compared) { console.log(`    qualifying: ${l.qualifying.join(', ')}; no candidate every sweep answers: nothing to compare.\n`); return; }
   if (l.blind === false) console.log(`    ⚠ the set is NOT blind: its lanes saw an answer sheet, so a parting here is no evidence about the target`);

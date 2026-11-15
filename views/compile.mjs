@@ -33,9 +33,10 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { loadFindings, loadAdapters, projectMulti, contributedBySources, rosterFor, orderAxes, registryAxes as registryAxesOf, loadManifest, dispositions, scannerLine, modelsLine, notRunPhrase, loadScannerCoverage, axisCoverage, coveragePhrase } from '../map/project.mjs';
 import { loadDecisions, decideProjected } from '../map/decisions.mjs';
-import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYardstick } from '../yardstick/measure.mjs';
+import { projectRun as measureRunOf, summarize as summarizeMeasurement, loadYardstick, remeasureIfMeasured } from '../yardstick/measure.mjs';
 import { loadPolicy } from '../map/consequence.mjs';
 import { setConsequencePolicy, setLens, updateRunRecord } from '../map/record.mjs';
+import { readSetForRun, setSweepSets, ROW as LEGIBILITY_ROW } from '../map/sweep-partings.mjs';
 import { loadLens, BUILTIN_LENS_FILE } from './improve/lens.mjs';
 import { buildOwner } from './owner.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
@@ -51,7 +52,11 @@ const previousRun = sinceIdx > -1 ? argv[sinceIdx + 1] : null;
 const targetIdx = argv.indexOf('--target');
 const targetArgs = targetIdx > -1 ? ['--target', argv[targetIdx + 1]] : [];
 // --sweep-set <dir> (repeatable): a sweep set that measured a source's repeatability (tests/sweeps/
-// README.md); the handoff carries its figures beside a judged item from that source (#319)
+// README.md); the handoff carries its figures beside a judged item from that source (#319). Each is
+// also read for d-effect-facts-legible (#338): a set over this run's target at the commit it measured
+// hands the measurement its parted pairs (map/sweep-partings.mjs), any other is read for nothing on the
+// row; either way the run record names it with its digest and, when not read, why, so every later
+// compile of the run reads the same. A set that cannot be read stops compile, naming why.
 const sweepIdx = argv.flatMap((a, i) => (a === '--sweep-set' ? [i] : []));
 const sweepArgs = sweepIdx.flatMap((i) => ['--sweep-set', argv[i + 1]]);
 // --consequence-policy <file>: the operator's consequence policy for this run (#319,
@@ -107,6 +112,21 @@ if (lensIdx > -1 || lensFileIdx > -1) {
     updateRunRecord(scannersPath(runDir), (text) => setLens(text, { name: l.name, file, sha256: l.sha256 }));
     console.log(`· lens ${l.name} (${lensFile || BUILTIN_LENS_FILE}) recorded in the run record (sha256 ${l.sha256.slice(0, 12)}…)`);
   } catch (e) { console.error(`✗ lens refused: ${e.message}`); process.exit(1); }
+}
+if (sweepIdx.length) {
+  if (sweepIdx.some((i) => !argv[i + 1] || argv[i + 1].startsWith('--'))) { console.error('✗ --sweep-set needs the sweep set\'s directory'); process.exit(2); }
+  let entries;
+  try {
+    const manifest = loadManifest(runDir);
+    if (!manifest) throw new Error(`${scannersPath(runDir)} is missing: a set is matched to the target and commit the run record states`);
+    entries = sweepIdx.map((i) => readSetForRun(argv[i + 1], manifest));
+    updateRunRecord(scannersPath(runDir), (text) => setSweepSets(text, entries));
+    // a run measured before reads its new sets now, as record and ingest re-measure (#184)
+    remeasureIfMeasured(runDir);
+  } catch (e) { console.error(`✗ sweep set refused: ${e.message}`); process.exit(1); }
+  for (const x of entries) console.log(x.read
+    ? `· sweep set ${x.set} read for ${LEGIBILITY_ROW}: over this run's target and commit, ${x.partings.length} candidate × question pair(s) where its lanes part (sha256 ${x.sha256.slice(0, 12)}…, recorded in the run record)`
+    : `· sweep set ${x.set} not read for ${LEGIBILITY_ROW}: ${x.reason} (sha256 ${x.sha256.slice(0, 12)}…, recorded in the run record)`);
 }
 console.log('· validate …');                  run('../map/validate.mjs', targetArgs);
 // the measurement: every package carries yardstick.yaml (yardstick/README.md); the
