@@ -1,0 +1,227 @@
+# Pass 2 — context economy. Modules M1-M10 as frozen in the terrain, one finding each
+# (census modules-standalone); transitive in-repo imports read from the static and string-literal
+# dynamic import specifiers of every .mjs/.js file outside tests/, counted outside the module.
+- id: F-200
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M1 assay.mjs"
+  observation: >
+    assay.mjs has a head comment (lines 1-9) and imports only node built-ins, so it loads alone,
+    but no file in tests/blocks/ or tests/regression.mjs imports it: tests reach it only by
+    spawning it as a process (tests/blocks/start-tree.mjs:36), so the "something to run" condition
+    read as a direct import does not hold.
+  evidence:
+    - "assay.mjs:1-9"
+    - "assay.mjs:10-13"
+    - "tests/blocks/start-tree.mjs:36"
+  confidence: confirmed
+- id: F-201
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M2 lib/"
+  observation: >
+    Every file in lib/ opens with a head comment and tests import its files directly
+    (lib/yaml-min.mjs, lib/gate.mjs), but the directory's imports reach 19 source files outside it,
+    because lib/gate.mjs and lib/release-notes.mjs import map/tools.mjs and map/doctrine.mjs and
+    through them map/project.mjs's graph; lib/yaml-min.mjs on its own imports nothing in the repo.
+  evidence:
+    - "lib/yaml-min.mjs:1-7"
+    - "lib/gate.mjs:2-16"
+    - "lib/gate.mjs:20-21"
+    - "lib/release-notes.mjs:21"
+    - "tests/blocks/claim-context-not-a-decision.mjs:30"
+    - "tests/blocks/gate-command.mjs:19"
+  confidence: confirmed
+- id: F-202
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M3 map/ (top-level files)"
+  observation: >
+    map/'s 41 top-level source files each carry a head comment and tests import most of them
+    directly, but their imports reach 13 source files outside map/ (4 in lib/, 4 in views/,
+    5 in yardstick/), including an upward import from the map layer into views
+    (map/project.mjs:31 imports views/severity.mjs).
+  evidence:
+    - "map/project.mjs:2-16"
+    - "map/project.mjs:20-31"
+    - "tests/blocks/claim-context-not-a-decision.mjs:28"
+  confidence: confirmed
+- id: F-203
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M4 map/scanners/"
+  observation: >
+    map/scanners/ holds the adapter YAMLs, CONTRACT.md and one source file,
+    adapters/repo-census/signals.mjs, which has a long head comment and imports only
+    lib/yaml-min.mjs, but no file in tests/blocks/ or tests/regression.mjs imports it: it is loaded
+    only by a computed-path dynamic import inside map/repo-census.mjs.
+  evidence:
+    - "map/scanners/adapters/repo-census/signals.mjs:1-36"
+    - "map/scanners/adapters/repo-census/signals.mjs:39"
+    - "map/repo-census.mjs:1251-1256"
+  confidence: confirmed
+- id: F-204
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M5 views/ (top level)"
+  observation: >
+    views/ has a README and tests import its files directly (views/rows.mjs), but its top-level
+    files' imports reach 31 source files outside it, views/compile.mjs pulling in map/project.mjs,
+    map/decisions.mjs, map/record.mjs and yardstick/measure.mjs.
+  evidence:
+    - "views/README.md:1-4"
+    - "views/rows.mjs:1-7"
+    - "views/compile.mjs:34-43"
+    - "tests/blocks/claim-context-not-a-decision.mjs:31"
+  confidence: confirmed
+- id: F-205
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M6 views/improve/"
+  observation: >
+    views/improve/ has no README but every file opens with a head comment, and tests import its
+    files directly (maturity.mjs, sequence.mjs), yet its imports reach 34 source files outside it,
+    views/improve/report.mjs alone importing nine map/ modules and yardstick/measure.mjs.
+  evidence:
+    - "views/improve/maturity.mjs:2-31"
+    - "views/improve/report.mjs:16-35"
+    - "tests/blocks/maturity-ladder.mjs:6"
+    - "tests/blocks/sequence-rank-shape.mjs:14"
+  confidence: confirmed
+- id: F-206
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M7 yardstick/"
+  observation: >
+    yardstick/ has a README and tests import yardstick/measure.mjs directly, but the directory's
+    imports reach 19 source files outside it, measure.mjs importing ten map/ and lib/ modules.
+  evidence:
+    - "yardstick/README.md:1-4"
+    - "yardstick/measure.mjs:2-31"
+    - "yardstick/measure.mjs:35-44"
+    - "tests/blocks/contradictions.mjs:11"
+  confidence: confirmed
+- id: F-207
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M8 owner/"
+  observation: >
+    owner/ask-owner.mjs opens with a 36-line head comment and tests/blocks/ask-owner.mjs imports
+    it directly, but its imports reach 23 source files outside owner/ (through map/project.mjs,
+    map/repo-census.mjs and yardstick/packet.mjs).
+  evidence:
+    - "owner/ask-owner.mjs:2-37"
+    - "owner/ask-owner.mjs:41-47"
+    - "tests/blocks/ask-owner.mjs:6"
+  confidence: confirmed
+- id: F-208
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  label: "M9 routine/"
+  observation: >
+    routine/ has a README and tests/blocks/tools-precondition.mjs imports routine/run.mjs directly,
+    but run.mjs's imports reach 32 source files outside routine/ (map/start.mjs, map/tools.mjs,
+    yardstick/ratchet.mjs, yardstick/measure.mjs and their graphs).
+  evidence:
+    - "routine/README.md:1-4"
+    - "routine/run.mjs:2-69"
+    - "routine/run.mjs:75-82"
+    - "tests/blocks/tools-precondition.mjs:18"
+  confidence: confirmed
+- id: F-209
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  label: "M10 .github/actions/tools/"
+  observation: >
+    The tools composite action is one file whose head comment states what it installs, verifies
+    and puts on PATH and names its test; it imports no in-repo source, and
+    tests/blocks/ci-interface.mjs loads that file directly and runs its step against a planted tree
+    (a YAML action cannot be imported, so the direct read is taken as the import).
+  evidence:
+    - ".github/actions/tools/action.yml:1-11"
+    - "tests/blocks/ci-interface.mjs:24"
+    - "tests/blocks/ci-interface.mjs:40-42"
+  confidence: plausible
+# Outside any census or context list.
+- id: F-210
+  dimension: context-economy
+  polarity: fact
+  subject_type: control
+  observation: >
+    The application obtains no model output anywhere in its tree: it has no runtime dependencies,
+    and a search outside tests/ for provider SDK imports, provider API hosts or a local stand-in
+    finds only the enumerator's own detection patterns, so the model-call population is empty.
+  evidence:
+    - "package.json:18-19"
+    - "map/enumerate.mjs:749"
+    - "map/enumerate.mjs:774"
+    - "assay.mjs:9"
+  confidence: confirmed
+- id: F-211
+  dimension: context-economy
+  polarity: fact
+  subject_type: process
+  observation: >
+    The tree names no model or tier that any of its review lanes runs on; it records the model id
+    (and spend) a judgment scanner or practice-review pass ran on per run, asks the lane to report
+    it, and warns when none is recorded, but holds no rationale for a model choice or trigger that
+    re-qualifies one.
+  evidence:
+    - "map/record.mjs:18-25"
+    - "map/validate.mjs:378-385"
+    - "map/scanners/adapters/practice-review/lane.md:25"
+    - "map/scanners/adapters/practice-review/lane.md:27"
+  confidence: confirmed
+# Discovery: entry-docs-route-a-stranger.
+- id: F-212
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The two entry docs route a stranger to one subsystem per task: README.md's Layout block gives
+    each top-level directory one line, and CLAUDE.md's opening names the one contract doc that owns
+    the finding format, the method, the requirements and the views' data formats.
+  evidence:
+    - "README.md:245-257"
+    - "CLAUDE.md:3-8"
+  confidence: confirmed
+- id: F-213
+  dimension: context-economy
+  polarity: strength
+  subject_type: process
+  property: entry-docs-route-a-stranger
+  observation: >
+    For a review agent the routing is progressive by mechanism: the practice-review lane opens each
+    pass subagent on its own slice of the method and schema, never the whole files, and
+    map/passes.mjs measures each slice's bytes beside the whole two files.
+  evidence:
+    - "map/scanners/adapters/practice-review/lane.md:21"
+    - "map/passes.mjs:22-25"
+  confidence: confirmed
+- id: F-214
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    Outside the review lane's slicing, the docs a stranger is routed to are single large files read
+    whole (map/scanners/CONTRACT.md 1373 lines, yardstick/README.md 849, views/README.md 468), and
+    the lane seed's step 3 is one line of about 6,800 characters, so the route lands on a
+    subsystem's doc but does not disclose that doc progressively.
+  evidence:
+    - "map/scanners/CONTRACT.md:1-1373"
+    - "yardstick/README.md:1-849"
+    - "views/README.md:1-468"
+    - "map/scanners/adapters/practice-review/lane.md:21"
+  confidence: confirmed

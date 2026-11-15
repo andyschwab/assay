@@ -1,0 +1,197 @@
+- id: F-600
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The docker-socket lesson (a run certified "no docker-socket mount" after inspecting only the per-user container, never the admin one) became an enumerated population, but the coverage gate hard-checks socket mounts only and leaves container/agent classes recall-only by stated design, so a run that cites the user-class file and never assesses the admin class still passes the gate.
+  evidence: ["map/METHOD.md:40-46", "map/METHOD.md:117-122", "map/enumerate.mjs:576", "map/enumerate.mjs:877-881"]
+  confidence: confirmed
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The missed-channels lesson (every channel a single run missed was one the hand-drafted inventory forgot) became an enumerated candidate list the yardstick reads unmet while any candidate is untriaged, pinned by a test block and by a red-proof entry that refuses triaging a workflow write out of scope.
+  evidence: ["map/METHOD.md:104-106", "yardstick/measure.mjs:286-289", "tests/blocks/channels-need-a-triage.mjs:1-9", "tests/prove-red.mjs:164-168"]
+  confidence: confirmed
+- id: F-602
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The blind-versus-pinned lesson (a terrain that pins the last run's channel list makes the determinism claim tautological) is held by a sweep set's self-declared blind boolean and an opt-in canon check whose channel drift is warnings only; nothing checks that a terrain was drawn blind, and this target has no canon.
+  evidence: ["map/METHOD.md:74-79", "map/SCHEMA.md:1674-1678", "map/variance.mjs:517", "map/validate.mjs:694-700"]
+  confidence: confirmed
+- id: F-603
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The CI-1 fail-closed lesson applied to the checker became validate's parse-failure errors on findings files and the run record, held by a negative fixture with an unparseable findings file; the lesson's source run is named only as CI-1, which no file in the tree defines.
+  evidence: ["map/SCHEMA.md:1593-1595", "map/validate.mjs:257", "map/validate.mjs:301", "tests/negative/bad-yaml-load/map/findings/practice-review-legibility.yaml:1", "tests/blocks/fail-closed.mjs:19-23"]
+  confidence: confirmed
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The reader's fail-closed lesson (a checker that silently accepts unparseable input hides what it exists to catch) became a throwing YAML reader whose refusals are pinned by the fail-closed block and by the yaml-subset block that holds the reader to the SCHEMA section.
+  evidence: ["lib/yaml-min.mjs:5-7", "tests/blocks/fail-closed.mjs:12-14", "tests/blocks/yaml-subset.mjs:1-3"]
+  confidence: confirmed
+- id: F-605
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The cal5/cal6 subject-type lesson is answered by a prose rule to pick one canonical subject_type per census, while the yardstick terms admit several (a change gate may be contract, control or process) and validate checks only admission, and SCHEMA's claim that a flip reads as 100% variance contradicts variance.mjs, which says subject_type is no longer part of fact identity.
+  evidence: ["map/SCHEMA.md:350-355", "yardstick/requirements.yaml:81-82", "map/validate.mjs:762", "map/variance.mjs:12-15"]
+  confidence: confirmed
+- id: F-606
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The variance-key lesson (the old key of dimension, subject_type and evidence basename read the cal5/cal6 pair at 35% where facts agreed at 73%) changed the identity code, but none of the test blocks that import variance pins full-path identity or subject_type exclusion; the full-path rule is pinned for score only.
+  evidence: ["map/variance.mjs:16-22", "tests/blocks/score-path.mjs:1-3", "tests/blocks/variance-mixed-base.mjs:1-7"]
+  confidence: plausible
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The slug-drift lesson (one channel named github-app in one run and github-push in another) became cross-run keying by the triaged candidate rather than the slug, held by the channel-identity block.
+  evidence: ["map/SCHEMA.md:346-349", "tests/blocks/channel-identity.mjs:1-6"]
+  confidence: confirmed
+- id: F-608
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The descriptor-drift lesson (field figures off-repo could not be reproduced, and variance exited 0 at any agreement) became committed sweep sets gated at their own SWEEP.yaml threshold, with a fixture set proving the gate can go red.
+  evidence: ["map/SCHEMA.md:374-382", "tests/blocks/sweep-gate.mjs:1-5", "map/METHOD.md:492-500"]
+  confidence: confirmed
+- id: F-609
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The missed-credential lesson (a hardcoded credential under a name enumerate's pattern does not read) became the rule that a gap member outside the candidate list holds a closed row down and is named, pinned by the census-outside-the-list block.
+  evidence: ["map/SCHEMA.md:1579-1581", "tests/blocks/census-outside-the-list.mjs:1-9"]
+  confidence: confirmed
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The red-then-green lesson (a confirmation said once in a commit message is never re-checked, so a drifted assertion stays green) became tests/prove-red.mjs, which the landing gate runs on every invocation and whose own behaviour is held by the prove-red-script block.
+  evidence: ["CLAUDE.md:55-63", "tests/prove-red.mjs:5-7", "lib/gate.mjs:29", "tests/blocks/prove-red-script.mjs:1-4"]
+  confidence: confirmed
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The zero-threshold lesson (a threshold of 0 passes whatever the set measures) became a refusal in loadSweepSet with a red-proof entry; the code comment cites #323 and the red-proof entry cites #326 for the same rule.
+  evidence: ["map/variance.mjs:505-510", "tests/prove-red.mjs:79-83"]
+  confidence: confirmed
+- id: F-612
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The test-file classification correction (#333, a bare test- name in a language whose runner does not read it is a runtime module, and an imported file is never a test) landed as four red-proof entries against the test-files-by-convention block.
+  evidence: ["tests/prove-red.mjs:144-163"]
+  confidence: confirmed
+- id: F-613
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The fail-loud lesson (a tool that errors into "0 findings" lowers total assurance) became red-proof entries that an unrun scanner reads not measured and that validate refuses a skip without a reason.
+  evidence: ["map/scanners/CANDIDATES.md:24-26", "CLAUDE.md:18-22", "tests/prove-red.mjs:44-48", "tests/prove-red.mjs:89-93"]
+  confidence: confirmed
+- id: F-614
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The agent contract routes every gap a run exposes in the method, a scanner, the yardstick or a contract to an issue on the repository's tracker, landing as a reviewed change that cites it.
+  evidence: ["CLAUDE.md:64-67"]
+  confidence: confirmed
+- id: F-615
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Each run carries map/backlog-authored.yaml, a list file of engine-work rows whose status may stay proposed with no issue, and only a filed row must name its issue; METHOD asks 2-5 notes where the schema accepts 1-5.
+  evidence: ["lib/run-data.mjs:360-379", "map/METHOD.md:852-861"]
+  confidence: confirmed
+- id: F-616
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    map/backlog.yaml is a tool-owned, regenerable per-run file of computed engine-backlog items (uncited population members, unresolved evidence, coverage divergence), never hand-edited and not filed to a tracker by the tool.
+  evidence: ["map/backlog.mjs:2-23"]
+  confidence: confirmed
+- id: F-617
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The weekly tools-check workflow writes pins behind upstream as one issue on the tracker, searching for the open one by title and commenting only when the list changed.
+  evidence: [".github/workflows/tools-check.yml:24-35"]
+  confidence: confirmed
+- id: F-618
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    CANDIDATES.md carries tables of pending candidate work in the file (core, license-gated and second-line candidates), and its second-line table still lists osv-scanner and Checkov as candidates though the adopted table records both as adopted.
+  evidence: ["map/scanners/CANDIDATES.md:92-118", "map/scanners/CANDIDATES.md:41-42"]
+  confidence: confirmed
+- id: F-619
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine grades its own recall against planted known-answer fixtures, and the per-fixture recall, misses and false positives are pinned in golden.json, which the regression runner asserts with exit 1 on drift.
+  evidence: ["map/score.mjs:4-8", "tests/golden.json:11-18", "tests/regression.mjs:27"]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-620
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The roster command states each scanner's worth (requirements it alone decides, unique recoveries with its rows taken out, corroborations, cost), and the adopted roster's counts over fixture runs are pinned in golden.json.
+  evidence: ["map/roster.mjs:2-29", "tests/blocks/instrument-roster.mjs:11-12"]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-621
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: process
+  observation: >
+    The method states its own measured repeatability over this repository from a committed blind set (13% fact presence, 40% descriptor agreement, 92% requirement agreement) as the numbers the gate holds.
+  evidence: ["map/METHOD.md:496-500", "map/variance.mjs:39-43"]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-622
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The run record map/scanners.yaml carries per scanner, and per practice-review pass, the model, spend and duration, with start and the routine writing duration on every instrument row they ran, and roster and variance reading them as cost.
+  evidence: ["map/SCHEMA.md:623-631", "map/SCHEMA.md:645-657", "tests/blocks/sweep-cost.mjs:1-5"]
+  confidence: confirmed
+  property: usage-outcome-records-emitted
+- id: F-623
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    A judgment scanner's spend and duration are free text an operator records by hand, and roster lists cost per run as run-and-value pairs rather than aggregating it across the runs it reads.
+  evidence: ["map/SCHEMA.md:623-633", "map/roster.mjs:29-30"]
+  confidence: plausible
+  property: usage-outcome-records-emitted

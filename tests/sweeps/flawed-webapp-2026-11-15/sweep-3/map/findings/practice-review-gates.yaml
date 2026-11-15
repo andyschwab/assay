@@ -1,0 +1,64 @@
+- id: F-200
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The target runs no check on a change: its one package script is `start`, and the tree holds no
+    CI workflow, no commit or push hook, and no lint, typecheck, test or schema config, so the
+    change-gates population is empty.
+  evidence: [package.json:6-8]
+  confidence: confirmed
+- id: F-201
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The README names a `npm run test:all` command that no package script defines, so the only test
+    file, `test/smoke.mjs`, is run by nothing on a change and only if a person invokes it by hand.
+  evidence: [README.md:29-35, package.json:6-8, test/smoke.mjs:1-11]
+  confidence: confirmed
+- id: F-202
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: central-regression-caught
+  observation: >
+    A regression in the central request path (routing in `server.mjs` or identity resolution in
+    `lib/auth.mjs`) is caught by no gate and, run by hand, not by the smoke test either, whose one
+    assertion checks only that `authenticate` returns something truthy, which the admin fallback
+    for any unknown token always does.
+  evidence: [test/smoke.mjs:7-9, lib/auth.mjs:5-13, server.mjs:26-57]
+  confidence: confirmed
+- id: F-203
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    A malformed JSON request body fails silently: `readBody` catches the parse error and resolves an
+    empty object, so `POST /notes` answers 201 and stores an empty note and `POST /assistant` runs
+    with an empty question instead of either returning 400.
+  evidence: [server.mjs:11-19, server.mjs:35-39, server.mjs:42-44]
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    No route checks the shape or type of the fields it reads: a missing or wrong-typed `text` or
+    `question` is coerced with `String(... || '')` and accepted, and the body is read with no
+    content-type check and no size limit.
+  evidence: [server.mjs:13-14, server.mjs:38, server.mjs:44]
+  confidence: confirmed
+- id: F-205
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    A request to a method or path the dispatch does not serve fails loudly with a JSON 404 rather
+    than falling through to a handler, so a caller using the commented `DELETE /admin/purge` is
+    refused rather than served.
+  evidence: [server.mjs:56, routes/admin.mjs:5, server.mjs:52]
+  confidence: confirmed

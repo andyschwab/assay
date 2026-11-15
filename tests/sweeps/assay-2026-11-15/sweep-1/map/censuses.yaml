@@ -1,0 +1,111 @@
+# map/censuses.yaml (authored) — merged from the seven passes; one id per member (SCHEMA.md §6b)
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance reconstructs a decision at the site that makes it and at its contract, the
+      why stated over the obvious alternative and a guard named beside it (F-003, F-004, F-011);
+      every frozen decision reconstructs, two of them only from a test header (F-006, F-012), and
+      the docs replay true but for the help grouping (F-015).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions reconstructable from files alone"
+        members: [F-001, F-002, F-003, F-004, F-005, F-006, F-007, F-008, F-009, F-010, F-011, F-012]
+        method: "every decision frozen in terrain.md, D1-D12, one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "concrete doc claims that hold when replayed against the code"
+        members: [F-013, F-014, F-015, F-016, F-017, F-018, F-019, F-020, F-021, F-022, F-023, F-024, F-025, F-026, F-027, F-028]
+        method: "the concrete command, count, path and capability claims in README.md Quickstart and Layout and CLAUDE.md Checks and How a change lands, in document order, README first; each replayed by reading the code it names"
+  - dimension: context-economy
+    depth: >
+      The best modules load alone: map/repo-census.mjs, map/effect-triage.mjs and
+      map/fresh-clone.mjs each open with a head comment stating their job, are imported directly
+      by their own tests, and reach at most seven in-repo files (F-109, F-108, F-107), and
+      lib/yaml-min.mjs reaches none (F-101); the central orchestration modules reach 20 to 40
+      files through map/project.mjs and yardstick/measure.mjs (F-103, F-111, F-114).
+    sampled:
+      - name: modules-standalone
+        what: "can an agent load the module alone, with something to read and something to run, and change it without loading the rest"
+        members: [F-100, F-101, F-102, F-103, F-104, F-105, F-106, F-107, F-108, F-109, F-110, F-111, F-112, F-113, F-114]
+        method: "every module of the terrain's frozen module population M1-M15, one finding each; head comment read, direct test import grepped under tests/ (excluded paths left out), transitive in-repo static and dynamic import closure counted"
+        primary: true
+  - dimension: deterministic-gates
+    depth: >
+      The best instance is the one landing gate, npm run gate (F-200), which goes red on a missing
+      tool, a killed or absent step and any failed check, runs inside a bounded CI job, and whose
+      own exit rule is driven red by planted steps (F-214); the weakest are the test runner's
+      untimed block processes (F-207) and validate passing citations unchecked without --target
+      (F-209).
+    sampled:
+      - name: change-gates
+        what: "when the tool, secret, input or target a change gate needs is absent, or its check never finishes, does it go red rather than green?"
+        members: [F-200, F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208, F-209]
+        method: "every candidate of populations.changeGates (21), each triaged once; setup steps, the release tag step, branch deletion and the scheduled issue write triaged out with reasons"
+        primary: true
+  - dimension: verification
+    depth: >
+      The best instances verify mechanically rather than by report: the gate re-proves each core
+      invariant red under its mutation (F-303), ingest halts when an instrument's exit code
+      disagrees with its report (F-313), and committed blind sweep sets are gated at their own
+      thresholds (F-305); the weakest seam is that a change's stated verification and a finding's
+      claimed content are read by no check (F-300, F-317).
+  - dimension: delegation
+    depth: >
+      The best instances are real halts at the irreversible boundary: the release refuses a bad
+      version and red tests before it publishes (F-400), branch-cleanup re-reads each branch
+      before deleting and refuses default or KEEP names (F-401), and every workflow credential is
+      the run's own token beside a stated permission (F-452); the gap is the execution channels,
+      where fresh-clone, structure-scan and the routine's target step run third-party and target
+      code with no opt-in on their direct paths (F-405, F-407, F-409, F-410).
+    sampled:
+      - name: credential
+        what: "is what each secret can reach traced in the code, where it is read and what it may do there?"
+        members: [F-450, F-451, F-452, F-453]
+        method: "every candidate of populations.secrets (30) triaged once; four judged, twenty-six out of scope as test-fixture strings, documentation prose or code identifiers"
+        primary: true
+      - name: ingested-content
+        what: "is each ingestion point's text kept as data, stored verbatim with provenance, rendered escaped, never acted on as an instruction?"
+        members: [F-430, F-431, F-432, F-433, F-434, F-435, F-436, F-437]
+        method: "every ingestion point the terrain lists: enumerate, repo-census and structure-scan tree reads, ingest's scanner reports, tools.mjs release metadata, ask-owner and packet owner input, and lane.mjs's seed to a review session"
+  - dimension: improvement-loop
+    depth: >
+      Where a lesson became a mechanism it is a strong one: the red-then-green rule is itself
+      mechanized as mutation proofs the landing gate re-runs on every invocation (F-610), and
+      corrections land as red-proof entries tied to the check that must go red (F-611, F-612,
+      F-613); the gaps are lessons answered by prose or by a gate that skips the class the lesson
+      names (F-600, F-602, F-605).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "did each recorded lesson become a mechanism that would catch the same failure again"
+        members: [F-600, F-601, F-602, F-603, F-604, F-605, F-606, F-607, F-608, F-609, F-610, F-611, F-612, F-613]
+        method: "every lesson passage drawn by the terrain: map/METHOD.md and map/SCHEMA.md calibration and lesson passages, CLAUDE.md, the lib/yaml-min.mjs head, map/scanners/CANDIDATES.md, map/variance.mjs head, and the tests/prove-red.mjs entries that name a cause; one finding per lesson"
+        primary: true
+  - dimension: multiplayer
+    depth: >
+      The best instances state a command's usage, flags, exit codes and JSON output shape in one
+      consumer contract outside the code (CONSUMERS.md, F-714, F-720, F-724), and every data
+      format has a doc page (F-730..F-736); the one gap is the owner command, whose usage lives
+      only in code (F-726).
+    sampled:
+      - name: agent-access-surface
+        what: "can an agent reach and use each interface through an API or format contract stated outside the code?"
+        members: [F-700, F-701, F-702, F-703, F-704, F-705, F-706, F-707, F-708, F-709, F-710, F-711, F-712, F-713, F-714, F-715, F-716, F-717, F-718, F-719, F-720, F-721, F-722, F-723, F-724, F-725, F-726, F-727, F-728, F-729, F-730, F-731, F-732, F-733, F-734, F-735, F-736]
+        method: "every member frozen in terrain.md's agent-access-surface list: the 30 assay.mjs commands (GROUPS, assay.mjs:20-59) and the 7 formats/surfaces, each checked by grepping the tracked .md files for its usage"
+        primary: true
+context:
+  - name: second-accounts
+    members: [F-029, F-030, F-031, F-032, F-033, F-034]
+  - name: model-qualification
+    members: [F-116, F-117]
+  - name: guard-fixtures
+    members: [F-211, F-212, F-213, F-214]
+  - name: change-verification
+    members: [F-300, F-301, F-302, F-303, F-304]
+  - name: rubric-calibration
+    members: [F-305, F-306, F-307, F-308]
+  - name: ai-feature-evals
+    members: [F-309, F-310]
+  - name: ai-disclosure
+    members: [F-460, F-461, F-462, F-463, F-464]
+  - name: backlog-records
+    members: [F-614, F-615, F-616, F-617, F-618]

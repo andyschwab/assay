@@ -1,0 +1,28 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/flawed-webapp-2026-11-15
+#
+# BLIND and ANSWERED: three practice-review lanes over the public flawed-webapp fixture target at the
+# same commit as its earlier sets (7f7c89d), the method at a17104d, so only the method changed. Each
+# lane was a fresh child session seeded by `assay lane practice-review`, all passes claude-opus-5-5,
+# the target read-only, the answer sheet excluded, given the run's map/raw/enumerate.json (8 effect
+# candidates). What the record should know:
+# - No send-back: each lane's own check came clean within two runs; every run validated on collection.
+# - The answer sheet's name printed in an unfiltered listing in at least one lane; no lane opened it.
+# - Per-answer agreement over the 7 candidates every sweep maps: second_act, staged, rate_limit,
+#   disclosed and window 100%; refuses_unless 86%; declared_scope 71%; received_or_gone 57%;
+#   person_act 43%. The partings are not-determinable against no: one lane read a route with no
+#   caller in the tree, or a log-only mail transport, as answering the question; two did not.
+# - Per-candidate descriptor agreement falls from 100% (2026-11-12b, read whole) to 43%: gate_type
+#   and reversibility now follow from the answers, and the answers part where the descriptors did not.
+# - Spend per session (practice-review row of each run record): USD 9.39, 9.42, 9.23.
+target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+target_commit: "7f7c89d823153c702c207b1f36c6c2ce26217ceb"
+method_commit: "a17104d714ec76259e6d793954371885965f784a"
+date: "2026-11-15"
+blind: true
+threshold:
+  fact_presence: 88          # measured 8 of 9 union facts caught by all three (89%, 88.9 floored)
+  candidate_agreement: 42    # measured per listed candidate (#312): 3 of 7 candidates every sweep maps identical on all six (43%, 42.9 floored), compared on their answers; 1 out of scope in every sweep
+  descriptor_agreement: 50   # measured 2 of 4 shared effect channels identical on all six descriptors (50%)
+  requirement_agreement: 71  # measured 10 of 14 decided requirements identical in all three (71%, 71.4 floored): d-effect-facts-legible is decided and parts (unmet / met / unmet); without it 10 of 13 (77%)
+sweeps: [sweep-1, sweep-2, sweep-3]

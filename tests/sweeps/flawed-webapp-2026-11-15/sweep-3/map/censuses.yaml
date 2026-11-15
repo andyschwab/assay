@@ -1,0 +1,89 @@
+# map/censuses.yaml (authored) — flawed-webapp, practice-review lane
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is real: ADR-0001 records the storage choice, its interface, its consequence and
+      the rejected alternative, and its consequences hold (F-001, F-016), but it already undercounts the
+      interface callers use (F-015), and five of eight decisions and six of eight doc claims fail
+      (F-003, F-005 to F-008, F-009, F-010, F-012 to F-015).
+    sampled:
+      - name: decision-reconstruction
+        what: "a newcomer can reconstruct why each non-obvious decision was made from the files alone"
+        members: [F-001, F-002, F-003, F-004, F-005, F-006, F-007, F-008]
+        method: "every decision D1-D8 the terrain froze, one finding each"
+        primary: true
+      - name: doc-freshness
+        what: "each concrete doc claim holds when replayed against the code"
+        members: [F-009, F-010, F-011, F-012, F-013, F-014, F-015, F-016]
+        method: "every doc claim the terrain listed (README count, list, run, test, coverage, email capability; ADR interface and persistence consequence), one finding each, replayed by reading the code"
+  - dimension: context-economy
+    depth: >
+      The best module, lib/auth.mjs, is fully standalone (head comment, a direct test, one import;
+      F-102), and every module is small and commented with shallow imports, but the single test
+      leaves the other seven with nothing to run (F-100, F-101).
+    sampled:
+      - name: modules-standalone
+        what: "a module has a head comment, a test that imports it directly, and transitive repository imports of at most ten files"
+        members: [F-100, F-101, F-102, F-103, F-104, F-105, F-106, F-107]
+        method: "every module the terrain's module population lists (8), one finding each"
+        primary: true
+      - name: model-call-telemetry
+        what: "the call emits one structured record of its tier, spend and outcome on every return"
+        members: [F-108]
+        method: "every candidate of populations.modelCalls in enumerate.json (1), triaged to one finding"
+  - dimension: deterministic-gates
+    depth: >
+      There is no best instance: the target runs no gate on a change (F-200), its one test is run by
+      nothing and cannot fail on the central auth path (F-201, F-202), and its interface swallows
+      malformed input (F-203, F-204); the only loud failure is the 404 on an unserved route (F-205).
+  - dimension: verification
+    depth: >
+      The best instance is only latent: the exported server and deterministic model stand-in would
+      let a change demonstrate itself (F-304), but nothing uses that, the one check cannot fail
+      (F-303), and both outbound integrations report success without confirming the effect
+      (F-300, F-301).
+  - dimension: delegation
+    depth: >
+      The best instance is thin: the only gate in front of any effect, the purge's role check
+      (F-403), fails open through the anonymous admin fallback (F-409), and the one strength that
+      holds, per-user scoping on the note routes (F-410), is pierced by the assistant (F-401, F-404).
+    sampled:
+      - name: credential
+        what: "what each secret the application reads can reach is traced in the code, where it is read and what it may do there"
+        members: [F-405, F-406]
+        method: "every member of populations.secrets in map/raw/enumerate.json (backupApiKey, tokenTable), one finding each"
+        primary: true
+      - name: ingested-content
+        what: "ingested text is kept as data, stored verbatim with provenance, rendered escaped, and never acted on as an instruction"
+        members: [F-407, F-408]
+        method: "every ingestion point the terrain drew (the note body of POST /notes, the question of POST /assistant), confirmed by reading every request-body read in server.mjs; no fetch, upload or file read takes in outside text"
+  - dimension: improvement-loop
+    depth: >
+      There is no best instance to judge: the tree records no lesson and no mechanism born of one
+      (F-500), its outstanding work sits in a code TODO and ADR prose rather than tracked issues
+      (F-501, F-502), and it neither measures its own impact nor emits usage or outcome records
+      (F-503, F-504).
+  - dimension: multiplayer
+    depth: >
+      The best instance is thin: the README names four of the five routes by method and path
+      (F-600, F-601, F-602, F-603) but states no request or response fields, and the admin purge is
+      named nowhere outside the code (F-604).
+    sampled:
+      - name: agent-access-surface
+        what: "an interface an agent can reach through an API or format contract stated outside the code (a doc page giving a route's method and path)"
+        members: [F-600, F-601, F-602, F-603, F-604]
+        method: "every interface the terrain lists, the five routes the dispatch in server.mjs serves (GET /notes, POST /notes, POST /assistant, POST /sync, POST /admin/purge), one finding each; no screen, command, tool or data format is offered to callers"
+        primary: true
+context:
+  - name: second-accounts
+    members: [F-017, F-018, F-019, F-020, F-021]
+  - name: model-qualification
+    members: [F-109]
+  - name: ai-feature-evals
+    members: [F-305]
+  - name: rubric-calibration
+    members: [F-306]
+  - name: ai-disclosure
+    members: [F-411]
+  - name: backlog-records
+    members: [F-501, F-502]

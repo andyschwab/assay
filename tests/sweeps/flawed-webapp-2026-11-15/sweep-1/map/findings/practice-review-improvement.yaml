@@ -1,0 +1,68 @@
+- id: F-500
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    Reading every file in the tree finds no recorded lesson (no incident note, postmortem,
+    review correction, lessons file or fix that names its cause), and no place one would be
+    written: the README has only endpoint, running and testing sections and package.json
+    declares no check a lesson could become.
+  evidence: ["README.md:12-35", "package.json:6-8"]
+  confidence: confirmed
+  property: lessons-recorded
+- id: F-501
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The outstanding work to move the backup API key out of source is written down only as an
+    inline TODO comment with a prose deadline ("before launch") and no issue reference, and the
+    work is still open: the next line keeps the key as a literal.
+  evidence: ["config/settings.mjs:5", "config/settings.mjs:6"]
+  confidence: confirmed
+  property: backlog-in-code-comment
+- id: F-502
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The deferred persistence work (the SQLite adapter, "the first thing the production
+    milestone fixes") is recorded only as prose in the ADR's consequences and echoed in a code
+    comment, with no issue, label or closing change that tracks it to done.
+  evidence: ["docs/adr/0001-storage-choice.md:22-23", "docs/adr/0001-storage-choice.md:15-17", "lib/db.mjs:1"]
+  confidence: confirmed
+  property: backlog-in-prose
+- id: F-503
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The tree names no tracker where outstanding work would live: package.json carries no
+    repository or bugs field and the README points to no issue list, so neither backlog record
+    found (F-501, F-502) has a home to move to.
+  evidence: ["package.json:1-9", "README.md:1-35"]
+  confidence: confirmed
+  property: backlog-tracker-named
+- id: F-504
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The system records nothing about what it is worth: no impact field, before-and-after record
+    or changelog accompanies its shipped work, and the version number is the only trace of
+    change.
+  evidence: ["package.json:3", "README.md:1-35"]
+  confidence: confirmed
+  property: impact-self-measured
+- id: F-505
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The application emits no structured usage or outcome record by design: the assistant
+    returns its answer to the caller and records neither the question's use nor its outcome,
+    and the route dispatch offers no metrics or usage endpoint, so nothing aggregates use
+    across the population of requests.
+  evidence: ["lib/agent.mjs:33-43", "server.mjs:26-57"]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

@@ -1,0 +1,111 @@
+schema: census-triage
+version: 1
+censuses:
+  - census: model-call-telemetry
+    triage: []
+  - census: change-gates
+    triage:
+      - candidate: "ci step: branch-cleanup.yml/delete: Delete the planned branches"
+        out_of_scope: "an effect (deleting merged branches after a push to the default branch), not a check a change passes through; Pass 5's effect"
+      - candidate: "ci step: branch-cleanup.yml/plan: Plan the merged branches"
+        out_of_scope: "plans the branch-deletion effect after a change has landed; checks nothing about the change"
+      - candidate: "ci step: ci.yml/test: ./.github/actions/tools"
+        finding: F-200
+      - candidate: "ci step: ci.yml/test: actions/checkout"
+        out_of_scope: "a setup step that checks nothing (fetches the tree for the gate)"
+      - candidate: "ci step: ci.yml/test: actions/setup-node"
+        out_of_scope: "a setup step that checks nothing (puts the matrix Node on PATH)"
+      - candidate: "ci step: ci.yml/test: npm ci"
+        finding: F-201
+      - candidate: "ci step: ci.yml/test: npm run gate"
+        finding: F-202
+      - candidate: "ci step: release.yml/release: ./.github/actions/tools"
+        finding: F-205
+      - candidate: "ci step: release.yml/release: actions/checkout"
+        out_of_scope: "a setup step that checks nothing (full-history checkout for the notes)"
+      - candidate: "ci step: release.yml/release: actions/setup-node"
+        out_of_scope: "a setup step that checks nothing (puts Node 22 on PATH)"
+      - candidate: "ci step: release.yml/release: Check every contract change carries its Consumer trailer"
+        finding: F-207
+      - candidate: "ci step: release.yml/release: npm ci"
+        finding: F-204
+      - candidate: "ci step: release.yml/release: npm test"
+        finding: F-206
+      - candidate: "ci step: release.yml/release: Refuse a malformed or existing version"
+        finding: F-203
+      - candidate: "ci step: release.yml/release: Tag and publish the release"
+        out_of_scope: "writes rather than checks: the release-publish effect, Pass 5's"
+      - candidate: "ci step: tools-check.yml/check: actions/checkout"
+        out_of_scope: "a setup step that checks nothing, in a scheduled job no change passes through"
+      - candidate: "ci step: tools-check.yml/check: Open or update the issue for pins behind upstream"
+        out_of_scope: "a weekly scheduled job that writes an issue about upstream releases; no change passes through it"
+      - candidate: "script: lint"
+        finding: F-208
+      - candidate: "script: test"
+        finding: F-209
+      - candidate: "script: typecheck"
+        finding: F-210
+      - candidate: "script: validate"
+        out_of_scope: "checks an assay run directory the operator names, never the repository's own change; no CI step or hook runs it (its interface is recorded as F-219, outside the census)"
+  - census: credential
+    triage:
+      - candidate: "ADMIN_PASSWORD"
+        out_of_scope: "cited only in a test block and an enumerate fixture; no running code reads it"
+      - candidate: "API_KEY"
+        out_of_scope: "cited only in an enumerate fixture and an instrument sample under tests/"
+      - candidate: "API_TOKEN"
+        out_of_scope: "a documentation example in map/SCHEMA.md:1368; no code reads it"
+      - candidate: "ASSAY_PLANTED_TOKEN"
+        out_of_scope: "an inert planted string in test blocks"
+      - candidate: "ASSAY_READ_TOKEN"
+        finding: F-440
+      - candidate: "ASSAY_TEST_EVALUATOR_TOKEN"
+        out_of_scope: "read only by a test block (tests/blocks/adapter-runner.mjs)"
+      - candidate: "authToken"
+        out_of_scope: "a literal in an enumerate fixture under tests/"
+      - candidate: "BACKUP_API_KEY"
+        out_of_scope: "cited only in a test fixture's findings"
+      - candidate: "backupApiKey"
+        out_of_scope: "a literal in an enumerate fixture under tests/"
+      - candidate: "byKey"
+        out_of_scope: "a map name in a test block that grants nothing"
+      - candidate: "CANDIDATE_KEY"
+        out_of_scope: "an identifier constant, the string prefix 'candidate: ' (map/effect-triage.mjs:200); grants nothing"
+      - candidate: "clientSecret"
+        out_of_scope: "a literal in an enumerate fixture under tests/"
+      - candidate: "db_password"
+        out_of_scope: "a literal in an enumerate fixture under tests/"
+      - candidate: "DEPLOY_TOKEN"
+        out_of_scope: "cited only in test blocks and negative runs"
+      - candidate: "EMAIL_SEND_API_KEY"
+        out_of_scope: "cited only in test fixtures and negative packets"
+      - candidate: "FETCH_TOKEN"
+        finding: F-441
+      - candidate: "GH_TOKEN"
+        finding: F-442
+      - candidate: "GITHUB_TOKEN"
+        finding: F-443
+      - candidate: "ID_RECORD_KEY"
+        out_of_scope: "an identifier constant, the run record's key name imported from map/ids.mjs (map/start.mjs:60); grants nothing"
+      - candidate: "LEGACY_API_KEY"
+        out_of_scope: "cited only in a test block and an enumerate fixture"
+      - candidate: "relayPassword"
+        out_of_scope: "a literal in an enumerate fixture under tests/"
+      - candidate: "SEARCH_API_KEY"
+        out_of_scope: "cited only in test blocks and an enumerate fixture"
+      - candidate: "SERVICE_KEYS"
+        out_of_scope: "an identifier constant, the closed key list of a services declaration (map/services.mjs:36); grants nothing"
+      - candidate: "SERVICE_ROLE_KEY"
+        out_of_scope: "a documentation example in map/SCHEMA.md:1367; no code reads it"
+      - candidate: "STRIPE_SECRET_KEY"
+        out_of_scope: "documentation examples (map/SCHEMA.md:1563, owner/ask-owner.md:71) and test fixtures; no running code reads it"
+      - candidate: "STRIPE_WEBHOOK_SECRET"
+        out_of_scope: "cited only in a test block and an enumerate fixture"
+      - candidate: "TEST_API_KEY"
+        out_of_scope: "a documentation example in map/SCHEMA.md:1565 and test blocks"
+      - candidate: "tokenTable"
+        out_of_scope: "a literal in an enumerate fixture under tests/"
+      - candidate: "TOP_KEYS"
+        out_of_scope: "an identifier constant, the closed top-level key lists of the services declaration and the packet (map/services.mjs:35, yardstick/packet.mjs:70); grants nothing"
+      - candidate: "upstreams"
+        out_of_scope: "a literal in an enumerate fixture under tests/"

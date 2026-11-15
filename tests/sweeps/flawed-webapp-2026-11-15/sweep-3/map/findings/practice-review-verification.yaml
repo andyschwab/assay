@@ -1,0 +1,95 @@
+- id: F-300
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    pushBackup fires the backup fetch without awaiting it, swallows any error with an empty
+    catch, and returns ok true with the note count, which POST /sync sends back as a 200, so the
+    caller is told the backup succeeded whether or not the service received it.
+  evidence: [lib/sync.mjs:7-13, server.mjs:47-50]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-301
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    sendEmail only logs and returns sent true unconditionally, and ask reports emailed with the
+    recipient from that call, so the assistant's response claims an email went out that nothing
+    confirms was delivered.
+  evidence: [lib/mailer.mjs:5-8, lib/agent.mjs:39-40]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-302
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The two in-process writes, note-create and workspace-purge, are synchronous Map writes
+    whose response is built after the write has run, so their success report cannot outrun the
+    effect.
+  evidence: [server.mjs:35-40, lib/db.mjs:27-31, routes/admin.mjs:8-10]
+  confidence: plausible
+  property: effect-confirmed-not-reported
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No runnable example, fixture or observable result demonstrates any route's behaviour: the
+    one check calls authenticate with a valid token and asserts only a truthy user, which the
+    admin fallback returns for any token, so it cannot fail and shows nothing about a change.
+  evidence: [test/smoke.mjs:7-11, lib/auth.mjs:8-12]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-304
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The server is exported and only listens when run directly, and the model call is a
+    deterministic stand-in, so a change could be demonstrated by importing the server or ask in
+    process and driving it with fixed inputs, though nothing in the tree does.
+  evidence: [server.mjs:59-63, lib/agent.mjs:27-31]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-305
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The assistant, the one shipped feature whose answer a model produces, has no eval of its
+    answer quality: no test calls ask or its model path, and no script or CI job exists that
+    would run one.
+  evidence: [lib/agent.mjs:33-43, test/smoke.mjs:4-5, package.json:6-8]
+  confidence: confirmed
+- id: F-306
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant's prompt, the instruction text the feature relies on to answer from notes and
+    to emit the send_email directive, carries no record of being run repeatedly on a frozen input
+    or of any divergence measured.
+  evidence: [lib/agent.mjs:11-21]
+  confidence: confirmed
+- id: F-307
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the model's answer however it reads: ask returns the text to the caller
+    unexamined, and the only inspection of the output is a regex for the tool directive's
+    shape, not a check of its content.
+  evidence: [lib/agent.mjs:34-42]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-308
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No change states its verification before it lands: the target holds no pull request
+    template, no commit-message check and no hook, and its only script is start.
+  evidence: [package.json:6-8, README.md:27-35]
+  confidence: confirmed

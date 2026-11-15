@@ -1,0 +1,105 @@
+- id: F-600
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route GET /notes is named with its method and path in the README's endpoint list, a contract
+    kept outside the code, though the page gives no response fields.
+  evidence: ["README.md:16", "server.mjs:30"]
+  confidence: confirmed
+- id: F-601
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /notes is named with its method and path in the README's endpoint list, though the
+    page does not name the `text` body field the handler reads.
+  evidence: ["README.md:17", "server.mjs:35-38"]
+  confidence: confirmed
+- id: F-602
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /assistant is named with its method and path in the README's endpoint list, though
+    the page does not name the `question` body field the handler reads.
+  evidence: ["README.md:18", "server.mjs:42-44"]
+  confidence: confirmed
+- id: F-603
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /sync is named with its method and path in the README's endpoint list.
+  evidence: ["README.md:19", "server.mjs:47"]
+  confidence: confirmed
+- id: F-604
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The route POST /admin/purge is named by no doc page (the README lists four endpoints and omits it),
+    and the only naming is a code comment that gives a different method, DELETE.
+  evidence: ["server.mjs:52", "README.md:14-19", "routes/admin.mjs:5"]
+  confidence: confirmed
+- id: F-605
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  property: shared-context-substrate
+  observation: >
+    Context lives in one consolidated store module (users and notes in lib/db.mjs) that the routes, the
+    assistant and the backup push all import, rather than a bespoke store per integration.
+  evidence: ["lib/db.mjs:2-11", "server.mjs:5", "lib/agent.mjs:8", "lib/sync.mjs:2"]
+  confidence: confirmed
+- id: F-606
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  property: shared-context-substrate
+  observation: >
+    The assistant's prompt draws on every note in the store, each labelled with its owner's email, so
+    its context is one undifferentiated workspace pool with no private or consent-governed partition.
+  evidence: ["lib/agent.mjs:11-20", "lib/db.mjs:8-11"]
+  confidence: confirmed
+- id: F-607
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  property: shared-context-substrate
+  observation: >
+    No shared scope exists as a principal: the data model holds only users with a role and notes with an
+    owner, with no workspace, room or project entity carrying its own memory or permissions.
+  evidence: ["lib/db.mjs:2-11", "server.mjs:38"]
+  confidence: confirmed
+- id: F-608
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  property: sharing-is-consented
+  observation: >
+    Sharing is never a conscious act: a note is created with only an owner and text, no visibility or
+    share choice, yet every note is surfaced automatically to any caller's assistant prompt while the
+    owner's own listing is filtered to their notes.
+  evidence: ["server.mjs:38", "server.mjs:31", "lib/agent.mjs:12-15"]
+  confidence: confirmed
+- id: F-609
+  dimension: multiplayer
+  polarity: gap
+  subject_type: artifact
+  property: sharing-is-consented
+  observation: >
+    The assistant as a reader of every member's notes is not disclosed: the README says it answers
+    questions about "your notes" while its prompt holds all users' notes.
+  evidence: ["README.md:3-4", "README.md:18", "lib/agent.mjs:12-19"]
+  confidence: confirmed
+- id: F-610
+  dimension: multiplayer
+  polarity: strength
+  subject_type: artifact
+  property: sharing-is-consented
+  observation: >
+    The backup service as a reader of the whole workspace is disclosed in the README, matching the push
+    that sends every note.
+  evidence: ["README.md:19", "lib/sync.mjs:5-6"]
+  confidence: confirmed

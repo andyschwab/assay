@@ -1,0 +1,500 @@
+# decision-reconstruction census (F-001..F-022): the non-obvious decisions, one finding each
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The choice to read YAML with an in-house zero-dependency reader instead of a YAML library is explained at the reader
+    itself: it reads only the subset with one meaning and throws on everything else, because a checker that silently
+    accepts unparseable input hides what it exists to catch, and the subset has one documented home.
+  evidence: [lib/yaml-min.mjs:1-7, assay.mjs:8-9, map/SCHEMA.md:1826]
+  confidence: confirmed
+- id: F-002
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The founding boundary that a finding records facts and only the views compute severity is stated once in the README
+    with its reason (a finding may say irreversible and ungated, never critical; assay issues no verdict and prices nothing).
+  evidence: [README.md:35-40, CLAUDE.md:12-15]
+  confidence: confirmed
+- id: F-003
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The retirement of the Scorecard instrument from the adopted roster is reconstructable from its adapter, which says it
+    needs GitHub API access at run time and so breaks the offline rule, and why the adapter is kept (frozen runs still project).
+  evidence: [map/scanners/adapters/scorecard.yaml:12-19]
+  confidence: confirmed
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Gating fresh-clone and structure-scan's knip step behind --allow-exec is explained where it is chosen: they execute
+    the target's own install scripts and tool configs on the machine, the env allow-list is not a sandbox, and the skip
+    reason tells the operator to re-run in a disposable container or VM.
+  evidence: [README.md:91-102, map/start.mjs:490]
+  confidence: confirmed
+- id: F-005
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The child-process environment allow-list explains each admitted name (the package manager must be found and find its
+    cache; proxy plumbing so a registry is reachable) and why a proxy URL carrying user:pass@ is dropped (it is a credential).
+  evidence: [map/child-env.mjs:1-19]
+  confidence: confirmed
+- id: F-006
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The split of finding ids into a lane range below F-10000 and an ingest range above is explained at its module: a lane
+    authors in a scratch run and cannot see the ids ingest gave, so disjoint ranges remove any renumbering at collection.
+  evidence: [map/ids.mjs:1-13]
+  confidence: confirmed
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Pinning the routine's ASSAY_REF to a full commit SHA rather than a branch carries its reason where the steward sets it:
+    a branch moves, and a scheduled run must run the exact engine a steward reviewed.
+  evidence: [routine/README.md:210-212, routine/assay-routine.yml:37]
+  confidence: confirmed
+- id: F-008
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    That releases are cut only by a person-dispatched workflow, the only job holding contents write, which refuses a
+    malformed or existing version, is stated in the workflow's header beside the steps that enforce it.
+  evidence: [.github/workflows/release.yml:1-8, .github/workflows/release.yml:33-38]
+  confidence: confirmed
+- id: F-009
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The gate's shape (stop at a missing tool, otherwise run every check whatever the previous did) is explained at the
+    gate: the suite needs the tools, and running every step lets one run name every red step.
+  evidence: [lib/gate.mjs:4-14]
+  confidence: confirmed
+- id: F-010
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Splitting the routine into a target job and a gate job is argued in full: code run by the change can write the engine
+    checkout, the run and the base ref, so it could make its own gate read held, and the gate job never executes the change.
+  evidence: [routine/README.md:130-152]
+  confidence: confirmed
+- id: F-011
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The rule that no history file is kept carries its reason in the block that enforces it: a dated history file restates
+    the commit that made the change, so the confirmed-red record rides the pull request and commit message instead.
+  evidence: [tests/blocks/no-history-file.mjs:1-7, CLAUDE.md:70-72]
+  confidence: confirmed
+- id: F-012
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Limiting the consumer contract to three modules and named commands is stated with its consequence: anything not on the
+    page may change in any commit, and a consumer that reads past it owns the breakage.
+  evidence: [CONSUMERS.md:3-7, CONSUMERS.md:164-168]
+  confidence: confirmed
+- id: F-013
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Deciding effect-candidate scope by a closed rule in code is explained by the drift it removes (lanes parted on CI deploy
+    steps, vendor clients, contract tests, read-only routes) and each clause's basis (test-runner naming conventions).
+  evidence: [map/effect-scope.mjs:1-30]
+  confidence: confirmed
+- id: F-014
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Keeping frozen copies of the public fixture runs inside tests/ instead of reading the assay-fixtures repository is
+    explained: the harness can pin recall without reaching outside the repository.
+  evidence: [tests/fixtures/README.md:7-9]
+  confidence: confirmed
+- id: F-015
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    package.json defines a build script that runs the same syntax check as lint, and no file I read says why a
+    zero-build ES-module repository carries a build script identical to its lint.
+  evidence: [package.json:12-13, lib/check-syntax.mjs:1-2]
+  confidence: plausible
+- id: F-016
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    migrate-run's dry-run-by-default and its two rewrites are explained at the module: the retired id of the built-in scanner, and the
+    legacy flow-list reading the strict reader now refuses, each written only when it reads back identically.
+  evidence: [map/migrate-run.mjs:1-23]
+  confidence: confirmed
+- id: F-017
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Installing jscpd and knip from the npm registry into scratch with --ignore-scripts on every run, never as dependencies,
+    is explained: the registry is a reach fresh-clone already needs, and a failed install reads skipped, never clean.
+  evidence: [map/structure-scan.mjs:10-16]
+  confidence: confirmed
+- id: F-018
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Why branch-cleanup deletes on every push to the default branch, while a hand dispatch is a dry run, is stated in its
+    header: the repository setting misses some branches, a session cannot delete a ref, and nobody is left to dispatch it.
+  evidence: [.github/workflows/branch-cleanup.yml:1-7]
+  confidence: confirmed
+- id: F-019
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The CI workflow says why it pins actions to commit SHAs, holds a read-only token and a timeout, and runs a Node matrix:
+    it holds itself to the invariants it holds the routine template to, for every Node major package.json declares.
+  evidence: [.github/workflows/ci.yml:5-8, .github/workflows/ci.yml:15-26]
+  confidence: confirmed
+- id: F-020
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Starting a target's declared services only under a second opt-in on top of --allow-exec is explained: a database-backed
+    suite would otherwise read failed and charge the instrument's gap to the target, and containers are removed always.
+  evidence: [map/services.mjs:1-13, map/start.mjs:541-543]
+  confidence: confirmed
+- id: F-021
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Treating an external code reviewer as one peer scanner whose severity is kept as a property and never recomputed into a
+    verdict is stated with its contract reference and the reason (its verdict decides nothing; it decides only where bound).
+  evidence: [README.md:59-73]
+  confidence: confirmed
+- id: F-022
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The weekly tools-check's choice to only read release metadata and open one issue, never to bump a pin itself, is stated
+    with how a bump lands (a reviewed PR moving version, url, sha256 and verified_against together).
+  evidence: [.github/workflows/tools-check.yml:1-5]
+  confidence: confirmed
+# doc-freshness census (F-030..F-057): concrete doc claims replayed against the code
+- id: F-030
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's view table (Improve and Owner pages and data files, Since with a previous run) matches what compile and
+    the run layout write.
+  evidence: [README.md:8-14, views/compile.mjs:7-8, lib/run-layout.mjs:9, lib/run-layout.mjs:29]
+  confidence: confirmed
+- id: F-031
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README lists IMPROVE.md as Improve's page unconditionally, but compile writes IMPROVE.md only when the run carries
+    an authored views/improve/prose.yaml and otherwise points to the axis walk.
+  evidence: [README.md:10, views/compile.mjs:13, views/compile.mjs:197-198]
+  confidence: confirmed
+- id: F-032
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that a consumer builds its own view with views/rows.mjs's buildRows holds; the export exists.
+  evidence: [README.md:17-20, views/rows.mjs:54]
+  confidence: confirmed
+- id: F-033
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that the deep-code-review adapter carries verified_against naming the reviewer release holds.
+  evidence: [README.md:63-66, map/scanners/adapters/deep-code-review.yaml:62]
+  confidence: confirmed
+- id: F-034
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README describes repo-census as checking an architecture page, agent contract, runbook, CI gate and owner evidence,
+    but the instrument also runs three operability checks (expectations declared, health reported, routing proportionate).
+  evidence: [README.md:77-80, map/repo-census.mjs:2-14]
+  confidence: confirmed
+- id: F-035
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that zizmor, osv-scanner, checkov and opengrep run off their adapters' run blocks holds; each
+    adapter carries a run block.
+  evidence: [README.md:82-89, map/scanners/adapters/zizmor.yaml:34, map/scanners/adapters/osv-scanner.yaml:27, map/scanners/adapters/checkov.yaml:20, map/scanners/adapters/opengrep.yaml:40]
+  confidence: confirmed
+- id: F-036
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says each child sees only PATH, HOME, CI and the runner's own npm_config_* settings, but childEnv also passes
+    the proxy and CA plumbing names and admits only the npm_config_* values the calling instrument sets, not the runner's.
+  evidence: [README.md:95-96, map/child-env.mjs:10-15, map/child-env.mjs:28-38]
+  confidence: confirmed
+- id: F-037
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's count "Three instruments execute the target's code" holds and is guarded: a block derives the count from
+    the modules that import child-env and fails any page or help line that states another number.
+  evidence: [README.md:91-94, tests/blocks/doc-consistency.mjs:150-161]
+  confidence: confirmed
+- id: F-038
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claims that fresh-clone and knip run only under --allow-exec and services only under --allow-exec
+    --allow-services hold in start.
+  evidence: [README.md:99-106, map/start.mjs:541-543, map/start.mjs:578-579]
+  confidence: confirmed
+- id: F-039
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's and CLAUDE.md's claim that the validator refuses a run without a run record holds.
+  evidence: [README.md:107-110, CLAUDE.md:18-22, map/validate.mjs:297]
+  confidence: confirmed
+- id: F-040
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's six tiers and its two tags (floor, ai-operating) match the yardstick register.
+  evidence: [README.md:114-120, yardstick/requirements.yaml:17]
+  confidence: confirmed
+- id: F-041
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says owner/evidence/ transcripts decide six requirements, but the evidence format names five, after two
+    were retired, and the directory holds five examples.
+  evidence: [README.md:135-136, owner/evidence/README.md:7, owner/evidence/README.md:31-33]
+  confidence: confirmed
+- id: F-042
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's owner commands (ask-owner, ask-owner --run, validate-packet, measure --packet) all exist.
+  evidence: [README.md:137-143, assay.mjs:43, assay.mjs:46-47, yardstick/measure.mjs:843]
+  confidence: confirmed
+- id: F-043
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README says assay reaches outside the checkout in three places "and only these", but tools install downloads
+    binaries from GitHub releases and PyPI, tools check calls the GitHub releases API, and osv-scanner fetches the OSV database.
+  evidence: [README.md:148-158, map/tools.mjs:125, map/tools.mjs:201, map/scanners/adapters/zizmor.yaml:27, map/scanners/adapters/osv-scanner.yaml:28-29]
+  confidence: confirmed
+- id: F-044
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The README annotates help as every command "grouped map / yardstick / views", but help prints four groups, the
+    fourth being Routine.
+  evidence: [README.md:170, assay.mjs:21, assay.mjs:41, assay.mjs:49, assay.mjs:52]
+  confidence: confirmed
+- id: F-045
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The Quickstart's commands and flags (start, tools install and verify with --dir, --run and --only, lane, record with
+    --model, --pass and --spend, validate --lane, compile --since, migrate-run --write, ratchet --baseline, yardstick --floor
+    --json) are each parsed by their scripts.
+  evidence: [README.md:169-212, map/start.mjs:15, map/tools.mjs:226-231, map/lane.mjs:108, map/record.mjs:234-237, map/validate.mjs:109, views/compile.mjs:49, map/migrate-run.mjs:122, yardstick/ratchet.mjs:251, yardstick/list.mjs:15]
+  confidence: confirmed
+- id: F-046
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's claim that a workflow calls ./<path-to-assay>/.github/actions/tools with one optional input, dir, holds.
+  evidence: [README.md:188-189, .github/actions/tools/action.yml:4, .github/actions/tools/action.yml:14-18]
+  confidence: confirmed
+- id: F-047
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The CLAUDE.md claims that two named blocks hold the scanner-naming and tag rules and that a block refuses a history
+    file hold; the three block files exist.
+  evidence: [CLAUDE.md:44-45, CLAUDE.md:70-71, tests/blocks/core-names-no-scanner.mjs:1, tests/blocks/yardstick-tags-name-a-property.mjs:1, tests/blocks/no-history-file.mjs:1]
+  confidence: confirmed
+- id: F-048
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CONTRIBUTING's gate description (tools verify first and stop when missing, then test, prove-red, typecheck, lint,
+    passes and release-notes, each run regardless, one exit line) matches the gate, and CI runs the same command.
+  evidence: [CONTRIBUTING.md:19-25, lib/gate.mjs:25-34, lib/gate.mjs:53-56, .github/workflows/ci.yml:38]
+  confidence: confirmed
+- id: F-049
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CONTRIBUTING's pointers to tests/README.md's "How the blocks run" and "Red proofs" sections resolve.
+  evidence: [CONTRIBUTING.md:25-26, CONTRIBUTING.md:32, tests/README.md:28, tests/README.md:50]
+  confidence: confirmed
+- id: F-050
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The re-bless command CONTRIBUTING and RUNBOOK give (node tests/regression.mjs --bless rewriting tests/golden.json) is
+    the runner's documented mode.
+  evidence: [CONTRIBUTING.md:38-42, RUNBOOK.md:25-29, tests/regression.mjs:27-28]
+  confidence: confirmed
+- id: F-051
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    RUNBOOK's release step names the ci check as npm test, but the ci workflow runs npm run gate.
+  evidence: [RUNBOOK.md:11-12, .github/workflows/ci.yml:38]
+  confidence: confirmed
+- id: F-052
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    RUNBOOK's release steps tell the operator to tag the merge commit themselves and never name release.yml, while the
+    release workflow states it is the only thing in the repository that tags, cutting the tag and release on dispatch.
+  evidence: [RUNBOOK.md:13-16, .github/workflows/release.yml:1-4, .github/workflows/release.yml:44-50]
+  confidence: confirmed
+- id: F-053
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    CONSUMERS.md says the release workflow runs the gate before it tags, but its job runs npm test only (no prove-red,
+    typecheck, lint or passes), though its own header also says it runs the gate.
+  evidence: [CONSUMERS.md:195-197, .github/workflows/release.yml:6, .github/workflows/release.yml:41]
+  confidence: confirmed
+- id: F-054
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    RUNBOOK's local reproduction of a routine run and its token rotation hold: run.mjs takes <repo-dir> --out <run-dir>,
+    and the routine template carries the commented ASSAY_READ_TOKEN line in its assay checkout step.
+  evidence: [RUNBOOK.md:42-46, RUNBOOK.md:60-71, routine/run.mjs:27, routine/assay-routine.yml:65]
+  confidence: confirmed
+- id: F-055
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CONSUMERS.md's module contract holds against the code and is guarded: childEnv's described allow-list matches
+    child-env.mjs, and a block holds views/rows.mjs's exports to exactly the set the page lists.
+  evidence: [CONSUMERS.md:171-172, map/child-env.mjs:10-15, tests/blocks/rows-contract-exports.mjs:1-7]
+  confidence: confirmed
+- id: F-056
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/README.md's four deciding kinds (facet, census, instrument, claim) are exactly the kinds the register uses.
+  evidence: [yardstick/README.md:115-124, yardstick/requirements.yaml:165, yardstick/requirements.yaml:179, yardstick/requirements.yaml:211, yardstick/requirements.yaml:325]
+  confidence: plausible
+- id: F-057
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The README's layout block names directories that all exist and RUNBOOK's listed operations match its sections.
+  evidence: [README.md:245-257, RUNBOOK.md:9, RUNBOOK.md:21, RUNBOOK.md:35, RUNBOOK.md:48, RUNBOOK.md:58, RUNBOOK.md:73]
+  confidence: confirmed
+# second-accounts context (F-070..F-075): facts stated in a second place
+- id: F-070
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The one rule has one home in README.md and CLAUDE.md and METHOD.md cite it there, held by a block that fails any
+    other file restating the sentence.
+  evidence: [README.md:39-40, CLAUDE.md:12, tests/blocks/doc-consistency.mjs:143-149]
+  confidence: confirmed
+- id: F-071
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    How a consumer pins assay is stated three ways that disagree: CONSUMERS.md says pin a release tag never a branch,
+    while RUNBOOK and routine/README say ASSAY_REF is a full SHA never a branch or a tag, and no guard reconciles them.
+  evidence: [CONSUMERS.md:9, CONSUMERS.md:98-100, RUNBOOK.md:17-19, routine/README.md:210-212]
+  confidence: confirmed
+- id: F-072
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The red-then-green rule is stated in CLAUDE.md and again in CONTRIBUTING.md, which names itself the landing steps'
+    home and points to CLAUDE.md for the rule, and a block holds CLAUDE.md to stating it.
+  evidence: [CLAUDE.md:55-63, CONTRIBUTING.md:3-5, CONTRIBUTING.md:29-33, tests/blocks/doc-consistency.mjs:93]
+  confidence: plausible
+- id: F-073
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The re-bless procedure is written in both RUNBOOK and CONTRIBUTING; the two agree and RUNBOOK defers to CONTRIBUTING's
+    "Landing a change", though nothing checks the two stay in step.
+  evidence: [RUNBOOK.md:21-33, CONTRIBUTING.md:38-42]
+  confidence: plausible
+- id: F-074
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CONSUMERS.md's command table restates the help registry, and a block fails any command it names that help does not
+    list, so the command names cannot drift; the flags in the table are not part of that check.
+  evidence: [CONSUMERS.md:13-14, tests/blocks/consumer-contract.mjs:68, assay.mjs:20-59]
+  confidence: plausible
+- id: F-075
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The count of one-run views is stated across the docs and a block derives it from the pages lib/run-layout.mjs can place,
+    failing any doc that states another count or omits a view's name.
+  evidence: [tests/blocks/doc-consistency.mjs:26-43, CLAUDE.md:3-6]
+  confidence: confirmed

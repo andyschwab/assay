@@ -1,0 +1,91 @@
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is ADR-0001 (F-001), which names the choice, the interface a later adapter must meet,
+      the rejected alternative and the reason, and is pointed to from the code; elsewhere rationale is at
+      most a one-line comment (F-002, F-004) and five of eight decisions carry no why (F-003, F-005, F-006,
+      F-007, F-008), while the README is wrong on five of six concrete claims (F-009, F-010, F-012, F-013, F-014).
+    sampled:
+      - name: decision-reconstruction
+        what: "whether each non-obvious decision the terrain froze (D1 to D8) has its why readable from the files alone"
+        members: [F-001, F-002, F-003, F-004, F-005, F-006, F-007, F-008]
+        method: "every decision D1 to D8 the terrain froze before assessment, one finding each, judged at the decision's own site and any doc that names it"
+        primary: true
+      - name: doc-freshness
+        what: "whether each concrete README claim the terrain lists holds when replayed against the code"
+        members: [F-009, F-010, F-011, F-012, F-013, F-014]
+        method: "every README doc claim the terrain lists (endpoint count, endpoint list, run command, test command, coverage claim, capability claim), one finding each, replayed against server.mjs, package.json, test/ and lib/"
+  - dimension: context-economy
+    depth: >
+      The best instance is lib/auth.mjs (F-102), the one module with a head comment, a test that imports
+      it and a one-file import closure; every other module loads alone and reads but has nothing to run
+      (F-100, F-101, F-103 to F-107), the model call records nothing (F-108), and routing to subsystems
+      lives only in server.mjs's header and imports, not the README (F-111, F-110).
+    sampled:
+      - name: modules-standalone
+        what: "share of the terrain's modules an agent can load alone with something to read and something to run"
+        members: [F-100, F-101, F-102, F-103, F-104, F-105, F-106, F-107]
+        method: "every module the terrain lists (8; test/ excluded), one finding each, read off head comment, a test importing it directly, and its in-repo import closure"
+        primary: true
+      - name: model-call-telemetry
+        what: "share of model call sites that emit a structured record of tier, spend and outcome"
+        members: [F-108]
+        method: "every file enumerate lists in populations.modelCalls (1, lib/agent.mjs), one finding judging the calls in it; no unlisted stand-in found in the 12 files"
+  - dimension: deterministic-gates
+    depth: >
+      No change gate exists at all (F-200), so a regression in the central store reaches
+      the tree unchecked (F-201); the best instance of a loud interface is the 404 on an
+      unmatched route (F-206), while the body parse, field coercion, directive parse and
+      token lookup each swallow a wrong input silently (F-202, F-203, F-204, F-205).
+  - dimension: verification
+    depth: >
+      No instance reaches a bar: every success report in the target (backup push F-300, mail
+      send F-301, the assistant's emailed field F-302) is asserted rather than confirmed, the
+      one test exercises no route or effect (F-305), and the assistant has neither an answer
+      eval (F-303) nor a measured prompt (F-304) nor an output check (F-307).
+  - dimension: delegation
+    depth: >
+      The best instance is the token table, whose reach is traced from its one read site to the
+      role it grants (F-406), but the fallback admin identity makes it moot (F-411), and every
+      one of the four effect channels runs with no gate that holds (F-400, F-401, F-402, F-403)
+      while the assistant context co-holds all three trifecta legs (F-404).
+    sampled:
+      - name: credential
+        what: "whether each secret's reach is traced in the code: where it is read and what it may do there"
+        members: [F-405, F-406]
+        method: "every member of enumerate's populations.secrets (backupApiKey, tokenTable), one finding each, triaged in census_triage"
+        primary: true
+      - name: ingested-content
+        what: "whether text entering from outside is kept as data, stored verbatim with provenance, rendered escaped, and never acted on as an instruction"
+        members: [F-407, F-408]
+        method: "every ingestion point the terrain lists (POST /notes text, POST /assistant question), one finding each"
+  - dimension: improvement-loop
+    depth: >
+      There is no best instance to judge: no lesson is recorded (F-500), outstanding work lives only
+      in an in-code TODO and an ADR's prose deferral with no tracker behind either (F-501, F-502),
+      and the app measures neither its own impact nor its usage (F-503, F-504).
+  - dimension: multiplayer
+    depth: >
+      The best instance is a README endpoint list naming four of the five routes by method and path
+      (F-600 to F-603), with no schema of bodies or responses, while the fifth, the destructive purge,
+      has no contract at all (F-604) and the shared notes store is surfaced to every asker without
+      consent or disclosure (F-612, F-613, F-614).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces the application offers a caller that an agent can reach through an API or format contract stated outside the code"
+        members: [F-600, F-601, F-602, F-603, F-604]
+        method: "every HTTP route the terrain lists (server.mjs:30, :35, :42, :47, :52), one finding each, met when a doc page outside the code gives its method and path"
+        primary: true
+context:
+  - name: second-accounts
+    members: [F-015, F-016, F-017, F-018, F-019, F-020, F-021]
+  - name: model-qualification
+    members: [F-109]
+  - name: ai-feature-evals
+    members: [F-303]
+  - name: rubric-calibration
+    members: [F-304]
+  - name: ai-disclosure
+    members: [F-409, F-410]
+  - name: backlog-records
+    members: [F-501, F-502]

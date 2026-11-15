@@ -1,0 +1,487 @@
+# Pass 1 — artifact legibility (practice-review). Census-augmented: D1–D11 (decision-reconstruction),
+# sampled doc claims (doc-freshness), and the second accounts met on the way (context list).
+
+# ── decision-reconstruction: D1–D11, one finding each ──
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D1 (no runtime dependencies, an own YAML reader) reconstructs from the files: the reader's header
+    and validate's header say a hand-rolled subset reader throws on input it cannot read because a
+    checker that silently accepts unparseable input hides what it exists to catch, and enumerate's
+    header gives the zero-dependency reason (it copies into any target); package.json declares
+    dev dependencies only.
+  evidence:
+    - "lib/yaml-min.mjs:1-7"
+    - "map/validate.mjs:10-12"
+    - "map/enumerate.mjs:12"
+    - "package.json:18-19"
+  confidence: confirmed
+
+- id: F-002
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D2 (plain .mjs typechecked by tsc through JSDoc rather than TypeScript source) is stated as what
+    is done but not why: the README names typecheck as checkJs over the engine's modules and
+    tsconfig carries no comment; no file read names the reason over the obvious alternative of
+    writing TypeScript, beyond the zero-dependency, copy-into-any-target reasoning that D1 gives.
+  evidence:
+    - "README.md:165-167"
+    - "tsconfig.json:1-13"
+  confidence: plausible
+
+- id: F-003
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D3 (a finding never carries a severity) reconstructs: the README states it as the one rule that
+    keeps the engine honest (the map states what is, the views compute how bad) with a worked
+    contrast ("irreversible and has no gate" versus "critical"), names the paragraph as the rule's
+    one home, and CLAUDE.md rule 1 points back to it.
+  evidence:
+    - "README.md:35-40"
+    - "CLAUDE.md:12-15"
+  confidence: confirmed
+
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D4 (lane and ingest id ranges split at F-10000) reconstructs from the code's own header: a lane
+    authors in a scratch run and cannot see the ids ingest gives, so the two never share a range and
+    nothing is renumbered; the consumer page repeats the reason for an operator collecting a lane
+    into a run that already holds instrument rows.
+  evidence:
+    - "map/ids.mjs:1-19"
+    - "CONSUMERS.md:42-48"
+  confidence: confirmed
+
+- id: F-005
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D5 (the core names no scanner; adapters carry what it needs to know) is stated as a ground rule
+    with its scope, what moves to the adapter and the two blocks that hold it, and the block header
+    gives the framing (scanners are data, operators are consumers); the why over hard-coding a
+    scanner is carried by the README's peer-scanner account (scanners land on shared
+    property-named axes where two corroborate) rather than stated at the rule itself.
+  evidence:
+    - "CLAUDE.md:34-45"
+    - "tests/blocks/core-names-no-scanner.mjs:1-10"
+    - "README.md:59-73"
+  confidence: plausible
+
+- id: F-006
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D6 (the routine's two jobs, only the target job executing the change) reconstructs fully: the
+    routine contract names the attack it closes (a change whose test script rewrites the ratchet or
+    the run's yardstick.yaml could make its own gate read held), what each job runs, and what the
+    change can still control (its own reports) versus what it can no longer reach.
+  evidence:
+    - "routine/README.md:130-158"
+  confidence: confirmed
+
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D7 (ASSAY_REF a full commit SHA, never a branch) carries its reason at the choice itself, in the
+    template header and again in the installing steps: a branch moves, and a scheduled run must run
+    the exact engine a steward reviewed.
+  evidence:
+    - "routine/assay-routine.yml:4-6"
+    - "routine/README.md:210-212"
+  confidence: confirmed
+
+- id: F-008
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D8 (tool downloads checksum-pinned before execution) is stated with its mechanism and order at
+    each home (a sum per platform artifact, a mismatch refused naming both sums, checked before it is
+    ever executed; PyPI tools pinned by version where a sum cannot pin their dependencies), and the
+    supply-chain reason is legible from the scanner candidates page, which records a candidate's
+    compromised release infrastructure and says to pin release hashes; the general reason is not
+    written beside the pin itself.
+  evidence:
+    - "map/tools.mjs:15-20"
+    - ".github/actions/tools/action.yml:6-10"
+    - "map/scanners/CONTRACT.md:1184-1188"
+    - "map/scanners/CANDIDATES.md:79"
+    - "map/scanners/CANDIDATES.md:96"
+  confidence: plausible
+
+- id: F-009
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D9 (executing instruments only under --allow-exec, with an allow-listed child environment)
+    reconstructs: the README names which three instruments execute the target's code and why the
+    flag gates them, says the allow-list is not a sandbox, and the child-env header names what is
+    dropped (tokens, cloud keys, agent sockets, DATABASE_URL) and why proxy plumbing is kept.
+  evidence:
+    - "README.md:91-102"
+    - "map/child-env.mjs:1-15"
+    - "map/start.mjs:32-41"
+    - "assay.mjs:66-67"
+  confidence: confirmed
+
+- id: F-010
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    D10 (Apache-2.0 with a NOTICE) has no rationale in the files read: package.json and LICENSE name
+    the licence, and the NOTICE names vendored fonts under templates/fonts/ with OFL licence files,
+    a path the tracked tree does not hold, so the one file that explains why a NOTICE exists
+    describes content that is not there.
+  evidence:
+    - "LICENSE:1-3"
+    - "NOTICE:1-8"
+    - "package.json:6"
+  confidence: plausible
+
+- id: F-011
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D11 (CI's Node 22 and 24 matrix) reconstructs: the workflow header says CI runs every Node major
+    package.json declares, and the ci-workflow block states and holds the rule (every major from the
+    engines floor up to the current one), failing when the matrix drops the floor.
+  evidence:
+    - ".github/workflows/ci.yml:1-8"
+    - ".github/workflows/ci.yml:22-24"
+    - "tests/blocks/ci-workflow.mjs:1-6"
+    - "tests/blocks/ci-workflow.mjs:44-50"
+    - "package.json:18"
+  confidence: confirmed
+
+# ── doc-freshness: concrete doc claims, each replayed against the tree ──
+- id: F-020
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README's claim that the tools are zero-dependency Node 22 or later with TypeScript a
+    development-only dependency holds: package.json carries no dependencies block, devDependencies
+    of typescript and @types/node only, and an engines floor of >=22.
+  evidence:
+    - "README.md:165-167"
+    - "package.json:18-19"
+  confidence: confirmed
+
+- id: F-021
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README says help lists every command grouped map / yardstick / views, but the command table
+    has a fourth group, Routine, between Yardstick and Views.
+  evidence:
+    - "README.md:170"
+    - "assay.mjs:20-59"
+  confidence: confirmed
+
+- id: F-022
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README's start command line (--out, --allow-exec, --allow-services, --unstripped-report, and
+    fresh-clone recorded skipped over a plain tree) matches the start script's usage and the CLI
+    table's description.
+  evidence:
+    - "README.md:174-179"
+    - "map/start.mjs:15-20"
+    - "assay.mjs:22"
+  confidence: confirmed
+
+- id: F-023
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README's tools install and tools verify lines (--dir, --run, --only) match the tools script's
+    usage block.
+  evidence:
+    - "README.md:185-186"
+    - "map/tools.mjs:24-27"
+  confidence: confirmed
+
+- id: F-024
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README's ingest example for deep-code-review passes no --exit, and it holds: ingest requires
+    --exit only for a profile that is not exitless, and the machine-report format a reviewer's
+    adapter selects is exitless.
+  evidence:
+    - "README.md:193"
+    - "map/ingest.mjs:823"
+    - "map/ingest.mjs:1361-1362"
+  confidence: confirmed
+
+- id: F-025
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README says each executing child sees only PATH, HOME, CI and the runner's npm_config_*
+    settings, but the child environment also passes the proxy and CA plumbing (HTTPS_PROXY,
+    HTTP_PROXY, NO_PROXY, NODE_EXTRA_CA_CERTS, SSL_CERT_FILE), which the isolation block allows.
+  evidence:
+    - "README.md:95-96"
+    - "map/child-env.mjs:10"
+    - "map/child-env.mjs:15"
+    - "map/child-env.mjs:28-38"
+    - "tests/blocks/isolation.mjs:29-30"
+  confidence: confirmed
+
+- id: F-026
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README says owner/evidence/ is the format for committed transcripts that decide six
+    requirements; the evidence contract names five ids, after two were retired.
+  evidence:
+    - "README.md:135-136"
+    - "owner/evidence/README.md:7"
+    - "owner/evidence/README.md:31-33"
+  confidence: confirmed
+
+- id: F-027
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README's ask-owner --run claim holds: the ask-owner script's usage takes --run and fills the
+    template from that run.
+  evidence:
+    - "README.md:142-143"
+    - "owner/ask-owner.mjs:37"
+  confidence: confirmed
+
+- id: F-028
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README's yardstick --floor [--json] command matches the list script's usage and flag set.
+  evidence:
+    - "README.md:212"
+    - "yardstick/list.mjs:9-11"
+  confidence: confirmed
+
+- id: F-029
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The test blocks CLAUDE.md names as holding rule 7 and the no-history-file rule exist at the
+    paths it gives, and each header names the rule it holds.
+  evidence:
+    - "CLAUDE.md:44-45"
+    - "CLAUDE.md:70-71"
+    - "tests/blocks/core-names-no-scanner.mjs:1-2"
+    - "tests/blocks/yardstick-tags-name-a-property.mjs:1"
+    - "tests/blocks/no-history-file.mjs:1"
+  confidence: confirmed
+
+- id: F-030
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: process
+  observation: >
+    CONTRIBUTING's account of the gate (tools verify first and stop there, then test, prove-red,
+    typecheck, lint, passes, release-notes check, each run whatever the one before did, one exit
+    line) matches the gate's step list and loop, and CI runs that same command as it says.
+  evidence:
+    - "CONTRIBUTING.md:19-25"
+    - "lib/gate.mjs:26-59"
+    - ".github/workflows/ci.yml:38"
+  confidence: confirmed
+
+- id: F-031
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: process
+  observation: >
+    CONTRIBUTING's re-bless step (node tests/regression.mjs --bless, then review the golden.json
+    diff) matches the harness's own usage line.
+  evidence:
+    - "CONTRIBUTING.md:38-42"
+    - "tests/regression.mjs:28"
+  confidence: confirmed
+
+- id: F-032
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    RUNBOOK's release step names the ci check as npm test, but the ci workflow runs npm run gate
+    (test plus prove-red, typecheck, lint, passes and the release-notes check).
+  evidence:
+    - "RUNBOOK.md:11-12"
+    - ".github/workflows/ci.yml:38"
+  confidence: confirmed
+
+- id: F-033
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    RUNBOOK's release step tells a person to tag the merge commit, while the release workflow is
+    the one thing that tags (dispatched, it checks the version, runs the tests and the trailer
+    check, then creates the tag and release), and CONSUMERS says nothing else tags; the runbook
+    does not name the workflow.
+  evidence:
+    - "RUNBOOK.md:16"
+    - ".github/workflows/release.yml:1-4"
+    - ".github/workflows/release.yml:44-50"
+    - "CONSUMERS.md:195-196"
+  confidence: confirmed
+
+- id: F-034
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: process
+  observation: >
+    RUNBOOK's local routine reproduction (node routine/run.mjs <repo-dir> --out <run-dir>, writing
+    <run-dir>/routine.yaml) matches the routine driver's usage and the run layout's routinePath.
+  evidence:
+    - "RUNBOOK.md:43-46"
+    - "routine/run.mjs:27"
+    - "lib/run-layout.mjs:49"
+  confidence: confirmed
+
+- id: F-035
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    CONSUMERS (the page the README routes consumers to) says the release workflow runs the gate
+    before it tags, but the release job runs npm test and the release-notes check, not npm run
+    gate, so prove-red, typecheck, lint and the passes check do not run on the dispatched commit.
+  evidence:
+    - "CONSUMERS.md:195-197"
+    - ".github/workflows/release.yml:39-43"
+    - "lib/gate.mjs:27-34"
+  confidence: confirmed
+
+# ── second accounts (context list second-accounts; never a census member) ──
+- id: F-040
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The no-severity rule has one marked home: the README paragraph names itself the rule's one home
+    and says every other page cites it, and CLAUDE.md rule 1 restates it while pointing to that home.
+  evidence:
+    - "README.md:35-40"
+    - "CLAUDE.md:12-15"
+  confidence: confirmed
+
+- id: F-041
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: contract
+  observation: >
+    How to pin assay is stated in four places that disagree on tags: CONSUMERS says pin to a
+    release tag, never a branch; RUNBOOK says ASSAY_REF is a full SHA, never a branch or a tag;
+    the routine contract and template say a full SHA, never a branch name; no account is marked as
+    the home the others defer to.
+  evidence:
+    - "CONSUMERS.md:9"
+    - "RUNBOOK.md:17-19"
+    - "routine/README.md:210-212"
+    - "routine/assay-routine.yml:4-6"
+  confidence: confirmed
+
+- id: F-042
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: control
+  observation: >
+    The landing steps' home is guarded: CONTRIBUTING names itself their one home, and the
+    gate-command block (written after restated briefs drifted) fails when CONTRIBUTING drops a
+    landing step or when CLAUDE.md's Checks section restates them instead of pointing there.
+  evidence:
+    - "CONTRIBUTING.md:3-5"
+    - "tests/blocks/gate-command.mjs:1-7"
+    - "tests/blocks/gate-command.mjs:58-67"
+    - "CLAUDE.md:47-51"
+  confidence: confirmed
+
+- id: F-043
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The red-then-green rule, the prove-red entry for a core invariant and the removal-subject rule
+    are written in full in both CLAUDE.md's How a change lands and CONTRIBUTING's landing steps;
+    CONTRIBUTING claims to be the one home and also defers to CLAUDE.md for the rule, and the guard
+    checks only CLAUDE.md's Checks section, not this one.
+  evidence:
+    - "CLAUDE.md:55-72"
+    - "CONTRIBUTING.md:29-36"
+    - "CONTRIBUTING.md:50-51"
+    - "tests/blocks/gate-command.mjs:64-67"
+  confidence: confirmed
+
+- id: F-044
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The finding-id ranges have one home in code, a single constant other modules import, and the
+    consumer page's restatement cites the schema section as its source.
+  evidence:
+    - "map/ids.mjs:15-19"
+    - "map/validate.mjs:14"
+    - "CONSUMERS.md:42-48"
+  confidence: confirmed
+
+- id: F-045
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    The gate's step list is written in three prose places beside its code home (CONTRIBUTING, the
+    gate script's header, the ci workflow's header); they agree today, but the guard checks only
+    that CONTRIBUTING names the landing steps, not that its list matches the STEPS array.
+  evidence:
+    - "lib/gate.mjs:27-34"
+    - "lib/gate.mjs:4-12"
+    - "CONTRIBUTING.md:19-22"
+    - ".github/workflows/ci.yml:1-6"
+    - "tests/blocks/gate-command.mjs:58-63"
+  confidence: plausible
+
+- id: F-046
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: control
+  observation: >
+    The YAML subset has one home, the schema section, and the reader's own refusal list is a second
+    account that a block holds to it: the reader's header and refusal table defer to that section
+    and the yaml-subset block parses every example against the reader.
+  evidence:
+    - "lib/yaml-min.mjs:2-4"
+    - "lib/yaml-min.mjs:30-31"
+    - "tests/blocks/yaml-subset.mjs:1-4"
+  confidence: confirmed

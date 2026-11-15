@@ -1,5 +1,5 @@
 // ── an absence is not a census member (#298) ──
-// The flawed-webapp confirmation sweep at v0.10.0 (tests/sweeps/flawed-webapp-2026-11-12b) parted on
+// The flawed-webapp confirmation sweep at v0.10.0 (a blind set of 2026-11-12, since superseded) parted on
 // two census rows because one lane listed "this target has no gate" and an unwired test file as
 // change-gate members, and read a test's header as a recorded lesson; under the outside-the-list rule
 // (#291) such a member holds the row down. The rule is text, not a validate check (map/SCHEMA.md §6b

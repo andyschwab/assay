@@ -1,0 +1,223 @@
+schema: effect-triage
+version: 2
+triage:
+  - candidate: "route: GET /notes"
+    out_of_scope: "read-only: filters the notes map by owner and returns them; calls no write or outbound site (server.mjs:30-33)"
+    clause: route-reads-only
+  - candidate: "route: POST /notes"
+    finding: F-400
+    clause: route-method-writes
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["server.mjs:36-38", "server.mjs:16", "lib/auth.mjs:12"]
+      second_act:
+        answer: no
+        evidence: ["server.mjs:35-39"]
+      staged:
+        answer: no
+        evidence: ["server.mjs:38"]
+      person_act:
+        answer: no
+        evidence: ["lib/auth.mjs:9-12", "server.mjs:35-39"]
+      declared_scope:
+        answer: no
+        evidence: ["server.mjs:38", "lib/agent.mjs:12-15"]
+      rate_limit:
+        answer: no
+        evidence: ["server.mjs:35-39"]
+      disclosed:
+        answer: no
+        evidence: ["server.mjs:35-39"]
+      received_or_gone:
+        answer: no
+        evidence: ["server.mjs:37-38"]
+      window:
+        answer: no
+        evidence: ["server.mjs:38"]
+  - candidate: "route: POST /assistant"
+    finding: F-401
+    clause: route-method-writes
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["server.mjs:42-44", "lib/agent.mjs:35-39", "lib/auth.mjs:12"]
+      second_act:
+        answer: no
+        evidence: ["lib/agent.mjs:35-39"]
+      staged:
+        answer: no
+        evidence: ["lib/agent.mjs:39", "lib/mailer.mjs:5-8"]
+      person_act:
+        answer: no
+        evidence: ["lib/agent.mjs:27-29", "lib/agent.mjs:35-37", "lib/auth.mjs:12"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/agent.mjs:35", "lib/agent.mjs:38"]
+      rate_limit:
+        answer: no
+        evidence: ["lib/agent.mjs:33-41"]
+      disclosed:
+        answer: no
+        evidence: ["lib/agent.mjs:39", "lib/mailer.mjs:7"]
+      received_or_gone:
+        answer: no
+        evidence: ["lib/mailer.mjs:5-8"]
+      window:
+        answer: no
+        evidence: ["lib/mailer.mjs:5-8"]
+  - candidate: "message/mail send @ lib/agent.mjs"
+    finding: F-401
+    clause: client-call-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["lib/agent.mjs:35-39", "lib/agent.mjs:35-39", "lib/auth.mjs:12"]
+      second_act:
+        answer: no
+        evidence: ["lib/agent.mjs:35-39"]
+      staged:
+        answer: no
+        evidence: ["lib/agent.mjs:39", "lib/mailer.mjs:5-8"]
+      person_act:
+        answer: no
+        evidence: ["lib/agent.mjs:27-29", "lib/agent.mjs:35-37", "lib/auth.mjs:12"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/agent.mjs:35", "lib/agent.mjs:38"]
+      rate_limit:
+        answer: no
+        evidence: ["lib/agent.mjs:33-41"]
+      disclosed:
+        answer: no
+        evidence: ["lib/agent.mjs:39", "lib/mailer.mjs:7"]
+      received_or_gone:
+        answer: no
+        evidence: ["lib/mailer.mjs:5-8"]
+      window:
+        answer: no
+        evidence: ["lib/mailer.mjs:5-8"]
+  - candidate: "message/mail send @ lib/mailer.mjs"
+    finding: F-401
+    clause: client-call-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["lib/mailer.mjs:5-8", "lib/agent.mjs:35-39", "lib/auth.mjs:12"]
+      second_act:
+        answer: no
+        evidence: ["lib/agent.mjs:35-39"]
+      staged:
+        answer: no
+        evidence: ["lib/agent.mjs:39", "lib/mailer.mjs:5-8"]
+      person_act:
+        answer: no
+        evidence: ["lib/agent.mjs:27-29", "lib/agent.mjs:35-37", "lib/auth.mjs:12"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/agent.mjs:35", "lib/agent.mjs:38"]
+      rate_limit:
+        answer: no
+        evidence: ["lib/agent.mjs:33-41"]
+      disclosed:
+        answer: no
+        evidence: ["lib/agent.mjs:39", "lib/mailer.mjs:7"]
+      received_or_gone:
+        answer: no
+        evidence: ["lib/mailer.mjs:5-8"]
+      window:
+        answer: no
+        evidence: ["lib/mailer.mjs:5-8"]
+  - candidate: "route: POST /sync"
+    finding: F-402
+    clause: route-method-writes
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["server.mjs:47-49", "server.mjs:48"]
+      second_act:
+        answer: no
+        evidence: ["server.mjs:47-49", "lib/sync.mjs:5-13"]
+      staged:
+        answer: no
+        evidence: ["lib/sync.mjs:8-11"]
+      person_act:
+        answer: no
+        evidence: ["server.mjs:47-49", "lib/auth.mjs:12", "lib/sync.mjs:12"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/sync.mjs:6", "lib/sync.mjs:10"]
+      rate_limit:
+        answer: no
+        evidence: ["server.mjs:47-49"]
+      disclosed:
+        answer: no
+        evidence: ["lib/sync.mjs:8-13"]
+      received_or_gone:
+        answer: yes
+        evidence: ["lib/sync.mjs:6-11", "config/settings.mjs:4"]
+      window:
+        answer: no
+        evidence: ["lib/sync.mjs:8-12"]
+  - candidate: "http write (js) @ lib/sync.mjs"
+    finding: F-402
+    clause: client-call-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["lib/sync.mjs:8-12", "server.mjs:48"]
+      second_act:
+        answer: no
+        evidence: ["server.mjs:47-49", "lib/sync.mjs:5-13"]
+      staged:
+        answer: no
+        evidence: ["lib/sync.mjs:8-11"]
+      person_act:
+        answer: no
+        evidence: ["server.mjs:47-49", "lib/auth.mjs:12", "lib/sync.mjs:12"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/sync.mjs:6", "lib/sync.mjs:10"]
+      rate_limit:
+        answer: no
+        evidence: ["server.mjs:47-49"]
+      disclosed:
+        answer: no
+        evidence: ["lib/sync.mjs:8-13"]
+      received_or_gone:
+        answer: yes
+        evidence: ["lib/sync.mjs:6-11", "config/settings.mjs:4"]
+      window:
+        answer: no
+        evidence: ["lib/sync.mjs:8-12"]
+  - candidate: "route: POST /admin/purge"
+    finding: F-403
+    clause: route-method-writes
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["routes/admin.mjs:7", "lib/auth.mjs:15-17", "lib/auth.mjs:9-12"]
+      second_act:
+        answer: no
+        evidence: ["routes/admin.mjs:6-10"]
+      staged:
+        answer: no
+        evidence: ["lib/db.mjs:27-30"]
+      person_act:
+        answer: no
+        evidence: ["lib/auth.mjs:12", "routes/admin.mjs:8-10"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/db.mjs:28-29"]
+      rate_limit:
+        answer: no
+        evidence: ["server.mjs:52-54"]
+      disclosed:
+        answer: no
+        evidence: ["routes/admin.mjs:8-10"]
+      received_or_gone:
+        answer: yes
+        evidence: ["lib/db.mjs:28-29"]
+      window:
+        answer: no
+        evidence: ["lib/db.mjs:27-30"]

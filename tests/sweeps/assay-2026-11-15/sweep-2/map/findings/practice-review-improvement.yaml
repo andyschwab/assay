@@ -1,0 +1,536 @@
+# Pass 6 — improvement loop (practice-review), blind, target assay at a17104d
+# Census incidents-became-mechanisms: F-600..F-631. Context backlog-records: F-640..F-648.
+# Discovery (impact-self-measured, usage-outcome-records-emitted): F-660..F-666.
+
+- id: F-600
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The docker-socket calibration lesson (a strength certified over the per-user container while
+    the admin one was never inspected) became enumerate's socketMounts and containerClasses
+    listings, but no census row takes either population as candidates (only secrets, changeGates
+    and modelCalls are) and no test block pins the admin-role detector, so nothing forces the
+    unlisted container class to be triaged.
+  evidence: [map/METHOD.md:40-46, map/enumerate.mjs:542-544, map/enumerate.mjs:575-576, yardstick/requirements.yaml:181, yardstick/requirements.yaml:572, yardstick/requirements.yaml:1019]
+  confidence: confirmed
+
+- id: F-601
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The fail-closed lesson in the YAML reader's header (a checker that silently accepts
+    unparseable input hides what it exists to catch) is held by the reader throwing on refused
+    constructs and by the fail-closed block, which requires the shared loader and variance to
+    throw on an unparseable file.
+  evidence: [lib/yaml-min.mjs:5-7, tests/blocks/fail-closed.mjs:14, tests/blocks/fail-closed.mjs:19-23]
+  confidence: confirmed
+
+- id: F-602
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The recorded reader defects of issue #53 (a duplicate key keeping the last value, a
+    __proto__ key hiding fields, a flow list splitting on every comma) each became an assertion
+    in the yaml-strict block.
+  evidence: [tests/blocks/yaml-strict.mjs:1-5]
+  confidence: confirmed
+
+- id: F-603
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident of a full package shipping with its queued code scanner never run and nothing
+    saying so became the required run manifest, four negative fixtures that must go red on each
+    way of omitting a disposition, and a prove-red entry that re-breaks the skip-needs-a-reason
+    rule on every gate.
+  evidence: [map/SCHEMA.md:548-551, tests/blocks/negative-fixtures.mjs:20-26, tests/prove-red.mjs:89]
+  confidence: confirmed
+
+- id: F-604
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that an empty channel-candidate list once read as a closed population for a web
+    app (#269) became the triage list taking route handlers and effect sites too, pinned by the
+    web-app-effects block.
+  evidence: [map/SCHEMA.md:1183-1184, tests/blocks/web-app-effects.mjs:1-10]
+  confidence: confirmed
+
+- id: F-605
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The run's own CI-1 lesson, applied to the checker, is stated as validate failing closed on
+    input it cannot parse, and the negative fixtures hold validate red on each named violation.
+  evidence: [map/SCHEMA.md:1593-1595, tests/blocks/negative-fixtures.mjs:10-15]
+  confidence: confirmed
+
+- id: F-606
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The recorded crash in which backlog wrote an empty class and exited 0 became a not-computed
+    state with its reason, pinned by the score-backlog-exit block running backlog against a
+    missing target.
+  evidence: [map/backlog.mjs:48-49, tests/blocks/score-backlog-exit.mjs:1-3, tests/blocks/score-backlog-exit.mjs:20]
+  confidence: confirmed
+
+- id: F-607
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The calibration finding that a run had to hand-derive 24 channels declared in an in-code
+    tool-definition table became enumerate's tool-definition detector, pinned by the
+    enumerate-tooldef block against a fixture target.
+  evidence: [map/enumerate.mjs:615-618, tests/blocks/enumerate-tooldef.mjs:1-4]
+  confidence: confirmed
+
+- id: F-608
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that one of five copied findings loaders skipped unparseable files and the loss
+    read as variance became one shared loader that never catches the parse error, held by the
+    fail-closed block's must-throw assertions.
+  evidence: [map/project.mjs:51-57, tests/blocks/fail-closed.mjs:19-23]
+  confidence: confirmed
+
+- id: F-609
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a findings file with its rows nested under a key once read as zero findings
+    (#53) is held by the findings-loader block, which requires loadFindings and variance to
+    throw on a map-shaped file and on a run with no findings directory.
+  evidence: [map/project.mjs:58-61, tests/blocks/findings-loader.mjs:1-4, tests/blocks/findings-loader.mjs:16-19]
+  confidence: confirmed
+
+- id: F-610
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Each of the four recorded misreadings of the owner's decisions overlay (map-shaped file,
+    unknown action, accept without reason, an email in by) has its own negative fixture that
+    must turn validate red with the named violation.
+  evidence: [map/validate.mjs:514-517, tests/blocks/negative-fixtures.mjs:56-61]
+  confidence: confirmed
+
+- id: F-611
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident of a package listing a five-day-old sibling run's native report beside its
+    not-measured line became this-run-only appendices, pinned by the run-manifest block planting
+    a sibling report and failing if INDEX lists it.
+  evidence: [views/compile.mjs:165-168, tests/blocks/run-manifest.mjs:6, tests/blocks/run-manifest.mjs:51, tests/blocks/run-manifest.mjs:68]
+  confidence: confirmed
+
+- id: F-612
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The cal5/cal6 lesson that keying fact identity on subject_type and evidence basename read
+    identical facts as disagreement changed variance's key, but no test block found asserts that
+    a subject_type flip or a shared basename leaves fact presence unchanged, so a revert of the
+    key would not be caught by a named check.
+  evidence: [map/variance.mjs:10-22, tests/blocks/variance-mixed-base.mjs:17-19, tests/blocks/fail-closed.mjs:23]
+  confidence: plausible
+
+- id: F-613
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The lesson that a census flipping its subject_type between runs (cal5 contract, cal6
+    control) reads as total variance is held only as prose asking for one canonical value per
+    census; validate checks only that the term admits the type, and the lesson term admits
+    three.
+  evidence: [map/SCHEMA.md:350-355, yardstick/population.mjs:159, map/validate.mjs:762, yardstick/requirements.yaml:78-80]
+  confidence: confirmed
+
+- id: F-614
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that existence-scored maturity let one strong finding promote a whole dimension
+    became computed coverage over listed members, held by the met-needs-positive-evidence block
+    and the sampled-drift and bad-aggregate negative fixtures.
+  evidence: [views/improve/maturity.mjs:4-8, tests/blocks/met-needs-positive-evidence.mjs:1-4, tests/blocks/negative-fixtures.mjs:18, tests/blocks/negative-fixtures.mjs:40]
+  confidence: confirmed
+
+- id: F-615
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The machine-side false-green (a handoff reading nothing to do over live gaps) became a
+    degenerate gate that exits 1, and the sequence block requires that exit over an open gap with
+    no fix and no roadmap.
+  evidence: [map/METHOD.md:664-667, views/improve/handoff.mjs:154-162, tests/blocks/sequence.mjs:138-145]
+  confidence: confirmed
+
+- id: F-616
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The incident of a clean checkout reading test passed while 330 of 551 tests skipped (issue
+    #30) became parsed test counts and an ingested skipped-share gap row, pinned by the
+    test-skips block.
+  evidence: [tests/blocks/test-skips.mjs:1-7]
+  confidence: confirmed
+
+- id: F-617
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a repository whose install failed read met on tests, lint and typecheck
+    became step-not-run facts the rows read as not measured, pinned by the step-not-run block,
+    which also closes an empty exit code reading 0.
+  evidence: [yardstick/README.md:39-42, tests/blocks/step-not-run.mjs:1-10]
+  confidence: confirmed
+
+- id: F-618
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a run whose only lockfile went unaudited read met became the
+    lockfile-not-audited fact holding the row at not measured, asserted by the
+    dependency-scan-fixture block.
+  evidence: [yardstick/README.md:34-38, tests/blocks/dependency-scan-fixture.mjs:8-9, tests/blocks/dependency-scan-fixture.mjs:72]
+  confidence: confirmed
+
+- id: F-619
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a library with no deployment signal read unmet owner-evidence rows, and that
+    a check leaving no row once read met, became not-applicable facts and a row-per-check rule,
+    pinned by the repo-census-no-deployment block.
+  evidence: [yardstick/README.md:43-47, tests/blocks/repo-census-no-deployment.mjs:70-78]
+  confidence: confirmed
+
+- id: F-620
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a tree with no database once read met on the schema row became the
+    no-database-signal fact, and the database-signals block requires a Supabase-shaped repo with
+    no migrate step never to read met.
+  evidence: [yardstick/README.md:31-34, tests/blocks/database-signals.mjs:1-5, tests/blocks/database-signals.mjs:42]
+  confidence: confirmed
+
+- id: F-621
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    A review's correction that an undeclared build read met while lint, typecheck and test read
+    unmet on the same absence became the fresh-clone-build-floor block.
+  evidence: [tests/blocks/fresh-clone-build-floor.mjs:1-4]
+  confidence: confirmed
+
+- id: F-622
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that route handlers once read only Next.js routes, so a node:http server listed
+    none (#272), became node:http and Express detection pinned by the enumerate-server-routes
+    block.
+  evidence: [tests/blocks/enumerate-server-routes.mjs:1-10]
+  confidence: confirmed
+
+- id: F-623
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Review finding #48 (a baseline written from a run that failed its own gate) became a refusal
+    in the ratchet and a block asserting no baseline file is written from a regressed run.
+  evidence: [yardstick/ratchet.mjs:300, tests/blocks/ratchet.mjs:101-109]
+  confidence: confirmed
+
+- id: F-624
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The scanner rename (#188), which would leave old runs misread as a missing scanner, became a
+    migrate-run command and a block asserting validate and Since halt naming it and the rewrite
+    is byte-exact.
+  evidence: [tests/blocks/migrate-run-retired-id.mjs:1-9]
+  confidence: confirmed
+
+- id: F-625
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that METHOD.md restating the gate vocabulary table is how two lists drift (#323)
+    became the gate-vocabulary block reading the validator's sets against the glossary and
+    SCHEMA.md.
+  evidence: [tests/blocks/gate-vocabulary.mjs:81-88]
+  confidence: confirmed
+
+- id: F-626
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that the descriptors-drift fixture failed sixteen ways, fifteen unrelated, so it
+    proved nothing about its own check, became the harness rule that a negative fixture must
+    fire its named violation and only that one.
+  evidence: [tests/blocks/negative-fixtures.mjs:10-15]
+  confidence: confirmed
+
+- id: F-627
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a red proof said once in a commit message is never re-checked (#321) became
+    prove-red, a list of source mutations each core invariant's block must go red under, run as
+    a step of the gate CI runs.
+  evidence: [tests/prove-red.mjs:2-7, lib/gate.mjs:29, .github/workflows/ci.yml:38]
+  confidence: confirmed
+
+- id: F-628
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that a hand-edited label line in one regression file let a merge drop a block's
+    name (#87) became one file per block with the runner composing the gate line, probed by the
+    block-runner block.
+  evidence: [tests/blocks/block-runner.mjs:1-6]
+  confidence: confirmed
+
+- id: F-629
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Doc pointers that once named files that do not exist became a STALE list in the
+    doc-consistency block that fails if any reappears.
+  evidence: [tests/blocks/doc-consistency.mjs:96-106]
+  confidence: confirmed
+
+- id: F-630
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The lesson that variance printed its measures and exited 0 at any agreement level, so the
+    repeatability figures the docs cite could not be reproduced (#57), became committed sweep
+    sets gated at their own thresholds by the sweep-gate block, with a prove-red entry refusing a
+    threshold of 0.
+  evidence: [tests/blocks/sweep-gate.mjs:1-5, map/METHOD.md:493-500, map/variance.mjs:532, tests/prove-red.mjs:79-83]
+  confidence: confirmed
+
+- id: F-631
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The field finding that two canon-pinned runs agreed on few channels' descriptors became a
+    per-candidate descriptor agreement measure and a descriptor-divergence class that backlog
+    --prior emits as items.
+  evidence: [map/variance.mjs:31-41, map/SCHEMA.md:373-376, lib/run-data.mjs:329]
+  confidence: confirmed
+
+# ── backlog-records (context for d-backlog-is-issues) ─────────────────────────
+
+- id: F-640
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The agent contract and CONTRIBUTING name the issue tracker as the home of engine learnings,
+    and doc-consistency pins that sentence, but no file states a label scheme (need-by, kind,
+    size) or that the landing change closes the issue it cites.
+  evidence: [CLAUDE.md:64-67, CONTRIBUTING.md:58-59, tests/blocks/doc-consistency.mjs:94]
+  confidence: confirmed
+
+- id: F-641
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The weekly tools-check workflow records pins behind upstream as one issue, found by title and
+    commented on only when its list changed, but creates it with no label.
+  evidence: [.github/workflows/tools-check.yml:30-35]
+  confidence: confirmed
+
+- id: F-642
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The pull request template asks what changed and how it is verified but has no place for the
+    issue the change closes.
+  evidence: [.github/PULL_REQUEST_TEMPLATE.md:1-10]
+  confidence: confirmed
+
+- id: F-643
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Each run's authored method backlog is a validated list whose items carry a status of
+    proposed, filed or dropped, and validation refuses a filed item that names no issue, so the
+    run-side list hands off to the tracker.
+  evidence: [map/METHOD.md:840-858, lib/run-data.mjs:360-376]
+  confidence: confirmed
+
+- id: F-644
+  dimension: improvement-loop
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The computed half of a run's method backlog is a tool-owned, regenerable map/backlog.yaml
+    written into the run directory, not issues on the tracker.
+  evidence: [map/backlog.mjs:2-17]
+  confidence: confirmed
+
+- id: F-645
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The scanner roster is a list file carrying candidate rows; its Second-line candidates table
+    still lists osv-scanner and Checkov, which its Adopted table records as adopted, while only
+    madge and lizard point at an issue (#108).
+  evidence: [map/scanners/CANDIDATES.md:41-42, map/scanners/CANDIDATES.md:108-116]
+  confidence: confirmed
+
+- id: F-646
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Outstanding work is written in the legibility-bar header (the row reads not measured until a
+    public answered sweep set is committed) with no issue named for it.
+  evidence: [yardstick/legibility-bar.yaml:23-26]
+  confidence: confirmed
+
+- id: F-647
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    Deferred yardstick rows (docs-current-with-code, paid-spend-capped,
+    effects-attributed-to-verified-actor) are named in the members vocabulary as candidates that
+    point at issue #257, not kept as a list of their own.
+  evidence: [yardstick/requirements.yaml:119, yardstick/requirements.yaml:122, yardstick/requirements.yaml:134]
+  confidence: confirmed
+
+- id: F-648
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Mechanisms cite the issue whose work they finish in their headers (prove-red #321, the
+    findings loader #53, the sweep gate #57), so the change is tied to its tracker record from
+    the tree; whether each issue was closed by it is not visible here.
+  evidence: [tests/prove-red.mjs:2, tests/blocks/findings-loader.mjs:1, tests/blocks/sweep-gate.mjs:1]
+  confidence: plausible
+
+# ── discovery: impact-self-measured, usage-outcome-records-emitted ────────────
+
+- id: F-660
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The engine measures its own recall on public known-answer fixtures, pinned per fixture in
+    tests/golden.json, and npm test fails on any drift from those scores.
+  evidence: [tests/README.md:3-5, tests/golden.json:1-25]
+  confidence: confirmed
+  property: impact-self-measured
+
+- id: F-661
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    A target's before-and-after is computed, not studied: Since and compare classify every
+    requirement as regressed, improved, newly or no longer measured between two measurements,
+    keeping engine re-rulings apart.
+  evidence: [yardstick/compare.mjs:12-13, views/since.mjs:158-159]
+  confidence: confirmed
+  property: impact-self-measured
+
+- id: F-662
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    The method's own growth is tallied across runs: candidate properties are counted per
+    independent target, and saturation lists how many new properties each run adds.
+  evidence: [views/improve/tally.mjs:2-15]
+  confidence: confirmed
+  property: impact-self-measured
+
+- id: F-663
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    What the engine is worth to the repositories it is run on is not recorded: change records
+    carry Consumer trailers saying what a consumer must change, and no field or record states
+    the gaps closed or held after a handoff across consumers.
+  evidence: [CONTRIBUTING.md:44-48, RUNBOOK.md:12-14]
+  confidence: plausible
+  property: impact-self-measured
+
+- id: F-664
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Every routine firing writes a structured routine.yaml (commit, engine, trigger, baseline,
+    gate outcome, failures, exit) on every path, by design for reading without the CI logs.
+  evidence: [routine/README.md:39-67, routine/run.mjs:126-128]
+  confidence: confirmed
+  property: usage-outcome-records-emitted
+
+- id: F-665
+  dimension: improvement-loop
+  polarity: strength
+  subject_type: process
+  observation: >
+    Each scanner's spend and duration are carried in the run record and aggregated per sweep by
+    sweepCost, copied as recorded and never filled in.
+  evidence: [map/variance.mjs:473-484]
+  confidence: confirmed
+  property: usage-outcome-records-emitted
+
+- id: F-666
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    No population-level aggregation of routine outcomes exists in the tree: the fleet collector
+    that routine.yaml is written for is named only in the routine's README and a comment.
+  evidence: [routine/README.md:40-42, routine/run.mjs:127-128]
+  confidence: confirmed
+  property: usage-outcome-records-emitted

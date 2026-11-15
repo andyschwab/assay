@@ -20,17 +20,85 @@
 # and tests/blocks/legibility-bar-recomputed.mjs fails the suite when this file disagrees with them.
 # A set joins `sets:` only when it is blind and its runs answer the checklist (a version 2 triage).
 #
-# As shipped, no committed set carries a version 2 triage with answers (every set under tests/sweeps/
-# predates the answers or writes a version 1 triage), so no question has a figure, none qualifies, and
-# d-effect-facts-legible reads not measured on every target until a public answered sweep set is
-# committed. tests/sweeps/README.md, "An answered set", gives the commands that produce one.
+# The figures below rest on the two public answered sets of 2026-11-15 (tests/sweeps/assay-2026-11-15,
+# tests/sweeps/flawed-webapp-2026-11-15): three blind practice-review lanes over each target, the method
+# at a17104d, after #337 defined every answer. Every question clears the bar pooled over both. A new
+# answered set is added here, and the figures recomputed, in the change that commits it.
 schema: assay.legibility-bar
 version: 1
 bar: 75
 bar_reason: "The one round that measured the answers per question (#315, a three-lane round on one private target at v0.15.0) splits at a step: refuses_unless 85%, staged 83% and second_act 78% sit above it, then disclosed 70%, person_act and received_or_gone 63%, window 45%, rate_limit 38% and declared_scope 15%. The questions above the step ask for a mechanism a reader can point at; below it sit the three #337 rewords and the questions whose wording still admits two readings. 75% keeps one reader in four parting on a question before it is read as the target's, and is checked here against committed public sets, never against that private round."
 targets_at_least: 2
 targets_reason: "A question lanes part on over one target may be that target's ambiguity or assay's wording; only agreement held on two targets or more separates them (#338)."
-sets: []
-questions: []
+sets:
+  - set: assay-2026-11-15
+    target: "andyschwab/assay, this repository (public), at the commit below"
+    reason: "blind: three fresh-context practice-review lanes over this repository at a17104d, the method at the same commit, every triage version 2 with answers"
+  - set: flawed-webapp-2026-11-15
+    target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only"
+    reason: "blind: three fresh-context practice-review lanes over the public flawed-webapp fixture target at 7f7c89d, the method at a17104d, every triage version 2 with answers"
+questions:
+  - question: refuses_unless
+    agreement: 78
+    agree: 25
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "25 of 32 candidates answered alike by every lane (78%), pooled over both targets, clears the bar of 75%"
+  - question: second_act
+    agreement: 100
+    agree: 32
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
+  - question: staged
+    agreement: 100
+    agree: 32
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
+  - question: person_act
+    agreement: 84
+    agree: 27
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "27 of 32 candidates answered alike by every lane (84%), pooled over both targets, clears the bar of 75%"
+  - question: declared_scope
+    agreement: 91
+    agree: 29
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "29 of 32 candidates answered alike by every lane (91%), pooled over both targets, clears the bar of 75%"
+  - question: rate_limit
+    agreement: 100
+    agree: 32
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
+  - question: disclosed
+    agreement: 100
+    agree: 32
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
+  - question: received_or_gone
+    agreement: 78
+    agree: 25
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "25 of 32 candidates answered alike by every lane (78%), pooled over both targets, clears the bar of 75%"
+  - question: window
+    agreement: 100
+    agree: 32
+    of: 32
+    targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
+    sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
 below_bar: []
-none_qualify: "no committed sweep set carries a version 2 triage with answers, so no question of the checklist has a cross-target figure, and none has cleared the bar"

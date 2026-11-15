@@ -1,0 +1,350 @@
+- id: F-700
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The start command's usage and flags are stated outside the code in CONSUMERS.md's command table and the README Quickstart, including exit 3 when tools are not ready.
+  evidence: ["assay.mjs:22", "CONSUMERS.md:20", "README.md:179"]
+  confidence: confirmed
+- id: F-701
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The validate command's usage and its fail-closed exit are stated in CONSUMERS.md's command table and the README Quickstart.
+  evidence: ["assay.mjs:23", "CONSUMERS.md:25", "README.md:201"]
+  confidence: confirmed
+- id: F-702
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ingest command's usage (run, tool, raw report, exit code) and its id range are stated in CONSUMERS.md and the README Quickstart.
+  evidence: ["assay.mjs:24", "CONSUMERS.md:23", "README.md:193"]
+  confidence: confirmed
+- id: F-703
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The record command's usage and disposition values are stated in CONSUMERS.md and the README Quickstart.
+  evidence: ["assay.mjs:25", "CONSUMERS.md:24", "README.md:195"]
+  confidence: confirmed
+- id: F-704
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The lane command's two forms are stated in CONSUMERS.md, the listing form with its JSON output shape.
+  evidence: ["assay.mjs:26", "CONSUMERS.md:21-22", "README.md:197"]
+  confidence: confirmed
+- id: F-705
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The tools command's install and verify forms and their flags are stated in CONSUMERS.md and the README Quickstart.
+  evidence: ["assay.mjs:27", "CONSUMERS.md:18-19", "README.md:185-186"]
+  confidence: confirmed
+- id: F-706
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The migrate-run command's usage is stated in CONSUMERS.md and the README Quickstart.
+  evidence: ["assay.mjs:28", "CONSUMERS.md:34", "README.md:208"]
+  confidence: confirmed
+- id: F-707
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The enumerate command's usage is stated in map/METHOD.md and map/SCHEMA.md §6e, though it is not a row of CONSUMERS.md's command table, which calls whatever it does not list internal.
+  evidence: ["assay.mjs:29", "map/METHOD.md:83", "map/SCHEMA.md:1136-1138", "CONSUMERS.md:3-7"]
+  confidence: confirmed
+- id: F-708
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The project command's usage and its JSON output shape are stated in CONSUMERS.md.
+  evidence: ["assay.mjs:30", "CONSUMERS.md:26"]
+  confidence: confirmed
+- id: F-709
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The toolchain command's usage and its JSON output shape, with the closed family values, are stated in CONSUMERS.md.
+  evidence: ["assay.mjs:31", "CONSUMERS.md:27"]
+  confidence: confirmed
+- id: F-710
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The fresh-clone command's usage is stated in map/scanners/CONTRACT.md §3b; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:32", "map/scanners/CONTRACT.md:577-580"]
+  confidence: confirmed
+- id: F-711
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The dependency-scan command's usage is stated in map/scanners/CONTRACT.md §3c; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:33", "map/scanners/CONTRACT.md:658-661"]
+  confidence: confirmed
+- id: F-712
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The structure-scan command's usage is stated in map/scanners/CONTRACT.md §3e; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:34", "map/scanners/CONTRACT.md:1046-1049"]
+  confidence: confirmed
+- id: F-713
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The repo-census command's usage and flags are stated in map/scanners/CONTRACT.md §3d and owner/evidence/README.md; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:35", "map/scanners/CONTRACT.md:915-918", "owner/evidence/README.md:126"]
+  confidence: confirmed
+- id: F-714
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The variance command's usage and its full JSON output shape are stated in CONSUMERS.md.
+  evidence: ["assay.mjs:36", "CONSUMERS.md:32", "README.md:238"]
+  confidence: confirmed
+- id: F-715
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The score command's usage is stated in map/METHOD.md and CLAUDE.md; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:37", "map/METHOD.md:824", "CLAUDE.md:51"]
+  confidence: confirmed
+- id: F-716
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The backlog command's usage and the file it generates are stated in map/SCHEMA.md §5b; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:38", "map/SCHEMA.md:726-728"]
+  confidence: confirmed
+- id: F-717
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The roster command's usage and output are stated in map/scanners/INTAKE.md; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:39", "map/scanners/INTAKE.md:46-47"]
+  confidence: confirmed
+- id: F-718
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The yardstick command's usage and the JSON shape of its floor listing are stated in CONSUMERS.md and the README Quickstart.
+  evidence: ["assay.mjs:42", "CONSUMERS.md:35", "CONSUMERS.md:62-65", "README.md:212"]
+  confidence: confirmed
+- id: F-719
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The measure command's usage is stated in yardstick/README.md's "Running it" section and the README; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:43", "yardstick/README.md:690-692", "README.md:141"]
+  confidence: confirmed
+- id: F-720
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The compare command's usage, its JSON output shape and its closed classification values are stated in CONSUMERS.md.
+  evidence: ["assay.mjs:44", "CONSUMERS.md:30"]
+  confidence: confirmed
+- id: F-721
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ratchet command's usage is stated in CONSUMERS.md, the README Quickstart and yardstick/README.md.
+  evidence: ["assay.mjs:45", "CONSUMERS.md:29", "yardstick/README.md:782-783"]
+  confidence: confirmed
+- id: F-722
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The validate-packet command's usage is stated in owner/PACKET.md's "Validate it" section; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:46", "owner/PACKET.md:21-25"]
+  confidence: confirmed
+- id: F-723
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ask-owner command's usage is stated in the README and owner/ask-owner.md; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:47", "README.md:142-143", "owner/ask-owner.md:6"]
+  confidence: confirmed
+- id: F-724
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The routine command's two forms, the routine.yaml it writes and its gate values and exit codes are stated in CONSUMERS.md.
+  evidence: ["assay.mjs:50", "CONSUMERS.md:33"]
+  confidence: confirmed
+- id: F-725
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The compile command's usage and every flag are stated in CONSUMERS.md and the README Quickstart.
+  evidence: ["assay.mjs:53", "CONSUMERS.md:28", "README.md:204"]
+  confidence: confirmed
+- id: F-726
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The owner command's usage line appears only in views/owner.mjs's head comment and usage error and in assay.mjs's help text; views/README.md names the script and the files it writes but no command usage, and CONSUMERS.md has no row for it.
+  evidence: ["assay.mjs:54", "views/owner.mjs:22", "views/owner.mjs:375", "views/README.md:95"]
+  confidence: confirmed
+- id: F-727
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The since command's usage and the files it writes are stated in views/README.md and yardstick/README.md; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:55", "views/README.md:368-369", "yardstick/README.md:766"]
+  confidence: confirmed
+- id: F-728
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The maturity command's usage and the shape of the file its write flag produces are stated in CONSUMERS.md.
+  evidence: ["assay.mjs:56", "CONSUMERS.md:31"]
+  confidence: confirmed
+- id: F-729
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The candidates command's usage is stated in views/README.md's candidates-tally section; it is not a row of CONSUMERS.md's command table.
+  evidence: ["assay.mjs:57", "views/README.md:340-342"]
+  confidence: confirmed
+- id: F-730
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The run directory's layout is stated in map/SCHEMA.md §5 and, as the paths a consumer reads, in CONSUMERS.md's run-layout table, with lib/run-layout.mjs named as the one module that places them.
+  evidence: ["map/SCHEMA.md:461", "CONSUMERS.md:142-145"]
+  confidence: confirmed
+- id: F-731
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The measurement yardstick.yaml is stated in yardstick/README.md (per requirement a status from a closed set, the finding ids and a note) and in CONSUMERS.md's run-layout table.
+  evidence: ["yardstick/README.md:9-12", "CONSUMERS.md:154"]
+  confidence: confirmed
+- id: F-732
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The consumer rows API views/rows.mjs is stated in views/README.md's "A view of a population" section and CONSUMERS.md's Modules table, which names its exact exports and signatures.
+  evidence: ["views/README.md:30-38", "CONSUMERS.md:172"]
+  confidence: confirmed
+- id: F-733
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The scanner adapter format is stated field by field in map/scanners/CONTRACT.md §3, one file per scanner under adapters/.
+  evidence: ["map/scanners/CONTRACT.md:91-95"]
+  confidence: confirmed
+- id: F-734
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The owner packet format is stated in owner/PACKET.md's "The format" section, with its validation command in "Validate it".
+  evidence: ["owner/PACKET.md:66-72", "owner/PACKET.md:21-25"]
+  confidence: confirmed
+- id: F-735
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The tools composite action's call, its one input and its behaviour on failure are stated in CONSUMERS.md's "The tools action" section, matching the action's declared input.
+  evidence: ["CONSUMERS.md:75-89", ".github/actions/tools/action.yml:14-18"]
+  confidence: confirmed
+- id: F-736
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The routine workflow template is stated in routine/README.md, including what it produces, its two jobs and how to install it into a stewarded repository.
+  evidence: ["routine/README.md:15-17", "routine/README.md:206-209", "routine/assay-routine.yml:12-13"]
+  confidence: confirmed
+- id: F-737
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    Every view reads one shared measurement of the map, yardstick.yaml, and no view decides a requirement on its own.
+  evidence: ["CLAUDE.md:23-26", "yardstick/README.md:9-12"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-738
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    A consumer builds its own view from the same measurement through the one module views/rows.mjs, and assay writes no view for one consumer.
+  evidence: ["CONSUMERS.md:174-179", "CLAUDE.md:42-44", "views/README.md:32-35"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-739
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The routine writes an ordinary run directory plus routine.yaml and hands it to whoever watches the workflow run, so a fleet collector reads the outcome from the run artifact alone.
+  evidence: ["routine/README.md:21-27", "routine/README.md:39-42"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-740
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    Keeping fresh-clone's unstripped report is an explicit operator flag whose file start refuses inside the run, and the run's own copy stays stripped.
+  evidence: ["map/start.mjs:546-550", "map/scanners/CONTRACT.md:548-555", "CONSUMERS.md:20"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-741
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    routine/README.md discloses that the uploaded run artifact is readable by anyone who can read the repository's workflow runs, unfiltered by the upload step, and that ingest drops output tails and userinfo before archiving.
+  evidence: ["routine/README.md:29-37", "map/fresh-clone.mjs:105-111"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-742
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    CLAUDE.md rule 6 states the repository is public and bars client or target names, run history, real credentials and links into private repositories.
+  evidence: ["CLAUDE.md:30-33"]
+  confidence: confirmed
+  property: sharing-is-consented

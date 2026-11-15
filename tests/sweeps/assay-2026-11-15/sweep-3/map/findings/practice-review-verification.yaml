@@ -1,0 +1,218 @@
+- id: F-400
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The practice-review method (map/METHOD.md, typed a skill) and its lane seed have their
+    repeatability measured rather than assumed: map/variance.mjs takes three measures over blind
+    sweeps of one target (fact presence, descriptor agreement per listed candidate, requirement
+    agreement), sorts each descriptor divergence by direction into target change or judgment drift,
+    and the harness gates every committed sweep set at its own SWEEP.yaml threshold; the recorded
+    figures for the newest blind set over this repository (13% fact presence, 40% descriptor
+    agreement, 92% requirement agreement) are stated beside the measure.
+  evidence:
+    - "map/METHOD.md:1-5"
+    - "map/METHOD.md:829-836"
+    - "map/scanners/adapters/practice-review/lane.md:1-10"
+    - "map/variance.mjs:24-72"
+    - "map/variance.mjs:294-298"
+    - "tests/blocks/sweep-gate.mjs:17-31"
+    - "README.md:232-243"
+  confidence: confirmed
+- id: F-401
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The deep-code-review lane seed is a relied-on rubric whose rows feed floor requirements, but no
+    doc outside tests/sweeps/ describes a sweep set that measures its repeatability: the adapter
+    reads its evidence as cited, the confidence block attaches repeatability only where a named set
+    measured a source, and the harness asserts the fixture set's sources exclude deep-code-review.
+  evidence:
+    - "map/scanners/adapters/deep-code-review/lane.md:17-21"
+    - "map/scanners/adapters/deep-code-review.yaml:167"
+    - "map/scanners/CONTRACT.md:224-230"
+    - "tests/blocks/confidence-on-every-item.mjs:132-138"
+  confidence: plausible
+- id: F-402
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The owner prompt owner/ask-owner.md asks the owner's AI tool to answer much of the packet from
+    the code, and what comes back is checked for shape and refused content (validate-packet, the
+    --found sweep), but nothing in the tree measures whether the prompt yields the same packet
+    across repeated runs.
+  evidence:
+    - "owner/ask-owner.md:5-17"
+    - "owner/ask-owner.mjs:30-35"
+  confidence: plausible
+- id: F-403
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The pull request template carries a "How this is verified" section asking for the gate's exit
+    line and each red seen, but no check reads the pull request body: CI on pull_request runs only
+    npm run gate, whose steps read no body, and the one test that names the template checks only
+    that CONTRIBUTING.md mentions it.
+  evidence:
+    - ".github/PULL_REQUEST_TEMPLATE.md:5-10"
+    - ".github/workflows/ci.yml:10-13"
+    - ".github/workflows/ci.yml:38"
+    - "lib/gate.mjs:27-34"
+    - "tests/blocks/gate-command.mjs:60-63"
+    - "CONTRIBUTING.md:53-54"
+  confidence: confirmed
+- id: F-404
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    A commit-message check exists and fails closed in the gate and before a release: node
+    lib/release-notes.mjs --check exits 1 naming each commit that touches the consumer surface with
+    no Consumer: trailer, and a shallow history fails loud; it reads what a consumer must change,
+    not how the change was verified.
+  evidence:
+    - "lib/release-notes.mjs:13-17"
+    - "lib/release-notes.mjs:32-38"
+    - "lib/gate.mjs:33"
+    - ".github/workflows/release.yml:42-43"
+    - "tests/blocks/consumer-contract.mjs:108-110"
+    - "tests/blocks/consumer-contract.mjs:122-128"
+  confidence: confirmed
+- id: F-405
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    For an assertion outside the red-proof list, the contract asks the commit message and the pull
+    request body to say it was confirmed red, and no check reads either for that statement.
+  evidence:
+    - "CLAUDE.md:55-63"
+    - "CONTRIBUTING.md:29-36"
+    - "lib/gate.mjs:27-34"
+  confidence: confirmed
+- id: F-406
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The review lane's answer (a model-written findings base) is graded for quality by map/score.mjs
+    against known-answer sheets, and the harness pins recall and false positives of the stored
+    fixture runs on every change, but the CI eval reads stored runs and never calls the lane with
+    fixed inputs; the method itself says a scored run authored beside its answers proves the
+    pipeline, not the lane.
+  evidence:
+    - "map/score.mjs:1-21"
+    - "tests/blocks/fixture-recall.mjs:11-30"
+    - "map/METHOD.md:822-831"
+  confidence: confirmed
+- id: F-407
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A change demonstrates its core-invariant assertions mechanically: tests/prove-red.mjs holds 57
+    entries, each a source mutation that must turn its named check red for its own reason and green
+    when restored, run in a scratch copy on every gate, and the gate ends on one exit line naming
+    each failed step.
+  evidence:
+    - "tests/prove-red.mjs:2-24"
+    - "tests/prove-red.mjs:43-48"
+    - "lib/gate.mjs:27-34"
+    - "lib/gate.mjs:54-58"
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-408
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    fresh-clone does not take a test step's exit 0 as the suite having run: it records the runner's
+    own pass, skip and fail counts from the whole output, or unparsed, and records an undeclared
+    step as not-declared, never passed.
+  evidence:
+    - "map/fresh-clone.mjs:17-21"
+    - "map/fresh-clone.mjs:262-269"
+    - "map/fresh-clone.mjs:340-343"
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-409
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    An instrument with a positive control is run over its planted cases first, and zero results on
+    the target read clean only when every planted hit was reported; a control that did not fire
+    marks the instrument failed and the target is not scanned.
+  evidence:
+    - "map/start.mjs:255-278"
+    - "map/start.mjs:315-323"
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-410
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A tool install is confirmed, not reported: the download's sha256 is compared to the pin before
+    anything is installed, and verify asks each binary on PATH for its version and reads ready only
+    when it exits 0 and prints the pinned one; the routine refuses to draw a map until that holds.
+  evidence:
+    - "map/tools.mjs:126-133"
+    - "map/tools.mjs:146-160"
+    - "routine/run.mjs:6-10"
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-411
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A lane's fluent output is checked mechanically whoever reads it: validate --target fails closed
+    on a cited path absent from the target and on a cited line past the end of its file, checks a
+    commit citation against the target's history, and the routine runs it before compiling
+    anything.
+  evidence:
+    - "map/validate.mjs:459-462"
+    - "map/validate.mjs:474-499"
+    - "routine/run.mjs:238-244"
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-412
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    No check reads whether a cited line says what the finding's observation claims: validate states
+    it can check only that the path resolves and the line is inside the file, so a fluent
+    observation over a resolving but unrelated line passes.
+  evidence:
+    - "map/validate.mjs:459-462"
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-413
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    The routine does not report success on an unrun step: a failed validate or compile ends the run
+    with gate not-run and the reason recorded, and a base ref that does not resolve exits 1 rather
+    than reading as no baseline yet.
+  evidence:
+    - "routine/run.mjs:238-255"
+    - "routine/run.mjs:283-288"
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-414
+  dimension: verification
+  polarity: fact
+  subject_type: process
+  observation: >
+    The release job's last step trusts gh release create's exit status under set -e and reads
+    nothing back to confirm the tag and release exist afterwards.
+  evidence:
+    - ".github/workflows/release.yml:44-50"
+  confidence: confirmed
+  property: effect-confirmed-not-reported

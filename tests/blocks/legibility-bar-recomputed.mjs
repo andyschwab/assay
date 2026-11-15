@@ -15,8 +15,8 @@
 //       figures pool per question across the sets, and a question qualifies only at or above the bar
 //       on both targets; a file stating them agrees, one off by a count disagrees;
 //   (e) variance --set lists, on that set, each candidate and qualifying question where the lanes
-//       part, with each sweep's answer, and never a question below the bar; with no qualifying
-//       question it lists nothing and says so.
+//       part, with each sweep's answer, and never a question below the bar; with a bar that lists no
+//       qualifying question it lists nothing and says so.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, cpSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -86,10 +86,13 @@ export async function run() {
     const diff = barDisagreements(shipped.doc, committed);
     if (diff.length) fail(`(a) yardstick/legibility-bar.yaml disagrees with the committed sweep sets (recompute: node yardstick/legibility-bar-check.mjs): ${diff.join('; ')}`);
 
-    // (b) a file that lists a qualifying question no committed set gives a figure
+    // (b) a file that lists a qualifying question no committed set gives a figure. Re-pinned when the
+    // first answered sets were committed (2026-11-15): the shipped sets now give every question a
+    // figure, so the claim is checked against sets that give none, which is the case the rule names.
+    const noFigures = legibilityBarFromSets([], { bar: shipped.bar, targetsAtLeast: shipped.targetsAtLeast });
     const claimed = join(tmp, 'claimed.yaml');
     writeFileSync(claimed, barText({ sets: [{ set: 'set-one', target: 'target one' }], questions: [{ question: 'refuses_unless', agreement: 90, agree: 9, of: 10, targets: ['target one', 'target two'], sets: ['set-one'] }] }));
-    const claimedDiff = barDisagreements(loadBar(claimed).doc, committed);
+    const claimedDiff = barDisagreements(loadBar(claimed).doc, noFigures);
     if (!claimedDiff.some((x) => /questions: refuses_unless is listed, and the committed sets give it no figure there/.test(x))) fail(`(b) a bar file listing refuses_unless as qualifying, which no committed set gives a figure, disagrees with the committed sets, naming it (got ${JSON.stringify(claimedDiff)})`);
     if (!claimedDiff.some((x) => /sets: set-one is listed/.test(x))) fail(`(b) a bar file listing a set no committed set is disagrees, naming it (got ${JSON.stringify(claimedDiff)})`);
 
@@ -144,7 +147,11 @@ export async function run() {
     }
     const t = assay('variance', '--set', one, '--bar', stated);
     if (!t.stdout.includes('where lanes part on a question that clears the legibility bar') || !t.stdout.includes(`${POST.padEnd(40)} received_or_gone: yes vs not-determinable`)) fail(`(e) the text report lists the parting under its heading (got ${t.stdout.slice(0, 200)})`);
-    const empty = assay('variance', '--set', one);
-    if (!empty.stdout.includes('no checklist question has cleared the cross-target bar: nothing is listed')) fail('(e) with the shipped bar, which lists no qualifying question, variance --set lists nothing and says so');
+    // re-pinned when the shipped bar first listed qualifying questions (2026-11-15): a stated bar with
+    // none is the case the rule names, so the test states it rather than read the shipped file
+    const noneBar = join(tmp, 'none.yaml');
+    writeFileSync(noneBar, barText({}));
+    const empty = assay('variance', '--set', one, '--bar', noneBar);
+    if (!empty.stdout.includes('no checklist question has cleared the cross-target bar: nothing is listed')) fail('(e) with a bar that lists no qualifying question, variance --set lists nothing and says so');
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }

@@ -1,0 +1,214 @@
+- id: F-400
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /notes writes a new note into the shared workspace store for any caller, an
+    unauthenticated one included (resolved to the fallback admin identity), with no check on
+    the body before the write and nothing printed or kept about the write.
+  evidence: ["server.mjs:35-39", "server.mjs:16", "lib/auth.mjs:12", "lib/agent.mjs:12-15"]
+  confidence: confirmed
+  effect:
+    channel: note-create
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+- id: F-401
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /assistant calls sendEmail with a recipient and subject parsed from the model's
+    output and a body of every member's note text, with nothing between the directive parse
+    and the send; in this build the transport only prints a log line and delivers nothing
+    (the header's production relay is not in the code), so by the definitions as the code
+    stands the effect is recorded reversible and not external.
+  evidence: ["server.mjs:42-44", "lib/agent.mjs:33-40", "lib/mailer.mjs:1-2", "lib/mailer.mjs:5-8", "lib/auth.mjs:12"]
+  confidence: confirmed
+  effect:
+    channel: assistant-email-send
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: tenant
+- id: F-402
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /sync, with no authorization check, POSTs the full note set of every member to the
+    external backup URL under the shared backup key, fire-and-forget with its error swallowed
+    and nothing logged or kept.
+  evidence: ["server.mjs:47-49", "lib/sync.mjs:5-13", "config/settings.mjs:4"]
+  confidence: confirmed
+  preconditions: [network-position]
+  effect:
+    channel: workspace-backup-push
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+- id: F-403
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  observation: >
+    POST /admin/purge clears every note and every user's note list in place with no retention
+    and no record, behind a role check that refuses a member's token but passes every
+    unauthenticated caller, because an unknown or missing token resolves to an admin identity.
+  evidence: ["server.mjs:52-54", "routes/admin.mjs:6-10", "lib/auth.mjs:9-12", "lib/auth.mjs:15-17", "lib/db.mjs:27-30"]
+  confidence: confirmed
+  preconditions: [network-position]
+  effect:
+    channel: workspace-purge
+    reversibility: irreversible
+    external: false
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+- id: F-404
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  observation: >
+    The assistant's one context holds the caller's question and every member's note text
+    (untrusted), every note with its owner's email (private), and an outward send whose
+    recipient and subject the model's output chooses, parsed and executed with no gate; the
+    send leg is recorded write because the authored function's contract is an email to any
+    address, though this build's transport is a log-only stand-in as the model is a stub.
+  evidence: ["lib/agent.mjs:11-20", "lib/agent.mjs:27-31", "lib/agent.mjs:33-41", "lib/mailer.mjs:5-8", "lib/agent.mjs:4-7"]
+  confidence: plausible
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+  label: "assistant context over every member's notes"
+  preconditions: [prompt-injection]
+  reaches: [F-401]
+- id: F-405
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The backup API key is a literal in committed settings, read at one site as the bearer
+    header of the backup POST, which an unauthorized route triggers; it stays out of the
+    assistant's prompt, but what the key may do at the backup service beyond that push is
+    stated nowhere in the tree, so its reach there is not traced.
+  evidence: ["config/settings.mjs:5-6", "config/settings.mjs:4", "lib/sync.mjs:8-11", "server.mjs:47-49", "lib/agent.mjs:8-9"]
+  confidence: confirmed
+- id: F-406
+  dimension: delegation
+  polarity: strength
+  subject_type: control
+  observation: >
+    The token table's reach is traced in code: its only read is the session lookup, which
+    maps a token to a user whose role is declared beside it, consumed by authenticate and the
+    admin check (though the tokens are literals in source and the fallback identity makes
+    holding one unnecessary).
+  evidence: ["lib/db.mjs:13-24", "lib/db.mjs:2-6", "lib/auth.mjs:6-8", "routes/admin.mjs:7"]
+  confidence: confirmed
+- id: F-407
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    POST /notes text is stored verbatim with its owner, then interpolated undelimited into
+    the assistant prompt beside the tool instruction, where a TOOL:send_email line in any
+    member's note is reproduced by the model and executed as a send.
+  evidence: ["server.mjs:36-38", "lib/agent.mjs:12-19", "lib/agent.mjs:28-29", "lib/agent.mjs:35-39"]
+  confidence: confirmed
+  preconditions: [prompt-injection]
+  reaches: [F-404]
+- id: F-408
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    POST /assistant question text is interpolated undelimited into the prompt, and a
+    TOOL:send_email line in it is reproduced by the model and acted on as an instruction to
+    send every note to the address it names.
+  evidence: ["server.mjs:43-44", "lib/agent.mjs:19", "lib/agent.mjs:28-29", "lib/agent.mjs:35-39"]
+  confidence: confirmed
+  preconditions: [prompt-injection]
+  reaches: [F-404]
+- id: F-409
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant's emailed summary carries a model-chosen subject and the notes as body with
+    no notice of AI involvement; the only trace is the sender setting naming the address
+    assistant, a naming convention rather than a stated disclosure mechanism, and no file
+    records why its recipients need none.
+  evidence: ["lib/agent.mjs:35-39", "lib/mailer.mjs:5-7", "config/settings.mjs:7"]
+  confidence: confirmed
+- id: F-410
+  dimension: delegation
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The assistant's answer returns to the caller from a route named /assistant that the
+    README describes as the AI assistant, which names AI involvement for that channel by the
+    route and its docs, not in the response itself.
+  evidence: ["server.mjs:42-44", "lib/agent.mjs:40-42", "README.md:3-5", "README.md:18"]
+  confidence: confirmed
+- id: F-411
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Every request with an unknown or missing token acts as one opaque fallback principal
+    with the admin role, so each effect an unauthenticated caller fires runs as that shared
+    identity and the admin check passes it, the check failing open when the token it needs
+    is absent.
+  evidence: ["lib/auth.mjs:9-12", "lib/auth.mjs:15-17", "routes/admin.mjs:7", "server.mjs:27"]
+  confidence: confirmed
+  property: acting-principal-stated
+- id: F-412
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The backup push acts as the one shared service key whoever calls POST /sync, and the
+    assistant's mail goes from one shared sender address on the caller's behalf, so neither
+    effect carries the identity of the person who set it off.
+  evidence: ["server.mjs:47-49", "lib/sync.mjs:10", "lib/mailer.mjs:7", "config/settings.mjs:7", "lib/agent.mjs:1-2"]
+  confidence: confirmed
+  property: acting-principal-stated
+- id: F-413
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Notes are scoped to their owner on GET /notes, yet the assistant reads and emails every
+    member's notes and the backup pushes them all, with no sanctioned, gated path by which
+    data leaves its owner's scope; the admin role is granted only by a literal in the store.
+  evidence: ["server.mjs:31", "lib/agent.mjs:12-15", "lib/agent.mjs:38", "lib/sync.mjs:6", "lib/db.mjs:5"]
+  confidence: confirmed
+  property: scope-promotion-path
+- id: F-414
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing reasons over the provenance of the TOOL directive: the parse accepts any matching
+    line of model output, and though prompt entries are prefixed with their owner's email,
+    no code reads that label before the send.
+  evidence: ["lib/agent.mjs:14", "lib/agent.mjs:35-39"]
+  confidence: confirmed
+  property: policy-reads-provenance
+- id: F-415
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant acts with agency (it sends mail on the model's directive) yet carries no
+    behavioural spec, no output check on the directive and no pre-release verification; the
+    tree's only tests assert a token resolves a user.
+  evidence: ["lib/agent.mjs:33-41", "test/smoke.mjs:7-9", "package.json:6-8"]
+  confidence: confirmed
+  property: control-matches-modality
