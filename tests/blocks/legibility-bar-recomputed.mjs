@@ -64,6 +64,11 @@ function writeSet(dir, target, overs, enumerateJson) {
   writeFileSync(join(dir, 'SWEEP.yaml'), `target: "${target}"\ntarget_commit: "fixture"\nmethod_commit: "fixture"\ndate: "2026-11-15"\nblind: true\nthreshold:\n  fact_presence: 1\n  candidate_agreement: 1\n  descriptor_agreement: 1\n  requirement_agreement: 1\nsweeps: [${overs.map((_, i) => `sweep-${i + 1}`).join(', ')}]\n`);
 }
 
+// Re-pinned when the bar gained its per-target figures (#338, second slice): every entry now carries
+// per_target, the same figure on each target alone, and the file per_target_drops, the qualifying
+// questions under the bar on some target; a file without them is refused, so the bars this block
+// states carry them, computed from the entries they state.
+const entryText = (q) => `  - question: ${q.question}\n    agreement: ${q.agreement}\n    agree: ${q.agree}\n    of: ${q.of}\n    targets: [${q.targets.map((t) => `"${t}"`).join(', ')}]\n    sets: [${q.sets.join(', ')}]\n    per_target:\n${q.per_target.map((t) => `      - { target: "${t.target}", agreement: ${t.agreement}, agree: ${t.agree}, of: ${t.of} }`).join('\n')}\n    reason: "stated by the test"`;
 const barText = ({ bar = 75, targets = 2, sets = [], questions = [], below = [], none = 'stated by the test' } = {}) => `schema: assay.legibility-bar
 version: 1
 bar: ${bar}
@@ -71,8 +76,9 @@ bar_reason: "stated by the test"
 targets_at_least: ${targets}
 targets_reason: "stated by the test"
 sets:${sets.length ? '\n' + sets.map((s) => `  - { set: ${s.set}, target: "${s.target}", reason: "stated by the test" }`).join('\n') : ' []'}
-questions:${questions.length ? '\n' + questions.map((q) => `  - { question: ${q.question}, agreement: ${q.agreement}, agree: ${q.agree}, of: ${q.of}, targets: [${q.targets.map((t) => `"${t}"`).join(', ')}], sets: [${q.sets.join(', ')}], reason: "stated by the test" }`).join('\n') : ' []'}
-below_bar:${below.length ? '\n' + below.map((q) => `  - { question: ${q.question}, agreement: ${q.agreement}, agree: ${q.agree}, of: ${q.of}, targets: [${q.targets.map((t) => `"${t}"`).join(', ')}], sets: [${q.sets.join(', ')}], reason: "stated by the test" }`).join('\n') : ' []'}
+questions:${questions.length ? '\n' + questions.map(entryText).join('\n') : ' []'}
+below_bar:${below.length ? '\n' + below.map(entryText).join('\n') : ' []'}
+per_target_drops: [${questions.filter((q) => q.per_target.some((t) => t.agreement < bar)).map((q) => q.question).join(', ')}]
 ${questions.length ? '' : `none_qualify: "${none}"\n`}`;
 
 export async function run() {
@@ -91,14 +97,14 @@ export async function run() {
     // figure, so the claim is checked against sets that give none, which is the case the rule names.
     const noFigures = legibilityBarFromSets([], { bar: shipped.bar, targetsAtLeast: shipped.targetsAtLeast });
     const claimed = join(tmp, 'claimed.yaml');
-    writeFileSync(claimed, barText({ sets: [{ set: 'set-one', target: 'target one' }], questions: [{ question: 'refuses_unless', agreement: 90, agree: 9, of: 10, targets: ['target one', 'target two'], sets: ['set-one'] }] }));
+    writeFileSync(claimed, barText({ sets: [{ set: 'set-one', target: 'target one' }], questions: [{ question: 'refuses_unless', agreement: 90, agree: 9, of: 10, targets: ['target one', 'target two'], sets: ['set-one'], per_target: [{ target: 'target one', agreement: 100, agree: 5, of: 5 }, { target: 'target two', agreement: 80, agree: 4, of: 5 }] }] }));
     const claimedDiff = barDisagreements(loadBar(claimed).doc, noFigures);
     if (!claimedDiff.some((x) => /questions: refuses_unless is listed, and the committed sets give it no figure there/.test(x))) fail(`(b) a bar file listing refuses_unless as qualifying, which no committed set gives a figure, disagrees with the committed sets, naming it (got ${JSON.stringify(claimedDiff)})`);
     if (!claimedDiff.some((x) => /sets: set-one is listed/.test(x))) fail(`(b) a bar file listing a set no committed set is disagrees, naming it (got ${JSON.stringify(claimedDiff)})`);
 
     // (c) the file's own shape
-    const doc = (o) => ({ schema: 'assay.legibility-bar', version: 1, bar: 75, bar_reason: 'x', targets_at_least: 2, targets_reason: 'x', sets: [{ set: 's', target: 't', reason: 'x' }], questions: [], below_bar: [], none_qualify: 'x', ...o });
-    const q = (o) => ({ question: 'staged', agreement: 70, agree: 7, of: 10, targets: ['t', 'u'], sets: ['s'], reason: 'x', ...o });
+    const doc = (o) => ({ schema: 'assay.legibility-bar', version: 1, bar: 75, bar_reason: 'x', targets_at_least: 2, targets_reason: 'x', sets: [{ set: 's', target: 't', reason: 'x' }], questions: [], below_bar: [], per_target_drops: [], none_qualify: 'x', ...o });
+    const q = (o) => ({ question: 'staged', agreement: 70, agree: 7, of: 10, targets: ['t', 'u'], sets: ['s'], per_target: [{ target: 't', agreement: 80, agree: 4, of: 5 }, { target: 'u', agreement: 60, agree: 3, of: 5 }], reason: 'x', ...o });
     const refused = (o, re, what) => { const e = checkBarDoc(doc(o)); if (!e.some((x) => re.test(x))) fail(`(c) ${what} is refused (got ${JSON.stringify(e)})`); };
     refused({ questions: [q()], none_qualify: undefined }, /listed as qualifying, but 70% over 2 target\(s\) does not clear the bar/, 'a question below the bar listed as qualifying');
     refused({ questions: [q({ agreement: 90, agree: 9, targets: ['t'] })], none_qualify: undefined }, /does not clear the bar/, 'a question compared on one target listed as qualifying');
@@ -132,7 +138,7 @@ export async function run() {
     const agrees = barDisagreements(statedBar.doc, got);
     if (agrees.length) fail(`(d) a bar file stating the computed figures agrees with them (got ${JSON.stringify(agrees)})`);
     const off = join(tmp, 'off.yaml');
-    writeFileSync(off, barText({ sets: got.sets, questions: got.questions.map((x) => (x.question === 'received_or_gone' ? { ...x, agree: 8, agreement: 100 } : x)), below: got.below_bar }));
+    writeFileSync(off, barText({ sets: got.sets, questions: got.questions.map((x) => (x.question === 'received_or_gone' ? { ...x, agree: 8, agreement: 100, per_target: x.per_target.map((t, i) => (i ? t : { ...t, agree: t.agree + 1, agreement: Math.round(100 * (t.agree + 1) / t.of) })) } : x)), below: got.below_bar }));
     if (!barDisagreements(loadBar(off).doc, got).some((x) => /questions: received_or_gone agree is 7, the file says 8/.test(x))) fail('(d) a bar file off by one count disagrees, naming the question and the count');
 
     // (e) variance --set lists where the lanes part, on qualifying questions only

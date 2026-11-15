@@ -99,7 +99,7 @@ import { projectRun, loadYardstick } from '../yardstick/measure.mjs';
 import { channelKeys, loadChannelFiles } from './effect-triage.mjs';
 import { closure } from './triage.mjs';
 import { CHECKLIST_KEYS, gateTypeFrom, reversibilityFrom, answerValue } from './effect-answers.mjs';
-import { barFromSets, loadBar, BAR_FILE } from '../yardstick/legibility-bar.mjs';
+import { barFromSets, loadBar, BAR_FILE, factLegibility } from '../yardstick/legibility-bar.mjs';
 
 // A channel's identity (#298): an effect finding the run's map/effect-triage.yaml maps a candidate to
 // is keyed by that candidate (map/effect-triage.mjs candidateKeysOf), so two lanes' spellings of one
@@ -355,7 +355,7 @@ export function candidateAgreement(sweeps) {
   const divergences = [], scope = [], notListed = [];
   let compared = 0, agree = 0, outOfScopeEverywhere = 0, untriagedEverywhere = 0, unanswered = 0;
   const byAnswer = Object.fromEntries(CHECKLIST_KEYS.map((k) => [k, { agree: 0, of: 0, pct: 0, signalled: { agree: 0, of: 0, pct: 0 }, unsignalled: { agree: 0, of: 0, pct: 0 } }]));
-  const answerDivergences = [];
+  const answerDivergences = [], readings = [];
   let answeredCompared = 0, answersAgree = 0;
   for (const c of all) {
     const st = per.map((p) => status(p, c));
@@ -370,6 +370,9 @@ export function candidateAgreement(sweeps) {
       if (!answered) unanswered += 1;
       else {
         answeredCompared += 1;
+        // each run's gap-or-legible reading of the candidate, per question (factLegibility, the rule
+        // d-effect-facts-legible reads one run by), for gapAgreement
+        readings.push({ candidate: c, reads: Object.fromEntries(CHECKLIST_KEYS.map((k) => [k, per.map((p) => factLegibility(p.answers.get(c), p.signals.get(c) || [], k))])) });
         const differ = [];
         for (const k of CHECKLIST_KEYS) {
           const vals = per.map((p) => answerValue(k, p.answers.get(c)[k]));
@@ -408,7 +411,7 @@ export function candidateAgreement(sweeps) {
     scope: { disagreements: scope.length, list: scope },
     notListed,
     unmapped: { total: unmapped.length, inEvery: unmapped.filter((u) => u.sweeps.length === N).length, list: unmapped },
-    answers: { compared: answeredCompared, allAnswers: { agree: answersAgree, of: answeredCompared, pct: answeredCompared ? Math.round(100 * answersAgree / answeredCompared) : 0 }, byAnswer, divergences: answerDivergences },
+    answers: { compared: answeredCompared, allAnswers: { agree: answersAgree, of: answeredCompared, pct: answeredCompared ? Math.round(100 * answersAgree / answeredCompared) : 0 }, byAnswer, divergences: answerDivergences, readings },
   };
 }
 
@@ -422,6 +425,8 @@ export function computeCandidateAgreement(runDirs) {
   }));
 }
 
+const LEGIBILITY_ROW = 'd-effect-facts-legible';
+
 // ── where blind lanes part on a qualifying question (#338) ──────────────────
 // d-effect-facts-legible reads a question only when its cross-target agreement clears the bar
 // (yardstick/legibility-bar.yaml). Over one set, a candidate every sweep answers and whose lanes give
@@ -433,6 +438,36 @@ export function computeCandidateAgreement(runDirs) {
 export function lanesPart(c, qualifying) {
   const q = new Set(qualifying || []);
   return ((c && c.answers && c.answers.divergences) || []).flatMap((d) => d.answers.filter((a) => q.has(a.key)).map((a) => ({ candidate: d.candidate, question: a.key, values: a.values })));
+}
+
+// Agreement on which effects are opaque (#338): over the candidates every sweep maps and answers, per
+// qualifying question, whether every run reads the candidate the same way, a gap or legible
+// (factLegibility: a run's not-determinable is a gap, its yes or no with evidence, or a signal, is
+// legible, any other form unread). This is the repeatability of the fact d-effect-facts-legible
+// reads, measured where the fact is: two runs whose rows both read mixed may name different effects
+// opaque, and two whose rows part may agree on every gap but one. `byQuestion` per qualifying
+// question, `all` the candidates read alike on every qualifying question, `divergences` each
+// { candidate, question, reads }, one reading per sweep. A question below the bar is never counted.
+// c is candidateAgreement's result.
+export function gapAgreement(c, qualifying) {
+  const qs = CHECKLIST_KEYS.filter((k) => (qualifying || []).includes(k));
+  const rows = (c && c.answers && c.answers.readings) || [];
+  const pct = (x) => ({ ...x, pct: x.of ? Math.round(100 * x.agree / x.of) : 0 });
+  const byQuestion = {}, divergences = [];
+  let agree = 0;
+  for (const q of qs) byQuestion[q] = { agree: 0, of: 0, gapEverywhere: 0 };
+  for (const r of rows) {
+    let whole = true;
+    for (const q of qs) {
+      const reads = r.reads[q], same = reads.every((x) => x === reads[0]);
+      byQuestion[q].of += 1;
+      if (same) { byQuestion[q].agree += 1; if (reads[0] === 'gap') byQuestion[q].gapEverywhere += 1; }
+      else { whole = false; divergences.push({ candidate: r.candidate, question: q, reads }); }
+    }
+    if (whole && qs.length) agree += 1;
+  }
+  for (const q of qs) byQuestion[q] = pct(byQuestion[q]);
+  return { qualifying: qs, compared: qs.length ? rows.length : 0, all: pct({ agree, of: qs.length ? rows.length : 0 }), byQuestion, divergences };
 }
 
 // The bar's figures from sweep sets on disk (yardstick/legibility-bar.mjs barFromSets): per set, its
@@ -453,15 +488,16 @@ export function legibilityBarFromSets(dirs, opts) {
 export function requirementAgreement(sweepRows) {
   const ids = [...new Set(sweepRows.flatMap((rs) => (rs || []).map((r) => r.id)))];
   let decided = 0;
-  const divergences = [];
+  const divergences = [], statusesOf = {};
   for (const id of ids) {
     const statuses = sweepRows.map((rs) => ((rs || []).find((r) => r.id === id) || {}).status || 'not-measured');
+    statusesOf[id] = statuses;
     if (statuses.every((s) => s === 'not-measured')) continue;
     decided++;
     if (!statuses.every((s) => s === statuses[0])) divergences.push({ id, statuses });
   }
   const agree = decided - divergences.length;
-  return { decided, agree, pct: decided ? Math.round(100 * agree / decided) : 0, divergences };
+  return { decided, agree, pct: decided ? Math.round(100 * agree / decided) : 0, divergences, statusesOf };
 }
 
 // runDir wrapper: each sweep measured against the yardstick, with no owner packet.
@@ -617,11 +653,15 @@ function reportCandidates(c) {
 }
 
 // The candidates where blind lanes part on a question that clears the legibility bar (#338).
-function reportLegibility(l, c) {
+function reportLegibility(l, c, g) {
   console.log(`  where lanes part on a question that clears the legibility bar (${l.bar}; read by no run's measurement yet):`);
   if (!l.qualifying.length) { console.log(`    no checklist question has cleared the cross-target bar: nothing is listed.\n`); return; }
   if (!c.answers.compared) { console.log(`    qualifying: ${l.qualifying.join(', ')}; no candidate every sweep answers: nothing to compare.\n`); return; }
   if (l.blind === false) console.log(`    ⚠ the set is NOT blind: its lanes saw an answer sheet, so a parting here is no evidence about the target`);
+  console.log(`    ${g.row.id} per sweep: ${g.row.statuses.join(' / ')}`);
+  console.log(`    which effects are opaque (gap or legible, per candidate every sweep answers): read alike on every qualifying question ${g.all.agree}/${g.all.of}  (${g.all.pct}%)`);
+  for (const q of g.qualifying) { const b = g.byQuestion[q]; console.log(`      ${q.padEnd(17)} ${String(b.agree).padStart(3)}/${String(b.of).padStart(3)}  ${String(b.pct + '%').padStart(5)}   ${b.gapEverywhere} a gap in every sweep`); }
+  for (const v of g.divergences) console.log(`      ${v.candidate.padEnd(40)} ${v.question}: ${v.reads.join(' vs ')}`);
   console.log(`    qualifying: ${l.qualifying.join(', ')}; ${l.parted.length} candidate-question pair(s) where the lanes part`);
   for (const p of l.parted) console.log(`      ${p.candidate.padEnd(40)} ${p.question}: ${p.values.map((v) => v ?? '—').join(' vs ')}`);
   console.log('');
@@ -697,6 +737,8 @@ if (isMain(import.meta.url)) {
   let bar;
   try { bar = loadBar(flag('--bar') || BAR_FILE); } catch (e) { console.error(`✗ variance: ${e.message}`); process.exit(2); }
   const legibility = { bar: flag('--bar') || 'yardstick/legibility-bar.yaml', qualifying: bar.qualifying, blind: set ? set.meta.blind : null, parted: lanesPart(c, bar.qualifying) };
+  // agreement on which effects are opaque, beside the row's status in each sweep (#338)
+  const gaps = { ...gapAgreement(c, bar.qualifying), row: { id: LEGIBILITY_ROW, statuses: q.statusesOf[LEGIBILITY_ROW] || runs.map(() => 'not-measured') } };
   const gated = Object.keys(threshold).length > 0 || Object.keys(notMeasured).length > 0;
   const breaches = gated ? sweepGate(r, d, threshold, q, c, notMeasured) : [];
   if (process.argv.includes('--json')) console.log(JSON.stringify({
@@ -704,7 +746,7 @@ if (isMain(import.meta.url)) {
     candidates: { pct: c.allFields.pct, listed: c.listed, total: c.candidates.total, compared: c.candidates.compared, agree: c.allFields.agree,
                   byField: c.byField, divergences: c.divergences, directions: c.directions, bothWays: c.bothWays,
                   scope: c.scope, outOfScopeEverywhere: c.candidates.outOfScopeEverywhere, untriagedEverywhere: c.candidates.untriagedEverywhere,
-                  notListed: c.notListed, unmapped: c.unmapped, unanswered: c.candidates.unanswered, answers: c.answers },
+                  notListed: c.notListed, unmapped: c.unmapped, unanswered: c.candidates.unanswered, answers: c.answers, legibility: gaps },
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
     requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences },
@@ -715,7 +757,7 @@ if (isMain(import.meta.url)) {
   }, null, 2));
   else {
     if (set) console.log(`\nsweep set ${flag('--set')}: ${set.meta.target} @ ${set.meta.target_commit}, method @ ${set.meta.method_commit}, ${set.meta.date}${set.meta.blind ? ', blind' : ', NOT blind (authored beside its answers)'}`);
-    report(r); reportCandidates(c); reportLegibility(legibility, c); reportDescriptors(d); reportRequirements(q); reportCost(cost);
+    report(r); reportCandidates(c); reportLegibility(legibility, c, gaps); reportDescriptors(d); reportRequirements(q); reportCost(cost);
     if (gated) {
       const at = (k) => (k in notMeasured ? 'not measured' : `≥ ${threshold[k] ?? '—'}%`);
       console.log(`  gate: fact presence ${at('fact_presence')} · per-candidate descriptor agreement ${at('candidate_agreement')} · per-channel descriptor agreement ${at('descriptor_agreement')} · requirement agreement ${at('requirement_agreement')}`);
