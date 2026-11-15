@@ -311,6 +311,21 @@ export const ENTRIES = [
     from: '    for (const q of file.keys()) if (!have.has(q)) out.push(',
     to: '    for (const q of file.keys()) if (false) out.push(',
     check: 'legibility-bar-recomputed', red: /\(b\) a bar file listing refuses_unless as qualifying/ },
+  { rule: 'every checklist answer has its one definition in map/SCHEMA.md §6e, "The answers": a question with none is refused (#337)',
+    file: 'map/SCHEMA.md',
+    from: '**`declared_scope`** — a yes gives `scope-bound`.',
+    to: '**`declared-scope`** — a yes gives `scope-bound`.',
+    check: 'checklist-answers-defined', red: /the checklist's question declared_scope has no definition in §6e/ },
+  { rule: 'the values an answer is exemplified by are read from the checklist, never from a second list: a value it gains has no example until §6e gives one (#337)',
+    file: 'map/effect-answers.mjs',
+    from: "export const HELD_BY = ['code', 'outside'];",
+    to: "export const HELD_BY = ['code', 'outside', 'operator'];",
+    check: 'checklist-answers-defined', red: /refuses_unless has no example of the value yes, held_by: operator/ },
+  { rule: 'the lane prompt points at §6e, "The answers", and restates no definition (#337, #325)',
+    file: 'map/scanners/adapters/practice-review/lane.md',
+    from: 'the delegation pass asks the checklist (SCHEMA.md §6e, "The answers")',
+    to: 'the delegation pass asks the checklist (SCHEMA.md §6e, "The answers"; a concurrency cap, which bounds how many run at once and never how many in all, is no rate limit)',
+    check: 'lane-prompt-restates-no-answer', red: /restates rate_limit's \*Does not count:\*/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────
