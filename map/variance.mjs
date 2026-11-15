@@ -100,6 +100,26 @@ import { channelKeys, loadChannelFiles } from './effect-triage.mjs';
 import { closure } from './triage.mjs';
 import { CHECKLIST_KEYS, gateTypeFrom, reversibilityFrom, answerValue } from './effect-answers.mjs';
 import { barFromSets, loadBar, BAR_FILE, factLegibility } from '../yardstick/legibility-bar.mjs';
+import { ranChecklist, checklistDecides, CHECKLIST_FACTS_REASON } from './lane-mode.mjs';
+
+// ── the modes the sweeps ran in (#338) ──────────────────────────────────────
+// A sweep whose lane ran in checklist mode (map/lane-mode.mjs) records only effect findings and the
+// answered triage. Its candidates, answers, gaps and descriptors are compared as a full sweep's are:
+// the same triage format, held by the same validate rules. What it never looked for is not counted
+// against it: a set with a checklist sweep reads fact presence not measured, with the reason (a
+// fact a full sweep records and it never looked for would read as variance), and compares
+// requirements over the rows the checklist decides (map/passes.yaml checklist:), so a row a
+// checklist sweep left not measured is never a disagreement. A set may mix modes only where every
+// sweep carries answers (a version 2 triage): the answers are what the modes share.
+// sweepModes(runDirs) → { modes: [mode per sweep], checklist, mixed, error? }.
+function sweepModes(runDirs) {
+  const manifests = runDirs.map((d) => loadManifest(d));
+  const modes = manifests.map((m) => (ranChecklist(m) ? 'checklist' : 'full'));
+  const checklist = modes.includes('checklist'), mixed = checklist && modes.includes('full');
+  if (!mixed) return { modes, checklist, mixed };
+  const unanswered = runDirs.filter((d) => loadChannelFiles(d).version !== 2).map((d) => basename(d));
+  return { modes, checklist, mixed, ...(unanswered.length ? { error: `the set mixes checklist and full sweeps, and ${unanswered.join(', ')} carr${unanswered.length === 1 ? 'ies' : 'y'} no answers (a version 2 triage): sweeps of two modes are compared on the answers they share, so a set mixes modes only where every sweep carries them` } : {}) };
+}
 
 // A channel's identity (#298): an effect finding the run's map/effect-triage.yaml maps a candidate to
 // is keyed by that candidate (map/effect-triage.mjs candidateKeysOf), so two lanes' spellings of one
@@ -132,7 +152,9 @@ export const groupKey = (f) => f.dimension || (f.source ? `source:${f.source}` :
 // ACROSS sweeps. Deterministic; used by the CLI and pinned by tests/blocks/model-of-record.mjs
 // and tests/blocks/variance-mixed-base.mjs.
 export function computeVariance(runDirs) {
-  return varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)), runDirs.map((d) => modelResolver(loadManifest(d))), runDirs.map((d) => channelKeys(d)));
+  const r = varianceFromSweeps(runDirs.map((d) => loadFindings(d)), runDirs.map((d) => basename(d)), runDirs.map((d) => modelResolver(loadManifest(d))), runDirs.map((d) => channelKeys(d)));
+  // a set with a checklist sweep takes no fact presence (#338): not measured, with the reason, never 0
+  return sweepModes(runDirs).checklist ? { ...r, pct: null, notMeasured: CHECKLIST_FACTS_REASON } : r;
 }
 
 // A sweep's model of record per clustering bucket (SCHEMA.md §5a): a dimension reads
@@ -503,8 +525,11 @@ export function requirementAgreement(sweepRows) {
 }
 
 // runDir wrapper: each sweep measured against the yardstick, with no owner packet.
+// A set with a checklist sweep compares the rows the checklist decides, and says so (`over`, #338).
 export function computeRequirementAgreement(runDirs, reg = loadYardstick()) {
-  return requirementAgreement(runDirs.map((d) => projectRun(d, reg, null).map((r) => ({ id: r.id, status: r.status }))));
+  const only = sweepModes(runDirs).checklist ? checklistDecides() : null;
+  const q = requirementAgreement(runDirs.map((d) => projectRun(d, reg, null).filter((r) => !only || only.has(r.id)).map((r) => ({ id: r.id, status: r.status }))));
+  return only ? { ...q, over: `the ${only.size} rows a checklist lane decides (map/passes.yaml checklist:)` } : q;
 }
 
 // ── cost, as each sweep's run record has it ─────────────────────────────────
@@ -587,11 +612,12 @@ export function loadSweepSet(dir) {
 export function sweepGate(r, d, threshold, q = null, c = null, notMeasured = {}) {
   const out = [];
   const declared = (k, taken, what) => { if (k in notMeasured && taken) out.push(`${k} is declared not measured, but the set measures it (${what}): state its threshold`); };
-  declared('fact_presence', !!(r && r.union), `${r && r.union} union facts`);
+  declared('fact_presence', !!(r && r.union && !r.notMeasured), `${r && r.union} union facts`);
   declared('candidate_agreement', !!(c && c.candidates && c.candidates.compared), `${c && c.candidates && c.candidates.compared} candidates every sweep maps`);
   declared('descriptor_agreement', !!(d && d.channels && d.channels.shared), `${d && d.channels && d.channels.shared} shared effect channels`);
   declared('requirement_agreement', !!(q && q.decided), `${q && q.decided} decided requirements`);
-  if (typeof threshold.fact_presence === 'number' && r.pct < threshold.fact_presence)
+  if (typeof threshold.fact_presence === 'number' && r.notMeasured) out.push(`fact presence not measured (${r.notMeasured}), threshold ${threshold.fact_presence}%: declare it under not_measured`);
+  else if (typeof threshold.fact_presence === 'number' && r.pct < threshold.fact_presence)
     out.push(`fact presence ${r.pct}% is below the threshold ${threshold.fact_presence}%`);
   if (typeof threshold.candidate_agreement === 'number') {
     if (!c || !c.candidates.compared) { if (threshold.candidate_agreement > 0) out.push(`per-candidate descriptor agreement not measured: no listed candidate every sweep maps to an effect finding, threshold ${threshold.candidate_agreement}%`); }
@@ -610,6 +636,7 @@ export function sweepGate(r, d, threshold, q = null, c = null, notMeasured = {})
 
 function reportRequirements(q) {
   console.log(`  requirement agreement (the verdicts a reader acts on):`);
+  if (q.over) console.log(`    over ${q.over}: a sweep ran in checklist mode`);
   if (!q.decided) { console.log(`    no requirement decided by any sweep — nothing to compare.\n`); return; }
   console.log(`    identical in every sweep: ${q.agree}/${q.decided} decided requirements  (${q.pct}%)`);
   for (const v of q.divergences) console.log(`      ${v.id.padEnd(34)} ${v.statuses.join(' / ')}`);
@@ -688,6 +715,7 @@ function reportDescriptors(d) {
 function report(r) {
   console.log(`\nassay variance — ${r.N} sweeps:`);
   r.sweeps.forEach((s, i) => console.log(`  sweep ${i}: ${s.name} (${s.findings} findings)`));
+  if (r.notMeasured) { console.log(`\n  fact presence: not measured — ${r.notMeasured}\n`); return; }
   console.log(`\n  facts (union):        ${r.union}`);
   console.log(`  caught by all ${r.N}:      ${r.core}  (${r.pct}% — the repeatable core)`);
   console.log(`  caught by some only:  ${r.union - r.core}  (${r.union ? Math.round(100 * (r.union - r.core) / r.union) : 0}% — the variance)`);
@@ -729,6 +757,10 @@ if (isMain(import.meta.url)) {
     if (k in notMeasured) { console.error(`${f}: the set declares ${k} not measured (${notMeasured[k]})`); process.exit(2); }
     threshold[k] = n;
   }
+  if (runs.length >= 2) {
+    const sm = sweepModes(runs);
+    if (sm.error) { console.error(`✗ variance: ${sm.error}`); process.exit(2); }
+  }
   if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...] | --set <sweep-set-dir>  [--min-facts N] [--min-candidates N] [--min-descriptors N] [--min-requirements N] [--bar <legibility-bar.yaml>] [--json]'); process.exit(2); }
   const r = computeVariance(runs);
   const d = computeDescriptorAgreement(runs);
@@ -745,13 +777,15 @@ if (isMain(import.meta.url)) {
   const breaches = gated ? sweepGate(r, d, threshold, q, c, notMeasured) : [];
   if (process.argv.includes('--json')) console.log(JSON.stringify({
     pct: r.pct, union: r.union, core: r.core, byDimension: r.byDimension, byModelPair: r.byModelPair,
+    ...(r.notMeasured ? { fact_presence: { status: 'not-measured', reason: r.notMeasured } } : {}),
+    modes: sweepModes(runs).modes,
     candidates: { pct: c.allFields.pct, listed: c.listed, total: c.candidates.total, compared: c.candidates.compared, agree: c.allFields.agree,
                   byField: c.byField, divergences: c.divergences, directions: c.directions, bothWays: c.bothWays,
                   scope: c.scope, outOfScopeEverywhere: c.candidates.outOfScopeEverywhere, untriagedEverywhere: c.candidates.untriagedEverywhere,
                   notListed: c.notListed, unmapped: c.unmapped, unanswered: c.candidates.unanswered, answers: c.answers, legibility: gaps },
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
-    requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences },
+    requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences, ...(q.over ? { over: q.over } : {}) },
     legibility,
     cost,
     ...(set ? { set: { target: set.meta.target, target_commit: set.meta.target_commit, method_commit: set.meta.method_commit, date: set.meta.date, blind: set.meta.blind } } : {}),

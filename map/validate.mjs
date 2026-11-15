@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 // assay findings validator — the format contract, enforced.
-// Usage:  node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>] [--lane <scanner>]
+// Usage:  node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>] [--lane <scanner> [--mode <mode>]]
 //   --lane: the consumer's check after collecting a review lane's outputs (#201): every file the
 //   lane publishes is in the run, and the scanner is recorded ran; needs --target, so each
 //   citation is read against the tree. The lane runs the same check over its own scratch run
 //   before it publishes (#278): a run with no run record is read as that, its files checked
 //   and the run-record checks named as not made (the consumer's check makes them).
+//   --mode: the mode the lane ran in (#338), for its own check over a scratch run with no run
+//   record; a collected run's record states it (`mode:` on the lane's row). A lane in checklist
+//   mode publishes exactly its checklist outputs, and the run is refused when it carries another
+//   pass's file, a census, a finding that is not an effect, or no version 2 triage.
 //   <run-dir> is a run root (…/runs/<slug>-<date>/) — findings live under its map/findings/.
 // Exits non-zero on any violation. Zero-dependency: a minimal YAML reader tuned
 // to SCHEMA.md's constrained subset that FAILS CLOSED — an input it cannot parse
@@ -23,6 +27,7 @@ import {
   leveragePath, maturityPath as runMaturityPath, securityPath, improvePagePath,
   nativeReportPath, isPracticeReviewPassFile, PRACTICE_REVIEW_PASS_PREFIX, decisionsPath,
   chainsDataPath, improveReportDataPath, handoffSequencePath, backlogPath, backlogAuthoredPath, rawPath,
+  enumeratePath, effectTriagePath,
 } from '../lib/run-layout.mjs';
 import { checkChains, checkImproveReport, checkSequence, checkBacklog, checkAuthoredBacklog } from '../lib/run-data.mjs';
 import { DECISION_ACTIONS, DECISION_KEYS } from './decisions.mjs';
@@ -97,7 +102,7 @@ function emptyCites(f, at) {
 
 // ── load findings ───────────────────────────────────────────────────────────
 const arg = process.argv[2];
-if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>] [--lane <scanner>]'); process.exit(2); }
+if (!arg) { console.error('usage: node assay.mjs validate <run-dir> [--target <target-repo>] [--canon <name>] [--lane <scanner> [--mode <mode>]]'); process.exit(2); }
 // Optional: verify every evidence path resolves to a real file in the TARGET repo.
 // Off by default so the validator stays portable (a run may be checked without the
 // target present); when --target is given it fails closed on a cited path that does
@@ -110,6 +115,9 @@ const target = tIdx > -1 ? process.argv[tIdx + 1] : null;
 const lIdx = process.argv.indexOf('--lane');
 const laneOnly = lIdx > -1 ? process.argv[lIdx + 1] : null;
 if (lIdx > -1 && !laneOnly) { console.error('usage: --lane <scanner>, the judgment scanner whose collected lane outputs this checks'); process.exit(2); }
+const mdIdx = process.argv.indexOf('--mode');
+const modeArg = mdIdx > -1 ? process.argv[mdIdx + 1] : null;
+if (mdIdx > -1 && (!modeArg || !laneOnly)) { console.error('usage: --mode <mode> names the mode the --lane <scanner> ran in (#338)'); process.exit(2); }
 if (laneOnly && !target) { console.error(`✗ assay validate --lane ${laneOnly}: a collected lane is checked against the target it read (--target <checkout>): its citations must resolve there`); process.exit(2); }
 const runDir = arg;
 const evalDir = findingsDir(runDir);   // map/findings/ — every reader/writer uses this one path
@@ -121,6 +129,7 @@ if (legacy.length) { console.error(`✗ assay validate: ${runDir} is not in the 
 
 const allById = new Map();       // id -> {finding, file}
 let laneScratch = false;         // --lane over a run with no run record: a lane's own check (#278)
+let laneModes = {};              // scanner -> the mode its lane ran in, where not full (#338)
 const passFiles = readdirSync(evalDir).filter((f) => f.endsWith('.yaml')).sort();
 
 // `property:` (optional, SCHEMA.md §1; #264): a stack-free kebab-case name for the property
@@ -289,10 +298,14 @@ for (const file of passFiles) {
     const { lanes, readLane } = await import('./lane.mjs');
     const all = lanes(ADAPTERS);
     if (!all.some((l) => l.scanner === laneOnly)) err(`--lane ${laneOnly}`, `--lane names no review lane (lanes: ${all.map((l) => l.scanner).join(', ')})`);
+    const { modesOf, laneOutputs } = await import('./lane.mjs');
     for (const l of all.filter((x) => x.scanner === laneOnly)) {
-      const outputs = String(readLane(l.file).meta.outputs || '').split(/\s+/).filter(Boolean);
+      const meta = readLane(l.file).meta, mode = modeArg || 'full';
+      if (!modesOf(meta).includes(mode)) { err(`--mode ${mode}`, `the ${l.scanner} lane offers no mode ${mode} (modes: ${modesOf(meta).join(', ')})`); continue; }
+      if (mode !== 'full') laneModes[l.scanner] = mode;
+      const outputs = laneOutputs(meta, mode);
       const missing = outputs.filter((o) => !existsSync(join(runDir, o)));
-      if (missing.length) err(`--lane ${l.scanner}`, `${missing.length} of the ${outputs.length} files the ${l.scanner} lane publishes are not in the run (${missing.join(', ')}): write them`);
+      if (missing.length) err(`--lane ${l.scanner}`, `${missing.length} of the ${outputs.length} files the ${l.scanner} lane publishes${mode !== 'full' ? ` in ${mode} mode` : ''} are not in the run (${missing.join(', ')}): write them`);
     }
   } else if (!existsSync(mPath)) {
     err(MANIFEST_FILE, `missing — every run records each adopted scanner's disposition (ran | skipped + reason | failed + reason); a scanner that can be omitted without a recorded decision reads as coverage. Start the run: node assay.mjs start --out ${runDir} <target> (or see the template: map/templates/scanners.yaml).`);
@@ -343,6 +356,15 @@ for (const file of passFiles) {
           const spendOk = (v) => v === undefined || (typeof v === 'string' && v.trim()) || (Number.isInteger(v) && v >= 0);
           if (!spendOk(row.spend)) err(at, `spend must be what the scanner's inference spent (a string with its unit, or a whole number), or absent`);
           if (!spendOk(row.duration)) err(at, `duration must be how long the scanner ran (a string with its unit, or a whole number of seconds), or absent`);
+          // the mode a lane ran in (#338, map/lane-mode.mjs): one its lane offers, on a row that ran
+          if (row.mode !== undefined) {
+            const { lanes, readLane, modesOf } = await import('./lane.mjs');
+            const l = lanes(ADAPTERS).find((x) => x.scanner === id);
+            const modes = l ? modesOf(readLane(l.file).meta) : [];
+            if (row.status !== 'ran') err(at, `mode: records the mode a lane that ran ran in; this row is ${row.status}`);
+            else if (!modes.includes(String(row.mode))) err(at, `mode: ${row.mode} is not a mode the ${id} lane offers (${modes.length ? modes.join(', ') : 'it has no lane'})`);
+            else if (row.mode !== 'full') laneModes[id] = String(row.mode);
+          }
           if (row.reviewed !== undefined) {
             const rv = row.reviewed;
             if (!rv || typeof rv !== 'object' || Array.isArray(rv)) err(at, `reviewed: is a map of head and date (#201)`);
@@ -414,9 +436,12 @@ for (const file of passFiles) {
           for (const l of all.filter((x) => x.scanner === laneOnly)) {
             const row = m.scanners[l.scanner];
             if (!row || row.status !== 'ran') { err(`${MANIFEST_FILE}:${l.scanner}`, `the lane was collected but is not recorded ran: node assay.mjs record ${runDir} ${l.scanner} ran --model <id>`); continue; }
-            const outputs = String(readLane(l.file).meta.outputs || '').split(/\s+/).filter(Boolean);
+            const { laneOutputs } = await import('./lane.mjs');
+            const mode = typeof row.mode === 'string' ? row.mode : 'full';
+            if (modeArg && modeArg !== mode) err(`${MANIFEST_FILE}:${l.scanner}`, `--mode ${modeArg}, and the run record says the lane ran in ${mode} mode: record the mode it ran in (node assay.mjs record ${runDir} ${l.scanner} ran --mode ${modeArg})`);
+            const outputs = laneOutputs(readLane(l.file).meta, mode);
             const missing = outputs.filter((o) => !existsSync(join(runDir, o)));
-            if (missing.length) err(`${MANIFEST_FILE}:${l.scanner}`, `the ${l.scanner} lane is recorded ran, but ${missing.length} of the ${outputs.length} files it publishes are not in the run (${missing.join(', ')}): collect them, or record what did not run`);
+            if (missing.length) err(`${MANIFEST_FILE}:${l.scanner}`, `the ${l.scanner} lane is recorded ran${mode !== 'full' ? ` in ${mode} mode` : ''}, but ${missing.length} of the ${outputs.length} files it publishes are not in the run (${missing.join(', ')}): collect them, or record what did not run`);
           }
         }
         // coverage sidecars (map/coverage/<scanner>.yaml): a scanner's own per-domain
@@ -582,6 +607,43 @@ const findingOf = new Map([...allById.entries()].map(([id, v]) => [id, v.f]));
         if (end > lines) err(at, `evidence line ${end} is past the end of ${p} (${lines} lines)`);
       }
     });
+  }
+}
+
+// a lane in checklist mode (#338; map/lane-mode.mjs): it writes exactly what the effect rows read,
+// and nothing else, so the mode means what it says. Whatever the check, a run whose lane ran in
+// checklist mode (the record's `mode:`, or --mode over a lane's own scratch run) is refused when it
+// carries a file of the full mode the checklist does not write (another pass's file, a census, the
+// census triage), a finding of the lane that is not an effect or that answers a discovery question
+// (`property:`), no candidate list, or no version 2 triage. What the checklist does write is held by
+// the rules every run's is: the triage's closure, its clauses, its answers and their signals.
+{
+  const { lanes, readLane, laneOutputs } = await import('./lane.mjs');
+  for (const [scanner, mode] of Object.entries(laneModes)) {
+    if (mode !== 'checklist') continue;
+    const l = lanes(ADAPTERS).find((x) => x.scanner === scanner);
+    if (!l) continue;
+    const meta = readLane(l.file).meta;
+    const mine = new Set(laneOutputs(meta, mode));
+    const full = laneOutputs(meta, 'full');
+    const at = `${scanner} (checklist mode)`;
+    const extra = full.filter((o) => !mine.has(o) && existsSync(join(runDir, o)));
+    if (extra.length) err(at, `the run carries ${extra.join(', ')}, which the lane in checklist mode does not write: it writes ${[...mine].join(', ')} and nothing else; drop them, or record the lane as having run in full`);
+    const own = (f) => (f.source || 'practice-review') === scanner;
+    for (const [id, v] of allById) {
+      const f = v.f;
+      if (!own(f)) continue;
+      if (f.subject_type !== 'effect') err(`${v.file}:${id}`, `a ${f.subject_type || 'untyped'} finding in a checklist run: the lane in checklist mode records only effect findings (subject_type: effect)`);
+      if (f.property !== undefined) err(`${v.file}:${id}`, `property: ${f.property} in a checklist run: the lane in checklist mode answers no discovery question`);
+    }
+    if (!existsSync(enumeratePath(runDir))) err(at, `no candidate list (map/raw/enumerate.json): the checklist triages the listed candidates, and a run without the list measures none`);
+    const tp = effectTriagePath(runDir);
+    if (!existsSync(tp)) err(at, `no triage (map/effect-triage.yaml): it is what the checklist mode writes`);
+    else {
+      let v = null;
+      try { v = parseYaml(readFileSync(tp, 'utf8'))?.version; } catch { /* the triage check above names the parse failure */ }
+      if (v !== 2) err(at, `the triage is version ${JSON.stringify(v)}: a checklist run answers the checklist, so its triage is version 2, every mapped candidate with its clause and its nine answers (map/SCHEMA.md §6e)`);
+    }
   }
 }
 

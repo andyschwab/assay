@@ -23,7 +23,23 @@
 #              the question's `property:` (map/SCHEMA.md §1, #264), and no two passes ask one. A
 #              question a census or context row already asks is that row's, never a discovery one
 #   schema     the map/SCHEMA.md sections its outputs need, by section number
+#
+# The checklist (`assay lane practice-review --mode checklist`, #338): the lane's mode that answers
+# only the effect checklist, so d-effect-facts-legible is affordable on a real target. Its one home:
+#   pass       the one pass it runs, the effect slice of it (Pass 0 kept to the effect inventory)
+#   decides    the rows it decides: each a row that pass decides whose facet rule reads only the
+#              effect triage and the effect findings (yardstick/measure.mjs EFFECT_POPULATION_RULES),
+#              and every such row. Under the mode every other row the lane decides reads not
+#              measured, with the mode as the reason
+#   schema     the map/SCHEMA.md sections its outputs need: the pass's own, less those of the
+#              outputs it does not write
+# map/passes.mjs checklistErrors holds it in lockstep with the pass and the yardstick; the seed's
+# checklist text is rendered from it (checklistText), never written twice.
 version: 0
+checklist:
+  pass: delegation
+  decides: [d-effect-channels-enumerated, d-effect-facts-legible, d-effects-gated, d-gates-fail-closed, d-effects-traced, d-effects-provable]
+  schema: [1, 2, 3, 4, 6e, 9]
 passes:
   - id: legibility
     pass: 1

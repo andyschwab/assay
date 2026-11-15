@@ -112,6 +112,15 @@ it reviewed: `{ by: <scanner>, head: <sha>, date: YYYY-MM-DD }`, read off the ru
 lane not run and the run record's reason. `validate` reads a stored `reviewed:` the run
 record does not produce as drift.
 
+**A lane that ran in checklist mode** (#338). A lane whose run-record row says `mode:
+checklist` (`map/SCHEMA.md` §5a) answered only the effect checklist: it decides the rows
+`map/passes.yaml` `checklist:` names, each a row whose facet rule reads only the effect triage
+and the effect findings (`measure.mjs` `EFFECT_POPULATION_RULES`), and each reads exactly as the
+full mode reads it. Every other row the lane decides reads not measured, its note saying the
+lane ran in checklist mode, never met and never unmet: it was not looked at. A row another lane
+that ran in full also decides stands as that lane reads it. The views name the lane in "What
+was not looked at" (`views/README.md`, `not_seen`), with the rows the mode left not measured.
+
 ## The four deciding kinds
 
 | Kind | Decided from | Reads |

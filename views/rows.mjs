@@ -8,6 +8,7 @@
 import { loadYardstick, loadMeasurement, decidersOf } from '../yardstick/measure.mjs';
 import { loadManifest, loadAdapters, dispositions } from '../map/project.mjs';
 import { q as yq } from '../lib/yaml-min.mjs';
+import { leftUnmeasured, partialReason } from '../map/lane-mode.mjs';
 
 // The one contract module for building a view of a population (CONSUMERS.md, "Modules"):
 // a consumer imports from here, lib/run-layout.mjs and assay.mjs, and nothing else of the
@@ -100,6 +101,9 @@ export function buildRows(runDir, select, { withFloor = false } = {}) {
     ...dispo.skipped.map((s) => ({ scanner: s.id, status: 'skipped', reason: s.reason })),
     ...dispo.failed.map((s) => ({ scanner: s.id, status: 'failed', reason: s.reason })),
     ...dispo.missing.map((id) => ({ scanner: id, status: 'missing', reason: 'no disposition recorded in the run manifest' })),
+    // a lane that ran in checklist mode (#338) ran, and looked at less than its full mode: the rows it
+    // left not measured, by the measurement's own note (map/lane-mode.mjs)
+    ...leftUnmeasured(manifest, measurement).map((x) => ({ scanner: x.scanner, status: 'partial', reason: partialReason(x) })),
   ];
 
   return { population, open, met, to_run, not_applicable, not_seen };

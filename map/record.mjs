@@ -9,7 +9,7 @@
 // the ONE row's own block, leaving every other row, the file's comments, and
 // its `engine:` line exactly as they were. Never a reformat.
 //
-// Usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>] [--head <sha>] [--reviewed YYYY-MM-DD]
+// Usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>] [--head <sha>] [--reviewed YYYY-MM-DD] [--mode <mode>]
 //   ran      — `--reason` is allowed too (a note on how it ran); a prior
 //              skip/failed reason is DROPPED unless a new one is given here.
 //   skipped  — needs --reason (a skip with no reason is indistinguishable
@@ -27,6 +27,9 @@
 //            did (#201), carried onto every row the lane decides (yardstick.yaml reviewed:)
 //              (`passes: <pass>:` in the row) instead of the row. Recorded
 //              passes are kept by every edit.
+//   --mode   — a review lane that ran: the mode it ran in (#338, map/lane-mode.mjs), one its lane
+//              offers (`modes:`); `full` writes no mode: line (a row with none ran in full). Kept
+//              by a later `ran` that names none, dropped when the row is no longer ran.
 // Adds the row if the scanner has none yet. Refuses (exit 2, nothing
 // written): no scanners.yaml (start the run first), an unknown scanner (no
 // adapter), or skipped/failed with no --reason. It does NOT check that the
@@ -43,8 +46,9 @@ export const STATUSES = ['ran', 'skipped', 'failed'];
 
 const spendScalar = (v) => (Number.isInteger(v) ? String(v) : q(v));
 
-function renderRow(id, status, reason, model, spend, passes, duration, reviewed, method) {
+function renderRow(id, status, reason, model, spend, passes, duration, reviewed, method, mode) {
   const lines = [`  ${id}:`, `    status: ${status}`];
+  if (mode && mode !== 'full') lines.push(`    mode: ${mode}`);
   if (reason) lines.push(`    reason: ${q(reason)}`);
   if (model) lines.push(`    model: ${q(model)}`);
   if (spend !== undefined && spend !== null) lines.push(`    spend: ${spendScalar(spend)}`);
@@ -79,7 +83,7 @@ function renderRow(id, status, reason, model, spend, passes, duration, reviewed,
 // after it, and outside the scanners: map (the header comment, `engine:`) is
 // carried through byte-for-byte. A row this scanner has none of yet is
 // appended after the last existing row.
-export function setScannerRow(text, scanner, status, { reason, model, spend, duration, pass, head, reviewedOn, method } = /** @type {any} */ ({})) {
+export function setScannerRow(text, scanner, status, { reason, model, spend, duration, pass, head, reviewedOn, method, mode, modes } = /** @type {any} */ ({})) {
   if (!STATUSES.includes(status)) throw new Error(`bad status "${status}" (${STATUSES.join(' | ')})`);
   if (pass !== undefined && scanner !== 'practice-review') throw new Error(`--pass is the built-in scanner's per-pass record; ${scanner} has no passes`);
   if (pass !== undefined && !PRACTICE_REVIEW_PASSES[pass]) throw new Error(`unknown pass "${pass}" (${Object.keys(PRACTICE_REVIEW_PASSES).join(' | ')})`);
@@ -88,6 +92,11 @@ export function setScannerRow(text, scanner, status, { reason, model, spend, dur
   if (head !== undefined && !/^[0-9a-f]{7,40}$/.test(String(head))) throw new Error(`--head is the reviewed commit's sha, 7–40 hex (got ${JSON.stringify(head)})`);
   if (reviewedOn !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(reviewedOn))) throw new Error(`--reviewed is the day the review ran, YYYY-MM-DD (got ${JSON.stringify(reviewedOn)})`);
   if ((head !== undefined || reviewedOn !== undefined) && status !== 'ran') throw new Error('--head and --reviewed record what a lane that ran reviewed; this row is not ran');
+  // the mode a review lane ran in (#338): one its lane offers (modes, from its lane file), on a row that ran
+  if (mode !== undefined) {
+    if (status !== 'ran') throw new Error('--mode records the mode a lane that ran ran in; this row is not ran');
+    if (!Array.isArray(modes) || !modes.includes(mode)) throw new Error(`--mode ${mode}: the ${scanner} lane offers ${Array.isArray(modes) && modes.length ? `the modes ${modes.join(', ')}` : 'no mode (it has no lane)'}`);
+  }
   // the method a judgment scanner read (#228): the release and commit its adapter pins, written by ingest
   if (method !== undefined) {
     if (!method || typeof method !== 'object' || !/^\d+(\.\d+)*$/.test(String(method.release)) || !/^[0-9a-f]{40}$/.test(String(method.commit))) throw new Error(`a method is { release, commit }: a dotted release and its full 40-hex commit (got ${JSON.stringify(method)})`);
@@ -120,13 +129,14 @@ export function setScannerRow(text, scanner, status, { reason, model, spend, dur
   const finalDuration = duration !== undefined ? duration : (current ? current.duration : undefined);
   const prior = current && current.reviewed && typeof current.reviewed === 'object' && status === 'ran' ? current.reviewed : {};
   const finalReviewed = { head: head !== undefined ? head : prior.head, date: reviewedOn !== undefined ? reviewedOn : prior.date };
+  const finalMode = status !== 'ran' ? undefined : mode !== undefined ? mode : (current && typeof current.mode === 'string' ? current.mode : undefined);
   const finalMethod = method !== undefined ? method : (current && status === 'ran' && current.method && typeof current.method === 'object' ? current.method : undefined);
   const passes = { ...(current && current.passes && typeof current.passes === 'object' ? current.passes : {}) };
   if (!onRow) {
     const was = passes[pass] && typeof passes[pass] === 'object' ? passes[pass] : {};
     passes[pass] = { model: model !== undefined ? model : was.model, spend: spend !== undefined ? spend : was.spend };
   }
-  const row = renderRow(scanner, status, finalReason, finalModel, finalSpend, passes, finalDuration, finalReviewed, finalMethod);
+  const row = renderRow(scanner, status, finalReason, finalModel, finalSpend, passes, finalDuration, finalReviewed, finalMethod, finalMode);
 
   const at = rowStarts.find((r) => r.id === scanner);
   let out;
@@ -223,7 +233,7 @@ if (isMain(import.meta.url)) {
   const [runDir, scanner, status, ...rest] = process.argv.slice(2);
   const opt = (name) => { const i = rest.indexOf(name); return i > -1 ? rest[i + 1] : undefined; };
   if (!runDir || !scanner || !status) {
-    console.error('usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>] [--head <sha>] [--reviewed YYYY-MM-DD]');
+    console.error('usage: node assay.mjs record <run> <scanner> <ran|skipped|failed> [--reason "<text>"] [--model <id>] [--spend "<text>"] [--duration "<text>"] [--pass <pass>] [--head <sha>] [--reviewed YYYY-MM-DD] [--mode <mode>]');
     process.exit(2);
   }
   if (!STATUSES.includes(status)) {
@@ -237,6 +247,7 @@ if (isMain(import.meta.url)) {
   const pass = opt('--pass');
   const head = opt('--head');
   const reviewedOn = opt('--reviewed');
+  const mode = opt('--mode');
   const mPath = scannersPath(runDir);
   if (!existsSync(mPath)) {
     console.error(`✗ record: no ${mPath} — start the run first: node assay.mjs start --out ${runDir} <target>`);
@@ -252,7 +263,13 @@ if (isMain(import.meta.url)) {
     process.exit(2);
   }
   let row = /** @type {string[]} */ ([]);
-  try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model, spend, duration, pass, head, reviewedOn }); row = r.row; return r.text; }); }
+  let modes = [];
+  if (mode !== undefined) {
+    const { lanes, readLane, modesOf } = await import('./lane.mjs');
+    const l = lanes(adapters).find((x) => x.scanner === scanner);
+    modes = l ? modesOf(readLane(l.file).meta) : [];
+  }
+  try { updateRunRecord(mPath, (text) => { const r = setScannerRow(text, scanner, status, { reason, model, spend, duration, pass, head, reviewedOn, mode, modes }); row = r.row; return r.text; }); }
   catch (e) { console.error(`✗ record: ${e.message}`); process.exit(2); }
   console.log(row.join('\n'));
   remeasure(runDir, 'record');

@@ -49,8 +49,10 @@ to_run:            # status not-measured
                    # context: on a claim row only, and only when the run saw any (#262)
 not_applicable:    # status not-applicable — decided from the map, NEVER counted as met
   - { id, tier, topic, title, basis, note }
-not_seen:          # every run-record row that did not run
+not_seen:          # every run-record row that did not run, and every lane that ran in part
   - { scanner, status, reason }
+                   # status: skipped | failed | missing | partial. partial is a lane that ran in
+                   # checklist mode (#338): its reason names the rows it left not measured
 ```
 
 With `withFloor: true` every row also carries `floor: true | false`, for a
