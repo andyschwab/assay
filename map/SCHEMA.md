@@ -203,9 +203,10 @@ dependency its check needs is absent, or its check does not finish.
    notifies its watchers), a release or package published for others to pull, third-party
    code executed. Gone is that nothing the evidence shows keeps it: a deletion with no
    retention, an overwrite in place of authored content with no copy kept.
-2. `reversible-with-window` — it can be undone for a period the code or platform states: a
-   soft delete with retention, a scheduled send that can be cancelled, an object stored with a
-   stated expiry that can be deleted before it.
+2. `reversible-with-window` — it can be undone while a state the code or platform holds for
+   the undo lasts, until something ends it, whether or not the tree states when: a soft
+   delete, a scheduled send that can be cancelled, an object stored with a stated expiry that
+   can be deleted before it.
 3. `reversible` — the prior state can be restored completely, and nothing outside the
    repository and its operator received the effect in between: the code or platform keeps the
    prior state (a copy, a version, a history), or the effect writes derived output that the
@@ -1235,26 +1236,216 @@ list drawn before the rule (no `excluded`): a candidate whose cited files are al
 files by their paths is never mapped in. A stored `version: 1` triage names no clause and reads as it
 was written.
 
-**The answers** (#315; `map/effect-answers.mjs`). Read whole, `gate_type` asks two things at once:
-what mechanism stands in front of the effect, and whether it holds. At `version: 2` each entry that
-maps a candidate to a finding records the mechanism as facts instead: its `answers`, one per question
-below, each `{ answer: yes | no | not-determinable, evidence: [path:line, …] }`, the evidence required
-for a yes or a no, and a `refuses_unless` yes also saying `what` it checks and who holds it
-(`held_by: code | outside`). An out-of-scope entry carries none. The values follow from the answers
-by §1's order, the first whose question is answered yes:
+**The answers** (#315, #337; `map/effect-answers.mjs`). Read whole, `gate_type` asks two things at
+once: what mechanism stands in front of the effect, and whether it holds. At `version: 2` each entry
+that maps a candidate to a finding records the mechanism as facts instead: its `answers`, one per
+question below, each `{ answer: yes | no | not-determinable, evidence: [path:line, …] }`, the
+evidence required for a yes or a no, and a `refuses_unless` yes also saying `what` it checks and who
+holds it (`held_by: code | outside`). An out-of-scope entry carries none. The values follow from the
+answers by §1's order, the first whose question is answered yes:
 
-| question (`answers.<key>`) | a yes gives |
+| `answers.<key>` | a yes gives |
 |---|---|
-| `refuses_unless`: is there a check that refuses the effect unless a condition holds (a required approval, tests green, a signature, an input checked before the write)? | `deterministic-halt` when the repository's code or config holds it (`held_by: code`), `external-halt` when a system outside does, invoked by config the repository ships (`outside`) |
-| `second_act`: is a second explicit act required after the code has shown what will happen (a plan then an apply, a confirm prompt, a dry run by default with an apply flag)? | `deterministic-halt` |
-| `staged`: is the effect written in a staged form a separate later act promotes or discards (a draft, a pull request, quarantine)? | `staged-reversible` |
-| `person_act`: is the effect caused only by one person's own explicit act (a click, a command they run, a manual dispatch), not a schedule, a push or a pull request that starts a job? | `initiated-by-person` |
-| `declared_scope`: does a declared scope at the effect govern what it can touch (a token's or job's declared permissions, a sandbox, a runner with no credential)? | `scope-bound` |
-| `rate_limit`: is there a limit on how often or how much? | `rate-throttle` |
-| `disclosed`: is the effect announced to those it reaches, before or as it happens (a log line is not)? | `disclosure-only` |
+| `refuses_unless` | `deterministic-halt` with `held_by: code`, `external-halt` with `held_by: outside` |
+| `second_act` | `deterministic-halt` |
+| `staged` | `staged-reversible` |
+| `person_act` | `initiated-by-person` |
+| `declared_scope` | `scope-bound` |
+| `rate_limit` | `rate-throttle` |
+| `disclosed` | `disclosure-only` |
 | none of the seven | `none` |
-| `received_or_gone`: has anything outside received the effect, or is the prior state gone? | `irreversible`; a no is required for anything else |
-| `window`: can the effect be undone only for a period the code or platform states? | `reversible-with-window`; a no gives `reversible` |
+| `received_or_gone` | `irreversible`; a no is required for anything else |
+| `window` | `reversible-with-window`; a no gives `reversible` |
+
+Each question is defined below, and only here: what it asks, which mechanisms count and which do
+not, and what evidence decides it, cited where. An example of each value it takes follows, a
+pattern as a reader meets it in a tree; the examples are generic and describe no particular
+repository.
+
+**How every answer is decided.** A question is asked at one candidate, on each path the evidence
+shows from its trigger to its effect, and a mechanism counts only where every path passes it (§1,
+"One effect, several paths"). A yes means the evidence shows the mechanism and that it governs this
+effect, cited where the mechanism is declared or applied. A no means the tree carries the path from
+trigger to effect and nothing of the kind stands on it; its evidence cites the code that reaches
+the effect so. A not-determinable means the place the mechanism would sit is one the tree names and
+does not carry (a module or package outside it, a setting kept on a platform, a value read only at
+run time), so the tree can neither show the mechanism nor rule it out; it may cite where the trail
+leaves the tree. A mechanism the tree nowhere names (a proxy, a gateway or a platform setting no
+shipped config invokes) is not on the path: that reads no. One mechanism is counted under the one
+question whose definition names it, and every other question is answered on its own mechanisms: a
+dry run by default with an apply flag is a `second_act` yes and not a `staged` one, and a row policy
+is a `declared_scope` yes and not a `refuses_unless` one.
+
+**`refuses_unless`** — a yes gives `deterministic-halt` (`held_by: code`) or `external-halt` (`held_by: outside`).
+*Asks:* does a check on the path refuse the effect unless a stated condition about this act holds,
+and who holds that check?
+*Counts:* a required approval; tests or a check job that must pass first (a `needs:` on a job that
+goes red); a signature or a token verified before the write; an input validated before the write
+and refused when it fails. `held_by: code` when the repository's code or config holds the check;
+`held_by: outside` when a system outside the repository holds it and config the repository ships
+invokes it (a deployment environment the job names, a provider's confirmation the call requests).
+*Does not count:* a refusal past a count or a rate (`rate_limit`'s); a bound on what the effect may
+touch, which refuses only what lies outside it (`declared_scope`'s); a confirmation the act must
+carry after a preview (`second_act`'s); a stop the platform offers that the shipped config never
+invokes; a check that only logs or warns and lets the effect through.
+*Evidence:* the line that refuses (the early return, the throw, the `if:` that skips the step, the
+`environment:` key), with `what` saying what it checks.
+
+- `yes`, `held_by: code` — a webhook route runs `if (!verifySignature(rawBody, req.headers['x-signature'], secret)) return res.status(401).end()` above its insert.
+- `yes`, `held_by: outside` — a release job declares `environment: production`, whose protection rules the platform keeps (the signal's case).
+- `no` — a `POST /api/notes` handler parses the body and inserts it, and nothing between the route and the insert refuses anything.
+- `not-determinable` — the app applies `app.use(guard())` before the handler, imported from a package the tree does not carry: whether it refuses, and on what, is not in the tree.
+
+**`second_act`** — a yes gives `deterministic-halt`.
+*Asks:* once the code has shown what the effect will do, must a second explicit act be given before
+it happens?
+*Counts:* a plan then an apply; a confirm prompt that names what it will do (`Delete 40 rows?
+[y/N]`); a dry run by default with an apply flag (the signal's case: `--apply`, `--yes`, `--execute`,
+`--no-dry-run`), whether or not anything makes the person read the preview.
+*Does not count:* a first act alone, such as a Send button that sends (`person_act`'s); a staged
+form a later act promotes (`staged`'s); a `--force` that skips a check; a flag that changes what is
+written but not whether.
+*Evidence:* the line where the effect waits for the second act (the flag read, the prompt awaited),
+and the line that shows the preview.
+
+- `yes` — a script sets `dryRun = !argv.includes('--apply')`, prints each row it would remove, and returns before the delete while `dryRun` holds.
+- `no` — `bin/prune.mjs` removes the matching rows as soon as it runs; no flag or prompt stands before the delete.
+- `not-determinable` — a route refuses unless the body carries `confirmed: true`, and the screen that would show the preview and set it is in a client the tree does not carry.
+
+**`staged`** — a yes gives `staged-reversible`.
+*Asks:* is the effect written in a staged form that a separate, later act promotes or discards?
+*Counts:* a draft in place of a send; a pull request in place of a push; quarantine in place of a
+delete; a release created as a draft; a migration that writes a new copy and keeps the old.
+*Does not count:* a dry run, which writes nothing (`second_act`'s); a held step that runs on its own
+clock unless withdrawn, such as a scheduled send (`window`'s); a feature flag that hides a change
+already written.
+*Evidence:* the call that writes the staged form (`draft: true`, `gh pr create`, the quarantine
+path), and the promoting act where the tree carries it.
+
+- `yes` — a workflow step commits to a new branch and runs `gh pr create --base main`, never pushing to `main`.
+- `no` — a release script runs `git push origin HEAD:main`.
+- `not-determinable` — `client.posts.create({ ...post, status: opts.status })`, where `opts.status` comes from a caller the tree does not carry.
+
+**`person_act`** — a yes gives `initiated-by-person`.
+*Asks:* on every path that reaches the effect, is it caused only by one person's own explicit act?
+*Counts:* a click on a control that names the effect (a Save, a Send, a Merge) whose handler is the
+route's one caller in the tree; a command a person runs; a `workflow_dispatch` alone (the signal's
+case).
+*Does not count:* a schedule, a push, a pull request or a merge queue that starts the job (the
+signal's no); a webhook another system sends; a queue consumer; an agent's tool call, which the
+model chooses even where a person started the conversation; any path where a job reaches the same
+effect beside the person's act. Whether the act is recorded is not asked here (`telemetry`, read by
+`map/doctrine.mjs`).
+*Evidence:* the trigger: the `on:` key, the control's handler that calls the route, the command's
+entry point; for a route, its caller in the tree.
+
+- `yes` — a form's `onSubmit` posts to `POST /api/invoices/:id/send`, and nothing else in the tree calls that route.
+- `no` — `on: schedule` with `cron: '0 3 * * *'` above the job that holds the write; or a tool listed in the model loop's `tools: [sendInvoice]`.
+- `not-determinable` — a `DELETE /api/items/:id` route the tree shows no caller of: a person's click in a client elsewhere and an unattended sync both remain open.
+
+**`declared_scope`** — a yes gives `scope-bound`.
+*Asks:* is there a declared bound on what this effect may touch, governing the credential or role
+the effect acts with? Where several are declared, the narrowest one is the answer's.
+*Counts:* where it governs the effect's own credential or role, an OAuth scope requested for the
+token the effect sends; a row policy on the table the effect writes, under the role the effect
+connects as; a token minted for one action, its claims naming the action or the record and its
+expiry; a CI `permissions:` block at the job or the workflow (the signal's case); an IAM binding of a
+narrow role to the identity the effect runs as; a sandbox or a runner declared with no credential,
+which the effect cannot write outside (§1).
+*Does not count:* a check in code that no declaration states, such as `if (note.orgId !==
+user.orgId) throw` before the write (`refuses_unless`'s, and a fact for `blast_scope`) or a `WHERE
+tenant_id = $1` the query writes; a bound on another credential than the one the effect uses (the
+job's token, where the step brings a key of its own); a declaration that bounds nothing
+(`write-all`, a `*` action, an admin role, a key that bypasses row policies); a working directory
+(§1).
+*Evidence:* the line where the bound is declared (the `permissions:` key, the `CREATE POLICY`, the
+scope list, the mint call with its claims, the binding), never the line where it is enforced (the
+provider's refusal, the middleware that checks the claim); and, where they differ, the line that
+ties the bound to the effect's credential.
+
+- `yes` — a workflow declares `permissions: { issues: write }` on the job whose step runs `gh issue edit`; or a migration declares `CREATE POLICY notes_owner ON notes USING (owner_id = current_user_id())` and the handler queries as the signed-in user's role.
+- `no` — the update runs on `createClient(url, process.env.SERVICE_ROLE_KEY)`, a key that bypasses the table's row policies; or the job declares `permissions: write-all`.
+- `not-determinable` — a script outside any workflow builds its client from `process.env.API_TOKEN`: the token's scopes are set where it was issued, which the tree does not carry.
+
+**`rate_limit`** — a yes gives `rate-throttle`.
+*Asks:* is there a limit on how often, or how many times, this effect can happen, per caller, per
+grant or across all callers, and what is its bound?
+*Counts:* a limiter applied on the effect's path that refuses or delays past a count in a window (the
+signal's case; its bound is in its options, or is the library's default where they set none); a
+counter the code keeps per caller or per grant and refuses past (`if (grant.uses >=
+grant.max_uses) return res.status(429)`); a quota; a cap per run (`items.slice(0, MAX_PER_RUN)`); a
+de-duplication that writes at most once per state (an idempotency key, an `ON CONFLICT DO NOTHING`
+keyed on the state).
+*Does not count:* a concurrency cap (`concurrency: 4`, a pool size), which bounds how many run at
+once and never how many in all; a limiter that counts only failed attempts (a lockout after wrong
+passwords, `skipSuccessfulRequests: true`), which never limits a caller who succeeds and so is not
+the effect's own limit (where a signal reads one, the answer is no against it, citing the option); a
+retry backoff, which spaces the code's own retries of one call and not how often the effect is
+caused; a timeout; a limit on another route or call than the effect's path.
+*Evidence:* where the limit is applied to the effect's path (the route argument, the `.use(`, the
+refusing call), and where its bound is set.
+
+- `yes` — `router.post('/invites', inviteLimiter, createInvite)`, with `inviteLimiter = rateLimit({ windowMs: 60_000, limit: 5 })` in the same file.
+- `no` — a job queue declared with `concurrency: 4` feeds the send, and no limiter or counter stands on its path; or the one limiter on the route counts failed logins only.
+- `not-determinable` — the router is exported and mounted by an app in a package the tree does not carry, so a limiter applied there is neither shown nor ruled out.
+
+**`disclosed`** — a yes gives `disclosure-only`.
+*Asks:* is the effect announced to those it reaches, before or as it happens?
+*Counts:* a notice, a label or a banner that reaches the people the effect reaches: a comment posted
+before a scheduled close, a message marked as sent by an automated agent, a page banner saying what
+a job will change.
+*Does not count:* a record only the operator reads (a log line, a metric, an audit row: `telemetry`'s);
+a notice to someone the effect does not reach; a README that describes the behaviour.
+*Evidence:* the line that sends or renders the notice, and the line that shows it reaches those the
+effect reaches.
+
+- `yes` — a stale-issue workflow runs `gh issue comment` with "This issue will be closed in 7 days" before the step that closes it.
+- `no` — a script rewrites objects in a shared bucket and prints `console.log('rewrote', key)` to its own console only.
+- `not-determinable` — the send names a provider template by id (`templateId: 'tmpl_reminder'`) whose text the tree does not carry.
+
+**`received_or_gone`** — a yes gives `irreversible`; a no is required for any other reversibility.
+*Asks:* once the effect has happened, has anything outside the repository and its operator received
+it, or is the prior state gone?
+*Counts:* received is delivered: a message or notification sent (an issue or comment write notifies
+its watchers), a release or package published, a request a third party's API acts on, third-party
+code executed. Gone is that nothing the evidence shows keeps the prior state: a delete with no
+retention, an overwrite in place with no copy or version kept.
+*Does not count:* a write to the application's own store that sends nothing, where the prior state is
+kept: a soft delete, a write that only adds (an insert, a new file: removing it restores the prior
+state), a write to storage whose versioning the tree declares, derived output the same inputs
+regenerate. Those read no. A backup the operator restores the whole store from is not a copy this
+effect keeps, and keeps nothing for it.
+*Evidence:* for a yes, the call that sends, publishes or deletes; for a no, that call and the line
+that keeps the prior state (the soft-delete column, the versioning setting).
+
+- `yes` — `await transporter.sendMail({ to, subject, html })` in the handler; or `DELETE FROM notes WHERE id = $1` with no copy kept.
+- `no` — `UPDATE notes SET deleted_at = now() WHERE id = $1`: the row is kept and nothing is sent.
+- `not-determinable` — `await store.remove(id)`, where `store` comes from a package the tree does not carry: whether it deletes or marks is not in the tree.
+
+**`window`** — a yes gives `reversible-with-window` where `received_or_gone` is no; a no gives `reversible`.
+*Asks:* is the way to undo this effect a held state the system keeps for that undo, one something
+ends (a purge, the send time, an expiry), whether or not the tree says when? Asked whatever
+`received_or_gone` answers; it decides the value only where that is no.
+*Counts:* a soft delete, the row kept with its mark until a purge clears it (the signal's case: the
+purge need not be in the tree); a trash or an archive restorable until emptied; a scheduled send or
+job the system holds and a cancel withdraws before it runs; an undo hold (`setTimeout(send, 10_000)`
+cleared by an Undo); an object stored with a stated expiry. The window is the system's: the code or
+the platform keeps it, whoever may use it (the acting person through an Undo or a Cancel, an admin
+through a restore, an operator clearing the mark).
+*Does not count:* an undo that never ends, the prior state kept as a record (a version history, a
+commit, a copy with no expiry) or regenerated from its inputs, which is a no (`reversible`); an
+effect that acts at once with nothing held, which is a no; a revocation of future access (revoking
+a token or a share stops what comes next and undoes nothing done, so `revoked_at` is no soft
+delete); an operator's restore of a whole store from backup; an audit record of the effect; what the
+acting person could do outside the system (re-enter what they removed, send a correction), which is
+a new effect.
+*Evidence:* the line that writes the held state (the mark, the scheduled row, the timer) and, where
+the tree carries them, the restore or the cancel and the purge; for a no, the line that keeps the
+prior state with no end, or the call that acts at once.
+
+- `yes` — the remove handler runs `UPDATE notes SET deleted_at = now()`, beside a restore route that sets it back to `NULL`.
+- `no` — a generator writes `docs/api.md` from the source, which the same inputs regenerate exactly; or a send goes out at once with nothing held.
+- `not-determinable` — a bucket write whose versioning and lifecycle are set in a console the tree does not carry.
 
 Whether the mechanism holds stays `map/doctrine.mjs`'s, read from the descriptors (an
 `initiated-by-person` gate holds only while `telemetry` is not `none`), so the checklist asks for the
