@@ -38,6 +38,7 @@ import { loadPolicy } from '../map/consequence.mjs';
 import { setConsequencePolicy, setLens, updateRunRecord } from '../map/record.mjs';
 import { readSetForRun, setSweepSets, ROW as LEGIBILITY_ROW } from '../map/sweep-partings.mjs';
 import { loadLens, BUILTIN_LENS_FILE } from './improve/lens.mjs';
+import { leftUnmeasured, partialReason } from '../map/lane-mode.mjs';
 import { buildOwner } from './owner.mjs';
 import { parseYaml } from '../lib/yaml-min.mjs';
 import { readFileSync } from 'node:fs';
@@ -203,6 +204,8 @@ const descRows = measureRunOf(runDir);
 const descSum = summarizeMeasurement(descRows);
 const descUnmet = descRows.filter((r) => r.status === 'unmet').map((r) => `\`${r.id}\``);
 const descClaims = descRows.filter((r) => r.kind === 'claim' && r.status === 'not-measured').length;   // the claim rows no packet decided
+// a lane that ran in checklist mode (#338): the rows it left not measured, named on the front door
+const descPartial = leftUnmeasured(manifest, descRows).map((x) => ` The ${x.scanner} lane ${partialReason(x)}.`).join('');
 
 // ── the views' own counts, for the lead lines ──────────────────────────────
 const ownerBuilt = buildOwner(runDir);
@@ -246,7 +249,7 @@ ${notMeasured.length ? `\n_Not measured this run: ${notMeasured.map((a) => `\`${
 
 ## The yardstick (glance)
 
-${descSum.decided} of ${descSum.of} requirements decided by this run (met ${descSum.met} · unmet ${descSum.unmet} · mixed ${descSum.mixed} · not applicable ${descSum['not-applicable']}); ${descSum['not-measured']} not measured, of which ${descClaims} are claim-only rows a sidecar decides, never a run.${descUnmet.length ? ` Unmet: ${descUnmet.join(', ')}.` : ''} The full measurement is \`yardstick.yaml\`.
+${descSum.decided} of ${descSum.of} requirements decided by this run (met ${descSum.met} · unmet ${descSum.unmet} · mixed ${descSum.mixed} · not applicable ${descSum['not-applicable']}); ${descSum['not-measured']} not measured, of which ${descClaims} are claim-only rows a sidecar decides, never a run.${descPartial}${descUnmet.length ? ` Unmet: ${descUnmet.join(', ')}.` : ''} The full measurement is \`yardstick.yaml\`.
 
 ## The data files
 

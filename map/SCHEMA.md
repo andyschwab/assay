@@ -645,7 +645,18 @@ from `record --duration`. An empty `duration:` is an error. A review lane that r
 carry `reviewed: { head, date }`, the target head it reviewed and the day it did (`record
 <run> <scanner> ran --head <sha> --reviewed YYYY-MM-DD`, #201); every row the lane decides
 carries it into `yardstick.yaml` (`yardstick/README.md`). A `reviewed:` on a row that did
-not run is an error. A scanner whose adapter pins its method by commit
+not run is an error. A review lane that ran may carry `mode:`, the mode it ran in, one its
+lane file offers (`modes:`, `map/lane.mjs`), written by `record <run> <scanner> ran --mode
+<mode>` (#338, `map/lane-mode.mjs`). A row with no `mode:` ran in full; `full` is never
+written. The practice-review lane offers `checklist`: Pass 0 kept to the effect inventory and
+the effect slice of the delegation pass (`map/passes.yaml` `checklist:`), writing
+`map/terrain.md`, `map/effect-triage.yaml` (version 2) and the delegation pass's effect
+findings, and nothing else. `validate` refuses a `mode:` the lane does not offer or on a row
+that did not run; for a lane in checklist mode it refuses a run that carries any other file of
+the full mode (another pass's file, `map/censuses.yaml`, `map/census-triage.yaml`), a finding of
+the lane that is not an effect or that carries `property:`, no candidate list, or a triage that
+is missing or not version 2. Every row the lane decides in full that the checklist does not reads
+not measured, its note saying the lane ran in checklist mode (`yardstick/README.md`). A scanner whose adapter pins its method by commit
 (`verified_against: { release, commit }`, #228) records on its row the method it was read
 at, `method: { release, commit }`: `ingest` writes the adapter's pin when the report's
 `review.skill_version` is that release. `validate` refuses a `method:` that is not this

@@ -14,6 +14,8 @@
 //     and their schema sections are well formed;
 //   - renderBlock / methodDrift: map/METHOD.md's block at the head of each pass is rendered from
 //     the map, never a second hand-kept copy;
+//   - loadChecklist / checklistErrors / checklistText: the lane's checklist mode (#338), its one pass's
+//     effect slice, held against the pass and the yardstick and rendered into the lane seed;
 //   - sliceOf: the opening context a pass subagent reads (the method's ground rules, the passes'
 //     introduction, its own pass's section, and the SCHEMA.md sections it names), and its bytes.
 // tests/blocks/passes-feed-requirements.mjs and tests/blocks/context-lists-have-owners.mjs hold
@@ -51,6 +53,62 @@ export function parsePasses(text, file = PASSES_FILE) {
   const doc = parseYaml(text);
   if (!doc || !Array.isArray(doc.passes) || !doc.passes.length) throw new Error(`${file}: no passes: list`);
   return doc.passes.map((p) => ({ ...p, decides: asList(p.decides).map(String), context: asList(p.context).map(String), discovery: asList(p.discovery), schema: asList(p.schema).map(String) }));
+}
+
+/** The checklist mode's slice (map/passes.yaml `checklist:`, #338): { pass, decides, schema }, or
+ * null when the map names none. @param {string} [file] */
+export function loadChecklist(file = PASSES_FILE) {
+  return parseChecklist(readFileSync(file, 'utf8'));
+}
+/** @param {string} text */
+function parseChecklist(text) {
+  const c = parseYaml(text)?.checklist;
+  if (c === undefined || c === null) return null;
+  return { pass: String(c.pass ?? ''), decides: asList(c.decides).map(String), schema: asList(c.schema).map(String) };
+}
+
+/** The checklist slice against the passes and the yardstick (#338): it names one pass; it decides
+ * exactly that pass's rows whose facet rule reads only the effect triage and the effect findings
+ * (yardstick/measure.mjs EFFECT_POPULATION_RULES), every one of them and no other; and its schema
+ * sections are the pass's own, each one SCHEMA.md has, §6e among them, with no §6b (it writes no
+ * census and no context list). @param {any} checklist @param {any[]} passes @param {any} reg */
+export async function checklistErrors(checklist, passes, reg) {
+  if (!checklist) return ['map/passes.yaml names no checklist: (the lane\'s checklist mode reads it)'];
+  const { EFFECT_POPULATION_RULES } = await import('../yardstick/measure.mjs');
+  const errors = [];
+  const pass = passes.find((p) => p.id === checklist.pass);
+  if (!pass) return [`checklist: pass ${checklist.pass} is no pass of map/passes.yaml`];
+  const rows = new Map((reg.requirements || []).map((d) => [d.id, d]));
+  const effectOnly = (d) => d && d.decide?.kind === 'facet' && EFFECT_POPULATION_RULES.has(d.decide.rule);
+  for (const id of checklist.decides) {
+    if (!pass.decides.includes(id)) errors.push(`checklist: decides ${id}, which pass ${pass.id} does not decide`);
+    else if (!effectOnly(rows.get(id))) errors.push(`checklist: decides ${id}, whose rule reads more than the effect triage and the effect findings: a checklist run writes nothing else`);
+  }
+  for (const id of pass.decides) if (effectOnly(rows.get(id)) && !checklist.decides.includes(id)) errors.push(`checklist: pass ${pass.id} decides ${id} from the effect triage and the effect findings alone, and the checklist leaves it out: name it in checklist.decides`);
+  if (new Set(checklist.decides).size !== checklist.decides.length) errors.push('checklist: decides names a row twice');
+  for (const s of checklist.schema) if (!pass.schema.includes(s)) errors.push(`checklist: schema §${s} is not among pass ${pass.id}'s (${pass.schema.map((x) => `§${x}`).join(', ')})`);
+  if (!checklist.schema.includes('6e')) errors.push('checklist: schema must name §6e, the triage and its answers');
+  if (checklist.schema.includes('6b')) errors.push('checklist: schema names §6b, the census and context-list form, and a checklist run writes neither');
+  return errors;
+}
+
+/** The checklist mode's text for the lane seed, rendered from map/passes.yaml (#338): the one pass,
+ * the rows it decides, the SCHEMA.md sections its subagent opens on, and the nine questions of the
+ * checklist (map/effect-answers.mjs CHECKLIST_KEYS). It names no other row, no context list and no
+ * discovery question. @param {{ checklist?: any, passes?: any[], titles?: Map<string, string>, keys?: string[] }} [opts] */
+export function checklistText({ checklist = loadChecklist(), passes = loadPasses(), titles = new Map(), keys = [] } = {}) {
+  if (!checklist) throw new Error('map/passes.yaml names no checklist: (the lane\'s checklist mode reads it)');
+  const pass = passes.find((p) => p.id === checklist.pass);
+  if (!pass) throw new Error(`map/passes.yaml checklist: pass ${checklist.pass} is no pass`);
+  const rows = checklist.decides.map((id) => `\`${id}\`${titles.get(id) ? ` (${titles.get(id)})` : ''}`).join('; ');
+  return [
+    `This is the checklist mode: Pass 0, kept to the effect inventory, and the effect slice of Pass ${pass.pass} (${pass.title.toLowerCase()}, the ${pass.id} pass), and nothing else.`,
+    `It decides these requirements and no other: ${rows}.`,
+    `Pass 0 writes \`map/terrain.md\` with only what the ${pass.id} pass needs to read the candidates: the candidate list and the files and entry points each one sits in; it draws no census and no context list.`,
+    `Run the ${pass.id} pass as one subagent after Pass 0, opened on METHOD.md's "Ground rules" and the SCHEMA.md sections ${checklist.schema.map((s) => `§${s}`).join(', ')}, each from its heading to the next heading of its level or above, with the terrain and this step's text; it does not open on its own "Pass ${pass.pass}" section, which carries the whole pass.`,
+    `It writes \`map/findings/practice-review-${pass.id}.yaml\` holding only effect findings (\`subject_type: effect\`), one per channel, numbered from \`F-001\` (SCHEMA.md §3), each with \`file:line\` evidence that resolves in this checkout and its forced fields (SCHEMA.md §4); a finding that is not an effect, or that carries a \`property:\`, is refused in this mode, and so is any other pass's file, \`map/censuses.yaml\` or \`map/census-triage.yaml\`.`,
+    `The checklist's ${keys.length} questions, each answered for every candidate the triage maps in: ${keys.map((k) => `\`${k}\``).join(', ')} (SCHEMA.md §6e, "The answers").`,
+  ].join(' ');
 }
 
 /** Every requirement the map leaves unowned or owns twice, and every decides entry that names no
@@ -293,7 +351,7 @@ async function main() {
   const { loadYardstick } = await import('../yardstick/measure.mjs');
   const reg = loadYardstick();
   const method = readFileSync(METHOD_FILE, 'utf8');
-  const errors = [...ownershipErrors(passes, reg), ...(await contextErrors(passes, reg)), ...shapeErrors(passes, reg, readFileSync(SCHEMA_FILE, 'utf8'))];
+  const errors = [...ownershipErrors(passes, reg), ...(await contextErrors(passes, reg)), ...shapeErrors(passes, reg, readFileSync(SCHEMA_FILE, 'utf8')), ...(await checklistErrors(loadChecklist(), passes, reg))];
   const { text, drift } = await methodDrift(passes, reg, method);
   if (args.includes('--write')) {
     if (text !== method) writeFileSync(METHOD_FILE, text);
@@ -305,6 +363,6 @@ async function main() {
   }
   for (const e of [...errors, ...drift]) console.error(`✗ ${e}`);
   if (errors.length || drift.length) process.exit(1);
-  console.log(`✓ map/passes.yaml: ${passes.length} passes, every facet and census requirement owned once, every context list filled once, METHOD.md in step`);
+  console.log(`✓ map/passes.yaml: ${passes.length} passes, every facet and census requirement owned once, every context list filled once, the checklist in step with its pass, METHOD.md in step`);
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main().catch((e) => { console.error(`✗ passes: ${e.message}`); process.exit(2); });

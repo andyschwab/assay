@@ -97,6 +97,21 @@ A `method_commit` the clone does not hold exits 2: fetch it, never guess. The ru
 a committed set and an operator's own: run the check before scheduling a sweep. A threshold change
 is a reviewed change to `SWEEP.yaml`, never a silent drift.
 
+**A checklist set** (#338). A sweep may be drawn with the practice-review lane in checklist mode
+(`node assay.mjs lane practice-review --mode checklist`, recorded `record … ran --mode
+checklist`): it writes the terrain, the answered triage and the delegation pass's effect
+findings, and nothing else, so `d-effect-facts-legible` is affordable on a real target. Its
+triage is the full mode's format, held by the same validate rules, so `variance` reads its answers
+as it reads a full sweep's: per-candidate descriptor agreement, per-answer agreement and gap
+agreement are measured as for a full set. What a checklist sweep never looked for is not counted
+against it: a set with one reads fact presence not measured, with the reason, never 0 (declare
+`fact_presence` under `not_measured`; a threshold on it is a breach), and takes requirement
+agreement over the rows the checklist decides (`map/passes.yaml` `checklist:`), saying so. A set
+may mix modes only where every sweep carries answers (a version 2 triage); `variance` refuses
+one where a sweep does not (exit 2), naming it. No committed set is a checklist set:
+`tests/blocks/checklist-sweep-set.mjs` cuts a committed answered set to its checklist subset at
+test time and holds these readings over it.
+
 **Cost.** `variance` prints each sweep's cost as its run record has it: the `spend:` and
 `duration:` of the scanner that ran (`map/SCHEMA.md` §5a, `node assay.mjs record … --spend
 --duration`), copied as written (`cost` in `--json`). A sweep whose record carries neither reads

@@ -20,15 +20,25 @@
 // adapter splits one and that never asks is refused a seed) · {{INPUTS_STEP}} where the inputs are. A lane with inputs needs --inputs-dir: a review told to
 // read results nobody said where to find is refused, never seeded.
 //
+// Modes (#338): a lane's frontmatter may name `modes:`, the modes it offers, `full` first (the
+// default; a lane that names none offers only `full`). A mode other than full may set its own
+// `<mode>_outputs`, `<mode>_passes`, `<mode>_session_title` and `<mode>_artifact`, which replace
+// the plain key in that mode; the body keeps a span for one mode between `<!-- mode:<mode> -->` and
+// `<!-- /mode:<mode> -->`, dropped in every other mode, and text outside every span is every mode's,
+// written once. {{ARTIFACT}} is the mode's artifact title, {{OUTPUTS}} its outputs as a list, and
+// {{CHECKLIST}} the checklist mode's text, rendered from map/passes.yaml (map/passes.mjs
+// checklistText), never written twice. The seed carries `mode`; the run record carries it once the
+// consumer records the run (`assay record <run> <scanner> ran --mode <mode>`, map/lane-mode.mjs).
+//
 // A lane's frontmatter may name `passes`: the built-in scanner's lane names its passes, the
 // files map/project.mjs's PRACTICE_REVIEW_PASSES reads (tests/blocks/lane-list.mjs pins the two
 // equal); every other lane names none.
 //
 // Usage: node assay.mjs lane <scanner> --name <Name> [--head <sha|branch>] [--focus <text>]
-//          [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>]
-// Prints { lane, scanner, title, artifact, outputs, inputs, passes, prompt } as JSON.
+//          [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>] [--mode <mode>]
+// Prints { lane, scanner, mode, title, artifact, outputs, inputs, passes, prompt } as JSON.
 //        node assay.mjs lane --list [--json]
-// Prints { lanes: [{ scanner, lane, outputs, inputs, passes }] }, every lane unfilled.
+// Prints { lanes: [{ scanner, lane, outputs, inputs, passes, modes }] }, every lane unfilled.
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,6 +46,9 @@ import { isMain } from './doctrine.mjs';
 import { loadAdapters, adoptedAdapters, verifiedPin } from './project.mjs';
 import { engineCommit } from './start.mjs';
 import { splitCategories } from './placement.mjs';
+import { checklistText } from './passes.mjs';
+import { CHECKLIST_KEYS } from './effect-answers.mjs';
+import { parseYaml } from '../lib/yaml-min.mjs';
 
 const ADAPTERS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'scanners', 'adapters');
 const words = (v) => String(v || '').split(/\s+/).filter(Boolean);
@@ -54,13 +67,41 @@ export function readLane(file) {
   return { meta, body: m[2] };
 }
 
+// the modes a lane offers (`modes:`, full first; full alone when it names none)
+export const modesOf = (meta) => (words(meta.modes).length ? words(meta.modes) : ['full']);
+// a frontmatter key as one mode reads it: `<mode>_<key>` in a mode other than full, else the key
+const metaFor = (meta, key, mode = 'full') => (mode !== 'full' && meta[`${mode}_${key}`] !== undefined ? meta[`${mode}_${key}`] : meta[key]);
+// the files a lane publishes in one mode
+export const laneOutputs = (meta, mode = 'full') => words(metaFor(meta, 'outputs', mode));
+// the body as one mode reads it: that mode's spans kept, every other mode's dropped
+function bodyFor(body, mode, modes) {
+  let out = body;
+  for (const m of modes) {
+    const re = new RegExp(`<!-- mode:${m} -->([\\s\\S]*?)<!-- /mode:${m} -->`, 'g');
+    out = out.replace(re, (_, inner) => (m === mode ? inner : ''));
+  }
+  const stray = out.match(/<!-- \/?mode:([\w-]+) -->/);
+  if (stray) throw new Error(`the lane body has a span for mode ${stray[1]}, which its modes: (${modes.join(', ')}) do not name, or a span left open`);
+  return out;
+}
+// the yardstick's titles, for the checklist text's rows
+function requirementTitles() {
+  const reg = parseYaml(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'yardstick', 'requirements.yaml'), 'utf8'));
+  return new Map((reg.requirements || []).map((d) => [d.id, d.title]));
+}
+
 // fill one lane for one target → the seed, or throws naming what is missing
-export function laneSeed(scanner, { name, head = null, focus = null, assay = null, date = null, inputsDir = null } = /** @type {any} */ ({}), adapters = loadAdapters()) {
+export function laneSeed(scanner, { name, head = null, focus = null, assay = null, date = null, inputsDir = null, mode = 'full' } = /** @type {any} */ ({}), adapters = loadAdapters()) {
   const lane = lanes(adapters).find((l) => l.scanner === scanner);
   if (!lane) throw new Error(`no lane for ${scanner} (lanes: ${lanes(adapters).map((l) => l.scanner).join(', ') || 'none'})`);
   if (!existsSync(lane.file)) throw new Error(`adapters/${scanner}.yaml names lane ${adapters[scanner].lane}, which is not there`);
   if (!name) throw new Error('a lane is seeded for a named target (--name)');
-  const { meta, body } = readLane(lane.file);
+  const { meta, body: whole } = readLane(lane.file);
+  const modes = modesOf(meta);
+  mode = mode || 'full';
+  if (!modes.includes(mode)) throw new Error(`the ${scanner} lane offers no mode ${mode} (modes: ${modes.join(', ')})`);
+  const body = bodyFor(whole, mode, modes);
+  const outputs = laneOutputs(meta, mode);
   const inputs = words(meta.inputs);
   if (inputs.length && !inputsDir) throw new Error(`the ${scanner} lane reads ${inputs.join(', ')}, which ran before it: say where they are (--inputs-dir)`);
   const pin = verifiedPin(adapters[scanner]);
@@ -79,19 +120,24 @@ export function laneSeed(scanner, { name, head = null, focus = null, assay = nul
     // finding of such a category, so its finding is placed by what it observes, never by nearness
     PROPERTIES: splitCategories(adapters[scanner]).map(({ category, properties }) => `Every finding in area ${category} also carries \`property:\`, exactly one of: ${properties.map((p) => `\`${p.property}\` (${p.means})`).join('; ')}. A finding that observes both is two findings; one that names neither is listed untaken, and no requirement reads it.`).join(' '),
     INPUTS_STEP: inputs.length ? `They are files under \`${inputsDir}\`, at the run's own paths: ${inputs.map((p) => `\`${p}\``).join(', ')}. A file that is not there is a result you were not given: say so, and review without it.` : '',
+    OUTPUTS: outputs.map((o) => `\`${o}\``).join(', '),
   };
+  // the checklist mode's text is map/passes.yaml's (#338), rendered only where the body asks for it
+  if (/\{\{CHECKLIST\}\}/.test(body)) vars.CHECKLIST = checklistText({ titles: requirementTitles(), keys: CHECKLIST_KEYS });
   // an adapter that splits a category by property needs its lane to say so: a seed that never
   // asks for the property leaves every such finding unplaced
   if (splitCategories(adapters[scanner]).length && !/\{\{PROPERTIES\}\}/.test(body)) throw new Error(`adapters/${scanner}.yaml splits ${splitCategories(adapters[scanner]).map((c) => c.category).join(', ')} by property, and its lane never asks for one ({{PROPERTIES}})`);
   const fill = (s) => s.replace(/\{\{(\w+)\}\}/g, (_, k) => { if (!(k in vars)) throw new Error(`${lane.file}: unknown placeholder ${k}`); if (vars[k] === null) throw new Error(`the ${scanner} lane reads its method at a pinned commit, and adapters/${scanner}.yaml verified_against names none ({ release, commit })`); return vars[k]; });
-  return { lane: meta.lane || scanner, scanner, title: fill(meta.session_title || ''), artifact: fill(meta.artifact || ''), outputs: words(meta.outputs), inputs, passes: words(meta.passes), prompt: fill(body).replace(/ +\n/g, '\n').trim() + '\n' };
+  vars.ARTIFACT = fill(metaFor(meta, 'artifact', mode) || '');
+  return { lane: meta.lane || scanner, scanner, mode, title: fill(metaFor(meta, 'session_title', mode) || ''), artifact: vars.ARTIFACT, outputs, inputs, passes: words(metaFor(meta, 'passes', mode)), prompt: fill(body).replace(/ +\n/g, '\n').trim() + '\n' };
 }
 
-// every lane, unfilled: { scanner, lane, outputs, inputs, passes } (`assay lane --list`)
+// every lane, unfilled: { scanner, lane, outputs, inputs, passes, modes } (`assay lane --list`); the
+// outputs and passes are the full mode's
 function laneList(adapters = loadAdapters()) {
   return lanes(adapters).map(({ scanner, file }) => {
     const { meta } = readLane(file);
-    return { scanner, lane: meta.lane || scanner, outputs: words(meta.outputs), inputs: words(meta.inputs), passes: words(meta.passes) };
+    return { scanner, lane: meta.lane || scanner, outputs: words(meta.outputs), inputs: words(meta.inputs), passes: words(meta.passes), modes: modesOf(meta) };
   });
 }
 
@@ -105,11 +151,11 @@ if (isMain(import.meta.url)) {
     process.exit(0);
   }
   try {
-    const seed = laneSeed(args[0], { name: opt('--name'), head: opt('--head'), focus: opt('--focus'), assay: opt('--assay'), date: opt('--date'), inputsDir: opt('--inputs-dir') });
+    const seed = laneSeed(args[0], { name: opt('--name'), head: opt('--head'), focus: opt('--focus'), assay: opt('--assay'), date: opt('--date'), inputsDir: opt('--inputs-dir'), mode: opt('--mode') || 'full' });
     process.stdout.write(JSON.stringify(seed, null, 2) + '\n');
   } catch (e) {
     console.error(`✗ lane: ${e.message}`);
-    console.error('usage: node assay.mjs lane <scanner> --name <Name> [--head <sha|branch>] [--focus <text>] [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>]');
+    console.error('usage: node assay.mjs lane <scanner> --name <Name> [--head <sha|branch>] [--focus <text>] [--assay <ref>] [--date YYYY-MM-DD] [--inputs-dir <path>] [--mode <mode>]');
     process.exit(2);
   }
 }

@@ -44,6 +44,7 @@ import { censusCount } from '../map/census.mjs';
 import { propertyOf, validatePlacement } from '../map/placement.mjs';
 import { loadBar, factLegibility } from './legibility-bar.mjs';
 import { sweepSetsOfRun } from '../map/sweep-partings.mjs';
+import { modeOfRow, checklistDecides, checklistNote } from '../map/lane-mode.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
@@ -51,6 +52,10 @@ export const KINDS = ['facet', 'census', 'instrument', 'claim'];
 const FACET_RULES = ['halts-gated', 'halts-traced', 'gates-fail-closed', 'trifecta', 'effects-provable', 'channels-triaged', 'facts-legible'];
 // the four rules that read the effect population: each reads met only over a closed one (#259)
 const EFFECT_RULES = new Set(['halts-gated', 'halts-traced', 'effects-provable', 'gates-fail-closed']);
+// the facet rules that read only the effect triage and the effect findings (#338): the rows a
+// practice-review lane in checklist mode can decide (map/passes.yaml checklist:, which
+// map/passes.mjs checklistErrors holds to exactly these of its pass's rows)
+export const EFFECT_POPULATION_RULES = new Set([...EFFECT_RULES, 'channels-triaged', 'facts-legible']);
 // the enumerate populations a census row may name as its candidates: every population but the
 // three the effect triage closes (map/effect-triage.mjs), and the constants enumerate's shape
 // filter set apart as not credentials (map/enumerate.mjs: a name assigned an identifier or a
@@ -249,7 +254,7 @@ function dispositionsOf(manifest) {
   if (!manifest) return out;
   const rows = Array.isArray(manifest) ? manifest : Array.isArray(manifest.scanners) ? manifest.scanners
     : manifest.scanners && typeof manifest.scanners === 'object' ? Object.entries(manifest.scanners).map(([k, v]) => ({ scanner: k, ...v })) : [];
-  for (const r of rows) if (r && (r.scanner || r.id)) out[r.scanner || r.id] = { status: r.status, reason: r.reason, reviewed: r.reviewed && typeof r.reviewed === 'object' ? r.reviewed : null };
+  for (const r of rows) if (r && (r.scanner || r.id)) out[r.scanner || r.id] = { status: r.status, reason: r.reason, reviewed: r.reviewed && typeof r.reviewed === 'object' ? r.reviewed : null, mode: modeOfRow(r) };
   return out;
 }
 
@@ -737,6 +742,18 @@ function withLanes(d, r, adapters, disp) {
   return reviewed.length ? { ...r, reviewed } : r;
 }
 
+// A lane that ran in checklist mode (#338; map/lane-mode.mjs) answered only the effect checklist: a
+// row it decides under the full mode, and that the checklist does not (map/passes.yaml checklist:),
+// was not looked at, so it reads not measured, saying the lane ran in checklist mode, never met,
+// never unmet. A row the checklist decides reads exactly as the full mode reads it. A row another
+// lane that ran in full also decides is that lane's to read, and stands.
+function withMode(d, r, adapters, disp) {
+  const lanesHere = lanesDeciding(d, adapters, disp).filter((id) => disp[id] && disp[id].status === 'ran');
+  if (!lanesHere.length || !lanesHere.every((id) => disp[id].mode === 'checklist')) return r;
+  if (checklistDecides().has(d.id)) return r;
+  return row('not-measured', r.how || d.decide.kind, [], checklistNote(lanesHere));
+}
+
 // channels: the run's channel candidates and their triage (map/effect-triage.mjs loadChannelFiles);
 // absent, the effect population is not closed and the effect rows read not measured.
 // census: the run's enumerated populations and its census triage (map/census-triage.mjs
@@ -771,7 +788,7 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
       const context = contextOfClaim(d, inputs);
       if (context.length) r = { ...r, context };
     }
-    if (d.decide.kind !== 'claim') r = withLanes(d, r, adapters, disp);
+    if (d.decide.kind !== 'claim') r = withLanes(d, withMode(d, r, adapters, disp), adapters, disp);
     if (d.decide.kind !== 'claim') {
       const c = claims.find((x) => x && x.id === d.id);
       if (c && c.state === 'satisfied' && r.status === 'unmet') {
