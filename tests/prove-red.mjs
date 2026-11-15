@@ -296,6 +296,11 @@ export const ENTRIES = [
     from: "export const HELD_BY = ['code', 'outside'];",
     to: "export const HELD_BY = ['code', 'outside', 'operator'];",
     check: 'checklist-answers-defined', red: /refuses_unless has no example of the value yes, held_by: operator/ },
+  { rule: 'the lane prompt points at §6e, "The answers", and restates no definition (#337, #325)',
+    file: 'map/scanners/adapters/practice-review/lane.md',
+    from: 'the delegation pass asks the checklist (SCHEMA.md §6e, "The answers")',
+    to: 'the delegation pass asks the checklist (SCHEMA.md §6e, "The answers"; a concurrency cap, which bounds how many run at once and never how many in all, is no rate limit)',
+    check: 'lane-prompt-restates-no-answer', red: /restates rate_limit's \*Does not count:\*/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────
