@@ -31,6 +31,7 @@ import { legacyIn } from './migrate-run.mjs';
 import { censusCount, memberErrors } from './census.mjs';
 import { identityProblems } from './target-identity.mjs';
 import { CONSEQUENCE, policyRecordProblems, policyOfRun } from './consequence.mjs';
+import { sweepSetsRecordProblems, sweepSetsOfRun } from './sweep-partings.mjs';
 import { lensRecordProblems, lensOfRun } from '../views/improve/lens.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // map/
@@ -313,6 +314,13 @@ for (const file of passFiles) {
           const probs = policyRecordProblems(m.consequence_policy);
           if (probs.length) for (const p of probs) err(`${MANIFEST_FILE}:consequence_policy`, p);
           else { try { policyOfRun(runDir, loadYardstickForPolicy()); } catch (e) { err(`${MANIFEST_FILE}:consequence_policy`, e.message); } }
+        }
+        // the sweep sets compile --sweep-set named for the run (#338): each loads, is the set its digest
+        // names, and reads for the run as the record says (map/sweep-partings.mjs)
+        if (m.sweep_sets !== undefined) {
+          const probs = sweepSetsRecordProblems(m.sweep_sets);
+          if (probs.length) for (const p of probs) err(`${MANIFEST_FILE}:sweep_sets`, p);
+          else { try { sweepSetsOfRun(m); } catch (e) { err(`${MANIFEST_FILE}:sweep_sets`, e.message); } }
         }
         // the lens the operator named for the fix sequence (#319, slice 3): it loads, names only the
         // closed quadrants and tie-breaks, and is the file the record's digest names (views/improve/lens.mjs)
@@ -974,6 +982,7 @@ if (existsSync(yardstickResultPath)) {
         if (r.how !== x.how) err(at, `mechanism drift: file says ${r.how}, the yardstick decides by ${x.how}`);
         if (JSON.stringify(r.reviewed || null) !== JSON.stringify(x.reviewed || null)) err(at, `reviewed drift: the file's reviewed: does not match the run record's review of its lanes — regenerate: node assay.mjs measure <run-dir> --write`);
         if (JSON.stringify(r.context || []) !== JSON.stringify(x.context || [])) err(at, `context drift: the file's context: does not match the run's context lists (map/censuses.yaml) — regenerate: node assay.mjs measure <run-dir> --write`);
+        if (JSON.stringify(r.sweep_sets || []) !== JSON.stringify(x.sweep_sets || [])) err(at, `sweep set drift: the file's sweep_sets: does not match the sets the run record names (map/scanners.yaml sweep_sets) — regenerate: node assay.mjs measure <run-dir> --write`);
         if ((r.basis || 'run') !== (x.basis || 'run')) err(at, `basis drift: file says ${r.basis || 'run'}, the map computes ${x.basis || 'run'} (owner/PACKET.md) — regenerate: node assay.mjs measure <run-dir> --write`);
       }
       // contradictions (owner/PACKET.md "Claims and a run, compared"): a packet claim of

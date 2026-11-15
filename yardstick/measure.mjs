@@ -43,6 +43,7 @@ import { ENUMERATE_POPULATIONS } from '../map/enumerate-populations.mjs';
 import { censusCount } from '../map/census.mjs';
 import { propertyOf, validatePlacement } from '../map/placement.mjs';
 import { loadBar, factLegibility } from './legibility-bar.mjs';
+import { sweepSetsOfRun } from '../map/sweep-partings.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
@@ -306,7 +307,13 @@ function byChannels(ch, lanes = []) {
 // list, over an empty one, with no triage, with a triage that carries no answers (version 1), when no
 // question clears the bar, and when no candidate is in scope. A candidate untriaged, or answered in a
 // form the checklist does not hold, turns a met reading mixed and is named.
-function byLegibility(ch, channels, bar, lanes = [], canMix = true) {
+// The stronger evidence (#338, third slice): where blind lanes over this run's tree, at the commit it
+// measured, part on a qualifying question for an in-scope candidate (a sweep set the run record names,
+// map/sweep-partings.mjs), the tree does not state that fact where a reader finds it, whatever this
+// run's lane answered: the pair is a gap, cited at the candidate with the set named. The lane's answer
+// stays as it wrote it. A pair the run's own answer already reads as a gap stays one gap with both
+// sources named. sets: the record's sets read for the run, each { set, partings }.
+function byLegibility(ch, channels, bar, lanes = [], canMix = true, sets = []) {
   if (!ch.listed) return row('not-measured', 'facet', [], ch.reason);
   const n = ch.candidates.length;
   if (!n) return row('not-measured', 'facet', [], 'enumerate listed no channel candidate, route handler or effect call site: an empty list decides nothing');
@@ -320,6 +327,16 @@ function byLegibility(ch, channels, bar, lanes = [], canMix = true) {
   for (const x of Array.isArray(channels.triage) ? channels.triage : []) if (x && typeof x.candidate === 'string' && ch.judged.get(x.candidate) === String(x.finding) && !entryOf.has(x.candidate)) entryOf.set(x.candidate, x);
   const signals = channels.signals instanceof Map ? channels.signals : new Map(), cites = channels.cites instanceof Map ? channels.cites : new Map();
   const per = Object.fromEntries(bar.qualifying.map((q) => [q, { legible: 0, bySignal: 0, of: 0 }]));
+  // the parted pairs that apply: a qualifying question, a candidate this run holds in scope, matched
+  // by its member string exactly; a parting on any other candidate is named, never read
+  const parted = new Map(), outside = [];
+  for (const s of Array.isArray(sets) ? sets : []) for (const p of s.partings || []) {
+    if (!bar.qualifying.includes(p.question)) continue;
+    if (!ch.judged.has(p.candidate)) { outside.push(`${s.set}: "${p.candidate}" ${p.question}`); continue; }
+    const k = `${p.candidate}\u0000${p.question}`;
+    if (!parted.has(k)) parted.set(k, []);
+    parted.get(k).push({ set: s.set, reads: p.reads });
+  }
   const gaps = [], unread = [];
   let whole = 0;
   for (const c of inScope) {
@@ -327,29 +344,36 @@ function byLegibility(ch, channels, bar, lanes = [], canMix = true) {
     let ok = true;
     for (const q of bar.qualifying) {
       per[q].of += 1;
-      const read = factLegibility(answers, sigs, q);
-      if (read === 'legible') { per[q].legible += 1; if (sigs.some((x) => x && x.question === q)) per[q].bySignal += 1; continue; }
+      const read = factLegibility(answers, sigs, q), sweeps = parted.get(`${c}\u0000${q}`) || [];
+      if (read === 'legible' && !sweeps.length) { per[q].legible += 1; if (sigs.some((x) => x && x.question === q)) per[q].bySignal += 1; continue; }
       ok = false;
-      if (read === 'gap') gaps.push({ candidate: c, question: q, at: cites.get(c) || [], finding: ch.judged.get(c) });
+      if (read === 'gap' || sweeps.length) gaps.push({ candidate: c, question: q, at: cites.get(c) || [], finding: ch.judged.get(c), source: read === 'gap' ? (sweeps.length ? 'both' : 'run') : 'set', sets: sweeps });
       else unread.push(`${c} (${q})`);
     }
     if (ok) whole += 1;
   }
   const perQ = bar.qualifying.map((q) => `${q} ${per[q].legible} of ${per[q].of} legible${per[q].bySignal ? ` (${per[q].bySignal} by a signal)` : ''}`).join(', ');
   const at = (g) => (g.at.length ? `${g.at[0]}${g.at.length > 1 ? ` +${g.at.length - 1}` : ''}` : 'no file:line on the list');
-  const sayGaps = gaps.length ? `; ${gaps.length} gap(s), a question no reader could answer from the tree: ${gaps.map((g) => `"${g.candidate}" (${at(g)}) ${g.question} not determinable`).join('; ')}` : '';
+  const partedIn = (g) => g.sets.map((x) => `the blind lanes of sweep set ${x.set} part on it (${x.reads.join(' / ')})`).join(', and ');
+  const sayGap = (g) => `"${g.candidate}" (${at(g)}) ${g.question} ${g.source === 'run' ? 'not determinable' : g.source === 'both' ? `not determinable, and ${partedIn(g)}` : `read two ways: ${partedIn(g)}`}`;
+  const bySource = (s) => gaps.filter((g) => g.source === s).length;
+  const sources = sets.length ? ` (${bySource('run')} from this run's own answers, ${bySource('set')} from a parting in a sweep set, ${bySource('both')} from both)` : '';
+  const sayGaps = gaps.length ? `; ${gaps.length} gap(s)${sources}, a question no reader could answer from the tree: ${gaps.map(sayGap).join('; ')}` : '';
+  const sayOutside = outside.length ? `; ${outside.length} parting(s) in a sweep set name a candidate this run does not hold in scope, not read: ${outside.join(', ')}` : '';
   const sayUnread = unread.length ? `; ${unread.length} answer(s) not read (not in the checklist's form): ${unread.join(', ')}` : '';
   const sayUntriaged = ch.untriaged.length ? `; ${ch.untriaged.length} of ${n} channel candidate(s) untriaged: ${ch.untriaged.join(', ')}` : '';
-  const note = `${whole} of ${inScope.length} in-scope effect candidate(s) legible on every qualifying question (${bar.qualifying.join(', ')}; ${bound}); ${perQ}${sayGaps}${sayUnread}${sayUntriaged}`;
+  const note = `${whole} of ${inScope.length} in-scope effect candidate(s) legible on every qualifying question (${bar.qualifying.join(', ')}; ${bound}); ${perQ}${sayGaps}${sayUnread}${sayUntriaged}${sayOutside}`;
   const ids = (cs) => [...new Set(cs.map((c) => ch.judged.get(c)))].sort();
-  if (gaps.length) return row(whole > 0 && canMix ? 'mixed' : 'unmet', 'facet', ids(gaps.map((g) => g.candidate)), note, { met: whole, of: inScope.length, gaps });
+  // the sweep sets a gap rests on, by name: the views cite them beside the gap's file:line
+  const fromSets = [...new Set(gaps.flatMap((g) => g.sets.map((x) => x.set)))].sort();
+  if (gaps.length) return row(whole > 0 && canMix ? 'mixed' : 'unmet', 'facet', ids(gaps.map((g) => g.candidate)), note, { met: whole, of: inScope.length, gaps, ...(fromSets.length ? { sweep_sets: fromSets } : {}) });
   return row(unread.length || ch.untriaged.length ? 'mixed' : 'met', 'facet', ids(inScope), note, { met: whole, of: inScope.length, gaps });
 }
 
 let BAR = null;
-function byFacet(d, fs, ch = channelPopulation(), lanes = [], channels = {}, bar = null) {
+function byFacet(d, fs, ch = channelPopulation(), lanes = [], channels = {}, bar = null, sets = []) {
   if (d.decide.rule === 'channels-triaged') return byChannels(ch, lanes);
-  if (d.decide.rule === 'facts-legible') return byLegibility(ch, channels, bar || (BAR ??= loadBar()), lanes, mixable(d));
+  if (d.decide.rule === 'facts-legible') return byLegibility(ch, channels, bar || (BAR ??= loadBar()), lanes, mixable(d), sets.filter((s) => s && s.read));
   if (EFFECT_RULES.has(d.decide.rule)) return closedOver(byEffects(d, fs), ch);
   return byEffects(d, fs);
 }
@@ -719,7 +743,9 @@ function withLanes(d, r, adapters, disp) {
 // loadCensusTriage); absent, a census row that names its candidates reads not measured.
 // legibilityBar: the bar d-effect-facts-legible reads (yardstick/legibility-bar.mjs loadBar), by
 // default yardstick/legibility-bar.yaml; a test states its own.
-export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null, channels = null, census = null, legibilityBar = null }, reg = loadYardstick()) {
+// sweepSets: the sweep sets the run record names (map/sweep-partings.mjs sweepSetsOfRun), each
+// { set, read, reason?, partings }; only a set read for the run feeds d-effect-facts-legible.
+export function measureRun({ findings, manifest, inputs, coverage, packet = null, adapters = null, channels = null, census = null, legibilityBar = null, sweepSets = [] }, reg = loadYardstick()) {
   const disp = dispositionsOf(manifest);
   adapters ??= (ADAPTERS ??= loadAdapters());
   const contradictions = [];
@@ -728,7 +754,7 @@ export function measureRun({ findings, manifest, inputs, coverage, packet = null
   const ch = channelPopulation(channels || {}, findingsById);
   const rows = reg.requirements.map((d) => {
     let r, basis = 'run';
-    if (d.decide.kind === 'facet') r = byFacet(d, findings, ch, lanesDeciding(d, adapters, disp), channels || {}, legibilityBar);
+    if (d.decide.kind === 'facet') r = byFacet(d, findings, ch, lanesDeciding(d, adapters, disp), channels || {}, legibilityBar, sweepSets);
     else if (d.decide.kind === 'census') {
       r = byCensus(d, inputs, findingsById);
       if (Array.isArray(d.decide.candidates)) r = closedCensus(r, censusClosure(d, census || {}, inputs, findingsById), d, findingsById);
@@ -770,7 +796,7 @@ export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   // this guards against (CLAUDE.md rule 3: fail loud, never empty; a clean run with an
   // explicit run record is a valid measurement, not an absent one).
   if (!findings.length && !manifest) throw new Error(`no findings under ${runDir}`);
-  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir), census: loadCensusTriage(runDir) }, reg);
+  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir), census: loadCensusTriage(runDir), sweepSets: sweepSetsOfRun(manifest) }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what every view (Improve's topic grouping, Owner, and
@@ -816,6 +842,8 @@ export function toYaml(rows, runName) {
     L.push(`    findings: [${r.findings.join(', ')}]`, `    note: ${q(r.note)}`);
     // a claim row's context (#262): what the run saw on its population, never its decision
     if (Array.isArray(r.context) && r.context.length) L.push(`    context: [${r.context.join(', ')}]`);
+    // the sweep sets a gap of the row rests on (#338): where blind lanes over this tree part
+    if (Array.isArray(r.sweep_sets) && r.sweep_sets.length) L.push(`    sweep_sets: [${r.sweep_sets.map(q).join(', ')}]`);
     if (Array.isArray(r.reviewed) && r.reviewed.length) {
       L.push('    reviewed:');
       for (const v of r.reviewed) L.push(`      - by: ${v.by}`, ...(v.head ? [`        head: ${q(v.head)}`] : []), ...(v.date ? [`        date: ${q(v.date)}`] : []));

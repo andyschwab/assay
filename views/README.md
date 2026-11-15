@@ -108,7 +108,7 @@ yardstick: <requirements.yaml version>
 counts: { floor_open, floor_not_measured, floor_met, floor_not_applicable, beyond_floor_open, beyond_floor_not_measured, beyond_floor_met, beyond_floor_not_applicable }
 floor:                # buildRows(run, 'floor'): the rows tagged floor
   open:
-    - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], check, reason }
+    - { id, tier, topic, title, status, risk, fix, where: ["file:line", …], findings: [F-…], sweep_sets?: ["<set>"], check, reason }
   not_measured:       # context / context_seen: a claim row's, only when the run saw any (#262)
     - { id, tier, topic, title, status, risk, fix, where: [], findings: [], check, context: [F-…], context_seen: ["…"], decided_by, reason }
   met:                # seen: the observations of the strengths the row cites, what was seen in place (#260)
@@ -165,7 +165,10 @@ owner can make) — present only there, the same convention as `buildRows`'s
 `to_run`. A claim row the run saw evidence on carries `context` (the ids, as `buildRows`'s) and
 `context_seen` (their observations, in the owner's words), kept apart from `findings`,
 `where` and `seen` so they never read as what the status rests on; `OWNER.md` renders them
-after "What would tell" as "Seen in this run (context, not a decision): …". `OWNER.md` renders `floor` in full (one fix prompt per open row, in
+after "What would tell" as "Seen in this run (context, not a decision): …". A row a gap of which rests
+on a sweep set (`d-effect-facts-legible`, where blind lanes over this tree part, #338) carries
+`sweep_sets`, the sets' names, from the measurement's own `sweep_sets:`; `OWNER.md` names each after
+the row's places, "Where: `file:line`, …, sweep set `<set>`", and adds nothing more. `OWNER.md` renders `floor` in full (one fix prompt per open row, in
 tier order) and `beyond_floor` compactly; its "Fix in this order" list and
 `floor.open` always agree by id and status with `buildRows(run, 'floor')`'s `open`
 list — same measurement, never a second opinion.
@@ -178,7 +181,7 @@ over `views/improve/templates/`). It needs the run's authored
 
 | File | What it is |
 |---|---|
-| `views/improve.yaml` | every requirement grouped by topic, each exactly once: `topics: [{ topic, met, unmet, mixed, not_measured, not_applicable, rows: [{ id, title, status }] }]` |
+| `views/improve.yaml` | every requirement grouped by topic, each exactly once: `topics: [{ topic, met, unmet, mixed, not_measured, not_applicable, rows: [{ id, title, status, sweep_sets? }] }]`; `sweep_sets` only where a gap of the row rests on a sweep set (#338), which the walk names beside the row, "(evidence: sweep set `<set>`)" |
 | `views/improve/candidates.yaml` | the run's candidate properties (#264): the findings no requirement takes (`yardstick/untaken.mjs`: a finding `yardstick/population.mjs` `requirementTaking` names no requirement for, given the census it is listed in), grouped by the `property:` each names (`map/SCHEMA.md` §1), a reviewer's row by the property its adapter places it on (`map/placement.mjs`, #306): `{ view: candidates, run, yardstick, counts: { findings, taken, candidates, properties, unnamed }, properties: [{ property, findings: [F-…] }], unnamed: [F-…], unplaced: [{ finding, reason }] }`, properties sorted by name, ids in the map's order, a finding that names no property in `unnamed`, and `unplaced` the unnamed reviewer rows its adapter could not place, each with the reason; written by `compile` after measuring, and rendered in the walk (`views/improve/axes.md`, "Findings no requirement takes", on every run) and as `IMPROVE.md` §8 (where the run carries prose). A candidate is listed, never priced and never promoted here: promotion to a requirement needs two independent targets (#257, #265) |
 | `views/improve/axes.md` | the axis walk: per axis, what to preserve, the risks ranked, and the requirements on that topic; custody, reproducibility and operability as their own sections; the axes no scanner measured this run |
 | `views/improve/maturity-grades.yaml` | maturity coverage per dimension, computed (`node assay.mjs maturity`) |
@@ -300,6 +303,10 @@ under `tests/sweeps/` or the operator's own) whose every sweep ran that source; 
 no figure, and a figure the set could not take is `null`, never a number. START-HERE renders each
 item's confidence in one phrase, REMEDIATION with its rule and reason. The key does not reorder by
 confidence beyond clause 3; the quadrant the item sits in reads it (above, "Where an item sits").
+The same `--sweep-set` also feeds the measurement, never a view: a set over this run's target at the
+commit it measured hands `d-effect-facts-legible` the candidates its blind lanes read two ways
+(`yardstick/README.md`, "An effect's facts, legible"), and the run record names every set given, read
+or not, with its digest, so a later compile without the flag measures the same.
 
 **What is at stake** (#319, slice 2). Every item also records its **consequence**: the
 consequence policy applied to the facts of what its gaps touch, on a closed scale (severe,

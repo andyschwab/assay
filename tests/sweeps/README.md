@@ -21,6 +21,9 @@ tests/sweeps/<set>/
 
 ```yaml
 target: "<public target, and where it lives>"
+identity:                  # optional: the target as a run states it (map/SCHEMA.md §5a), for d-effect-facts-legible (#338)
+  repository: "<the target repository's remote>"
+  path: "."                # or the target's path within it
 target_commit: "<the commit every sweep read>"
 method_commit: "<the assay commit whose METHOD.md and SCHEMA.md the sweeps ran under>"
 date: "YYYY-MM-DD"
@@ -34,6 +37,16 @@ not_measured:                    # each measure the set cannot take, with the re
   <measure>: "<why the set cannot take it>"
 sweeps: [sweep-1, sweep-2, …]    # at least two directory names inside the set
 ```
+
+**A set read into a run's measurement** (#338). `compile --sweep-set <dir>` reads a set for
+`d-effect-facts-legible` only when it is about the run's tree: its `identity:` is the run's own
+(`map/target-identity.mjs` `identityKey`, the rule by which two runs are one target) and its
+`target_commit` is the commit the run measured (the `reviewed.head` its lanes record). Then each
+candidate × question where the set's sweeps read the candidate two ways, a gap and legible, is a gap
+of the run (`yardstick/README.md`, "An effect's facts, legible"). A set with no `identity:` is read
+for nothing on that row, and the run record says why; an `identity:` that is malformed (a local
+path, userinfo, a path with `..`) makes the set unreadable, and compile stops naming it
+(`map/sweep-partings.mjs`). The committed answered sets state theirs.
 
 **A gate checks something or says it does not** (#323). Each of the four measures is either
 under `threshold`, above 0, or under `not_measured` with the reason, never both and never

@@ -117,7 +117,8 @@ function requirementsBlock(topic) {
   const t = topicsByName && topicsByName[topic];
   if (!t) return [];
   const out = [`**Requirements on this topic** _(${t.met} met · ${t.unmet} unmet · ${t.mixed} mixed · ${t.not_measured} not measured · ${t.not_applicable} not applicable)_:`];
-  if (t.rows.length) for (const r of t.rows) out.push(`- ${r.id} _(${r.status})_ — ${r.title}`);
+  // a row whose gap rests on a sweep set (#338) names it, as a finding names its evidence
+  if (t.rows.length) for (const r of t.rows) out.push(`- ${r.id} _(${r.status})_ — ${r.title}${Array.isArray(r.sweep_sets) && r.sweep_sets.length ? ` (evidence: ${r.sweep_sets.map((s) => `sweep set \`${s}\``).join(', ')})` : ''}`);
   else out.push('_None on this topic in the yardstick._');
   out.push('');
   return out;
