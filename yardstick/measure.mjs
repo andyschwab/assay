@@ -340,7 +340,7 @@ function byLegibility(ch, channels, bar, lanes = [], canMix = true, sets = []) {
     if (!ch.judged.has(p.candidate)) { outside.push(`${s.set}: "${p.candidate}" ${p.question}`); continue; }
     const k = `${p.candidate}\u0000${p.question}`;
     if (!parted.has(k)) parted.set(k, []);
-    parted.get(k).push({ set: s.set, reads: p.reads });
+    parted.get(k).push({ set: s.set, reads: p.reads, ...(p.carried ? { carried: p.carried } : {}) });
   }
   const gaps = [], unread = [];
   let whole = 0;
@@ -352,17 +352,20 @@ function byLegibility(ch, channels, bar, lanes = [], canMix = true, sets = []) {
       const read = factLegibility(answers, sigs, q), sweeps = parted.get(`${c}\u0000${q}`) || [];
       if (read === 'legible' && !sweeps.length) { per[q].legible += 1; if (sigs.some((x) => x && x.question === q)) per[q].bySignal += 1; continue; }
       ok = false;
-      if (read === 'gap' || sweeps.length) gaps.push({ candidate: c, question: q, at: cites.get(c) || [], finding: ch.judged.get(c), source: read === 'gap' ? (sweeps.length ? 'both' : 'run') : 'set', sets: sweeps });
+      if (read === 'gap' || sweeps.length) gaps.push({ candidate: c, question: q, at: cites.get(c) || [], finding: ch.judged.get(c), source: read === 'gap' ? (sweeps.length ? 'both' : 'run') : 'set', sets: sweeps, carriedOnly: sweeps.length > 0 && sweeps.every((x) => x.carried) });
       else unread.push(`${c} (${q})`);
     }
     if (ok) whole += 1;
   }
   const perQ = bar.qualifying.map((q) => `${q} ${per[q].legible} of ${per[q].of} legible${per[q].bySignal ? ` (${per[q].bySignal} by a signal)` : ''}`).join(', ');
   const at = (g) => (g.at.length ? `${g.at[0]}${g.at.length > 1 ? ` +${g.at.length - 1}` : ''}` : 'no file:line on the list');
-  const partedIn = (g) => g.sets.map((x) => `the blind lanes of sweep set ${x.set} part on it (${x.reads.join(' / ')})`).join(', and ');
+  const partedIn = (g) => g.sets.map((x) => `the blind lanes of sweep set ${x.set} part on it (${x.reads.join(' / ')})${x.carried ? `, carried from ${x.carried.from} to ${x.carried.to}, evidence unchanged` : ''}`).join(', and ');
   const sayGap = (g) => `"${g.candidate}" (${at(g)}) ${g.question} ${g.source === 'run' ? 'not determinable' : g.source === 'both' ? `not determinable, and ${partedIn(g)}` : `read two ways: ${partedIn(g)}`}`;
-  const bySource = (s) => gaps.filter((g) => g.source === s).length;
-  const sources = sets.length ? ` (${bySource('run')} from this run's own answers, ${bySource('set')} from a parting in a sweep set, ${bySource('both')} from both)` : '';
+  const bySource = (s) => gaps.filter((g) => g.source === s && (s !== 'set' || !g.carriedOnly)).length;
+  // a set read by the carry rule (another commit, every file its parting rests on unchanged) is counted apart
+  const carriedSets = sets.some((s) => Array.isArray(s.carried));
+  const sayCarried = carriedSets ? `, ${gaps.filter((g) => g.source === 'set' && g.carriedOnly).length} carried from a parting in a sweep set at another commit` : '';
+  const sources = sets.length ? ` (${bySource('run')} from this run's own answers, ${bySource('set')} from a parting in a sweep set${sayCarried}, ${bySource('both')} from both)` : '';
   const sayGaps = gaps.length ? `; ${gaps.length} gap(s)${sources}, a question no reader could answer from the tree: ${gaps.map(sayGap).join('; ')}` : '';
   const sayOutside = outside.length ? `; ${outside.length} parting(s) in a sweep set name a candidate this run does not hold in scope, not read: ${outside.join(', ')}` : '';
   const sayUnread = unread.length ? `; ${unread.length} answer(s) not read (not in the checklist's form): ${unread.join(', ')}` : '';
@@ -813,7 +816,7 @@ export function projectRun(runDir, reg, packet = loadRunPacket(runDir)) {
   // this guards against (CLAUDE.md rule 3: fail loud, never empty; a clean run with an
   // explicit run record is a valid measurement, not an absent one).
   if (!findings.length && !manifest) throw new Error(`no findings under ${runDir}`);
-  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir), census: loadCensusTriage(runDir), sweepSets: sweepSetsOfRun(manifest) }, reg);
+  return measureRun({ findings, manifest, inputs: loadMaturityInputs(runDir), coverage: loadScannerCoverage(runDir), packet, channels: loadChannelFiles(runDir), census: loadCensusTriage(runDir), sweepSets: sweepSetsOfRun(manifest, { runDir }) }, reg);
 }
 // Read back a run's own measurement — yardstick.yaml — the FILE, never
 // recomputed. This is what every view (Improve's topic grouping, Owner, and

@@ -57,7 +57,10 @@ const targetArgs = targetIdx > -1 ? ['--target', argv[targetIdx + 1]] : [];
 // also read for d-effect-facts-legible (#338): a set over this run's target at the commit it measured
 // hands the measurement its parted pairs (map/sweep-partings.mjs), any other is read for nothing on the
 // row; either way the run record names it with its digest and, when not read, why, so every later
-// compile of the run reads the same. A set that cannot be read stops compile, naming why.
+// compile of the run reads the same. A set over this run's target at another commit is read by the
+// carry rule (map/sweep-partings.mjs): with --target, a checkout holding both commits, each parted pair
+// whose every cited file is the same git object at both carries; without one it reads for nothing.
+// A set that cannot be read stops compile, naming why.
 const sweepIdx = argv.flatMap((a, i) => (a === '--sweep-set' ? [i] : []));
 const sweepArgs = sweepIdx.flatMap((i) => ['--sweep-set', argv[i + 1]]);
 // --consequence-policy <file>: the operator's consequence policy for this run (#319,
@@ -120,14 +123,16 @@ if (sweepIdx.length) {
   try {
     const manifest = loadManifest(runDir);
     if (!manifest) throw new Error(`${scannersPath(runDir)} is missing: a set is matched to the target and commit the run record states`);
-    entries = sweepIdx.map((i) => readSetForRun(argv[i + 1], manifest));
+    entries = sweepIdx.map((i) => readSetForRun(argv[i + 1], manifest, { runDir, target: targetIdx > -1 ? argv[targetIdx + 1] : null }));
     updateRunRecord(scannersPath(runDir), (text) => setSweepSets(text, entries));
     // a run measured before reads its new sets now, as record and ingest re-measure (#184)
     remeasureIfMeasured(runDir);
   } catch (e) { console.error(`✗ sweep set refused: ${e.message}`); process.exit(1); }
-  for (const x of entries) console.log(x.read
+  for (const x of entries) console.log(x.read && x.carried
+    ? `· sweep set ${x.set} read for ${LEGIBILITY_ROW} at another commit, by the carry rule: ${x.carried.length} candidate × question pair(s) carried, every file they rest on unchanged; ${x.not_carried.length} not carried${x.not_carried.length ? ` (${x.not_carried.map((c) => `"${c.candidate}" ${c.question}: ${c.unlisted ? 'not listed at the run\'s commit' : c.no_file ? 'rests on no file' : `${c.moved.join(', ')} moved`}`).join('; ')})` : ''} (sha256 ${x.sha256.slice(0, 12)}…, recorded in the run record)`
+    : x.read
     ? `· sweep set ${x.set} read for ${LEGIBILITY_ROW}: over this run's target and commit, ${x.partings.length} candidate × question pair(s) where its lanes part (sha256 ${x.sha256.slice(0, 12)}…, recorded in the run record)`
-    : `· sweep set ${x.set} not read for ${LEGIBILITY_ROW}: ${x.reason} (sha256 ${x.sha256.slice(0, 12)}…, recorded in the run record)`);
+    : `· sweep set ${x.set} not read for ${LEGIBILITY_ROW}: ${x.reason}${x.no_carry ? `; not carried: ${x.no_carry}` : ''} (sha256 ${x.sha256.slice(0, 12)}…, recorded in the run record)`);
 }
 console.log('· validate …');                  run('../map/validate.mjs', targetArgs);
 // the measurement: every package carries yardstick.yaml (yardstick/README.md); the

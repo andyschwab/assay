@@ -333,9 +333,32 @@ gap on that question:
   pairs only when the set's `identity:` is the run's (`map/SCHEMA.md` §5a; one target by
   `map/target-identity.mjs` `identityKey`) and its `target_commit` is the commit the run measured, the
   `reviewed.head` every lane that ran records (one commit; a sha of at least 7 hex digits read as git
-  reads it, a prefix of the full one). Any other set is read for nothing on this row: the run reads
+  reads it, a prefix of the full one). A set at another commit of this target is read only by the
+  carry rule below. Any other set is read for nothing on this row: the run reads
   exactly as without it, and the run record names the set as not read, with why (another target,
   another commit, or a run or set that states neither).
+- **Carried to another commit only where the evidence is provably unchanged** (#338, fourth slice). A
+  sweep is expensive and a routine runs at every commit, so a set over this run's target at another
+  commit A is read by a second, stricter path, the carry rule (`map/sweep-partings.mjs`). A parted pair
+  stands at the run's commit B only when both hold:
+  - the candidate's member is listed in B's own enumeration (`map/raw/enumerate.json`), exactly as
+    enumerate writes it;
+  - every file the parting rests on is byte-identical at A and B: the same git object id, read from the
+    target's own history at `--target` with `git cat-file`. The files are the candidate's cited file in
+    each sweep's list and in the run's, and each file any sweep's answer on that question cites as
+    evidence (a `commit:` citation names no file). Paths are the sweeps' own, relative to the target's
+    root, resolved under the set's `identity:` path within its repository.
+
+  Anything less is not carried, and the run record names which file moved, or that the candidate is not
+  listed. Never line-fuzzing, never a guess: a file absent at either commit has not been shown
+  unchanged. The rule is object identity, not ancestry: B need not descend from A. **No git, no carry:**
+  without a `--target` checkout, with one that is not a git checkout, over a shallow history, or with A
+  or B absent from it, the set reads for nothing at B and the record says which (`no_carry`), never
+  assumed unchanged. A carried gap's note names the set, "carried from <A> to <B>, evidence unchanged"
+  and each sweep's reading, and the note's count by source adds the gaps carried. A set at the run's own
+  commit is never read this way: the exact-commit path above reads it as it did. The record keeps the
+  object ids compared, so a later measurement without the checkout reads the same, and one with it
+  refuses ids the checkout no longer reads.
 - **Computed, never typed.** The pairs are computed from the set's runs each time the run is measured,
   by `map/variance.mjs` `candidateAgreement` and `gapAgreement` (`map/sweep-partings.mjs`), the code
   `variance --set` reports them with. A yes against a no is legible both ways and never a parting; a
@@ -350,7 +373,8 @@ gap on that question:
   how many from a parting, and how many from both. The row carries `sweep_sets:`, the names of the sets
   its gaps rest on, which Owner prints beside the gap's places and Improve beside the row.
 - **Recorded.** The run record carries each set compile was given (`map/SCHEMA.md` §5a, `sweep_sets:`),
-  read or not, with the digest of what was read. Every later measurement of the run reads the same sets
+  read or not, with the digest of what was read, and for a set carried from another commit each pair
+  carried, with its object ids, and each not carried, with what moved. Every later measurement of the run reads the same sets
   without the flag, and refuses one whose digest or reading has moved since (name it again). A set
   that cannot be read stops compile, naming why; it is never skipped.
 
