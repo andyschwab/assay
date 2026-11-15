@@ -73,7 +73,7 @@ passes:
     pass: 5
     dimension: delegation
     title: Delegation surface
-    decides: [d-effect-channels-enumerated, d-effects-gated, d-gates-fail-closed, d-effects-traced, d-effects-provable, d-capability-budget, d-credentials-enumerated, d-ingested-content-is-data]
+    decides: [d-effect-channels-enumerated, d-effect-facts-legible, d-effects-gated, d-gates-fail-closed, d-effects-traced, d-effects-provable, d-capability-budget, d-credentials-enumerated, d-ingested-content-is-data]
     context: [d-ai-disclosure]
     discovery:
       - property: acting-principal-stated

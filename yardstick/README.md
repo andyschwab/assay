@@ -116,7 +116,7 @@ record does not produce as drift.
 
 | Kind | Decided from | Reads |
 |---|---|---|
-| `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below) | met or unmet with the population, a met effect row citing the effect findings it read; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
+| `facet` | the effect and capability facets the finding schema forces (`map/doctrine.mjs`), and for the effect rows the run's closed effect population (below); for `d-effect-facts-legible`, the triage's answers on the questions the legibility bar lets it read (below) | met or unmet with the population, a met effect row citing the effect findings it read; not-measured when the map has no effects, or when the run carries no channel candidate list; mixed when a row would read met beside an untriaged candidate |
 | `census` | an enumerated population in the run's `map/censuses.yaml`, by measure name, read off the finding ids its `members:` lists (below) | met only when every member is a strength, citing them; unmet on a gap (mixed when a strength sits beside it, except on a `safety` row); mixed when a member carries no verdict; with `met of N`; not-measured when no census of that name ran. A census with no `members:` never reads met |
 | `instrument` | a scanner's rows, gated by the run record and, for a peer scanner, its coverage file; for an instrument whose adapter carries `row_per_check: true` (it writes a row for every check it runs, its checks the categories its `map:` names), such a category decided with no row reads not-measured, the check never run by the version that drew the run (#311) | unmet on gap rows (mixed when a strength row sits beside them, except on a `safety`-tier requirement, whose check is a cleanliness claim: there one gap row reads unmet whatever strengths sit beside it); met when an instrument ran clean or a peer scanned the domain with no gaps; not-measured when skipped, failed or not scanned, **with the recorded reason** |
 | `claim` | nothing in a run | not-measured from a run alone: only the owner can decide it (`views/rows.mjs` says `decided_by: owner`), which a repository's own **packet** may do (`basis: owner` — `/owner/PACKET.md`: `satisfied` → met, `not-applicable` → not-applicable, `open` → unmet). A claim row with a `decide.context` also carries the findings the run listed on its population as `context:`, never as `findings:` (below). The claim rows a packet never speaks to are the list of instruments still to build |
@@ -282,6 +282,61 @@ the members a review session lists in `map/censuses.yaml`, while this row is com
 run's own two files, the way the other facet rules are computed from the finding facets, so
 nothing in it can be hand-inflated. Binding lives on the yardstick side (#257 Q1): the
 triage names findings, and no finding carries a requirement id.
+
+**An effect's facts, legible** (#338). In an AI-native world, code that cannot be readily
+understood will be misunderstood by an agent. An effect whose facts no careful reader can determine
+from the tree, whether it can be undone, what refuses it, who or what sets it off, what bounds its
+scope, what limits it, is a legibility gap of the target, and `d-effect-facts-legible` is where the
+measurement says so. It is the `facet` rule `facts-legible`, computed from the run's own two files
+the way `channels-triaged` is. Its population is the in-scope effect candidates: each enumerated
+candidate the triage maps to an effect finding. Per candidate, per qualifying question of the
+checklist (`map/SCHEMA.md` §6e, "The answers"):
+
+- **legible** when a signal the list records answers the question (#336: the tree states it, legible
+  by construction, whatever the lane answered), or the run answers it `yes` or `no` with its
+  `path:line` evidence;
+- **a gap** when the run answers it `not-determinable`: the note cites the candidate at its
+  `file:line` and names the question, and the row lists the effect finding it maps to.
+
+It reads **met** when every in-scope candidate is legible on every qualifying question, citing their
+effect findings, and **unmet** on any gap; its note gives, per qualifying question, how many
+candidates are legible and how many by a signal. It reads **not measured**, with the reason and never
+met, without a list, over an empty one, with no triage, with a triage that carries no answers
+(`version: 1`), when no question qualifies ("no checklist question has cleared the cross-target
+bar"), and when no candidate is in scope. A candidate untriaged, or an answer not in the checklist's
+form, turns a met reading mixed and is named.
+
+**The bar** keeps assay's ambiguity apart from the target's. A question blind lanes part on over
+every target measures its own wording (#337), never the target. So a question **qualifies** only
+when its cross-target agreement clears a stated bar: the agreement per answer that
+`map/variance.mjs` reports (`candidates.answers.byAnswer`), pooled over every committed **blind**
+sweep set whose runs answer the checklist, at or above `bar`, and compared on at least
+`targets_at_least` distinct targets. A question that does not qualify is never read against a
+target: a `not-determinable` answer on it moves nothing. The bar, the qualifying questions and the
+sets they rest on live in one data file, `yardstick/legibility-bar.yaml` (`yardstick/legibility-bar.mjs`
+reads it, failing loud): `{ schema: assay.legibility-bar, version: 1, bar, bar_reason,
+targets_at_least, targets_reason, sets: [{ set, target, reason }], questions: [{ question, agreement,
+agree, of, targets, sets, reason }], below_bar: [ … the same … ], none_qualify? }`, each entry with its
+reason. The figures are computed, never typed: `node yardstick/legibility-bar-check.mjs` recomputes
+them from `tests/sweeps/` and exits 1 where the file disagrees, and
+`tests/blocks/legibility-bar-recomputed.mjs` fails the suite on the same. The bar starts at 75%: the
+one round that measured the answers per question (#315, one private target) steps from 78–85% for the
+three questions that ask for a mechanism a reader can point at to 70% and below for the rest, which
+include #337's rewords. As shipped no committed set carries a version 2 triage with answers, so no
+question qualifies and the row reads not measured on every target until a public answered set is
+committed (`tests/sweeps/README.md`, "An answered set").
+
+**Where blind lanes part** is the stronger evidence #338 names: careful blind readers of one tree
+who answer a qualifying question two ways show the tree does not state the fact. `variance --set`
+lists each `{ candidate, question, values }` where they part (`legibility.parted` in `--json`;
+`--bar <file>` names another bar). In this slice the list feeds no run's measurement; feeding it in
+is the next.
+
+The fix names no system: state the fact where a reader or a machine finds it, a declared operation,
+a schema, config, or a comment at the effect. Any declared-operations mechanism satisfies it. Its
+consequence (below) reads the effect's own descriptors: an irreversible, external or unheld effect
+reads at least what they give, and the default policy's `legibility-gap-on-effect` keeps a gap on any
+effect at least `contained`, never `cosmetic` by its tier alone.
 
 **A census a tool can list** (#286, M6 of #257). Before M6 each lane drew a census's members
 itself, at its own grain, so two sweeps of one target parted on rows they judged alike: one

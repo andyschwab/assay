@@ -119,6 +119,18 @@ rules:
     says: a gap on a safety requirement that its adapter places as hygiene, with no security consequence
     when: { tier: safety, exposure: hygiene }
     at_least: cosmetic
+  # #338: a legibility gap on an effect (d-effect-facts-legible lists the effect findings whose facts
+  # no reader can determine) reads the effect's own descriptors as every gap does, so an irreversible,
+  # external or unheld effect reads at least what the rules above give it, never cosmetic by the
+  # legibility tier alone; and a not-determinable reversibility already reads irreversible (map/SCHEMA.md
+  # §6e). This rule closes the case those leave, a reversible internal effect: a fact about what the
+  # code does to the world that the next reader must guess is a working gap, not polish. The facts it
+  # reads already exist (the row's tier, and a reversibility, which only a gap that is or touches an
+  # effect carries); a legibility gap on no effect still reads cosmetic by legibility-row below.
+  - name: legibility-gap-on-effect
+    says: a gap on a legibility requirement that is or touches an effect, whose facts the next reader or agent must guess from the tree
+    when: { tier: legibility, reversibility: [reversible, reversible-with-window, irreversible] }
+    at_least: contained
   - name: legibility-row
     says: a gap on a legibility requirement, what a reader can learn from the files
     when: { tier: legibility }

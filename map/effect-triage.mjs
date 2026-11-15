@@ -44,12 +44,12 @@ const CURRENT_TRIAGE_VERSION = 2;
 // absent from a list drawn before #315); ruled: whether the list carries that population, so the scope
 // rule decided what it offers; files: member → the files its evidence cites; signals: member → the
 // signals the list records on it (#315 slice 3, map/effect-signals.mjs; none on a list drawn before
-// them); version: the triage's. A file present but unreadable is an error, and reads as absent to the
+// them); version: the triage's; cites: member → its evidence as the list writes it (path:line). A file present but unreadable is an error, and reads as absent to the
 // measurement (never as an empty list).
 export function loadChannelFiles(run) {
   const errors = [];
   let candidates = null, triage = null, version = null, ruled = false;
-  const excluded = new Map(), files = new Map(), signals = new Map();
+  const excluded = new Map(), files = new Map(), signals = new Map(), cites = new Map();
   const ep = enumeratePath(run);
   if (existsSync(ep)) {
     try {
@@ -60,6 +60,7 @@ export function loadChannelFiles(run) {
       else {
         candidates = [...new Set(lists.flat().map((c) => c.member))];
         for (const c of lists.flat()) files.set(c.member, [...(files.get(c.member) || []), ...(Array.isArray(c.evidence) ? c.evidence : []).map((e) => String(e).replace(/:\d+(?:-\d+)?$/, ''))]);
+        for (const c of lists.flat()) cites.set(c.member, [...(cites.get(c.member) || []), ...(Array.isArray(c.evidence) ? c.evidence : []).map(String)]);
         CANDIDATE_POPULATIONS.forEach((p, k) => lists[k].forEach((c, i) => {
           const errs = signalShapeErrors(c.signals, `${ENUMERATE_FILE}: populations.${p}[${i}]`);
           errors.push(...errs);
@@ -81,7 +82,7 @@ export function loadChannelFiles(run) {
       else { triage = doc.triage; version = doc.version; }
     }
   }
-  return { candidates, triage, errors, excluded, ruled, files, signals, version };
+  return { candidates, triage, errors, excluded, ruled, files, signals, version, cites };
 }
 
 const isEffect = (f) => f && f.subject_type === 'effect' && f.effect && typeof f.effect === 'object';
@@ -174,7 +175,8 @@ export function unansweredOf({ triage, version }) {
   return triage.filter((x) => x && typeof x === 'object' && x.finding !== undefined && x.finding !== null && x.finding !== '').length;
 }
 
-// the measurement's read of the population: { listed, triaged, candidates, untriaged, covered, outOfScope, reason }.
+// the measurement's read of the population: { listed, triaged, candidates, untriaged, covered, outOfScope, judged, reason },
+// judged the in-scope candidates, each → the effect finding its entry maps it to.
 // triaged is whether the run carries a triage at all (#275): a list nobody triaged decides nothing.
 // A candidate counts triaged only by an entry that holds (an effect finding of this run, or a
 // reason); anything else leaves it untriaged, so a bad entry never reads as a closed one.
@@ -182,11 +184,11 @@ export function unansweredOf({ triage, version }) {
 export function channelPopulation({ candidates, triage, errors = [] } = /** @type {any} */ ({}), byId = new Map()) {
   if (!Array.isArray(candidates)) {
     const why = errors.length ? `the candidate list does not read (${errors[0]})` : `the run carries no channel candidate list (${ENUMERATE_FILE}, which assay start writes)`;
-    return { listed: false, triaged: false, candidates: [], untriaged: [], covered: [], outOfScope: [], reason: `effect population not closed: ${why}` };
+    return { listed: false, triaged: false, candidates: [], untriaged: [], covered: [], outOfScope: [], judged: new Map(), reason: `effect population not closed: ${why}` };
   }
   const { untriaged, judged, outOfScope } = closure(candidates, triage, (id) => isEffect(byId.get(id)));
   const covered = [...new Set(judged.values())];
-  return { listed: true, triaged: Array.isArray(triage), candidates, untriaged, covered, outOfScope, reason: null };
+  return { listed: true, triaged: Array.isArray(triage), candidates, untriaged, covered, outOfScope, judged, reason: null };
 }
 
 // A channel's identity across runs (#298): the candidate the lane triaged to it, not the lane's own

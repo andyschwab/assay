@@ -90,6 +90,33 @@ is a reviewed change to `SWEEP.yaml`, never a silent drift.
 `not recorded`; nothing is estimated. The run record is the one home of a session's cost, so
 `SWEEP.yaml` carries no copy of it.
 
+**An answered set** (#338). `d-effect-facts-legible` reads a question of the checklist only when its
+agreement, pooled over the committed blind sets whose runs answer the checklist, clears the bar in
+`yardstick/legibility-bar.yaml` on at least two targets. No set here carries a version 2 triage with
+answers, so no question qualifies yet. An operator produces the two sets it needs on public targets,
+this repository and the public flawed-webapp fixture target, the way the blind sets below were made,
+with an engine that writes answers (v0.16.0 or later):
+
+```sh
+# pin the engine and the two targets, each at one commit every sweep reads
+git clone https://github.com/andyschwab/assay.git target-assay && git -C target-assay checkout <commit>
+git clone https://github.com/andyschwab/assay-fixtures.git fixtures && git -C fixtures checkout <commit>
+# per target (target-assay, then fixtures/targets/flawed-webapp), three sweeps, each its own run
+node assay.mjs start --out runs/<set>/sweep-1 target-assay
+node assay.mjs lane practice-review --name sweep-1 --head <commit> --inputs-dir runs/<set>/sweep-1
+#   one fresh-context session per sweep, seeded with that text: the target read-only, tests/sweeps/,
+#   every tests/fixtures/*/map/ and every ANSWERS.yaml excluded; its triage is version 2, with answers
+node assay.mjs validate runs/<set>/sweep-1 --target target-assay --lane practice-review
+# the set: copy the sweeps' runs to tests/sweeps/<set>/ with a SWEEP.yaml (blind: true, each threshold
+# at or below what it measures), then measure it and see where the lanes part
+node assay.mjs variance --set tests/sweeps/<set>
+# with both sets committed, recompute the bar and copy the figures into the file, a reason on each
+node yardstick/legibility-bar-check.mjs --json
+```
+
+The bar file and the sets land in one reviewed change: `tests/blocks/legibility-bar-recomputed.mjs`
+fails while the file disagrees with them, so a set committed without the file's update is red.
+
 **The sets here.** One set per target, the newest, plus two older sets the mapping set reads.
 A set a later set of the same target supersedes is removed in the change that commits the later
 one; git keeps it (#323).

@@ -1268,7 +1268,10 @@ lowest `gate_type` in the order, the first `reversibility`. validate refuses a f
 stored `version: 1` triage carries no answers: its findings' descriptors are read as written, and
 validate marks it unanswered. The lanes are compared on the answers (`map/variance.mjs`): where
 every run answers a candidate, its two values are the ones its answers give, and each answer is
-counted per question.
+counted per question. A `not-determinable` answer is also a fact about the target, that the tree
+states what the question asks nowhere a reader finds it, and `d-effect-facts-legible` reads it so only
+for a question whose cross-target agreement clears the bar in `yardstick/legibility-bar.yaml`
+(`yardstick/README.md`, "An effect's facts, legible").
 
 **The signals** (#315; `map/effect-signals.mjs`, the markers in `map/effect-signals.yaml`). Some
 answers the tree states outright. `enumerate` reads them deterministically and records each on the
