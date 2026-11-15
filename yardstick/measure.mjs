@@ -42,7 +42,7 @@ import { loadCensusTriage, censusClosure } from '../map/census-triage.mjs';
 import { ENUMERATE_POPULATIONS } from '../map/enumerate-populations.mjs';
 import { censusCount } from '../map/census.mjs';
 import { propertyOf, validatePlacement } from '../map/placement.mjs';
-import { loadBar } from './legibility-bar.mjs';
+import { loadBar, factLegibility } from './legibility-bar.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // yardstick/
 const YARDSTICK_FILE = join(HERE, 'requirements.yaml');
@@ -298,12 +298,15 @@ function byChannels(ch, lanes = []) {
 // records answers it (#336: the tree states it, legible by construction), or when the run answers it
 // yes or no with its evidence; it is a gap when the run answers it not-determinable, cited at the
 // candidate's file:line and naming the question. A question the bar does not list is never read: a
-// not-determinable answer on it moves nothing. Met when every in-scope candidate is legible on every
-// qualifying question; unmet on any gap. Not measured, with the reason, and never met: without a
+// not-determinable answer on it moves nothing. The row reads the population the way a census row
+// reads its members (yardstick/README.md, "An effect's facts, legible"): met when every in-scope
+// candidate is legible on every qualifying question; mixed, with met of N, when some are and a gap
+// sits beside them (a gap is a gap, a legible candidate a strength, and one gap among many never reads
+// as none legible); unmet when a gap sits beside no legible candidate. Not measured, with the reason, and never met: without a
 // list, over an empty one, with no triage, with a triage that carries no answers (version 1), when no
 // question clears the bar, and when no candidate is in scope. A candidate untriaged, or answered in a
 // form the checklist does not hold, turns a met reading mixed and is named.
-function byLegibility(ch, channels, bar, lanes = []) {
+function byLegibility(ch, channels, bar, lanes = [], canMix = true) {
   if (!ch.listed) return row('not-measured', 'facet', [], ch.reason);
   const n = ch.candidates.length;
   if (!n) return row('not-measured', 'facet', [], 'enumerate listed no channel candidate, route handler or effect call site: an empty list decides nothing');
@@ -324,11 +327,10 @@ function byLegibility(ch, channels, bar, lanes = []) {
     let ok = true;
     for (const q of bar.qualifying) {
       per[q].of += 1;
-      if (sigs.some((x) => x && x.question === q)) { per[q].legible += 1; per[q].bySignal += 1; continue; }
-      const a = answers && typeof answers === 'object' ? answers[q] : undefined;
-      if (a && (a.answer === 'yes' || a.answer === 'no') && Array.isArray(a.evidence) && a.evidence.length) { per[q].legible += 1; continue; }
+      const read = factLegibility(answers, sigs, q);
+      if (read === 'legible') { per[q].legible += 1; if (sigs.some((x) => x && x.question === q)) per[q].bySignal += 1; continue; }
       ok = false;
-      if (a && a.answer === 'not-determinable') gaps.push({ candidate: c, question: q, at: cites.get(c) || [], finding: ch.judged.get(c) });
+      if (read === 'gap') gaps.push({ candidate: c, question: q, at: cites.get(c) || [], finding: ch.judged.get(c) });
       else unread.push(`${c} (${q})`);
     }
     if (ok) whole += 1;
@@ -340,14 +342,14 @@ function byLegibility(ch, channels, bar, lanes = []) {
   const sayUntriaged = ch.untriaged.length ? `; ${ch.untriaged.length} of ${n} channel candidate(s) untriaged: ${ch.untriaged.join(', ')}` : '';
   const note = `${whole} of ${inScope.length} in-scope effect candidate(s) legible on every qualifying question (${bar.qualifying.join(', ')}; ${bound}); ${perQ}${sayGaps}${sayUnread}${sayUntriaged}`;
   const ids = (cs) => [...new Set(cs.map((c) => ch.judged.get(c)))].sort();
-  if (gaps.length) return row('unmet', 'facet', ids(gaps.map((g) => g.candidate)), note, { met: whole, of: inScope.length, gaps });
+  if (gaps.length) return row(whole > 0 && canMix ? 'mixed' : 'unmet', 'facet', ids(gaps.map((g) => g.candidate)), note, { met: whole, of: inScope.length, gaps });
   return row(unread.length || ch.untriaged.length ? 'mixed' : 'met', 'facet', ids(inScope), note, { met: whole, of: inScope.length, gaps });
 }
 
 let BAR = null;
 function byFacet(d, fs, ch = channelPopulation(), lanes = [], channels = {}, bar = null) {
   if (d.decide.rule === 'channels-triaged') return byChannels(ch, lanes);
-  if (d.decide.rule === 'facts-legible') return byLegibility(ch, channels, bar || (BAR ??= loadBar()), lanes);
+  if (d.decide.rule === 'facts-legible') return byLegibility(ch, channels, bar || (BAR ??= loadBar()), lanes, mixable(d));
   if (EFFECT_RULES.has(d.decide.rule)) return closedOver(byEffects(d, fs), ch);
   return byEffects(d, fs);
 }

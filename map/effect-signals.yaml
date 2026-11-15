@@ -62,6 +62,18 @@ scripts:
       reason: "Its name says a dry run is the default, and this flag is the act that leaves it."
   dry_run_words: [dry_run, dryRun, DRY_RUN, dry-run, dryrun]
 
+# No marker reads a route's callers (#338). map/SCHEMA.md §6e defines person_act not-determinable on "a
+# route the tree shows no caller of", so validate could refuse a contrary answer only where enumerate
+# states "no caller" deterministically, and it cannot: a caller is found by its absence, and the ways a
+# tree calls a route are open. A client names a route by a helper (url_for, a named route, a generated
+# client), joins it from parts at run time, or sends a path relative to a base URL with no leading
+# slash; a router mounted under a prefix in another file registers a path no caller spells. A search
+# for the path's literal would read "no caller" on every such route, a signal the tree does not state,
+# where §6e holds that a signal is read, never inferred. What would serve it is the positive reading:
+# a caller the tree does state (a literal fetch or form of the route's full path and method), recorded
+# where found and never a no for want of one, which would hold a person_act yes to cite its caller. Until
+# then the not-determinable side stays the definition's, and variance reports where lanes part on it.
+#
 # A route: read from the file that registers it, an Express-style app.<method> or router.<method>:
 # a limiter applied by name as a route argument, by a .use( on the same receiver before the route,
 # or called to refuse inside the handler.

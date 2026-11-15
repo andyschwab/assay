@@ -21,5 +21,5 @@ threshold:
   fact_presence: 22          # measured 15 of 67 union facts caught by all three (22%, 22.4 floored)
   candidate_agreement: 60    # measured per listed candidate (#312): 15 of 25 candidates every sweep maps identical on all six (60%), compared on their answers; 1 scope disagreement counted apart
   descriptor_agreement: 62   # measured 15 of 24 shared effect channels identical on all six descriptors (62.5% floored)
-  requirement_agreement: 80  # measured 12 of 15 decided requirements identical in all three (80%): with the bar recomputed from this set and its twin, d-effect-facts-legible is decided and parts (met / met / unmet); without it 12 of 14 (86%)
+  requirement_agreement: 80  # measured 12 of 15 decided requirements identical in all three (80%): with the bar recomputed from this set and its twin, d-effect-facts-legible is decided and parts (met / met / mixed: sweep-3 reads 24 of 25 candidates legible, mixed since the row reads its population, unmet before), while the gap list itself is read alike on 24 of 25 candidates; without it 12 of 14 (86%)
 sweeps: [sweep-1, sweep-2, sweep-3]

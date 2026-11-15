@@ -8,7 +8,9 @@
 # first. A question is read against a target only when blind lanes answer it alike across targets:
 # its agreement, pooled over every committed blind sweep set whose runs carry answers, clears `bar`,
 # and it was compared on at least `targets_at_least` distinct targets. A question that does not
-# qualify is never read: a not-determinable answer on it moves nothing.
+# qualify is never read: a not-determinable answer on it moves nothing. Each question also gives its
+# figure on each target alone (`per_target`), beside the pooled one and never in its place, and
+# `per_target_drops` names the qualifying questions a rule held on every target would drop.
 #
 # The figures are computed, never typed: per question, the agreement map/variance.mjs reports per
 # answer (candidateAgreement's answers.byAnswer) for each set under tests/sweeps/, summed over the
@@ -44,6 +46,9 @@ questions:
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 76, agree: 19, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 86, agree: 6, of: 7 }
     reason: "25 of 32 candidates answered alike by every lane (78%), pooled over both targets, clears the bar of 75%"
   - question: second_act
     agreement: 100
@@ -51,6 +56,9 @@ questions:
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 100, agree: 25, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 100, agree: 7, of: 7 }
     reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
   - question: staged
     agreement: 100
@@ -58,6 +66,9 @@ questions:
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 100, agree: 25, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 100, agree: 7, of: 7 }
     reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
   - question: person_act
     agreement: 84
@@ -65,20 +76,29 @@ questions:
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
-    reason: "27 of 32 candidates answered alike by every lane (84%), pooled over both targets, clears the bar of 75%"
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 96, agree: 24, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 43, agree: 3, of: 7 }
+    reason: "27 of 32 candidates answered alike by every lane (84%), pooled over both targets, clears the bar of 75%; below it on flawed-webapp alone (43%), so a rule held on every target would drop it"
   - question: declared_scope
     agreement: 91
     agree: 29
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
-    reason: "29 of 32 candidates answered alike by every lane (91%), pooled over both targets, clears the bar of 75%"
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 96, agree: 24, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 71, agree: 5, of: 7 }
+    reason: "29 of 32 candidates answered alike by every lane (91%), pooled over both targets, clears the bar of 75%; below it on flawed-webapp alone (71%), so a rule held on every target would drop it"
   - question: rate_limit
     agreement: 100
     agree: 32
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 100, agree: 25, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 100, agree: 7, of: 7 }
     reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
   - question: disclosed
     agreement: 100
@@ -86,6 +106,9 @@ questions:
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 100, agree: 25, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 100, agree: 7, of: 7 }
     reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
   - question: received_or_gone
     agreement: 78
@@ -93,12 +116,22 @@ questions:
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
-    reason: "25 of 32 candidates answered alike by every lane (78%), pooled over both targets, clears the bar of 75%"
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 84, agree: 21, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 57, agree: 4, of: 7 }
+    reason: "25 of 32 candidates answered alike by every lane (78%), pooled over both targets, clears the bar of 75%; below it on flawed-webapp alone (57%), so a rule held on every target would drop it"
   - question: window
     agreement: 100
     agree: 32
     of: 32
     targets: ["andyschwab/assay, this repository (public), at the commit below", "andyschwab/assay-fixtures, targets/flawed-webapp/ only"]
     sets: [assay-2026-11-15, flawed-webapp-2026-11-15]
+    per_target:
+      - { target: "andyschwab/assay, this repository (public), at the commit below", agreement: 100, agree: 25, of: 25 }
+      - { target: "andyschwab/assay-fixtures, targets/flawed-webapp/ only", agreement: 100, agree: 7, of: 7 }
     reason: "32 of 32 candidates answered alike by every lane (100%), pooled over both targets, clears the bar of 75%"
 below_bar: []
+# The questions that clear the pooled bar and fall under it on some target alone: a rule held on every
+# target would drop them. The rule stays pooled; whether to hold it per target is the owner's decision,
+# read from the per_target figures above. Computed, never typed, as every figure here.
+per_target_drops: [person_act, declared_scope, received_or_gone]

@@ -17,8 +17,14 @@ if (isMain(import.meta.url)) {
   else {
     console.log(`legibility bar ${bar.file}: ${bar.bar}% over at least ${bar.targetsAtLeast} targets`);
     console.log(`  blind answered sets: ${computed.sets.length ? computed.sets.map((s) => `${s.set} (${s.target})`).join(', ') : 'none'}`);
-    for (const q of [...computed.questions, ...computed.below_bar]) console.log(`  ${q.question.padEnd(17)} ${String(q.agreement).padStart(3)}%  ${q.agree}/${q.of} over ${q.targets.length} target(s)  ${q.qualifies ? 'qualifies' : 'below the bar'}`);
+    console.log(`  ${'question'.padEnd(17)} pooled            ${computed.sets.length ? 'per target: ' + [...new Set(computed.sets.map((s) => s.target))].sort().map((t, i) => `[${i + 1}] ${t}`).join('  ') : ''}`);
+    const order = [...new Set(computed.sets.map((s) => s.target))].sort();
+    for (const q of [...computed.questions, ...computed.below_bar]) {
+      const per = order.map((t, i) => { const x = q.per_target.find((y) => y.target === t); return x ? `[${i + 1}] ${String(x.agreement).padStart(3)}% ${x.agree}/${x.of}${x.agreement < bar.bar ? ' (under)' : ''}` : `[${i + 1}] —`; }).join('  ');
+      console.log(`  ${q.question.padEnd(17)} ${String(q.agreement).padStart(3)}%  ${`${q.agree}/${q.of}`.padEnd(7)} ${q.qualifies ? 'qualifies    ' : 'below the bar'}  ${per}`);
+    }
     if (!computed.questions.length) console.log('  no question qualifies: d-effect-facts-legible reads not measured on every target');
+    else console.log(`  the rule is pooled; a rule that held the bar on every target would drop: ${computed.per_target_drops.length ? computed.per_target_drops.join(', ') : 'no question'}`);
     if (diff.length) for (const d of diff) console.log(`  ✗ ${d}`);
     else console.log('  ✓ the file agrees with the committed sets');
   }

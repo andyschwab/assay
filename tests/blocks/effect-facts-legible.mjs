@@ -9,8 +9,11 @@
 //   (a) a candidate whose reversibility is stated, answered no with its evidence, reads met on that
 //       question, and one whose question a signal on the list answers reads legible by the signal,
 //       even beside a not-determinable answer;
-//   (b) its twin, answered not-determinable, reads a gap (unmet), citing the candidate's file:line
-//       and naming the question, listing the effect finding it maps to;
+//   (b) its twin, answered not-determinable, reads a gap, citing the candidate's file:line and naming
+//       the question, listing the effect finding it maps to: beside a legible candidate the row reads
+//       mixed, 1 of 2, and with every candidate a gap it reads unmet. Re-pinned when the row came to
+//       read its population (#338, second slice; yardstick/README.md, "An effect's facts, legible"):
+//       it read unmet on any gap, so one opaque effect among many read the same as none legible;
 //   (c) a question absent from the bar is never read: a not-determinable answer on it moves nothing;
 //   (d) with no qualifying question the row reads not measured, saying why, never met;
 //   (e) a run without answers (a version 1 triage), with no triage, or with no list, reads not
@@ -37,7 +40,9 @@ const A = 'http write (js) @ src/sync.mjs';
 const B = 'deploy/publish (workflow) @ .github/workflows/deploy.yml';
 const OUT = 'route: GET /status';
 
-// a bar that reads two questions, stated here: the figures are this block's, not a sweep's
+// a bar that reads two questions, stated here: the figures are this block's, not a sweep's.
+// Re-pinned when the bar gained its per-target figures (#338, second slice): a bar file without
+// per_target and per_target_drops is refused, so the bar stated here carries them.
 const BAR = (questions) => `schema: assay.legibility-bar
 version: 1
 bar: 75
@@ -47,8 +52,9 @@ targets_reason: "stated by the test"
 sets:
   - { set: set-one, target: "target one", reason: "stated by the test" }
   - { set: set-two, target: "target two", reason: "stated by the test" }
-questions:${questions.length ? '\n' + questions.map((q) => `  - { question: ${q}, agreement: 90, agree: 9, of: 10, targets: ["target one", "target two"], sets: [set-one, set-two], reason: "stated by the test" }`).join('\n') : ' []'}
+questions:${questions.length ? '\n' + questions.map((q) => `  - question: ${q}\n    agreement: 90\n    agree: 9\n    of: 10\n    targets: ["target one", "target two"]\n    sets: [set-one, set-two]\n    per_target:\n      - { target: "target one", agreement: 100, agree: 5, of: 5 }\n      - { target: "target two", agreement: 80, agree: 4, of: 5 }\n    reason: "stated by the test"`).join('\n') : ' []'}
 below_bar: []
+per_target_drops: []
 ${questions.length ? '' : 'none_qualify: "the test states no qualifying question"\n'}`;
 
 const yes = (e) => ({ answer: 'yes', evidence: [e] });
@@ -102,10 +108,12 @@ export async function run() {
 
     // (b) the twin: not determinable from the tree
     r = read(channels(with_({ received_or_gone: nd }), with_({}), {}), two);
-    if (r.status !== 'unmet') fail(`(b) a candidate whose reversibility no reader could determine reads unmet (got ${r.status}: ${r.note})`);
+    if (r.status !== 'mixed' || r.met !== 1 || r.of !== 2) fail(`(b) a candidate whose reversibility no reader could determine, beside one whose facts are stated, reads mixed 1 of 2 (got ${r.status} ${r.met} of ${r.of}: ${r.note})`);
     if (!r.note.includes(`"${A}" (src/sync.mjs:3 +1) received_or_gone not determinable`)) fail(`(b) the gap cites the candidate at its file:line and names the question (got ${r.note})`);
     if (!Array.isArray(r.gaps) || r.gaps.length !== 1 || r.gaps[0].candidate !== A || r.gaps[0].question !== 'received_or_gone') fail(`(b) the row carries the one gap, its candidate and question (got ${JSON.stringify(r.gaps)})`);
-    if (JSON.stringify(r.findings) !== JSON.stringify(['F-101'])) fail(`(b) the unmet row lists the effect finding the gap's candidate maps to (got ${JSON.stringify(r.findings)})`);
+    if (JSON.stringify(r.findings) !== JSON.stringify(['F-101'])) fail(`(b) the row lists the effect finding the gap's candidate maps to, never the legible one's (got ${JSON.stringify(r.findings)})`);
+    const both = read(channels(with_({ received_or_gone: nd }), with_({ refuses_unless: nd }), {}), two);
+    if (both.status !== 'unmet' || both.met !== 0 || both.of !== 2) fail(`(b) with every in-scope candidate a gap the row reads unmet, 0 of 2 (got ${both.status} ${both.met} of ${both.of}: ${both.note})`);
     // a signal makes the question legible whatever the lane answered
     r = read(channels(with_({}), with_({ refuses_unless: nd }), { signalsB: sigB }), two);
     if (r.status !== 'met') fail(`(b) a not-determinable answer on a question a signal carries is legible by construction (got ${r.status}: ${r.note})`);
@@ -148,7 +156,7 @@ export async function run() {
     const rename = (s) => `renamed-${s.split('').reverse().join('')}`;
     const renamedAdapters = Object.fromEntries(Object.entries(adapters).map(([id, a]) => [rename(id), { ...a, scanner: rename(id) }]));
     const renamedManifest = { scanners: manifest.scanners.map((x) => ({ ...x, scanner: rename(x.scanner) })) };
-    for (const [label_, ch] of [['met', channels(with_({}), with_({}))], ['unmet', channels(with_({ received_or_gone: nd }), with_({}))], ['no triage', { ...channels(null, null), triage: null }]]) {
+    for (const [label_, ch] of [['met', channels(with_({}), with_({}))], ['a gap', channels(with_({ received_or_gone: nd }), with_({}))], ['no triage', { ...channels(null, null), triage: null }]]) {
       const before = read(ch, two), after = read(ch, two, { adapters: renamedAdapters, manifest: renamedManifest });
       const strip = (x) => JSON.stringify({ status: x.status, findings: x.findings, gaps: x.gaps, note: x.note.split(lanes[0] || '\u0000').join('<lane>').split(rename(lanes[0] || '')).join('<lane>') });
       if (strip(before) !== strip(after)) fail(`(g) renaming every scanner changes no reading of the row (${label_}): ${strip(before)} became ${strip(after)}`);
