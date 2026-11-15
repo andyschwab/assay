@@ -1,0 +1,111 @@
+schema: census-triage
+version: 1
+censuses:
+  - census: credential
+    triage:
+      - candidate: "ADMIN_PASSWORD"
+        out_of_scope: "an inert name planted in an enumerate fixture and its test (tests/enumerate-fixture/nextjs); no running code of the engine reads it"
+      - candidate: "API_KEY"
+        out_of_scope: "an inert name in an enumerate fixture and a scanner sample report under tests/; no running code of the engine reads it"
+      - candidate: "API_TOKEN"
+        out_of_scope: "a doc example in map/SCHEMA.md illustrating the declared_scope question; nothing reads it"
+      - candidate: "ASSAY_PLANTED_TOKEN"
+        out_of_scope: "a planted test value the isolation and raw-minimised tests set to prove it never reaches a child or a run; grants nothing"
+      - candidate: "ASSAY_READ_TOKEN"
+        finding: F-600
+      - candidate: "ASSAY_TEST_EVALUATOR_TOKEN"
+        out_of_scope: "a planted test value in tests/blocks/adapter-runner.mjs proving the evaluator's environment is not passed to an instrument; grants nothing"
+      - candidate: "authToken"
+        out_of_scope: "a literal planted in an enumerate credentials fixture and its test; inert"
+      - candidate: "BACKUP_API_KEY"
+        out_of_scope: "every site the list records is in withheld test paths; no running code outside them reads it"
+      - candidate: "backupApiKey"
+        out_of_scope: "a literal planted in an enumerate credentials fixture and its test; inert"
+      - candidate: "byKey"
+        out_of_scope: "a local identifier in a test (a map keyed by name); grants nothing"
+      - candidate: "CANDIDATE_KEY"
+        out_of_scope: "an identifier constant in map/effect-triage.mjs naming a record key; grants nothing"
+      - candidate: "clientSecret"
+        out_of_scope: "a literal planted in an enumerate credentials fixture and its test; inert"
+      - candidate: "db_password"
+        out_of_scope: "a literal planted in a Python enumerate fixture and its test; inert"
+      - candidate: "DEPLOY_TOKEN"
+        out_of_scope: "a name in census-triage tests and negative fixtures exercising the triage check; inert"
+      - candidate: "EMAIL_SEND_API_KEY"
+        out_of_scope: "a name in packet test fixtures (a valid packet and a secret-shaped negative); inert"
+      - candidate: "FETCH_TOKEN"
+        finding: F-601
+      - candidate: "GH_TOKEN"
+        finding: F-602
+      - candidate: "GITHUB_TOKEN"
+        finding: F-603
+      - candidate: "ID_RECORD_KEY"
+        out_of_scope: "an identifier constant (the run record's key name, map/ids.mjs RECORD_KEY) imported by start and validate; grants nothing"
+      - candidate: "LEGACY_API_KEY"
+        out_of_scope: "an inert name planted in an enumerate fixture and its test; no running code reads it"
+      - candidate: "relayPassword"
+        out_of_scope: "a literal planted in an enumerate credentials fixture and its test; inert"
+      - candidate: "SEARCH_API_KEY"
+        out_of_scope: "a name in enumerate fixtures, census-triage tests and negative fixtures; inert"
+      - candidate: "SERVICE_KEYS"
+        out_of_scope: "an identifier constant in map/services.mjs listing a service declaration's allowed keys; grants nothing"
+      - candidate: "SERVICE_ROLE_KEY"
+        out_of_scope: "a doc example in map/SCHEMA.md illustrating a key that bypasses row policies; nothing reads it"
+      - candidate: "STRIPE_SECRET_KEY"
+        out_of_scope: "a doc example in map/SCHEMA.md and owner/ask-owner.md and a name in an enumerate fixture; nothing of the engine reads it"
+      - candidate: "STRIPE_WEBHOOK_SECRET"
+        out_of_scope: "an inert name planted in an enumerate fixture and its test"
+      - candidate: "TEST_API_KEY"
+        out_of_scope: "a doc example in map/SCHEMA.md and a name in census-triage tests; inert"
+      - candidate: "tokenTable"
+        out_of_scope: "a literal in an enumerate credentials fixture; inert"
+      - candidate: "TOP_KEYS"
+        out_of_scope: "an identifier constant in map/services.mjs and yardstick/packet.mjs listing a document's allowed top-level keys; grants nothing"
+      - candidate: "upstreams"
+        out_of_scope: "a secret-shaped literal planted in an enumerate credentials fixture; inert"
+  - census: change-gates
+    triage:
+      - candidate: "ci step: branch-cleanup.yml/delete: Delete the planned branches"
+        out_of_scope: "an effect step (deletes merged branches after a merge on the default branch), checks no change; its guards are the delegation pass's effect gate"
+      - candidate: "ci step: branch-cleanup.yml/plan: Plan the merged branches"
+        out_of_scope: "plans the branch-deletion effect after a merge; checks no change before it lands or ships"
+      - candidate: "ci step: ci.yml/test: ./.github/actions/tools"
+        finding: F-300
+      - candidate: "ci step: ci.yml/test: actions/checkout"
+        out_of_scope: "setup step that checks nothing"
+      - candidate: "ci step: ci.yml/test: actions/setup-node"
+        out_of_scope: "setup step that checks nothing"
+      - candidate: "ci step: ci.yml/test: npm ci"
+        out_of_scope: "setup step that installs dependencies and runs no check"
+      - candidate: "ci step: ci.yml/test: npm run gate"
+        finding: F-301
+      - candidate: "ci step: release.yml/release: ./.github/actions/tools"
+        finding: F-302
+      - candidate: "ci step: release.yml/release: actions/checkout"
+        out_of_scope: "setup step that checks nothing"
+      - candidate: "ci step: release.yml/release: actions/setup-node"
+        out_of_scope: "setup step that checks nothing"
+      - candidate: "ci step: release.yml/release: Check every contract change carries its Consumer trailer"
+        finding: F-304
+      - candidate: "ci step: release.yml/release: npm ci"
+        out_of_scope: "setup step that installs dependencies and runs no check"
+      - candidate: "ci step: release.yml/release: npm test"
+        finding: F-303
+      - candidate: "ci step: release.yml/release: Refuse a malformed or existing version"
+        finding: F-305
+      - candidate: "ci step: release.yml/release: Tag and publish the release"
+        out_of_scope: "the release effect itself (tag and publish), the delegation pass's effect; it runs no check"
+      - candidate: "ci step: tools-check.yml/check: actions/checkout"
+        out_of_scope: "setup step that checks nothing"
+      - candidate: "ci step: tools-check.yml/check: Open or update the issue for pins behind upstream"
+        out_of_scope: "a weekly scheduled job that reads tool pins against upstream releases and writes an issue; no change passes through it"
+      - candidate: "script: lint"
+        finding: F-306
+      - candidate: "script: test"
+        finding: F-307
+      - candidate: "script: typecheck"
+        finding: F-308
+      - candidate: "script: validate"
+        out_of_scope: "validates an assay run directory handed to it, not a change to this repository; no gate or hook runs it on a change (the suite's negative-fixtures block runs map/validate.mjs under the test script)"
+  - census: model-call-telemetry
+    triage: []

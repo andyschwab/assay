@@ -1,0 +1,272 @@
+- id: F-001
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D1 zero runtime dependencies is stated at the dispatcher and the manifest, and its why over taking a library is written where the validator and enumerator are defined, that they copy into any target repository alongside METHOD.md.
+  evidence: ["assay.mjs:8-9", "package.json:19", "map/SCHEMA.md:1664-1665", "map/enumerate.mjs:12"]
+  confidence: confirmed
+- id: F-002
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D2 the hand-written YAML subset reader states in its header both why it is hand-written (zero-dependency, shared by every tool) and why it throws rather than guessing (a checker that silently accepts unparseable input hides what it exists to catch).
+  evidence: ["lib/yaml-min.mjs:1-7", "map/validate.mjs:10-12"]
+  confidence: confirmed
+- id: F-003
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D3 fresh-clone running only under --allow-exec carries its why at the choice, because it runs the target's own install, lifecycle scripts and tests on this machine, and the README repeats it with the advice to use a disposable container or VM.
+  evidence: ["map/start.mjs:34-39", "README.md:91-102"]
+  confidence: confirmed
+- id: F-004
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D4 the two finding-id ranges are explained in the module that defines the floor, the lane cannot see the ids ingest gave so the two never share a range and nothing renumbers a stored run.
+  evidence: ["map/ids.mjs:1-8", "map/ids.mjs:15"]
+  confidence: confirmed
+- id: F-005
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D5 the core naming no external scanner is stated as CLAUDE.md rule 7 with its guard, and the why over hard-coding a scanner is in the scanner contract, interface with a scanner and never fork its logic, with the axis roster derived from present adapters so two scanners corroborate on one axis.
+  evidence: ["CLAUDE.md:34-45", "map/scanners/CONTRACT.md:7-10", "map/scanners/CONTRACT.md:19-32", "tests/blocks/core-names-no-scanner.mjs:1-7"]
+  confidence: confirmed
+- id: F-006
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D6 no history file is stated in CLAUDE.md and CONTRIBUTING.md, and its why over a changelog (a dated history file restates the commit that made the change) is written in the header of the block that enforces it, not in either contract doc.
+  evidence: ["CLAUDE.md:70-72", "CONTRIBUTING.md:50-51", "tests/blocks/no-history-file.mjs:1-3"]
+  confidence: confirmed
+- id: F-007
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D7 pinned, checksum-verified tool downloads carry their why in the scanner contract (the pin equals the adapter's verified_against and moves with it in one reviewed bump) and in tools.mjs (tools are a precondition, a sum mismatch installs nothing, PyPI tools pinned by version because their dependencies float).
+  evidence: ["map/scanners/CONTRACT.md:1177-1188", "map/tools.mjs:3-6", "map/tools.mjs:15-19", "map/tools.mjs:126-127"]
+  confidence: confirmed
+- id: F-008
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D8 the Consumer trailer is stated as a landing step and its why is in CONSUMERS.md, the trailers head the release notes so a consumer reads what it must change, checked by release-notes --check.
+  evidence: ["CONTRIBUTING.md:44-48", "CONSUMERS.md:201-208", "CONSUMERS.md:195-199"]
+  confidence: confirmed
+- id: F-009
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D9 the base never asserting severity is stated as the rule's one home in the README with its why (it is what makes the tool honest; whether to take a repository on and what it costs are the reader's to decide), and CLAUDE.md rule 1 defers to it.
+  evidence: ["README.md:35-40", "README.md:44", "CLAUDE.md:12-15"]
+  confidence: confirmed
+- id: F-010
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D10 one landing-gate command is explained at both sites, the gate header and the CI workflow saying the workflow and a contributor run one check, and the gate says why it runs every step past a red one (one run names every red step).
+  evidence: ["lib/gate.mjs:7", "lib/gate.mjs:14", ".github/workflows/ci.yml:1-5"]
+  confidence: confirmed
+- id: F-011
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D11 the routine's push trigger carries its why inline and in its contract, a pull request measures only the change while an admin merge or direct push can reach the default branch without one.
+  evidence: ["routine/assay-routine.yml:24-30", "routine/README.md:10-14"]
+  confidence: confirmed
+- id: F-012
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    D12 each test block in its own process in a bounded pool is described in the runner and tests/README.md, and its why over the serial run (220 blocks serially took about six minutes) is in the header of the block that holds parallel to the serial result.
+  evidence: ["tests/regression.mjs:15-20", "tests/README.md:30-34", "tests/blocks/parallel-runner.mjs:1-4"]
+  confidence: confirmed
+- id: F-013
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's claim that the tools are zero-dependency Node 22 or later with TypeScript a development-only dependency holds in the manifest.
+  evidence: ["README.md:165-166", "package.json:18-19"]
+  confidence: confirmed
+- id: F-014
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's claim that npm run typecheck is checkJs over the engine's modules and npm run lint is Node's own syntax check holds in tsconfig.json, package.json and lib/check-syntax.mjs.
+  evidence: ["README.md:166-167", "package.json:11-12", "tsconfig.json:4", "tsconfig.json:12", "lib/check-syntax.mjs:1-2"]
+  confidence: confirmed
+- id: F-015
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README Quickstart says node assay.mjs help prints every command grouped map / yardstick / views, while the dispatcher's GROUPS has four groups, a fourth Routine group holding the routine command.
+  evidence: ["README.md:170", "assay.mjs:20", "assay.mjs:41", "assay.mjs:49-51", "assay.mjs:52"]
+  confidence: confirmed
+- id: F-016
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's start line (--out, target, --allow-exec, --allow-services, --unstripped-report) matches start.mjs's usage line and the dispatcher's description.
+  evidence: ["README.md:179", "map/start.mjs:15", "assay.mjs:22"]
+  confidence: confirmed
+- id: F-017
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's claim that start with a target refuses to draw a map until tools verify passes holds in start.mjs, which refuses with exit 3 and writes nothing until every pinned tool answers at its pin.
+  evidence: ["README.md:183-184", "map/start.mjs:24-25"]
+  confidence: confirmed
+- id: F-018
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's claim that CI calls the tools composite action at .github/actions/tools with one optional input, dir, which installs, verifies and puts on PATH what a run needs, holds in the action file.
+  evidence: ["README.md:188-189", ".github/actions/tools/action.yml:14-18", ".github/actions/tools/action.yml:29-31"]
+  confidence: confirmed
+- id: F-019
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's ingest line for a reviewer (--tool deep-code-review --raw, no --exit) matches ingest's reviewer usage form, which reads an exitless profile without --exit.
+  evidence: ["README.md:193", "map/ingest.mjs:1351", "map/ingest.mjs:1361-1362"]
+  confidence: confirmed
+- id: F-020
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's record lines (record run scanner ran --model, and --pass for one practice-review pass) match record.mjs's usage.
+  evidence: ["README.md:195", "README.md:199", "map/record.mjs:12"]
+  confidence: confirmed
+- id: F-021
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's lane flags (--name, --head, --inputs-dir) and validate's --target and --lane match the usage lines of lane.mjs and validate.mjs, which also require --target with --lane as the README writes it.
+  evidence: ["README.md:197-198", "map/lane.mjs:112", "map/validate.mjs:3", "map/validate.mjs:112"]
+  confidence: confirmed
+- id: F-022
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's migrate-run [--write] and ratchet --baseline lines match the usage lines of migrate-run.mjs and ratchet.mjs.
+  evidence: ["README.md:208-209", "map/migrate-run.mjs:121", "yardstick/ratchet.mjs:238"]
+  confidence: confirmed
+- id: F-023
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Quickstart's yardstick --floor [--json] line maps to the dispatcher's yardstick command and its script's flags.
+  evidence: ["README.md:212", "assay.mjs:42", "yardstick/list.mjs:9-11"]
+  confidence: confirmed
+- id: F-024
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    README Layout's paths (assay.mjs, map/, yardstick/, views/, owner/, routine/, lib/, tests/, RUNBOOK.md) each exist in the tree with the role the Layout gives them.
+  evidence: ["README.md:247-257", "assay.mjs:2", "map/start.mjs:2", "yardstick/list.mjs:9", "views/compile.mjs:1", "owner/ask-owner.md:1", "routine/assay-routine.yml:1", "lib/yaml-min.mjs:1", "tests/regression.mjs:2", "RUNBOOK.md:1"]
+  confidence: confirmed
+- id: F-025
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md Checks' claim that npm run gate is the one command that runs every check holds, a package script running lib/gate.mjs, which CONTRIBUTING.md and CI also call.
+  evidence: ["CLAUDE.md:49-50", "package.json:10", "lib/gate.mjs:2", "CONTRIBUTING.md:19", ".github/workflows/ci.yml:38"]
+  confidence: confirmed
+- id: F-026
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md Checks' validate and score --answers commands match the usage lines of validate.mjs and score.mjs.
+  evidence: ["CLAUDE.md:50-51", "map/validate.mjs:3", "map/score.mjs:172"]
+  confidence: confirmed
+- id: F-027
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md How a change lands claims each core-invariant entry in tests/prove-red.mjs is a mutation plus the check that must go red, re-proved on every gate run; the entry shape and the gate's prove-red step bear it out.
+  evidence: ["CLAUDE.md:59-62", "tests/prove-red.mjs:8-20", "lib/gate.mjs:29"]
+  confidence: confirmed
+- id: F-028
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md How a change lands names tests/blocks/no-history-file.mjs as holding the no-history-file rule, and that block exists and pins the shapes it names.
+  evidence: ["CLAUDE.md:70-71", "tests/blocks/no-history-file.mjs:1-7"]
+  confidence: confirmed
+- id: F-029
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The map-states-what-is rule has one marked home in README.md, which says every other page cites it there, and CLAUDE.md rule 1 defers to it by name.
+  evidence: ["README.md:35-40", "CLAUDE.md:12"]
+  confidence: confirmed
+- id: F-030
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The YAML subset has one marked home, SCHEMA.md section 9, the reader's header and its refusal table defer to it, and a harness block holds the section and the reader in lockstep.
+  evidence: ["map/SCHEMA.md:1826", "lib/yaml-min.mjs:2-4", "lib/yaml-min.mjs:29-30", "tests/blocks/yaml-subset.mjs:1-7"]
+  confidence: confirmed
+- id: F-031
+  dimension: artifact-legibility
+  polarity: strength
+  subject_type: process
+  observation: >
+    The landing steps have one marked home in CONTRIBUTING.md, CLAUDE.md's Checks points there, and a harness block fails if Checks restates them or CONTRIBUTING.md drops a step.
+  evidence: ["CONTRIBUTING.md:3-5", "CLAUDE.md:49-50", "tests/blocks/gate-command.mjs:58-67"]
+  confidence: confirmed
+- id: F-032
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    The red-then-green rule and the prove-red entry rule are written in full both in CLAUDE.md How a change lands and in CONTRIBUTING.md step 3, which cites CLAUDE.md as the rule's home while CONTRIBUTING.md calls itself the landing steps' one home, and the guard reads only CLAUDE.md's Checks section.
+  evidence: ["CLAUDE.md:55-63", "CONTRIBUTING.md:29-33", "CONTRIBUTING.md:3-4", "tests/blocks/gate-command.mjs:64-67"]
+  confidence: confirmed
+- id: F-033
+  dimension: artifact-legibility
+  polarity: gap
+  subject_type: process
+  observation: >
+    The gate's step list is written in prose in the gate header, CONTRIBUTING.md and the CI workflow comment beside the code list, and the harness pins the code list to a fourth copy in the test while no check found reads the prose lists.
+  evidence: ["lib/gate.mjs:7-10", "lib/gate.mjs:27-34", "CONTRIBUTING.md:19-22", ".github/workflows/ci.yml:3-5", "tests/blocks/gate-command.mjs:28-29"]
+  confidence: plausible
+- id: F-034
+  dimension: artifact-legibility
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The start command's flag set is written in four places (README Quickstart, the dispatcher's help text, start.mjs's usage, CONSUMERS.md's command table), CONSUMERS.md being the page that calls itself the whole consumer contract; no guard holding them together was found.
+  evidence: ["README.md:179", "assay.mjs:22", "map/start.mjs:15", "CONSUMERS.md:4", "CONSUMERS.md:20"]
+  confidence: unverified

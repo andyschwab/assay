@@ -39,9 +39,9 @@
 //      off-repo, before tests/sweeps/ existed, on a cross-run pair (both canon-pinned,
 //      so channel identity was solved): 26 shared channels, descriptors identical on 8
 //      (31%). The figure the tree reproduces is a committed sweep set's (THE GATE below):
-//      the newest blind set over this repository (tests/sweeps/assay-2026-11-12c, three
-//      fresh contexts at 2b247c0) read 13% fact presence, 40% descriptor agreement per
-//      listed candidate and per channel, and 92% requirement agreement.
+//      the newest blind set over this repository (tests/sweeps/assay-2026-11-15, three
+//      fresh contexts at a17104d) read 22% fact presence, 60% descriptor agreement per
+//      listed candidate (63% per channel), and 80% requirement agreement.
 //      It is taken two ways (#312). PER LISTED CANDIDATE (candidateAgreement) is the primary
 //      figure: each member of a run's enumerated effect population that its triage maps to an
 //      effect finding takes that finding's descriptors, and a candidate every sweep maps is

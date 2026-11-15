@@ -1,0 +1,251 @@
+- id: F-300
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The pull request template carries a "How this is verified" section asking for the gate's exit
+    line and each red seen, but no CI step reads the pull request body, so an empty section or the
+    template's unchanged placeholder lands as readily as a filled one.
+  evidence: [.github/PULL_REQUEST_TEMPLATE.md:5-10, .github/workflows/ci.yml:10-38, CONTRIBUTING.md:53-54]
+  confidence: confirmed
+- id: F-301
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    For an assertion that holds no core invariant, the only record that it was confirmed red is a
+    line the contributor writes in the commit message and the pull request body, and no check reads
+    either for it.
+  evidence: [CLAUDE.md:55-63, CONTRIBUTING.md:29-33, lib/gate.mjs:27-34]
+  confidence: confirmed
+- id: F-302
+  dimension: verification
+  polarity: fact
+  subject_type: contract
+  observation: >
+    The one check that reads commit messages on every change is the Consumer trailer rule, which
+    exits 1 naming each commit that touches the consumer surface without a Consumer trailer; it
+    reads consumer impact, not the verification a change carries.
+  evidence: [lib/release-notes.mjs:13-16, lib/release-notes.mjs:103-111, lib/gate.mjs:33]
+  confidence: confirmed
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    A re-bless of tests/golden.json is to say in its commit why each pinned number moved, but
+    nothing checks that the reason is stated; the harness only refuses a bless while a unit or
+    negative assertion is red.
+  evidence: [CONTRIBUTING.md:38-42, tests/harness.mjs:227-241]
+  confidence: confirmed
+- id: F-304
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  property: change-demonstrable
+  observation: >
+    A change to the method, a projection or an adapter demonstrates itself as a score movement
+    against public known-answer fixtures, whose recall, misses, mis-homed items and false positives
+    tests/golden.json pins and npm test asserts on every run.
+  evidence: [tests/golden.json:1-33, map/METHOD.md:824-829, tests/README.md:3-5]
+  confidence: confirmed
+- id: F-305
+  dimension: verification
+  polarity: strength
+  subject_type: contract
+  property: change-demonstrable
+  observation: >
+    The gate ends in one computed exit line naming every step that failed, the same command CI runs,
+    which is the observable result the landing steps ask a change to show.
+  evidence: [CONTRIBUTING.md:19-24, tests/README.md:25-26, tests/blocks/gate-command.mjs:47-55, .github/workflows/ci.yml:38]
+  confidence: confirmed
+- id: F-306
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The practice-review method's repeatability is measured, not assumed: blind sweep sets are
+    committed and npm test runs variance --set over every one, failing when any measure falls below
+    the set's own threshold, with a fixture set proving the gate can go red.
+  evidence: [map/variance.mjs:67-72, tests/blocks/sweep-gate.mjs:17-25, tests/blocks/sweep-gate.mjs:33-45, map/METHOD.md:829-836]
+  confidence: confirmed
+- id: F-307
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The newest committed blind set over this repository measured 13% fact presence, 40% descriptor
+    agreement per listed candidate and 92% requirement agreement, with divergences in both
+    directions, at commit 2b247c0 rather than the head under review.
+  evidence: [map/METHOD.md:494-500, map/variance.mjs:41-45]
+  confidence: confirmed
+- id: F-308
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Divergence between blind runs is disposed into named classes rather than one number: fact
+    presence, descriptor agreement and requirement agreement, the direction of each descriptor
+    divergence (target change versus judgment drift), scope disagreements counted apart, and the
+    candidate-question pairs where lanes part.
+  evidence: [map/variance.mjs:23-60, map/variance.mjs:62-65, map/variance.mjs:425-436]
+  confidence: confirmed
+- id: F-309
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing in the gate asks whether a committed blind set still stands for the current method:
+    variance --check-method is exercised only on a scratch copy pinned to HEAD, so a change to the
+    pass-recording text leaves the stored sets re-measured green under a method they were not run on.
+  evidence: [lib/gate.mjs:27-34, tests/blocks/sweep-gate.mjs:21-25, tests/blocks/sweep-check-method.mjs:75-90, map/sweep-method.mjs:1-19]
+  confidence: confirmed
+- id: F-310
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The effect checklist that decides gate_type and reversibility has no repeatability figure yet:
+    the legibility bar lists no committed answered blind set, so no question qualifies and the row
+    reading it reads not measured on every target.
+  evidence: [yardstick/legibility-bar.yaml:4-11, yardstick/legibility-bar.yaml:23-26, yardstick/legibility-bar.yaml:33]
+  confidence: confirmed
+- id: F-311
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The deep-code-review lane is held to one stored machine report per public fixture, scored for
+    recall, and pinned to its reviewer's commit; no repeated blind run of that lane over a frozen
+    input was seen measuring how far two of its reviews diverge.
+  evidence: [tests/blocks/dcr-fixture-runs.mjs:1-16, tests/blocks/dcr-fixture-runs.mjs:25-28, map/scanners/adapters/deep-code-review.yaml:56-64]
+  confidence: plausible
+- id: F-312
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The practice-review lane ships as a seed body a model session runs, and no CI job calls a model
+    with fixed inputs to score that answer; the scored fixture runs prove the pipeline and recall
+    floor, which METHOD.md itself says is not a blind measure of the lane.
+  evidence: [map/lane.mjs:1-11, assay.mjs:26, map/METHOD.md:829-831, .github/workflows/ci.yml:25-38]
+  confidence: confirmed
+- id: F-313
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The deep-code-review lane's answer quality is checked in CI only by scoring archived reports
+    ingested once over the fixtures; no CI job runs the review itself, so a change to the lane's
+    seed body is never re-scored against a fresh answer.
+  evidence: [tests/blocks/dcr-fixture-runs.mjs:2-15, map/scanners/adapters/deep-code-review.yaml:35-41, map/scanners/adapters/deep-code-review/lane.md:11]
+  confidence: confirmed
+- id: F-314
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  property: output-checked-regardless-of-fluency
+  observation: >
+    validate --target fails closed on a cited path that does not exist or a line past the end of the
+    file, however well the finding reads, and states that it cannot check the line says what the
+    observation claims.
+  evidence: [map/validate.mjs:459-462, map/validate.mjs:494-499]
+  confidence: confirmed
+- id: F-315
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  property: output-checked-regardless-of-fluency
+  observation: >
+    A lane's effect descriptors must follow from its recorded checklist answers: validate refuses a
+    gate_type or reversibility the answers do not give, and answers with no evidence, so a fluent
+    descriptor with inconsistent answers does not pass.
+  evidence: [tests/blocks/effect-answers-decide.mjs:1-14]
+  confidence: confirmed
+- id: F-316
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  property: output-checked-regardless-of-fluency
+  observation: >
+    The practice-review lane must run the pinned engine's validate over its own scratch run against
+    the checkout and publish nothing until it ends clean, so the check runs whatever the session
+    concludes about its own output.
+  evidence: [map/scanners/adapters/practice-review/lane.md:23, tests/blocks/lane-checks-before-publish.mjs:1-13]
+  confidence: confirmed
+- id: F-317
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  property: effect-confirmed-not-reported
+  observation: >
+    A lane reported as ran is confirmed by its outputs: validate --lane fails when a file the lane
+    publishes is missing, refuses a lane collected but not recorded, and reads a lane that ran with
+    no rows ingested as not a clean run.
+  evidence: [tests/blocks/lane-collected.mjs:1-9]
+  confidence: confirmed
+- id: F-318
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  property: effect-confirmed-not-reported
+  observation: >
+    A tool install is confirmed by its effect, not its return: a download whose sha256 differs is
+    refused with nothing installed, and verify reads a tool ready only when it is on PATH and asked
+    its version prints the pinned one.
+  evidence: [map/tools.mjs:4-5, map/tools.mjs:126-127, map/tools.mjs:146-148]
+  confidence: confirmed
+- id: F-319
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  property: effect-confirmed-not-reported
+  observation: >
+    The fresh-clone instrument records a test step as passed on exit 0 and, though it states an exit
+    code of 0 is not the suite having run, ingest emits no row for a passed step whose counts are
+    unparsed or total zero, so such a step can read met on d-tests-execute-core.
+  evidence: [map/fresh-clone.mjs:19-21, map/fresh-clone.mjs:340-342, map/ingest.mjs:174-179, map/ingest.mjs:213-214, yardstick/requirements.yaml:529-541]
+  confidence: plausible
+- id: F-320
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  property: effect-confirmed-not-reported
+  observation: >
+    A fresh-clone test step that passed while skipping tests is not taken at its exit code: ingest
+    writes a gap naming how many of the suite's tests were skipped and that the pass covers only
+    those that ran.
+  evidence: [map/ingest.mjs:174-190]
+  confidence: confirmed
+- id: F-321
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  property: effect-confirmed-not-reported
+  observation: >
+    The routine template's final upload of the run sets no if-no-files-found, so with the action's
+    default an empty or absent run directory uploads nothing and the step still succeeds with a
+    warning.
+  evidence: [routine/assay-routine.yml:181-188]
+  confidence: plausible
+- id: F-322
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  property: effect-confirmed-not-reported
+  observation: >
+    The release job trusts gh release create's exit status as the release having been published;
+    no later step reads the tag or the release back.
+  evidence: [.github/workflows/release.yml:44-50]
+  confidence: confirmed
+- id: F-323
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  property: effect-confirmed-not-reported
+  observation: >
+    The branch-cleanup delete re-reads each branch before deleting it and skips one that moved, then
+    prints deleted on the DELETE call's exit status without reading the ref back; under set -e a
+    failed call fails the run rather than reporting success.
+  evidence: [.github/workflows/branch-cleanup.yml:117-134]
+  confidence: confirmed

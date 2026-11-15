@@ -1,0 +1,121 @@
+- id: F-600
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route GET /notes is named by method and path in the README's endpoint list, a doc page outside
+    the code an agent can read to call it, though no schema gives its response shape.
+  evidence: ["server.mjs:30-33", "README.md:16"]
+  confidence: confirmed
+- id: F-601
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /notes is named by method and path in the README's endpoint list, though no doc or
+    schema names its `text` body field, which the handler reads.
+  evidence: ["server.mjs:35-39", "README.md:17"]
+  confidence: confirmed
+- id: F-602
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /assistant is named by method and path in the README's endpoint list, though no doc
+    or schema names its `question` body field or its answer/emailed response fields.
+  evidence: ["server.mjs:42-45", "README.md:18", "lib/agent.mjs:40-42"]
+  confidence: confirmed
+- id: F-603
+  dimension: multiplayer
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The route POST /sync is named by method and path in the README's endpoint list, a doc page outside
+    the code, though no schema gives its ok/pushed response shape.
+  evidence: ["server.mjs:47-50", "README.md:19", "lib/sync.mjs:13"]
+  confidence: confirmed
+- id: F-604
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The route POST /admin/purge is named by no contract outside the code: the README's endpoint list
+    omits it, and the only other account is a code comment in routes/admin.mjs that gives its method
+    as DELETE rather than the POST the server dispatches.
+  evidence: ["server.mjs:52-54", "README.md:14-19", "routes/admin.mjs:5"]
+  confidence: confirmed
+- id: F-610
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The workspace's only context store is one process-wide notes Map keyed by note id with an owner
+    field, and there is no workspace, room or team entity with its own memory or permissions: the shared
+    scope exists only implicitly as "every note in the Map".
+  evidence: ["lib/db.mjs:8-11", "server.mjs:38", "lib/db.mjs:2-6"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-611
+  dimension: multiplayer
+  polarity: strength
+  subject_type: control
+  observation: >
+    The listing route treats notes as private to their owner, returning only the notes whose owner is
+    the requesting identity.
+  evidence: ["server.mjs:30-32"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-612
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant's context is built from every member's notes, each labelled with its owner's email,
+    whoever asks, so a store the listing route keeps private per owner is shared in full with any asker
+    through the assistant.
+  evidence: ["lib/agent.mjs:11-20", "lib/agent.mjs:33-34", "server.mjs:31"]
+  confidence: confirmed
+  property: shared-context-substrate
+- id: F-613
+  dimension: multiplayer
+  polarity: gap
+  subject_type: contract
+  observation: >
+    Sharing is never a conscious act: a note is created with only an id, owner and text, with no
+    visibility, audience or share field the author sets, yet its text surfaces automatically in every
+    other member's assistant prompt and in the body the assistant emails.
+  evidence: ["server.mjs:35-39", "lib/agent.mjs:12-15", "lib/agent.mjs:38"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-614
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant is a privileged reader of all workspace content and nothing discloses it by
+    structure: the note-creation response returns only an id, and the one description of the
+    assistant says it answers questions about "your notes".
+  evidence: ["lib/agent.mjs:12-15", "server.mjs:39", "README.md:3-5"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-615
+  dimension: multiplayer
+  polarity: gap
+  subject_type: control
+  observation: >
+    Every caller without a known token resolves to the one shared identity `default`, so notes any such
+    caller creates are owned by `default` and listed to every other such caller, an undisclosed shared
+    pool no author chose to share into.
+  evidence: ["lib/auth.mjs:9-12", "server.mjs:31", "server.mjs:38"]
+  confidence: confirmed
+  property: sharing-is-consented
+- id: F-616
+  dimension: multiplayer
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The admin role carries no route that reads note content (its one privilege is the purge), so the
+    admin is not a privileged content reader; the assistant (F-612) is the only reader that crosses owners.
+  evidence: ["lib/db.mjs:5", "routes/admin.mjs:6-11", "server.mjs:30-56"]
+  confidence: confirmed
+  property: sharing-is-consented

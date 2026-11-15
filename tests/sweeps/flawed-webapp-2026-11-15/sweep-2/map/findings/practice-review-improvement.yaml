@@ -1,0 +1,56 @@
+- id: F-500
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The target records no lesson anywhere in its twelve files: no postmortem, incident note,
+    lessons file or agent contract carrying house rules, and the only prose docs (the README and
+    one ADR) state capability and a storage decision, never a failure and its cause, so no
+    correction exists that could have become a mechanism.
+  evidence: ["README.md:1-35", "docs/adr/0001-storage-choice.md:1-29", "package.json:6-8"]
+  confidence: confirmed
+- id: F-501
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Outstanding work to move the backup key out of source is written down only as an in-code
+    TODO ("move to env before launch") directly above the literal it refers to, with no issue
+    reference, owner, need-by date or check that fails when launch arrives with the TODO still
+    standing.
+  evidence: ["config/settings.mjs:5", "config/settings.mjs:6"]
+  confidence: confirmed
+- id: F-502
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  observation: >
+    The ADR defers persistence as "the first thing the production milestone fixes", but names
+    no issue, milestone record or tracker entry for that work, and the tree holds no other place
+    the production milestone is defined, so the deferred work is tracked to done by nothing but
+    the ADR's prose.
+  evidence: ["docs/adr/0001-storage-choice.md:22-23", "lib/db.mjs:1"]
+  confidence: confirmed
+- id: F-503
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: impact-self-measured
+  observation: >
+    The system has no way to know what it is worth: the ADR names the assistant as the
+    differentiator the demo window is spent on, yet no file records an impact field, a
+    before-and-after measure or any count of the assistant's answers or sent summaries.
+  evidence: ["docs/adr/0001-storage-choice.md:27-29", "README.md:3-5", "lib/agent.mjs:33-43"]
+  confidence: confirmed
+- id: F-504
+  dimension: improvement-loop
+  polarity: gap
+  subject_type: process
+  property: usage-outcome-records-emitted
+  observation: >
+    The app emits no structured usage or outcome record by design: the request handler logs
+    nothing per request, the assistant's ask returns its answer without recording the use, and
+    the only trace of an email send is one free-text console line per call, so no use or outcome
+    can be aggregated across the workspace.
+  evidence: ["server.mjs:26-57", "lib/agent.mjs:33-43", "lib/mailer.mjs:7"]
+  confidence: confirmed

@@ -1,0 +1,78 @@
+- id: F-200
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No change gate exists: package.json declares only a start script (no test, lint,
+    typecheck or check script), the tree holds no CI workflow, hook or check config, and
+    the README's documented `npm run test:all` names a script package.json does not define.
+  evidence: ["package.json:6-8", "README.md:29-33"]
+  confidence: confirmed
+- id: F-201
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: central-regression-caught
+  observation: >
+    A subtle regression in lib/db.mjs, the module four others and the server import
+    (its session lookup, store or purge), is caught by no gate at any stage: nothing runs
+    test/smoke.mjs, and even run by hand its one assertion is that authenticate returns a
+    truthy value, which the admin fallback guarantees whatever the lookup returns.
+  evidence: ["lib/db.mjs:19-25", "lib/auth.mjs:7-12", "test/smoke.mjs:8-9", "package.json:6-8"]
+  confidence: confirmed
+- id: F-202
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    readBody catches a JSON parse error and resolves an empty object, so a malformed
+    request body is never refused: POST /notes then stores an empty note and answers 201,
+    and POST /assistant answers 200.
+  evidence: ["server.mjs:11-19", "server.mjs:36-39", "server.mjs:43-44"]
+  confidence: confirmed
+- id: F-203
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The route handlers check neither the presence, type nor length of the body fields
+    they read: a missing, numeric or object `text` or `question` is coerced with
+    String(x || '') and accepted rather than rejected.
+  evidence: ["server.mjs:38", "server.mjs:44"]
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The model-output-to-tool interface parses the send_email directive with a regex that
+    accepts any two non-space tokens as recipient and subject and passes them straight to
+    sendEmail, with no check that the recipient is an address or one the workspace knows
+    (the configured adminEmails list is never consulted).
+  evidence: ["lib/agent.mjs:35-39", "config/settings.mjs:8"]
+  confidence: confirmed
+- id: F-205
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The session store's lookup returns null for an unknown token, but authenticate
+    swallows that null and any missing or malformed Authorization header (no Bearer
+    prefix check) into a default identity, so a bad credential never fails loudly at the
+    auth interface.
+  evidence: ["lib/db.mjs:20-23", "lib/auth.mjs:6-12"]
+  confidence: confirmed
+- id: F-206
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    A request matching no route and method fails loudly with a 404 JSON error rather
+    than falling through to a default handler.
+  evidence: ["server.mjs:56"]
+  confidence: confirmed

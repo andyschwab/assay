@@ -1,0 +1,25 @@
+# SWEEP.yaml — one sweep set (tests/sweeps/README.md). Gated by npm test:
+# node assay.mjs variance --set tests/sweeps/assay-2026-11-15
+#
+# BLIND and ANSWERED: three practice-review lanes over this repository at a17104d, the method at
+# the same commit (#337 defines every checklist answer, #338 reads them). Each lane was a fresh child
+# session seeded by `assay lane practice-review`, all passes claude-opus-5-5, the target read-only,
+# tests/sweeps/, tests/fixtures/*/map/ and every ANSWERS.yaml excluded, given the run's
+# map/raw/enumerate.json (26 effect candidates, 270 excluded test and fixture members).
+# What the record should know:
+# - No send-back: each lane's own check came clean within two runs; every run validated on collection.
+# - Per-answer agreement over the 25 candidates every sweep maps: second_act, staged, rate_limit,
+#   disclosed and window 100%; person_act and declared_scope 96%; received_or_gone 84%;
+#   refuses_unless 76%. One scope disagreement (process spawn (js) @ lib/check-syntax.mjs).
+# - Spend per session (practice-review row of each run record): USD 20.67, 26.48, 20.98.
+target: "andyschwab/assay, this repository (public), at the commit below"
+target_commit: "a17104d714ec76259e6d793954371885965f784a"
+method_commit: "a17104d714ec76259e6d793954371885965f784a"
+date: "2026-11-15"
+blind: true
+threshold:
+  fact_presence: 22          # measured 15 of 67 union facts caught by all three (22%, 22.4 floored)
+  candidate_agreement: 60    # measured per listed candidate (#312): 15 of 25 candidates every sweep maps identical on all six (60%), compared on their answers; 1 scope disagreement counted apart
+  descriptor_agreement: 62   # measured 15 of 24 shared effect channels identical on all six descriptors (62.5% floored)
+  requirement_agreement: 80  # measured 12 of 15 decided requirements identical in all three (80%): with the bar recomputed from this set and its twin, d-effect-facts-legible is decided and parts (met / met / unmet); without it 12 of 14 (86%)
+sweeps: [sweep-1, sweep-2, sweep-3]

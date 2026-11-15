@@ -117,23 +117,34 @@ node yardstick/legibility-bar-check.mjs --json
 The bar file and the sets land in one reviewed change: `tests/blocks/legibility-bar-recomputed.mjs`
 fails while the file disagrees with them, so a set committed without the file's update is red.
 
-**The sets here.** One set per target, the newest, plus two older sets the mapping set reads.
+**The sets here.** One set per target, the newest, plus two older sets the mapping set reads and the
+assay set `map/SCHEMA.md` §2 still cites.
 A set a later set of the same target supersedes is removed in the change that commits the later
 one; git keeps it (#323).
 
-- `assay-2026-11-12c/`: **blind**, over this repository at `2b247c0`, method at `9da5005`:
-  three fresh-context `practice-review` lanes, each a child session that never saw an answer
-  sheet, the other sweeps, or this directory, every pass recorded with its model. Measured: 11
-  of 84 union facts caught by all three (fact presence 13%); 4 of 10 listed candidates every
-  sweep maps identical on all six descriptors (40%, per channel the same); 13 of 14 decided
-  requirements identical (92%). This is the figure `map/METHOD.md` and `map/SCHEMA.md` cite for
-  the method's repeatability; the field figures they also quote were taken off-repo before this
-  gate existed and are history. A new blind set is `assay-<date>/`, run the same way (at least
-  three fresh contexts over one pinned commit, `blind: true`, threshold at or below what it
-  measured) when `METHOD.md` or `SCHEMA.md` moves.
-- `flawed-webapp-2026-11-12b/`: **blind**, over the public flawed-webapp fixture target,
-  method at `7f8b209`. A 12-file target saturates fact presence and recall, so requirement
-  agreement is the measure that carries information here.
+- `assay-2026-11-15/`: **blind** and **answered**, over this repository at `a17104d`, method at
+  the same commit: three fresh-context `practice-review` lanes, each a child session that never saw
+  an answer sheet, the other sweeps, or this directory, every pass recorded with its model, every
+  effect triage version 2 with the checklist's answers. Measured: 15 of 67 union facts caught by
+  all three (fact presence 22%); 15 of 25 listed candidates every sweep maps identical on all six
+  descriptors (60%; per channel 15 of 24, 62%); 12 of 15 decided requirements identical (80%), the
+  one new parting `d-effect-facts-legible` (12 of 14, 86%, without it).
+  This is the figure `map/METHOD.md` and `map/SCHEMA.md` cite for the method's repeatability; the
+  field figures they also quote were taken off-repo before this gate existed and are history. A new
+  blind set is `assay-<date>/`, run the same way (at least three fresh contexts over one pinned
+  commit, `blind: true`, threshold at or below what it measured) when `METHOD.md` or `SCHEMA.md`
+  moves. With `flawed-webapp-2026-11-15/` it is what `yardstick/legibility-bar.yaml` rests on.
+- `assay-2026-11-12c/`: **blind**, over this repository at `2b247c0`, method at `9da5005`, read
+  whole (no answers): 13% fact presence, 40% per listed candidate, 92% requirement agreement. Kept
+  while `map/SCHEMA.md` §2 cites it: §2 is a section a pass records, so moving its citation to the
+  newer set would mark that set re-run under `variance --check-method`. The citation leaves §2 in
+  its own change, with the set re-run then (#343).
+- `flawed-webapp-2026-11-15/`: **blind** and **answered**, over the public flawed-webapp fixture
+  target at `7f7c89d`, method at `a17104d`. A 12-file target saturates fact presence and recall
+  (8 of 9 union facts, 88%), so requirement agreement (10 of 14, 71%; 10 of 13 without
+  `d-effect-facts-legible`) and the answers carry the
+  information here: lanes part on `person_act` and `received_or_gone` where one reads
+  not-determinable and another no (3 and 4 of 7 alike).
 - `fixture-notesbox/`: fixture-sized and **not blind**: three copies of the notesbox
   fixture's practice-review passes with one finding dropped and one descriptor re-judged.
   It proves the gate reads the number and can go red; it says nothing about the

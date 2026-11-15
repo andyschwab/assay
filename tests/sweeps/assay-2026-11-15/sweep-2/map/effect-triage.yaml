@@ -1,0 +1,797 @@
+schema: effect-triage
+version: 2
+triage:
+  - candidate: "surface: migrate-run.mjs"
+    finding: F-411
+    clause: channel-acts
+    answers:
+      refuses_unless:
+        answer: yes
+        what: "each rewritten flow list reads back under the strict reader to what the legacy rule read and the file then parses, and no rename lands on a path that exists"
+        held_by: code
+        evidence: ["map/migrate-run.mjs:87", "map/migrate-run.mjs:92", "map/migrate-run.mjs:99"]
+      second_act:
+        answer: yes
+        evidence: ["map/migrate-run.mjs:122", "map/migrate-run.mjs:126", "map/migrate-run.mjs:131"]
+      staged:
+        answer: no
+        evidence: ["map/migrate-run.mjs:112"]
+      person_act:
+        answer: yes
+        evidence: ["map/migrate-run.mjs:118", "map/migrate-run.mjs:24"]
+      declared_scope:
+        answer: no
+        evidence: ["map/migrate-run.mjs:112"]
+      rate_limit:
+        answer: no
+        evidence: ["map/migrate-run.mjs:108"]
+      disclosed:
+        answer: no
+        evidence: ["map/migrate-run.mjs:127"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/migrate-run.mjs:102", "map/migrate-run.mjs:112"]
+      window:
+        answer: no
+        evidence: ["map/migrate-run.mjs:112"]
+  - candidate: "route: POST /login"
+    finding: F-422
+    clause: route-method-writes
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+      second_act:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+      staged:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+      person_act:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+      declared_scope:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+      rate_limit:
+        answer: no
+        evidence: ["map/effect-signals.mjs:292", "map/effect-signals.mjs:293"]
+        against_signal: "line 293 is a comment inside the enumerator's own limiter reader and registers no route; the limiter option the signal reads belongs to a test fixture's route, not to this candidate"
+      disclosed:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+      received_or_gone:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+      window:
+        answer: no
+        evidence: ["map/effect-signals.mjs:293"]
+  - candidate: "artifact upload (workflow) @ routine/assay-routine.yml"
+    finding: F-403
+    clause: workflow-write
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["routine/assay-routine.yml:182", "routine/assay-routine.yml:184"]
+      second_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:184"]
+      staged:
+        answer: no
+        evidence: ["routine/assay-routine.yml:184"]
+      person_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:17", "routine/assay-routine.yml:22", "routine/assay-routine.yml:24"]
+      declared_scope:
+        answer: no
+        evidence: ["routine/assay-routine.yml:32", "routine/assay-routine.yml:184"]
+        against_signal: "the workflow's permissions block bounds GITHUB_TOKEN, and actions/upload-artifact writes with the runner's own artifact credential, which that block does not govern"
+      rate_limit:
+        answer: no
+        evidence: ["routine/assay-routine.yml:184"]
+      disclosed:
+        answer: no
+        evidence: ["routine/assay-routine.yml:184"]
+      received_or_gone:
+        answer: no
+        evidence: ["routine/assay-routine.yml:184", "routine/assay-routine.yml:188"]
+      window:
+        answer: yes
+        evidence: ["routine/assay-routine.yml:82", "routine/assay-routine.yml:188"]
+  - candidate: "git push @ map/effect-scope.mjs"
+    finding: F-423
+    clause: client-call-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      second_act:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      staged:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      person_act:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      declared_scope:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      rate_limit:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      disclosed:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      received_or_gone:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+      window:
+        answer: no
+        evidence: ["map/effect-scope.mjs:125"]
+  - candidate: "github api write (workflow) @ .github/workflows/branch-cleanup.yml"
+    finding: F-401
+    clause: workflow-write
+    answers:
+      refuses_unless:
+        answer: yes
+        what: "each planned branch is re-read and still sits at its planned tip unprotected, and none is the default branch or under KEEP, before any delete"
+        held_by: code
+        evidence: [".github/workflows/branch-cleanup.yml:123", ".github/workflows/branch-cleanup.yml:124", ".github/workflows/branch-cleanup.yml:129", ".github/workflows/branch-cleanup.yml:130"]
+      second_act:
+        answer: no
+        evidence: [".github/workflows/branch-cleanup.yml:66", ".github/workflows/branch-cleanup.yml:108"]
+      staged:
+        answer: no
+        evidence: [".github/workflows/branch-cleanup.yml:131"]
+      person_act:
+        answer: no
+        evidence: [".github/workflows/branch-cleanup.yml:36"]
+      declared_scope:
+        answer: yes
+        evidence: [".github/workflows/branch-cleanup.yml:111"]
+      rate_limit:
+        answer: no
+        evidence: [".github/workflows/branch-cleanup.yml:51"]
+      disclosed:
+        answer: no
+        evidence: [".github/workflows/branch-cleanup.yml:132"]
+      received_or_gone:
+        answer: no
+        evidence: [".github/workflows/branch-cleanup.yml:131", ".github/workflows/branch-cleanup.yml:86", ".github/workflows/branch-cleanup.yml:89"]
+      window:
+        answer: no
+        evidence: [".github/workflows/branch-cleanup.yml:86", ".github/workflows/branch-cleanup.yml:89"]
+  - candidate: "http write (js) @ map/tools.mjs"
+    finding: F-404
+    clause: client-call-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/tools.mjs:106", "map/tools.mjs:111"]
+      second_act:
+        answer: no
+        evidence: ["map/tools.mjs:234"]
+      staged:
+        answer: no
+        evidence: ["map/tools.mjs:130"]
+      person_act:
+        answer: no
+        evidence: [".github/workflows/ci.yml:11", ".github/workflows/ci.yml:37", ".github/actions/tools/action.yml:29"]
+      declared_scope:
+        answer: no
+        evidence: ["map/tools.mjs:106", "map/tools.mjs:38"]
+      rate_limit:
+        answer: yes
+        evidence: ["map/tools.mjs:100"]
+      disclosed:
+        answer: no
+        evidence: ["map/tools.mjs:237"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/tools.mjs:111", "map/tools.mjs:125", "map/tools.mjs:142"]
+      window:
+        answer: no
+        evidence: ["map/tools.mjs:130"]
+  - candidate: "issue/pr write (workflow) @ .github/workflows/tools-check.yml"
+    finding: F-402
+    clause: workflow-write
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: [".github/workflows/tools-check.yml:33"]
+      second_act:
+        answer: no
+        evidence: [".github/workflows/tools-check.yml:33"]
+      staged:
+        answer: no
+        evidence: [".github/workflows/tools-check.yml:33"]
+      person_act:
+        answer: no
+        evidence: [".github/workflows/tools-check.yml:8"]
+      declared_scope:
+        answer: yes
+        evidence: [".github/workflows/tools-check.yml:17"]
+      rate_limit:
+        answer: yes
+        evidence: [".github/workflows/tools-check.yml:34", ".github/workflows/tools-check.yml:35"]
+      disclosed:
+        answer: no
+        evidence: [".github/workflows/tools-check.yml:33"]
+      received_or_gone:
+        answer: yes
+        evidence: [".github/workflows/tools-check.yml:33", ".github/workflows/tools-check.yml:35"]
+      window:
+        answer: no
+        evidence: [".github/workflows/tools-check.yml:33"]
+  - candidate: "process spawn (js) @ assay.mjs"
+    finding: F-421
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["assay.mjs:98"]
+      second_act:
+        answer: no
+        evidence: ["assay.mjs:98"]
+      staged:
+        answer: no
+        evidence: ["assay.mjs:98"]
+      person_act:
+        answer: no
+        evidence: [".github/workflows/tools-check.yml:8", ".github/workflows/tools-check.yml:27"]
+      declared_scope:
+        answer: no
+        evidence: ["assay.mjs:98"]
+      rate_limit:
+        answer: no
+        evidence: ["assay.mjs:98"]
+      disclosed:
+        answer: no
+        evidence: ["assay.mjs:98"]
+      received_or_gone:
+        answer: no
+        evidence: ["assay.mjs:93", "assay.mjs:98"]
+      window:
+        answer: no
+        evidence: ["assay.mjs:98"]
+  - candidate: "process spawn (js) @ lib/check-syntax.mjs"
+    out_of_scope: "a declared build script: it runs only as npm run lint and npm run build (package.json:11, package.json:13), node --check over the engine's own modules"
+    clause: spawn-build-time
+  - candidate: "process spawn (js) @ lib/gate.mjs"
+    finding: F-412
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: yes
+        what: "every pinned tool is on PATH and answers at its pin before any gate step runs"
+        held_by: code
+        evidence: ["lib/gate.mjs:43", "lib/gate.mjs:46"]
+      second_act:
+        answer: no
+        evidence: ["lib/gate.mjs:40"]
+      staged:
+        answer: no
+        evidence: ["lib/gate.mjs:40"]
+      person_act:
+        answer: no
+        evidence: [".github/workflows/ci.yml:11", ".github/workflows/ci.yml:38"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/gate.mjs:40"]
+      rate_limit:
+        answer: no
+        evidence: ["lib/gate.mjs:40"]
+      disclosed:
+        answer: no
+        evidence: ["lib/gate.mjs:40"]
+      received_or_gone:
+        answer: yes
+        evidence: ["lib/gate.mjs:40", "map/tools.mjs:142"]
+      window:
+        answer: no
+        evidence: ["lib/gate.mjs:40"]
+  - candidate: "process spawn (js) @ lib/release-notes.mjs"
+    finding: F-413
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58"]
+      second_act:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58"]
+      staged:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58"]
+      person_act:
+        answer: no
+        evidence: [".github/workflows/ci.yml:11", "lib/gate.mjs:33"]
+      declared_scope:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58"]
+      rate_limit:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58"]
+      disclosed:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58"]
+      received_or_gone:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58", "lib/release-notes.mjs:64"]
+      window:
+        answer: no
+        evidence: ["lib/release-notes.mjs:58", "lib/release-notes.mjs:64"]
+  - candidate: "process spawn (js) @ map/backlog.mjs"
+    finding: F-414
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/backlog.mjs:54"]
+      second_act:
+        answer: no
+        evidence: ["map/backlog.mjs:54"]
+      staged:
+        answer: no
+        evidence: ["map/backlog.mjs:54"]
+      person_act:
+        answer: yes
+        evidence: ["assay.mjs:38", "map/backlog.mjs:29"]
+      declared_scope:
+        answer: no
+        evidence: ["map/backlog.mjs:54"]
+      rate_limit:
+        answer: no
+        evidence: ["map/backlog.mjs:54"]
+      disclosed:
+        answer: no
+        evidence: ["map/backlog.mjs:54"]
+      received_or_gone:
+        answer: no
+        evidence: ["map/backlog.mjs:54", "map/backlog.mjs:16"]
+      window:
+        answer: no
+        evidence: ["map/backlog.mjs:54"]
+  - candidate: "process spawn (js) @ map/dependency-scan.mjs"
+    finding: F-408
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/dependency-scan.mjs:398"]
+      second_act:
+        answer: no
+        evidence: ["map/dependency-scan.mjs:398"]
+      staged:
+        answer: no
+        evidence: ["map/dependency-scan.mjs:398"]
+      person_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:17", "routine/assay-routine.yml:24", "map/start.mjs:433"]
+      declared_scope:
+        answer: no
+        evidence: ["map/dependency-scan.mjs:85", "map/dependency-scan.mjs:398"]
+      rate_limit:
+        answer: no
+        evidence: ["map/dependency-scan.mjs:398"]
+      disclosed:
+        answer: no
+        evidence: ["map/dependency-scan.mjs:398"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/dependency-scan.mjs:24", "map/dependency-scan.mjs:25", "map/dependency-scan.mjs:398"]
+      window:
+        answer: no
+        evidence: ["map/dependency-scan.mjs:398"]
+  - candidate: "process spawn (js) @ map/fresh-clone.mjs"
+    finding: F-405
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["routine/assay-routine.yml:74", "map/fresh-clone.mjs:332"]
+      second_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:74", "map/start.mjs:450", "map/fresh-clone.mjs:332"]
+      staged:
+        answer: no
+        evidence: ["map/fresh-clone.mjs:332"]
+      person_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:17", "routine/assay-routine.yml:22", "routine/assay-routine.yml:24"]
+      declared_scope:
+        answer: no
+        evidence: ["map/fresh-clone.mjs:97", "map/fresh-clone.mjs:98", "map/fresh-clone.mjs:332"]
+      rate_limit:
+        answer: no
+        evidence: ["map/fresh-clone.mjs:332"]
+      disclosed:
+        answer: no
+        evidence: ["map/fresh-clone.mjs:332"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/fresh-clone.mjs:92", "map/fresh-clone.mjs:332"]
+      window:
+        answer: no
+        evidence: ["map/fresh-clone.mjs:332"]
+  - candidate: "process spawn (js) @ map/repo-census.mjs"
+    finding: F-415
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/repo-census.mjs:1415"]
+      second_act:
+        answer: no
+        evidence: ["map/repo-census.mjs:1415"]
+      staged:
+        answer: no
+        evidence: ["map/repo-census.mjs:1415"]
+      person_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:17", "map/start.mjs:428"]
+      declared_scope:
+        answer: no
+        evidence: ["map/repo-census.mjs:1415"]
+      rate_limit:
+        answer: no
+        evidence: ["map/repo-census.mjs:1415"]
+      disclosed:
+        answer: no
+        evidence: ["map/repo-census.mjs:1415"]
+      received_or_gone:
+        answer: no
+        evidence: ["map/repo-census.mjs:842", "map/repo-census.mjs:959", "map/repo-census.mjs:1425"]
+      window:
+        answer: no
+        evidence: ["map/repo-census.mjs:1415"]
+  - candidate: "process spawn (js) @ map/services.mjs"
+    finding: F-406
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: yes
+        what: "the target's declaration has only its closed keys, every image pinned by a tag other than latest or by a digest, and no environment name the child allow-list owns"
+        held_by: code
+        evidence: ["map/services.mjs:79", "map/services.mjs:83", "map/services.mjs:85", "map/services.mjs:67"]
+      second_act:
+        answer: no
+        evidence: ["map/services.mjs:144"]
+      staged:
+        answer: no
+        evidence: ["map/services.mjs:144"]
+      person_act:
+        answer: yes
+        evidence: ["map/start.mjs:542", "map/start.mjs:450"]
+      declared_scope:
+        answer: no
+        evidence: ["map/services.mjs:144", "map/services.mjs:21"]
+      rate_limit:
+        answer: no
+        evidence: ["map/services.mjs:144"]
+      disclosed:
+        answer: no
+        evidence: ["map/services.mjs:144"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/services.mjs:144"]
+      window:
+        answer: no
+        evidence: ["map/services.mjs:144", "map/services.mjs:165"]
+  - candidate: "process spawn (js) @ map/start.mjs"
+    finding: F-409
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: yes
+        what: "every pinned instrument tool is on PATH and answers at its pin, on the start path and on the routine path that reuses this file's sequencing"
+        held_by: code
+        evidence: ["map/start.mjs:561", "routine/run.mjs:219", "routine/run.mjs:222"]
+      second_act:
+        answer: no
+        evidence: ["map/start.mjs:334"]
+      staged:
+        answer: no
+        evidence: ["map/start.mjs:334"]
+      person_act:
+        answer: no
+        evidence: ["routine/run.mjs:234", "routine/assay-routine.yml:17"]
+      declared_scope:
+        answer: no
+        evidence: ["map/start.mjs:334"]
+      rate_limit:
+        answer: no
+        evidence: ["map/start.mjs:334"]
+      disclosed:
+        answer: no
+        evidence: ["map/start.mjs:334"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/start.mjs:270", "map/start.mjs:334"]
+      window:
+        answer: no
+        evidence: ["map/start.mjs:334"]
+  - candidate: "process spawn (js) @ map/structure-scan.mjs"
+    finding: F-407
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/structure-scan.mjs:103"]
+      second_act:
+        answer: no
+        evidence: ["map/structure-scan.mjs:414", "map/structure-scan.mjs:468"]
+      staged:
+        answer: no
+        evidence: ["map/structure-scan.mjs:103"]
+      person_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:17", "routine/assay-routine.yml:74"]
+      declared_scope:
+        answer: no
+        evidence: ["map/structure-scan.mjs:103", "map/structure-scan.mjs:120"]
+      rate_limit:
+        answer: no
+        evidence: ["map/structure-scan.mjs:103"]
+      disclosed:
+        answer: no
+        evidence: ["map/structure-scan.mjs:103"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/structure-scan.mjs:103", "map/structure-scan.mjs:120", "map/structure-scan.mjs:189"]
+      window:
+        answer: no
+        evidence: ["map/structure-scan.mjs:120"]
+  - candidate: "process spawn (js) @ map/sweep-method.mjs"
+    finding: F-416
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82"]
+      second_act:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82"]
+      staged:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82"]
+      person_act:
+        answer: yes
+        evidence: ["assay.mjs:36", "map/variance.mjs:676", "map/variance.mjs:678"]
+      declared_scope:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82"]
+      rate_limit:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82"]
+      disclosed:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82"]
+      received_or_gone:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82", "map/sweep-method.mjs:83"]
+      window:
+        answer: no
+        evidence: ["map/sweep-method.mjs:82"]
+  - candidate: "process spawn (js) @ map/target-identity.mjs"
+    finding: F-417
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/target-identity.mjs:19"]
+      second_act:
+        answer: no
+        evidence: ["map/target-identity.mjs:19"]
+      staged:
+        answer: no
+        evidence: ["map/target-identity.mjs:19"]
+      person_act:
+        answer: yes
+        evidence: ["map/start.mjs:589"]
+      declared_scope:
+        answer: no
+        evidence: ["map/target-identity.mjs:19"]
+      rate_limit:
+        answer: no
+        evidence: ["map/target-identity.mjs:19"]
+      disclosed:
+        answer: no
+        evidence: ["map/target-identity.mjs:19"]
+      received_or_gone:
+        answer: no
+        evidence: ["map/target-identity.mjs:19", "map/target-identity.mjs:28"]
+      window:
+        answer: no
+        evidence: ["map/target-identity.mjs:19"]
+  - candidate: "process spawn (js) @ map/tools.mjs"
+    finding: F-404
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/tools.mjs:106", "map/tools.mjs:111"]
+      second_act:
+        answer: no
+        evidence: ["map/tools.mjs:234"]
+      staged:
+        answer: no
+        evidence: ["map/tools.mjs:130"]
+      person_act:
+        answer: no
+        evidence: [".github/workflows/ci.yml:11", ".github/workflows/ci.yml:37", ".github/actions/tools/action.yml:29"]
+      declared_scope:
+        answer: no
+        evidence: ["map/tools.mjs:106", "map/tools.mjs:38"]
+      rate_limit:
+        answer: yes
+        evidence: ["map/tools.mjs:100"]
+      disclosed:
+        answer: no
+        evidence: ["map/tools.mjs:237"]
+      received_or_gone:
+        answer: yes
+        evidence: ["map/tools.mjs:106", "map/tools.mjs:111", "map/tools.mjs:142"]
+      window:
+        answer: no
+        evidence: ["map/tools.mjs:130"]
+  - candidate: "process spawn (js) @ map/validate.mjs"
+    finding: F-418
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["map/validate.mjs:467"]
+      second_act:
+        answer: no
+        evidence: ["map/validate.mjs:467"]
+      staged:
+        answer: no
+        evidence: ["map/validate.mjs:467"]
+      person_act:
+        answer: no
+        evidence: ["routine/run.mjs:239", "routine/assay-routine.yml:17"]
+      declared_scope:
+        answer: no
+        evidence: ["map/validate.mjs:467"]
+      rate_limit:
+        answer: no
+        evidence: ["map/validate.mjs:467"]
+      disclosed:
+        answer: no
+        evidence: ["map/validate.mjs:467"]
+      received_or_gone:
+        answer: no
+        evidence: ["map/validate.mjs:467", "map/validate.mjs:484"]
+      window:
+        answer: no
+        evidence: ["map/validate.mjs:484"]
+  - candidate: "process spawn (js) @ routine/run.mjs"
+    finding: F-410
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: yes
+        what: "every pinned instrument tool is on PATH and answers at its pin before anything is drawn"
+        held_by: code
+        evidence: ["routine/run.mjs:219", "routine/run.mjs:222"]
+      second_act:
+        answer: no
+        evidence: ["routine/run.mjs:89"]
+      staged:
+        answer: no
+        evidence: ["routine/run.mjs:236"]
+      person_act:
+        answer: no
+        evidence: ["routine/assay-routine.yml:17", "routine/assay-routine.yml:22", "routine/assay-routine.yml:24"]
+      declared_scope:
+        answer: no
+        evidence: ["routine/run.mjs:89"]
+      rate_limit:
+        answer: no
+        evidence: ["routine/run.mjs:89"]
+      disclosed:
+        answer: no
+        evidence: ["routine/run.mjs:89"]
+      received_or_gone:
+        answer: yes
+        evidence: ["routine/run.mjs:234", "routine/run.mjs:236"]
+      window:
+        answer: no
+        evidence: ["routine/run.mjs:236"]
+  - candidate: "process spawn (js) @ views/compile.mjs"
+    finding: F-420
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+      second_act:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+      staged:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+      person_act:
+        answer: no
+        evidence: ["routine/run.mjs:281", "routine/assay-routine.yml:17"]
+      declared_scope:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+      rate_limit:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+      disclosed:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+      received_or_gone:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+      window:
+        answer: no
+        evidence: ["views/compile.mjs:77"]
+  - candidate: "process spawn (js) @ yardstick/ratchet.mjs"
+    finding: F-419
+    clause: spawn-runtime
+    answers:
+      refuses_unless:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107"]
+      second_act:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107"]
+      staged:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107"]
+      person_act:
+        answer: no
+        evidence: ["routine/run.mjs:313", "routine/assay-routine.yml:22"]
+      declared_scope:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107"]
+      rate_limit:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107"]
+      disclosed:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107"]
+      received_or_gone:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107", "yardstick/ratchet.mjs:117"]
+      window:
+        answer: no
+        evidence: ["yardstick/ratchet.mjs:107"]
+  - candidate: "release write (workflow) @ .github/workflows/release.yml"
+    finding: F-400
+    clause: workflow-write
+    answers:
+      refuses_unless:
+        answer: yes
+        what: "the dispatch is on the default branch, the version is vX.Y.Z and not an existing tag, and npm test and the Consumer-trailer check pass on the dispatched commit"
+        held_by: code
+        evidence: [".github/workflows/release.yml:23", ".github/workflows/release.yml:37", ".github/workflows/release.yml:38", ".github/workflows/release.yml:41", ".github/workflows/release.yml:43"]
+      second_act:
+        answer: no
+        evidence: [".github/workflows/release.yml:50"]
+      staged:
+        answer: no
+        evidence: [".github/workflows/release.yml:50"]
+      person_act:
+        answer: yes
+        evidence: [".github/workflows/release.yml:11"]
+      declared_scope:
+        answer: yes
+        evidence: [".github/workflows/release.yml:24"]
+      rate_limit:
+        answer: no
+        evidence: [".github/workflows/release.yml:18"]
+      disclosed:
+        answer: no
+        evidence: [".github/workflows/release.yml:50"]
+      received_or_gone:
+        answer: yes
+        evidence: [".github/workflows/release.yml:50"]
+      window:
+        answer: no
+        evidence: [".github/workflows/release.yml:50"]

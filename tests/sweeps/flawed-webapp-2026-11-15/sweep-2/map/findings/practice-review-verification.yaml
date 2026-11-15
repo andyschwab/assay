@@ -1,0 +1,81 @@
+- id: F-300
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    pushBackup fires the backup POST without awaiting it, swallows any rejection with an
+    empty catch, and returns ok true with the full note count as pushed whatever the
+    request's outcome, and POST /sync relays that report to the caller as a 200.
+  evidence: ["lib/sync.mjs:7-13", "server.mjs:47-49"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-301
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    sendEmail only writes a console line and returns sent true unconditionally, so its
+    success report is not tied to any delivery, which its own header says never happens.
+  evidence: ["lib/mailer.mjs:1-2", "lib/mailer.mjs:5-8"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-302
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    ask() discards sendEmail's return value and reports the recipient as emailed to the
+    POST /assistant caller, so the answer claims a send that nothing confirmed.
+  evidence: ["lib/agent.mjs:39-40", "server.mjs:42-44"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The assistant, the one shipped feature whose answer a model produces, has no eval of
+    its answer quality: the only test exercises authenticate, and package.json defines no
+    test script or CI that would run one.
+  evidence: ["lib/agent.mjs:33-43", "test/smoke.mjs:4-11", "package.json:6-8"]
+  confidence: confirmed
+- id: F-304
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The assistant prompt the app relies on to answer from notes and to decide when to emit
+    an email directive carries no recorded repeatability measurement, and the stub standing
+    in for the model makes any such run in the tree uninformative about a real model.
+  evidence: ["lib/agent.mjs:16-20", "lib/agent.mjs:27-31"]
+  confidence: confirmed
+- id: F-305
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The only runnable check asserts that one valid token resolves a user and exercises no
+    route, effect or assistant answer, and no script wires it, so a change to any route
+    cannot demonstrate its effect through a test or fixture in the tree.
+  evidence: ["test/smoke.mjs:1-11", "package.json:6-8"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-306
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The target carries no change-verification mechanism: no pull request template and no
+    check on a pull request body or commit message, the manifest holding only a start script.
+  evidence: ["package.json:1-9"]
+  confidence: confirmed
+- id: F-307
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant's model output is returned to the caller and acted on with no check of
+    its content, so a fluent answer or an emitted directive passes unread by any mechanism.
+  evidence: ["lib/agent.mjs:34-42", "server.mjs:44"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency

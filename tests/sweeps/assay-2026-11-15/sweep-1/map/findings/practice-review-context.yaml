@@ -1,0 +1,162 @@
+- id: F-100
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M1 assay.mjs has a head comment (lines 2-9) and imports no in-repo file (only node built-ins, 0 in-repo files in its closure, it spawns the command script instead), but no test under tests/ imports it directly; tests reach it only by spawning it as a process, so bar (b) fails.
+  evidence: ["assay.mjs:2-9", "assay.mjs:10-13", "assay.mjs:98", "tests/blocks/consumer-contract.mjs:29"]
+  confidence: confirmed
+- id: F-101
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    M2 lib/yaml-min.mjs opens with a head comment naming its contract home (lines 1-7), is imported directly by tests (66 test files, e.g. tests/blocks/routine.mjs), and has no in-repo imports (closure 0 files), so all three bars hold.
+  evidence: ["lib/yaml-min.mjs:1-7", "tests/blocks/routine.mjs:9"]
+  confidence: confirmed
+- id: F-102
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M3 lib/gate.mjs has a head comment (lines 2-16) and is imported directly by tests/blocks/gate-command.mjs, but its two imports (map/tools.mjs, map/doctrine.mjs) reach 22 in-repo source files transitively (tools.mjs pulls map/project.mjs and through it yardstick/measure.mjs), so bar (c) fails.
+  evidence: ["lib/gate.mjs:2-16", "lib/gate.mjs:20-21", "map/tools.mjs:33-34", "tests/blocks/gate-command.mjs:19"]
+  confidence: confirmed
+- id: F-103
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M4 map/validate.mjs has a head comment (lines 2-12) but no test imports it directly (tests spawn it as a process), and its static and dynamic imports reach 40 in-repo source files transitively, so bars (b) and (c) fail.
+  evidence: ["map/validate.mjs:2-12", "map/validate.mjs:14-34", "map/validate.mjs:54", "tests/blocks/sweep-gate.mjs:28"]
+  confidence: confirmed
+- id: F-104
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M5 map/enumerate.mjs has a head comment (lines 2-25) and its imports reach 8 in-repo source files transitively, within ten, but no test imports it directly (tests spawn it, e.g. tests/blocks/enumerate-gate.mjs), so bar (b) fails.
+  evidence: ["map/enumerate.mjs:2-25", "map/enumerate.mjs:30-35", "tests/blocks/enumerate-gate.mjs:20"]
+  confidence: confirmed
+- id: F-105
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M6 map/ingest.mjs has a head comment (lines 2-56) and is imported directly by tests (tests/harness.mjs, tests/blocks/instrument-port.mjs), but its imports, among them every instrument module for their constants, reach 30 in-repo source files transitively, so bar (c) fails.
+  evidence: ["map/ingest.mjs:2-56", "map/ingest.mjs:59-72", "tests/blocks/instrument-port.mjs:6"]
+  confidence: confirmed
+- id: F-106
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M7 map/start.mjs has a head comment (lines 2-59) and is imported directly by tests/blocks/instrument-durations.mjs, but its imports reach 27 in-repo source files transitively, so bar (c) fails.
+  evidence: ["map/start.mjs:2-59", "map/start.mjs:60-73", "tests/blocks/instrument-durations.mjs:14"]
+  confidence: confirmed
+- id: F-107
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    M8 map/fresh-clone.mjs has a head comment stating what it does in order (lines 2-116), is imported directly by tests (12 test files, e.g. tests/blocks/services-declaration.mjs), and its imports reach 7 in-repo source files transitively, so all three bars hold.
+  evidence: ["map/fresh-clone.mjs:2-116", "map/fresh-clone.mjs:121-125", "tests/blocks/services-declaration.mjs:12"]
+  confidence: confirmed
+- id: F-108
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    M9 map/effect-triage.mjs has a head comment naming it the one reader of its two files (lines 1-15), is imported directly by tests/blocks/web-app-effects.mjs, and its imports reach 6 in-repo source files transitively, so all three bars hold.
+  evidence: ["map/effect-triage.mjs:1-15", "map/effect-triage.mjs:17-22", "tests/blocks/web-app-effects.mjs:19"]
+  confidence: confirmed
+- id: F-109
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    M10 map/repo-census.mjs has a head comment naming the rows it decides (lines 2-122), is imported directly by tests (10 test files, e.g. tests/blocks/census-root-covers-the-tree.mjs), and its imports reach 4 in-repo source files transitively, so all three bars hold.
+  evidence: ["map/repo-census.mjs:2-122", "map/repo-census.mjs:127-130", "tests/blocks/census-root-covers-the-tree.mjs:16"]
+  confidence: confirmed
+- id: F-110
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M11 yardstick/measure.mjs has a head comment (lines 2-31) and is imported directly by tests (73 test files, e.g. tests/blocks/fresh-clone-build-floor.mjs), but its imports reach 20 in-repo source files transitively, so bar (c) fails.
+  evidence: ["yardstick/measure.mjs:2-31", "yardstick/measure.mjs:35-45", "tests/blocks/fresh-clone-build-floor.mjs:5"]
+  confidence: confirmed
+- id: F-111
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M12 views/compile.mjs has a head comment (lines 2-29) but no test imports it directly (tests spawn it, e.g. tests/blocks/compile-target.mjs), and its imports reach 32 in-repo source files transitively, so bars (b) and (c) fail.
+  evidence: ["views/compile.mjs:2-29", "views/compile.mjs:34-43", "tests/blocks/compile-target.mjs:17"]
+  confidence: confirmed
+- id: F-112
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M13 views/improve/handoff.mjs has a head comment (lines 2-51) but no test imports it directly (tests spawn it, e.g. tests/blocks/handoff-text-is-data.mjs), and its imports reach 30 in-repo source files transitively, so bars (b) and (c) fail.
+  evidence: ["views/improve/handoff.mjs:2-51", "views/improve/handoff.mjs:55-66", "tests/blocks/handoff-text-is-data.mjs:34"]
+  confidence: confirmed
+- id: F-113
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M14 owner/ask-owner.mjs has a head comment (lines 2-37) and is imported directly by tests/blocks/ask-owner.mjs, but its seven imports (map/project.mjs and map/repo-census.mjs among them) reach 23 in-repo source files transitively, so bar (c) fails.
+  evidence: ["owner/ask-owner.mjs:2-37", "owner/ask-owner.mjs:41-47", "tests/blocks/ask-owner.mjs:6"]
+  confidence: confirmed
+- id: F-114
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    M15 routine/run.mjs has a head comment (lines 2-69) and a README in its directory, and is imported directly by tests/blocks/routine.mjs, but its imports reach 32 in-repo source files transitively (map/start.mjs and yardstick/measure.mjs among them), so bar (c) fails.
+  evidence: ["routine/run.mjs:2-69", "routine/run.mjs:75-82", "tests/blocks/routine.mjs:11"]
+  confidence: confirmed
+- id: F-115
+  dimension: context-economy
+  polarity: fact
+  subject_type: process
+  observation: >
+    The engine calls no model - the only provider SDK names and endpoints in non-test code are enumerate's detection pattern tables, and a judgment scanner's review runs in a session a person started, with the consumer adding the model it runs on.
+  evidence: ["map/enumerate.mjs:749", "map/enumerate.mjs:774", "map/lane.mjs:3-5", "map/lane.mjs:10-11"]
+  confidence: confirmed
+- id: F-116
+  dimension: context-economy
+  polarity: fact
+  subject_type: process
+  observation: >
+    The run record takes the model id and spend a judgment scanner ran on, per practice-review pass with --pass, plus the day a review lane ran (--reviewed), but records no rationale for the model choice and no trigger that re-qualifies it.
+  evidence: ["map/record.mjs:12", "map/record.mjs:18-27", "map/record.mjs:46-49", "map/record.mjs:127"]
+  confidence: confirmed
+- id: F-117
+  dimension: context-economy
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The compiled views name the model each ran judgment scanner and pass ran on, and print "no model recorded" for a judgment scanner whose row names none.
+  evidence: ["map/project.mjs:195-207"]
+  confidence: confirmed
+- id: F-118
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    CLAUDE.md's opening paragraph routes a stranger to the one contract doc per subsystem (map/SCHEMA.md the finding format, map/METHOD.md the built-in scanner, yardstick/README.md the requirements, views/README.md the views' data formats) and README's Quickstart routes a practice review to map/METHOD.md.
+  evidence: ["CLAUDE.md:3-8", "README.md:191-192"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-119
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    README's Layout gives map/ one line, and map/ holds 41 scripts with no README of its own listing them (yardstick/, views/, routine/ and tests/ each carry a README.md), so a task inside map/ is not routed past the directory.
+  evidence: ["README.md:249", "yardstick/README.md:5", "views/README.md:5", "routine/README.md:5", "tests/README.md:1"]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger

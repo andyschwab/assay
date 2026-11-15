@@ -1,0 +1,226 @@
+# Pass 5 — delegation surface (flawed-webapp at 7f7c89d). Read, never executed.
+- id: F-400
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  label: "note written into the shared workspace"
+  observation: >
+    POST /notes inserts the request body's text into the shared in-memory note store under the
+    resolved identity, with no check, limit or log on the path, and a request with no or an unknown
+    token writes as the default admin identity, whose text every later assistant prompt then reads.
+  evidence: ["server.mjs:35-39", "lib/auth.mjs:9-12", "lib/agent.mjs:12-15"]
+  confidence: confirmed
+  effect:
+    channel: note-create
+    reversibility: reversible
+    external: false
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [prompt-injection]
+  reaches: [F-404]
+- id: F-401
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  label: "assistant emails the whole workspace to any address"
+  observation: >
+    The assistant sends an email whose recipient and subject are taken from a TOOL:send_email line
+    in the model's reply, with every note of every user as the body, and nothing between the parse
+    and the send checks the recipient, asks a person, holds a draft, limits the rate or marks it,
+    on a route any caller reaches because a missing token resolves to the default identity.
+  evidence: ["lib/agent.mjs:33-41", "lib/mailer.mjs:5-8", "server.mjs:42-45", "lib/auth.mjs:9-12"]
+  confidence: confirmed
+  effect:
+    channel: assistant-email-send
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: unstructured
+    blast_scope: tenant
+  preconditions: [prompt-injection]
+- id: F-402
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  label: "whole workspace pushed to the backup service by anyone"
+  observation: >
+    POST /sync, served with no authorization check by its own comment, POSTs every note of every
+    user to the backup service with the app's one bearer key, without awaiting the request and
+    with its errors swallowed, so nothing records that the push happened or failed.
+  evidence: ["server.mjs:47-50", "lib/sync.mjs:5-13"]
+  confidence: confirmed
+  effect:
+    channel: backup-push
+    reversibility: irreversible
+    external: true
+    gate_type: none
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [network-position]
+- id: F-403
+  dimension: delegation
+  polarity: gap
+  subject_type: effect
+  label: "every note of every user deleted"
+  observation: >
+    POST /admin/purge clears the whole note store and every user's note list with no copy kept,
+    behind a requireAdmin check that passes whenever the token is missing or unknown, because the
+    default identity authenticate returns then carries the admin role, so the gate fails open on
+    exactly the absence of the credential it depends on, and the purge leaves no record.
+  evidence: ["routes/admin.mjs:6-10", "lib/auth.mjs:9-17", "lib/db.mjs:27-31", "server.mjs:52-54"]
+  confidence: confirmed
+  effect:
+    channel: workspace-purge
+    reversibility: irreversible
+    external: false
+    gate_type: deterministic-halt
+    fail_mode: open
+    telemetry: none
+    blast_scope: tenant
+  preconditions: [network-position]
+- id: F-404
+  dimension: delegation
+  polarity: gap
+  subject_type: capability
+  label: "assistant ask path holds the full trifecta"
+  observation: >
+    The ask path puts every user's note text (any caller's, unauthenticated included) and the
+    caller's question into one prompt beside the owners' email addresses, and acts on a
+    TOOL:send_email line in the reply by emailing all notes to the address it names, so one
+    context holds untrusted input, private data and an outward write reaching an ungated send.
+  evidence: ["lib/agent.mjs:11-20", "lib/agent.mjs:27-31", "lib/agent.mjs:33-41"]
+  confidence: confirmed
+  capabilities:
+    untrusted_input: true
+    private_data: true
+    external_effect: write
+  preconditions: [prompt-injection]
+  reaches: [F-401]
+- id: F-405
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "backup key kept as a literal"
+  observation: >
+    The backup API key is a 36-character literal in the central settings with a TODO to move it
+    to the environment; its one read site sends it as a bearer header on the backup push, which any
+    caller can trigger, and what the key may do at the backup service is declared nowhere in the tree.
+  evidence: ["config/settings.mjs:5-6", "lib/sync.mjs:8-11", "server.mjs:47-49"]
+  confidence: confirmed
+  property: secret-held-in-source
+- id: F-406
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "bearer tokens hardcoded, and their absence grants admin"
+  observation: >
+    The token table holds three literal bearer tokens mapped to users, one of them the admin, read
+    only by sessions.lookup on every request; its reach is traced to acting as that user on every
+    route, but the boundary it should hold is void because a missing or unknown token resolves to
+    a default identity with the admin role.
+  evidence: ["lib/db.mjs:13-25", "lib/auth.mjs:5-13", "server.mjs:27"]
+  confidence: confirmed
+  property: secret-held-in-source
+- id: F-407
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "note text acted on as an instruction"
+  observation: >
+    The POST /notes body text is stored verbatim with its owner, but is pasted unlabelled into the
+    assistant prompt beside the instructions, and a TOOL:send_email line inside a note is carried
+    into the reply and executed as a send, so ingested note text is acted on as an instruction.
+  evidence: ["server.mjs:36-38", "lib/agent.mjs:12-15", "lib/agent.mjs:28-29", "lib/agent.mjs:35-39"]
+  confidence: confirmed
+- id: F-408
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "assistant question acted on as an instruction"
+  observation: >
+    The POST /assistant question is placed raw into the prompt after the workspace notes with no
+    delimiting beyond a label, is not stored, and a TOOL:send_email line in it is matched by the
+    same parse that triggers the send, so the question text can direct the email.
+  evidence: ["server.mjs:43-44", "lib/agent.mjs:19", "lib/agent.mjs:28", "lib/agent.mjs:35-39"]
+  confidence: confirmed
+- id: F-409
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "assistant email carries no AI disclosure"
+  observation: >
+    The assistant's email, whose recipient and subject the model's reply chooses, goes out with the
+    raw note text as its body and nothing in the subject, body or transport marks it as sent by an
+    AI assistant or records why its recipients need no such notice; the sender setting's name is
+    the only trace.
+  evidence: ["lib/agent.mjs:35-39", "lib/mailer.mjs:5-8", "config/settings.mjs:7"]
+  confidence: confirmed
+- id: F-410
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "admin class reached by every unauthenticated request"
+  observation: >
+    The admin-role class is not only the one admin token holder: every request with a missing or
+    unknown token runs as the default identity with role admin, so the class that may purge the
+    whole workspace is open to any caller, and its blast is every user's notes.
+  evidence: ["lib/auth.mjs:9-12", "lib/auth.mjs:15-17", "lib/db.mjs:5", "routes/admin.mjs:7-8"]
+  confidence: confirmed
+  property: acting-principal-stated
+- id: F-411
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  label: "member class reaches every user's notes outward"
+  observation: >
+    A member is refused the purge by role, but its reach is not bounded to its own notes: through
+    the assistant it can email every user's notes to any address, and through POST /sync it can
+    push them all to the backup service, so the member class's outward blast is the whole workspace.
+  evidence: ["lib/db.mjs:3-4", "routes/admin.mjs:7", "lib/agent.mjs:38-39", "server.mjs:47-49"]
+  confidence: confirmed
+- id: F-412
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Who an effect acts as is opaque: the assistant emails "on the user's behalf" from one shared
+    sender setting with no record of which user asked, the backup push uses the app's one key
+    whoever calls it, and an unidentified caller acts as a default identity rather than being
+    refused.
+  evidence: ["lib/agent.mjs:1-2", "lib/mailer.mjs:7", "lib/sync.mjs:10", "lib/auth.mjs:9-12"]
+  confidence: confirmed
+  property: acting-principal-stated
+- id: F-413
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Note access is scoped per user on the list route, but there is no sanctioned, gated way for a
+    note to graduate beyond its owner; instead the assistant and the backup push read every
+    user's notes outright, so the scope is bypassed rather than promoted.
+  evidence: ["server.mjs:31", "lib/agent.mjs:12-15", "lib/agent.mjs:38", "lib/sync.mjs:6"]
+  confidence: confirmed
+  property: scope-promotion-path
+- id: F-414
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    Each note in the prompt is labelled with its owner, but the tool-directive parse that drives
+    the send reads only the reply text and never which input a TOOL line came from, so no policy
+    reasons over the provenance of the values (recipient, subject) that reach the send.
+  evidence: ["lib/agent.mjs:14", "lib/agent.mjs:35-37"]
+  confidence: confirmed
+  property: policy-reads-provenance
+- id: F-415
+  dimension: delegation
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant acts with agency, choosing a recipient and sending on its own reply, yet carries
+    no behavioural spec, output check or collaboration checkpoint before the send; the one control
+    in the tree is the role check on the purge.
+  evidence: ["lib/agent.mjs:16-20", "lib/agent.mjs:35-39", "routes/admin.mjs:7"]
+  confidence: confirmed
+  property: control-matches-modality

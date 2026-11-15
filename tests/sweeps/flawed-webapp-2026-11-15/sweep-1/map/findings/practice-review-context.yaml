@@ -1,0 +1,112 @@
+- id: F-100
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs has a head comment and its in-repo imports reach seven source files, but no test file
+    imports it (test/smoke.mjs imports only lib/auth.mjs), so it has nothing to run on its own.
+  evidence: ["server.mjs:1-2", "server.mjs:4-9", "test/smoke.mjs:5"]
+  confidence: confirmed
+- id: F-101
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs has a head comment block and reaches three in-repo source files (lib/db.mjs,
+    lib/mailer.mjs, config/settings.mjs), but no test file imports it, so it has nothing to run on its own.
+  evidence: ["lib/agent.mjs:1-7", "lib/agent.mjs:8-9", "lib/mailer.mjs:3", "test/smoke.mjs:5"]
+  confidence: confirmed
+- id: F-102
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs meets all three: a head comment states its job, test/smoke.mjs imports it directly,
+    and its only in-repo import is lib/db.mjs (one source file).
+  evidence: ["lib/auth.mjs:1", "test/smoke.mjs:5", "lib/auth.mjs:2"]
+  confidence: confirmed
+- id: F-103
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs has a head comment and imports nothing in-repo, but no test file imports it directly
+    (it is reached only through lib/auth.mjs), so it has nothing of its own to run.
+  evidence: ["lib/db.mjs:1", "test/smoke.mjs:5"]
+  confidence: confirmed
+- id: F-104
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs has a head comment and reaches one in-repo file (config/settings.mjs), but no test
+    file imports it, so it has nothing to run on its own.
+  evidence: ["lib/mailer.mjs:1-2", "lib/mailer.mjs:3", "test/smoke.mjs:5"]
+  confidence: confirmed
+- id: F-105
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs has a head comment and reaches two in-repo files (lib/db.mjs, config/settings.mjs),
+    but no test file imports it, so it has nothing to run on its own.
+  evidence: ["lib/sync.mjs:1", "lib/sync.mjs:2-3", "test/smoke.mjs:5"]
+  confidence: confirmed
+- id: F-106
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs has a head comment and reaches two in-repo files (lib/db.mjs, lib/auth.mjs), but
+    no test file imports it, so it has nothing to run on its own.
+  evidence: ["routes/admin.mjs:1", "routes/admin.mjs:2-3", "test/smoke.mjs:5"]
+  confidence: confirmed
+- id: F-107
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs has a head comment and imports nothing, but no test file imports it, so it has
+    nothing to run on its own.
+  evidence: ["config/settings.mjs:1", "test/smoke.mjs:5"]
+  confidence: confirmed
+- id: F-108
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    The model call site, the stub callModel that ask calls in place of a provider, returns a bare string
+    and nothing on either return path writes a record of model or tier, usage or cost, or outcome.
+  evidence: ["lib/agent.mjs:23-31", "lib/agent.mjs:33-43"]
+  confidence: confirmed
+- id: F-109
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The one model in use, the stub that stands in for the assistant's model, has no recorded choice: no
+    model or tier is named anywhere, and the tree's only decision record covers storage, so no rationale
+    or re-qualification trigger exists for it.
+  evidence: ["lib/agent.mjs:4-7", "lib/agent.mjs:27", "docs/adr/0001-storage-choice.md:1"]
+  confidence: confirmed
+- id: F-110
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The README, the only entry-point doc (no agent-facing file exists), lists endpoints, a run command and
+    a test command but never names a module or says which file owns which endpoint or concern, so a
+    stranger cannot route a task to one subsystem from it.
+  evidence: ["README.md:12-35"]
+  confidence: confirmed
+- id: F-111
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The entry file server.mjs partly routes a reader in code: its head comment says each concern lives
+    in one lib/ or routes/ module and its import block names the one module behind each route.
+  evidence: ["server.mjs:1-2", "server.mjs:4-9"]
+  confidence: confirmed

@@ -1,0 +1,322 @@
+- id: F-100
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The command line assay.mjs has a head comment saying it is a thin dispatcher and imports no
+    in-repository file, but no test imports it: tests only spawn it as a process, so the
+    something-to-run leg of the bar is not met as written.
+  evidence: [assay.mjs:1-13, assay.mjs:19-60, tests/blocks/all-clean-run.mjs:43]
+  confidence: confirmed
+- id: F-101
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/enumerate.mjs opens with a why-comment and its static in-repository imports reach 8 files,
+    but no test imports it directly; tests run it through the command line
+    (assay.mjs enumerate), so the something-to-run leg fails as the bar is written.
+  evidence: [map/enumerate.mjs:1-12, map/enumerate.mjs:30-35, tests/blocks/census-candidates-enumerated.mjs:38]
+  confidence: confirmed
+- id: F-102
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/validate.mjs has a usage head comment, but its static imports reach 32 in-repository files
+    (map, yardstick and views modules among them) and tests reach it only as a spawned script,
+    never by import, so it fails both the alone and the something-to-run legs.
+  evidence: [map/validate.mjs:1-6, map/validate.mjs:14-34, tests/blocks/migrate-run-retired-id.mjs:28, tests/blocks/migrate-run-retired-id.mjs:39]
+  confidence: confirmed
+  explained_by: [F-131]
+- id: F-103
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/ingest.mjs has a head comment and a test imports its convert function, but its static
+    imports pull in every instrument module and the projector, reaching 29 in-repository files,
+    so it cannot be loaded alone.
+  evidence: [map/ingest.mjs:1-6, map/ingest.mjs:59-72, tests/blocks/confidence-on-every-item.mjs:46]
+  confidence: confirmed
+  explained_by: [F-131]
+- id: F-104
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    map/start.mjs has a head comment and a test imports it directly, but its static imports reach
+    20 in-repository files, partly because it takes loadAdapters from the projector
+    (map/project.mjs) and tool readiness from map/tools.mjs, which itself imports the projector.
+  evidence: [map/start.mjs:1-6, map/start.mjs:60-73, map/tools.mjs:34, tests/blocks/adapter-runner.mjs:17]
+  confidence: confirmed
+- id: F-105
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/effect-triage.mjs meets the bar: a head comment states the population it closes, a test
+    imports it directly, and its static imports reach 6 in-repository files.
+  evidence: [map/effect-triage.mjs:1-6, map/effect-triage.mjs:17-22, tests/blocks/candidate-agreement.mjs:22]
+  confidence: confirmed
+- id: F-106
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/fresh-clone.mjs meets the bar: a head comment names the instrument and the requirements it
+    feeds, a test imports its run and detectToolchain, and its static imports reach 7
+    in-repository files.
+  evidence: [map/fresh-clone.mjs:1-6, map/fresh-clone.mjs:121-125, tests/blocks/database-signals.mjs:9]
+  confidence: confirmed
+- id: F-107
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/project.mjs, the axis projector, meets the bar: a head comment states its fail-closed
+    contract and usage, a test imports it directly, and its static imports reach 7 in-repository
+    files (the yardstick is reached only through a deferred import in map/passes.mjs).
+  evidence: [map/project.mjs:1-16, map/project.mjs:20-31, tests/blocks/adapter-runner.mjs:18]
+  confidence: confirmed
+- id: F-108
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/chains.mjs meets the bar: a head comment explains that chains are computed and ranked,
+    never authored, a test imports buildChains directly, and it imports 2 in-repository files.
+  evidence: [map/chains.mjs:1-6, map/chains.mjs:18-19, tests/blocks/capability-read-leg.mjs:17]
+  confidence: confirmed
+- id: F-109
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/doctrine.mjs meets the bar: a head comment calls it the one home of cross-tool doctrine,
+    tests import it directly, and it imports no in-repository file.
+  evidence: [map/doctrine.mjs:1-11, tests/blocks/capability-read-leg.mjs:16]
+  confidence: confirmed
+- id: F-110
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The scanner adapters directory has its contract to read (map/scanners/CONTRACT.md) and its one
+    source file, the repo-census signals reader, has a head comment and imports only the YAML
+    reader, but no test imports that reader; map/repo-census.mjs loads it from the adapter's
+    signals.reader field, so the directory has nothing of its own to run.
+  evidence: [map/scanners/CONTRACT.md:1-3, map/scanners/adapters/repo-census/signals.mjs:1-6, map/scanners/adapters/repo-census/signals.mjs:39, map/repo-census.mjs:1248-1255]
+  confidence: confirmed
+- id: F-111
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    views/compile.mjs has a head comment listing what it assembles, but its static imports reach
+    30 in-repository files and tests run it only through the command line (assay.mjs compile),
+    so it fails both the alone and the something-to-run legs.
+  evidence: [views/compile.mjs:1-6, views/compile.mjs:34-43, tests/blocks/all-clean-run.mjs:45]
+  confidence: confirmed
+  explained_by: [F-131]
+- id: F-112
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    views/owner.mjs has a head comment and a test imports it directly, but its static imports reach
+    22 in-repository files, most through yardstick/measure.mjs, so it cannot be loaded alone.
+  evidence: [views/owner.mjs:1-6, views/owner.mjs:25-33, tests/blocks/handoff-text-is-data.mjs:13]
+  confidence: confirmed
+  explained_by: [F-131]
+- id: F-113
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    views/improve/report.mjs has a usage head comment, but its static imports reach 35
+    in-repository files and no test imports it; tests reach it only through assay.mjs compile.
+  evidence: [views/improve/report.mjs:1-6, views/improve/report.mjs:16-35, tests/blocks/candidates-show-reviewer-findings.mjs:35]
+  confidence: confirmed
+  explained_by: [F-131]
+- id: F-114
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    views/improve/maturity.mjs meets the bar: a head comment states why coverage replaced rung
+    words, a test imports buildGrades directly, and its static imports reach 9 in-repository files.
+  evidence: [views/improve/maturity.mjs:1-6, views/improve/maturity.mjs:35-39, tests/blocks/doctrine-lockstep.mjs:7]
+  confidence: confirmed
+- id: F-115
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    yardstick/measure.mjs has a head comment and tests import it directly, but it imports ten map/
+    modules besides its own, so its static closure reaches 19 in-repository files.
+  evidence: [yardstick/measure.mjs:1-6, yardstick/measure.mjs:35-45, tests/blocks/all-clean-run.mjs:10]
+  confidence: confirmed
+- id: F-116
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    yardstick/ratchet.mjs has a head comment and a test imports evaluateRatchet, but through
+    compare and measure its static imports reach 22 in-repository files.
+  evidence: [yardstick/ratchet.mjs:1-6, yardstick/ratchet.mjs:61-65, tests/blocks/not-applicable-views.mjs:9]
+  confidence: confirmed
+  explained_by: [F-131]
+- id: F-117
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    yardstick/packet.mjs meets the bar: a head comment states the packet's two halves, a test
+    imports its claim deciders directly, and it imports 2 in-repository files.
+  evidence: [yardstick/packet.mjs:1-4, yardstick/packet.mjs:28-29, tests/blocks/packet-measure.mjs:11]
+  confidence: confirmed
+- id: F-118
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/yaml-min.mjs meets the bar: a head comment points to the one home of the subset it reads
+    and the block that holds it, tests import parseYaml directly, and it imports no in-repository
+    file.
+  evidence: [lib/yaml-min.mjs:1-6, tests/blocks/backlog.mjs:8]
+  confidence: confirmed
+- id: F-119
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/gate.mjs meets the bar: a head comment lists the gate's steps in order, a test imports it
+    directly, and its static imports reach 9 in-repository files.
+  evidence: [lib/gate.mjs:1-6, lib/gate.mjs:20-21, tests/blocks/gate-command.mjs:19]
+  confidence: confirmed
+- id: F-120
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/run-layout.mjs meets the bar: a head comment calls it the one module that knows every run
+    artifact's path, tests import it directly, and it imports no in-repository file.
+  evidence: [lib/run-layout.mjs:1-6, lib/run-layout.mjs:37, tests/blocks/answers-against-signals.mjs:17]
+  confidence: confirmed
+- id: F-121
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    owner/ask-owner.mjs has a head comment and a test imports it directly, but its static imports
+    reach 12 in-repository files (the projector, repo-census and the packet reader among them),
+    two over the bar's ten.
+  evidence: [owner/ask-owner.mjs:1-6, owner/ask-owner.mjs:41-47, tests/blocks/ask-owner.mjs:6]
+  confidence: confirmed
+- id: F-122
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routine/run.mjs has a README in its directory and a test imports runRoutine, but as the one
+    driver of the whole routine its static imports reach 30 in-repository files.
+  evidence: [routine/README.md:1-3, routine/run.mjs:1-6, routine/run.mjs:75-82, tests/blocks/instrument-durations.mjs:13]
+  confidence: confirmed
+  explained_by: [F-131]
+- id: F-130
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The layering the README draws (map, then yardstick, then views) has back-edges in the static
+    imports: map/project.mjs imports views/severity.mjs, which imports map/project.mjs back (a
+    load cycle), and map/validate.mjs imports views/improve/lens.mjs.
+  evidence: [README.md:50, map/project.mjs:31, views/severity.mjs:19, map/validate.mjs:34]
+  confidence: confirmed
+- id: F-131
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    yardstick/measure.mjs is the hub that pushes the views, the ratchet, the routine and the
+    validator past the ten-file bar: it imports ten map/ modules (triage, census, placement,
+    project, enumerate-populations among them), and every module that measures inherits that
+    closure.
+  evidence: [yardstick/measure.mjs:35-45, views/compile.mjs:36, views/owner.mjs:25-33, yardstick/ratchet.mjs:61-65]
+  confidence: confirmed
+- id: F-132
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    map/passes.mjs defers its yardstick imports to the functions that render a block, stating why
+    in its head comment, so the projector can read the pass list without loading the yardstick
+    and the measure-project-passes loop never forms at load time.
+  evidence: [map/passes.mjs:26-28, map/passes.mjs:32, map/passes.mjs:82, map/passes.mjs:293, map/project.mjs:22]
+  confidence: confirmed
+- id: F-133
+  dimension: context-economy
+  polarity: fact
+  subject_type: control
+  observation: >
+    The application obtains no model output anywhere: a search of every non-test source file for
+    provider SDK imports, call shapes, endpoints and key variables finds only enumerate's own
+    detection patterns and a key-shape pattern in the packet reader, no function is a local
+    stand-in for a model call, and the one outbound fetch downloads pinned tool binaries.
+  evidence: [map/enumerate.mjs:89, map/enumerate.mjs:743-763, yardstick/packet.mjs:132, map/tools.mjs:125]
+  confidence: confirmed
+- id: F-134
+  dimension: context-economy
+  polarity: strength
+  subject_type: control
+  observation: >
+    Model use happens only in review lanes a session runs outside the engine, and the run record
+    gives each judgment scanner, or each practice-review pass, structured model and spend fields
+    that validate checks for shape and warns on when absent, rather than refusing.
+  evidence: [assay.mjs:24, map/record.mjs:18-25, map/validate.mjs:333-336, map/validate.mjs:372-385, README.md:199]
+  confidence: confirmed
+- id: F-140
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The entry docs route a stranger to a layer: the README's Layout gives each top-level directory
+    its concern in one line, each layer's paragraph names that layer's contract doc, and CLAUDE.md
+    names the four contract docs in its opening.
+  evidence: [README.md:245-256, README.md:110-111, README.md:113-122, README.md:124-131, CLAUDE.md:6-8]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-141
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    assay.mjs's command table maps each command to the one script that implements it with a
+    one-line description, printed by help, so a task phrased as a command routes to its module.
+  evidence: [assay.mjs:17-60, assay.mjs:63-73]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-142
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    Below the layer the routing stops: map/ holds some 45 modules with no README or index of its
+    own, the README gives it one line, and the docs it routes to are the 1879-line SCHEMA.md, the
+    865-line METHOD.md and the 1373-line scanner contract, so a stranger finds the module a task
+    needs by reading head comments file by file.
+  evidence: [README.md:249, map/SCHEMA.md:1879, map/METHOD.md:865, map/scanners/CONTRACT.md:1373]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger
+- id: F-143
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    For a review session the method discloses progressively: each pass subagent opens on a
+    computed slice (the ground rules, the passes' introduction, its own section and the SCHEMA
+    sections it names), and map/passes.mjs builds and measures that slice from map/passes.yaml.
+  evidence: [map/METHOD.md:201-204, map/passes.mjs:17-18, map/passes.mjs:25, map/passes.mjs:198]
+  confidence: confirmed
+  property: entry-docs-route-a-stranger

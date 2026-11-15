@@ -1,0 +1,147 @@
+- id: F-200
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml step `npm run gate` runs lib/gate.mjs, which stops red with exit 1 when the pinned-tools verify step fails, counts any step whose status is not 0 (a missing command or a killed step reads null) as failed, exits 1 when any failed, and runs inside a job bounded by timeout-minutes 15.
+  evidence: [".github/workflows/ci.yml:38", ".github/workflows/ci.yml:21", "lib/gate.mjs:43-46", "lib/gate.mjs:49-58", "lib/gate.mjs:61-65"]
+  confidence: confirmed
+- id: F-201
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml step `./.github/actions/tools` runs install then verify under `set -euo pipefail`, where install exits 1 on a checksum mismatch, a failed download or an unsupported platform and verify exits 1 unless every tool answers at its pin; the download's curl carries no --max-time, so a stalled fetch is ended only by the job's 15-minute timeout.
+  evidence: [".github/workflows/ci.yml:37", ".github/actions/tools/action.yml:26-31", "map/tools.mjs:73", "map/tools.mjs:127", "map/tools.mjs:236", "map/tools.mjs:244", ".github/workflows/ci.yml:21"]
+  confidence: confirmed
+- id: F-202
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml step "Refuse a malformed or existing version" runs under `set -euo pipefail` and exits 1 with an error line when the dispatched version is not vX.Y.Z or the tag already exists, inside a job bounded by timeout-minutes 20.
+  evidence: [".github/workflows/release.yml:33-38", ".github/workflows/release.yml:22"]
+  confidence: confirmed
+- id: F-203
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml step `./.github/actions/tools` calls the same composite action as CI, whose install and verify exit non-zero on a missing, mismatched or wrong-version tool under `set -euo pipefail`, ahead of the tag step and inside the job's 20-minute timeout.
+  evidence: [".github/workflows/release.yml:40", ".github/actions/tools/action.yml:26-31", "map/tools.mjs:244", ".github/workflows/release.yml:22"]
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml step `npm test` runs tests/regression.mjs, which exits with the verdict's non-zero code on any block failure or missing golden.json, before the tag step and inside the job's 20-minute timeout.
+  evidence: [".github/workflows/release.yml:41", "tests/regression.mjs:72-76", "tests/harness.mjs:244", "tests/harness.mjs:255-266", ".github/workflows/release.yml:22"]
+  confidence: confirmed
+- id: F-205
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml step "Check every contract change carries its Consumer trailer" runs `node lib/release-notes.mjs --check`, which exits 1 on a shallow history, an unreadable git range, a CONSUMERS.md with no surface block, or a surface commit with no trailer, and the job checks out with fetch-depth 0.
+  evidence: [".github/workflows/release.yml:42-43", ".github/workflows/release.yml:28", "lib/release-notes.mjs:69", "lib/release-notes.mjs:96-102", "lib/release-notes.mjs:103-110"]
+  confidence: confirmed
+- id: F-206
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `lint` script runs lib/check-syntax.mjs, which throws when git cannot list files, exits 1 when the listing is empty rather than reading it as clean, and exits 1 naming each module whose `node --check` status is not 0.
+  evidence: ["package.json:11", "lib/check-syntax.mjs:11-15"]
+  confidence: confirmed
+- id: F-207
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `test` script goes red on an empty blocks directory, a block that fails to load, a block process that ends without reporting, and a missing golden.json, but spawns each block process with no timeout, so a block that never settles holds the run open with no verdict outside CI's job timeout.
+  evidence: ["package.json:9", "tests/harness.mjs:75", "tests/harness.mjs:171", "tests/harness.mjs:175-178", "tests/harness.mjs:244"]
+  confidence: confirmed
+- id: F-208
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The `typecheck` script runs `tsc -p tsconfig.json` with checkJs and noEmit over the engine's module globs (tests/ is not included), so an absent tsc fails the npm script and a type error exits non-zero.
+  evidence: ["package.json:12", "package.json:19", "tsconfig.json:3-5", "tsconfig.json:12"]
+  confidence: plausible
+- id: F-209
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The `validate` script exits 2 with no run directory and 1 on any violation, but resolves evidence paths and lines only when --target is passed, and without it still prints that citations are all clean.
+  evidence: ["package.json:15", "map/validate.mjs:99", "map/validate.mjs:100-106", "map/validate.mjs:474", "map/validate.mjs:996-1007"]
+  confidence: confirmed
+- id: F-210
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    release.yml's header says it runs the gate on the dispatched commit, but the job runs `npm test` and the trailer check only, not `npm run gate` (no prove-red, typecheck, lint or passes step), and the block that pins release.yml requires only those two.
+  evidence: [".github/workflows/release.yml:6", ".github/workflows/release.yml:41-43", "lib/gate.mjs:27-34", "tests/blocks/consumer-contract.mjs:139"]
+  confidence: confirmed
+- id: F-211
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The negative-fixtures block runs validate over each listed malformed run under tests/negative/ and fails unless the run goes red, lists the violation the entry names, and lists no other violation.
+  evidence: ["tests/blocks/negative-fixtures.mjs:16", "tests/blocks/negative-fixtures.mjs:64-75"]
+  confidence: plausible
+- id: F-212
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: process
+  observation: >
+    tests/prove-red.mjs applies each entry's mutation in a scratch copy and fails the entry unless its named check goes red for the entry's pattern and green once restored, refuses an entry whose from text does not occur exactly once, kills a check after 10 minutes, and reads an empty list as red.
+  evidence: ["tests/prove-red.mjs:43", "tests/prove-red.mjs:356", "tests/prove-red.mjs:367", "tests/prove-red.mjs:404-405", "tests/prove-red.mjs:410-421", "tests/prove-red.mjs:452-454"]
+  confidence: plausible
+- id: F-213
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    A prove-red entry loosens validate's CITE pattern so a bare path with no line would pass, and requires the evidence-cites-file-line block to go red for refusing a bare file.
+  evidence: ["tests/prove-red.mjs:69-73", "map/validate.mjs:80"]
+  confidence: plausible
+- id: F-214
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The gate-command block drives runGate with a planted tools step that is not on PATH and planted steps exiting 0 and 3, and fails unless the gate exits 1 with a line naming where it stopped, and exits 0 only when all pass.
+  evidence: ["tests/blocks/gate-command.mjs:39-45", "tests/blocks/gate-command.mjs:52-55"]
+  confidence: plausible
+- id: F-215
+  dimension: deterministic-gates
+  polarity: fact
+  subject_type: process
+  observation: >
+    A subtle regression in map/validate.mjs or yardstick/measure.mjs is caught by `npm run gate` (negative fixtures and prove-red entries pinned to both files) in CI on a push to main and on every pull request, or by hand; the tree ships no commit or push hook outside test fixtures, and whether the ci check is required to merge is not in the tree.
+  evidence: [".github/workflows/ci.yml:10-13", ".github/workflows/ci.yml:38", "tests/prove-red.mjs:44-48", "tests/prove-red.mjs:69-73", "CONTRIBUTING.md:19-27"]
+  confidence: plausible
+  property: central-regression-caught
+- id: F-216
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    lib/yaml-min.mjs throws a YamlError naming the plain form to write on anchors, aliases, tags, nested flow collections, duplicate keys and a second document, and validate turns any such throw on a findings file into a fail-closed violation.
+  evidence: ["lib/yaml-min.mjs:41", "lib/yaml-min.mjs:54-58", "lib/yaml-min.mjs:223", "map/validate.mjs:256-257", "tests/blocks/yaml-subset.mjs:4-6"]
+  confidence: confirmed
+  property: interface-contract-enforced
+- id: F-217
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The tools command treats an option it does not know as a usage error and exits 2 rather than ignoring it and selecting every pinned tool.
+  evidence: ["map/tools.mjs:225-229", "map/tools.mjs:249-251"]
+  confidence: confirmed
+  property: interface-contract-enforced

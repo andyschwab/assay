@@ -1,0 +1,119 @@
+- id: F-300
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    pushBackup fires the backup fetch without awaiting it, swallows its rejection with an empty
+    catch, and returns ok true with a pushed count read from the local note map, which POST /sync
+    forwards as a 200, so the success report never depends on the backup service having received
+    anything.
+  evidence: ["lib/sync.mjs:7-13", "server.mjs:47-50"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-301
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    sendEmail returns sent true after writing a log line, and by its own comment the build's
+    transport only logs, so the sent report is unconditional and cannot distinguish a delivered
+    message from one never sent.
+  evidence: ["lib/mailer.mjs:1-8"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-302
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The assistant discards sendEmail's return value and reports emailed with the recipient
+    parsed from the model's reply, so the caller is told an email went out on the strength of
+    the directive alone.
+  evidence: ["lib/agent.mjs:39-40", "server.mjs:44"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-303
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The assistant feature (POST /assistant to ask, whose answer the model call produces) has no
+    eval of its answer quality anywhere in the tree: the one test imports only authenticate, and
+    no CI runs in the reviewed tree.
+  evidence: ["lib/agent.mjs:33-43", "server.mjs:42-45", "test/smoke.mjs:4-5", "package.json:6-8"]
+  confidence: confirmed
+- id: F-304
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The inline assistant prompt is the rubric the application relies on both to answer from the
+    notes and to decide when to emit the send_email directive, and no record of a repeated blind
+    run of it, or of any divergence classes, sits beside it or anywhere in the tree.
+  evidence: ["lib/agent.mjs:16-20", "lib/agent.mjs:35"]
+  confidence: confirmed
+- id: F-305
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    The model call is a deterministic local stub whose reply depends only on the prompt text, so
+    the assistant path, including the directive-to-email seam, can be demonstrated with a fixed
+    input and an observable result, although no test in the tree uses it.
+  evidence: ["lib/agent.mjs:23-31", "test/smoke.mjs:4-5"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-306
+  dimension: verification
+  polarity: strength
+  subject_type: contract
+  observation: >
+    server.mjs exports the server and listens only when run as the entry point, so a change to
+    any route can be demonstrated by importing it and issuing requests without binding the
+    configured port.
+  evidence: ["server.mjs:59-63"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-307
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    The only runnable example asserts that authenticate returns something truthy and then prints
+    smoke ok, but authenticate falls back to a default identity for any missing or unknown token,
+    so the assertion holds whatever the token and the script demonstrates no route and no change.
+  evidence: ["test/smoke.mjs:7-11", "lib/auth.mjs:8-12"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-308
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    Nothing checks the model's reply before it is returned or acted on: ask strips the TOOL line
+    and hands the rest back verbatim, with no comparison to the notes it claims to answer from
+    and no automatic check of any kind on the output, however fluent it reads.
+  evidence: ["lib/agent.mjs:34-42", "server.mjs:44"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-309
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    No change states its verification in a form anything checks: the reviewed tree holds no pull
+    request template and no check on a pull request body or commit message, and the only
+    verification guidance is the README's prose testing section.
+  evidence: ["README.md:27-35", "package.json:6-8"]
+  confidence: confirmed
+- id: F-310
+  dimension: verification
+  polarity: fact
+  subject_type: control
+  observation: >
+    The purge report purged true is returned synchronously after the in-process clear of the note
+    map and every user's note list, so it follows the effect in the same process, though it is a
+    constant rather than a read-back of the emptied store.
+  evidence: ["lib/db.mjs:27-31", "routes/admin.mjs:8-10"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported

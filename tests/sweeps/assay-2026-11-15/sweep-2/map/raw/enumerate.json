@@ -1,0 +1,4310 @@
+{
+  "schema": "enumerate",
+  "version": 2,
+  "target": "target-assay",
+  "files": 1034,
+  "populations": {
+    "channelCandidates": [
+      {
+        "member": "surface: migrate-run.mjs",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": true,
+        "evidence": [
+          "map/migrate-run.mjs:1"
+        ],
+        "signals": []
+      }
+    ],
+    "routeHandlers": [
+      {
+        "member": "route: POST /login",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": true,
+        "evidence": [
+          "map/effect-signals.mjs:293"
+        ],
+        "signals": [
+          {
+            "question": "rate_limit",
+            "supports": "yes",
+            "evidence": [
+              "map/effect-signals.mjs:293",
+              "tests/enumerate-fixture/signals-hono/src/accounts.ts:3"
+            ],
+            "marker": "limiter: route option rateLimit"
+          }
+        ]
+      }
+    ],
+    "secrets": [
+      {
+        "member": "ADMIN_PASSWORD",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:6",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:6",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:69",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:58",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:69",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:58",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:69"
+        ]
+      },
+      {
+        "member": "API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/credentials/lib/client.mjs:6",
+          "tests/instruments/gitleaks-sample.json:16",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:8",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:78",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:60",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:78",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:60",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:78"
+        ]
+      },
+      {
+        "member": "API_TOKEN",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "map/SCHEMA.md:1368"
+        ]
+      },
+      {
+        "member": "ASSAY_PLANTED_TOKEN",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/isolation.mjs:32",
+          "tests/blocks/raw-minimised.mjs:28",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:10",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:87",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:62",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:87",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:62",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:87"
+        ]
+      },
+      {
+        "member": "ASSAY_READ_TOKEN",
+        "note": "referenced in code",
+        "gateable": true,
+        "evidence": [
+          "RUNBOOK.md:61",
+          "RUNBOOK.md:66",
+          "routine/README.md:161",
+          "routine/assay-routine.yml:124",
+          "routine/assay-routine.yml:65",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/censuses.yaml:109",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:374",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:376",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:415",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:417",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:113",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/censuses.yaml:84",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:213",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:300",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:302",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/terrain.md:139",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:12",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/censuses.yaml:14",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/findings/practice-review-delegation.yaml:292",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/findings/practice-review-legibility.yaml:336",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:97",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:64",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/findings/practice-review-delegation.yaml:306",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:97",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:64",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/findings/practice-review-delegation.yaml:334",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:97",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/terrain.md:112"
+        ]
+      },
+      {
+        "member": "ASSAY_TEST_EVALUATOR_TOKEN",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/adapter-runner.mjs:42",
+          "tests/blocks/adapter-runner.mjs:50",
+          "tests/blocks/adapter-runner.mjs:53",
+          "tests/blocks/adapter-runner.mjs:55",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:14",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:129",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:66",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:129",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:66",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:129"
+        ]
+      },
+      {
+        "member": "authToken",
+        "note": "assigned a literal in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:37",
+          "tests/enumerate-fixture/credentials/lib/client.mjs:3",
+          "tests/enumerate-fixture/credentials/lib/defaults.mjs:2"
+        ]
+      },
+      {
+        "member": "BACKUP_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/fixtures/notesbox/map/findings/deep-code-review.yaml:186",
+          "tests/fixtures/notesbox/map/findings/deep-code-review.yaml:32",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:146",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:397",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:16",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:140",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:130",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:68",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:140",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:68",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:140"
+        ]
+      },
+      {
+        "member": "backupApiKey",
+        "note": "assigned a literal in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:34",
+          "tests/enumerate-fixture/credentials/config/settings.mjs:4"
+        ]
+      },
+      {
+        "member": "byKey",
+        "note": "assigned a literal in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/consequence-from-facts.mjs:172"
+        ]
+      },
+      {
+        "member": "CANDIDATE_KEY",
+        "note": "referenced in code",
+        "gateable": true,
+        "evidence": [
+          "map/effect-triage.mjs:200",
+          "map/effect-triage.mjs:208"
+        ]
+      },
+      {
+        "member": "clientSecret",
+        "note": "assigned a literal in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:36",
+          "tests/enumerate-fixture/credentials/lib/client.mjs:2"
+        ]
+      },
+      {
+        "member": "db_password",
+        "note": "assigned a literal in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:38",
+          "tests/enumerate-fixture/credentials/app/store.py:2"
+        ]
+      },
+      {
+        "member": "DEPLOY_TOKEN",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/census-outside-the-list.mjs:26",
+          "tests/blocks/census-outside-the-list.mjs:29",
+          "tests/blocks/census-outside-the-list.mjs:34",
+          "tests/blocks/census-triage-closed.mjs:28",
+          "tests/blocks/census-triage-closed.mjs:46",
+          "tests/blocks/census-triage-closed.mjs:47",
+          "tests/blocks/census-triage-closed.mjs:54",
+          "tests/blocks/census-triage-closed.mjs:55",
+          "tests/blocks/census-triage-closed.mjs:61",
+          "tests/negative/census-triage-merged/map/census-triage.yaml:11",
+          "tests/negative/census-triage-merged/map/raw/enumerate.json:10",
+          "tests/negative/census-triage-missed/map/census-triage.yaml:11",
+          "tests/negative/census-triage-missed/map/raw/enumerate.json:10",
+          "tests/negative/census-triage-not-member/map/census-triage.yaml:11",
+          "tests/negative/census-triage-not-member/map/raw/enumerate.json:10",
+          "tests/negative/census-triage-twice/map/census-triage.yaml:1",
+          "tests/negative/census-triage-twice/map/census-triage.yaml:11",
+          "tests/negative/census-triage-twice/map/census-triage.yaml:15",
+          "tests/negative/census-triage-twice/map/raw/enumerate.json:10"
+        ]
+      },
+      {
+        "member": "EMAIL_SEND_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/fixtures/packet-valid/manifest.yaml:47",
+          "tests/negative/packet-secret-shaped/manifest.yaml:11",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:18",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:151",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:130",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:70",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:151",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:70",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:151"
+        ]
+      },
+      {
+        "member": "FETCH_TOKEN",
+        "note": "declared in env/config",
+        "gateable": true,
+        "evidence": [
+          "routine/assay-routine.yml:110",
+          "routine/assay-routine.yml:114",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:128",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:397",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:111",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/censuses.yaml:84",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:213",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:288",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/terrain.md:139",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:20",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/findings/practice-review-delegation.yaml:281",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:161",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:130",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:72",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/findings/practice-review-delegation.yaml:294",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:161",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:72",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/findings/practice-review-delegation.yaml:345",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:161",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/terrain.md:112"
+        ]
+      },
+      {
+        "member": "GH_TOKEN",
+        "note": "declared in env/config",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:112",
+          ".github/workflows/branch-cleanup.yml:61",
+          ".github/workflows/release.yml:45",
+          ".github/workflows/tools-check.yml:19",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:487",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:370",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:379",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:388",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:108",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:109",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:110",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:279",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:22",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/findings/practice-review-delegation.yaml:259",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:181",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:130",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:74",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/findings/practice-review-delegation.yaml:269",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:181",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:74",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/findings/practice-review-delegation.yaml:356",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:181",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/terrain.md:111"
+        ]
+      },
+      {
+        "member": "GITHUB_TOKEN",
+        "note": "declared in env/config",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:20",
+          "map/scanners/adapters/zizmor.yaml:78",
+          "map/tools.mjs:202",
+          "tests/blocks/consumer-reads.mjs:39",
+          "tests/blocks/consumer-reads.mjs:40",
+          "tests/blocks/consumer-reads.mjs:43",
+          "tests/blocks/consumer-reads.mjs:44",
+          "tests/fixtures/fixtures-root/ANSWERS.yaml:133",
+          "tests/fixtures/fixtures-root/map/findings/deep-code-review.yaml:104",
+          "tests/fixtures/fixtures-root/map/raw/deep-code-review.yaml:258",
+          "tests/mapping/MAPPING.yaml:85",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/censuses.yaml:101",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/censuses.yaml:110",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:389",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:391",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:129",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/censuses.yaml:68",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-context.yaml:78",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:379",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:406",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/findings/practice-review-delegation.yaml:408",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:109",
+          "tests/sweeps/assay-2026-11-11/sweep-2/map/terrain.md:112",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/censuses.yaml:84",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:212",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:218",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/findings/practice-review-delegation.yaml:220",
+          "tests/sweeps/assay-2026-11-11/sweep-3/map/terrain.md:136",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:24",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/findings/practice-review-delegation.yaml:270",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:201",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:130",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:132",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:76",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/findings/practice-review-delegation.yaml:282",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:201",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:76",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/findings/practice-review-delegation.yaml:368",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:201",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/terrain.md:111"
+        ]
+      },
+      {
+        "member": "ID_RECORD_KEY",
+        "note": "referenced in code",
+        "gateable": true,
+        "evidence": [
+          "map/start.mjs:369",
+          "map/start.mjs:60",
+          "map/validate.mjs:14",
+          "map/validate.mjs:452",
+          "map/validate.mjs:453"
+        ]
+      },
+      {
+        "member": "LEGACY_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:8",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:26",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:237",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:130",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:78",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:237",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:78",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:237"
+        ]
+      },
+      {
+        "member": "relayPassword",
+        "note": "assigned a literal in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:40",
+          "tests/enumerate-fixture/credentials/lib/upstreams.mjs:8"
+        ]
+      },
+      {
+        "member": "SEARCH_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/census-outside-the-list.mjs:26",
+          "tests/blocks/census-outside-the-list.mjs:29",
+          "tests/blocks/census-outside-the-list.mjs:34",
+          "tests/blocks/census-triage-closed.mjs:101",
+          "tests/blocks/census-triage-closed.mjs:27",
+          "tests/blocks/census-triage-closed.mjs:46",
+          "tests/blocks/census-triage-closed.mjs:47",
+          "tests/blocks/census-triage-closed.mjs:94",
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:1",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:9",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:10",
+          "tests/negative/census-triage-merged/map/census-triage.yaml:13",
+          "tests/negative/census-triage-merged/map/raw/enumerate.json:11",
+          "tests/negative/census-triage-missed/map/census-triage.yaml:1",
+          "tests/negative/census-triage-missed/map/raw/enumerate.json:11",
+          "tests/negative/census-triage-not-member/map/census-triage.yaml:13",
+          "tests/negative/census-triage-not-member/map/raw/enumerate.json:11",
+          "tests/negative/census-triage-twice/map/census-triage.yaml:13",
+          "tests/negative/census-triage-twice/map/raw/enumerate.json:11",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:28",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:246",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:131",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:80",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:246",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:80",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:246"
+        ]
+      },
+      {
+        "member": "SERVICE_KEYS",
+        "note": "referenced in code",
+        "gateable": true,
+        "evidence": [
+          "map/services.mjs:36",
+          "map/services.mjs:83"
+        ]
+      },
+      {
+        "member": "SERVICE_ROLE_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "map/SCHEMA.md:1367"
+        ]
+      },
+      {
+        "member": "STRIPE_SECRET_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "map/SCHEMA.md:1563",
+          "owner/ask-owner.md:71",
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:3",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:30",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:257",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:131",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:82",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:257",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:82",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:257"
+        ]
+      },
+      {
+        "member": "STRIPE_WEBHOOK_SECRET",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:44",
+          "tests/enumerate-fixture/nextjs/lib/config.ts:4",
+          "tests/enumerate-fixture/nextjs/pages/api/hooks/index.ts:2",
+          "tests/enumerate-fixture/nextjs/pages/api/hooks/index.ts:5",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/census-triage.yaml:32",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:268",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:131",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/census-triage.yaml:84",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:268",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/census-triage.yaml:84",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:268"
+        ]
+      },
+      {
+        "member": "TEST_API_KEY",
+        "note": "referenced in code",
+        "gateable": false,
+        "evidence": [
+          "map/SCHEMA.md:1565",
+          "tests/blocks/census-outside-the-list.mjs:44",
+          "tests/blocks/census-triage-closed.mjs:46",
+          "tests/blocks/census-triage-closed.mjs:47",
+          "tests/blocks/census-triage-closed.mjs:51"
+        ]
+      },
+      {
+        "member": "tokenTable",
+        "note": "assigned a literal in code",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/credentials/lib/db.mjs:2"
+        ]
+      },
+      {
+        "member": "TOP_KEYS",
+        "note": "referenced in code",
+        "gateable": true,
+        "evidence": [
+          "map/services.mjs:35",
+          "map/services.mjs:79",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:368",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:368",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:368",
+          "yardstick/packet.mjs:187",
+          "yardstick/packet.mjs:70"
+        ]
+      },
+      {
+        "member": "upstreams",
+        "note": "a literal holding a value of secret shape",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/credentials/lib/upstreams.mjs:3"
+        ]
+      }
+    ],
+    "secretConstants": [
+      {
+        "member": "ALL_KEYS",
+        "note": "assigned a non-credential literal at tests/blocks/enumerate-credentials.mjs:49, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:49",
+          "tests/enumerate-fixture/credentials/lib/keys.mjs:3",
+          "tests/enumerate-fixture/credentials/lib/keys.mjs:7",
+          "tests/enumerate-fixture/credentials/tests/snapshot.json:1"
+        ]
+      },
+      {
+        "member": "CACHE_KEY",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:4, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:4",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:7",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:281",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:281",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:281"
+        ]
+      },
+      {
+        "member": "cacheKeys",
+        "note": "assigned a non-credential literal at tests/blocks/enumerate-credentials.mjs:49, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:49",
+          "tests/enumerate-fixture/credentials/lib/keys.mjs:4"
+        ]
+      },
+      {
+        "member": "CHECKLIST_KEYS",
+        "note": "assigned a non-credential literal at map/effect-answers.mjs:31, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/effect-answers.mjs:121",
+          "map/effect-answers.mjs:137",
+          "map/effect-answers.mjs:31",
+          "map/effect-answers.mjs:76",
+          "map/effect-answers.mjs:96",
+          "map/effect-answers.mjs:98",
+          "map/effect-answers.mjs:99",
+          "map/effect-signals.mjs:23",
+          "map/effect-signals.mjs:37",
+          "map/effect-signals.mjs:512",
+          "map/effect-signals.mjs:531",
+          "map/variance.mjs:101",
+          "map/variance.mjs:357",
+          "map/variance.mjs:374",
+          "map/variance.mjs:394",
+          "map/variance.mjs:607",
+          "tests/blocks/answer-agreement-by-signal.mjs:12",
+          "tests/blocks/answer-agreement-by-signal.mjs:18",
+          "tests/blocks/answer-agreement.mjs:14",
+          "tests/blocks/answer-agreement.mjs:20",
+          "tests/blocks/answer-agreement.mjs:46",
+          "tests/blocks/checklist-answers-defined.mjs:22",
+          "tests/blocks/checklist-answers-defined.mjs:67",
+          "tests/blocks/checklist-answers-defined.mjs:69",
+          "tests/blocks/checklist-answers-defined.mjs:85",
+          "tests/blocks/checklist-answers-defined.mjs:9",
+          "tests/blocks/effect-answers-decide.mjs:137",
+          "tests/blocks/effect-answers-decide.mjs:20",
+          "tests/blocks/effect-facts-legible.mjs:30",
+          "tests/blocks/effect-facts-legible.mjs:58",
+          "tests/blocks/legibility-bar-recomputed.mjs:27",
+          "tests/blocks/legibility-bar-recomputed.mjs:39",
+          "tests/prove-red.mjs:297",
+          "yardstick/legibility-bar.mjs:23",
+          "yardstick/legibility-bar.mjs:59",
+          "yardstick/legibility-bar.mjs:98"
+        ]
+      },
+      {
+        "member": "DECISION_KEYS",
+        "note": "assigned a non-credential literal at map/decisions.mjs:27, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/decisions.mjs:27",
+          "map/validate.mjs:28",
+          "map/validate.mjs:530",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:291",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:291",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:291"
+        ]
+      },
+      {
+        "member": "FIELD_KEYS",
+        "note": "assigned a non-credential literal at tests/blocks/enumerate-credentials.mjs:49, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:49",
+          "tests/enumerate-fixture/credentials/lib/keys.mjs:2",
+          "tests/enumerate-fixture/credentials/lib/keys.mjs:3",
+          "tests/enumerate-fixture/credentials/lib/keys.mjs:7",
+          "tests/enumerate-fixture/credentials/tests/snapshot.json:1"
+        ]
+      },
+      {
+        "member": "MAX_OUTPUT_TOKENS",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:3, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:148",
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:3",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:301",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:301",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:301"
+        ]
+      },
+      {
+        "member": "POINTER_COMMAND_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:79, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:311",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:311",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:311",
+          "yardstick/packet.mjs:283",
+          "yardstick/packet.mjs:79",
+          "yardstick/packet.mjs:80"
+        ]
+      },
+      {
+        "member": "POINTER_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:80, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:321",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:321",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:321",
+          "yardstick/packet.mjs:265",
+          "yardstick/packet.mjs:80"
+        ]
+      },
+      {
+        "member": "POINTER_PATH_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:78, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:330",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:330",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:330",
+          "yardstick/packet.mjs:277",
+          "yardstick/packet.mjs:78",
+          "yardstick/packet.mjs:80"
+        ]
+      },
+      {
+        "member": "POINTER_PATH_OR_LIST_KEYS",
+        "note": "assigned a non-credential literal at yardstick/packet.mjs:77, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:340",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:340",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:340",
+          "yardstick/packet.mjs:270",
+          "yardstick/packet.mjs:77",
+          "yardstick/packet.mjs:80"
+        ]
+      },
+      {
+        "member": "PRO_PRICE_KEY",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:2, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:2",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:350",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:350",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:350"
+        ]
+      },
+      {
+        "member": "RECORD_KEY",
+        "note": "assigned a non-credential literal at map/ids.mjs:19, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/ids.mjs:19",
+          "map/ids.mjs:34",
+          "map/start.mjs:60",
+          "map/validate.mjs:14"
+        ]
+      },
+      {
+        "member": "SECTION_KEYS",
+        "note": "assigned a non-credential literal at map/census-triage.mjs:27, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/census-triage.mjs:27",
+          "map/census-triage.mjs:98"
+        ]
+      },
+      {
+        "member": "THEME_KEY",
+        "note": "assigned a non-credential literal at tests/enumerate-fixture/nextjs/lib/pricing.ts:5, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:49",
+          "tests/enumerate-fixture/nextjs/lib/pricing.ts:5",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:359",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:359",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:359"
+        ]
+      },
+      {
+        "member": "THRESHOLD_KEYS",
+        "note": "assigned a non-credential literal at map/variance.mjs:504, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/variance.mjs:504",
+          "map/variance.mjs:519",
+          "map/variance.mjs:522",
+          "map/variance.mjs:524",
+          "map/variance.mjs:528"
+        ]
+      },
+      {
+        "member": "TRIAGE_KEYS",
+        "note": "assigned a non-credential literal at map/triage.mjs:13, never read from env — out of the credential census unless a site says otherwise",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:155",
+          "map/triage.mjs:13",
+          "map/triage.mjs:34",
+          "tests/blocks/enumerate-credentials.mjs:5",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:377",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:377",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:377"
+        ]
+      }
+    ],
+    "changeGates": [
+      {
+        "member": "ci step: branch-cleanup.yml/delete: Delete the planned branches",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:114"
+        ]
+      },
+      {
+        "member": "ci step: branch-cleanup.yml/plan: Plan the merged branches",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:63"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: ./.github/actions/tools",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:37"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: actions/checkout",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:26"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: actions/setup-node",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:29"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: npm ci",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:32"
+        ]
+      },
+      {
+        "member": "ci step: ci.yml/test: npm run gate",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/ci.yml:38"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: ./.github/actions/tools",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:40"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: actions/checkout",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:26"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: actions/setup-node",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:30"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: Check every contract change carries its Consumer trailer",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:42"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: npm ci",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:39"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: npm test",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:41"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: Refuse a malformed or existing version",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:33"
+        ]
+      },
+      {
+        "member": "ci step: release.yml/release: Tag and publish the release",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:44"
+        ]
+      },
+      {
+        "member": "ci step: tools-check.yml/check: actions/checkout",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:22"
+        ]
+      },
+      {
+        "member": "ci step: tools-check.yml/check: Open or update the issue for pins behind upstream",
+        "note": "a CI step a change passes through: does it go red when what it needs is absent, or never finishes?",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:24"
+        ]
+      },
+      {
+        "member": "script: lint",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:11"
+        ]
+      },
+      {
+        "member": "script: test",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:9"
+        ]
+      },
+      {
+        "member": "script: typecheck",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:12"
+        ]
+      },
+      {
+        "member": "script: validate",
+        "note": "a config-driven check (a package script named for one): does it go red when what it needs is absent?",
+        "gateable": true,
+        "evidence": [
+          "package.json:15"
+        ]
+      }
+    ],
+    "modelCalls": [],
+    "socketMounts": [
+      {
+        "member": "--cap-add",
+        "note": "added capability",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:544",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:583",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:583",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:583"
+        ]
+      },
+      {
+        "member": "--privileged",
+        "note": "privileged container",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:543",
+          "tests/blocks/services-declaration.mjs:30",
+          "tests/enumerate-fixture/target/deploy/prod.yaml:3",
+          "tests/enumerate-fixture/target/harness/bench.yaml:3",
+          "tests/enumerate-fixture/target/runs/r-2026-01-01/map/raw/enumerate-raw.txt:2",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:592",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:592",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:592"
+        ]
+      },
+      {
+        "member": "docker.sock mount",
+        "note": "host docker control",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:542",
+          "map/enumerate.mjs:91",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/findings/practice-review-improvement.yaml:63",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:604",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:604",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:604"
+        ]
+      }
+    ],
+    "containerClasses": [
+      {
+        "member": "admin-role branch",
+        "note": "a distinct agent class",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:576",
+          "tests/fixtures/notesbox/ANSWERS.yaml:32",
+          "tests/fixtures/notesbox/map/findings/deep-code-review.yaml:13",
+          "tests/fixtures/notesbox/map/findings/practice-review-delegation.yaml:7",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:106",
+          "tests/fixtures/notesbox/map/raw/deep-code-review.yaml:117",
+          "tests/negative/censuses-flow-map/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/counted-drift/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/evidence-not-in-target/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/sampled-drift/map/findings/practice-review-delegation.yaml:7",
+          "tests/negative/solution-coverage-gap/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/fixture-notesbox/sweep-1/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/fixture-notesbox/sweep-2/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/fixture-notesbox/sweep-3/map/findings/practice-review-delegation.yaml:7",
+          "tests/sweeps/flawed-webapp-2026-11-11/sweep-1/map/findings/practice-review-delegation.yaml:35",
+          "tests/sweeps/flawed-webapp-2026-11-11/sweep-2/map/terrain.md:65",
+          "tests/sweeps/flawed-webapp-2026-11-12b/sweep-1/map/findings/practice-review-delegation.yaml:220",
+          "tests/sweeps/flawed-webapp-2026-11-12b/sweep-1/map/findings/practice-review-delegation.yaml:72",
+          "tests/sweeps/flawed-webapp-2026-11-12b/sweep-1/map/terrain.md:38"
+        ]
+      },
+      {
+        "member": "docker run/create site",
+        "note": "a container is launched here — enumerate its class",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:575",
+          "map/enumerate.mjs:96",
+          "map/scanners/CONTRACT.md:522",
+          "tests/enumerate-fixture/effects-on-the-list/lib/patterns.mjs:1",
+          "tests/enumerate-fixture/effects-on-the-list/lib/patterns.mjs:3",
+          "tests/enumerate-fixture/effects-on-the-list/lib/patterns.mjs:7",
+          "tests/enumerate-fixture/effects/docs/mail.md:7",
+          "tests/enumerate-fixture/effects/runs/r-1/map/effect-triage.yaml:5",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:134",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:639",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:639",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:639"
+        ]
+      }
+    ],
+    "effectSites": [
+      {
+        "member": "artifact upload (workflow) @ routine/assay-routine.yml",
+        "note": "artifact upload (workflow)",
+        "gateable": true,
+        "evidence": [
+          "routine/assay-routine.yml:184",
+          "routine/assay-routine.yml:78"
+        ],
+        "signals": [
+          {
+            "question": "person_act",
+            "supports": "no",
+            "evidence": [
+              "routine/assay-routine.yml:17",
+              "routine/assay-routine.yml:22",
+              "routine/assay-routine.yml:24"
+            ],
+            "marker": "on: schedule, pull_request, push"
+          },
+          {
+            "question": "declared_scope",
+            "supports": "yes",
+            "evidence": [
+              "routine/assay-routine.yml:32"
+            ],
+            "marker": "workflow key: permissions"
+          }
+        ]
+      },
+      {
+        "member": "git push @ map/effect-scope.mjs",
+        "note": "git push",
+        "gateable": true,
+        "evidence": [
+          "map/effect-scope.mjs:125"
+        ],
+        "signals": []
+      },
+      {
+        "member": "github api write (workflow) @ .github/workflows/branch-cleanup.yml",
+        "note": "github api write (workflow)",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/branch-cleanup.yml:131"
+        ],
+        "signals": [
+          {
+            "question": "person_act",
+            "supports": "no",
+            "evidence": [
+              ".github/workflows/branch-cleanup.yml:36"
+            ],
+            "marker": "on: push"
+          },
+          {
+            "question": "declared_scope",
+            "supports": "yes",
+            "evidence": [
+              ".github/workflows/branch-cleanup.yml:111"
+            ],
+            "marker": "job key: permissions"
+          }
+        ]
+      },
+      {
+        "member": "http write (js) @ map/tools.mjs",
+        "note": "http write (js)",
+        "gateable": true,
+        "evidence": [
+          "map/tools.mjs:125"
+        ],
+        "signals": []
+      },
+      {
+        "member": "issue/pr write (workflow) @ .github/workflows/tools-check.yml",
+        "note": "issue/pr write (workflow)",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/tools-check.yml:33",
+          ".github/workflows/tools-check.yml:35"
+        ],
+        "signals": [
+          {
+            "question": "person_act",
+            "supports": "no",
+            "evidence": [
+              ".github/workflows/tools-check.yml:8"
+            ],
+            "marker": "on: schedule"
+          },
+          {
+            "question": "declared_scope",
+            "supports": "yes",
+            "evidence": [
+              ".github/workflows/tools-check.yml:17"
+            ],
+            "marker": "job key: permissions"
+          }
+        ]
+      },
+      {
+        "member": "process spawn (js) @ assay.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "assay.mjs:93",
+          "assay.mjs:98"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ lib/check-syntax.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "lib/check-syntax.mjs:11",
+          "lib/check-syntax.mjs:14"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ lib/gate.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "lib/gate.mjs:40"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ lib/release-notes.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "lib/release-notes.mjs:58",
+          "lib/release-notes.mjs:64"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/backlog.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/backlog.mjs:54"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/dependency-scan.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/dependency-scan.mjs:110",
+          "map/dependency-scan.mjs:275",
+          "map/dependency-scan.mjs:380",
+          "map/dependency-scan.mjs:398"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/fresh-clone.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/fresh-clone.mjs:332",
+          "map/fresh-clone.mjs:586"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/repo-census.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/repo-census.mjs:1415",
+          "map/repo-census.mjs:1425",
+          "map/repo-census.mjs:842",
+          "map/repo-census.mjs:959",
+          "map/repo-census.mjs:961"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/services.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/services.mjs:124"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/start.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/start.mjs:270",
+          "map/start.mjs:292",
+          "map/start.mjs:309",
+          "map/start.mjs:334",
+          "map/start.mjs:497",
+          "map/start.mjs:80",
+          "map/start.mjs:83",
+          "map/start.mjs:88"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/structure-scan.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/structure-scan.mjs:103",
+          "map/structure-scan.mjs:120",
+          "map/structure-scan.mjs:189",
+          "map/structure-scan.mjs:338"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/sweep-method.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/sweep-method.mjs:82"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/target-identity.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/target-identity.mjs:19"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/tools.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/tools.mjs:38"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ map/validate.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "map/validate.mjs:467",
+          "map/validate.mjs:484"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ routine/run.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "routine/run.mjs:89"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ views/compile.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "views/compile.mjs:77"
+        ],
+        "signals": []
+      },
+      {
+        "member": "process spawn (js) @ yardstick/ratchet.mjs",
+        "note": "process spawn (js)",
+        "gateable": true,
+        "evidence": [
+          "yardstick/ratchet.mjs:107",
+          "yardstick/ratchet.mjs:117"
+        ],
+        "signals": []
+      },
+      {
+        "member": "release write (workflow) @ .github/workflows/release.yml",
+        "note": "release write (workflow)",
+        "gateable": true,
+        "evidence": [
+          ".github/workflows/release.yml:50"
+        ],
+        "signals": [
+          {
+            "question": "person_act",
+            "supports": "yes",
+            "evidence": [
+              ".github/workflows/release.yml:11"
+            ],
+            "marker": "on: workflow_dispatch"
+          },
+          {
+            "question": "declared_scope",
+            "supports": "yes",
+            "evidence": [
+              ".github/workflows/release.yml:24"
+            ],
+            "marker": "job key: permissions"
+          }
+        ]
+      }
+    ],
+    "egressControls": [
+      {
+        "member": "browser URL policy",
+        "note": "network boundary",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:562"
+        ]
+      },
+      {
+        "member": "iptables egress rule",
+        "note": "network boundary",
+        "gateable": true,
+        "evidence": [
+          "map/METHOD.md:145",
+          "map/enumerate.mjs:561",
+          "map/enumerate.mjs:94"
+        ]
+      }
+    ],
+    "contracts": [
+      {
+        "member": "__post_init__ validation",
+        "note": "raises on violation",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:548"
+        ]
+      },
+      {
+        "member": "lockstep test",
+        "note": "byte-equal copies guard",
+        "gateable": true,
+        "evidence": [
+          "map/METHOD.md:146",
+          "map/enumerate.mjs:549",
+          "map/passes.yaml:8",
+          "tests/blocks/context-lists-have-owners.mjs:4",
+          "tests/blocks/context-lists-have-owners.mjs:44",
+          "tests/blocks/doctrine-lockstep.mjs:1",
+          "tests/blocks/doctrine-lockstep.mjs:10",
+          "tests/blocks/doctrine-lockstep.mjs:13",
+          "tests/blocks/enumerate-gate.mjs:74",
+          "tests/blocks/passes-feed-requirements.mjs:3",
+          "tests/blocks/passes-feed-requirements.mjs:36",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-gates.yaml:230",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/findings/practice-review-gates.yaml:234",
+          "tests/sweeps/assay-2026-11-11/sweep-1/map/terrain.md:142",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:848",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:855",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:856",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/raw/enumerate.json:857",
+          "tests/sweeps/assay-2026-11-12c/sweep-1/map/terrain.md:141",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:848",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:855",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:856",
+          "tests/sweeps/assay-2026-11-12c/sweep-2/map/raw/enumerate.json:857",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/findings/practice-review-improvement.yaml:292",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/findings/practice-review-improvement.yaml:293",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:848",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:855",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:856",
+          "tests/sweeps/assay-2026-11-12c/sweep-3/map/raw/enumerate.json:857"
+        ]
+      },
+      {
+        "member": "schema validator",
+        "note": "interface schema",
+        "gateable": true,
+        "evidence": [
+          "map/enumerate.mjs:550"
+        ]
+      }
+    ],
+    "reportPaths": [],
+    "excluded": [
+      {
+        "member": "artifact upload (workflow) @ tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "artifact upload (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml:30"
+        ]
+      },
+      {
+        "member": "deploy/publish (workflow) @ tests/enumerate-fixture/effect-scope/.github/workflows/deploy.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "deploy/publish (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effect-scope/.github/workflows/deploy.yml:11"
+        ]
+      },
+      {
+        "member": "deploy/publish (workflow) @ tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "deploy/publish (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml:32"
+        ]
+      },
+      {
+        "member": "deploy/publish (workflow) @ tests/enumerate-fixture/signals/.github/workflows/nightly.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "deploy/publish (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/.github/workflows/nightly.yml:11"
+        ]
+      },
+      {
+        "member": "git push @ tests/blocks/enumerate-effect-sites-read-where-code-runs.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "git push",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-effect-sites-read-where-code-runs.mjs:22"
+        ]
+      },
+      {
+        "member": "git push @ tests/blocks/enumerate-effect-sites.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "git push",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-effect-sites.mjs:19"
+        ]
+      },
+      {
+        "member": "git push @ tests/blocks/enumerate-effects-on-the-list.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "git push",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-effects-on-the-list.mjs:32"
+        ]
+      },
+      {
+        "member": "git push @ tests/blocks/test-files-by-convention.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "git push",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/test-files-by-convention.mjs:35"
+        ]
+      },
+      {
+        "member": "git push @ tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "git push",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml:28"
+        ]
+      },
+      {
+        "member": "git push @ tests/enumerate-fixture/effects/lib/sync.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "git push",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects/lib/sync.mjs:6"
+        ]
+      },
+      {
+        "member": "git push @ tests/enumerate-fixture/test-files-by-convention/cmd/thing_test.go",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "git push",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/cmd/thing_test.go:10"
+        ]
+      },
+      {
+        "member": "github api write (workflow) @ tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "github api write (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml:24",
+          "tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml:26"
+        ]
+      },
+      {
+        "member": "github api write (workflow) @ tests/enumerate-fixture/signals/.github/workflows/docs.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "github api write (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/.github/workflows/docs.yml:9"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/blocks/web-app-effects.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/web-app-effects.mjs:41"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/effect-scope/server.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effect-scope/server.mjs:5"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/effect-scope/src/clients/billing.contract-test.mjs",
+        "population": "effectSites",
+        "reason": "a contract test (by its name)",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effect-scope/src/clients/billing.contract-test.mjs:3"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/effect-scope/src/clients/billing.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effect-scope/src/clients/billing.mjs:3"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/effects/lib/backup.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects/lib/backup.mjs:3"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/effects/lib/sync.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects/lib/sync.mjs:5",
+          "tests/enumerate-fixture/effects/lib/sync.mjs:7"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/effects/tests/sync.test.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects/tests/sync.test.mjs:4"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/models/lib/raw.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/models/lib/raw.mjs:2"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/signals-hono/src/accounts.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/accounts.ts:13",
+          "tests/enumerate-fixture/signals-hono/src/accounts.ts:18"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/signals-hono/src/admin.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/admin.ts:16"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/signals-hono/src/app.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/app.ts:9"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/signals-hono/src/routes/notes.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/routes/notes.ts:15",
+          "tests/enumerate-fixture/signals-hono/src/routes/notes.ts:20",
+          "tests/enumerate-fixture/signals-hono/src/routes/notes.ts:9"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/signals/scripts/prune.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/scripts/prune.mjs:8"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/signals/scripts/sync.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/scripts/sync.mjs:3"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/__tests__/baz.ts",
+        "population": "effectSites",
+        "reason": "under a __tests__/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/__tests__/baz.ts:2"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/adapters/test-media.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/adapters/test-media.ts:3"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/bar.spec.js",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/bar.spec.js:2"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/fixtures/seed.ts",
+        "population": "effectSites",
+        "reason": "under a fixtures/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/fixtures/seed.ts:3"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/fixtures/unused.ts",
+        "population": "effectSites",
+        "reason": "under a fixtures/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/fixtures/unused.ts:2"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/foo.test.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/foo.test.ts:2"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/index.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/index.ts:8"
+        ]
+      },
+      {
+        "member": "http write (js) @ tests/enumerate-fixture/test-files-by-convention/src/jobs/test-cleanup.ts",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/src/jobs/test-cleanup.ts:3"
+        ]
+      },
+      {
+        "member": "http write @ tests/enumerate-fixture/test-files-by-convention/pkg/app.py",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/pkg/app.py:8"
+        ]
+      },
+      {
+        "member": "http write @ tests/enumerate-fixture/test-files-by-convention/pkg/test_hooks.py",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/pkg/test_hooks.py:6"
+        ]
+      },
+      {
+        "member": "http write @ tests/enumerate-fixture/test-files-by-convention/pkg/test_thing.py",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "http write",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/test-files-by-convention/pkg/test_thing.py:6"
+        ]
+      },
+      {
+        "member": "issue/pr write (workflow) @ tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "issue/pr write (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml:27"
+        ]
+      },
+      {
+        "member": "issue/pr write (workflow) @ tests/enumerate-fixture/effects-on-the-list/ci/template.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "issue/pr write (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/ci/template.yml:9"
+        ]
+      },
+      {
+        "member": "mcp-toolset: analytics @ tests/enumerate-fixture/target/agent.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a remote MCP toolset the model can call provider-side — triage as an effect channel",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/target/agent.mjs:25"
+        ]
+      },
+      {
+        "member": "message/mail send @ tests/enumerate-fixture/effects/lib/alerts.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "message/mail send",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects/lib/alerts.mjs:5",
+          "tests/enumerate-fixture/effects/lib/alerts.mjs:6",
+          "tests/enumerate-fixture/effects/lib/alerts.mjs:8"
+        ]
+      },
+      {
+        "member": "message/mail send @ tests/enumerate-fixture/effects/lib/digest.py",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "message/mail send",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects/lib/digest.py:5"
+        ]
+      },
+      {
+        "member": "message/mail send @ tests/enumerate-fixture/effects/lib/mailer.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "message/mail send",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects/lib/mailer.mjs:2"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/block-child.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/block-child.mjs:71"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/all-clean-run.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/all-clean-run.mjs:32",
+          "tests/blocks/all-clean-run.mjs:43",
+          "tests/blocks/all-clean-run.mjs:45"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/answers-against-signals.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/answers-against-signals.mjs:36"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/ask-owner.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/ask-owner.mjs:67",
+          "tests/blocks/ask-owner.mjs:70"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/backlog.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/backlog.mjs:36",
+          "tests/blocks/backlog.mjs:50"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/branch-cleanup-on-merge.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/branch-cleanup-on-merge.mjs:79"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/branch-cleanup.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/branch-cleanup.mjs:110",
+          "tests/blocks/branch-cleanup.mjs:123"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/candidate-agreement.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/candidate-agreement.mjs:98"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/candidates-across-runs.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/candidates-across-runs.mjs:29"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/candidates-facet-population.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/candidates-facet-population.mjs:55"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/candidates-show-reviewer-findings.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/candidates-show-reviewer-findings.mjs:32"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/canon.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/canon.mjs:25"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/capability-read-leg.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/capability-read-leg.mjs:61"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/census-candidates-enumerated.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/census-candidates-enumerated.mjs:38"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/census-evidence-absent.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/census-evidence-absent.mjs:28",
+          "tests/blocks/census-evidence-absent.mjs:41"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/census-triage-closed.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/census-triage-closed.mjs:35"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/censuses-read-without-grades.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/censuses-read-without-grades.mjs:19"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/checkov-agreed-values.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/checkov-agreed-values.mjs:50"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/ci-gate-fail-open-shell.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/ci-gate-fail-open-shell.mjs:50"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/ci-gate-set-e-status.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/ci-gate-set-e-status.mjs:79"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/ci-interface.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/ci-interface.mjs:67",
+          "tests/blocks/ci-interface.mjs:96"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/claim-context-not-a-decision.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/claim-context-not-a-decision.mjs:81"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/claim-rows-census-decided.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/claim-rows-census-decided.mjs:84"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/cli-commands.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/cli-commands.mjs:16",
+          "tests/blocks/cli-commands.mjs:27"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/commit-citation.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/commit-citation.mjs:29",
+          "tests/blocks/commit-citation.mjs:49",
+          "tests/blocks/commit-citation.mjs:53"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/compare-command.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/compare-command.mjs:14"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/compile-target.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/compile-target.mjs:17"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/confidence-on-every-item.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/confidence-on-every-item.mjs:140",
+          "tests/blocks/confidence-on-every-item.mjs:77",
+          "tests/blocks/confidence-on-every-item.mjs:98"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/confidence-platform-and-migrate.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/confidence-platform-and-migrate.mjs:47",
+          "tests/blocks/confidence-platform-and-migrate.mjs:90"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/consequence-from-facts.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/consequence-from-facts.mjs:203",
+          "tests/blocks/consequence-from-facts.mjs:232",
+          "tests/blocks/consequence-from-facts.mjs:234",
+          "tests/blocks/consequence-from-facts.mjs:251",
+          "tests/blocks/consequence-from-facts.mjs:256",
+          "tests/blocks/consequence-from-facts.mjs:88"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/consequence-reads-exposure.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/consequence-reads-exposure.mjs:152",
+          "tests/blocks/consequence-reads-exposure.mjs:89"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/consumer-contract.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/consumer-contract.mjs:123",
+          "tests/blocks/consumer-contract.mjs:29",
+          "tests/blocks/consumer-contract.mjs:30",
+          "tests/blocks/consumer-contract.mjs:86"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/consumer-reads.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/consumer-reads.mjs:21"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/consumer-surface-lane.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/consumer-surface-lane.mjs:30",
+          "tests/blocks/consumer-surface-lane.mjs:32"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/contradictions.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/contradictions.mjs:29",
+          "tests/blocks/contradictions.mjs:35"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/counts-read-measurement.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/counts-read-measurement.mjs:21"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/dcr-machine-report.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/dcr-machine-report.mjs:58",
+          "tests/blocks/dcr-machine-report.mjs:67",
+          "tests/blocks/dcr-machine-report.mjs:68"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/dcr-verdict-rows.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/dcr-verdict-rows.mjs:133",
+          "tests/blocks/dcr-verdict-rows.mjs:138"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/dependency-scan-manifests.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/dependency-scan-manifests.mjs:121"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/doc-consistency.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/doc-consistency.mjs:159",
+          "tests/blocks/doc-consistency.mjs:17"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/effect-answers-decide.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/effect-answers-decide.mjs:72"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/effect-population.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/effect-population.mjs:30"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/effect-scope-closed.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/effect-scope-closed.mjs:34"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/engine-blind-to-consumer.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/engine-blind-to-consumer.mjs:31"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/engine-pipeline.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/engine-pipeline.mjs:36"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-credentials.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-credentials.mjs:27"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-effect-sites-read-where-code-runs.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-effect-sites-read-where-code-runs.mjs:16"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-effect-sites.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-effect-sites.mjs:15"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-effects-on-the-list.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-effects-on-the-list.mjs:18",
+          "tests/blocks/enumerate-effects-on-the-list.mjs:28"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-gate.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-gate.mjs:20",
+          "tests/blocks/enumerate-gate.mjs:34",
+          "tests/blocks/enumerate-gate.mjs:38",
+          "tests/blocks/enumerate-gate.mjs:45",
+          "tests/blocks/enumerate-gate.mjs:58",
+          "tests/blocks/enumerate-gate.mjs:78"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-mail-sends.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-mail-sends.mjs:21"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-nextjs.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-nextjs.mjs:29",
+          "tests/blocks/enumerate-nextjs.mjs:56"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-server-routes.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-server-routes.mjs:20"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/enumerate-tooldef.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/enumerate-tooldef.mjs:22",
+          "tests/blocks/enumerate-tooldef.mjs:28"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/evidence-cites-file-line.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/evidence-cites-file-line.mjs:16"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/evidence-produced-by.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/evidence-produced-by.mjs:100",
+          "tests/blocks/evidence-produced-by.mjs:32",
+          "tests/blocks/evidence-produced-by.mjs:39",
+          "tests/blocks/evidence-produced-by.mjs:41",
+          "tests/blocks/evidence-produced-by.mjs:42",
+          "tests/blocks/evidence-produced-by.mjs:43",
+          "tests/blocks/evidence-produced-by.mjs:91",
+          "tests/blocks/evidence-produced-by.mjs:93",
+          "tests/blocks/evidence-produced-by.mjs:94",
+          "tests/blocks/evidence-produced-by.mjs:95",
+          "tests/blocks/evidence-produced-by.mjs:97",
+          "tests/blocks/evidence-produced-by.mjs:98"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/exposures-sidecar.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/exposures-sidecar.mjs:12"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/finding-property-candidates.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/finding-property-candidates.mjs:105",
+          "tests/blocks/finding-property-candidates.mjs:41"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/findings-loader.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/findings-loader.mjs:20",
+          "tests/blocks/findings-loader.mjs:22"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/fresh-clone-lone-app.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/fresh-clone-lone-app.mjs:24",
+          "tests/blocks/fresh-clone-lone-app.mjs:26"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/fresh-clone-pnpm.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/fresh-clone-pnpm.mjs:27"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/fresh-clone-projects.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/fresh-clone-projects.mjs:41"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/fresh-clone-workspaces.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/fresh-clone-workspaces.mjs:27"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/fresh-clone.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/fresh-clone.mjs:23",
+          "tests/blocks/fresh-clone.mjs:90",
+          "tests/blocks/fresh-clone.mjs:93",
+          "tests/blocks/fresh-clone.mjs:96",
+          "tests/blocks/fresh-clone.mjs:99"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/gate-command.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/gate-command.mjs:38",
+          "tests/blocks/gate-command.mjs:70"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/gate-vocabulary.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/gate-vocabulary.mjs:66"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/gitleaks-fixtures-and-vendored-bundles.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/gitleaks-fixtures-and-vendored-bundles.mjs:61",
+          "tests/blocks/gitleaks-fixtures-and-vendored-bundles.mjs:86"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/gitleaks-not-a-secret.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/gitleaks-not-a-secret.mjs:51",
+          "tests/blocks/gitleaks-not-a-secret.mjs:75"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/gitleaks-target.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/gitleaks-target.mjs:24",
+          "tests/blocks/gitleaks-target.mjs:36",
+          "tests/blocks/gitleaks-target.mjs:57"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/handoff-text-is-data.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/handoff-text-is-data.mjs:34",
+          "tests/blocks/handoff-text-is-data.mjs:67"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/improve-report-data.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/improve-report-data.mjs:40",
+          "tests/blocks/improve-report-data.mjs:72"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/ingest-record.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/ingest-record.mjs:27"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/ingest-usage.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/ingest-usage.mjs:22"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/instrument-port.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/instrument-port.mjs:43",
+          "tests/blocks/instrument-port.mjs:69"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/instrument-roster.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/instrument-roster.mjs:127",
+          "tests/blocks/instrument-roster.mjs:131",
+          "tests/blocks/instrument-roster.mjs:134",
+          "tests/blocks/instrument-roster.mjs:144",
+          "tests/blocks/instrument-roster.mjs:150",
+          "tests/blocks/instrument-roster.mjs:155",
+          "tests/blocks/instrument-roster.mjs:170",
+          "tests/blocks/instrument-roster.mjs:172"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/isolation.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/isolation.mjs:108",
+          "tests/blocks/isolation.mjs:146",
+          "tests/blocks/isolation.mjs:98"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/lane-and-ingest-ids.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/lane-and-ingest-ids.mjs:36"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/lane-checks-before-publish.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/lane-checks-before-publish.mjs:65"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/lane-collected.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/lane-collected.mjs:47"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/lane-list.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/lane-list.mjs:13"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/lane-reviewed.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/lane-reviewed.mjs:67",
+          "tests/blocks/lane-reviewed.mjs:70",
+          "tests/blocks/lane-reviewed.mjs:73",
+          "tests/blocks/lane-reviewed.mjs:76",
+          "tests/blocks/lane-reviewed.mjs:80"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/lead-exposures.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/lead-exposures.mjs:26"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/legibility-bar-recomputed.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/legibility-bar-recomputed.mjs:81"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/maintainability-churn.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/maintainability-churn.mjs:53"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/members-admitted.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/members-admitted.mjs:68"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/met-needs-positive-evidence.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/met-needs-positive-evidence.mjs:31"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/migrate-run-retired-id.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/migrate-run-retired-id.mjs:28"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/migrate-run.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/migrate-run.mjs:29"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/model-call-stand-in.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/model-call-stand-in.mjs:24"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/model-of-record.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/model-of-record.mjs:109",
+          "tests/blocks/model-of-record.mjs:32",
+          "tests/blocks/model-of-record.mjs:78",
+          "tests/blocks/model-of-record.mjs:92"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/negative-fixtures.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/negative-fixtures.mjs:69"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/not-applicable-views.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/not-applicable-views.mjs:48",
+          "tests/blocks/not-applicable-views.mjs:60"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/opengrep-instrument.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/opengrep-instrument.mjs:36"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/operability-signals-met.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/operability-signals-met.mjs:28",
+          "tests/blocks/operability-signals-met.mjs:29"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/owner-contradictions.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/owner-contradictions.mjs:36",
+          "tests/blocks/owner-contradictions.mjs:45",
+          "tests/blocks/owner-contradictions.mjs:58"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/owner-packet.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/owner-packet.mjs:31",
+          "tests/blocks/owner-packet.mjs:33",
+          "tests/blocks/owner-packet.mjs:87",
+          "tests/blocks/owner-packet.mjs:88"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/owner-view.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/owner-view.mjs:42",
+          "tests/blocks/owner-view.mjs:44"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/packet-measure.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/packet-measure.mjs:82",
+          "tests/blocks/packet-measure.mjs:87"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/packet.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/packet.mjs:37",
+          "tests/blocks/packet.mjs:45"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/parallel-runner.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/parallel-runner.mjs:79"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/practice-review-clean.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/practice-review-clean.mjs:41"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/project-command.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/project-command.mjs:17",
+          "tests/blocks/project-command.mjs:51"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/prove-red-script.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/prove-red-script.mjs:74",
+          "tests/blocks/prove-red-script.mjs:79"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/quadrants-and-lenses.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/quadrants-and-lenses.mjs:286",
+          "tests/blocks/quadrants-and-lenses.mjs:88",
+          "tests/blocks/quadrants-and-lenses.mjs:89"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/ratchet.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/ratchet.mjs:105",
+          "tests/blocks/ratchet.mjs:22",
+          "tests/blocks/ratchet.mjs:28",
+          "tests/blocks/ratchet.mjs:47",
+          "tests/blocks/ratchet.mjs:57",
+          "tests/blocks/ratchet.mjs:70",
+          "tests/blocks/ratchet.mjs:73",
+          "tests/blocks/ratchet.mjs:84",
+          "tests/blocks/ratchet.mjs:97"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/raw-minimised.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/raw-minimised.mjs:22",
+          "tests/blocks/raw-minimised.mjs:42",
+          "tests/blocks/raw-minimised.mjs:50"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/record.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/record.mjs:64",
+          "tests/blocks/record.mjs:70",
+          "tests/blocks/record.mjs:75"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/refusal-commands.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/refusal-commands.mjs:42"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/remeasure-on-change.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/remeasure-on-change.mjs:24",
+          "tests/blocks/remeasure-on-change.mjs:29"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census-deploy-word.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-deploy-word.mjs:43"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census-imports.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-imports.mjs:39"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census-no-deployment.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-no-deployment.mjs:41"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census-pointers.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-pointers.mjs:101",
+          "tests/blocks/repo-census-pointers.mjs:103",
+          "tests/blocks/repo-census-pointers.mjs:112",
+          "tests/blocks/repo-census-pointers.mjs:21",
+          "tests/blocks/repo-census-pointers.mjs:22",
+          "tests/blocks/repo-census-pointers.mjs:23",
+          "tests/blocks/repo-census-pointers.mjs:24",
+          "tests/blocks/repo-census-pointers.mjs:28",
+          "tests/blocks/repo-census-pointers.mjs:81",
+          "tests/blocks/repo-census-pointers.mjs:91",
+          "tests/blocks/repo-census-pointers.mjs:92",
+          "tests/blocks/repo-census-pointers.mjs:94"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census-projects.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-projects.mjs:66"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census-root-covers.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-root-covers.mjs:56"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census-runbooks.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-runbooks.mjs:19"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-census.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census.mjs:196",
+          "tests/blocks/repo-census.mjs:199",
+          "tests/blocks/repo-census.mjs:46",
+          "tests/blocks/repo-census.mjs:47",
+          "tests/blocks/repo-census.mjs:48",
+          "tests/blocks/repo-census.mjs:49",
+          "tests/blocks/repo-census.mjs:56"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/repo-files-nested.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-files-nested.mjs:25",
+          "tests/blocks/repo-files-nested.mjs:39"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/report-chain-cuts.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/report-chain-cuts.mjs:39",
+          "tests/blocks/report-chain-cuts.mjs:65"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/report-confidence-words.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/report-confidence-words.mjs:136",
+          "tests/blocks/report-confidence-words.mjs:92"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/report-howto.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/report-howto.mjs:24"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/requirement-agreement.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/requirement-agreement.mjs:50"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/retired-requirement-ids.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/retired-requirement-ids.mjs:32"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/reviewer-pinned-by-commit.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/reviewer-pinned-by-commit.mjs:76"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/reviewer-unplaced-untaken.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/reviewer-unplaced-untaken.mjs:60"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/roadmap-decision.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/roadmap-decision.mjs:27",
+          "tests/blocks/roadmap-decision.mjs:34"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/routine-command.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/routine-command.mjs:18",
+          "tests/blocks/routine-command.mjs:20"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/routine-pr-baseline.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/routine-pr-baseline.mjs:25",
+          "tests/blocks/routine-pr-baseline.mjs:68"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/routine-pr-packet.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/routine-pr-packet.mjs:23",
+          "tests/blocks/routine-pr-packet.mjs:45"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/routine.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/routine.mjs:50",
+          "tests/blocks/routine.mjs:81"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/rows-by-predicate.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/rows-by-predicate.mjs:24"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/rows-contract-exports.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/rows-contract-exports.mjs:48",
+          "tests/blocks/rows-contract-exports.mjs:71"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/rows-hold-the-measurement.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/rows-hold-the-measurement.mjs:33",
+          "tests/blocks/rows-hold-the-measurement.mjs:35",
+          "tests/blocks/rows-hold-the-measurement.mjs:71"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/run-data.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/run-data.mjs:26",
+          "tests/blocks/run-data.mjs:28",
+          "tests/blocks/run-data.mjs:54"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/run-manifest.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/run-manifest.mjs:53",
+          "tests/blocks/run-manifest.mjs:63",
+          "tests/blocks/run-manifest.mjs:65"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/run-record-lock.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/run-record-lock.mjs:30",
+          "tests/blocks/run-record-lock.mjs:43"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/run-states-target.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/run-states-target.mjs:27",
+          "tests/blocks/run-states-target.mjs:33"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/schema-map-lane.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/schema-map-lane.mjs:122",
+          "tests/blocks/schema-map-lane.mjs:44"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/score-backlog-exit.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/score-backlog-exit.mjs:14",
+          "tests/blocks/score-backlog-exit.mjs:19"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/second-reviewer-adapter.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/second-reviewer-adapter.mjs:106"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/second-secret-scanner-adapter.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/second-secret-scanner-adapter.mjs:81"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/sequence-by-what-a-finding-is.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/sequence-by-what-a-finding-is.mjs:79"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/sequence-severity-bounds-tier.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/sequence-severity-bounds-tier.mjs:114"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/sequence.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/sequence.mjs:113",
+          "tests/blocks/sequence.mjs:130",
+          "tests/blocks/sequence.mjs:143",
+          "tests/blocks/sequence.mjs:154",
+          "tests/blocks/sequence.mjs:56"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/services-live.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/services-live.mjs:15",
+          "tests/blocks/services-live.mjs:31"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/signals-from-code.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/signals-from-code.mjs:24"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/signals-hono-limiter.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/signals-hono-limiter.mjs:25"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/signals-markers-data.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/signals-markers-data.mjs:21",
+          "tests/blocks/signals-markers-data.mjs:92"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/signals-orm-soft-delete.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/signals-orm-soft-delete.mjs:24"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/signals-removed-at.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/signals-removed-at.mjs:19"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/since-re-ruled.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/since-re-ruled.mjs:33",
+          "tests/blocks/since-re-ruled.mjs:35"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/since.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/since.mjs:37",
+          "tests/blocks/since.mjs:42",
+          "tests/blocks/since.mjs:62",
+          "tests/blocks/since.mjs:73"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/start-tree.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/start-tree.mjs:27",
+          "tests/blocks/start-tree.mjs:36"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/start-unstripped-report.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/start-unstripped-report.mjs:21",
+          "tests/blocks/start-unstripped-report.mjs:37"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/start.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/start.mjs:109",
+          "tests/blocks/start.mjs:27",
+          "tests/blocks/start.mjs:36",
+          "tests/blocks/start.mjs:59",
+          "tests/blocks/start.mjs:64",
+          "tests/blocks/start.mjs:74"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/structure-scan.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/structure-scan.mjs:143",
+          "tests/blocks/structure-scan.mjs:171"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/sweep-check-method.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/sweep-check-method.mjs:23",
+          "tests/blocks/sweep-check-method.mjs:81",
+          "tests/blocks/sweep-check-method.mjs:84"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/sweep-cost.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/sweep-cost.mjs:42"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/sweep-gate.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/sweep-gate.mjs:20",
+          "tests/blocks/sweep-gate.mjs:28"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/sweep-not-measured.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/sweep-not-measured.mjs:18"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/test-files-by-convention.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/test-files-by-convention.mjs:42"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/toolchain-command.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/toolchain-command.mjs:14"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/tools-precondition.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/tools-precondition.mjs:66",
+          "tests/blocks/tools-precondition.mjs:68"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/tools-refused.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/tools-refused.mjs:48"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/tools.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/tools.mjs:29",
+          "tests/blocks/tools.mjs:30"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/validate-hints.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/validate-hints.mjs:17",
+          "tests/blocks/validate-hints.mjs:26",
+          "tests/blocks/validate-hints.mjs:40"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/web-app-effects.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/web-app-effects.mjs:91"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/writers-quote-evidence.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/writers-quote-evidence.mjs:26",
+          "tests/blocks/writers-quote-evidence.mjs:43"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/yaml-strict.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/yaml-strict.mjs:47"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/blocks/yardstick-maintainability.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/yardstick-maintainability.mjs:127"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/enumerate-fixture/effects-on-the-list/lib/cp-module.cjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/lib/cp-module.cjs:4"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/enumerate-fixture/effects-on-the-list/lib/jobs.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/lib/jobs.mjs:4",
+          "tests/enumerate-fixture/effects-on-the-list/lib/jobs.mjs:8"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/harness.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/harness.mjs:171",
+          "tests/harness.mjs:30"
+        ]
+      },
+      {
+        "member": "process spawn (js) @ tests/prove-red.mjs",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "process spawn (js)",
+        "gateable": false,
+        "evidence": [
+          "tests/prove-red.mjs:338",
+          "tests/prove-red.mjs:339",
+          "tests/prove-red.mjs:347",
+          "tests/prove-red.mjs:361"
+        ]
+      },
+      {
+        "member": "release write (workflow) @ tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "release write (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/.github/workflows/release.yml:23"
+        ]
+      },
+      {
+        "member": "release write (workflow) @ tests/enumerate-fixture/signals/.github/workflows/release.yml",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "release write (workflow)",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/.github/workflows/release.yml:17"
+        ]
+      },
+      {
+        "member": "route: ? tests/enumerate-fixture/servers/opaque/server.mjs @ tests/enumerate-fixture/servers/opaque/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a node:http server whose routes enumerate cannot read — read it",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/opaque/server.mjs:4"
+        ]
+      },
+      {
+        "member": "route: ANY /api/hooks @ tests/enumerate-fixture/nextjs/pages/api/hooks/index.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a pages-router API route (every method) — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/pages/api/hooks/index.ts:4"
+        ]
+      },
+      {
+        "member": "route: ANY /export @ tests/enumerate-fixture/servers/express/routes/notes.js",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style router.all route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/express/routes/notes.js:5"
+        ]
+      },
+      {
+        "member": "route: ANY /health @ tests/enumerate-fixture/servers/nodehttp/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/nodehttp/server.mjs:10"
+        ]
+      },
+      {
+        "member": "route: DELETE /:id @ tests/enumerate-fixture/servers/express/routes/notes.js",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style router.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/express/routes/notes.js:4"
+        ]
+      },
+      {
+        "member": "route: DELETE /admin/notes/:id @ tests/enumerate-fixture/signals-orm/src/routes/aliased.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/aliased.ts:9"
+        ]
+      },
+      {
+        "member": "route: DELETE /admin/purge @ tests/enumerate-fixture/servers/nodehttp/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/nodehttp/server.mjs:9"
+        ]
+      },
+      {
+        "member": "route: DELETE /api/users/[id] @ tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts:8"
+        ]
+      },
+      {
+        "member": "route: DELETE /feedback/:id @ tests/enumerate-fixture/signals-orm/src/routes/notes.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/notes.ts:16"
+        ]
+      },
+      {
+        "member": "route: DELETE /feedback/:id @ tests/enumerate-fixture/signals/src/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/src/server.mjs:24"
+        ]
+      },
+      {
+        "member": "route: DELETE /members/:id @ tests/enumerate-fixture/signals-orm/src/routes/members.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/members.ts:9"
+        ]
+      },
+      {
+        "member": "route: DELETE /notes/:id @ tests/enumerate-fixture/signals-orm/src/routes/notes.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/notes.ts:9"
+        ]
+      },
+      {
+        "member": "route: DELETE /notes/:id @ tests/enumerate-fixture/signals/src/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/src/server.mjs:19"
+        ]
+      },
+      {
+        "member": "route: DELETE /notes/:id/everything @ tests/enumerate-fixture/signals-orm/src/routes/notes.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/notes.ts:26"
+        ]
+      },
+      {
+        "member": "route: DELETE /teams/:team/members/:id @ tests/enumerate-fixture/signals-orm/src/routes/members.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/members.ts:14"
+        ]
+      },
+      {
+        "member": "route: DELETE /v2/notes/:id @ tests/enumerate-fixture/signals-orm/src/routes/v2.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.delete route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/v2.ts:7"
+        ]
+      },
+      {
+        "member": "route: GET /:id @ tests/enumerate-fixture/servers/express/routes/notes.js",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style router.get route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/express/routes/notes.js:3"
+        ]
+      },
+      {
+        "member": "route: GET /api/users/[id] @ tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts:2"
+        ]
+      },
+      {
+        "member": "route: GET /health @ tests/enumerate-fixture/nextjs/app/(marketing)/health/route.js",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/app/(marketing)/health/route.js:5"
+        ]
+      },
+      {
+        "member": "route: GET /health @ tests/enumerate-fixture/servers/express/app.js",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.get route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/express/app.js:5"
+        ]
+      },
+      {
+        "member": "route: GET /notes @ tests/enumerate-fixture/servers/nodehttp/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/nodehttp/server.mjs:7"
+        ]
+      },
+      {
+        "member": "route: GET /relay/status @ tests/enumerate-fixture/effect-scope/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.get route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effect-scope/server.mjs:4"
+        ]
+      },
+      {
+        "member": "route: HEAD /health @ tests/enumerate-fixture/nextjs/app/(marketing)/health/route.js",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/app/(marketing)/health/route.js:5"
+        ]
+      },
+      {
+        "member": "route: PATCH /api/users/[id] @ tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an app-router route handler — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/nextjs/src/app/api/users/[id]/route.ts:6"
+        ]
+      },
+      {
+        "member": "route: POST /accounts/login @ tests/enumerate-fixture/signals-hono/src/accounts.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/accounts.ts:8"
+        ]
+      },
+      {
+        "member": "route: POST /accounts/logout @ tests/enumerate-fixture/signals-hono/src/accounts.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/accounts.ts:17"
+        ]
+      },
+      {
+        "member": "route: POST /admin/purge @ tests/enumerate-fixture/signals/src/admin.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style adminRouter.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/src/admin.mjs:9"
+        ]
+      },
+      {
+        "member": "route: POST /admin/reindex @ tests/enumerate-fixture/signals-hono/src/admin.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/admin.ts:15"
+        ]
+      },
+      {
+        "member": "route: POST /api/messages @ tests/enumerate-fixture/signals-hono/src/app.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/app.ts:8"
+        ]
+      },
+      {
+        "member": "route: POST /feedback @ tests/enumerate-fixture/signals/src/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/src/server.mjs:14"
+        ]
+      },
+      {
+        "member": "route: POST /health/ping @ tests/enumerate-fixture/signals-hono/src/app.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/app.ts:13"
+        ]
+      },
+      {
+        "member": "route: POST /login @ tests/enumerate-fixture/servers/express/app.js",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/express/app.js:6"
+        ]
+      },
+      {
+        "member": "route: POST /notes @ tests/enumerate-fixture/servers/nodehttp/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a node:http route (the request's method and path compared in a createServer handler) — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/servers/nodehttp/server.mjs:8"
+        ]
+      },
+      {
+        "member": "route: POST /notes @ tests/enumerate-fixture/signals-hono/src/routes/notes.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/routes/notes.ts:8"
+        ]
+      },
+      {
+        "member": "route: POST /notes @ tests/enumerate-fixture/signals/src/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals/src/server.mjs:9"
+        ]
+      },
+      {
+        "member": "route: POST /notes/:id/pin @ tests/enumerate-fixture/signals-hono/src/routes/notes.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/routes/notes.ts:19"
+        ]
+      },
+      {
+        "member": "route: POST /notes/:id/purge @ tests/enumerate-fixture/signals-orm/src/routes/notes.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-orm/src/routes/notes.ts:21"
+        ]
+      },
+      {
+        "member": "route: POST /notes/:id/share @ tests/enumerate-fixture/signals-hono/src/routes/notes.ts",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/signals-hono/src/routes/notes.ts:13"
+        ]
+      },
+      {
+        "member": "route: POST /relay/send @ tests/enumerate-fixture/effect-scope/server.mjs",
+        "population": "routeHandlers",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an Express-style app.post route — HTTP surface; assess its auth, input and effects",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effect-scope/server.mjs:5"
+        ]
+      },
+      {
+        "member": "shell exec @ tests/enumerate-fixture/effects-on-the-list/map/scanners/adapters/opengrep/control/app/run.py",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "shell exec",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/map/scanners/adapters/opengrep/control/app/run.py:4"
+        ]
+      },
+      {
+        "member": "shell exec @ tests/enumerate-fixture/effects-on-the-list/map/scanners/adapters/opengrep/helper.py",
+        "population": "effectSites",
+        "reason": "under a test/ or tests/ directory",
+        "note": "shell exec",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/effects-on-the-list/map/scanners/adapters/opengrep/helper.py:4"
+        ]
+      },
+      {
+        "member": "surface: confidence-platform-and-migrate.mjs @ tests/blocks/confidence-platform-and-migrate.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/confidence-platform-and-migrate.mjs:1"
+        ]
+      },
+      {
+        "member": "surface: lane-checks-before-publish.mjs @ tests/blocks/lane-checks-before-publish.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/lane-checks-before-publish.mjs:1"
+        ]
+      },
+      {
+        "member": "surface: migrate-run-retired-id.mjs @ tests/blocks/migrate-run-retired-id.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/migrate-run-retired-id.mjs:1"
+        ]
+      },
+      {
+        "member": "surface: migrate-run.mjs @ tests/blocks/migrate-run.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/migrate-run.mjs:1"
+        ]
+      },
+      {
+        "member": "surface: repo-census-deploy-word.mjs @ tests/blocks/repo-census-deploy-word.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/repo-census-deploy-word.mjs:1"
+        ]
+      },
+      {
+        "member": "surface: signals-orm-soft-delete.mjs @ tests/blocks/signals-orm-soft-delete.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "a delivery/integration surface named for an effect verb",
+        "gateable": false,
+        "evidence": [
+          "tests/blocks/signals-orm-soft-delete.mjs:1"
+        ]
+      },
+      {
+        "member": "tool: fixture_only_tool @ tests/enumerate-fixture/target/agent.test.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an agent tool definition (name + input_schema) — the model-invocable surface; triage as an effect channel or an inert read",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/target/agent.test.mjs:8"
+        ]
+      },
+      {
+        "member": "tool: read_thing @ tests/enumerate-fixture/target/agent.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an agent tool definition (name + input_schema) — the model-invocable surface; triage as an effect channel or an inert read",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/target/agent.mjs:18"
+        ]
+      },
+      {
+        "member": "tool: send_thing @ tests/enumerate-fixture/target/agent.mjs",
+        "population": "channelCandidates",
+        "reason": "under a test/ or tests/ directory",
+        "note": "an agent tool definition (name + input_schema) — the model-invocable surface; triage as an effect channel or an inert read",
+        "gateable": false,
+        "evidence": [
+          "tests/enumerate-fixture/target/agent.mjs:8"
+        ]
+      }
+    ]
+  }
+}

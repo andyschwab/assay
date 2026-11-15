@@ -1,0 +1,74 @@
+- id: F-200
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    No change gate exists in the reviewed tree: package.json declares only a `start` script, with
+    no test, lint, typecheck or check script, and the tree holds no CI workflow or commit hook,
+    so the `npm run test:all` the README names as the full suite resolves to no script at all.
+  evidence: ["package.json:6-8", "README.md:29-33"]
+  confidence: confirmed
+- id: F-201
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: central-regression-caught
+  observation: >
+    A subtle regression in server.mjs, the module that holds the whole route dispatch and the
+    body parse, is caught by no gate at any point (not pre-commit, not CI, not by hand), because
+    nothing in the tree runs the one test file and that file imports only lib/auth.mjs, never
+    server.mjs.
+  evidence: ["server.mjs:26-57", "test/smoke.mjs:4-5", "package.json:6-8"]
+  confidence: confirmed
+- id: F-202
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: central-regression-caught
+  observation: >
+    Even run by hand, the smoke test's one assertion cannot go red on a token-lookup regression
+    in lib/auth.mjs, because `authenticate` returns a truthy default identity for any missing or
+    unknown token and the test only asserts that the result is truthy.
+  evidence: ["test/smoke.mjs:7-9", "lib/auth.mjs:7-12"]
+  confidence: confirmed
+- id: F-203
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The smoke script fails loudly where it does assert: it uses node:assert, whose failed
+    `assert.ok` throws and ends the process non-zero before the success line is printed.
+  evidence: ["test/smoke.mjs:4", "test/smoke.mjs:9-11"]
+  confidence: confirmed
+- id: F-204
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: testable-seam
+  observation: >
+    server.mjs exports the server and listens only when run as the entry script, so a test could
+    import it and drive every route in-process, though no test in the tree does.
+  evidence: ["server.mjs:59-63"]
+  confidence: confirmed
+- id: F-205
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The request-body interface fails silently, not loudly: `readBody` turns malformed JSON into
+    an empty object, and the routes coerce absent fields to empty strings, so a wrong body still
+    creates an empty note with 201 or sends an empty question to the assistant with 200.
+  evidence: ["server.mjs:16", "server.mjs:36-39", "server.mjs:43-44"]
+  confidence: confirmed
+- id: F-206
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    `readBody` checks nothing about the stream it reads: it accumulates a body of any size with
+    no cap, validates no field type or shape against a schema, and registers no error listener,
+    so an aborted request can leave its promise unsettled rather than refused.
+  evidence: ["server.mjs:11-18"]
+  confidence: plausible

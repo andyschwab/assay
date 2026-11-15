@@ -1,0 +1,120 @@
+dimensions:
+  - dimension: artifact-legibility
+    depth: >
+      The best instance is the routine's two-job split (F-006): its contract names the attack it
+      closes, what each job runs and what the change can still reach, and the SHA-pin and id-range
+      choices carry their reasons at the choice itself (F-007, F-004); the release and pinning
+      prose is where the accounts have fallen behind the code (F-032, F-033, F-035, F-041).
+    sampled:
+      - name: decision-reconstruction
+        what: "non-obvious decisions D1-D11 frozen in the terrain, each reconstructable from the files alone"
+        members: [F-001, F-002, F-003, F-004, F-005, F-006, F-007, F-008, F-009, F-010, F-011]
+        method: "every decision the terrain freezes, D1-D11, one finding each, judged on whether the files name what was chosen and why over the obvious alternative"
+        primary: true
+      - name: doc-freshness
+        what: "concrete doc claims (commands, flags, counts, paths, steps) replayed against the tree"
+        members: [F-020, F-021, F-022, F-023, F-024, F-025, F-026, F-027, F-028, F-029, F-030, F-031, F-032, F-033, F-034, F-035]
+        method: "16 claims sampled from README.md, CLAUDE.md, CONTRIBUTING.md, RUNBOOK.md and one routed page (CONSUMERS.md release step), each replayed by reading the code it names; no command executed"
+        primary: false
+    enforced: false
+    generative: false
+  - dimension: context-economy
+    depth: >
+      The best instance is the tools composite action, one self-describing file with no in-repo
+      imports that a test loads and runs directly (F-209); every library file carries a head comment,
+      but the directory modules' import graphs run through map/project.mjs and reach 13 to 34 files
+      beyond the module (F-201, F-206, F-208), while for review agents the lane's per-pass slicing is
+      a real progressive-disclosure mechanism (F-213).
+    sampled:
+      - name: modules-standalone
+        what: "modules M1-M10 frozen in the terrain, each with a head comment or README, a test that imports it directly, and transitive in-repo imports reaching at most ten source files"
+        members: [F-200, F-201, F-202, F-203, F-204, F-205, F-206, F-207, F-208, F-209]
+        method: "every module the terrain lists, M1-M10, one finding each; import closure read from the static and string-literal dynamic import specifiers of every source file outside tests/, counted outside the module; tests read from tests/blocks/ and tests/regression.mjs only"
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: deterministic-gates
+    depth: >
+      The best instance is the landing gate and its red proofs: lib/gate.mjs counts any non-zero or
+      null status as failed and stops red when the pinned tools are absent (F-301, F-309), and
+      prove-red kills a check at 10 minutes and reads an empty list as red (F-310), each driven red by
+      planted fixtures (F-320, F-322); the weak seams are the regression runner's missing per-block
+      timeout (F-307) and a release path narrower than the gate its header names (F-313).
+    sampled:
+      - name: change-gates
+        what: "every change gate (CI step, hook, config-driven check, and the gate's own sub-steps) goes red, never green, when what it needs is absent or its check never finishes"
+        members: [F-300, F-301, F-302, F-303, F-304, F-305, F-306, F-307, F-308, F-309, F-310, F-311, F-312]
+        method: "every candidate of populations.changeGates triaged once (census-triage-gates.yaml), setup and effect steps out of scope; the gate's tools, prove-red, passes and release-notes sub-steps added as members outside the list; no commit or push hook exists in the tree; each member's script read for its behaviour when its tool, input or target is absent and for a timeout"
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: verification
+    depth: >
+      The best instance is the repeatability harness over the review method itself: blind sweep sets
+      measured on three layers with divergences sorted into target change or judgment drift and gated
+      at a committed threshold (F-400), beside mechanical red proofs (F-407) and effect checks that
+      refuse to read an exit code or zero hits as success (F-408, F-409); the pull request's
+      verification section is read by nothing (F-403).
+    enforced: false
+    generative: false
+  - dimension: delegation
+    depth: >
+      The best instances hold at the irreversible boundary: the release refuses a malformed or existing version and
+      a red suite before it tags, from the one job holding contents write (F-523), and branch-cleanup splits a
+      read-only plan from a write-only delete that re-reads each branch and refuses the default branch or a KEEP
+      name (F-504, F-565); the target-executing instruments are the weak class, fresh-clone, structure-scan and
+      dependency-scan running with no refusal on the routine's path (F-512, F-516, F-511).
+    sampled:
+      - name: credential
+        what: "every secret the running application reads, each judged on whether its read site and what it may do there are traced in the code"
+        members: [F-600, F-601, F-602, F-603]
+        method: "the 30 candidates of populations.secrets, each triaged once in census-triage (census credential): 26 out of scope as test-fixture strings, doc examples or identifier constants, 4 live tokens one finding each"
+        primary: true
+      - name: ingested-content
+        what: "every place text from outside the team enters the engine, each asked whether it is kept as data and never acted on as an instruction"
+        members: [F-650, F-651, F-652, F-653, F-654, F-655, F-656, F-657, F-658, F-659]
+        method: "ingestion points enumerated from the code: the target tree enumerate reads, scanner and reviewer reports ingest reads and the views render, the README claims and step plan fresh-clone reads, the services declaration, the routine's handoff, the owner packet, the base ref, upstream release metadata, and the target tree a review lane hands a model; one finding each"
+        primary: false
+    enforced: false
+    generative: false
+  - dimension: improvement-loop
+    depth: >
+      Where a lesson is mechanized it is held tightly: the Red-then-green rule became a mutation list the
+      gate re-proves on every CI run (F-814), and recorded false-greens became fail-closed refusals each
+      pinned by a negative fixture or block (F-804, F-805, F-816); the lessons left as prose are method and
+      code-hazard notes (F-801, F-802, F-813).
+    sampled:
+      - name: incidents-became-mechanisms
+        what: "recorded lessons (calibration notes, incidents and fixes that name their cause) that became a test, check or guard that would catch the same failure"
+        members: [F-801, F-802, F-803, F-804, F-805, F-806, F-807, F-808, F-809, F-810, F-811, F-812, F-813, F-814, F-815, F-816]
+        method: "every lesson the tree states with its cause, found by reading CLAUDE.md, CONTRIBUTING.md, the calibration notes in map/METHOD.md and map/SCHEMA.md, tests/prove-red.mjs and a grep of the non-test source for recorded failures (once, used to, calibration run, false-green); one finding each, judged on whether a block, negative fixture or gate step fails on the cause named"
+        primary: true
+    enforced: false
+    generative: false
+  - dimension: multiplayer
+    depth: >
+      The best instance is the consumer contract page, which gives each listed command's flags,
+      its JSON output shape and its exit codes and binds changes to it with a Consumer trailer
+      (F-914, F-920, F-908); every data format has a field-level doc page (F-930 to F-946), and
+      one command, owner, has its usage only in code (F-926).
+    sampled:
+      - name: agent-access-surface
+        what: "interfaces (the commands of the assay.mjs table and the data formats other tools read) whose usage or fields a contract outside the code states"
+        members: [F-900, F-901, F-902, F-903, F-904, F-905, F-906, F-907, F-908, F-909, F-910, F-911, F-912, F-913, F-914, F-915, F-916, F-917, F-918, F-919, F-920, F-921, F-922, F-923, F-924, F-925, F-926, F-927, F-928, F-929, F-930, F-931, F-932, F-933, F-934, F-935, F-936, F-937, F-938, F-939, F-940, F-941, F-942, F-943, F-944, F-945, F-946]
+        method: "every command at assay.mjs:21-57 (30) and every data format the terrain names (17, the view data files and the two triage files one finding each), one finding each; met when a doc page gives the command's usage or the format's fields"
+        primary: true
+    enforced: false
+    generative: false
+context:
+  - name: second-accounts
+    members: [F-040, F-041, F-042, F-043, F-044, F-045, F-046]
+  - name: guard-fixtures
+    members: [F-320, F-321, F-322, F-323, F-324, F-325]
+  - name: rubric-calibration
+    members: [F-400, F-401, F-402]
+  - name: change-verification
+    members: [F-403, F-404, F-405]
+  - name: ai-feature-evals
+    members: [F-406]
+  - name: backlog-records
+    members: [F-830, F-831, F-832, F-833, F-834, F-835]

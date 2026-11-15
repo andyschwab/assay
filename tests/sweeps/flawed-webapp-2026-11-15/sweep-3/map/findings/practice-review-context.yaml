@@ -1,0 +1,99 @@
+- id: F-100
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    server.mjs opens with a head comment and its transitive imports reach 7 repository files
+    (within ten), but no test file imports it, so it has nothing to run on its own.
+  evidence: [server.mjs:1-2, server.mjs:4-9, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-101
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/agent.mjs has a head comment and imports 3 repository files transitively (db, mailer,
+    settings), but no test imports it, so the assistant module has nothing to run.
+  evidence: [lib/agent.mjs:1-7, lib/agent.mjs:8-9, lib/mailer.mjs:3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-102
+  dimension: context-economy
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    lib/auth.mjs meets all three parts of the bar: a head comment, a test that imports it
+    directly, and one transitive import (lib/db.mjs, which imports nothing).
+  evidence: [lib/auth.mjs:1-2, test/smoke.mjs:5, lib/db.mjs:1-2]
+  confidence: confirmed
+- id: F-103
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/db.mjs has a head comment and imports nothing, but no test imports it, so the store
+    the ADR names as the stable interface has nothing to run.
+  evidence: [lib/db.mjs:1, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-104
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/mailer.mjs has a head comment and one transitive import (config/settings.mjs), but no
+    test imports it.
+  evidence: [lib/mailer.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-105
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    lib/sync.mjs has a head comment and two transitive imports (db, settings), but no test
+    imports it.
+  evidence: [lib/sync.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-106
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    routes/admin.mjs has a one-line head comment and two transitive imports (db, auth), but no
+    test imports it.
+  evidence: [routes/admin.mjs:1-3, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-107
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    config/settings.mjs has a head comment and imports nothing, but no test imports it.
+  evidence: [config/settings.mjs:1-2, test/smoke.mjs:4-5]
+  confidence: confirmed
+- id: F-108
+  dimension: context-economy
+  polarity: gap
+  subject_type: control
+  observation: >
+    The model call site (callModel, called once from ask) writes no record of any kind, so
+    no tier, spend or outcome is captured on success or on a tool-directive return.
+  evidence: [lib/agent.mjs:27-31, lib/agent.mjs:33-43]
+  confidence: confirmed
+- id: F-109
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The one model in use is a local stand-in that names no model or tier, and neither the
+    README nor the ADR records a model choice, its rationale or a re-qualification trigger.
+  evidence: [lib/agent.mjs:4-7, lib/agent.mjs:23-31, README.md:3-5, docs/adr/0001-storage-choice.md:25-29]
+  confidence: confirmed
+- id: F-110
+  dimension: context-economy
+  polarity: gap
+  subject_type: artifact
+  property: entry-docs-route-a-stranger
+  observation: >
+    The README routes a stranger by endpoint only and names no module, directory or the ADR,
+    so routing to the subsystem a task needs falls to the head comment in server.mjs.
+  evidence: [README.md:12-35, server.mjs:1-2, docs/adr/0001-storage-choice.md:1]
+  confidence: confirmed

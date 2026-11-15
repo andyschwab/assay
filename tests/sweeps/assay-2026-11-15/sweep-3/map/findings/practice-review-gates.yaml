@@ -1,0 +1,314 @@
+# Pass 3 — deterministic gates. Census change-gates (d-change-gates-fail-closed): F-300 to F-312.
+# Context guard-fixtures (d-guards-bite): F-320 to F-325. Outside any list: F-313 to F-316.
+- id: F-300
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml tools step runs the composite action under set -euo pipefail, whose install exits 1 on
+    any failed or unsupported tool and whose verify marks a tool absent, broken (including a version
+    probe killed at its 60 s timeout) or other-version and exits 1, so a missing tool turns the step red;
+    a download with no time limit of its own is bounded by the job's 15-minute timeout, and an empty
+    instrument selection reads as success because nothing is needed.
+  evidence:
+    - ".github/workflows/ci.yml:21"
+    - ".github/workflows/ci.yml:37"
+    - ".github/actions/tools/action.yml:25-31"
+    - "map/tools.mjs:73"
+    - "map/tools.mjs:142"
+    - "map/tools.mjs:149-158"
+    - "map/tools.mjs:233-244"
+  confidence: confirmed
+- id: F-301
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The ci.yml gate step runs lib/gate.mjs, which counts any step status other than 0 as failed
+    (a null status from a missing command or a signal included), stops red when the pinned tools do
+    not verify, and exits 1 when any step failed; a step that never finishes is cut off by the job's
+    15-minute timeout, so it never reads green.
+  evidence:
+    - ".github/workflows/ci.yml:21"
+    - ".github/workflows/ci.yml:38"
+    - "lib/gate.mjs:39-58"
+  confidence: confirmed
+- id: F-302
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml tools step calls the same composite action as CI, so a tool that fails to
+    install or verify fails the step before the tests and the tag, under the job's 20-minute timeout.
+  evidence:
+    - ".github/workflows/release.yml:22"
+    - ".github/workflows/release.yml:40"
+    - ".github/actions/tools/action.yml:25-31"
+    - "map/tools.mjs:233-244"
+  confidence: confirmed
+- id: F-303
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml npm test step runs the regression harness, which exits non-zero on any unit or
+    negative failure, a scored drift, or a missing golden.json, and the job's 20-minute timeout ends
+    a block that never finishes before the tag step is reached.
+  evidence:
+    - ".github/workflows/release.yml:22"
+    - ".github/workflows/release.yml:41"
+    - "tests/regression.mjs:72-76"
+    - "tests/harness.mjs:244"
+    - "tests/harness.mjs:255-266"
+  confidence: confirmed
+- id: F-304
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml Consumer trailer check exits 1 on a shallow history, on a CONSUMERS.md with no
+    surface block, on any git error, and on each surface-touching commit with no Consumer trailer,
+    and the release checks out full history for it.
+  evidence:
+    - ".github/workflows/release.yml:28"
+    - ".github/workflows/release.yml:42-43"
+    - "lib/release-notes.mjs:69"
+    - "lib/release-notes.mjs:76"
+    - "lib/release-notes.mjs:96-111"
+  confidence: confirmed
+- id: F-305
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The release.yml version step runs under set -euo pipefail and refuses with exit 1 any version that
+    does not match vX.Y.Z, an empty input included, and any version already present as a tag.
+  evidence:
+    - ".github/workflows/release.yml:33-38"
+  confidence: confirmed
+- id: F-306
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The lint script (lib/check-syntax.mjs) refuses an empty module listing as clean, throws when git
+    cannot list, and exits 1 naming every module node --check cannot parse, a null status from a
+    failed spawn counted as a failure.
+  evidence:
+    - "package.json:11"
+    - "lib/check-syntax.mjs:11-16"
+  confidence: confirmed
+- id: F-307
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The test script's parallel runner waits on each block's process close with no timer, so a block
+    that hangs leaves npm test without a verdict wherever no outer timeout applies (a contributor's
+    npm test or npm run gate), though a crashed or killed block is a failure and an empty block
+    directory is refused; prove-red's per-check runner, by contrast, kills a check at 10 minutes.
+  evidence:
+    - "package.json:9"
+    - "tests/regression.mjs:57"
+    - "tests/harness.mjs:75"
+    - "tests/harness.mjs:160-182"
+    - "tests/harness.mjs:183-198"
+    - "tests/prove-red.mjs:367"
+  confidence: confirmed
+- id: F-308
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The typecheck script runs tsc over a fixed include list with noEmit, so an absent compiler or an
+    include that matches no file exits non-zero rather than passing; the include covers the engine
+    directories and not tests/.
+  evidence:
+    - "package.json:12"
+    - "package.json:19"
+    - "tsconfig.json:2-12"
+  confidence: plausible
+- id: F-309
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The gate's own tools step (a sub-step of npm run gate, outside the candidate list) verifies the
+    pinned tools first and, on any non-zero status, stops with the install line and exit 1 before any
+    check runs.
+  evidence:
+    - "lib/gate.mjs:26"
+    - "lib/gate.mjs:42-47"
+  confidence: confirmed
+- id: F-310
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The gate's prove-red step (outside the candidate list) reads an empty entry list as red, kills a
+    check at its 10-minute timeout and counts a check that ended without reporting as not holding,
+    and exits 1 when any entry did not hold.
+  evidence:
+    - "lib/gate.mjs:29"
+    - "tests/prove-red.mjs:356-379"
+    - "tests/prove-red.mjs:396-421"
+    - "tests/prove-red.mjs:453-458"
+    - "tests/prove-red.mjs:477-478"
+  confidence: confirmed
+- id: F-311
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The gate's passes step (outside the candidate list) runs map/passes.mjs in its default check mode,
+    which throws on a passes file with no passes list, exits 2 on any thrown error, and exits 1 on an
+    ownership, context or shape error or a METHOD.md block that drifted.
+  evidence:
+    - "lib/gate.mjs:32"
+    - "map/passes.mjs:50-53"
+    - "map/passes.mjs:293-310"
+  confidence: confirmed
+- id: F-312
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  observation: >
+    The gate's release-notes step (outside the candidate list) runs the same trailer check as the
+    release, so a contributor's shallow clone turns it red rather than reading an unread range as clean.
+  evidence:
+    - "lib/gate.mjs:33"
+    - "lib/release-notes.mjs:15-16"
+    - "lib/release-notes.mjs:69"
+    - "lib/release-notes.mjs:99-102"
+  confidence: confirmed
+- id: F-313
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: contract
+  observation: >
+    release.yml's header says it runs the gate on the dispatched commit, but its step runs npm test
+    alone, so the release path skips the gate's prove-red, typecheck, lint and passes steps, and the
+    block that holds release.yml pins npm test rather than npm run gate.
+  evidence:
+    - ".github/workflows/release.yml:6"
+    - ".github/workflows/release.yml:41"
+    - "lib/gate.mjs:27-34"
+    - "tests/blocks/consumer-contract.mjs:139"
+  confidence: confirmed
+- id: F-314
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: central-regression-caught
+  observation: >
+    A subtle regression in map/validate.mjs, the format contract, is caught in CI on every pull request
+    and push to main and by hand through npm run gate, by the negative fixtures that must each validate
+    red for their own reason and by prove-red entries that mutate its rules; the tree carries no commit
+    or push hook, so nothing catches it before the commit.
+  evidence:
+    - ".github/workflows/ci.yml:10-13"
+    - ".github/workflows/ci.yml:38"
+    - "tests/blocks/negative-fixtures.mjs:64-75"
+    - "tests/prove-red.mjs:70"
+    - "tests/prove-red.mjs:90"
+    - "tests/prove-red.mjs:130"
+    - "package.json:8-17"
+  confidence: confirmed
+- id: F-315
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The CLI refuses a run-directory command whose directory does not exist with its usage and exit 2,
+    the tools command refuses an unknown option as a usage error rather than selecting every tool, and
+    validate exits 2 with no run directory and 1 on a run in a legacy format.
+  evidence:
+    - "assay.mjs:90-99"
+    - "map/tools.mjs:224-229"
+    - "map/tools.mjs:249-251"
+    - "map/validate.mjs:98-119"
+  confidence: confirmed
+- id: F-316
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: contract
+  property: interface-contract-enforced
+  observation: >
+    The one YAML reader every run file passes through throws on anchors, aliases, tags, nested flow
+    collections and unbalanced brackets, naming the plain form to write, instead of returning a value.
+  evidence:
+    - "lib/yaml-min.mjs:54-58"
+    - "lib/yaml-min.mjs:79-81"
+  confidence: confirmed
+- id: F-320
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    tests/prove-red.mjs holds a list of mutation entries, each requiring its named check to go red
+    with the mutation, on a failure line matching its own reason, and green without it, and the gate
+    runs the whole list.
+  evidence:
+    - "tests/prove-red.mjs:1-21"
+    - "tests/prove-red.mjs:42"
+    - "tests/prove-red.mjs:396-421"
+    - "lib/gate.mjs:29"
+  confidence: confirmed
+- id: F-321
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The negative-fixtures block runs validate over each deliberately malformed run under
+    tests/negative/ and fails when one validates green, is red for no listed reason, or is red for a
+    reason other than its own check.
+  evidence:
+    - "tests/blocks/negative-fixtures.mjs:9-16"
+    - "tests/blocks/negative-fixtures.mjs:64-75"
+  confidence: confirmed
+- id: F-322
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The gate-command block drives lib/gate.mjs with no pinned tool on PATH and with a planted step that
+    exits 3, and fails unless the gate stops red at the tools, names the failed step and exits 1.
+  evidence:
+    - "tests/blocks/gate-command.mjs:35-56"
+    - "tests/blocks/gate-command.mjs:69-72"
+  confidence: confirmed
+- id: F-323
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The prove-red-script block holds prove-red itself over a planted tree, failing unless an entry
+    whose check stays green, whose from occurs twice or nowhere, or whose red matches no failure line
+    fails the script, and an empty list fails.
+  evidence:
+    - "tests/blocks/prove-red-script.mjs:1-20"
+  confidence: confirmed
+- id: F-324
+  dimension: deterministic-gates
+  polarity: strength
+  subject_type: control
+  observation: >
+    The ci-interface block runs the tools action's script against a planted assay.mjs and requires
+    the step to fail and put nothing on PATH when the install or the verify fails.
+  evidence:
+    - "tests/blocks/ci-interface.mjs:4-8"
+    - ".github/actions/tools/action.yml:25-31"
+  confidence: confirmed
+- id: F-325
+  dimension: deterministic-gates
+  polarity: gap
+  subject_type: control
+  observation: >
+    The lint check (lib/check-syntax.mjs) carries no negative fixture: the only block that names it
+    checks that build and lint run the same command, so neither its empty-listing refusal nor its
+    failure on a module that does not parse is seen red.
+  evidence:
+    - "lib/check-syntax.mjs:13-15"
+    - "tests/blocks/ci-workflow.mjs:55-60"
+  confidence: plausible

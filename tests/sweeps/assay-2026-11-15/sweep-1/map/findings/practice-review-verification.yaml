@@ -1,0 +1,182 @@
+- id: F-300
+  dimension: verification
+  polarity: gap
+  subject_type: contract
+  observation: >
+    The pull request template's "How this is verified" section is an HTML-comment prompt, and no
+    workflow or harness block reads a pull request body, so an empty or unedited section lands
+    unrefused; the only test touching the template checks that CONTRIBUTING.md names it.
+  evidence: [".github/PULL_REQUEST_TEMPLATE.md:5-10", ".github/workflows/ci.yml:10-13", "tests/blocks/gate-command.mjs:59-63"]
+  confidence: confirmed
+- id: F-301
+  dimension: verification
+  polarity: strength
+  subject_type: process
+  observation: >
+    CONTRIBUTING.md's landing steps name the concrete evidence a change carries (the gate's one
+    exit line, each new assertion confirmed red then green, a reasoned re-bless of golden.json),
+    and a harness block fails if any of those steps drops out of the page.
+  evidence: ["CONTRIBUTING.md:19-42", "CONTRIBUTING.md:53-54", "tests/blocks/gate-command.mjs:59-63"]
+  confidence: confirmed
+- id: F-302
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    For an assertion outside the red-proof list, the "confirmed red" evidence is a statement in
+    the commit message and pull request body that nothing checks.
+  evidence: ["CLAUDE.md:55-63", "CONTRIBUTING.md:29-33"]
+  confidence: confirmed
+- id: F-303
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    tests/prove-red.mjs re-proves on every gate run that each core invariant's named check goes red
+    for its own reason under a stated source mutation and green without it, failing an entry whose
+    pinned code text moved.
+  evidence: ["tests/prove-red.mjs:1-20", "lib/gate.mjs:27-34"]
+  confidence: confirmed
+- id: F-304
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The Consumer-trailer check exits 1 naming each commit that touches the consumer surface without
+    a Consumer trailer, treats a shallow history as a failure, and runs in both the gate and the
+    release job; it checks the trailer is present, so a "Consumer: none" with any reason passes.
+  evidence: ["lib/release-notes.mjs:15-16", "lib/release-notes.mjs:36", "lib/release-notes.mjs:103-110", ".github/workflows/release.yml:42-43", "lib/gate.mjs:33"]
+  confidence: confirmed
+- id: F-305
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    variance --set measures a committed blind sweep set against its own thresholds and exits 1 below
+    any, refuses a threshold of 0, and the harness runs every committed set and proves a fixture set
+    turns red one point above its measured value.
+  evidence: ["map/variance.mjs:67-73", "map/variance.mjs:532", "tests/blocks/sweep-gate.mjs:20-25", "tests/blocks/sweep-gate.mjs:31-41"]
+  confidence: confirmed
+- id: F-306
+  dimension: verification
+  polarity: fact
+  subject_type: artifact
+  observation: >
+    The practice-review rubric (map/METHOD.md) records its own measured repeatability on the newest
+    blind set over this repository as 13% fact presence, 40% descriptor agreement and 92% requirement
+    agreement, and variance classifies divergence by direction (both ways read as judgment drift).
+  evidence: ["map/variance.mjs:39-44", "map/variance.mjs:62-65", "map/variance.mjs:296-298", "map/METHOD.md:828-836"]
+  confidence: confirmed
+- id: F-307
+  dimension: verification
+  polarity: gap
+  subject_type: process
+  observation: >
+    Whether a committed sweep set must be re-run after the rubric moves is answered by an on-demand
+    check-method command; the harness gates each set at its threshold without reading it, so a set
+    drawn under an older METHOD.md stays green.
+  evidence: ["tests/blocks/sweep-gate.mjs:20-25", "map/variance.mjs:75-80", "map/METHOD.md:832-836"]
+  confidence: plausible
+- id: F-308
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The deep-code-review lane pins its reviewer method to an exact commit and version it must confirm
+    before reading, but no file outside the excluded sweep directory states a measured repeatability
+    for that lane, and its fixture reports are recorded as not blind.
+  evidence: ["map/scanners/adapters/deep-code-review/lane.md:17", "tests/fixtures/README.md:51-56"]
+  confidence: unverified
+- id: F-309
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The score command grades a run's findings against a fixture's known-answer sheet for recall,
+    mis-homing and control false positives, and the regression harness pins each fixture's recall in
+    golden.json, failing on drift unless a reasoned re-bless lands in the same commit.
+  evidence: ["map/score.mjs:2-31", "tests/golden.json:11-34", "CONTRIBUTING.md:38-42"]
+  confidence: confirmed
+- id: F-310
+  dimension: verification
+  polarity: gap
+  subject_type: artifact
+  observation: >
+    The model-produced reviews scored in CI are committed reports drawn with the answers published, so
+    the eval proves the ingest, projection and scoring pipeline and not the reviewer's blind recall;
+    no CI step produces a fresh model answer to grade.
+  evidence: ["tests/fixtures/README.md:51-56", "map/METHOD.md:828-832"]
+  confidence: confirmed
+- id: F-311
+  dimension: verification
+  polarity: strength
+  subject_type: artifact
+  observation: >
+    A change can show its effect on committed targets, the public fixture runs scored against frozen
+    answer sheets and the enumerate fixture trees the harness enumerates, rather than on prose.
+  evidence: ["tests/fixtures/README.md:11-31", "tests/blocks/enumerate-gate.mjs:14", "tests/enumerate-fixture/credentials/README.md:1-8"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-312
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    The gate's own behaviour is demonstrated with planted steps, a step that exits 3 must yield exit 1
+    and an exit line naming it while every later step still runs, and a green run one exact line.
+  evidence: ["tests/blocks/gate-command.mjs:47-56", "lib/gate.mjs:48-58"]
+  confidence: confirmed
+  property: change-demonstrable
+- id: F-313
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    Ingest requires the instrument's own exit code as digits and halts when it falls outside the
+    tool's success set or disagrees with the report's content, writing an explicit zero-findings file
+    only for a verified-clean run.
+  evidence: ["map/ingest.mjs:9-14", "map/ingest.mjs:573-583"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-314
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    A fresh-clone test step that reports passed but skipped tests becomes a gap row stating the pass
+    covers only the tests that ran, not the suite.
+  evidence: ["map/ingest.mjs:180-190"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-315
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    The release workflow's publish step trusts the release command's exit code, with no read-back
+    of the created tag or release before the job reports success.
+  evidence: [".github/workflows/release.yml:44-50"]
+  confidence: confirmed
+  property: effect-confirmed-not-reported
+- id: F-316
+  dimension: verification
+  polarity: strength
+  subject_type: control
+  observation: >
+    validate --target fails closed on a cited path missing from the target or a line past its end,
+    --lane refuses to run without --target, and the practice-review lane may publish only once that
+    check ends clean.
+  evidence: ["map/validate.mjs:107-112", "map/validate.mjs:493-499", "map/scanners/adapters/practice-review/lane.md:23"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency
+- id: F-317
+  dimension: verification
+  polarity: gap
+  subject_type: control
+  observation: >
+    No check reads whether a cited line says what a finding claims, which validate states of itself;
+    the deep-code-review lane's re-resolve of evidence is a prose instruction, and ingest's
+    completeness check covers coverage rows, not finding content.
+  evidence: ["map/validate.mjs:459-462", "map/scanners/adapters/deep-code-review/lane.md:21", "map/ingest.mjs:24-27"]
+  confidence: confirmed
+  property: output-checked-regardless-of-fluency

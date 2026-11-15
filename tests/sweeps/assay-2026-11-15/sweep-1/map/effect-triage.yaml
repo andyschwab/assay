@@ -1,0 +1,341 @@
+schema: effect-triage
+version: 2
+triage:
+  - candidate: "surface: migrate-run.mjs"
+    finding: F-411
+    clause: channel-acts
+    answers:
+      refuses_unless: { answer: yes, what: "each rewritten flow list reads back to what the legacy rule read and the whole file parses, else the file is left as it was", held_by: code, evidence: ["map/migrate-run.mjs:92", "map/migrate-run.mjs:93"] }
+      second_act: { answer: yes, evidence: ["map/migrate-run.mjs:122", "map/migrate-run.mjs:127", "map/migrate-run.mjs:131"] }
+      staged: { answer: no, evidence: ["map/migrate-run.mjs:112"] }
+      person_act: { answer: yes, evidence: ["assay.mjs:28", "map/migrate-run.mjs:24"] }
+      declared_scope: { answer: no, evidence: ["map/migrate-run.mjs:102"] }
+      rate_limit: { answer: no, evidence: ["map/migrate-run.mjs:112"] }
+      disclosed: { answer: no, evidence: ["map/migrate-run.mjs:126"] }
+      received_or_gone: { answer: yes, evidence: ["map/migrate-run.mjs:102", "map/migrate-run.mjs:112"] }
+      window: { answer: no, evidence: ["map/migrate-run.mjs:112"] }
+  - candidate: "route: POST /login"
+    finding: F-423
+    clause: route-method-writes
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+      second_act: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+      staged: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+      person_act: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+      declared_scope: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+      rate_limit: { answer: no, evidence: ["map/effect-signals.mjs:293"], against_signal: "the cited line is a code comment inside the enumerator describing a pattern; no module outside the tests registers a /login route, so no limiter stands on any path, and the signal's second citation is a test fixture" }
+      disclosed: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+      received_or_gone: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+      window: { answer: no, evidence: ["map/effect-signals.mjs:293"] }
+  - candidate: "artifact upload (workflow) @ routine/assay-routine.yml"
+    finding: F-403
+    clause: workflow-write
+    answers:
+      refuses_unless: { answer: no, evidence: ["routine/assay-routine.yml:182", "routine/assay-routine.yml:184"] }
+      second_act: { answer: no, evidence: ["routine/assay-routine.yml:184"] }
+      staged: { answer: no, evidence: ["routine/assay-routine.yml:184"] }
+      person_act: { answer: no, evidence: ["routine/assay-routine.yml:17", "routine/assay-routine.yml:22", "routine/assay-routine.yml:24"] }
+      declared_scope: { answer: no, evidence: ["routine/assay-routine.yml:32", "routine/assay-routine.yml:184"], against_signal: "the workflow permissions block bounds the job's GITHUB_TOKEN, while the upload action authenticates with the runner's own runtime credential, which that block does not govern, so it bounds nothing about this write" }
+      rate_limit: { answer: no, evidence: ["routine/assay-routine.yml:186"] }
+      disclosed: { answer: no, evidence: ["routine/assay-routine.yml:184"] }
+      received_or_gone: { answer: no, evidence: ["routine/assay-routine.yml:186", "routine/assay-routine.yml:188"] }
+      window: { answer: yes, evidence: ["routine/assay-routine.yml:82", "routine/assay-routine.yml:188"] }
+  - candidate: "git push @ map/effect-scope.mjs"
+    finding: F-424
+    clause: client-call-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      second_act: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      staged: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      person_act: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      declared_scope: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      rate_limit: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      disclosed: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      received_or_gone: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+      window: { answer: no, evidence: ["map/effect-scope.mjs:125"] }
+  - candidate: "github api write (workflow) @ .github/workflows/branch-cleanup.yml"
+    finding: F-401
+    clause: workflow-write
+    answers:
+      refuses_unless: { answer: yes, what: "each planned branch still has its planned tip and is unprotected, and is neither the default branch nor under KEEP, else it is kept or the run fails before deleting", held_by: code, evidence: [".github/workflows/branch-cleanup.yml:123", ".github/workflows/branch-cleanup.yml:124", ".github/workflows/branch-cleanup.yml:130"] }
+      second_act: { answer: no, evidence: [".github/workflows/branch-cleanup.yml:36", ".github/workflows/branch-cleanup.yml:66"] }
+      staged: { answer: no, evidence: [".github/workflows/branch-cleanup.yml:131"] }
+      person_act: { answer: no, evidence: [".github/workflows/branch-cleanup.yml:36"] }
+      declared_scope: { answer: yes, evidence: [".github/workflows/branch-cleanup.yml:111", ".github/workflows/branch-cleanup.yml:112"] }
+      rate_limit: { answer: no, evidence: [".github/workflows/branch-cleanup.yml:127", ".github/workflows/branch-cleanup.yml:131"] }
+      disclosed: { answer: no, evidence: [".github/workflows/branch-cleanup.yml:132"] }
+      received_or_gone: { answer: no, evidence: [".github/workflows/branch-cleanup.yml:86", ".github/workflows/branch-cleanup.yml:89", ".github/workflows/branch-cleanup.yml:100"] }
+      window: { answer: no, evidence: [".github/workflows/branch-cleanup.yml:86", ".github/workflows/branch-cleanup.yml:131"] }
+  - candidate: "http write (js) @ map/tools.mjs"
+    finding: F-404
+    clause: client-call-runtime
+    answers:
+      refuses_unless: { answer: yes, what: "the downloaded artifact's sha256 equals the adapter's pinned sum, else nothing is installed", held_by: code, evidence: ["map/tools.mjs:126", "map/tools.mjs:127"] }
+      second_act: { answer: no, evidence: ["map/tools.mjs:125"] }
+      staged: { answer: no, evidence: ["map/tools.mjs:130"] }
+      person_act: { answer: no, evidence: [".github/actions/tools/action.yml:29", ".github/workflows/ci.yml:37"] }
+      declared_scope: { answer: no, evidence: ["map/tools.mjs:130"] }
+      rate_limit: { answer: yes, evidence: ["map/tools.mjs:100"] }
+      disclosed: { answer: no, evidence: ["map/tools.mjs:237"] }
+      received_or_gone: { answer: yes, evidence: ["map/tools.mjs:130", "map/tools.mjs:142"] }
+      window: { answer: no, evidence: ["map/tools.mjs:130"] }
+  - candidate: "issue/pr write (workflow) @ .github/workflows/tools-check.yml"
+    finding: F-402
+    clause: workflow-write
+    answers:
+      refuses_unless: { answer: no, evidence: [".github/workflows/tools-check.yml:33", ".github/workflows/tools-check.yml:35"] }
+      second_act: { answer: no, evidence: [".github/workflows/tools-check.yml:33"] }
+      staged: { answer: no, evidence: [".github/workflows/tools-check.yml:33"] }
+      person_act: { answer: no, evidence: [".github/workflows/tools-check.yml:8"] }
+      declared_scope: { answer: yes, evidence: [".github/workflows/tools-check.yml:17"] }
+      rate_limit: { answer: yes, evidence: [".github/workflows/tools-check.yml:32", ".github/workflows/tools-check.yml:35"] }
+      disclosed: { answer: no, evidence: [".github/workflows/tools-check.yml:33"] }
+      received_or_gone: { answer: yes, evidence: [".github/workflows/tools-check.yml:33", ".github/workflows/tools-check.yml:35"] }
+      window: { answer: no, evidence: [".github/workflows/tools-check.yml:33"] }
+  - candidate: "process spawn (js) @ assay.mjs"
+    finding: F-412
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: yes, what: "the command names one of the engine scripts the dispatcher lists, else it exits 2 and spawns nothing", held_by: code, evidence: ["assay.mjs:78", "assay.mjs:79", "assay.mjs:82"] }
+      second_act: { answer: no, evidence: ["assay.mjs:98"] }
+      staged: { answer: no, evidence: ["assay.mjs:98"] }
+      person_act: { answer: no, evidence: ["routine/run.mjs:89", "routine/assay-routine.yml:20"] }
+      declared_scope: { answer: no, evidence: ["assay.mjs:98"] }
+      rate_limit: { answer: no, evidence: ["assay.mjs:98"] }
+      disclosed: { answer: no, evidence: ["assay.mjs:98"] }
+      received_or_gone: { answer: no, evidence: ["assay.mjs:98"] }
+      window: { answer: no, evidence: ["assay.mjs:98"] }
+  - candidate: "process spawn (js) @ lib/check-syntax.mjs"
+    finding: F-413
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["lib/check-syntax.mjs:14"] }
+      second_act: { answer: no, evidence: ["lib/check-syntax.mjs:14"] }
+      staged: { answer: no, evidence: ["lib/check-syntax.mjs:14"] }
+      person_act: { answer: no, evidence: ["lib/gate.mjs:31", ".github/workflows/ci.yml:11"] }
+      declared_scope: { answer: no, evidence: ["lib/check-syntax.mjs:14"] }
+      rate_limit: { answer: no, evidence: ["lib/check-syntax.mjs:14"] }
+      disclosed: { answer: no, evidence: ["lib/check-syntax.mjs:16"] }
+      received_or_gone: { answer: no, evidence: ["lib/check-syntax.mjs:11", "lib/check-syntax.mjs:14"] }
+      window: { answer: no, evidence: ["lib/check-syntax.mjs:14"] }
+  - candidate: "process spawn (js) @ lib/gate.mjs"
+    finding: F-414
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: yes, what: "the pinned tools answer at their pins on PATH before any check step runs", held_by: code, evidence: ["lib/gate.mjs:43", "lib/gate.mjs:46"] }
+      second_act: { answer: no, evidence: ["lib/gate.mjs:40"] }
+      staged: { answer: no, evidence: ["lib/gate.mjs:40"] }
+      person_act: { answer: no, evidence: [".github/workflows/ci.yml:11", ".github/workflows/ci.yml:38"] }
+      declared_scope: { answer: no, evidence: [".github/workflows/ci.yml:15", "lib/gate.mjs:40"] }
+      rate_limit: { answer: no, evidence: ["lib/gate.mjs:40"] }
+      disclosed: { answer: no, evidence: ["lib/gate.mjs:42"] }
+      received_or_gone: { answer: yes, evidence: ["lib/gate.mjs:30", "lib/gate.mjs:40"] }
+      window: { answer: no, evidence: ["lib/gate.mjs:40"] }
+  - candidate: "process spawn (js) @ lib/release-notes.mjs"
+    finding: F-415
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["lib/release-notes.mjs:58", "lib/release-notes.mjs:69"] }
+      second_act: { answer: no, evidence: ["lib/release-notes.mjs:58"] }
+      staged: { answer: no, evidence: ["lib/release-notes.mjs:58"] }
+      person_act: { answer: no, evidence: ["lib/gate.mjs:33", ".github/workflows/ci.yml:11"] }
+      declared_scope: { answer: no, evidence: ["lib/release-notes.mjs:58"] }
+      rate_limit: { answer: no, evidence: ["lib/release-notes.mjs:58"] }
+      disclosed: { answer: no, evidence: ["lib/release-notes.mjs:64"] }
+      received_or_gone: { answer: no, evidence: ["lib/release-notes.mjs:58", "lib/release-notes.mjs:64"] }
+      window: { answer: no, evidence: ["lib/release-notes.mjs:58"] }
+  - candidate: "process spawn (js) @ map/backlog.mjs"
+    finding: F-416
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/backlog.mjs:54"] }
+      second_act: { answer: no, evidence: ["map/backlog.mjs:54"] }
+      staged: { answer: no, evidence: ["map/backlog.mjs:54"] }
+      person_act: { answer: yes, evidence: ["assay.mjs:38", "map/backlog.mjs:45"] }
+      declared_scope: { answer: no, evidence: ["map/backlog.mjs:54"] }
+      rate_limit: { answer: no, evidence: ["map/backlog.mjs:54"] }
+      disclosed: { answer: no, evidence: ["map/backlog.mjs:54"] }
+      received_or_gone: { answer: no, evidence: ["map/backlog.mjs:54"] }
+      window: { answer: no, evidence: ["map/backlog.mjs:54"] }
+  - candidate: "process spawn (js) @ map/dependency-scan.mjs"
+    finding: F-406
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/dependency-scan.mjs:275"] }
+      second_act: { answer: no, evidence: ["map/dependency-scan.mjs:275"] }
+      staged: { answer: no, evidence: ["map/dependency-scan.mjs:275"] }
+      person_act: { answer: no, evidence: ["routine/run.mjs:89", "routine/assay-routine.yml:20"] }
+      declared_scope: { answer: no, evidence: ["map/dependency-scan.mjs:275-277"] }
+      rate_limit: { answer: no, evidence: ["map/dependency-scan.mjs:398"] }
+      disclosed: { answer: no, evidence: ["map/dependency-scan.mjs:275"] }
+      received_or_gone: { answer: yes, evidence: ["map/dependency-scan.mjs:24-25", "map/dependency-scan.mjs:275"] }
+      window: { answer: no, evidence: ["map/dependency-scan.mjs:275"] }
+  - candidate: "process spawn (js) @ map/fresh-clone.mjs"
+    finding: F-405
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/fresh-clone.mjs:784", "map/fresh-clone.mjs:332"] }
+      second_act: { answer: no, evidence: ["map/fresh-clone.mjs:784", "map/start.mjs:460"] }
+      staged: { answer: no, evidence: ["map/fresh-clone.mjs:332"] }
+      person_act: { answer: no, evidence: ["routine/assay-routine.yml:20", "routine/assay-routine.yml:74"] }
+      declared_scope: { answer: no, evidence: ["map/child-env.mjs:10", "map/fresh-clone.mjs:332"] }
+      rate_limit: { answer: no, evidence: ["map/fresh-clone.mjs:332"] }
+      disclosed: { answer: no, evidence: ["map/fresh-clone.mjs:332"] }
+      received_or_gone: { answer: yes, evidence: ["map/fresh-clone.mjs:92", "map/fresh-clone.mjs:332"] }
+      window: { answer: no, evidence: ["map/fresh-clone.mjs:332"] }
+  - candidate: "process spawn (js) @ map/repo-census.mjs"
+    finding: F-417
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/repo-census.mjs:842"] }
+      second_act: { answer: no, evidence: ["map/repo-census.mjs:842"] }
+      staged: { answer: no, evidence: ["map/repo-census.mjs:842"] }
+      person_act: { answer: no, evidence: ["routine/run.mjs:89", "routine/assay-routine.yml:20"] }
+      declared_scope: { answer: no, evidence: ["map/repo-census.mjs:1425"] }
+      rate_limit: { answer: no, evidence: ["map/repo-census.mjs:842"] }
+      disclosed: { answer: no, evidence: ["map/repo-census.mjs:842"] }
+      received_or_gone: { answer: no, evidence: ["map/repo-census.mjs:959", "map/repo-census.mjs:1415", "map/repo-census.mjs:1425"] }
+      window: { answer: no, evidence: ["map/repo-census.mjs:842"] }
+  - candidate: "process spawn (js) @ map/services.mjs"
+    finding: F-408
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: yes, what: "the declaration's keys are closed and every image is pinned by a tag or digest; a refused declaration starts no container", held_by: code, evidence: ["map/services.mjs:85", "map/fresh-clone.mjs:750"] }
+      second_act: { answer: no, evidence: ["map/fresh-clone.mjs:756"] }
+      staged: { answer: no, evidence: ["map/services.mjs:144"] }
+      person_act: { answer: yes, evidence: ["map/fresh-clone.mjs:784", "map/start.mjs:542"] }
+      declared_scope: { answer: yes, evidence: ["map/services.mjs:22-23", "map/services.mjs:144"] }
+      rate_limit: { answer: no, evidence: ["map/services.mjs:144"] }
+      disclosed: { answer: no, evidence: ["map/services.mjs:144"] }
+      received_or_gone: { answer: yes, evidence: ["map/services.mjs:144"] }
+      window: { answer: no, evidence: ["map/services.mjs:144"] }
+  - candidate: "process spawn (js) @ map/start.mjs"
+    finding: F-409
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/start.mjs:454", "map/start.mjs:460", "routine/run.mjs:364"] }
+      second_act: { answer: no, evidence: ["map/start.mjs:460"] }
+      staged: { answer: no, evidence: ["map/start.mjs:334"] }
+      person_act: { answer: no, evidence: ["routine/assay-routine.yml:20", "routine/assay-routine.yml:74"] }
+      declared_scope: { answer: no, evidence: ["map/start.mjs:334", "map/child-env.mjs:10"] }
+      rate_limit: { answer: no, evidence: ["map/start.mjs:334"] }
+      disclosed: { answer: no, evidence: ["map/start.mjs:334"] }
+      received_or_gone: { answer: yes, evidence: ["map/start.mjs:334", "map/start.mjs:460"] }
+      window: { answer: no, evidence: ["map/start.mjs:334"] }
+  - candidate: "process spawn (js) @ map/structure-scan.mjs"
+    finding: F-407
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/structure-scan.mjs:468", "map/structure-scan.mjs:120"] }
+      second_act: { answer: no, evidence: ["map/structure-scan.mjs:468"] }
+      staged: { answer: no, evidence: ["map/structure-scan.mjs:120"] }
+      person_act: { answer: no, evidence: ["routine/assay-routine.yml:20", "routine/assay-routine.yml:74"] }
+      declared_scope: { answer: no, evidence: ["map/structure-scan.mjs:120", "map/child-env.mjs:10"] }
+      rate_limit: { answer: no, evidence: ["map/structure-scan.mjs:120"] }
+      disclosed: { answer: no, evidence: ["map/structure-scan.mjs:120"] }
+      received_or_gone: { answer: yes, evidence: ["map/structure-scan.mjs:21-25", "map/structure-scan.mjs:103"] }
+      window: { answer: no, evidence: ["map/structure-scan.mjs:120"] }
+  - candidate: "process spawn (js) @ map/sweep-method.mjs"
+    finding: F-418
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+      second_act: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+      staged: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+      person_act: { answer: yes, evidence: ["assay.mjs:36", "map/variance.mjs:676"] }
+      declared_scope: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+      rate_limit: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+      disclosed: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+      received_or_gone: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+      window: { answer: no, evidence: ["map/sweep-method.mjs:82"] }
+  - candidate: "process spawn (js) @ map/target-identity.mjs"
+    finding: F-419
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+      second_act: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+      staged: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+      person_act: { answer: no, evidence: ["map/start.mjs:73", "routine/run.mjs:89"] }
+      declared_scope: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+      rate_limit: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+      disclosed: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+      received_or_gone: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+      window: { answer: no, evidence: ["map/target-identity.mjs:19"] }
+  - candidate: "process spawn (js) @ map/tools.mjs"
+    finding: F-404
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/tools.mjs:106", "map/scanners/adapters/checkov.yaml:19"] }
+      second_act: { answer: no, evidence: ["map/tools.mjs:106"] }
+      staged: { answer: no, evidence: ["map/tools.mjs:106"] }
+      person_act: { answer: no, evidence: [".github/actions/tools/action.yml:29", ".github/workflows/ci.yml:37"] }
+      declared_scope: { answer: no, evidence: ["map/tools.mjs:38", "map/tools.mjs:106"] }
+      rate_limit: { answer: yes, evidence: ["map/tools.mjs:100"] }
+      disclosed: { answer: no, evidence: ["map/tools.mjs:237"] }
+      received_or_gone: { answer: yes, evidence: ["map/tools.mjs:106", "map/tools.mjs:111"] }
+      window: { answer: no, evidence: ["map/tools.mjs:106"] }
+  - candidate: "process spawn (js) @ map/validate.mjs"
+    finding: F-420
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["map/validate.mjs:467", "map/validate.mjs:484"] }
+      second_act: { answer: no, evidence: ["map/validate.mjs:484"] }
+      staged: { answer: no, evidence: ["map/validate.mjs:484"] }
+      person_act: { answer: no, evidence: ["map/start.mjs:612", "routine/run.mjs:89"] }
+      declared_scope: { answer: no, evidence: ["map/validate.mjs:467"] }
+      rate_limit: { answer: no, evidence: ["map/validate.mjs:484"] }
+      disclosed: { answer: no, evidence: ["map/validate.mjs:484"] }
+      received_or_gone: { answer: no, evidence: ["map/validate.mjs:467", "map/validate.mjs:484"] }
+      window: { answer: no, evidence: ["map/validate.mjs:484"] }
+  - candidate: "process spawn (js) @ routine/run.mjs"
+    finding: F-410
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["routine/run.mjs:362", "routine/run.mjs:364"] }
+      second_act: { answer: no, evidence: ["routine/run.mjs:89"] }
+      staged: { answer: no, evidence: ["routine/run.mjs:89"] }
+      person_act: { answer: no, evidence: ["routine/assay-routine.yml:20", "routine/assay-routine.yml:24"] }
+      declared_scope: { answer: no, evidence: ["routine/assay-routine.yml:32", "routine/run.mjs:89"] }
+      rate_limit: { answer: no, evidence: ["routine/run.mjs:89"] }
+      disclosed: { answer: no, evidence: ["routine/run.mjs:89"] }
+      received_or_gone: { answer: yes, evidence: ["routine/run.mjs:89", "routine/assay-routine.yml:74"] }
+      window: { answer: no, evidence: ["routine/run.mjs:89"] }
+  - candidate: "process spawn (js) @ views/compile.mjs"
+    finding: F-421
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: no, evidence: ["views/compile.mjs:77"] }
+      second_act: { answer: no, evidence: ["views/compile.mjs:77"] }
+      staged: { answer: no, evidence: ["views/compile.mjs:77"] }
+      person_act: { answer: no, evidence: ["routine/run.mjs:89", "routine/assay-routine.yml:20"] }
+      declared_scope: { answer: no, evidence: ["views/compile.mjs:77"] }
+      rate_limit: { answer: no, evidence: ["views/compile.mjs:77"] }
+      disclosed: { answer: no, evidence: ["views/compile.mjs:77"] }
+      received_or_gone: { answer: no, evidence: ["views/compile.mjs:77"] }
+      window: { answer: no, evidence: ["views/compile.mjs:77"] }
+  - candidate: "process spawn (js) @ yardstick/ratchet.mjs"
+    finding: F-422
+    clause: spawn-runtime
+    answers:
+      refuses_unless: { answer: yes, what: "the ref is a non-empty string that does not begin with a dash, so git never reads it as an option", held_by: code, evidence: ["yardstick/ratchet.mjs:106", "yardstick/ratchet.mjs:116"] }
+      second_act: { answer: no, evidence: ["yardstick/ratchet.mjs:107"] }
+      staged: { answer: no, evidence: ["yardstick/ratchet.mjs:107"] }
+      person_act: { answer: no, evidence: ["routine/run.mjs:89", "routine/assay-routine.yml:20"] }
+      declared_scope: { answer: no, evidence: ["yardstick/ratchet.mjs:107"] }
+      rate_limit: { answer: no, evidence: ["yardstick/ratchet.mjs:107"] }
+      disclosed: { answer: no, evidence: ["yardstick/ratchet.mjs:107"] }
+      received_or_gone: { answer: no, evidence: ["yardstick/ratchet.mjs:107", "yardstick/ratchet.mjs:117"] }
+      window: { answer: no, evidence: ["yardstick/ratchet.mjs:107"] }
+  - candidate: "release write (workflow) @ .github/workflows/release.yml"
+    finding: F-400
+    clause: workflow-write
+    answers:
+      refuses_unless: { answer: yes, what: "the run is on the default branch, the version is vX.Y.Z and not an existing tag, and npm test and the Consumer trailer check pass", held_by: code, evidence: [".github/workflows/release.yml:23", ".github/workflows/release.yml:37", ".github/workflows/release.yml:38", ".github/workflows/release.yml:41", ".github/workflows/release.yml:43"] }
+      second_act: { answer: no, evidence: [".github/workflows/release.yml:50"] }
+      staged: { answer: no, evidence: [".github/workflows/release.yml:50"] }
+      person_act: { answer: yes, evidence: [".github/workflows/release.yml:11"] }
+      declared_scope: { answer: yes, evidence: [".github/workflows/release.yml:24"] }
+      rate_limit: { answer: no, evidence: [".github/workflows/release.yml:18"] }
+      disclosed: { answer: no, evidence: [".github/workflows/release.yml:50"] }
+      received_or_gone: { answer: yes, evidence: [".github/workflows/release.yml:50"] }
+      window: { answer: no, evidence: [".github/workflows/release.yml:50"] }
