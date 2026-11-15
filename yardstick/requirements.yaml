@@ -57,6 +57,9 @@ members:
   - term: enumerated candidate
     subject_types: []
     means: a channel candidate, route handler or effect-site member of map/raw/enumerate.json; not a finding
+  - term: in-scope effect candidate
+    subject_types: []
+    means: an enumerated candidate its triage maps to an effect finding, with its answers to the checklist and the signals the list records on it; not a finding (d-effect-facts-legible's population, #338)
   - term: secret
     subject_types: [control, artifact]
     means: a secret the running application reads, and what it can reach
@@ -805,6 +808,21 @@ requirements:
     owner:
       risk: "Code and packages nobody uses still have to be understood, updated and secured, so they cost time and attention without doing anything for the app."
       fix: "Have your AI remove the packages and code nothing uses, one change at a time with the tests green after each; if the app loads parts of itself by name, first have it list those starting points for the unused-code checker so it can tell what is really unused."
+  - id: d-effect-facts-legible
+    title: Every effect's facts are stated where a reader or a machine finds them
+    tier: legibility
+    topic: artifact-legibility
+    tags: []
+    decide:
+      kind: facet
+      rule: facts-legible
+      why: "facet (#338): computed from the run's own two files, the candidate list and its triage's answers, the way channels-triaged is, so nothing in it can be hand-inflated; which questions it reads is data (yardstick/legibility-bar.yaml), never a reader's choice"
+    check: "Population: every in-scope effect candidate, each enumerated candidate the run's triage maps to an effect finding, on each question of the checklist that clears the cross-target bar in yardstick/legibility-bar.yaml; excluded: a question below the bar, which blind lanes part on across targets and so measures the question's wording rather than the target, never read here, whether the effect is gated or recorded, which the effect rows take, and a candidate out of scope or untriaged, which d-effect-channels-enumerated takes. Question: can a careful reader determine the fact the question asks (whether the effect can be undone, what refuses it, who or what sets it off, what bounds its scope, what limits it) from the tree alone? Read off the triage and the list: legible where a signal the list records answers the question, or where the run answers it yes or no with its file:line evidence; a not-determinable answer is a gap, cited at the candidate and naming the question; met when every in-scope candidate is legible on every qualifying question, and not measured, never met, with no answers or no qualifying question"
+    sources: [issue/338, issue/315, issue/336]
+    status: draft
+    owner:
+      risk: "When nothing in the code says whether an action can be undone, what must pass before it runs, who sets it off or how far it can reach, the next person or AI to change it has to guess, and a wrong guess changes what the action does without anyone deciding it should."
+      fix: "For each action the app takes on the world, state the fact where a reader or a machine finds it: a declared operation, a schema, config, or a comment at the effect, saying whether it can be undone, what refuses it, who triggers it, what bounds it and what limits it."
 
   # ── operability: we can see it and afford it ─────────────────────────────
   - id: d-expectations-declared

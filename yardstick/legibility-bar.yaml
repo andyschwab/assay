@@ -1,0 +1,36 @@
+# yardstick/legibility-bar.yaml — which questions of the checklist d-effect-facts-legible reads (#338).
+# yardstick/README.md, "An effect's facts, legible", is the contract; yardstick/legibility-bar.mjs
+# reads and checks this file, and yardstick/measure.mjs reads only the questions it lists.
+#
+# Two ambiguities look alike in a run: a question no careful reader can answer from the tree because
+# the tree does not state the fact (the target's), and a question blind readers part on whatever the
+# tree says, because its wording admits two readings (assay's own, #337). The row reads only the
+# first. A question is read against a target only when blind lanes answer it alike across targets:
+# its agreement, pooled over every committed blind sweep set whose runs carry answers, clears `bar`,
+# and it was compared on at least `targets_at_least` distinct targets. A question that does not
+# qualify is never read: a not-determinable answer on it moves nothing.
+#
+# The figures are computed, never typed: per question, the agreement map/variance.mjs reports per
+# answer (candidateAgreement's answers.byAnswer) for each set under tests/sweeps/, summed over the
+# sets. Recompute them with
+#
+#   node yardstick/legibility-bar-check.mjs      # prints the figures; exit 1 when this file disagrees
+#   node yardstick/legibility-bar-check.mjs --json
+#
+# and tests/blocks/legibility-bar-recomputed.mjs fails the suite when this file disagrees with them.
+# A set joins `sets:` only when it is blind and its runs answer the checklist (a version 2 triage).
+#
+# As shipped, no committed set carries a version 2 triage with answers (every set under tests/sweeps/
+# predates the answers or writes a version 1 triage), so no question has a figure, none qualifies, and
+# d-effect-facts-legible reads not measured on every target until a public answered sweep set is
+# committed. tests/sweeps/README.md, "An answered set", gives the commands that produce one.
+schema: assay.legibility-bar
+version: 1
+bar: 75
+bar_reason: "The one round that measured the answers per question (#315, a three-lane round on one private target at v0.15.0) splits at a step: refuses_unless 85%, staged 83% and second_act 78% sit above it, then disclosed 70%, person_act and received_or_gone 63%, window 45%, rate_limit 38% and declared_scope 15%. The questions above the step ask for a mechanism a reader can point at; below it sit the three #337 rewords and the questions whose wording still admits two readings. 75% keeps one reader in four parting on a question before it is read as the target's, and is checked here against committed public sets, never against that private round."
+targets_at_least: 2
+targets_reason: "A question lanes part on over one target may be that target's ambiguity or assay's wording; only agreement held on two targets or more separates them (#338)."
+sets: []
+questions: []
+below_bar: []
+none_qualify: "no committed sweep set carries a version 2 triage with answers, so no question of the checklist has a cross-target figure, and none has cleared the bar"
