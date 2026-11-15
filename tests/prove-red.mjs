@@ -286,6 +286,16 @@ export const ENTRIES = [
     from: "export { mdText } from '../lib/display.mjs';",
     to: '// mdText not re-exported',
     check: 'rows-contract-exports', red: /views\/rows\.mjs exports exactly its contract set \(missing mdText/ },
+  { rule: 'every checklist answer has its one definition in map/SCHEMA.md §6e, "The answers": a question with none is refused (#337)',
+    file: 'map/SCHEMA.md',
+    from: '**`declared_scope`** — a yes gives `scope-bound`.',
+    to: '**`declared-scope`** — a yes gives `scope-bound`.',
+    check: 'checklist-answers-defined', red: /the checklist's question declared_scope has no definition in §6e/ },
+  { rule: 'the values an answer is exemplified by are read from the checklist, never from a second list: a value it gains has no example until §6e gives one (#337)',
+    file: 'map/effect-answers.mjs',
+    from: "export const HELD_BY = ['code', 'outside'];",
+    to: "export const HELD_BY = ['code', 'outside', 'operator'];",
+    check: 'checklist-answers-defined', red: /refuses_unless has no example of the value yes, held_by: operator/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────

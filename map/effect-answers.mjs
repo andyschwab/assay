@@ -15,8 +15,12 @@
 // not show kept. validate refuses a finding whose value the answers do not give, and the lanes are
 // compared on the answers (map/variance.mjs).
 
-const ANSWER_VALUES = ['yes', 'no', 'not-determinable'];
-const HELD_BY = ['code', 'outside'];
+// The closed values an answer takes, and the one question whose yes also says who holds it: the
+// values map/SCHEMA.md §6e, "The answers", gives an example of each (tests/blocks/
+// checklist-answers-defined.mjs reads them from here).
+export const ANSWER_VALUES = ['yes', 'no', 'not-determinable'];
+export const HELD_BY = ['code', 'outside'];
+export const HELD_BY_QUESTION = 'refuses_unless';
 
 // The checklist's questions, in the order the values follow from them: map/SCHEMA.md §6e, "The
 // answers", states each question and the value its yes gives; this is their one list of keys.
@@ -103,10 +107,10 @@ export function answerErrors(answers, at) {
       if (!Array.isArray(a.evidence) || !a.evidence.length) errors.push(`${where}: a ${a.answer} carries its evidence, a non-empty list of path:line citations of the code or config that shows it`);
       else for (const ev of a.evidence) { const m = typeof ev === 'string' ? ev.trim().match(CITE) : null; if (!m) errors.push(`${where}: evidence ${JSON.stringify(ev)} is not a path:line citation`); }
     } else if (a.evidence !== undefined && !Array.isArray(a.evidence)) errors.push(`${where}: evidence must be a list`);
-    if (k === 'refuses_unless' && a.answer === 'yes') {
+    if (k === HELD_BY_QUESTION && a.answer === 'yes') {
       if (!(typeof a.what === 'string' && a.what.trim())) errors.push(`${where}: a yes says what the check checks (what)`);
       if (!HELD_BY.includes(a.held_by)) errors.push(`${where}: a yes says who holds the check (held_by: ${HELD_BY.join(' | ')})`);
-    } else if (a.held_by !== undefined) errors.push(`${where}: held_by is said only of a refuses_unless yes`);
+    } else if (a.held_by !== undefined) errors.push(`${where}: held_by is said only of a ${HELD_BY_QUESTION} yes`);
   }
   return errors;
 }
