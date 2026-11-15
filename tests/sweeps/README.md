@@ -46,7 +46,10 @@ candidate × question where the set's sweeps read the candidate two ways, a gap 
 of the run (`yardstick/README.md`, "An effect's facts, legible"). A set with no `identity:` is read
 for nothing on that row, and the run record says why; an `identity:` that is malformed (a local
 path, userinfo, a path with `..`) makes the set unreadable, and compile stops naming it
-(`map/sweep-partings.mjs`). The committed answered sets state theirs.
+(`map/sweep-partings.mjs`). The committed answered sets state theirs. A set over the run's target at
+another commit carries forward only by the carry rule: given `--target`, a checkout with both commits'
+full history, each parted pair whose candidate the run still lists and whose every cited file is the
+same git object at both commits; without one the set reads for nothing, and the run record says why.
 
 **A gate checks something or says it does not** (#323). Each of the four measures is either
 under `threshold`, above 0, or under `not_measured` with the reason, never both and never
