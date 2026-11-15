@@ -99,6 +99,7 @@ import { projectRun, loadYardstick } from '../yardstick/measure.mjs';
 import { channelKeys, loadChannelFiles } from './effect-triage.mjs';
 import { closure } from './triage.mjs';
 import { CHECKLIST_KEYS, gateTypeFrom, reversibilityFrom, answerValue } from './effect-answers.mjs';
+import { barFromSets, loadBar, BAR_FILE } from '../yardstick/legibility-bar.mjs';
 
 // A channel's identity (#298): an effect finding the run's map/effect-triage.yaml maps a candidate to
 // is keyed by that candidate (map/effect-triage.mjs candidateKeysOf), so two lanes' spellings of one
@@ -421,6 +422,30 @@ export function computeCandidateAgreement(runDirs) {
   }));
 }
 
+// ── where blind lanes part on a qualifying question (#338) ──────────────────
+// d-effect-facts-legible reads a question only when its cross-target agreement clears the bar
+// (yardstick/legibility-bar.yaml). Over one set, a candidate every sweep answers and whose lanes give
+// different answers on such a question is the stronger evidence #338 names that the tree does not
+// state the fact: careful blind readers of the same tree read it two ways. lanesPart lists each
+// { candidate, question, values }, one per sweep, over the qualifying questions only (a question below
+// the bar parts lanes on its wording, and is never listed). It is a list for a reader: in this slice it
+// feeds no run's measurement. c is candidateAgreement's result.
+export function lanesPart(c, qualifying) {
+  const q = new Set(qualifying || []);
+  return ((c && c.answers && c.answers.divergences) || []).flatMap((d) => d.answers.filter((a) => q.has(a.key)).map((a) => ({ candidate: d.candidate, question: a.key, values: a.values })));
+}
+
+// The bar's figures from sweep sets on disk (yardstick/legibility-bar.mjs barFromSets): per set, its
+// target, whether it is blind, and the agreement per answer its sweeps give. A set whose runs do not
+// read halts the computation (fail loud), never reads as a set with no answers.
+export function legibilityBarFromSets(dirs, opts) {
+  return barFromSets(dirs.map((dir) => {
+    const set = loadSweepSet(dir);
+    const c = computeCandidateAgreement(set.runDirs);
+    return { set: basename(String(dir).replace(/[\\/]+$/, '')), target: String(set.meta.target), blind: set.meta.blind === true, compared: c.answers.compared, byAnswer: c.answers.byAnswer };
+  }), opts);
+}
+
 // ── requirement agreement (measure 3) ───────────────────────────────────────
 // The pure half: sweepRows is one array per sweep of { id, status } (a measurement's
 // rows). A requirement no sweep decides is left out: nobody measured it, so it neither
@@ -591,6 +616,17 @@ function reportCandidates(c) {
   console.log('');
 }
 
+// The candidates where blind lanes part on a question that clears the legibility bar (#338).
+function reportLegibility(l, c) {
+  console.log(`  where lanes part on a question that clears the legibility bar (${l.bar}; read by no run's measurement yet):`);
+  if (!l.qualifying.length) { console.log(`    no checklist question has cleared the cross-target bar: nothing is listed.\n`); return; }
+  if (!c.answers.compared) { console.log(`    qualifying: ${l.qualifying.join(', ')}; no candidate every sweep answers: nothing to compare.\n`); return; }
+  if (l.blind === false) console.log(`    ⚠ the set is NOT blind: its lanes saw an answer sheet, so a parting here is no evidence about the target`);
+  console.log(`    qualifying: ${l.qualifying.join(', ')}; ${l.parted.length} candidate-question pair(s) where the lanes part`);
+  for (const p of l.parted) console.log(`      ${p.candidate.padEnd(40)} ${p.question}: ${p.values.map((v) => v ?? '—').join(' vs ')}`);
+  console.log('');
+}
+
 function reportDescriptors(d) {
   console.log(`  descriptor agreement per channel (kept beside the per-candidate figure for one release; the gate's descriptor_agreement):`);
   console.log(`    effect channels shared by 2+ sweeps: ${d.channels.shared} of ${d.channels.total}` +
@@ -627,7 +663,7 @@ function report(r) {
 // ── CLI ─────────────────────────────────────────────────────────────────────
 if (isMain(import.meta.url)) {
   const argv = process.argv.slice(2);
-  const VALUED = ['--set', '--min-facts', '--min-candidates', '--min-descriptors', '--min-requirements'];
+  const VALUED = ['--set', '--min-facts', '--min-candidates', '--min-descriptors', '--min-requirements', '--bar'];
   const flag = (n) => { const i = argv.indexOf(n); return i > -1 ? argv[i + 1] : null; };
   let runs = argv.filter((a, i) => !a.startsWith('--') && !VALUED.includes(argv[i - 1]));
   let threshold = {}, notMeasured = {}, set = null;
@@ -651,12 +687,16 @@ if (isMain(import.meta.url)) {
     if (k in notMeasured) { console.error(`${f}: the set declares ${k} not measured (${notMeasured[k]})`); process.exit(2); }
     threshold[k] = n;
   }
-  if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...] | --set <sweep-set-dir>  [--min-facts N] [--min-candidates N] [--min-descriptors N] [--min-requirements N] [--json]'); process.exit(2); }
+  if (runs.length < 2) { console.error('usage: node variance.mjs <run-dir> <run-dir> [<run-dir> ...] | --set <sweep-set-dir>  [--min-facts N] [--min-candidates N] [--min-descriptors N] [--min-requirements N] [--bar <legibility-bar.yaml>] [--json]'); process.exit(2); }
   const r = computeVariance(runs);
   const d = computeDescriptorAgreement(runs);
   const c = computeCandidateAgreement(runs);
   const q = computeRequirementAgreement(runs);
   const cost = sweepCost(runs.map((d) => loadManifest(d)), runs.map((d) => basename(d)));
+  // where blind lanes part on a question that clears the legibility bar (#338): a list, read by no run
+  let bar;
+  try { bar = loadBar(flag('--bar') || BAR_FILE); } catch (e) { console.error(`✗ variance: ${e.message}`); process.exit(2); }
+  const legibility = { bar: flag('--bar') || 'yardstick/legibility-bar.yaml', qualifying: bar.qualifying, blind: set ? set.meta.blind : null, parted: lanesPart(c, bar.qualifying) };
   const gated = Object.keys(threshold).length > 0 || Object.keys(notMeasured).length > 0;
   const breaches = gated ? sweepGate(r, d, threshold, q, c, notMeasured) : [];
   if (process.argv.includes('--json')) console.log(JSON.stringify({
@@ -668,13 +708,14 @@ if (isMain(import.meta.url)) {
     descriptors: { pct: d.allFields.pct, shared: d.channels.shared, byField: d.byField,
                    divergences: d.divergences, directions: d.directions, bothWays: d.bothWays },
     requirements: { pct: q.pct, decided: q.decided, agree: q.agree, divergences: q.divergences },
+    legibility,
     cost,
     ...(set ? { set: { target: set.meta.target, target_commit: set.meta.target_commit, method_commit: set.meta.method_commit, date: set.meta.date, blind: set.meta.blind } } : {}),
     ...(gated ? { gate: { threshold, not_measured: notMeasured, breaches } } : {}),
   }, null, 2));
   else {
     if (set) console.log(`\nsweep set ${flag('--set')}: ${set.meta.target} @ ${set.meta.target_commit}, method @ ${set.meta.method_commit}, ${set.meta.date}${set.meta.blind ? ', blind' : ', NOT blind (authored beside its answers)'}`);
-    report(r); reportCandidates(c); reportDescriptors(d); reportRequirements(q); reportCost(cost);
+    report(r); reportCandidates(c); reportLegibility(legibility, c); reportDescriptors(d); reportRequirements(q); reportCost(cost);
     if (gated) {
       const at = (k) => (k in notMeasured ? 'not measured' : `≥ ${threshold[k] ?? '—'}%`);
       console.log(`  gate: fact presence ${at('fact_presence')} · per-candidate descriptor agreement ${at('candidate_agreement')} · per-channel descriptor agreement ${at('descriptor_agreement')} · requirement agreement ${at('requirement_agreement')}`);

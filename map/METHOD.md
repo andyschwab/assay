@@ -307,6 +307,7 @@ Rendered from `map/passes.yaml` (`node map/passes.mjs --write`); never hand-edit
 
 - **Decides**, asked of every member of each population:
   - `d-effect-channels-enumerated` (facet `channels-triaged`): population every enumerated candidate; asks: is it triaged in map/effect-triage.yaml, to the effect finding that covers it or out of scope with the reason?
+  - `d-effect-facts-legible` (facet `facts-legible`): population every in-scope effect candidate; asks: can a careful reader determine the fact the question asks (whether the effect can be undone, what refuses it, who or what sets it off, what bounds its scope, what limits it) from the tree alone?
   - `d-effects-gated` (facet `halts-gated`): population every halt-class effect; asks: does a gate that holds stand in front of it?
   - `d-gates-fail-closed` (facet `gates-fail-closed`): population every effect gate; asks: when a dependency it needs is absent, or its check runs without end, does it refuse?
   - `d-effects-traced` (facet `halts-traced`): population every halt-class effect's record; asks: does the effect leave a durable record at all?

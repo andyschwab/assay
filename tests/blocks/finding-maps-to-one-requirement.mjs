@@ -56,7 +56,13 @@ export async function run() {
     if (seen.has(at)) fail(`${at}: answered twice`); seen.add(at);
   }
   const terms = (reg.members || []).map((m) => m.term);
-  const taking = reg.requirements.filter((d) => ['facet', 'census'].includes(d.decide.kind) && d.decide.rule !== 'channels-triaged');
+  // Re-pinned with #338: a row whose population is enumerated candidates takes no finding, and the
+  // set places none on it. Before, channels-triaged was that one row; d-effect-facts-legible's
+  // population (in-scope effect candidates) is a second, so the rule is read off the term each row's
+  // check names, one whose members admit no subject type (a candidate is not a finding), never by name.
+  const candidateTerms = new Set((reg.members || []).filter((m) => Array.isArray(m.subject_types) && !m.subject_types.length).map((m) => m.term));
+  const termOf = (d) => [...candidateTerms].find((t) => String(d.check || '').startsWith(`Population: every ${t}`));
+  const taking = reg.requirements.filter((d) => ['facet', 'census'].includes(d.decide.kind) && !termOf(d));
   const answered = new Set(entries.map((e) => e.requirement));
   const uncovered = taking.filter((d) => !answered.has(d.id)).map((d) => d.id);
   if (uncovered.length) fail(`the set must place a finding on every facet and census row that takes findings; none on ${uncovered.join(', ')}`);

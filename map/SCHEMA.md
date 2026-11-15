@@ -1496,6 +1496,11 @@ answer against one. A list drawn before the signals carries none, so a stored tr
 as it was written. The lanes are compared on each answer with the candidates that carried a signal
 on it apart from those that did not (`map/variance.mjs`).
 
+**An unanswerable question** (#338). A `not-determinable` answer is also a fact about the target, that
+the tree states what the question asks nowhere a reader finds it, and `d-effect-facts-legible` reads it
+so only for a question whose cross-target agreement clears the bar in `yardstick/legibility-bar.yaml`
+(`yardstick/README.md`, "An effect's facts, legible").
+
 **A channel is its triaged candidate** (#298). Two runs' lanes spell one channel's slug as they
 like (`tool-install`, `tools-install`); the candidate they triage to it is the list's own name for
 it. So where a run's triage maps a candidate to an effect finding, a comparison of channels across
