@@ -610,14 +610,22 @@ the closed list (`yardstick/README.md`, "Consequence"). A run with none reads th
 `yardstick/consequence.yaml`.
 
 **The sweep sets (#338).** A run compiled with `compile --sweep-set <dir>` records each set it was
-given here, above `scanners:`, as `sweep_sets: [{ dir, sha256, read, reason? }]`: the set (by its path
+given here, above `scanners:`, as `sweep_sets: [{ dir, sha256, read, reason?, no_carry?, carried?, not_carried? }]`: the set (by its path
 from assay's root when it is a committed set, else its absolute path), the digest of its `SWEEP.yaml`
 and every file under each sweep's `map/`, and whether `d-effect-facts-legible` reads it. A set is read
 only when its `identity:` is this record's `identity:` and its `target_commit` the commit every
 `reviewed.head` here names; otherwise `read: false` and `reason` says which did not hold (another
-target, another commit, or one the run or the set does not state). Each compile given `--sweep-set`
+target, another commit, or one the run or the set does not state). A set over this record's target
+at another commit is read by the carry rule (`yardstick/README.md`, "An effect's facts, legible"):
+read, it carries `carried: [{ candidate, question, blobs: [{ path, blob }] }]`, each pair whose files
+are the same git object at both commits with the object ids compared, and `not_carried: [{ candidate,
+question, moved: [path], unlisted?: true }]`, each pair that is not, naming the files that moved or that
+the run's list no longer holds the candidate; not read, it keeps `read: false` and `reason` (another
+commit) and adds `no_carry`, why git could not decide (no `--target` checkout, one that is not a git
+checkout, a shallow history, the set's or the run's commit absent from it). Each compile given `--sweep-set`
 replaces the list; one given none reads it as it stands, so every later measurement reads the same
-sets. A set whose digest or reading has moved since is refused: the measurement halts, and
+sets; a carried set is read from its record without a checkout, and with one (`--target`) its object
+ids are read again. A set whose digest or reading has moved since is refused: the measurement halts, and
 `validate` refuses the record, as it refuses one that is malformed (`yardstick/README.md`, "An
 effect's facts, legible").
 

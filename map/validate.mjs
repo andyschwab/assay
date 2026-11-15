@@ -320,7 +320,7 @@ for (const file of passFiles) {
         if (m.sweep_sets !== undefined) {
           const probs = sweepSetsRecordProblems(m.sweep_sets);
           if (probs.length) for (const p of probs) err(`${MANIFEST_FILE}:sweep_sets`, p);
-          else { try { sweepSetsOfRun(m); } catch (e) { err(`${MANIFEST_FILE}:sweep_sets`, e.message); } }
+          else { try { sweepSetsOfRun(m, { runDir, target }); } catch (e) { err(`${MANIFEST_FILE}:sweep_sets`, e.message); } }
         }
         // the lens the operator named for the fix sequence (#319, slice 3): it loads, names only the
         // closed quadrants and tie-breaks, and is the file the record's digest names (views/improve/lens.mjs)
