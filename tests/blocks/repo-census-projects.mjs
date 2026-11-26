@@ -13,7 +13,8 @@
 //   - a test's planted project, a submodule and a directory carrying its own .git are not projects,
 //     nor a docs site or examples tree beside a root application (named in projects_set_aside);
 //     a catalog entry named docs/, and a site/ under a root with no package.json, are;
-//   - a workspace linked into apps/* is followed;
+//   - a workspace linked into apps/* is followed; a link that leaves the tree is not, and is named
+//     in projects_set_aside (#251);
 //   - what the census always read stays read: apps/* and packages/* with no root package.json, and
 //     beside a workspace list that does not name them; a `**` glob walks no node_modules and no
 //     symlink loop; a lone application directory's workspace is named by its path from the app;
@@ -23,12 +24,16 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { HERE, ROOT, negFailures } from '../harness.mjs';
+import { locateProjects } from '../../map/projects.mjs';
 
 export const label = 'repo-census-projects';
 
 export async function run() {
   const fail = (m) => negFailures.push('repo-census-projects: ' + m);
   const tmp = join(HERE, 'tmp-repo-census-projects');
+  // beside the tree, never under it; its name shares the tree's as a prefix, so a check that compares
+  // paths as strings without the separator reads it as inside
+  const outside = join(HERE, 'tmp-repo-census-projects-outside');
   const put = (rel, text) => { mkdirSync(dirname(join(tmp, rel)), { recursive: true }); writeFileSync(join(tmp, rel), text); };
   const pkg = (name, extra = {}) => JSON.stringify({ name, private: true, ...extra }) + '\n';
   const RUNBOOK = ['# Runbook', '', '## Restart', 'Restart the service from the console.', '', '## Roll back', 'Roll back to the previous revision.', '',
@@ -163,6 +168,41 @@ export async function run() {
     try { symlinkSync(join('..', 'shared', 'web'), join(tmp, 'apps/web')); } catch { linked = false; /* a host with no symlinks */ }
     doc = census();
     if (linked && !doc?.monorepo?.locations?.includes('apps/web')) fail(`a symlinked workspace (apps/web -> ../shared/web) is a location; got ${JSON.stringify(doc?.monorepo)}`);
+    if (linked && (doc?.projects_set_aside || []).some((x) => x.path === 'apps/web')) fail(`a link that stays inside the tree is not set aside; got ${JSON.stringify(doc?.projects_set_aside)}`);
+
+    // ── a link that leaves the tree is no workspace, and is named as set aside (#251) ──
+    // its target's realpath is not under the root's: its files are not the tree's, so nothing reads
+    // them; a glob step (apps/*), a literal path (tools/cli) and a ** base (libs/**) alike
+    rmSync(tmp, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+    for (const d of ['leak', 'cli', 'libs/x']) {
+      mkdirSync(join(outside, d), { recursive: true });
+      writeFileSync(join(outside, d, 'package.json'), pkg(d.replace('/', '-')));
+      writeFileSync(join(outside, d, 'ARCHITECTURE.md'), '# Architecture\n\nOne service and its database.\n');
+    }
+    put('package.json', pkg('escape', { workspaces: ['apps/*', 'tools/cli', 'libs/**'] }));
+    put('apps/web/package.json', pkg('web'));
+    mkdirSync(join(tmp, 'tools'), { recursive: true });
+    let escaped = true;
+    try {
+      symlinkSync(join(outside, 'leak'), join(tmp, 'apps/leak'));
+      symlinkSync(join(outside, 'cli'), join(tmp, 'tools/cli'));
+      symlinkSync(join(outside, 'libs'), join(tmp, 'libs'));
+    } catch { escaped = false; /* a host with no symlinks cannot plant the escape */ }
+    doc = census();
+    if (escaped) {
+      const leaked = ['apps/leak', 'tools/cli', 'libs/x'];
+      const locs = doc?.monorepo?.locations || [];
+      if (!locs.includes('apps/web')) fail(`beside a link that leaves the tree, apps/web is still a location; got ${JSON.stringify(locs)}`);
+      for (const l of leaked) {
+        if (locs.includes(l)) fail(`a link that leaves the tree (${l}) is no location; got ${JSON.stringify(locs)}`);
+        if (!(doc?.projects_set_aside || []).some((x) => x.path === l && /leaves the tree/.test(x.reason))) fail(`a link that leaves the tree (${l}) is named in projects_set_aside, never dropped silently; got ${JSON.stringify(doc?.projects_set_aside)}`);
+        // what an install covers too (fresh-clone reads the same rule): no workspace outside the tree
+        if (locateProjects(tmp).projects[0].workspaces.includes(l)) fail(`a link that leaves the tree (${l}) is no workspace; got ${JSON.stringify(locateProjects(tmp).projects[0].workspaces)}`);
+        if ((doc?.checks || []).some((c) => c.detail?.path === l)) fail(`no check reads a location outside the tree (${l}); got ${JSON.stringify(doc.checks.filter((c) => c.detail?.path === l).map((c) => `${c.name} ${c.status}`))}`);
+      }
+    }
+    rmSync(outside, { recursive: true, force: true });
 
     // ── a ** glob walks no node_modules and no symlink loop ──
     rmSync(tmp, { recursive: true, force: true });
@@ -193,5 +233,6 @@ export async function run() {
     if (doc && doc.checks.filter((c) => c.name === 'runbook').length !== 1) fail('a flat tree has one runbook row, the root\'s');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
   }
 }

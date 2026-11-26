@@ -681,7 +681,9 @@ operability checks over the application's signals (below). Four tree checks:
   `site/`, `examples/`, `example/`, `samples/`), each named in the report's
   `projects_set_aside` with why); and each
   project's **workspaces** (pnpm-workspace.yaml, package.json `workspaces`, else
-  `apps/*` and `packages/*`; a symlinked workspace is followed) together with every
+  `apps/*` and `packages/*`; a symlinked workspace is followed only when its
+  target's realpath is under the root's, and one that leaves the tree is named in
+  `projects_set_aside`, #251) together with every
   `apps/*` and `packages/*` directory holding a package.json. A packet's `apps` pointer replaces discovery. When the
   tree holds more than the root, the report carries `projects` (each with its
   `path`, `from` and `locations`). A location with no page of its own is **covered by its parent**

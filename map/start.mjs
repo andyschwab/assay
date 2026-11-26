@@ -70,7 +70,7 @@ import { toolsNotReady, REFUSED_EXIT } from './tools.mjs';
 import { scannersPath, findingsDir, enumeratePath, rawDir } from '../lib/run-layout.mjs';
 import { q } from '../lib/yaml-min.mjs';
 import { CANDIDATE_POPULATIONS } from './effect-triage.mjs';
-import { identityOfCheckout } from './target-identity.mjs';
+import { identityOfCheckout, drawnOn, handIdentityForward } from './target-identity.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));       // map/
 const ASSAY_ROOT = join(HERE, '..');
@@ -453,6 +453,9 @@ const handoffReport = (tool) => `${tool}.json`;
 const handoffStatus = (tool) => `${tool}.status.json`;
 export function writeTargetHandoff({ repoDir, handoffDir }, log = /** @type {(msg: string) => void} */ (() => {})) {
   mkdirSync(handoffDir, { recursive: true });
+  // the identity this step read, before the target's own code runs (#283)
+  const identity = handIdentityForward(repoDir, handoffDir);
+  log(identity ? `· identity ${identity.repository}${identity.path === '.' ? '' : `#${identity.path}`} (handed to the gate)` : '⚠ the checkout states no identity (no origin remote that names its repository): the gate records none');
   const exits = {};
   for (const [tool, extra] of Object.entries(HANDED_OFF)) {
     log(`· ${tool} (in place; its report is handed to the gate) …`);
@@ -588,7 +591,7 @@ function runCli() {
   // the run states its target and its day (#265): never a local path, never the file system's clock later
   const identity = target ? identityOfCheckout(resolve(target)) : null;
   if (target && !identity) log(`  ⚠ the run states no identity: ${target} is not in a git checkout whose origin remote names its repository; the cross-run tally (node assay.mjs candidates) refuses it until stated (--target <run>=<repository>[#<path>])`);
-  writeFileSync(mPath, toScannersYaml(engineCommit(), rows, undefined, target ? resolve(target) : null, { identity, drawn: new Date().toISOString().slice(0, 10) }));
+  writeFileSync(mPath, toScannersYaml(engineCommit(), rows, undefined, target ? resolve(target) : null, { identity, drawn: drawnOn() }));
 
   const validateArgs = ['validate', outDir];
   if (target) validateArgs.push('--target', resolve(target));

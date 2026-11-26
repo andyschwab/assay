@@ -6,8 +6,11 @@
 // describes the machine the run was drawn on, not the target, and two checkouts of one
 // repository must read as one target. `assay start` writes it; the cross-run tally
 // (views/improve/tally.mjs) reads it and refuses a run that states none, never guessing one
-// from a directory name.
+// from a directory name. The routine states both through this module too (#283): in its two-job
+// template the target step reads the identity and hands it forward, and the gate step records it.
 import { spawnSync } from 'node:child_process';
+import { writeFileSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { stripUserinfo } from './repo-census.mjs';
 
 // a remote that is a local path (or a file:// URL) names the machine, never the target
@@ -35,6 +38,7 @@ export function identityOfCheckout(dir) {
 
 function repositoryProblem(r) {
   if (typeof r !== 'string' || !r.trim()) return 'repository must be the target repository\'s remote (a non-empty string)';
+  if (/[\r\n]/.test(r)) return 'repository must be one line';
   if (LOCAL_RE.test(r)) return `repository "${r}" is a local path: it describes the machine, not the target; state the repository's remote`;
   if (!URL_RE.test(r) && !SCP_RE.test(r)) return `repository "${r}" is not a repository remote (scheme://host/owner/repo or user@host:owner/repo)`;
   if (stripUserinfo(r) !== r) return `repository "${r}" carries userinfo: a credential never enters the run record`;
@@ -42,6 +46,7 @@ function repositoryProblem(r) {
 }
 function pathProblem(p) {
   if (typeof p !== 'string' || !p.trim()) return 'path must be the target\'s path within the repository (`.` at the top level)';
+  if (/[\r\n]/.test(p)) return 'path must be one line';
   if (p !== '.' && (/^[\\/]/.test(p) || /^[A-Za-z]:/.test(p) || p.split(/[\\/]/).some((s) => s === '..' || s === '.' || s === ''))) return `path "${p}" must be relative to the repository's top level, with no ".", ".." or empty segment (\`.\` alone for the top level)`;
   return null;
 }
@@ -76,4 +81,32 @@ export function identityKey(id) {
   const slash = r.indexOf('/');
   r = slash > -1 ? r.slice(0, slash).toLowerCase().replace(/:\d+$/, '') + r.slice(slash) : r.toLowerCase();
   return `${r}#${id.path}`;
+}
+
+// `drawn:`, the day a run was drawn (YYYY-MM-DD, UTC): what `start` and the routine both write.
+export const drawnOn = (at = new Date()) => at.toISOString().slice(0, 10);
+
+// The two-job routine (routine/README.md "Two jobs"): the target step reads the identity of the
+// checkout it measures and hands it forward beside its reports; the gate step records that one,
+// never a path on its own machine. The handoff is the target job's output, and the target's own
+// code ran in that job after the identity was read, so it is read as data: only an identity
+// identityProblems passes is recorded, and only when it is the gate's own checkout's identity
+// (where that checkout states one), else the run states none and says why.
+const HANDED_IDENTITY = 'identity.json';
+export function handIdentityForward(repoDir, handoffDir) {
+  const identity = identityOfCheckout(repoDir);
+  writeFileSync(join(handoffDir, HANDED_IDENTITY), JSON.stringify(identity) + '\n');
+  return identity;
+}
+// { identity } when the handoff carries a well-formed one that agrees with `own` (the gate
+// checkout's identity, or null when it states none), else { identity: null, why }
+export function identityHandedForward(handoffDir, own = null) {
+  let id;
+  try { id = JSON.parse(readFileSync(join(handoffDir, HANDED_IDENTITY), 'utf8')); }
+  catch (e) { return { identity: null, why: `the target step handed no readable identity forward (${String(/** @type {Error} */ (e).message).split('\n')[0]})` }; }
+  if (id === null) return { identity: null, why: 'the target step\'s checkout states none (no git work tree, no origin remote, or an origin that is a local path)' };
+  const problems = identityProblems(id);
+  if (problems.length) return { identity: null, why: `the target step handed forward an identity the run cannot state: ${problems.join('; ')}` };
+  if (own && identityKey(own) !== identityKey(id)) return { identity: null, why: `the target step handed forward ${identityString(id)}, and the gate's own checkout states ${identityString(own)}: a handoff the target's code could rewrite never names another target` };
+  return { identity: { repository: id.repository, path: id.path } };
 }

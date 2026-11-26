@@ -368,6 +368,21 @@ export const ENTRIES = [
     from: 'partings: gapAgreement(c, CHECKLIST_KEYS).divergences',
     to: 'partings: c.answers.divergences.flatMap((d) => d.answers.map((x) => ({ candidate: d.candidate, question: x.key, reads: x.values })))',
     check: 'legibility-from-sweep-sets', red: /\(c\) a parting yes against no adds no gap/ },
+  { rule: 'the routine\'s gate step records only a well-formed identity the target step handed forward, never a local path (#283)',
+    file: 'map/target-identity.mjs',
+    from: 'if (problems.length) return',
+    to: 'if (false) return',
+    check: 'routine-states-target', red: /a handed-forward identity that is a local path is never recorded/ },
+  { rule: 'the routine\'s gate step never records a handed-forward identity naming another target than its own checkout names (#283)',
+    file: 'map/target-identity.mjs',
+    from: 'if (own && identityKey(own) !== identityKey(id)) return',
+    to: 'if (false) return',
+    check: 'routine-states-target', red: /naming another target than the gate's own checkout is never recorded/ },
+  { rule: 'an identity spanning two lines is refused, never flattened into another one (#283)',
+    file: 'map/target-identity.mjs',
+    from: "if (/[\\r\\n]/.test(r)) return 'repository must be one line';",
+    to: '/* the one-line check removed */',
+    check: 'routine-states-target', red: /spanning two lines is never recorded/ },
   { rule: "a sweep set's parting on a question below the legibility bar is never read against a target (#338)",
     file: 'yardstick/legibility-bar.mjs',
     // the bar's qualifying list is what holds it: the row's loop reads only those questions, and the
@@ -455,6 +470,11 @@ export const ENTRIES = [
     from: '  return sweepModes(runDirs).checklist ? { ...r, pct: null, notMeasured: CHECKLIST_FACTS_REASON } : r;',
     to: '  return r;',
     check: 'checklist-sweep-set', red: /\(b\) fact presence reads not measured, with the reason, never a number/ },
+  { rule: 'a link that leaves the tree is no location: a workspace is the tree\'s only when its realpath is under the root\'s (#251)',
+    file: 'map/projects.mjs',
+    from: "return r !== null && rootReal !== null && (r === rootReal || r.startsWith(rootReal + sep));",
+    to: 'return r !== null;',
+    check: 'repo-census-projects', red: /a link that leaves the tree \(apps\/leak\) is no location/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────
