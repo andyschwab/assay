@@ -236,7 +236,9 @@ export function runRoutine({ repoDir, outDir, baseline, since, packet, baseRef, 
 
   // what the run states of itself (#283, map/SCHEMA.md §5a): with a handoff, the identity the
   // target step read; without, this checkout's own. Never a local path: no `target:` is written.
-  const { identity, why } = handoff ? identityHandedForward(resolve(handoff)) : { identity: identityOfCheckout(repoDir), why: 'the checkout has no origin remote that names its repository' };
+  // The handed-forward identity stands only where the gate's own checkout agrees (or states none).
+  const own = identityOfCheckout(repoDir);
+  const { identity, why } = handoff ? identityHandedForward(resolve(handoff), own) : { identity: own, why: 'the checkout has no origin remote that names its repository' };
   if (!identity) say(`⚠ the run states no identity: ${why}; the cross-run tally (node assay.mjs candidates) refuses it until stated (--target <run>=<repository>[#<path>])`);
   writeFileSync(scannersPath(outDir), toScannersYaml(engineCommit(), scanners, { identity, drawn: drawnOn(new Date(startDate)) }));
 

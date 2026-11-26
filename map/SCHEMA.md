@@ -594,7 +594,9 @@ remote, or one whose origin is itself a local path, it writes no `identity:` and
 The routine (`routine/run.mjs`) writes both through the same module (#283); in its two-job
 template the target step reads the identity and hands it forward (`identity.json` beside its
 reports), and the gate step records that one, never a path on its own machine. The handoff
-is read as data: an identity `validate` would refuse is not recorded, and the routine says so.
+is read as data, since the target's code ran in that job: an identity `validate` would
+refuse, or one naming another target than the gate's own checkout does, is not recorded,
+and the routine says why.
 `validate` refuses an `identity:` whose repository is a local path, carries userinfo or is
 not a remote, or whose path is absolute or has a `.`, `..` or empty segment, and a `drawn:`
 that is not a day; a run drawn before the fields carries neither and validates and

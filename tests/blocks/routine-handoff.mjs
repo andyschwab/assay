@@ -1,7 +1,7 @@
 // ── routine: the change's own code runs in one step, the gate in another (#48) ──
 // runTargetSteps runs fresh-clone (the only instrument that executes the target's
 // own install and scripts), then structure-scan with knip enabled after that install
-// (#128), and writes only their raw reports and exits to a handoff directory;
+// (#128), and writes only their raw reports and exits (and the identity it read, #283) to a handoff directory;
 // runRoutine with `handoff` ingests those reports and never executes the target. The target's test script below leaves a marker: it must appear after the
 // target step and never after the gate.
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';

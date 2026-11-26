@@ -8,8 +8,10 @@
 //  2. the two-job routine: the target step hands forward the identity it read, and the gate step
 //     records that one, never its own checkout's and never a local path: a gate checkout whose
 //     origin is a local mirror still records the target step's identity;
-//  3. the handoff is the target job's output, read as data: a handed-forward identity that is a
-//     local path is never recorded, and the gate says so.
+//  3. the handoff is the target job's output, and the target's code ran there after the identity
+//     was read, so it is read as data: a handed-forward identity that is a local path, spans two
+//     lines, or names another target than the gate's own checkout names is never recorded, and
+//     the gate says why.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, cpSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -46,7 +48,7 @@ export async function run() {
     const m = stated(one);
     if (!m.identity || m.identity.repository !== REMOTE || m.identity.path !== '.') fail(`the routine writes identity: { repository, path }, userinfo stripped (got ${JSON.stringify(m.identity)})`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(m.drawn))) fail(`the routine writes drawn:, the day it drew the run (got ${JSON.stringify(m.drawn)})`);
-    if (readFileSync(scannersPath(one), 'utf8').includes(tmp)) fail('the routine\'s run record names no local path');
+    if (existsSync(scannersPath(one)) && readFileSync(scannersPath(one), 'utf8').includes(tmp)) fail('the routine\'s run record names no local path');
     const c = spawnSync(process.execPath, [join(ROOT, 'assay.mjs'), 'candidates', one, '--json'], { encoding: 'utf8' });
     if (c.status !== 0) fail(`candidates counts a routine run with no --target or --date (exit ${c.status}): ${(c.stderr || '').trim().split('\n').slice(0, 3).join(' | ')}`);
 
@@ -59,7 +61,7 @@ export async function run() {
     const m2 = stated(two);
     if (!m2.identity || m2.identity.repository !== REMOTE || m2.identity.path !== '.') fail(`the gate step records the identity the target step read (got ${JSON.stringify(m2.identity)})`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(m2.drawn))) fail(`the gate step writes drawn: (got ${JSON.stringify(m2.drawn)})`);
-    if (readFileSync(scannersPath(two), 'utf8').includes(tmp)) fail('the gate step\'s run record names no local path');
+    if (existsSync(scannersPath(two)) && readFileSync(scannersPath(two), 'utf8').includes(tmp)) fail('the gate step\'s run record names no local path');
 
     // (3) a handed-forward identity is data: a local path is never recorded
     const bad = join(tmp, 'handoff-bad');
@@ -73,6 +75,25 @@ export async function run() {
       runRoutine({ repoDir: gateRepo, outDir: three, handoff: bad }, (l) => logs.push(l));
       if (stated(three).identity) fail(`a handed-forward identity that is a local path is never recorded (got ${JSON.stringify(stated(three).identity)})`);
       if (!logs.some((l) => /states no identity/.test(l) && /local path/.test(l))) fail('the gate says why the run states no identity');
+
+      // a well-formed identity spanning two lines is refused, never flattened into another one
+      writeFileSync(idFile, JSON.stringify({ repository: `${REMOTE}\nengine: forged`, path: '.' }) + '\n');
+      const four = join(tmp, 'run-four');
+      runRoutine({ repoDir: gateRepo, outDir: four, handoff: bad }, () => {});
+      if (stated(four).identity) fail(`a handed-forward identity spanning two lines is never recorded (got ${JSON.stringify(stated(four).identity)})`);
+
+      // the target's code could rewrite the handoff: an identity naming another target than the
+      // gate's own checkout is never recorded; the one that agrees is
+      writeFileSync(idFile, JSON.stringify({ repository: 'https://example.org/someone-else/other.git', path: '.' }) + '\n');
+      const gateOwn = checkout('gate-own', REMOTE);
+      const five = join(tmp, 'run-five');
+      const logs5 = [];
+      runRoutine({ repoDir: gateOwn, outDir: five, handoff: bad }, (l) => logs5.push(l));
+      if (stated(five).identity) fail(`a handed-forward identity naming another target than the gate's own checkout is never recorded (got ${JSON.stringify(stated(five).identity)})`);
+      if (!logs5.some((l) => /states no identity/.test(l) && /gate's own checkout/.test(l))) fail('the gate says the handed-forward identity disagrees with its own checkout');
+      const six = join(tmp, 'run-six');
+      runRoutine({ repoDir: gateOwn, outDir: six, handoff }, () => {});
+      if (stated(six).identity?.repository !== REMOTE) fail(`a handed-forward identity the gate's own checkout agrees with is recorded (got ${JSON.stringify(stated(six).identity)})`);
     }
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }

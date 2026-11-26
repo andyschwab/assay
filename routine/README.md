@@ -155,7 +155,10 @@ own gate read held. The template therefore splits the routine in two:
   that instrument failed with the reason, never runs it and never reads clean.
   The run record's `identity:` is the one the target step handed forward
   (`map/target-identity.mjs`, map/SCHEMA.md §5a), never a path on this job's
-  machine; one `validate` would refuse is not recorded, and the routine says so.
+  machine. The target's code ran in that job after the identity was read, so
+  it is recorded only when it is well formed and names the target this job's
+  own checkout names (where that checkout names one); otherwise the run
+  states no identity, and the routine says why.
 
 The reports themselves are the change's own account of its install, its tests
 and its structure (a change can rewrite what jscpd and knip report, as it can
