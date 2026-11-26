@@ -368,6 +368,11 @@ export const ENTRIES = [
     from: 'partings: gapAgreement(c, CHECKLIST_KEYS).divergences',
     to: 'partings: c.answers.divergences.flatMap((d) => d.answers.map((x) => ({ candidate: d.candidate, question: x.key, reads: x.values })))',
     check: 'legibility-from-sweep-sets', red: /\(c\) a parting yes against no adds no gap/ },
+  { rule: 'the routine\'s gate step records only a well-formed identity the target step handed forward, never a local path (#283)',
+    file: 'map/target-identity.mjs',
+    from: 'if (problems.length) return',
+    to: 'if (false) return',
+    check: 'routine-states-target', red: /a handed-forward identity that is a local path is never recorded/ },
   { rule: "a sweep set's parting on a question below the legibility bar is never read against a target (#338)",
     file: 'yardstick/legibility-bar.mjs',
     // the bar's qualifying list is what holds it: the row's loop reads only those questions, and the

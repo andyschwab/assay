@@ -566,10 +566,10 @@ it, never writing unlocked.
 ```yaml
 # map/scanners.yaml — template: map/templates/scanners.yaml
 engine: 759240a               # the engine commit the run executed under (warned if absent)
-identity:                     # the target, as the run states it (#265); optional, written by start
+identity:                     # the target, as the run states it (#265); optional, written by start and the routine
   repository: "https://github.com/<owner>/<repo>"   # the origin remote, userinfo stripped
   path: "."                   # the target's path within the repository: `.`, or e.g. targets/<name>
-drawn: "2026-11-11"           # the day the run was drawn, YYYY-MM-DD; optional, written by start
+drawn: "2026-11-11"           # the day the run was drawn, YYYY-MM-DD; optional, written by start and the routine
 ingest_ids_from: 10000        # the run was drawn under the two id ranges (§3, #304); written by start
 scanners:
   practice-review:
@@ -591,6 +591,10 @@ of one repository must read as one target. `drawn:` is the day the run was drawn
 `assay start` writes both (`map/target-identity.mjs` reads the identity through git, whose
 upward discovery finds the repository that holds a subtree); over a tree with no origin
 remote, or one whose origin is itself a local path, it writes no `identity:` and says so.
+The routine (`routine/run.mjs`) writes both through the same module (#283); in its two-job
+template the target step reads the identity and hands it forward (`identity.json` beside its
+reports), and the gate step records that one, never a path on its own machine. The handoff
+is read as data: an identity `validate` would refuse is not recorded, and the routine says so.
 `validate` refuses an `identity:` whose repository is a local path, carries userinfo or is
 not a remote, or whose path is absolute or has a `.`, `..` or empty segment, and a `drawn:`
 that is not a day; a run drawn before the fields carries neither and validates and

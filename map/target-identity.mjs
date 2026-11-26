@@ -6,8 +6,11 @@
 // describes the machine the run was drawn on, not the target, and two checkouts of one
 // repository must read as one target. `assay start` writes it; the cross-run tally
 // (views/improve/tally.mjs) reads it and refuses a run that states none, never guessing one
-// from a directory name.
+// from a directory name. The routine states both through this module too (#283): in its two-job
+// template the target step reads the identity and hands it forward, and the gate step records it.
 import { spawnSync } from 'node:child_process';
+import { writeFileSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { stripUserinfo } from './repo-census.mjs';
 
 // a remote that is a local path (or a file:// URL) names the machine, never the target
@@ -76,4 +79,28 @@ export function identityKey(id) {
   const slash = r.indexOf('/');
   r = slash > -1 ? r.slice(0, slash).toLowerCase().replace(/:\d+$/, '') + r.slice(slash) : r.toLowerCase();
   return `${r}#${id.path}`;
+}
+
+// `drawn:`, the day a run was drawn (YYYY-MM-DD, UTC): what `start` and the routine both write.
+export const drawnOn = (at = new Date()) => at.toISOString().slice(0, 10);
+
+// The two-job routine (routine/README.md "Two jobs"): the target step reads the identity of the
+// checkout it measures and hands it forward beside its reports; the gate step records that one,
+// never a path on its own machine. The handoff is the target job's output, read as data: only an
+// identity identityProblems passes is recorded, else the run states none and says why.
+export const HANDED_IDENTITY = 'identity.json';
+export function handIdentityForward(repoDir, handoffDir) {
+  const identity = identityOfCheckout(repoDir);
+  writeFileSync(join(handoffDir, HANDED_IDENTITY), JSON.stringify(identity) + '\n');
+  return identity;
+}
+// { identity } when the handoff carries a well-formed one, else { identity: null, why }
+export function identityHandedForward(handoffDir) {
+  let id;
+  try { id = JSON.parse(readFileSync(join(handoffDir, HANDED_IDENTITY), 'utf8')); }
+  catch (e) { return { identity: null, why: `the target step handed no readable identity forward (${String(/** @type {Error} */ (e).message).split('\n')[0]})` }; }
+  if (id === null) return { identity: null, why: 'the target step\'s checkout states none (no git work tree, no origin remote, or an origin that is a local path)' };
+  const problems = identityProblems(id);
+  if (problems.length) return { identity: null, why: `the target step handed forward an identity the run cannot state: ${problems.join('; ')}` };
+  return { identity: { repository: id.repository, path: id.path } };
 }
