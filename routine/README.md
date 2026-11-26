@@ -142,8 +142,10 @@ own gate read held. The template therefore splits the routine in two:
   (knip, which imports the target's tool configs, runs in this job and
   nowhere else, #128), nothing else — and uploads only `<dir>` (each one's raw
   report, `fresh-clone.json` and `structure-scan.json`, and its
-  `.status.json`, the exit and the last lines of its output) as a
-  short-lived artifact. It never validates, compiles or ratchets.
+  `.status.json`, the exit and the last lines of its output), with the
+  identity of the checkout it measured (`identity.json`, read before the
+  target's code runs), as a short-lived artifact. It never validates,
+  compiles or ratchets.
 - **`routine`** (`needs: target`; the required status check) checks out the
   repository and the pinned engine afresh, downloads the handoff, and runs
   `node routine/run.mjs <repo> --out <run> --handoff <dir>`: every other
@@ -151,6 +153,12 @@ own gate read held. The template therefore splits the routine in two:
   other — they are data, never code), validate, compile and ratchet. Nothing in
   this job ever executes the change. A missing or unreadable handoff records
   that instrument failed with the reason, never runs it and never reads clean.
+  The run record's `identity:` is the one the target step handed forward
+  (`map/target-identity.mjs`, map/SCHEMA.md §5a), never a path on this job's
+  machine. The target's code ran in that job after the identity was read, so
+  it is recorded only when it is well formed and names the target this job's
+  own checkout names (where that checkout names one); otherwise the run
+  states no identity, and the routine says why.
 
 The reports themselves are the change's own account of its install, its tests
 and its structure (a change can rewrite what jscpd and knip report, as it can
