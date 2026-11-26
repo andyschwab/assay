@@ -92,7 +92,7 @@ export const drawnOn = (at = new Date()) => at.toISOString().slice(0, 10);
 // code ran in that job after the identity was read, so it is read as data: only an identity
 // identityProblems passes is recorded, and only when it is the gate's own checkout's identity
 // (where that checkout states one), else the run states none and says why.
-export const HANDED_IDENTITY = 'identity.json';
+const HANDED_IDENTITY = 'identity.json';
 export function handIdentityForward(repoDir, handoffDir) {
   const identity = identityOfCheckout(repoDir);
   writeFileSync(join(handoffDir, HANDED_IDENTITY), JSON.stringify(identity) + '\n');
