@@ -15,12 +15,14 @@
 //   (d) a plan that cannot read GitHub fails rather than plan nothing;
 //   (e) the delete removes what the plan named, skips a branch that moved or became protected since the plan, and
 //       refuses the default branch, a KEEP name or an entry with no planned tip before deleting anything;
-//   (f) a planned branch already gone when the delete reaches it (GitHub's own head-branch delete got there first: its
-//       read or its DELETE answers 404) is the sweep's intent met: reported `gone before delete: <branch>`, counted
-//       apart from deleted and kept, and the run stays green (#245); a DELETE answering 422 or 403, or a read
-//       answering 502, still fails the run.
+//   (f) a planned branch already gone when the delete reaches it (GitHub's own head-branch delete got there first) is
+//       the sweep's intent met: reported `gone before delete: <branch>`, counted apart from deleted and kept, and the
+//       run stays green (#245). Gone is decided only by a read answering 404, before the DELETE or after one that
+//       failed (the DELETE documents no 404; a missing ref answers 422); a DELETE failing while the branch still
+//       stands (422, 403), a read answering anything but 404 (403, 502), or a DELETE whose re-read is not a 404 still
+//       fails the run with its own error, and no scratch file stays.
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { ROOT, negFailures } from '../harness.mjs';
@@ -72,10 +74,30 @@ const UNREAD = ['main', 'gh-pages', 'release/1.0', 'stable'];   // never named i
 export const FAKE_GH = `#!/usr/bin/env bash
 echo "$*" >> "$GH_LOG"
 [ -n "$GH_FAIL" ] && [[ "$*" == *"$GH_FAIL"* ]] && { echo "HTTP 502" >&2; exit 1; }
-# GH_GONE names a branch already deleted: its read and its DELETE answer 404, as gh reports one ("gh: <message> (HTTP 404)").
-# GH_DELETE_FAIL is <branch>:<status>, a DELETE of that branch answering that status after a read that found it.
-[ -n "$GH_GONE" ] && [[ " $* " == *"/branches/$GH_GONE "* || " $* " == *"/heads/$GH_GONE "* ]] && { echo "gh: Branch not found (HTTP 404)" >&2; exit 1; }
-[ -n "$GH_DELETE_FAIL" ] && [[ " $* " == *" DELETE "*"/heads/\${GH_DELETE_FAIL%:*} "* ]] && { echo "gh: Reference update failed (HTTP \${GH_DELETE_FAIL##*:})" >&2; exit 1; }
+# Failures answer as GitHub documents them, on stderr as gh prints one ("gh: <message> (HTTP <status>)"):
+#   GET repos/{o}/{r}/branches/{b} on a missing branch answers 404 "Branch not found"
+#     (https://docs.github.com/en/rest/branches/branches?apiVersion=2022-11-28#get-a-branch; the issue's own log, #245);
+#   DELETE repos/{o}/{r}/git/refs/{ref} answers 204, 409 or 422 and never 404: a missing ref answers 422
+#     (https://docs.github.com/en/rest/git/refs?apiVersion=2022-11-28#delete-a-reference).
+# GH_GONE names a branch deleted before the step read it. GH_GONE_AT_DELETE names one deleted between its read and its
+# DELETE: read once, then 422 at the DELETE and 404 at every read after it. GH_DELETE_FAIL is <branch>:<status>, a
+# DELETE answering that status while the branch still stands. GH_READ_FAIL is <branch>:<status>, every read of that
+# branch answering that status; GH_REREAD_FAIL the same for the reads after its DELETE only.
+gone_now() { [ "$1" = "$GH_GONE" ] || { [ "$1" = "$GH_GONE_AT_DELETE" ] && grep -q " DELETE .*/heads/$1 " "$GH_LOG"; }; }
+if [[ " $* " == *" DELETE "* ]]; then
+  a="$*"; b=\${a##*/heads/}; b=\${b%% *}
+  if [ -n "$GH_DELETE_FAIL" ] && [ "$b" = "\${GH_DELETE_FAIL%:*}" ]; then echo "gh: Reference update failed (HTTP \${GH_DELETE_FAIL##*:})" >&2; exit 1; fi
+  if [ "$b" = "$GH_GONE" ] || [ "$b" = "$GH_GONE_AT_DELETE" ]; then echo "gh: Reference does not exist (HTTP 422)" >&2; exit 1; fi
+fi
+if [[ "$*" == *"/branches/"* ]]; then
+  a="$*"; b=\${a##*/branches/}; b=\${b%% *}
+  gone_now "$b" && { echo "gh: Branch not found (HTTP 404)" >&2; exit 1; }
+  for f in "$GH_READ_FAIL" "\${GH_REREAD_FAIL:+$GH_REREAD_FAIL}"; do
+    [ -n "$f" ] && [ "$b" = "\${f%:*}" ] || continue
+    [ "$f" = "$GH_REREAD_FAIL" ] && ! grep -q " DELETE .*/heads/$b " "$GH_LOG" && continue
+    echo "gh: Must have admin rights to Repository. (HTTP \${f##*:})" >&2; exit 1
+  done
+fi
 [[ " $* " == *" DELETE "* ]] && exit 0
 jq=""; for ((i = 1; i < $#; i++)); do [ "\${!i}" = --jq ] && { j=$((i + 1)); jq=\${!j}; }; done
 node -e '
@@ -164,22 +186,28 @@ export async function run() {
       if (r.status === 0 || deletes(r.gh).length) fail(`the delete refuses ${JSON.stringify(bad.split(' ')[1])} before deleting anything`);
     }
 
-    // (f) a planned branch already gone is the sweep's intent met; any other failure still fails the run
+    // (f) a planned branch already gone is the sweep's intent met, decided only by a read that answers 404; any other
+    // failure still fails the run, with the DELETE's own error
     const summary = (out) => (out.match(/^deleted \d+ .*$/m) || [''])[0];
-    for (const [env, at] of [[{ GH_GONE: 'fix/squash-merged' }, 'its read'], [{ GH_DELETE_FAIL: 'fix/squash-merged:404' }, 'its DELETE']]) {
-      const r = step(deleteScript, { MERGED: PLANNED, ...env });
-      if (r.status !== 0) fail(`a planned branch already gone at ${at} (404) leaves the run green (got exit ${r.status}: ${r.out.trim().slice(-300)})`);
+    for (const [env, at, dels] of [[{ GH_GONE: 'fix/squash-merged' }, 'its read', want.length - 1], [{ GH_GONE_AT_DELETE: 'fix/squash-merged' }, 'its DELETE (422, then a read answering 404)', want.length]]) {
+      const tmp = join(dir, 'tmp'); rmSync(tmp, { recursive: true, force: true }); mkdirSync(tmp);
+      const r = step(deleteScript, { MERGED: PLANNED, TMPDIR: tmp, ...env });
+      if (r.status !== 0) fail(`a planned branch already gone at ${at} leaves the run green (got exit ${r.status}: ${r.out.trim().slice(-300)})`);
       if (!/^gone before delete: fix\/squash-merged$/m.test(r.out)) fail(`a planned branch already gone at ${at} is reported "gone before delete: fix/squash-merged" (got ${JSON.stringify(r.out.trim())})`);
       if (/^deleted fix\/squash-merged$/m.test(r.out)) fail(`a planned branch already gone at ${at} is not reported deleted`);
-      if (deletes(r.gh).length !== want.length - (at === 'its read' ? 1 : 0)) fail(`the delete goes on to the rest after a branch gone at ${at} (got ${r.gh.trim()})`);
+      if (deletes(r.gh).length !== dels) fail(`the delete goes on to the rest after a branch gone at ${at} (got ${r.gh.trim()})`);
       if (summary(r.out) !== 'deleted 3 branch(es); 1 already gone before delete; kept 0 that changed since the plan') fail(`the summary counts deleted, already gone and kept apart after a branch gone at ${at} (got ${JSON.stringify(summary(r.out))})`);
+      if (readdirSync(tmp).length) fail(`the step leaves no scratch file behind (got ${readdirSync(tmp).join(', ')})`);
     }
     if (summary(ok.out) !== 'deleted 4 branch(es); 0 already gone before delete; kept 0 that changed since the plan') fail(`the summary counts deleted, already gone and kept apart (got ${JSON.stringify(summary(ok.out))})`);
     if (summary(moved.out) !== 'deleted 3 branch(es); 0 already gone before delete; kept 1 that changed since the plan') fail(`the summary counts a branch that moved as kept (got ${JSON.stringify(summary(moved.out))})`);
-    for (const [env, what] of [[{ GH_DELETE_FAIL: 'fix/squash-merged:422' }, 'a DELETE answering 422'], [{ GH_DELETE_FAIL: 'fix/squash-merged:403' }, 'a DELETE answering 403'], [{ GH_FAIL: 'branches/fix/squash-merged' }, 'a read answering 502']]) {
+    for (const [env, what, error] of [[{ GH_DELETE_FAIL: 'fix/squash-merged:422' }, 'a DELETE answering 422 while the branch still stands', '(HTTP 422)'], [{ GH_DELETE_FAIL: 'fix/squash-merged:403' }, 'a DELETE answering 403 while the branch still stands', '(HTTP 403)'], [{ GH_FAIL: 'branches/fix/squash-merged' }, 'a read answering 502', 'HTTP 502'],
+      [{ GH_READ_FAIL: 'fix/squash-merged:403' }, 'a read answering 403', '(HTTP 403)'],
+      [{ GH_DELETE_FAIL: 'fix/squash-merged:422', GH_REREAD_FAIL: 'fix/squash-merged:403' }, 'a DELETE answering 422 whose re-read answers 403', '(HTTP 422)']]) {
       const r = step(deleteScript, { MERGED: PLANNED, ...env });
       if (r.status === 0) fail(`${what} still fails the run (got exit 0: ${r.out.trim().slice(-300)})`);
       if (/gone before delete/.test(r.out)) fail(`${what} is never reported as gone before delete`);
+      if (!r.out.includes(error)) fail(`${what} fails with its own error, ${error} (got ${JSON.stringify(r.out.trim().slice(-300))})`);
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });

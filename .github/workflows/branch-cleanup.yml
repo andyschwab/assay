@@ -27,8 +27,8 @@
 # holds after a squash, or the default branch holds its tip); and that no open pull request uses as its head or base.
 # Everything else is listed as kept, with why; a branch with a commit after its merge has moved off the merged head and
 # is kept. The plan names branch@sha: the delete reads each branch again and skips one that moved or became protected
-# since the plan (the API has no conditional delete), reports one GitHub already deleted (a 404) as gone before delete,
-# not a failure (#245), and refuses the default branch or a KEEP name before deleting
+# since the plan (the API has no conditional delete), reports one GitHub already deleted (a read answering 404, before
+# its DELETE or after one that failed) as gone before delete, not a failure (#245), and refuses the default branch or a KEEP name before deleting
 # anything. A failed read fails the run. The plan reads with the run's own token; only the delete job holds
 # `contents: write`, and it runs only with dry_run off. No action and no checkout: the GitHub CLI on the runner calls
 # the REST API, and nothing of the branches' code runs.
@@ -124,15 +124,25 @@ jobs:
             case "$e" in *@*) ;; *) echo "::error::$e names no planned tip; nothing deleted"; exit 1;; esac
             keep "${e%@*}" && { echo "::error::${e%@*} is the default branch or under KEEP; nothing deleted"; exit 1; }
           done
-          # a 404 is the sweep's intent already met: GitHub's own head-branch delete got there first (#245); any other failure fails the run
-          err=$(mktemp)
-          gone() { grep -q '(HTTP 404)$' "$err" || { cat "$err" >&2; exit 1; }; echo "gone before delete: $b"; g=$((g + 1)); }
+          # Gone is decided only by a branch read answering 404, GitHub's documented answer for a missing branch: the sweep's
+          # intent already met, GitHub's own head-branch delete got there first (#245). The run's own token has read this
+          # repository at the top of the step, so a 404 here is the branch, never access. The DELETE documents no 404 (a
+          # missing ref answers 422), so a failed DELETE reads the branch again: 404 is gone; anything else fails the run
+          # with the DELETE's own error.
+          errs=$(mktemp -d); trap 'rm -rf "$errs"' EXIT
+          gone() { grep -q '(HTTP 404)$' "$errs/read"; }
           n=0 g=0 skipped=0
           for e in $MERGED; do
             b=${e%@*} planned=${e##*@}
-            now=$(gh api "repos/$GITHUB_REPOSITORY/branches/$b" --jq '"\(.commit.sha) \(.protected)"' 2>"$err") || { gone; continue; }
+            if ! now=$(gh api "repos/$GITHUB_REPOSITORY/branches/$b" --jq '"\(.commit.sha) \(.protected)"' 2>"$errs/read"); then
+              gone || { cat "$errs/read" >&2; exit 1; }
+              echo "gone before delete: $b"; g=$((g + 1)); continue
+            fi
             if [ "$now" != "$planned false" ]; then echo "kept $b: it moved or became protected since the plan ($now)"; skipped=$((skipped + 1)); continue; fi
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$b" --silent 2>"$err" || { gone; continue; }
+            if ! gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$b" --silent 2>"$errs/delete"; then
+              if gh api "repos/$GITHUB_REPOSITORY/branches/$b" --silent 2>"$errs/read" || ! gone; then cat "$errs/delete" >&2; exit 1; fi
+              echo "gone before delete: $b"; g=$((g + 1)); continue
+            fi
             echo "deleted $b"; n=$((n + 1))
           done
           echo "deleted $n branch(es); $g already gone before delete; kept $skipped that changed since the plan"
