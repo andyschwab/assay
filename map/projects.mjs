@@ -25,10 +25,13 @@
 //     (with `!` exclusions) when that file lists any (pnpm ignores the package.json field), else
 //     package.json `workspaces` (an array or `{packages: [...]}`), else the convention: apps/* and
 //     packages/* holding their own package.json. Globs `dir`, `dir/*` and `dir/**`, resolved here.
+//     A link is followed only when its target's realpath is under the root's realpath (#251): a
+//     location that resolves outside the tree is not the tree's workspace, whatever path reached it
+//     (a glob step, a literal path, a linked `**` base), and is named in `setAside`, never dropped.
 //
 // Paths are relative to the root, `/`-separated. A caller with a packet's `apps` pointer uses the
 // pointer instead (owner/PACKET.md): that is a declaration, and this file is discovery.
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, resolve, relative, isAbsolute, sep } from 'node:path';
 
 const readText = (p) => { try { return readFileSync(p, 'utf8'); } catch { return null; } };
@@ -39,6 +42,8 @@ const subdirs = (p) => { try { return readdirSync(p, { withFileTypes: true }).fi
 // the subdirectories of p a package manager follows: real ones and symlinks to a directory (a package
 // linked into apps/* is a workspace); only a single step is taken through a link, so no loop
 const linkedSubdirs = (p) => { try { return readdirSync(p, { withFileTypes: true }).filter((e) => e.isDirectory() || (e.isSymbolicLink() && isDir(join(p, e.name)))).map((e) => e.name).sort(); } catch { return []; } };
+// a path's realpath, null when it cannot be resolved (a dangling link)
+const realOf = (p) => { try { return realpathSync(p); } catch { return null; } };
 // a glob walks no dependency tree and no hidden directory: pnpm and npm skip both
 const GLOB_SKIP = (name) => name === 'node_modules' || name.startsWith('.');
 
@@ -229,20 +234,26 @@ export function locateProjects(dir, { app = null } = {}) {
   const appDir = resolveApp(root, app);
   const rootRun = appDir ? appDir.path : '.';
   const runAbs = (run) => (run === '.' ? root : join(root, run));
+  const setAside = [];
+  // the one rule for links (#251): a location is the tree's only when its realpath is under the root's
+  const rootReal = realOf(root);
+  const insideTree = (abs) => { const r = realOf(abs); return r !== null && rootReal !== null && (r === rootReal || r.startsWith(rootReal + sep)); };
   const wsOf = (run) => {
     const abs = runAbs(run);
     const pkg = readPkg(abs);
-    const workspaces = resolveWorkspaces(abs, pkg);
+    const all = resolveWorkspaces(abs, pkg);
     // apps/* and packages/* holding a package.json are the tree's applications and libraries
     // whether or not a workspace list names them (the census has always checked them)
     const conventional = ['apps', 'packages'].flatMap((b) => linkedSubdirs(join(abs, b)).filter((e) => !GLOB_SKIP(e) && existsSync(join(abs, b, e, 'package.json'))).map((e) => `${b}/${e}`));
-    return { workspaces, workspaces_from: workspaces.length ? workspaceSource(abs, pkg) : null, locations: [...new Set([...workspaces, ...conventional])].sort() };
+    const outside = new Set([...all, ...conventional].filter((w) => !insideTree(join(abs, w))));
+    for (const w of [...outside].sort()) setAside.push({ path: run === '.' ? w : `${run}/${w}`, reason: 'a link that leaves the tree' });
+    const workspaces = all.filter((w) => !outside.has(w));
+    return { workspaces, workspaces_from: workspaces.length ? workspaceSource(abs, pkg) : null, locations: [...new Set([...workspaces, ...conventional])].filter((w) => !outside.has(w)).sort() };
   };
   const rootProject = { path: '.', run: rootRun, from: appDir ? appDir.from : 'root', ...wsOf(rootRun) };
   const claimed = new Set();
   if (rootRun !== '.') claimed.add(rootRun);
   for (const w of rootProject.locations) claimed.add(rootRun === '.' ? w : `${rootRun}/${w}`);
-  const setAside = [];
   const nested = findNested(root, claimed, setAside).map((p) => ({ path: p, run: p, from: 'nested', ...wsOf(p) }));
   return { projects: [rootProject, ...nested], setAside };
 }

@@ -455,6 +455,11 @@ export const ENTRIES = [
     from: '  return sweepModes(runDirs).checklist ? { ...r, pct: null, notMeasured: CHECKLIST_FACTS_REASON } : r;',
     to: '  return r;',
     check: 'checklist-sweep-set', red: /\(b\) fact presence reads not measured, with the reason, never a number/ },
+  { rule: 'a link that leaves the tree is no location: a workspace is the tree\'s only when its realpath is under the root\'s (#251)',
+    file: 'map/projects.mjs',
+    from: "return r !== null && rootReal !== null && (r === rootReal || r.startsWith(rootReal + sep));",
+    to: 'return r !== null;',
+    check: 'repo-census-projects', red: /a link that leaves the tree \(apps\/leak\) is no location/ },
 ];
 
 // ── the scratch copy ────────────────────────────────────────────────────────
